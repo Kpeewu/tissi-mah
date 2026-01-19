@@ -1,56 +1,115 @@
-# Makefile (ajoutez ces sections)
+.PHONY: help deps-up deps-down deps-logs deps-clean
+.PHONY: run-auth run-user run-client
+.PHONY: proto proto-auth test test-all lint fmt
+.PHONY: install-deps update-deps
 
-.PHONY: fmt lint lint-fix pre-commit test-lint install-deps update-deps update-deps-patch update-deps-major
+# Aide
+help:
+	@echo "$(GREEN)Tissi-Mah - Commandes disponibles$(NC)"
+	@echo ""
+	@echo "$(YELLOW)🗄️  Bases de données :$(NC)"
+	@echo "  make deps-up         - Démarrer toutes les bases de données"
+	@echo "  make deps-down       - Arrêter toutes les bases de données"
+	@echo "  make deps-logs       - Voir les logs des bases de données"
+	@echo "  make deps-clean      - Supprimer les volumes (⚠️  supprime les données)"
+	@echo ""
+	@echo "$(YELLOW)🚀 Services :$(NC)"
+	@echo "  make run-auth        - Lancer auth-service (avec deps)"
+	@echo "  make run-user        - Lancer user-service (avec deps)"
+	@echo "  make run-client      - Lancer client-service (avec deps)"
+	@echo ""
+	@echo "$(YELLOW)🔧 Développement :$(NC)"
+	@echo "  make proto           - Générer tous les fichiers proto"
+	@echo "  make proto-auth      - Générer proto pour auth-service"
+	@echo "  make test            - Lancer les tests du service modifié"
+	@echo "  make test-all        - Lancer tous les tests"
+	@echo "  make lint            - Linter tous les services"
+	@echo "  make fmt             - Formater le code"
+	@echo ""
+	@echo "$(YELLOW)📦 Dépendances :$(NC)"
+	@echo "  make install-deps SERVICE=auth-service"
+	@echo "  make update-deps SERVICE=auth-service"
 
-# Formatter le code
-fmt:
-	@echo "🎨 Formatting code..."
-	@gofmt -s -w services/
-	@goimports -w -local github.com/Kpeewu/tissiMah services/
+# === BASES DE DONNÉES ===
 
-# Linter (vérification uniquement)
+deps-up:
+	@echo "🚀 Démarrage des bases de données..."
+	@docker-compose up -d
+	@echo "✅ Bases de données démarrées :"
+	@echo "   - Auth PostgreSQL   : localhost:5432"
+	@echo "   - Client PostgreSQL : localhost:5433"
+	@echo "   - User MongoDB      : localhost:27017"
+	@echo "   - Redis             : localhost:6379"
+
+deps-down:
+	@echo "🛑 Arrêt des bases de données..."
+	@docker-compose down
+	@echo "✅ Bases de données arrêtées"
+
+deps-logs:
+	@docker-compose logs -f
+
+deps-clean:
+	@echo "⚠️  Suppression des volumes de données..."
+	@docker-compose down -v
+	@echo "✅ Volumes supprimés"
+
+# === SERVICES ===
+
+run-auth: deps-up
+	@echo "🚀 Démarrage auth-service..."
+	@cd services/auth-service && $(MAKE) run
+
+run-user: deps-up
+	@echo "🚀 Démarrage user-service..."
+	@cd services/user-service && $(MAKE) run
+
+run-client: deps-up
+	@echo "🚀 Démarrage client-service..."
+	@cd services/client-service && $(MAKE) run
+
+# === PROTOBUF ===
+
+proto:
+	@echo "🔧 Génération de tous les fichiers proto..."
+	@./scripts/development/generate-all-protos.sh
+	@echo "✅ Fichiers proto générés"
+
+proto-auth:
+	@echo "🔧 Génération proto auth-service..."
+	@cd services/auth-service && $(MAKE) proto
+
+# === TESTS ===
+
+test-all:
+	@echo "🧪 Lancement de tous les tests..."
+	@./scripts/development/run-all-tests.sh
+
+test:
+	@echo "🧪 Lancement des tests..."
+	@go test ./services/... -v
+
+# === QUALITÉ DE CODE ===
+
 lint:
-	@echo "🔍 Running linters..."
+	@echo "🔍 Linting..."
 	@golangci-lint run ./services/... -v
 
-# Linter avec auto-fix
-lint-fix:
-	@echo "🔧 Running linters with auto-fix..."
-	@golangci-lint run ./services/... --fix
+fmt:
+	@echo "🎨 Formatage du code..."
+	@gofmt -s -w services/
+	@goimports -w -local github.com/Kpeewu/tissi-mah services/
 
-# Vérifier avant commit
-pre-commit: fmt lint
-	@echo "✅ Pre-commit checks passed!"
+# === DÉPENDANCES ===
 
-
-# Installer les dépendances d'un service
 install-deps:
-	@if [ -z "$(SERVICE)" ]; then \
-		echo "❌ Usage: make install-deps SERVICE=<service-name>"; \
-		echo "Example: make install-deps SERVICE=auth-service"; \
-		exit 1; \
-	fi
-	@./scripts/install-deps.sh $(SERVICE)
+	@./scripts/utilities/install-dependencies.sh $(SERVICE)
 
-# Mettre à jour les dépendances d'un service (minor par défaut)
 update-deps:
-	@if [ -z "$(SERVICE)" ]; then \
-		echo "❌ Usage: make update-deps SERVICE=<service-name> [MODE=minor|patch|major]"; \
-		echo "Examples:"; \
-		echo "  make update-deps SERVICE=auth-service"; \
-		echo "  make update-deps SERVICE=auth-service MODE=patch"; \
-		echo "  make update-deps SERVICE=all"; \
-		exit 1; \
-	fi
-	@./scripts/update-deps.sh $(SERVICE) $(or $(MODE),minor)
+	@./scripts/utilities/update-dependencies.sh $(SERVICE) $(MODE)
 
-# Raccourcis pour les modes courants
-update-deps-patch:
-	@./scripts/update-deps.sh $(SERVICE) patch
-
-update-deps-major:
-	@./scripts/update-deps.sh $(SERVICE) major
-
-# Mettre à jour tous les services
-update-all-deps:
-	@./scripts/update-deps.sh all $(or $(MODE),minor)
+# Couleurs
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
