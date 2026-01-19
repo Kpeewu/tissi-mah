@@ -1,0 +1,23 @@
+# Makefile (ajoutez ces sections)
+
+.PHONY: fmt lint lint-fix test-lint
+
+# Formatter le code
+fmt:
+	@echo "🎨 Formatting code..."
+	@gofmt -s -w services/
+	@goimports -w -local github.com/Kpeewu/tissiMah services/
+
+# Linter (vérification uniquement)
+lint:
+	@echo "🔍 Running linters..."
+	@golangci-lint run ./services/... -v
+
+# Linter avec auto-fix
+lint-fix:
+	@echo "🔧 Running linters with auto-fix..."
+	@golangci-lint run ./services/... --fix
+
+# Vérifier avant commit
+pre-commit: fmt lint
+	@echo "✅ Pre-commit checks passed!"
