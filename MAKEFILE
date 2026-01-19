@@ -1,6 +1,6 @@
 # Makefile (ajoutez ces sections)
 
-.PHONY: fmt lint lint-fix test-lint
+.PHONY: fmt lint lint-fix pre-commit test-lint install-deps update-deps update-deps-patch update-deps-major
 
 # Formatter le code
 fmt:
@@ -21,3 +21,36 @@ lint-fix:
 # Vérifier avant commit
 pre-commit: fmt lint
 	@echo "✅ Pre-commit checks passed!"
+
+
+# Installer les dépendances d'un service
+install-deps:
+	@if [ -z "$(SERVICE)" ]; then \
+		echo "❌ Usage: make install-deps SERVICE=<service-name>"; \
+		echo "Example: make install-deps SERVICE=auth-service"; \
+		exit 1; \
+	fi
+	@./scripts/install-deps.sh $(SERVICE)
+
+# Mettre à jour les dépendances d'un service (minor par défaut)
+update-deps:
+	@if [ -z "$(SERVICE)" ]; then \
+		echo "❌ Usage: make update-deps SERVICE=<service-name> [MODE=minor|patch|major]"; \
+		echo "Examples:"; \
+		echo "  make update-deps SERVICE=auth-service"; \
+		echo "  make update-deps SERVICE=auth-service MODE=patch"; \
+		echo "  make update-deps SERVICE=all"; \
+		exit 1; \
+	fi
+	@./scripts/update-deps.sh $(SERVICE) $(or $(MODE),minor)
+
+# Raccourcis pour les modes courants
+update-deps-patch:
+	@./scripts/update-deps.sh $(SERVICE) patch
+
+update-deps-major:
+	@./scripts/update-deps.sh $(SERVICE) major
+
+# Mettre à jour tous les services
+update-all-deps:
+	@./scripts/update-deps.sh all $(or $(MODE),minor)
