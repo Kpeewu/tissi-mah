@@ -1,0 +1,128 @@
+# docker-compose.override.example.yml
+# Local development overrides for docker-compose
+#
+# Copy this file to docker-compose.override.yml and customize as needed.
+# docker-compose.override.yml is gitignored and will not be committed.
+#
+# Usage:
+#   cp docker-compose.override.example.yml docker-compose.override.yml
+#   # Edit docker-compose.override.yml as needed
+#   docker-compose up -d
+
+version: '3.8'
+
+services:
+  # =============================================================================
+  # Database Overrides
+  # =============================================================================
+  
+  # Auth Service PostgreSQL
+  auth-postgres:
+    # Uncomment to expose on a different port
+    # ports:
+    #   - "5433:5432"
+    
+    # Uncomment to add custom configuration
+    # command: postgres -c shared_buffers=256MB -c max_connections=200
+    
+    # Uncomment to use a specific volume location
+    # volumes:
+    #   - ~/docker-volumes/tissi-mah/auth-postgres:/var/lib/postgresql/data
+    
+    # Uncomment for verbose logging
+    # environment:
+    #   POSTGRES_LOG_STATEMENT: all
+
+  # Redis
+  redis:
+    # Uncomment to expose on a different port
+    # ports:
+    #   - "6380:6379"
+    
+    # Uncomment to persist Redis data
+    # volumes:
+    #   - redis-data:/data
+    # command: redis-server --appendonly yes
+
+  # =============================================================================
+  # Service Overrides (when running services in Docker)
+  # =============================================================================
+  
+  # Uncomment to run auth-service in Docker
+  # auth-service:
+  #   build:
+  #     context: ./services/auth-service
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "50051:50051"
+  #     - "9090:9090"  # Metrics
+  #   environment:
+  #     - ENVIRONMENT=local
+  #     - LOG_LEVEL=debug
+  #     - DATABASE_URL=postgresql://postgres:postgres@auth-postgres:5432/auth_db?sslmode=disable
+  #     - REDIS_URL=redis://redis:6379/0
+  #   depends_on:
+  #     auth-postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_started
+  #   volumes:
+  #     - ./services/auth-service:/app:cached  # Hot reload with air
+  #   networks:
+  #     - tissi-mah
+
+  # =============================================================================
+  # Development Tools
+  # =============================================================================
+  
+  # Uncomment to add pgAdmin for database management
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@tissi-mah.local
+  #     PGADMIN_DEFAULT_PASSWORD: admin
+  #     PGADMIN_CONFIG_SERVER_MODE: 'False'
+  #   ports:
+  #     - "5050:80"
+  #   volumes:
+  #     - pgadmin-data:/var/lib/pgadmin
+  #   networks:
+  #     - tissi-mah
+
+  # Uncomment to add Redis Commander for Redis management
+  # redis-commander:
+  #   image: rediscommander/redis-commander:latest
+  #   environment:
+  #     REDIS_HOSTS: local:redis:6379
+  #   ports:
+  #     - "8081:8081"
+  #   networks:
+  #     - tissi-mah
+
+  # Uncomment to add Mailhog for email testing
+  # mailhog:
+  #   image: mailhog/mailhog:latest
+  #   ports:
+  #     - "1025:1025"  # SMTP
+  #     - "8025:8025"  # Web UI
+  #   networks:
+  #     - tissi-mah
+
+# =============================================================================
+# Additional Volumes
+# =============================================================================
+
+# volumes:
+#   redis-data:
+#   pgadmin-data:
+
+# =============================================================================
+# Network Configuration
+# =============================================================================
+
+# networks:
+#   tissi-mah:
+#     driver: bridge
+#     ipam:
+#       config:
+#         - subnet: 172.28.0.0/16

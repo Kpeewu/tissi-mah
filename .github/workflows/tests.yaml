@@ -95,8 +95,6 @@ jobs:
       [
         detect-changes,
         test-auth-service,
-        test-user-service,
-        test-client-service,
       ]
     if: always()
     runs-on: ubuntu-latest

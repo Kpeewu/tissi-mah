@@ -1,0 +1,291 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/**"
+      - "pkg/**"
+      - "go.work"
+      - ".github/workflows/deploy-to-prod.yml"
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Service to deploy"
+        required: true
+        type: string
+      version:
+        description: "Version tag to deploy (e.g., v1.2.3)"
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+  AWS_REGION: eu-west-1
+
+jobs:
+  detect-changes:
+    name: Detect Changed Services
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.set-services.outputs.services }}
+      version: ${{ steps.set-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dorny/paths-filter@v2
+        if: github.event.inputs.service == ''
+        id: filter
+        with:
+          filters: |
+            auth-service:
+              - 'services/auth-service/**'
+
+      - name: Get version from tag or commit
+        id: set-version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            if [ -n "$LATEST_TAG" ]; then
+              echo "version=$LATEST_TAG" >> $GITHUB_OUTPUT
+            else
+              echo "version=${{ github.sha }}" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Set services to deploy
+        id: set-services
+        run: |
+          if [ -n "${{ github.event.inputs.service }}" ]; then
+            echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
+          else
+            services=()
+            if [ "${{ steps.filter.outputs.auth-service }}" == "true" ]; then
+              services+=("auth-service")
+            fi
+            
+            if [ ${#services[@]} -eq 0 ]; then
+              echo "services=[]" >> $GITHUB_OUTPUT
+            else
+              json=$(printf '%s\n' "${services[@]}" | jq -R . | jq -s -c .)
+              echo "services=$json" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  build-and-push:
+    name: Build and Push
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          tags: |
+            type=raw,value=${{ needs.detect-changes.outputs.version }}
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/${{ matrix.service }}/deployments/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ needs.detect-changes.outputs.version }}
+            COMMIT_SHA=${{ github.sha }}
+            ENVIRONMENT=production
+
+  deploy:
+    name: Deploy to Production
+    needs: [detect-changes, build-and-push]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+      fail-fast: true
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      previous-revision: ${{ steps.get-revision.outputs.revision }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: "v3.13.0"
+
+      - name: Setup kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.PROD_KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Get current revision
+        id: get-revision
+        run: |
+          REVISION=$(helm history ${{ matrix.service }} -n production --max 1 -o json 2>/dev/null | jq -r '.[0].revision' || echo "0")
+          echo "revision=$REVISION" >> $GITHUB_OUTPUT
+          echo "Current revision: $REVISION"
+
+      - name: Deploy with Helm (atomic)
+        run: |
+          helm upgrade --install ${{ matrix.service }} \
+            services/${{ matrix.service }}/deployments/helm \
+            -f services/${{ matrix.service }}/deployments/helm/values/prod.yaml \
+            --namespace production \
+            --create-namespace \
+            --set image.tag=${{ needs.detect-changes.outputs.version }} \
+            --atomic \
+            --wait \
+            --timeout 10m
+
+  health-check:
+    name: Health Check
+    needs: [detect-changes, deploy]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - name: Setup kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.PROD_KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Comprehensive health check
+        id: health
+        run: |
+          echo "Running comprehensive health check for ${{ matrix.service }}..."
+          
+          echo "Checking deployment rollout..."
+          kubectl rollout status deployment/${{ matrix.service }} -n production --timeout=300s
+          
+          echo "Checking pod status..."
+          READY_PODS=$(kubectl get pods -n production -l app.kubernetes.io/name=${{ matrix.service }} -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}' | tr ' ' '\n' | grep -c "True" || echo "0")
+          TOTAL_PODS=$(kubectl get pods -n production -l app.kubernetes.io/name=${{ matrix.service }} --no-headers | wc -l)
+          
+          echo "Ready pods: $READY_PODS / $TOTAL_PODS"
+          
+          if [ "$READY_PODS" -lt "$TOTAL_PODS" ]; then
+            echo "Not all pods are ready!"
+            exit 1
+          fi
+          
+          echo "Checking HPA..."
+          kubectl get hpa ${{ matrix.service }} -n production
+          
+          echo "Checking PDB..."
+          kubectl get pdb ${{ matrix.service }} -n production
+          
+          echo "Recent events:"
+          kubectl get events -n production --field-selector involvedObject.name=${{ matrix.service }} --sort-by='.lastTimestamp' | tail -10
+          
+          echo "Health check passed!"
+
+  rollback-on-failure:
+    name: Rollback on Failure
+    needs: [detect-changes, deploy, health-check]
+    if: failure() && needs.deploy.outputs.previous-revision != '0'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - name: Setup kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.PROD_KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Rollback to previous version
+        run: |
+          echo "Rolling back ${{ matrix.service }} to previous revision..."
+          helm rollback ${{ matrix.service }} ${{ needs.deploy.outputs.previous-revision }} -n production --wait
+          echo "Rollback completed!"
+
+      - name: Verify rollback
+        run: |
+          echo "Verifying rollback..."
+          kubectl rollout status deployment/${{ matrix.service }} -n production --timeout=300s
+          echo "Rollback verified!"
+
+      - name: Create rollback issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Production deployment failed and rolled back: ${{ matrix.service }}',
+              body: '## Deployment Failure\n\n**Service:** ${{ matrix.service }}\n**Version:** ${{ needs.detect-changes.outputs.version }}\n**Commit:** ${{ github.sha }}\n**Workflow Run:** [Link](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\nThe deployment to production failed and was automatically rolled back to the previous version.\n\nPlease investigate the failure before attempting another deployment.',
+              labels: ['deployment-failure', 'production', 'urgent']
+            });
+
+  deployment-summary:
+    name: Deployment Summary
+    needs: [detect-changes, build-and-push, deploy, health-check]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summary
+        run: |
+          echo "Production Deployment Summary"
+          echo "============================="
+          echo "Version: ${{ needs.detect-changes.outputs.version }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Services: ${{ needs.detect-changes.outputs.services }}"
+          echo ""
+          echo "Results:"
+          echo "  Build: ${{ needs.build-and-push.result }}"
+          echo "  Deploy: ${{ needs.deploy.result }}"
+          echo "  Health Check: ${{ needs.health-check.result }}"
+          
+          if [ "${{ needs.health-check.result }}" != "success" ]; then
+            echo ""
+            echo "Production deployment FAILED!"
+            echo "Check if automatic rollback was triggered."
+            exit 1
+          fi
+          
+          echo ""
+          echo "Production deployment successful!"

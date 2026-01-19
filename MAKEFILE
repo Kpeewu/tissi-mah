@@ -1,7 +1,9 @@
 .PHONY: help deps-up deps-down deps-logs deps-clean
 .PHONY: run-auth run-user run-client
 .PHONY: proto proto-auth test test-all lint fmt
-.PHONY: install-deps update-deps
+.PHONY: install-deps update-deps sync-deps
+.PHONY: workspace-init workspace-sync workspace-tidy
+.PHONY: migrate migrate-status migrate-down db-backup db-restore
 
 # Aide
 help:
@@ -28,17 +30,31 @@ help:
 	@echo ""
 	@echo "$(YELLOW)📦 Dépendances :$(NC)"
 	@echo "  make install-deps SERVICE=auth-service"
-	@echo "  make update-deps SERVICE=auth-service"
+	@echo "  make update-deps SERVICE=auth-service MODE=patch"
+	@echo "  make sync-deps               - Synchroniser toutes les dépendances"
+	@echo ""
+	@echo "$(YELLOW)🔄 Workspace Go :$(NC)"
+	@echo "  make workspace-init          - Initialiser le workspace"
+	@echo "  make workspace-sync          - Synchroniser le workspace"
+	@echo "  make workspace-tidy          - Nettoyer tous les modules"
+	@echo ""
+	@echo "$(YELLOW)🗃️  Migrations :$(NC)"
+	@echo "  make migrate                 - Exécuter les migrations (UP)"
+	@echo "  make migrate SERVICE=auth-service"
+	@echo "  make migrate-status          - Voir le statut des migrations"
+	@echo "  make migrate-down            - Rollback migrations"
+	@echo "  make db-backup               - Sauvegarder les bases de données"
+	@echo "  make db-restore              - Restaurer les bases de données"
 
-# === BASES DE DONNÉES ===
+# === BASES DE DONNÉES (Docker) ===
 
 deps-up:
 	@echo "🚀 Démarrage des bases de données..."
 	@docker-compose up -d
 	@echo "✅ Bases de données démarrées :"
 	@echo "   - Auth PostgreSQL   : localhost:5432"
-	@echo "   - Client PostgreSQL : localhost:5433"
-	@echo "   - User MongoDB      : localhost:27017"
+	# @echo "   - Client PostgreSQL : localhost:5433"  # TODO: Activer quand client-service sera implémenté
+	# @echo "   - User MongoDB      : localhost:27017"  # TODO: Activer quand user-service sera implémenté
 	@echo "   - Redis             : localhost:6379"
 
 deps-down:
@@ -107,6 +123,66 @@ install-deps:
 
 update-deps:
 	@./scripts/utilities/update-dependencies.sh $(SERVICE) $(MODE)
+
+sync-deps:
+	@./scripts/utilities/sync-dependencies.sh
+
+# === WORKSPACE GO ===
+
+workspace-init:
+	@echo "🔧 Initialisation du workspace Go..."
+	@if [ ! -f go.work ]; then \
+		go work init ./pkg ./services/auth-service; \
+		echo "✅ Workspace initialisé"; \
+	else \
+		echo "⚠️  go.work existe déjà"; \
+	fi
+
+workspace-sync:
+	@echo "🔄 Synchronisation du workspace..."
+	@go work sync
+	@echo "✅ Workspace synchronisé"
+
+workspace-tidy:
+	@echo "🧹 Nettoyage de tous les modules..."
+	@cd pkg && go mod tidy
+	@for service in services/*/; do \
+		if [ -f "$$service/go.mod" ]; then \
+			echo "  → Nettoyage de $$(basename $$service)"; \
+			cd "$$service" && go mod tidy && cd ../..; \
+		fi \
+	done
+	@go work sync
+	@echo "✅ Tous les modules nettoyés"
+
+# === MIGRATIONS ===
+
+migrate:
+ifdef SERVICE
+	@./scripts/database/migrate-all-services.sh $(SERVICE) up
+else
+	@./scripts/database/migrate-all-services.sh
+endif
+
+migrate-status:
+ifdef SERVICE
+	@./scripts/database/migrate-all-services.sh -s $(SERVICE)
+else
+	@./scripts/database/migrate-all-services.sh -s
+endif
+
+migrate-down:
+ifdef SERVICE
+	@./scripts/database/migrate-all-services.sh -f $(SERVICE) down
+else
+	@./scripts/database/migrate-all-services.sh -f down
+endif
+
+db-backup:
+	@./scripts/database/backup-databases.sh
+
+db-restore:
+	@./scripts/database/restore-databases.sh
 
 # Couleurs
 RED='\033[0;31m'
