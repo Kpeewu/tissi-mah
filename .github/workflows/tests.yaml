@@ -1,0 +1,117 @@
+name: Tests
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "services/**"
+      - "go.work"
+      - ".github/workflows/test.yml"
+  pull_request:
+    branches: [develop]
+    paths:
+      - "services/**"
+      - "go.work"
+
+jobs:
+  # Job pour détecter quels services ont changé
+  detect-changes:
+    name: Detect Changed Services
+    runs-on: ubuntu-latest
+    outputs:
+      auth-service: ${{ steps.filter.outputs.auth-service }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            auth-service:
+              - 'services/auth-service/**'
+
+  # Test Auth Service
+  test-auth-service:
+    name: Test Auth Service
+    needs: detect-changes
+    if: needs.detect-changes.outputs.auth-service == 'true'
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: ${{ secrets.TEST_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.TEST_POSTGRES_DB }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache: true
+          cache-dependency-path: services/auth-service/go.sum
+
+      - name: Download dependencies
+        working-directory: services/auth-service
+        run: go mod download
+
+      - name: Run unit tests
+        working-directory: services/auth-service
+        env:
+          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
+
+      - name: Run integration tests
+        working-directory: services/auth-service
+        env:
+          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+        run: |
+          go test -v -race ./tests/integration/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: services/auth-service/coverage.out
+          flags: auth-service
+          name: auth-service-coverage
+
+  # Summary job
+  test-summary:
+    name: Test Summary
+    needs:
+      [
+        detect-changes,
+        test-auth-service,
+        test-user-service,
+        test-client-service,
+      ]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check test results
+        run: |
+          echo "🧪 Test Results Summary"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          if [ "${{ needs.test-auth-service.result }}" == "success" ] || [ "${{ needs.detect-changes.outputs.auth-service }}" != "true" ]; then
+            echo "✅ Auth Service: PASSED"
+          else
+            echo "❌ Auth Service: FAILED"
+            exit 1
+          fi
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🎉 All tests passed!"
