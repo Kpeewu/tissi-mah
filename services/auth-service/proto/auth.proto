@@ -1,0 +1,82 @@
+// Auth Service Proto Definition
+// This file defines the gRPC service contract for auth-service
+//
+// HTTP/REST mapping is defined using google.api.http annotations
+// Kong API Gateway uses these annotations for gRPC transcoding
+
+syntax = "proto3";
+
+package auth;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/auth-service/proto/gen;auth";
+
+import "google/api/annotations.proto";
+
+// =============================================================================
+// Auth Service
+// =============================================================================
+
+service AuthService {
+  // Login - Check if authenticated user has an existing account
+  // Returns user profile if account exists
+  rpc Login(LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/login"
+      body: "*"
+    };
+  }
+
+  /
+
+  // Health - Health check endpoint (no auth required)
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/auth/health"
+    };
+  }
+}
+
+// =============================================================================
+// Request Messages
+// =============================================================================
+
+message LoginRequest {
+  // No fields required - Firebase UID is extracted from JWT
+}
+
+
+message HealthRequest {
+  // No fields required
+}
+
+// =============================================================================
+// Response Messages
+// =============================================================================
+
+message LoginResponse {
+  string error_message = 1; // Error identifier if failed, null if success
+  bool exists = 2; // true if account exists, false otherwise
+  //User user = 3; // User profile if exists, null otherwise
+}
+
+message HealthResponse {
+  string status = 1; // "healthy" or "unhealthy"
+  string version = 2; // Service version
+  int64 timestamp = 3; // Unix timestamp
+}
+
+// =============================================================================
+// Domain Messages
+// =============================================================================
+
+// =============================================================================
+// Error Codes Reference (gRPC status codes)
+// =============================================================================
+//
+// 0  - OK                  : Success
+// 3  - INVALID_ARGUMENT    : Invalid request parameters (400)
+// 5  - NOT_FOUND           : Resource not found (404)
+// 7  - PERMISSION_DENIED   : Not authorized (403)
+// 9  - FAILED_PRECONDITION : Pre-condition not met (412)
+// 13 - INTERNAL            : Server error (500)
+// 16 - UNAUTHENTICATED     : Missing or invalid token (401)

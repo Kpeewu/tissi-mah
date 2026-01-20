@@ -1,6 +1,6 @@
 .PHONY: help deps-up deps-down deps-logs deps-clean
 .PHONY: run-auth run-user run-client
-.PHONY: proto proto-auth test test-all lint fmt
+.PHONY: proto proto-auth proto-sync test test-all lint fmt
 .PHONY: install-deps update-deps sync-deps
 .PHONY: workspace-init workspace-sync workspace-tidy
 .PHONY: migrate migrate-status migrate-down db-backup db-restore
@@ -23,6 +23,7 @@ help:
 	@echo "$(YELLOW)🔧 Développement :$(NC)"
 	@echo "  make proto           - Générer tous les fichiers proto"
 	@echo "  make proto-auth      - Générer proto pour auth-service"
+	@echo "  make proto-sync      - Synchroniser protos vers Helm charts"
 	@echo "  make test            - Lancer les tests du service modifié"
 	@echo "  make test-all        - Lancer tous les tests"
 	@echo "  make lint            - Linter tous les services"
@@ -94,6 +95,11 @@ proto:
 proto-auth:
 	@echo "🔧 Génération proto auth-service..."
 	@cd services/auth-service && $(MAKE) proto
+
+proto-sync:
+	@echo "🔄 Synchronisation des protos vers Helm charts..."
+	@./scripts/utilities/sync-protos-to-helm.sh
+	@echo "✅ Protos synchronisés"
 
 # === TESTS ===
 

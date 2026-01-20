@@ -41,10 +41,7 @@ test:
 
 proto:
 	@echo "🔧 Génération proto auth-service..."
-	@mkdir -p $(PROTO_OUT)
-	@protoc --go_out=$(PROTO_OUT) --go_opt=paths=source_relative \
-		--go-grpc_out=$(PROTO_OUT) --go-grpc_opt=paths=source_relative \
-		$(PROTO_PATH)/auth.proto
+	@./scripts/generate_proto.sh
 	@echo "✅ Fichiers proto générés"
 
 migrate:
