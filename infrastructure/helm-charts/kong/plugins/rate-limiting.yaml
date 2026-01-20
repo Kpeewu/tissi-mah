@@ -1,0 +1,136 @@
+# Kong Rate Limiting Plugin Configuration
+# Protects backend services from excessive requests
+# Documentation: https://docs.konghq.com/hub/kong-inc/rate-limiting/
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: rate-limiting-global
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: rate-limiting
+  annotations:
+    konghq.com/plugins: rate-limiting
+config:
+  # Rate limiting strategy
+  policy: redis  # Use Redis for distributed rate limiting (local, cluster, redis)
+
+  # Limits (requests per time window)
+  second: null   # No per-second limit
+  minute: 60     # 60 requests per minute
+  hour: 1000     # 1000 requests per hour
+  day: null      # No daily limit
+
+  # Redis configuration (when policy=redis)
+  redis_host: redis.{{ .Release.Namespace }}.svc.cluster.local
+  redis_port: 6379
+  redis_password: {{ .Values.redis.password | default "" }}
+  redis_database: 1
+  redis_timeout: 2000
+  redis_ssl: false
+
+  # Behavior
+  fault_tolerant: true       # Continue if Redis is unavailable
+  hide_client_headers: false # Show X-RateLimit-* headers
+
+  # Identification
+  limit_by: credential       # Limit by consumer credential (ip, consumer, credential, header, path, service)
+
+plugin: rate-limiting
+
+---
+# Stricter rate limiting for authentication endpoints
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: rate-limiting-auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: rate-limiting
+  annotations:
+    konghq.com/plugins: rate-limiting-auth
+config:
+  policy: redis
+
+  # Stricter limits for auth endpoints (prevent brute force)
+  second: 1      # 1 request per second
+  minute: 10     # 10 requests per minute
+  hour: 100      # 100 requests per hour
+
+  redis_host: redis.{{ .Release.Namespace }}.svc.cluster.local
+  redis_port: 6379
+  redis_password: {{ .Values.redis.password | default "" }}
+  redis_database: 1
+  redis_timeout: 2000
+
+  fault_tolerant: true
+  hide_client_headers: false
+  limit_by: ip   # Limit by IP for unauthenticated requests
+
+plugin: rate-limiting
+
+---
+# Rate limiting for account creation (prevent spam accounts)
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: rate-limiting-create-account
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: rate-limiting
+config:
+  policy: redis
+
+  # Very strict limits for account creation
+  minute: 3      # 3 account creations per minute
+  hour: 10       # 10 account creations per hour
+  day: 20        # 20 account creations per day
+
+  redis_host: redis.{{ .Release.Namespace }}.svc.cluster.local
+  redis_port: 6379
+  redis_password: {{ .Values.redis.password | default "" }}
+  redis_database: 1
+  redis_timeout: 2000
+
+  fault_tolerant: true
+  hide_client_headers: false
+  limit_by: ip
+
+plugin: rate-limiting
+
+---
+# Rate limiting for sensitive operations (delete account)
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: rate-limiting-sensitive
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: rate-limiting
+config:
+  policy: redis
+
+  # Very restrictive for destructive operations
+  minute: 1      # 1 request per minute
+  hour: 5        # 5 requests per hour
+  day: 10        # 10 requests per day
+
+  redis_host: redis.{{ .Release.Namespace }}.svc.cluster.local
+  redis_port: 6379
+  redis_password: {{ .Values.redis.password | default "" }}
+  redis_database: 1
+  redis_timeout: 2000
+
+  fault_tolerant: true
+  hide_client_headers: false
+  limit_by: credential
+
+plugin: rate-limiting
