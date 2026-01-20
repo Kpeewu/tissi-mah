@@ -1,0 +1,120 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "services/**"
+      - "go.work"
+      - ".github/workflows/security.yml"
+  pull_request:
+    branches: [develop]
+    paths:
+      - "services/**"
+      - "go.work"
+  schedule:
+    # Scan quotidien à 2h du matin
+    - cron: "0 2 * * *"
+
+jobs:
+  # Détecter les changements
+  detect-changes:
+    name: Detect Changed Services
+    runs-on: ubuntu-latest
+    outputs:
+      auth-service: ${{ steps.filter.outputs.auth-service }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            auth-service:
+              - 'services/auth-service/**'
+
+  # Gosec - Auth Service
+  gosec-auth-service:
+    name: Gosec Scan - Auth Service
+    needs: detect-changes
+    if: needs.detect-changes.outputs.auth-service == 'true' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+
+      - name: Run Gosec
+        uses: securego/gosec@master
+        with:
+          args: "-fmt sarif -out gosec-auth.sarif ./services/auth-service/..."
+
+      - name: Upload Gosec results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: gosec-auth.sarif
+          category: gosec-auth-service
+
+  # Trivy - Auth Service
+  trivy-auth-service:
+    name: Trivy Scan - Auth Service
+    needs: detect-changes
+    if: needs.detect-changes.outputs.auth-service == 'true' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner (filesystem)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "services/auth-service"
+          format: "sarif"
+          output: "trivy-auth-fs.sarif"
+          severity: "CRITICAL,HIGH"
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-auth-fs.sarif
+          category: trivy-auth-service-fs
+
+      - name: Run Trivy vulnerability scanner (dependencies)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "services/auth-service/go.mod"
+          format: "sarif"
+          output: "trivy-auth-deps.sarif"
+          severity: "CRITICAL,HIGH"
+
+      - name: Upload Trivy dependency results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-auth-deps.sarif
+          category: trivy-auth-service-deps
+
+  # Summary
+  security-summary:
+    name: Security Summary
+    needs: [detect-changes, gosec-auth-service, trivy-auth-service]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check security scan results
+        run: |
+          echo "🔒 Security Scan Summary"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Results uploaded to GitHub Security tab"
+          echo "Review any CRITICAL or HIGH severity findings"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

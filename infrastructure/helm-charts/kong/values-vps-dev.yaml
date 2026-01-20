@@ -1,0 +1,147 @@
+# Kong Values - VPS Development Environment
+# Lightweight configuration for development on VPS (K3s)
+---
+
+# Environment identifier
+environment: vps-dev
+
+# =============================================================================
+# Kong Gateway Configuration
+# =============================================================================
+kong:
+  # API Gateway host
+  host: dev.tissi-mah.com
+
+  # Replica count (minimal for dev)
+  replicaCount: 1
+
+  # Image configuration
+  image:
+    repository: kong
+    tag: "3.5"
+    pullPolicy: IfNotPresent
+
+  # Resource limits (conservative for VPS)
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # Environment variables
+  env:
+    database: "off"  # DB-less mode
+    proxy_access_log: /dev/stdout
+    admin_access_log: /dev/stdout
+    proxy_error_log: /dev/stderr
+    admin_error_log: /dev/stderr
+    log_level: debug
+    plugins: bundled,grpc-gateway,grpc-web
+    # Declarative config
+    declarative_config: /kong/declarative/kong.yaml
+
+  # Proxy service configuration
+  proxy:
+    enabled: true
+    type: LoadBalancer
+    http:
+      enabled: true
+      containerPort: 8000
+      servicePort: 80
+    tls:
+      enabled: true
+      containerPort: 8443
+      servicePort: 443
+
+  # Admin API (disabled in production, enabled for dev)
+  admin:
+    enabled: true
+    type: ClusterIP
+    http:
+      enabled: true
+      containerPort: 8001
+      servicePort: 8001
+    tls:
+      enabled: false
+
+  # Ingress controller
+  ingressController:
+    enabled: true
+    installCRDs: true
+
+# =============================================================================
+# Redis Configuration (for rate limiting)
+# =============================================================================
+redis:
+  enabled: true
+  host: redis.dev.svc.cluster.local
+  port: 6379
+  password: ""  # No password in dev
+  database: 1
+
+# =============================================================================
+# Firebase Configuration
+# =============================================================================
+firebase:
+  projectId: "tissi-mah-dev"
+
+# =============================================================================
+# TLS Configuration
+# =============================================================================
+tls:
+  enabled: true
+  clusterIssuer: letsencrypt-staging  # Use staging for dev
+  secretName: tissi-mah-dev-tls
+
+# =============================================================================
+# Rate Limiting Overrides (relaxed for dev)
+# =============================================================================
+rateLimiting:
+  global:
+    minute: 120   # 120 requests per minute
+    hour: 5000    # 5000 requests per hour
+  auth:
+    second: 5     # 5 requests per second
+    minute: 30    # 30 requests per minute
+  createAccount:
+    minute: 10    # 10 account creations per minute
+    hour: 50      # 50 account creations per hour
+  sensitive:
+    minute: 5     # 5 requests per minute
+    hour: 20      # 20 requests per hour
+
+# =============================================================================
+# Monitoring (minimal for dev)
+# =============================================================================
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false  # No Prometheus in dev VPS
+
+# =============================================================================
+# Logging
+# =============================================================================
+logging:
+  level: debug
+  format: json
+
+# =============================================================================
+# Services (backend endpoints)
+# =============================================================================
+services:
+  authService:
+    host: auth-service.dev.svc.cluster.local
+    port: 50051
+    protocol: grpc
+
+# =============================================================================
+# Feature Flags
+# =============================================================================
+features:
+  grpcGateway: true
+  grpcWeb: false
+  rateLimiting: true
+  cors: true
+  jwtValidation: true

@@ -1,0 +1,135 @@
+# Kong CORS Plugin Configuration
+# Enables Cross-Origin Resource Sharing for mobile/web clients
+# Documentation: https://docs.konghq.com/hub/kong-inc/cors/
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: cors-global
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: cors
+  annotations:
+    konghq.com/plugins: cors
+config:
+  # Allowed origins
+  # Use specific origins in production, wildcard in dev
+  origins:
+    {{- if eq .Values.environment "production" }}
+    - "https://api.tissi-mah.com"
+    - "https://www.tissi-mah.com"
+    - "https://tissi-mah.com"
+    - "https://admin.tissi-mah.com"
+    {{- else if eq .Values.environment "staging" }}
+    - "https://staging.tissi-mah.com"
+    - "https://staging-admin.tissi-mah.com"
+    {{- else if eq .Values.environment "vps-dev" }}
+    - "https://dev.tissi-mah.com"
+    - "https://dev-admin.tissi-mah.com"
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+    {{- else }}
+    - "*"
+    {{- end }}
+
+  # Allowed HTTP methods
+  methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+    - HEAD
+
+  # Allowed headers in requests
+  headers:
+    - Accept
+    - Accept-Language
+    - Accept-Encoding
+    - Authorization
+    - Content-Type
+    - Content-Length
+    - Origin
+    - X-Request-ID
+    - X-Requested-With
+    - X-Device-ID
+    - X-App-Version
+    - X-Platform
+    - X-Timezone
+    - Cache-Control
+    - Pragma
+
+  # Headers exposed to the client
+  exposed_headers:
+    - X-Request-ID
+    - X-RateLimit-Limit-Minute
+    - X-RateLimit-Remaining-Minute
+    - X-RateLimit-Limit-Hour
+    - X-RateLimit-Remaining-Hour
+    - X-Kong-Upstream-Latency
+    - X-Kong-Proxy-Latency
+    - Content-Disposition
+
+  # Preflight request caching (in seconds)
+  max_age: 3600  # 1 hour
+
+  # Allow credentials (cookies, authorization headers)
+  credentials: true
+
+  # Preflight continue
+  preflight_continue: false
+
+plugin: cors
+
+---
+# Stricter CORS for admin endpoints (if needed in future)
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: cors-admin
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: cors
+config:
+  origins:
+    {{- if eq .Values.environment "production" }}
+    - "https://admin.tissi-mah.com"
+    {{- else if eq .Values.environment "staging" }}
+    - "https://staging-admin.tissi-mah.com"
+    {{- else if eq .Values.environment "vps-dev" }}
+    - "https://dev-admin.tissi-mah.com"
+    - "http://localhost:3001"
+    {{- else }}
+    - "http://localhost:3001"
+    {{- end }}
+
+  methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+
+  headers:
+    - Accept
+    - Authorization
+    - Content-Type
+    - X-Request-ID
+    - X-Admin-Token
+
+  exposed_headers:
+    - X-Request-ID
+    - X-Total-Count
+    - X-Page
+    - X-Per-Page
+
+  max_age: 3600
+  credentials: true
+  preflight_continue: false
+
+plugin: cors

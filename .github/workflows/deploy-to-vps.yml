@@ -1,0 +1,212 @@
+name: Deploy to VPS (Development)
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "services/**"
+      - "pkg/**"
+      - "go.work"
+      - ".github/workflows/deploy-to-vps.yml"
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Service to deploy (leave empty for auto-detect)"
+        required: false
+        type: string
+
+concurrency:
+  group: deploy-vps-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  detect-changes:
+    name: Detect Changed Services
+    runs-on: ubuntu-latest
+    outputs:
+      auth-service: ${{ steps.filter.outputs.auth-service }}
+      services: ${{ steps.set-services.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Manual service selection
+        if: github.event.inputs.service != ''
+        id: manual
+        run: echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
+
+      - uses: dorny/paths-filter@v2
+        if: github.event.inputs.service == ''
+        id: filter
+        with:
+          filters: |
+            auth-service:
+              - 'services/auth-service/**'
+
+      - name: Set services to deploy
+        id: set-services
+        run: |
+          if [ -n "${{ github.event.inputs.service }}" ]; then
+            echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
+          else
+            services=()
+            if [ "${{ steps.filter.outputs.auth-service }}" == "true" ]; then
+              services+=("auth-service")
+            fi
+            
+            if [ ${#services[@]} -eq 0 ]; then
+              echo "services=[]" >> $GITHUB_OUTPUT
+            else
+              json=$(printf '%s\n' "${services[@]}" | jq -R . | jq -s -c .)
+              echo "services=$json" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  build-and-push:
+    name: Build and Push
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          tags: |
+            type=raw,value=develop-${{ github.sha }}
+            type=raw,value=develop-latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/${{ matrix.service }}/deployments/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=develop-${{ github.sha }}
+            COMMIT_SHA=${{ github.sha }}
+
+  deploy:
+    name: Deploy to VPS
+    needs: [detect-changes, build-and-push]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: "v3.13.0"
+
+      - name: Setup kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.VPS_KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Sync proto files to Helm chart
+        run: |
+          ./scripts/utilities/sync-protos-to-helm.sh ${{ matrix.service }}
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install ${{ matrix.service }} \
+            services/${{ matrix.service }}/deployments/helm \
+            -f services/${{ matrix.service }}/deployments/helm/values/vps-dev.yaml \
+            --namespace dev \
+            --create-namespace \
+            --set image.tag=develop-${{ github.sha }} \
+            --wait \
+            --timeout 5m
+
+  health-check:
+    name: Health Check
+    needs: [detect-changes, deploy]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - name: Setup kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.VPS_KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Check deployment status
+        run: |
+          echo "Checking deployment status for ${{ matrix.service }}..."
+          kubectl rollout status deployment/${{ matrix.service }} -n dev --timeout=120s
+
+      - name: Check pod health
+        run: |
+          echo "Checking pod health..."
+          kubectl get pods -n dev -l app.kubernetes.io/name=${{ matrix.service }} -o wide
+          
+          kubectl wait --for=condition=ready pod \
+            -l app.kubernetes.io/name=${{ matrix.service }} \
+            -n dev \
+            --timeout=120s
+
+      - name: Verify service endpoint
+        run: |
+          echo "Service endpoint:"
+          kubectl get svc ${{ matrix.service }} -n dev
+
+  deployment-summary:
+    name: Deployment Summary
+    needs: [detect-changes, build-and-push, deploy, health-check]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summary
+        run: |
+          echo "VPS Deployment Summary"
+          echo "======================="
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Services: ${{ needs.detect-changes.outputs.services }}"
+          echo ""
+          echo "Results:"
+          echo "  Build: ${{ needs.build-and-push.result }}"
+          echo "  Deploy: ${{ needs.deploy.result }}"
+          echo "  Health Check: ${{ needs.health-check.result }}"
+          
+          if [ "${{ needs.health-check.result }}" != "success" ]; then
+            echo ""
+            echo "Deployment may have issues. Check the logs above."
+            exit 1
+          fi
+          
+          echo ""
+          echo "Deployment successful!"

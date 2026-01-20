@@ -1,0 +1,23 @@
+# Proto ConfigMap for auth-service
+# This ConfigMap exposes the service's proto files to Kong API Gateway
+# Kong's init container will copy these protos at deployment time
+#
+# The proto file is loaded from the service's proto directory
+# and injected into this ConfigMap during Helm deployment
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "auth-service.fullname" . }}-proto
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "auth-service.labels" . | nindent 4 }}
+    app.kubernetes.io/component: proto
+  annotations:
+    # Trigger ConfigMap update when proto file changes
+    checksum/proto: {{ .Files.Get "proto/auth.proto" | sha256sum }}
+data:
+  # Proto file content is loaded from the Helm chart's proto/ directory
+  # This ensures single source of truth - proto lives with the service
+  auth.proto: |
+{{ .Files.Get "proto/auth.proto" | indent 4 }}

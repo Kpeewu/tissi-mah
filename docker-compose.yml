@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  # PostgreSQL pour Auth Service
+  auth-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-auth-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_AUTH_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_AUTH_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_AUTH_DB:-auth_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - auth_postgres_data:/var/lib/postgresql/data
+      - ./scripts/database/init-databases.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_AUTH_USER:-dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis (partagé)
+  redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+volumes:
+  auth_postgres_data:
+  redis_data:
+
+networks:
+  tissi-mah-network:
+    driver: bridge

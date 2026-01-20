@@ -1,0 +1,254 @@
+# Kong JWT Plugin Configuration for Firebase Authentication
+# Validates Firebase ID tokens on incoming requests
+# Documentation: https://docs.konghq.com/hub/kong-inc/jwt/
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: jwt-firebase
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: jwt
+  annotations:
+    konghq.com/plugins: jwt-firebase
+config:
+  # URI parameter names to check for JWT
+  uri_param_names:
+    - jwt
+    - token
+
+  # Cookie names to check for JWT
+  cookie_names: []
+
+  # Header names to check for JWT
+  header_names:
+    - Authorization
+
+  # Claims to verify
+  claims_to_verify:
+    - exp  # Expiration time
+    - iat  # Issued at time
+
+  # Key claim name (identifies the key to use for verification)
+  key_claim_name: iss
+
+  # Secret is base64 encoded
+  secret_is_base64: false
+
+  # Algorithm used by Firebase (RS256)
+  # Firebase uses RSA with SHA-256
+  # Keys are fetched from Firebase's public key endpoint
+
+  # Maximum clock skew (in seconds)
+  maximum_expiration: 3600  # 1 hour max token age
+
+  # Anonymous access - allow requests without JWT
+  # Set to true for endpoints that don't require auth
+  anonymous: null
+
+  # Run on preflight (OPTIONS) requests
+  run_on_preflight: false
+
+plugin: jwt
+
+---
+# Custom JWT validation using Firebase Admin SDK
+# This plugin uses a custom handler to validate Firebase tokens
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: firebase-auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: serverless
+  annotations:
+    konghq.com/plugins: firebase-auth
+config:
+  # Pre-function to validate Firebase JWT
+  # This runs before the request is proxied
+  functions:
+    - |
+      -- Firebase JWT Validation
+      local http = require "resty.http"
+      local cjson = require "cjson.safe"
+      local jwt_decoder = require "kong.plugins.jwt.jwt_parser"
+
+      -- Firebase project ID
+      local FIREBASE_PROJECT_ID = os.getenv("FIREBASE_PROJECT_ID") or "tissi-mah"
+
+      -- Cache for Firebase public keys
+      local keys_cache = ngx.shared.firebase_keys
+
+      -- Fetch Firebase public keys
+      local function fetch_firebase_keys()
+        local httpc = http.new()
+        local res, err = httpc:request_uri("https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com", {
+          method = "GET",
+          ssl_verify = true
+        })
+
+        if not res then
+          kong.log.err("Failed to fetch Firebase keys: ", err)
+          return nil, err
+        end
+
+        local keys = cjson.decode(res.body)
+        if keys then
+          -- Cache keys for 1 hour
+          keys_cache:set("firebase_public_keys", res.body, 3600)
+        end
+
+        return keys
+      end
+
+      -- Get Firebase public keys (from cache or fetch)
+      local function get_firebase_keys()
+        local cached = keys_cache:get("firebase_public_keys")
+        if cached then
+          return cjson.decode(cached)
+        end
+        return fetch_firebase_keys()
+      end
+
+      -- Validate Firebase JWT
+      local function validate_firebase_jwt(token)
+        -- Decode JWT header to get kid
+        local jwt, err = jwt_decoder:new(token)
+        if err then
+          return nil, "Invalid JWT: " .. err
+        end
+
+        -- Verify claims
+        local claims = jwt.claims
+
+        -- Check issuer
+        local expected_iss = "https://securetoken.google.com/" .. FIREBASE_PROJECT_ID
+        if claims.iss ~= expected_iss then
+          return nil, "Invalid issuer"
+        end
+
+        -- Check audience
+        if claims.aud ~= FIREBASE_PROJECT_ID then
+          return nil, "Invalid audience"
+        end
+
+        -- Check expiration
+        local now = ngx.time()
+        if claims.exp and claims.exp < now then
+          return nil, "Token expired"
+        end
+
+        -- Check issued at
+        if claims.iat and claims.iat > now then
+          return nil, "Token issued in the future"
+        end
+
+        -- Check subject (Firebase UID)
+        if not claims.sub or claims.sub == "" then
+          return nil, "Missing subject"
+        end
+
+        -- Get public keys and verify signature
+        local keys = get_firebase_keys()
+        if not keys then
+          return nil, "Failed to fetch public keys"
+        end
+
+        local kid = jwt.header.kid
+        if not kid or not keys[kid] then
+          return nil, "Unknown key ID"
+        end
+
+        -- Verify signature
+        local verified, verify_err = jwt:verify_signature(keys[kid])
+        if not verified then
+          return nil, "Signature verification failed: " .. (verify_err or "unknown error")
+        end
+
+        return claims
+      end
+
+      -- Main handler
+      return function()
+        -- Get Authorization header
+        local auth_header = kong.request.get_header("Authorization")
+        if not auth_header then
+          return kong.response.exit(401, { message = "Missing Authorization header" })
+        end
+
+        -- Extract Bearer token
+        local token = auth_header:match("Bearer%s+(.+)")
+        if not token then
+          return kong.response.exit(401, { message = "Invalid Authorization header format" })
+        end
+
+        -- Validate token
+        local claims, err = validate_firebase_jwt(token)
+        if not claims then
+          kong.log.warn("JWT validation failed: ", err)
+          return kong.response.exit(401, { message = "Invalid token", error = err })
+        end
+
+        -- Set headers for upstream service
+        kong.service.request.set_header("X-Firebase-UID", claims.sub)
+        kong.service.request.set_header("X-Firebase-Email", claims.email or "")
+        kong.service.request.set_header("X-Firebase-Phone", claims.phone_number or "")
+        kong.service.request.set_header("X-Firebase-Email-Verified", tostring(claims.email_verified or false))
+
+        kong.log.info("Firebase JWT validated for user: ", claims.sub)
+      end
+
+plugin: pre-function
+
+---
+# Secret for Firebase configuration
+apiVersion: v1
+kind: Secret
+metadata:
+  name: firebase-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: secret
+type: Opaque
+stringData:
+  FIREBASE_PROJECT_ID: "{{ .Values.firebase.projectId | default "tissi-mah" }}"
+
+---
+# Kong Consumer for anonymous access (public endpoints)
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: anonymous-consumer
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: consumer
+  annotations:
+    kubernetes.io/ingress.class: kong
+username: anonymous
+custom_id: anonymous
+
+---
+# Shared memory zone for Firebase keys cache
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kong-nginx-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: config
+data:
+  custom-nginx.conf: |
+    # Shared memory zone for Firebase public keys cache
+    lua_shared_dict firebase_keys 1m;
+
+    # Increase proxy buffer for gRPC
+    proxy_buffer_size 128k;
+    proxy_buffers 4 256k;
+    proxy_busy_buffers_size 256k;
