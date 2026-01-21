@@ -1,6 +1,6 @@
 module github.com/Kpeewu/tissi-mah/services/auth-service
 
-go 1.21
+go 1.25.5
 
 // =============================================================================
 // SERVICE-SPECIFIC DEPENDENCIES
@@ -9,13 +9,16 @@ go 1.21
 // =============================================================================
 
 require (
-	// Shared packages (common dependencies)
-	github.com/Kpeewu/tissi-mah/pkg v0.0.0
+	google.golang.org/genproto/googleapis/api v0.0.0-20251029180050-ab9386a59fda
+	google.golang.org/grpc v1.78.0
+	google.golang.org/protobuf v1.36.10
+)
 
-	// Auth-specific dependencies
-	firebase.google.com/go/v4 v4.13.0 // Firebase Admin SDK for phone auth
-	github.com/golang-jwt/jwt/v5 v5.2.0 // JWT handling
-	golang.org/x/crypto v0.17.0 // Password hashing (bcrypt, argon2)
+require (
+	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251029180050-ab9386a59fda // indirect
 )
 
 // =============================================================================
