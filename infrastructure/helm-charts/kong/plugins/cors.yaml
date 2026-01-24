@@ -26,7 +26,7 @@ config:
     - "https://staging.tissi-mah.com"
     - "https://staging-admin.tissi-mah.com"
     {{- else if eq .Values.environment "vps-dev" }}
-    - "https://dev.tissi-mah.com"
+    - "https://api.tissimah.kpeewu.dev"
     - "https://dev-admin.tissi-mah.com"
     - "http://localhost:3000"
     - "http://localhost:8080"

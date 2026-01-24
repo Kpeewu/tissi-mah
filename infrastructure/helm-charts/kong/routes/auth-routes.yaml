@@ -71,7 +71,7 @@ spec:
 
 ---
 # =============================================================================
-# Ingress Routes
+# Ingress Routes - Protected Endpoints (JWT Required)
 # =============================================================================
 
 # Login endpoint
@@ -87,11 +87,21 @@ metadata:
     endpoint: login
   annotations:
     kubernetes.io/ingress.class: kong
+    # Plugin execution order (Kong handles this automatically):
+    # 1. cors-global (CORS preflight)
+    # 2. jwt-validation-basic (JWT validation)
+    # 3. request-transformer-jwt (add JWT headers)
+    # 4. rate-limiting-auth (rate limiting)
+    # 5. request-transformer-grpc (prepare for gRPC)
+    # 6. grpc-gateway-auth (HTTP to gRPC translation)
+    # 7. response-transformer-grpc (format response)
     konghq.com/plugins: >-
       cors-global,
-      firebase-auth,
+      jwt-validation-basic,
+      request-transformer-jwt,
       rate-limiting-auth,
       request-transformer-grpc,
+      grpc-gateway-auth,
       response-transformer-grpc
     konghq.com/protocols: https,http
     konghq.com/methods: POST,OPTIONS
@@ -126,9 +136,11 @@ metadata:
     kubernetes.io/ingress.class: kong
     konghq.com/plugins: >-
       cors-global,
-      firebase-auth,
+      jwt-validation-basic,
+      request-transformer-jwt,
       rate-limiting-create-account,
       request-transformer-grpc,
+      grpc-gateway-auth,
       response-transformer-grpc
     konghq.com/protocols: https,http
     konghq.com/methods: POST,OPTIONS
@@ -163,9 +175,9 @@ metadata:
     kubernetes.io/ingress.class: kong
     konghq.com/plugins: >-
       cors-global,
-      firebase-auth,
       rate-limiting-auth,
       request-transformer-grpc,
+      grpc-gateway-auth,
       response-transformer-grpc
     konghq.com/protocols: https,http
     konghq.com/methods: POST,OPTIONS
@@ -200,9 +212,9 @@ metadata:
     kubernetes.io/ingress.class: kong
     konghq.com/plugins: >-
       cors-global,
-      firebase-auth,
       rate-limiting-auth,
       request-transformer-grpc,
+      grpc-gateway-auth,
       response-transformer-grpc
     konghq.com/protocols: https,http
     konghq.com/methods: POST,OPTIONS
@@ -237,9 +249,11 @@ metadata:
     kubernetes.io/ingress.class: kong
     konghq.com/plugins: >-
       cors-global,
-      firebase-auth,
+      jwt-validation-basic,
+      request-transformer-jwt,
       rate-limiting-sensitive,
       request-transformer-grpc,
+      grpc-gateway-auth,
       response-transformer-grpc
     konghq.com/protocols: https,http
     konghq.com/methods: DELETE,OPTIONS
@@ -260,7 +274,7 @@ spec:
 
 ---
 # =============================================================================
-# Health Check Route (No Auth Required)
+# Health Check Route (No Auth Required - Public Access)
 # =============================================================================
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -274,6 +288,8 @@ metadata:
     endpoint: health
   annotations:
     kubernetes.io/ingress.class: kong
+    # Health check route - NO JWT validation required
+    # Only CORS and rate-limiting (no gRPC transformation needed for simple health check)
     konghq.com/plugins: cors-global,rate-limiting-global
     konghq.com/protocols: https,http
     konghq.com/methods: GET,OPTIONS
@@ -317,3 +333,66 @@ spec:
   rules:
     - host: {{ .Values.kong.host }}
 {{- end }}
+
+---
+# =============================================================================
+# Notes d'utilisation
+# =============================================================================
+#
+# Test des routes (après déploiement d'auth-service):
+#
+# 1. Health check (public, sans JWT):
+#    curl http://localhost/api/v1/auth/health
+#    Attendu: 200 OK
+#
+# 2. Login (JWT requis):
+#    curl -X POST http://localhost/api/v1/auth/login \
+#      -H "Authorization: Bearer <firebase_jwt>" \
+#      -H "Content-Type: application/json" \
+#      -d '{"phoneNumber": "+22500000000"}'
+#    Attendu: 200 OK avec réponse auth-service
+#
+# 3. Login sans JWT (doit échouer):
+#    curl -X POST http://localhost/api/v1/auth/login \
+#      -H "Content-Type: application/json"
+#    Attendu: 401 Unauthorized
+#
+# 4. Créer un compte:
+#    curl -X POST http://localhost/api/v1/auth/createAccount \
+#      -H "Authorization: Bearer <firebase_jwt>" \
+#      -H "Content-Type: application/json" \
+#      -d '{"email": "test@example.com", "phoneNumber": "+22500000000"}'
+#
+# 5. Vérifier le rate-limiting:
+#    # Envoyer 15 requêtes rapides sur /login (limite: 10/min)
+#    for i in {1..15}; do
+#      curl -i http://localhost/api/v1/auth/health
+#    done
+#    Attendu: 429 Too Many Requests après la 60ème requête (global) ou 10ème (auth)
+#
+# Workflow complet d'une requête:
+# 1. Client → Kong (http://localhost/api/v1/auth/login)
+# 2. Kong → CORS Plugin (préflight si OPTIONS)
+# 3. Kong → JWT Plugin (validation basique: format, expiration)
+# 4. Kong → Request Transformer JWT (ajoute X-Kong-JWT-Validated)
+# 5. Kong → Rate Limiting Plugin (vérifie limites Redis)
+# 6. Kong → Request Transformer gRPC (prépare headers gRPC)
+# 7. Kong → gRPC Gateway Plugin (translation HTTP→gRPC)
+# 8. Kong → auth-service (gRPC 50051)
+# 9. auth-service → Firebase Admin SDK (validation complète JWT)
+# 10. auth-service → Traite la requête
+# 11. auth-service → Retourne la réponse gRPC
+# 12. Kong → Response Transformer gRPC (formate la réponse)
+# 13. Kong → Client (HTTP response)
+#
+# Plugins référencés (doivent être créés avant):
+# - cors-global (cors.yaml)
+# - jwt-validation-basic (jwt-firebase.yaml) ← NOUVEAU NOM
+# - request-transformer-jwt (jwt-firebase.yaml) ← NOUVEAU
+# - rate-limiting-global (rate-limiting.yaml)
+# - rate-limiting-auth (rate-limiting.yaml)
+# - rate-limiting-create-account (rate-limiting.yaml)
+# - rate-limiting-sensitive (rate-limiting.yaml)
+# - request-transformer-grpc (grpc-gateway.yaml)
+# - response-transformer-grpc (grpc-gateway.yaml)
+# - grpc-gateway-auth (grpc-gateway.yaml)
