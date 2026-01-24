@@ -1,0 +1,205 @@
+################################################################################
+# Docker Compose - Auth Service Databases
+# TissiMah VPS-dev
+#
+# Ce fichier configure les bases de données pour auth-service :
+# - PostgreSQL (port 5432)
+# - Redis (port 6379)
+#
+# Utilise network_mode: host pour simplifier la communication avec K3s
+################################################################################
+
+version: "3.8"
+
+################################################################################
+# SERVICES
+################################################################################
+
+services:
+  #-----------------------------------------------------------------------------
+  # PostgreSQL pour auth-service
+  #-----------------------------------------------------------------------------
+  postgres-auth:
+    image: postgres:16-alpine
+    container_name: tissimah-postgres-auth
+
+    # Network mode HOST : le conteneur utilise directement le réseau de l'hôte
+    # Avantages:
+    # - Pas de port mapping nécessaire
+    # - PostgreSQL écoute directement sur l'interface de l'hôte
+    # - K3s peut se connecter via 127.0.0.1:xxxx
+    # Inconvénients:
+    # - Moins d'isolation réseau
+    # - Le port xxxx de l'hôte doit être libre
+    network_mode: "host"
+
+    # Variables d'environnement
+    environment:
+      # Nom de la base de données
+      POSTGRES_DB: ${AUTH_POSTGRES_DB}
+
+      # Utilisateur PostgreSQL
+      POSTGRES_USER: ${AUTH_POSTGRES_USER}
+
+      # Mot de passe (chargé depuis .env)
+      POSTGRES_PASSWORD: ${AUTH_POSTGRES_PASSWORD}
+
+      # Méthode d'authentification sécurisée
+      POSTGRES_HOST_AUTH_METHOD: ${POSTGRES_HOST_AUTH_METHOD}
+
+      # Arguments d'initialisation
+      # -p 5432 : spécifie le port (important avec host network)
+      POSTGRES_INITDB_ARGS: "--auth-host=${POSTGRES_HOST_AUTH_METHOD} --auth-local=${POSTGRES_HOST_AUTH_METHOD}"
+
+      # Locale (optionnel, pour le français)
+      POSTGRES_INITDB_LOCALE: fr_FR.UTF-8
+
+      # Timezone
+      TZ: Africa/Lome
+
+      # Commande pour spécifier le port d'écoute avec network_mode: host
+      command: >
+        postgres
+          -c port=${AUTH_POSTGRES_PORT}
+          -c max_connections=100
+          -c shared_buffers=256MB
+          -c effective_cache_size=1GB
+          -c maintenance_work_mem=64MB
+          -c checkpoint_completion_target=0.9
+          -c wal_buffers=16MB
+          -c default_statistics_target=100
+          -c random_page_cost=1.1
+          -c effective_io_concurrency=200
+          -c work_mem=2621kB
+          -c min_wal_size=1GB
+          -c max_wal_size=4GB
+
+    # Volumes pour la persistance des données
+    volumes:
+      # Volume nommé pour les données PostgreSQL
+      - postgres-auth-data:/var/lib/postgresql/data
+
+      # Migrations UP : exécutées automatiquement au premier démarrage
+      # Monter uniquement le dossier up/ pour éviter d'exécuter les down
+      - ../../services/auth-service/migrations/up:/docker-entrypoint-initdb.d:ro
+
+    # Health check pour vérifier que PostgreSQL est prêt
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${AUTH_POSTGRES_USER} -d ${AUTH_POSTGRES_DB} -h ${AUTH_POSTGRES_HOST} -p ${AUTH_POSTGRES_PORT}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    # Politique de redémarrage
+    # unless-stopped : redémarre automatiquement sauf si arrêté manuellement
+    restart: unless-stopped
+
+    # Labels pour la gestion (optionnel)
+    labels:
+      - "com.tissimah.service=auth"
+      - "com.tissimah.database=postgres"
+      - "com.tissimah.environment=vps-dev"
+
+  #-----------------------------------------------------------------------------
+  # Redis pour auth-service (cache et sessions)
+  #-----------------------------------------------------------------------------
+  redis-auth:
+    image: redis:7-alpine
+    container_name: tissimah-redis-auth
+
+    # Network mode HOST
+    network_mode: "host"
+
+    # Commande de démarrage avec configuration
+    # --port xxxx : spécifie le port explicitement
+    # --requirepass : mot de passe pour sécuriser Redis
+    # --maxmemory : limite la RAM utilisée
+    # --maxmemory-policy : politique d'éviction (allkeys-lru = supprime les clés les moins utilisées)
+    # --appendonly : active la persistance AOF (Append Only File)
+    command: >
+      redis-server
+      --port  ${AUTH_REDIS_PORT}
+      --requirepass ${AUTH_REDIS_PASSWORD}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+
+    # Volumes pour la persistance
+    volumes:
+      # Volume pour les données Redis (AOF + RDB)
+      - redis-auth-data:/data
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    # Politique de redémarrage
+    restart: unless-stopped
+
+    # Labels
+    labels:
+      - "com.tissimah.service=auth"
+      - "com.tissimah.database=redis"
+      - "com.tissimah.environment=vps-dev"
+
+################################################################################
+# VOLUMES
+################################################################################
+
+volumes:
+  # Volume pour PostgreSQL auth-service
+  # Les données sont stockées dans /var/lib/docker/volumes/
+  postgres-auth-data:
+    driver: local
+    labels:
+      - "com.tissimah.service=auth"
+      - "com.tissimah.database=postgres"
+
+  # Volume pour Redis auth-service
+  redis-auth-data:
+    driver: local
+    labels:
+      - "com.tissimah.service=auth"
+      - "com.tissimah.database=redis"
+################################################################################
+# NOTES D'UTILISATION
+################################################################################
+
+# Démarrer les bases de données :
+#   docker compose -f docker-compose-auth.yml up -d
+#
+# Voir les logs :
+#   docker compose -f docker-compose-auth.yml logs -f
+#   docker compose -f docker-compose-auth.yml logs -f postgres-auth
+#   docker compose -f docker-compose-auth.yml logs -f redis-auth
+#
+# Arrêter les bases de données :
+#   docker compose -f docker-compose-auth.yml down
+#
+# Arrêter ET supprimer les volumes (DANGER: perte de données) :
+#   docker compose -f docker-compose-auth.yml down -v
+#
+# Vérifier le statut :
+#   docker compose -f docker-compose-auth.yml ps
+#
+# Se connecter à PostgreSQL :
+#   docker exec -it tissimah-postgres-auth psql -U auth_user -d auth_db
+#
+# Se connecter à Redis :
+#   docker exec -it tissimah-redis-auth redis-cli -a ${AUTH_REDIS_PASSWORD}
+#
+# Backup PostgreSQL :
+#   docker exec tissimah-postgres-auth pg_dump -U auth_user auth_db > backup.sql
+#
+# Restore PostgreSQL :
+#   docker exec -i tissimah-postgres-auth psql -U auth_user auth_db < backup.sql

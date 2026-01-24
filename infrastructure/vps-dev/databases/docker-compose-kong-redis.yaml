@@ -1,0 +1,109 @@
+################################################################################
+# Docker Compose - Kong Redis
+# TissiMah VPS-dev
+#
+# Ce fichier configure Redis dédié pour Kong API Gateway :
+# - Redis pour rate-limiting Kong
+#
+# Utilise network_mode: host pour simplifier la communication avec K3s
+################################################################################
+
+version: "3.8"
+
+################################################################################
+# SERVICES
+################################################################################
+
+services:
+  #-----------------------------------------------------------------------------
+  # Redis pour Kong API Gateway (rate-limiting distribué)
+  #-----------------------------------------------------------------------------
+  redis-kong:
+    image: redis:7-alpine
+    container_name: tissimah-redis-kong
+
+    # Network mode HOST
+    network_mode: "host"
+
+    # Commande de démarrage avec configuration
+    # --port 6380 : port différent de Redis auth (6379)
+    # --requirepass : mot de passe pour sécuriser Redis
+    # --maxmemory : limite la RAM utilisée pour le cache
+    # --maxmemory-policy : politique d'éviction (volatile-lru = supprime les clés avec TTL les moins utilisées)
+    # --appendonly : désactivé car Kong utilise Redis comme cache temporaire
+    command: >
+      redis-server
+      --port ${KONG_REDIS_PORT}
+      --requirepass ${KONG_REDIS_PASSWORD}
+      --maxmemory 256mb
+      --maxmemory-policy volatile-lru
+      --save ""
+      --appendonly no
+
+    # Volumes pour la persistance (optionnel pour Kong)
+    volumes:
+      # Volume pour les données Redis (RDB snapshots si activé)
+      - redis-kong-data:/data
+
+    # Health check
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "-p",
+          "${KONG_REDIS_PORT}",
+          "-a",
+          "${KONG_REDIS_PASSWORD}",
+          "ping",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    # Politique de redémarrage
+    restart: unless-stopped
+
+    # Labels
+    labels:
+      - "com.tissimah.service=kong"
+      - "com.tissimah.database=redis"
+      - "com.tissimah.environment=vps-dev"
+      - "com.tissimah.purpose=rate-limiting"
+
+################################################################################
+# VOLUMES
+################################################################################
+
+volumes:
+  # Volume pour Redis Kong
+  redis-kong-data:
+    driver: local
+    labels:
+      - "com.tissimah.service=kong"
+      - "com.tissimah.database=redis"
+################################################################################
+# NOTES D'UTILISATION
+################################################################################
+
+# Démarrer Redis Kong :
+#   docker compose -f docker-compose-kong-redis.yml up -d
+#
+# Voir les logs :
+#   docker compose -f docker-compose-kong-redis.yml logs -f
+#
+# Arrêter Redis Kong :
+#   docker compose -f docker-compose-kong-redis.yml down
+#
+# Se connecter à Redis Kong :
+#   docker exec -it tissimah-redis-kong redis-cli -p ${KONG_REDIS_PORT} -a ${KONG_REDIS_PASSWORD}
+#
+# Vérifier les clés de rate-limiting :
+#   docker exec tissimah-redis-kong redis-cli -p ${KONG_REDIS_PORT} -a ${KONG_REDIS_PASSWORD} KEYS "rate-limit:*"
+#
+# Voir l'utilisation mémoire :
+#   docker exec tissimah-redis-kong redis-cli -p ${KONG_REDIS_PORT} -a ${KONG_REDIS_PASSWORD} INFO memory
+#
+# Vider le cache (ATTENTION: supprime toutes les données de rate-limiting) :
+#   docker exec tissimah-redis-kong redis-cli -p ${KONG_REDIS_PORT} -a ${KONG_REDIS_PASSWORD} FLUSHALL

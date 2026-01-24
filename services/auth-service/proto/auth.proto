@@ -26,7 +26,32 @@ service AuthService {
     };
   }
 
-  /
+  rpc CreateAccount(CreateAccountRequest) returns (UserPreview) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/createAccount"
+      body: "*"
+    };
+  }
+
+  rpc CheckPhoneNumber(CheckPhoneNumberRequest) returns (CheckPhoneOrEmailResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/checkPhoneNumber"
+      body: "*"
+    };
+  }
+
+  rpc CheckEmail(CheckEmailRequest) returns (CheckPhoneOrEmailResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/checkEmail"
+      body: "*"
+    };
+  }
+
+  rpc DeleteAccount(DeleteAccountRequest) returns (AuthServerResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/auth/deleteAccount"
+    };
+  }
 
   // Health - Health check endpoint (no auth required)
   rpc Health(HealthRequest) returns (HealthResponse) {
@@ -34,6 +59,7 @@ service AuthService {
       get: "/api/v1/auth/health"
     };
   }
+
 }
 
 // =============================================================================
@@ -44,6 +70,24 @@ message LoginRequest {
   // No fields required - Firebase UID is extracted from JWT
 }
 
+message CreateAccountRequest {
+  string Name = 1;
+  string FirstName = 2;
+  string Email = 3; // Optionnel
+  string PhoneNumber = 4; // Optionnel
+  string ProfileImageURL = 5; // Optionnel
+}
+
+message CheckPhoneNumberRequest {
+  string PhoneNumber = 1;
+}
+
+message CheckEmailRequest {
+  string Email = 1;
+}
+
+message DeleteAccountRequest {
+}
 
 message HealthRequest {
   // No fields required
@@ -54,20 +98,43 @@ message HealthRequest {
 // =============================================================================
 
 message LoginResponse {
-  string error_message = 1; // Error identifier if failed, null if success
-  bool exists = 2; // true if account exists, false otherwise
-  //User user = 3; // User profile if exists, null otherwise
+  string ErrorMessage = 1; // Error identifier if failed, null if success
+  bool Exists = 2; // true if account exists, false otherwise
+  UserPreview User = 3;
+ 
 }
 
 message HealthResponse {
-  string status = 1; // "healthy" or "unhealthy"
-  string version = 2; // Service version
-  int64 timestamp = 3; // Unix timestamp
+  string Status = 1; // "healthy" or "unhealthy"
+  string Version = 2; // Service version
+  int64 Timestamp = 3; // Unix timestamp
+}
+
+message CheckPhoneOrEmailResponse {
+  string ErrorMessage = 1;
+  bool IsAvailable = 2;
+  
+}
+
+message AuthServerResponse {
+  string ErrorMessage = 1;
+  bool Success = 2;
 }
 
 // =============================================================================
 // Domain Messages
 // =============================================================================
+
+
+message UserPreview {
+  string AuthID = 1;
+  string UserID = 2;
+  string Name = 3;
+  string FirstName = 4;
+  string Email = 5; 
+  string PhoneNumber = 6; 
+  string ProfileImageURL = 7; 
+}
 
 // =============================================================================
 // Error Codes Reference (gRPC status codes)

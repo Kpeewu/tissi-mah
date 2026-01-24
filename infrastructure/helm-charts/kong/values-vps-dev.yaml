@@ -1,7 +1,6 @@
 # Kong Values - VPS Development Environment
 # Lightweight configuration for development on VPS (K3s)
 ---
-
 # Environment identifier
 environment: vps-dev
 
@@ -10,7 +9,7 @@ environment: vps-dev
 # =============================================================================
 kong:
   # API Gateway host
-  host: dev.tissi-mah.com
+  host: api.tissimah.kpeewu.dev
 
   # Replica count (minimal for dev)
   replicaCount: 1
@@ -32,15 +31,15 @@ kong:
 
   # Environment variables
   env:
-    database: "off"  # DB-less mode
+    database: "off" # DB-less mode
     proxy_access_log: /dev/stdout
     admin_access_log: /dev/stdout
     proxy_error_log: /dev/stderr
     admin_error_log: /dev/stderr
     log_level: debug
     plugins: bundled,grpc-gateway,grpc-web
-    # Declarative config
-    declarative_config: /kong/declarative/kong.yaml
+    # NOTE: Pas de declarative_config car on utilise des CRDs (KongPlugin, Ingress)
+    # La configuration est faite via kubectl apply -f plugins/*.yaml et routes/*.yaml
 
   # Proxy service configuration
   proxy:
@@ -67,18 +66,27 @@ kong:
       enabled: false
 
   # Ingress controller
+  # Nécessaire pour lire les CRDs (KongPlugin, KongIngress, Ingress)
   ingressController:
     enabled: true
     installCRDs: true
 
 # =============================================================================
 # Redis Configuration (for rate limiting)
+# Redis Kong tourne dans Docker avec network_mode: host
+# Il écoute sur 127.0.0.1:6379 (différent de Redis auth sur 127.0.0.1:6380)
 # =============================================================================
 redis:
   enabled: true
-  host: redis.dev.svc.cluster.local
+  # Host: 127.0.0.1 car Redis Kong est dans Docker avec network_mode: host
+  # Kong (dans K3s) peut accéder à 127.0.0.1 du VPS
+  host: 127.0.0.1
+  # Port: 6379 (Redis Kong), différent de 6380 (Redis auth-service)
   port: 6379
-  password: ""  # No password in dev
+  # Password: Géré via Secret K8s (kong-redis-secret)
+  # Les plugins rate-limiting.yaml référencent ce secret directement
+  password: ""
+  # Database: 1 (séparé de la database 0 si on utilise le même Redis)
   database: 1
 
 # =============================================================================
@@ -92,25 +100,26 @@ firebase:
 # =============================================================================
 tls:
   enabled: true
-  clusterIssuer: letsencrypt-staging  # Use staging for dev
+  clusterIssuer: letsencrypt-staging # Use staging for dev
   secretName: tissi-mah-dev-tls
 
 # =============================================================================
 # Rate Limiting Overrides (relaxed for dev)
+# Ces valeurs sont utilisées dans plugins/rate-limiting.yaml via {{ .Values.rateLimiting.* }}
 # =============================================================================
 rateLimiting:
   global:
-    minute: 120   # 120 requests per minute
-    hour: 5000    # 5000 requests per hour
+    minute: 120 # 120 requests per minute
+    hour: 5000 # 5000 requests per hour
   auth:
-    second: 5     # 5 requests per second
-    minute: 30    # 30 requests per minute
+    second: 5 # 5 requests per second
+    minute: 30 # 30 requests per minute
   createAccount:
-    minute: 10    # 10 account creations per minute
-    hour: 50      # 50 account creations per hour
+    minute: 10 # 10 account creations per minute
+    hour: 50 # 50 account creations per hour
   sensitive:
-    minute: 5     # 5 requests per minute
-    hour: 20      # 20 requests per hour
+    minute: 5 # 5 requests per minute
+    hour: 20 # 20 requests per hour
 
 # =============================================================================
 # Monitoring (minimal for dev)
@@ -118,7 +127,7 @@ rateLimiting:
 metrics:
   enabled: true
   serviceMonitor:
-    enabled: false  # No Prometheus in dev VPS
+    enabled: false # No Prometheus in dev VPS
 
 # =============================================================================
 # Logging
@@ -129,10 +138,15 @@ logging:
 
 # =============================================================================
 # Services (backend endpoints)
+# Format: <service>.<namespace>.svc.cluster.local
+# OU juste <service> si dans le même namespace que Kong
 # =============================================================================
 services:
   authService:
-    host: auth-service.dev.svc.cluster.local
+    # Option 1: Nom court (si auth-service dans le même namespace que Kong)
+    host: auth-service
+    # Option 2: Nom complet (explicite)
+    # host: auth-service.default.svc.cluster.local
     port: 50051
     protocol: grpc
 
@@ -145,3 +159,43 @@ features:
   rateLimiting: true
   cors: true
   jwtValidation: true
+
+# =============================================================================
+# Notes d'utilisation
+# =============================================================================
+#
+# Ce fichier configure Kong pour l'environnement VPS-dev avec:
+# - Mode DB-less (pas de PostgreSQL)
+# - CRDs pour la configuration (pas de fichier kong.yaml déclaratif)
+# - Redis Kong dans Docker (127.0.0.1:6380)
+# - auth-service dans K8s namespace "default"
+#
+# Installation:
+#   helm install kong kong/kong \
+#     --namespace default \
+#     --values values-vps-dev.yaml
+#
+# Mise à jour:
+#   helm upgrade kong kong/kong \
+#     --namespace default \
+#     --values values-vps-dev.yaml
+#
+# Architecture Redis:
+#   Docker:
+#     - Redis auth:   127.0.0.1:6379 (database 0) → auth-service
+#     - Redis Kong:   127.0.0.1:6380 (database 1) → Kong rate-limiting
+#
+# Architecture Services:
+#   K3s namespace "default":
+#     - Kong Gateway (ce values.yaml)
+#     - auth-service (à déployer)
+#
+# Plugins:
+#   Les plugins sont appliqués via:
+#     helm template . --values values-vps-dev.yaml \
+#       --show-only plugins/cors.yaml | kubectl apply -f -
+#
+# Routes:
+#   Les routes sont appliquées via:
+#     helm template . --values values-vps-dev.yaml \
+#       --show-only routes/auth-routes.yaml | kubectl apply -f -

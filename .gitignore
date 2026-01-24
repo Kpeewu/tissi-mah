@@ -60,4 +60,5 @@ proto/gen/
 *.pb.go
 
 # Docker
-docker-compose.override.yml
+path/to/output.txt
+docker-compose.yml
