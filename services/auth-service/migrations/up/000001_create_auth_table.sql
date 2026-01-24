@@ -6,9 +6,9 @@ CREATE TABLE IF NOT EXISTS auth (
     phone_number VARCHAR(20) UNIQUE,
     is_active BOOLEAN NOT NULL DEFAULT true,
     is_suspended BOOLEAN NOT NULL DEFAULT false,
-    suspension_date_end TIMESTAMPTZ,
+    suspension_end_date TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    upadated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ,
 
     -- One contact must be available
