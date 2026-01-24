@@ -62,3 +62,6 @@ proto/gen/
 # Docker
 path/to/output.txt
 docker-compose.yml
+docker-compose.yaml
+docker-compose-*.yml
+docker-compose-*.yaml
