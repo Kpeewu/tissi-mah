@@ -28,7 +28,7 @@ config:
 
   # Redis configuration
   # IMPORTANT: Redis Kong tourne dans Docker avec network_mode: host
-  # Il écoute sur 127.0.0.1:6380 (pas dans K8s)
+  # Il écoute sur 127.0.0.1:6379 (pas dans K8s)
   redis_host: 127.0.0.1
   redis_port: 6379
   redis_password:
@@ -67,7 +67,7 @@ apiVersion: configuration.konghq.com/v1
 kind: KongPlugin
 metadata:
   name: rate-limiting-auth
-  namespace: { { .Release.Namespace } }
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: kong
     app.kubernetes.io/component: plugin
@@ -78,12 +78,12 @@ config:
   policy: redis
 
   # Stricter limits for auth endpoints
-  second: { { .Values.rateLimiting.auth.second | default 1 } }
-  minute: { { .Values.rateLimiting.auth.minute | default 10 } }
-  hour: { { .Values.rateLimiting.auth.hour | default 100 } }
+  second: {{ .Values.rateLimiting.auth.second | default 1 }}
+  minute: {{ .Values.rateLimiting.auth.minute | default 10 }}
+  hour: {{ .Values.rateLimiting.auth.hour | default 100 }}
 
   redis_host: 127.0.0.1
-  redis_port: 6380
+  redis_port: 6379
   redis_password:
     valueFrom:
       secretKeyRef:
@@ -106,7 +106,7 @@ apiVersion: configuration.konghq.com/v1
 kind: KongPlugin
 metadata:
   name: rate-limiting-create-account
-  namespace: { { .Release.Namespace } }
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: kong
     app.kubernetes.io/component: plugin
@@ -115,12 +115,12 @@ config:
   policy: redis
 
   # Very strict limits for account creation
-  minute: { { .Values.rateLimiting.createAccount.minute | default 3 } }
-  hour: { { .Values.rateLimiting.createAccount.hour | default 10 } }
+  minute: {{ .Values.rateLimiting.createAccount.minute | default 3 }}
+  hour: {{ .Values.rateLimiting.createAccount.hour | default 10 }}
   day: 20
 
   redis_host: 127.0.0.1
-  redis_port: 6380
+  redis_port: 6379
   redis_password:
     valueFrom:
       secretKeyRef:
@@ -141,7 +141,7 @@ apiVersion: configuration.konghq.com/v1
 kind: KongPlugin
 metadata:
   name: rate-limiting-sensitive
-  namespace: { { .Release.Namespace } }
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: kong
     app.kubernetes.io/component: plugin
@@ -150,8 +150,8 @@ config:
   policy: redis
 
   # Very restrictive for destructive operations
-  minute: { { .Values.rateLimiting.sensitive.minute | default 1 } }
-  hour: { { .Values.rateLimiting.sensitive.hour | default 5 } }
+  minute: {{ .Values.rateLimiting.sensitive.minute | default 1 }}
+  hour: {{ .Values.rateLimiting.sensitive.hour | default 5 }}
   day: 10
 
   redis_host: 127.0.0.1

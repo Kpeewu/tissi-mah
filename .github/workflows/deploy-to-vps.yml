@@ -22,6 +22,9 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ${{ github.repository }}
+  # Namespace pour le déploiement VPS-dev
+  # IMPORTANT: Doit correspondre au namespace où Kong est installé
+  DEPLOY_NAMESPACE: default
 
 jobs:
   detect-changes:
@@ -143,11 +146,18 @@ jobs:
           helm upgrade --install ${{ matrix.service }} \
             services/${{ matrix.service }}/deployments/helm \
             -f services/${{ matrix.service }}/deployments/helm/values/vps-dev.yaml \
-            --namespace dev \
+            --namespace ${{ env.DEPLOY_NAMESPACE }} \
             --create-namespace \
             --set image.tag=develop-${{ github.sha }} \
             --wait \
             --timeout 5m
+
+      - name: Deployment info
+        run: |
+          echo "Service deployed:"
+          echo "  Name: ${{ matrix.service }}"
+          echo "  Namespace: ${{ env.DEPLOY_NAMESPACE }}"
+          echo "  Image: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:develop-${{ github.sha }}"
 
   health-check:
     name: Health Check
@@ -165,23 +175,37 @@ jobs:
 
       - name: Check deployment status
         run: |
-          echo "Checking deployment status for ${{ matrix.service }}..."
-          kubectl rollout status deployment/${{ matrix.service }} -n dev --timeout=120s
+          echo "Checking deployment status for ${{ matrix.service }} in namespace ${{ env.DEPLOY_NAMESPACE }}..."
+          kubectl rollout status deployment/${{ matrix.service }} \
+            -n ${{ env.DEPLOY_NAMESPACE }} \
+            --timeout=120s
 
       - name: Check pod health
         run: |
           echo "Checking pod health..."
-          kubectl get pods -n dev -l app.kubernetes.io/name=${{ matrix.service }} -o wide
-          
+          kubectl get pods \
+            -n ${{ env.DEPLOY_NAMESPACE }} \
+            -l app.kubernetes.io/name=${{ matrix.service }} \
+            -o wide
+
           kubectl wait --for=condition=ready pod \
             -l app.kubernetes.io/name=${{ matrix.service }} \
-            -n dev \
+            -n ${{ env.DEPLOY_NAMESPACE }} \
             --timeout=120s
 
       - name: Verify service endpoint
         run: |
           echo "Service endpoint:"
-          kubectl get svc ${{ matrix.service }} -n dev
+          kubectl get svc ${{ matrix.service }} -n ${{ env.DEPLOY_NAMESPACE }}
+
+      - name: Show pod logs (last 50 lines)
+        if: failure()
+        run: |
+          echo "Pod logs for troubleshooting:"
+          kubectl logs \
+            -n ${{ env.DEPLOY_NAMESPACE }} \
+            -l app.kubernetes.io/name=${{ matrix.service }} \
+            --tail=50
 
   deployment-summary:
     name: Deployment Summary
@@ -193,6 +217,8 @@ jobs:
         run: |
           echo "VPS Deployment Summary"
           echo "======================="
+          echo "Environment: VPS Development"
+          echo "Namespace: ${{ env.DEPLOY_NAMESPACE }}"
           echo "Branch: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
           echo "Services: ${{ needs.detect-changes.outputs.services }}"
@@ -201,12 +227,63 @@ jobs:
           echo "  Build: ${{ needs.build-and-push.result }}"
           echo "  Deploy: ${{ needs.deploy.result }}"
           echo "  Health Check: ${{ needs.health-check.result }}"
-          
+
           if [ "${{ needs.health-check.result }}" != "success" ]; then
             echo ""
-            echo "Deployment may have issues. Check the logs above."
+            echo "⚠️  Deployment may have issues. Check the logs above."
             exit 1
           fi
-          
+
           echo ""
-          echo "Deployment successful!"
+          echo "✅ Deployment successful!"
+          echo ""
+          echo "Access your services:"
+          echo "  - Kong Gateway: http://dev.tissi-mah.com"
+          echo "  - Auth Service: http://dev.tissi-mah.com/api/v1/auth/*"
+
+# =============================================================================
+# Notes d'utilisation
+# =============================================================================
+#
+# Ce workflow déploie automatiquement les services modifiés vers le VPS-dev.
+#
+# Déclenchement automatique:
+#   - Push sur la branche "develop"
+#   - Modifications dans services/** ou pkg/**
+#
+# Déclenchement manuel:
+#   - GitHub Actions → Deploy to VPS → Run workflow
+#   - Sélectionner un service spécifique (optionnel)
+#
+# Prérequis:
+#   1. Secret GitHub: VPS_KUBECONFIG
+#      - Contenu: kubeconfig VPS encodé en base64
+#      - Obtenir: kubectl config view --raw | base64 -w 0
+#
+#   2. Kong installé dans le namespace "default"
+#      - Le workflow déploie les services dans ce même namespace
+#      - Cohérence avec la configuration Kong (auth-routes.yaml)
+#
+#   3. Script sync-protos-to-helm.sh
+#      - Synchronise les fichiers .proto vers les Helm charts
+#      - Nécessaire pour le plugin grpc-gateway de Kong
+#
+# Workflow détaillé:
+#   1. detect-changes: Identifie les services modifiés
+#   2. build-and-push: Build Docker images → GHCR
+#   3. deploy: Déploiement Helm dans K3s
+#   4. health-check: Vérification santé pods
+#   5. deployment-summary: Résumé du déploiement
+#
+# Architecture:
+#   VPS K3s namespace "default":
+#     ├── Kong Gateway (API Gateway)
+#     ├── auth-service (déployé par ce workflow)
+#     ├── user-service (futur)
+#     └── ...
+#
+# En cas d'échec:
+#   - Consulter les logs GitHub Actions
+#   - Vérifier les pods: kubectl get pods -n default
+#   - Voir les logs: kubectl logs -n default <pod-name>
+#   - Vérifier Kong: kubectl logs -l app.kubernetes.io/name=kong

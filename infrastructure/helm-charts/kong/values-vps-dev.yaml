@@ -74,14 +74,14 @@ kong:
 # =============================================================================
 # Redis Configuration (for rate limiting)
 # Redis Kong tourne dans Docker avec network_mode: host
-# Il écoute sur 127.0.0.1:6380 (différent de Redis auth sur 127.0.0.1:6379)
+# Il écoute sur 127.0.0.1:6379 (différent de Redis auth sur 127.0.0.1:6380)
 # =============================================================================
 redis:
   enabled: true
   # Host: 127.0.0.1 car Redis Kong est dans Docker avec network_mode: host
   # Kong (dans K3s) peut accéder à 127.0.0.1 du VPS
   host: 127.0.0.1
-  # Port: 6380 (Redis Kong), différent de 6379 (Redis auth-service)
+  # Port: 6379 (Redis Kong), différent de 6380 (Redis auth-service)
   port: 6379
   # Password: Géré via Secret K8s (kong-redis-secret)
   # Les plugins rate-limiting.yaml référencent ce secret directement

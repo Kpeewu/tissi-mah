@@ -309,32 +309,76 @@ spec:
                   number: 50051
 
 ---
+
 # =============================================================================
-# TLS Configuration
+# TLS Configuration (Manual Certificate)
 # =============================================================================
+
 {{- if .Values.tls.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: auth-service-tls
   namespace: {{ .Release.Namespace }}
-  labels:
-    app.kubernetes.io/name: kong
-    app.kubernetes.io/component: tls
-  annotations:
-    kubernetes.io/ingress.class: kong
-    cert-manager.io/cluster-issuer: {{ .Values.tls.clusterIssuer | default "letsencrypt-prod" }}
+    labels:
+      app.kubernetes.io/name: kong
+      app.kubernetes.io/component: tls
+    annotations:
+      kubernetes.io/ingress.class: kong
+        # Pas d'annotation cert-manager (certificat manuel)
+        # Rediriger HTTP vers HTTPS automatiquement
+        konghq.com/protocols: https
+        konghq.com/https-redirect-status-code: "301"
 spec:
   ingressClassName: kong
-  tls:
-    - hosts:
+    tls:
+      - hosts:
         - {{ .Values.kong.host }}
-      secretName: {{ .Values.tls.secretName | default "tissi-mah-tls" }}
-  rules:
-    - host: {{ .Values.kong.host }}
+      secretName: {{ .Values.tls.secretName | default "tissi-mah-dev-tls" }}
+    rules:
+      - host: {{ .Values.kong.host }}
+          http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: kong
+                      port:
+                        number: 80
 {{- end }}
 
 ---
+# =============================================================================
+# Notes - Certificat Manuel
+# =============================================================================
+#
+# Ce fichier utilise un certificat TLS manuel (pas cert-manager).
+#
+# Le certificat doit être créé comme Secret K8s:
+#   kubectl create secret tls tissi-mah-dev-tls \
+#     --cert=/chemin/vers/fullchain.pem \
+#     --key=/chemin/vers/privkey.pem \
+#     --namespace default
+#
+# Renouvellement du certificat (tous les 90 jours):
+#   1. Renouveler le certificat avec certbot/autre outil
+#   2. Supprimer l'ancien Secret:
+#      kubectl delete secret tissi-mah-dev-tls -n default
+#   3. Recréer le Secret avec le nouveau certificat:
+#      kubectl create secret tls tissi-mah-dev-tls \
+#        --cert=/chemin/vers/fullchain.pem \
+#        --key=/chemin/vers/privkey.pem \
+#        --namespace default
+#   4. Kong utilisera automatiquement le nouveau certificat
+#
+# Vérifier la date d'expiration:
+#   kubectl get secret tissi-mah-dev-tls -n default -o jsonpath='{.data.tls\.crt}' | \
+#     base64 -d | openssl x509 -noout -dates
+#
+# Tester HTTPS:
+#   curl https://api.tissimah.kpeewu.dev/api/v1/auth/health
+
 # =============================================================================
 # Notes d'utilisation
 # =============================================================================
