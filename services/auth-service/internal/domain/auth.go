@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type Auth struct {
 	AuthID            string
@@ -112,8 +115,17 @@ func (a *Auth) Deactivate() {
 }
 
 // Delete user account
-func (a *Auth) SoftDelete() {
-	deletedDate := time.Now().UTC()
-	a.DeletedAt = &deletedDate
-	a.UpdatedAt = time.Now().UTC()
+func (a *Auth) AnonymizeAndDelete() {
+
+	a.FirebaseID = ""
+
+	email := fmt.Sprintf("deleted_user_%s@anonymized.local", a.AuthID)
+	a.Email = &email
+	a.PhoneNumber = nil
+
+	a.IsActive = false
+
+	now := time.Now().UTC()
+	a.DeletedAt = &now
+	a.UpdatedAt = now
 }
