@@ -172,10 +172,10 @@ start_redis_kong() {
     log_step "Démarrage de Redis Kong..."
     echo ""
     
-    REDIS_COMPOSE="$DATABASES_DIR/docker-compose-kong-redis.yml"
+    REDIS_COMPOSE="$DATABASES_DIR/docker-compose-kong-redis.yaml"
     
     if [ ! -f "$REDIS_COMPOSE" ]; then
-        log_error "Fichier docker-compose-kong-redis.yml introuvable: $REDIS_COMPOSE"
+        log_error "Fichier docker-compose-kong-redis.yaml introuvable: $REDIS_COMPOSE"
         exit 1
     fi
     
