@@ -308,7 +308,7 @@ install_kong() {
             --version "$KONG_CHART_VERSION" \
             --values "$KONG_HELM_DIR/values-vps-dev.yaml" \
             --wait \
-            --timeout 5m
+            --timeout 20m
         
         log_info "✓ Kong installé avec succès"
     fi
