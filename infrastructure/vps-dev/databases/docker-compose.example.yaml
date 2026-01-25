@@ -23,15 +23,7 @@ services:
     image: postgres:16-alpine
     container_name: tissimah-postgres-auth
 
-    # Network mode HOST : le conteneur utilise directement le réseau de l'hôte
-    # Avantages:
-    # - Pas de port mapping nécessaire
-    # - PostgreSQL écoute directement sur l'interface de l'hôte
-    # - K3s peut se connecter via 127.0.0.1:xxxx
-    # Inconvénients:
-    # - Moins d'isolation réseau
-    # - Le port xxxx de l'hôte doit être libre
-    network_mode: "host"
+    network_mode: "bridge"
 
     # Variables d'environnement
     environment:
