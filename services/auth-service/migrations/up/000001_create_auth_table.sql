@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS auth (
     CONSTRAINT ck_phone_or_email_not_null CHECK(email IS NOT NULL OR phone_number IS NOT NULL)
 );
 
-CREATE INDEX IF NOT EXISTS idx_auth_firebase_id ON auth(firebase_id) IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_auth_firebase_id ON auth(firebase_id);
 CREATE INDEX IF NOT EXISTS idx_auth_email ON auth(email) WHERE email IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_auth_phone_number ON auth(phone_number) WHERE phone_number IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ids_auth_deleted_at ON auth(deleted_at) WHERE deleted_at IS NOT NULL;
