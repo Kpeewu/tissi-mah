@@ -82,7 +82,7 @@ services:
 
       # Migrations UP : exécutées automatiquement au premier démarrage
       # Monter uniquement le dossier up/ pour éviter d'exécuter les down
-      - ../../services/auth-service/migrations/up:/docker-entrypoint-initdb.d:ro
+      - ../../../services/auth-service/migrations/up:/docker-entrypoint-initdb.d:ro
 
     # Health check pour vérifier que PostgreSQL est prêt
     healthcheck:
