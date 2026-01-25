@@ -60,7 +60,6 @@ services:
       # Commande pour spécifier le port d'écoute avec network_mode: host
       command: >
         postgres
-          -c port=${AUTH_POSTGRES_PORT}
           -c max_connections=100
           -c shared_buffers=256MB
           -c effective_cache_size=1GB
@@ -73,6 +72,8 @@ services:
           -c work_mem=2621kB
           -c min_wal_size=1GB
           -c max_wal_size=4GB
+    ports:
+      - "${AUTH_POSTGRES_PORT}:5432"
 
     # Volumes pour la persistance des données
     volumes:
