@@ -27,7 +27,7 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 DATABASES_DIR="$SCRIPT_DIR"
-KONG_HELM_DIR="$PROJECT_ROOT/infrastructure/helm-charts/kong"
+KONG_HELM_DIR="$PROJECT_ROOT/helm-charts/kong"
 
 # Configuration Kong
 KONG_NAMESPACE="default"
