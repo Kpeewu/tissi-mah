@@ -1,6 +1,6 @@
 apiVersion: v2
 name: auth-service
-description: A Helm chart for tissmah Auth Service
+description: A Helm chart for tissmah kong ingress controller
 type: application
 version: 0.1.0
 appVersion: "1.0.0"
@@ -10,10 +10,9 @@ maintainers:
     email: kpeewu@gmail.com
 
 keywords:
-  - auth
   - grpc
-  - golang
-  - microservice
+  - jwt
+  - cors
 
 home: https://github.com/Kpeewu/tissi-mah
 sources:
