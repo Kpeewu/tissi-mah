@@ -1,5 +1,5 @@
 apiVersion: v2
-name: auth-service
+name: kong-plugins
 description: A Helm chart for tissmah kong ingress controller
 type: application
 version: 0.1.0
