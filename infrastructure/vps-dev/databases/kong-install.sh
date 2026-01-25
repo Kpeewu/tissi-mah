@@ -291,7 +291,8 @@ install_kong() {
                 --version "$KONG_CHART_VERSION" \
                 --values "$KONG_HELM_DIR/values-vps-dev.yaml" \
                 --wait \
-                --timeout 5m
+                --timeout 20m
+                -- debug
             log_info "✓ Kong mis à jour"
         fi
     else
@@ -309,6 +310,7 @@ install_kong() {
             --values "$KONG_HELM_DIR/values-vps-dev.yaml" \
             --wait \
             --timeout 20m
+            -- debug
         
         log_info "✓ Kong installé avec succès"
     fi
