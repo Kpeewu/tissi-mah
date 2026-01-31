@@ -6,7 +6,7 @@ apiVersion: configuration.konghq.com/v1
 kind: KongPlugin
 metadata:
   name: rate-limiting-global
-  namespace: { { .Release.Namespace } }
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: kong
     app.kubernetes.io/component: plugin
@@ -22,8 +22,8 @@ config:
 
   # Limits (requests per time window)
   second: null # No per-second limit
-  minute: { { .Values.rateLimiting.global.minute | default 60 } }
-  hour: { { .Values.rateLimiting.global.hour | default 1000 } }
+  minute: {{ .Values.rateLimiting.global.minute | default 60 }}
+  hour: {{ .Values.rateLimiting.global.hour | default 1000 }}
   day: null # No daily limit
 
   # Redis configuration

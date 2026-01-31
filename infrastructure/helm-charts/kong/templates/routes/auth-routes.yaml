@@ -320,32 +320,32 @@ kind: Ingress
 metadata:
   name: auth-service-tls
   namespace: {{ .Release.Namespace }}
-    labels:
-      app.kubernetes.io/name: kong
-      app.kubernetes.io/component: tls
-    annotations:
-      kubernetes.io/ingress.class: kong
-        # Pas d'annotation cert-manager (certificat manuel)
-        # Rediriger HTTP vers HTTPS automatiquement
-        konghq.com/protocols: https
-        konghq.com/https-redirect-status-code: "301"
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: tls
+  annotations:
+    kubernetes.io/ingress.class: kong
+    # Pas d'annotation cert-manager (certificat manuel)
+    # Rediriger HTTP vers HTTPS automatiquement
+    konghq.com/protocols: https
+    konghq.com/https-redirect-status-code: "301"
 spec:
   ingressClassName: kong
-    tls:
-      - hosts:
+  tls:
+    - hosts:
         - {{ .Values.kong.host }}
       secretName: {{ .Values.tls.secretName | default "tissi-mah-dev-tls" }}
-    rules:
-      - host: {{ .Values.kong.host }}
-          http:
-            paths:
-              - path: /
-                pathType: Prefix
-                backend:
-                  service:
-                    name: kong
-                      port:
-                        number: 80
+  rules:
+    - host: {{ .Values.kong.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kong
+                port:
+                  number: 80
 {{- end }}
 
 ---
