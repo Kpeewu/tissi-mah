@@ -25,25 +25,21 @@ proxy:
 upstream:
   # Load balancing algorithm
   algorithm: round-robin
-  # Health checks
+  # Health checks (TCP-based for gRPC services)
   healthchecks:
     active:
-      type: grpc
-      grpc_service: grpc.health.v1.Health
-      grpc_status: 1  # SERVING
+      type: tcp
       healthy:
         interval: 10
         successes: 2
       unhealthy:
         interval: 5
         tcp_failures: 3
-        http_failures: 3
     passive:
       healthy:
         successes: 5
       unhealthy:
         tcp_failures: 3
-        http_failures: 3
 
 ---
 # =============================================================================
