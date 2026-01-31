@@ -134,134 +134,50 @@ plugin: response-transformer
 
 ---
 # =============================================================================
-# Kong Deployment Patch for Proto Injection
+# Proto Injection Configuration
 # =============================================================================
-# This patch adds an init container and volumes to the Kong deployment
-# to dynamically load proto files from service ConfigMaps
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: kong
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app.kubernetes.io/name: kong
-spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: kong
-  template:
-    spec:
-      # Init container to copy protos from service ConfigMaps
-      initContainers:
-        - name: proto-loader
-          image: busybox:1.36
-          imagePullPolicy: IfNotPresent
-          command:
-            - /bin/sh
-            - -c
-            - |
-              set -e
-              echo "=== Proto Loader: Starting ==="
-
-              PROTO_DIR="/proto-files"
-              mkdir -p $PROTO_DIR
-
-              # Copy google/api annotations (required for HTTP mapping)
-              echo "Copying google/api proto files..."
-              mkdir -p $PROTO_DIR/google/api
-              cp /google-api-protos/*.proto $PROTO_DIR/google/api/ 2>/dev/null || echo "No google/api protos found"
-
-              # Copy auth-service proto
-              if [ -f /service-protos/auth-service/auth.proto ]; then
-                echo "Copying auth.proto from auth-service..."
-                cp /service-protos/auth-service/auth.proto $PROTO_DIR/
-              else
-                echo "WARNING: auth.proto not found"
-              fi
-
-              # Copy user-service proto (when available)
-              if [ -f /service-protos/user-service/user.proto ]; then
-                echo "Copying user.proto from user-service..."
-                cp /service-protos/user-service/user.proto $PROTO_DIR/
-              fi
-
-              # Copy client-service proto (when available)
-              if [ -f /service-protos/client-service/client.proto ]; then
-                echo "Copying client.proto from client-service..."
-                cp /service-protos/client-service/client.proto $PROTO_DIR/
-              fi
-
-              # Copy payment-service proto (when available)
-              if [ -f /service-protos/payment-service/payment.proto ]; then
-                echo "Copying payment.proto from payment-service..."
-                cp /service-protos/payment-service/payment.proto $PROTO_DIR/
-              fi
-
-              echo "=== Proto files loaded ==="
-              ls -la $PROTO_DIR/
-              echo "=========================="
-          volumeMounts:
-            # Output volume where protos are aggregated
-            - name: proto-files
-              mountPath: /proto-files
-            # Google API protos (annotations.proto, http.proto)
-            - name: google-api-protos
-              mountPath: /google-api-protos
-              readOnly: true
-            # Service proto ConfigMaps
-            - name: auth-service-proto
-              mountPath: /service-protos/auth-service
-              readOnly: true
-            # Uncomment when services are available:
-            # - name: user-service-proto
-            #   mountPath: /service-protos/user-service
-            #   readOnly: true
-            # - name: client-service-proto
-            #   mountPath: /service-protos/client-service
-            #   readOnly: true
-            # - name: payment-service-proto
-            #   mountPath: /service-protos/payment-service
-            #   readOnly: true
-
-      containers:
-        - name: kong
-          volumeMounts:
-            # Mount aggregated proto files
-            - name: proto-files
-              mountPath: /usr/local/kong/proto
-              readOnly: true
-
-      volumes:
-        # Shared volume for aggregated proto files
-        - name: proto-files
-          emptyDir: {}
-
-        # Google API proto files (annotations.proto, http.proto)
-        - name: google-api-protos
-          configMap:
-            name: google-api-protos
-            optional: true
-
-        # Service proto ConfigMaps
-        # These are created by each service's Helm chart
-        - name: auth-service-proto
-          configMap:
-            name: auth-service-proto
-            optional: true # Don't fail if service not deployed yet
-
-        # Uncomment when services are available:
-        # - name: user-service-proto
-        #   configMap:
-        #     name: user-service-proto
-        #     optional: true
-        # - name: client-service-proto
-        #   configMap:
-        #     name: client-service-proto
-        #     optional: true
-        # - name: payment-service-proto
-        #   configMap:
-        #     name: payment-service-proto
-        #     optional: true
+# NOTE: The init container for proto files should be configured in the
+# Kong Helm chart values, not as a separate Deployment.
+#
+# Add this to your Kong values file (e.g., values-vps-dev.yaml):
+#
+# deployment:
+#   initContainers:
+#     - name: proto-loader
+#       image: busybox:1.36
+#       command: ["/bin/sh", "-c"]
+#       args:
+#         - |
+#           mkdir -p /proto-files/google/api
+#           cp /google-api-protos/*.proto /proto-files/google/api/ 2>/dev/null || true
+#           cp /service-protos/auth-service/*.proto /proto-files/ 2>/dev/null || true
+#       volumeMounts:
+#         - name: proto-files
+#           mountPath: /proto-files
+#         - name: google-api-protos
+#           mountPath: /google-api-protos
+#           readOnly: true
+#         - name: auth-service-proto
+#           mountPath: /service-protos/auth-service
+#           readOnly: true
+#
+#   userDefinedVolumes:
+#     - name: proto-files
+#       emptyDir: {}
+#     - name: google-api-protos
+#       configMap:
+#         name: google-api-protos
+#         optional: true
+#     - name: auth-service-proto
+#       configMap:
+#         name: auth-service-proto
+#         optional: true
+#
+#   userDefinedVolumeMounts:
+#     - name: proto-files
+#       mountPath: /usr/local/kong/proto
+#       readOnly: true
+# =============================================================================
 
 ---
 # =============================================================================
