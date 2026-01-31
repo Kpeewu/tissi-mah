@@ -40,9 +40,9 @@ config:
   cookie_names: []
 
   # Claims à vérifier (validation basique)
+  # Seuls "exp" et "nbf" sont supportés par Kong JWT plugin
   claims_to_verify:
-    - exp # Expiration time (obligatoire)
-    - iat # Issued at time (obligatoire)
+    - exp # Expiration time
 
   # Nom du claim qui identifie l'émetteur du token
   # Firebase utilise "iss" (issuer)
