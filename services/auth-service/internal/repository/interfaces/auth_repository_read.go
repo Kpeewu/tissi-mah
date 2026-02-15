@@ -23,5 +23,5 @@ type AuthRepositoryRead interface {
 	EmailExists(ctx context.Context, email string) (bool, error)
 
 	// check if phone number already used
-	PhoneNumberExists(ctx context.Context, email string) (bool, error)
+	PhoneNumberExists(ctx context.Context, phoneNumber string) (bool, error)
 }
