@@ -73,9 +73,13 @@ if [ ! -f "${PROTO_DIR}/auth.proto" ]; then
   exit 1
 fi
 
-# Generate
+# Output directories
+PROTO_OUT_USER="${PROTO_OUT}/userpb"
+mkdir -p ${PROTO_OUT_USER}
+
+# Generate auth.proto
 echo ""
-echo "Generating Go code from proto files..."
+echo "Generating Go code from auth.proto..."
 protoc \
   --proto_path=${PROTO_DIR} \
   --go_out=${PROTO_OUT} \
@@ -84,13 +88,24 @@ protoc \
   --go-grpc_opt=paths=source_relative \
   auth.proto
 
+# Generate user.proto (client gRPC vers user-service)
+echo "Generating Go code from user.proto..."
+protoc \
+  --proto_path=${PROTO_DIR} \
+  --go_out=${PROTO_OUT_USER} \
+  --go_opt=paths=source_relative \
+  --go-grpc_out=${PROTO_OUT_USER} \
+  --go-grpc_opt=paths=source_relative \
+  user.proto
+
 # Check result
 if [ $? -eq 0 ]; then
   echo ""
   echo -e "${GREEN}✅ Proto files generated successfully!${NC}"
   echo ""
   echo "Generated files:"
-  ls -lh ${PROTO_OUT}/*.go 2>/dev/null || echo "No .go files found"
+  ls -lh ${PROTO_OUT}/*.go 2>/dev/null || echo "No .go files in gen/"
+  ls -lh ${PROTO_OUT_USER}/*.go 2>/dev/null || echo "No .go files in gen/userpb/"
 else
   echo ""
   echo -e "${RED}❌ Proto generation failed!${NC}"

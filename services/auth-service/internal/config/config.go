@@ -12,6 +12,7 @@ type Config struct {
 	Database    DatabaseConfig
 	Redis       RedisConfig
 	UserService UserServiceConfig
+	Firebase    FirebaseConfig
 	LogLevel    string
 }
 
@@ -35,6 +36,10 @@ type RedisConfig struct {
 type UserServiceConfig struct {
 	Address string
 	Port    string
+}
+
+type FirebaseConfig struct {
+	ProjectID string
 }
 
 func Load() (*Config, error) {
@@ -62,6 +67,9 @@ func Load() (*Config, error) {
 			Address: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_HOST", "0.0.0.0"),
 			Port:    sharedconfig.GetStringOrDefault(values, "USER_SERVICE_PORT", "50052"),
 		},
+		Firebase: FirebaseConfig{
+			ProjectID: sharedconfig.MustGetString(values, "FIREBASE_PROJECT_ID"),
+		},
 		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
 	}
 
@@ -81,6 +89,9 @@ func validate(cfg *Config) error {
 	}
 	if cfg.Server.Port == "" {
 		return fmt.Errorf("GRPC_PORT is required")
+	}
+	if cfg.Firebase.ProjectID == "" {
+		return fmt.Errorf("FIREBASE_PROJECT_ID is required")
 	}
 	return nil
 }
