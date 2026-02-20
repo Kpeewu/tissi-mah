@@ -1,0 +1,59 @@
+// User Service Proto — contrat utilisé par auth-service
+// Définit uniquement les RPCs dont auth-service a besoin.
+// L'implémentation complète sera dans services/user-service.
+
+syntax = "proto3";
+
+package user;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/auth-service/proto/gen/userpb;userpb";
+
+// =============================================================================
+// User Service
+// =============================================================================
+
+service UserService {
+  // Crée un nouveau profil utilisateur après création du compte auth
+  rpc CreateUser(CreateUserRequest) returns (UserProfileResponse);
+
+  // Récupère le profil utilisateur lié à un AuthID
+  rpc GetUserByAuthID(GetUserByAuthIDRequest) returns (UserProfileResponse);
+}
+
+// =============================================================================
+// Request Messages
+// =============================================================================
+
+message CreateUserRequest {
+  string auth_id           = 1;
+  string name              = 2;
+  string first_name        = 3;
+  string profile_photo_url = 4; // optionnel
+}
+
+message GetUserByAuthIDRequest {
+  string auth_id = 1;
+}
+
+// =============================================================================
+// Response Messages
+// =============================================================================
+
+message UserProfileResponse {
+  string user_id                       = 1;
+  string auth_id                       = 2;
+  string name                          = 3;
+  string first_name                    = 4;
+  string gender                        = 5;
+  string date_of_birth                 = 6;
+  string bio                           = 7;
+  bool   has_profile_image             = 8;
+  string profile_image_url             = 9;
+  bool   is_driver                     = 10;
+  bool   is_passenger                  = 11;
+  bool   is_driver_profile_verified    = 12;
+  bool   is_passenger_profile_verified = 13;
+  string trip_preferences              = 14; // JSON sérialisé
+  string id_card_expiration_date       = 15;
+  string drive_licence_expiration_date = 16;
+}

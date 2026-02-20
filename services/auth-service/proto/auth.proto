@@ -26,7 +26,7 @@ service AuthService {
     };
   }
 
-  rpc CreateAccount(CreateAccountRequest) returns (UserPreview) {
+  rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse) {
     option (google.api.http) = {
       post: "/api/v1/auth/createAccount"
       body: "*"
@@ -102,6 +102,11 @@ message LoginResponse {
   bool Exists = 2; // true if account exists, false otherwise
   UserPreview User = 3;
  
+}
+
+message CreateAccountResponse {
+  string ErrorMessage = 1;
+  UserPreview User = 2;
 }
 
 message HealthResponse {
