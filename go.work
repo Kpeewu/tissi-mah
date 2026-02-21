@@ -1,0 +1,12 @@
+go 1.25.6
+
+use (
+	// Shared packages - common dependencies for all services
+	./pkg
+	./pkg-test
+
+	// Services - each with their own specific dependencies
+	./services/auth-service
+// ./services/user-service      # TODO: Uncomment when implemented
+// ./services/payment-service   # TODO: Uncomment when implemented
+)
