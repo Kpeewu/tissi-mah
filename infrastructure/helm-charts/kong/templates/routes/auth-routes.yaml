@@ -94,7 +94,6 @@ metadata:
     konghq.com/plugins: >-
       cors-global,
       jwt-validation-basic,
-      request-transformer-jwt,
       rate-limiting-auth,
       request-transformer-grpc,
       grpc-gateway-auth,
@@ -133,7 +132,6 @@ metadata:
     konghq.com/plugins: >-
       cors-global,
       jwt-validation-basic,
-      request-transformer-jwt,
       rate-limiting-create-account,
       request-transformer-grpc,
       grpc-gateway-auth,
@@ -246,7 +244,6 @@ metadata:
     konghq.com/plugins: >-
       cors-global,
       jwt-validation-basic,
-      request-transformer-jwt,
       rate-limiting-sensitive,
       request-transformer-grpc,
       grpc-gateway-auth,

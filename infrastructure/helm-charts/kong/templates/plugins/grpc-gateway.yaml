@@ -89,6 +89,10 @@ plugin: grpc-web
 
 ---
 # Request Transformer for gRPC services
+# Merges gRPC headers + JWT-validated marker into a single plugin.
+# NOTE: Kong KIC only allows one plugin of a given type per route —
+# having both request-transformer-jwt and request-transformer-grpc on the same
+# route causes a UUID uniqueness violation (400 from Kong admin API).
 apiVersion: configuration.konghq.com/v1
 kind: KongPlugin
 metadata:
@@ -103,6 +107,7 @@ config:
     headers:
       - "Content-Type:application/grpc"
       - "TE:trailers"
+      - "X-Kong-JWT-Validated:true"
   remove:
     headers:
       - "Accept-Encoding"

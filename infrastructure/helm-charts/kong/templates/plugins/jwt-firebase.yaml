@@ -113,33 +113,6 @@ username: anonymous
 custom_id: anonymous-000000
 
 ---
-# Plugin Request Transformer
-# Ajoute des headers utiles pour auth-service basés sur le JWT validé
-apiVersion: configuration.konghq.com/v1
-kind: KongPlugin
-metadata:
-  name: request-transformer-jwt
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app.kubernetes.io/name: kong
-    app.kubernetes.io/component: plugin
-    plugin-type: request-transformer
-config:
-  add:
-    headers:
-      # Informer auth-service que Kong a fait une validation basique
-      - "X-Kong-JWT-Validated:true"
-      # Timestamp de la requête
-      - "X-Request-Timestamp:$(date +%s)"
-
-  # Ne pas supprimer le header Authorization
-  # auth-service en a besoin pour la validation Firebase complète
-  remove:
-    headers: []
-
-plugin: request-transformer
-
----
 # ConfigMap pour la configuration Firebase (non-sensible)
 # Les données sensibles sont dans kong-firebase-secret
 apiVersion: v1

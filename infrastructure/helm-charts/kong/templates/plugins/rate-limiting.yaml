@@ -31,11 +31,7 @@ config:
   # Il écoute sur 127.0.0.1:6379 (pas dans K8s)
   redis_host: 127.0.0.1
   redis_port: 6379
-  redis_password:
-    valueFrom:
-      secretKeyRef:
-        name: kong-redis-secret
-        key: password
+  redis_password: null
   redis_database: 1
   redis_timeout: 2000
   redis_ssl: false
@@ -84,11 +80,7 @@ config:
 
   redis_host: 127.0.0.1
   redis_port: 6379
-  redis_password:
-    valueFrom:
-      secretKeyRef:
-        name: kong-redis-secret
-        key: password
+  redis_password: null
   redis_database: 1
   redis_timeout: 2000
 
@@ -121,11 +113,7 @@ config:
 
   redis_host: 127.0.0.1
   redis_port: 6379
-  redis_password:
-    valueFrom:
-      secretKeyRef:
-        name: kong-redis-secret
-        key: password
+  redis_password: null
   redis_database: 1
   redis_timeout: 2000
 
@@ -155,12 +143,8 @@ config:
   day: 10
 
   redis_host: 127.0.0.1
-  redis_port: 6369
-  redis_password:
-    valueFrom:
-      secretKeyRef:
-        name: kong-redis-secret
-        key: password
+  redis_port: 6379
+  redis_password: null
   redis_database: 1
   redis_timeout: 2000
 
