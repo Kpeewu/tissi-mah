@@ -19,13 +19,14 @@ WORKDIR /build
 RUN apk add --no-cache git ca-certificates tzdata
 
 # Copy workspace file and all go.mod files first (for better caching)
-COPY go.work ./
+COPY go.work go.work.sum* ./
 COPY pkg/go.mod pkg/go.sum ./pkg/
+COPY pkg-test/go.mod pkg-test/go.sum* ./pkg-test/
 COPY services/auth-service/go.mod services/auth-service/go.sum* ./services/auth-service/
 
 # Download dependencies for all modules
-RUN cd pkg && go mod download
-RUN cd services/auth-service && go mod download
+RUN GOWORK=off go mod download -C ./pkg
+RUN GOWORK=off go mod download -C ./services/auth-service
 
 # =============================================================================
 # Stage 2: Builder
