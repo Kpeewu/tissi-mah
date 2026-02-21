@@ -1,0 +1,187 @@
+# Kong JWT Plugin Configuration for Firebase Authentication
+# Approche 3: Validation basique dans Kong + validation complète dans auth-service
+#
+# Ce que Kong vérifie (validation basique):
+#   - Présence du token JWT dans Authorization header
+#   - Format JWT valide (Header.Payload.Signature)
+#   - Token pas expiré (claim exp)
+#   - Token émis dans le passé (claim iat)
+#
+# Ce que auth-service vérifie (validation complète Firebase):
+#   - Signature JWT avec clés publiques Firebase
+#   - Issuer correct (https://securetoken.google.com/<project-id>)
+#   - Audience correct (project-id)
+#   - Subject (Firebase UID) présent
+#   - Claims custom si nécessaires
+#
+# Documentation: https://docs.konghq.com/hub/kong-inc/jwt/
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: jwt-validation-basic
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: jwt
+  annotations:
+    konghq.com/plugins: jwt-validation-basic
+config:
+  # Où chercher le JWT
+  # Kong va chercher dans ces headers pour extraire le token
+  header_names:
+    - Authorization
+
+  # Paramètres URI où chercher le token (optionnel)
+  uri_param_names: []
+
+  # Cookies où chercher le token (optionnel)
+  cookie_names: []
+
+  # Claims à vérifier (validation basique)
+  # Seuls "exp" et "nbf" sont supportés par Kong JWT plugin
+  claims_to_verify:
+    - exp # Expiration time
+
+  # Nom du claim qui identifie l'émetteur du token
+  # Firebase utilise "iss" (issuer)
+  key_claim_name: iss
+
+  # Secret encodé en base64 ? (Non pour JWT avec clés publiques)
+  secret_is_base64: false
+
+  # Durée maximale de validité du token (en secondes)
+  # Firebase tokens expirent après 1 heure par défaut
+  maximum_expiration: 3600
+
+  # Consumer anonyme
+  # null = pas de consumer anonyme (requête doit avoir un JWT valide)
+  # Si tu veux autoriser certaines routes sans JWT, créer un consumer anonyme
+  anonymous: null
+
+  # Exécuter sur les requêtes preflight (OPTIONS)
+  # false = ne pas vérifier JWT sur OPTIONS (CORS)
+  run_on_preflight: false
+
+plugin: jwt
+
+---
+# Configuration pour les endpoints publics (sans authentification)
+# À utiliser pour les routes qui ne nécessitent pas d'authentification
+# Exemple: /health, /status, /docs
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: jwt-optional
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: jwt
+  annotations:
+    konghq.com/plugins: jwt-optional
+config:
+  header_names:
+    - Authorization
+
+  claims_to_verify:
+    - exp
+
+  # Consumer anonyme pour autoriser les requêtes sans JWT
+  # Le service backend devra gérer l'absence de JWT
+  anonymous: anonymous-user
+
+  run_on_preflight: false
+
+plugin: jwt
+
+---
+# Consumer Kong pour les accès anonymes (sans JWT)
+# Utilisé par le plugin jwt-optional ci-dessus
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: anonymous-user
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: consumer
+  annotations:
+    kubernetes.io/ingress.class: kong
+username: anonymous
+custom_id: anonymous-000000
+
+---
+# ConfigMap pour la configuration Firebase (non-sensible)
+# Les données sensibles sont dans kong-firebase-secret
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kong-firebase-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: config
+data:
+  # Firebase Project ID (public)
+  FIREBASE_PROJECT_ID: '{{ .Values.firebase.projectId | default "tissi-mah-dev" }}'
+
+  # Firebase Auth Domain (public)
+  FIREBASE_AUTH_DOMAIN: '{{ .Values.firebase.projectId | default "tissi-mah-dev" }}.firebaseapp.com'
+
+  # Issuer attendu (pour référence, auth-service valide ça)
+  FIREBASE_ISSUER: 'https://securetoken.google.com/{{ .Values.firebase.projectId | default "tissi-mah-dev" }}'
+
+---
+# Notes d'utilisation
+# ==================
+#
+# Appliquer ce plugin sur une route:
+#   Dans auth-routes.yaml, ajouter dans annotations:
+#   konghq.com/plugins: jwt-validation-basic,request-transformer-jwt
+#
+# Pour un endpoint public (pas de JWT requis):
+#   konghq.com/plugins: jwt-optional
+#
+# Tester avec un token Firebase:
+#   curl -X POST http://localhost/api/v1/auth/login \
+#     -H "Authorization: Bearer <firebase_jwt_token>" \
+#     -H "Content-Type: application/json"
+#
+# Tester sans token (doit échouer 401):
+#   curl -X POST http://localhost/api/v1/auth/login \
+#     -H "Content-Type: application/json"
+#
+# Tester avec un token expiré (doit échouer 401):
+#   curl -X POST http://localhost/api/v1/auth/login \
+#     -H "Authorization: Bearer <expired_token>" \
+#     -H "Content-Type: application/json"
+#
+# Workflow de validation:
+# 1. Kong reçoit la requête avec Authorization: Bearer <token>
+# 2. Kong extrait le JWT et décode le header/payload (sans vérifier la signature)
+# 3. Kong vérifie:
+#    - Format JWT valide
+#    - Claim 'exp' présent et token pas expiré
+#    - Claim 'iat' présent et dans le passé
+# 4. Si validation basique OK:
+#    - Kong ajoute X-Kong-JWT-Validated: true
+#    - Kong transmet la requête à auth-service avec le JWT original
+# 5. Auth-service reçoit la requête:
+#    - Extrait le JWT du header Authorization
+#    - Utilise Firebase Admin SDK pour validation complète
+#    - Vérifie la signature avec clés publiques Firebase
+#    - Vérifie issuer, audience, subject, etc.
+#    - Extrait le Firebase UID pour la logique métier
+# 6. Si validation Firebase OK:
+#    - Auth-service traite la requête
+#    - Retourne la réponse à Kong
+#    - Kong retourne au client
+#
+# Avantages de cette approche:
+# - Kong rejette rapidement les tokens évidemment invalides (format, expiration)
+# - Économise les ressources d'auth-service
+# - Auth-service fait la vraie validation Firebase (signature, claims)
+# - Pas de maintenance des clés publiques Firebase dans Kong
+# - Séparation claire des responsabilités

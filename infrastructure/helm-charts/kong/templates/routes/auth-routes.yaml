@@ -1,0 +1,435 @@
+# Kong Routes Configuration for Auth Service
+# Defines HTTP routes that proxy to the auth-service gRPC backend
+# Documentation: https://docs.konghq.com/gateway/latest/key-concepts/routes/
+---
+# =============================================================================
+# Service Definition
+# =============================================================================
+apiVersion: configuration.konghq.com/v1
+kind: KongIngress
+metadata:
+  name: auth-service-upstream
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: ingress
+    service: auth-service
+proxy:
+  # gRPC protocol
+  protocol: grpc
+  # Connection settings
+  connect_timeout: 10000   # 10 seconds
+  read_timeout: 60000      # 60 seconds
+  write_timeout: 60000     # 60 seconds
+  retries: 3
+upstream:
+  # Load balancing algorithm
+  algorithm: round-robin
+  # Health checks (TCP-based for gRPC services)
+  healthchecks:
+    active:
+      type: tcp
+      healthy:
+        interval: 10
+        successes: 2
+      unhealthy:
+        interval: 5
+        tcp_failures: 3
+    passive:
+      healthy:
+        successes: 5
+      unhealthy:
+        tcp_failures: 3
+
+---
+# =============================================================================
+# Kubernetes Service for auth-service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: auth-service
+    app.kubernetes.io/component: service
+  annotations:
+    konghq.com/override: auth-service-upstream
+spec:
+  type: ClusterIP
+  ports:
+    - name: grpc
+      port: 50051
+      targetPort: 50051
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: auth-service
+
+---
+# =============================================================================
+# Ingress Routes - Protected Endpoints (JWT Required)
+# =============================================================================
+
+# Login endpoint
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: auth-login
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: route
+    service: auth-service
+    endpoint: login
+  annotations:
+    kubernetes.io/ingress.class: kong
+    # Plugin execution order (Kong handles this automatically):
+    # 1. cors-global (CORS preflight)
+    # 2. jwt-validation-basic (JWT validation)
+    # 3. request-transformer-jwt (add JWT headers)
+    # 4. rate-limiting-auth (rate limiting)
+    # 5. request-transformer-grpc (prepare for gRPC)
+    # 6. grpc-gateway-auth (HTTP to gRPC translation)
+    # 7. response-transformer-grpc (format response)
+    konghq.com/plugins: >-
+      cors-global,
+      jwt-validation-basic,
+      rate-limiting-auth,
+      request-transformer-grpc,
+      grpc-gateway-auth,
+      response-transformer-grpc
+    konghq.com/protocols: https,http
+    konghq.com/methods: POST,OPTIONS
+    konghq.com/strip-path: "false"
+spec:
+  ingressClassName: kong
+  rules:
+    - host: {{ .Values.kong.host }}
+      http:
+        paths:
+          - path: /api/v1/auth/login
+            pathType: Exact
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 50051
+
+---
+# Create Account endpoint
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: auth-create-account
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: route
+    service: auth-service
+    endpoint: create-account
+  annotations:
+    kubernetes.io/ingress.class: kong
+    konghq.com/plugins: >-
+      cors-global,
+      jwt-validation-basic,
+      rate-limiting-create-account,
+      request-transformer-grpc,
+      grpc-gateway-auth,
+      response-transformer-grpc
+    konghq.com/protocols: https,http
+    konghq.com/methods: POST,OPTIONS
+    konghq.com/strip-path: "false"
+spec:
+  ingressClassName: kong
+  rules:
+    - host: {{ .Values.kong.host }}
+      http:
+        paths:
+          - path: /api/v1/auth/createAccount
+            pathType: Exact
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 50051
+
+---
+# Check Phone Number endpoint
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: auth-check-phone
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: route
+    service: auth-service
+    endpoint: check-phone
+  annotations:
+    kubernetes.io/ingress.class: kong
+    konghq.com/plugins: >-
+      cors-global,
+      rate-limiting-auth,
+      request-transformer-grpc,
+      grpc-gateway-auth,
+      response-transformer-grpc
+    konghq.com/protocols: https,http
+    konghq.com/methods: POST,OPTIONS
+    konghq.com/strip-path: "false"
+spec:
+  ingressClassName: kong
+  rules:
+    - host: {{ .Values.kong.host }}
+      http:
+        paths:
+          - path: /api/v1/auth/checkPhoneNumber
+            pathType: Exact
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 50051
+
+---
+# Check Email endpoint
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: auth-check-email
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: route
+    service: auth-service
+    endpoint: check-email
+  annotations:
+    kubernetes.io/ingress.class: kong
+    konghq.com/plugins: >-
+      cors-global,
+      rate-limiting-auth,
+      request-transformer-grpc,
+      grpc-gateway-auth,
+      response-transformer-grpc
+    konghq.com/protocols: https,http
+    konghq.com/methods: POST,OPTIONS
+    konghq.com/strip-path: "false"
+spec:
+  ingressClassName: kong
+  rules:
+    - host: {{ .Values.kong.host }}
+      http:
+        paths:
+          - path: /api/v1/auth/checkEmail
+            pathType: Exact
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 50051
+
+---
+# Delete Account endpoint
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: auth-delete-account
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: route
+    service: auth-service
+    endpoint: delete-account
+  annotations:
+    kubernetes.io/ingress.class: kong
+    konghq.com/plugins: >-
+      cors-global,
+      jwt-validation-basic,
+      rate-limiting-sensitive,
+      request-transformer-grpc,
+      grpc-gateway-auth,
+      response-transformer-grpc
+    konghq.com/protocols: https,http
+    konghq.com/methods: DELETE,OPTIONS
+    konghq.com/strip-path: "false"
+spec:
+  ingressClassName: kong
+  rules:
+    - host: {{ .Values.kong.host }}
+      http:
+        paths:
+          - path: /api/v1/auth/deleteAccount
+            pathType: Exact
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 50051
+
+---
+# =============================================================================
+# Health Check Route (No Auth Required - Public Access)
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: auth-health
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: route
+    service: auth-service
+    endpoint: health
+  annotations:
+    kubernetes.io/ingress.class: kong
+    # Health check route - NO JWT validation required
+    # Only CORS and rate-limiting (no gRPC transformation needed for simple health check)
+    konghq.com/plugins: cors-global,rate-limiting-global
+    konghq.com/protocols: https,http
+    konghq.com/methods: GET,OPTIONS
+    konghq.com/strip-path: "false"
+spec:
+  ingressClassName: kong
+  rules:
+    - host: {{ .Values.kong.host }}
+      http:
+        paths:
+          - path: /api/v1/auth/health
+            pathType: Exact
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 50051
+
+---
+
+# =============================================================================
+# TLS Configuration (Manual Certificate)
+# =============================================================================
+
+{{- if .Values.tls.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: auth-service-tls
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: tls
+  annotations:
+    kubernetes.io/ingress.class: kong
+    # Pas d'annotation cert-manager (certificat manuel)
+    # Rediriger HTTP vers HTTPS automatiquement
+    konghq.com/protocols: https
+    konghq.com/https-redirect-status-code: "301"
+spec:
+  ingressClassName: kong
+  tls:
+    - hosts:
+        - {{ .Values.kong.host }}
+      secretName: {{ .Values.tls.secretName | default "tissi-mah-dev-tls" }}
+  rules:
+    - host: {{ .Values.kong.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kong
+                port:
+                  number: 80
+{{- end }}
+
+---
+# =============================================================================
+# Notes - Certificat Manuel
+# =============================================================================
+#
+# Ce fichier utilise un certificat TLS manuel (pas cert-manager).
+#
+# Le certificat doit être créé comme Secret K8s:
+#   kubectl create secret tls tissi-mah-dev-tls \
+#     --cert=/chemin/vers/fullchain.pem \
+#     --key=/chemin/vers/privkey.pem \
+#     --namespace default
+#
+# Renouvellement du certificat (tous les 90 jours):
+#   1. Renouveler le certificat avec certbot/autre outil
+#   2. Supprimer l'ancien Secret:
+#      kubectl delete secret tissi-mah-dev-tls -n default
+#   3. Recréer le Secret avec le nouveau certificat:
+#      kubectl create secret tls tissi-mah-dev-tls \
+#        --cert=/chemin/vers/fullchain.pem \
+#        --key=/chemin/vers/privkey.pem \
+#        --namespace default
+#   4. Kong utilisera automatiquement le nouveau certificat
+#
+# Vérifier la date d'expiration:
+#   kubectl get secret tissi-mah-dev-tls -n default -o jsonpath='{.data.tls\.crt}' | \
+#     base64 -d | openssl x509 -noout -dates
+#
+# Tester HTTPS:
+#   curl https://api.tissimah.kpeewu.dev/api/v1/auth/health
+
+# =============================================================================
+# Notes d'utilisation
+# =============================================================================
+#
+# Test des routes (après déploiement d'auth-service):
+#
+# 1. Health check (public, sans JWT):
+#    curl http://localhost/api/v1/auth/health
+#    Attendu: 200 OK
+#
+# 2. Login (JWT requis):
+#    curl -X POST http://localhost/api/v1/auth/login \
+#      -H "Authorization: Bearer <firebase_jwt>" \
+#      -H "Content-Type: application/json" \
+#      -d '{"phoneNumber": "+22500000000"}'
+#    Attendu: 200 OK avec réponse auth-service
+#
+# 3. Login sans JWT (doit échouer):
+#    curl -X POST http://localhost/api/v1/auth/login \
+#      -H "Content-Type: application/json"
+#    Attendu: 401 Unauthorized
+#
+# 4. Créer un compte:
+#    curl -X POST http://localhost/api/v1/auth/createAccount \
+#      -H "Authorization: Bearer <firebase_jwt>" \
+#      -H "Content-Type: application/json" \
+#      -d '{"email": "test@example.com", "phoneNumber": "+22500000000"}'
+#
+# 5. Vérifier le rate-limiting:
+#    # Envoyer 15 requêtes rapides sur /login (limite: 10/min)
+#    for i in {1..15}; do
+#      curl -i http://localhost/api/v1/auth/health
+#    done
+#    Attendu: 429 Too Many Requests après la 60ème requête (global) ou 10ème (auth)
+#
+# Workflow complet d'une requête:
+# 1. Client → Kong (http://localhost/api/v1/auth/login)
+# 2. Kong → CORS Plugin (préflight si OPTIONS)
+# 3. Kong → JWT Plugin (validation basique: format, expiration)
+# 4. Kong → Request Transformer JWT (ajoute X-Kong-JWT-Validated)
+# 5. Kong → Rate Limiting Plugin (vérifie limites Redis)
+# 6. Kong → Request Transformer gRPC (prépare headers gRPC)
+# 7. Kong → gRPC Gateway Plugin (translation HTTP→gRPC)
+# 8. Kong → auth-service (gRPC 50051)
+# 9. auth-service → Firebase Admin SDK (validation complète JWT)
+# 10. auth-service → Traite la requête
+# 11. auth-service → Retourne la réponse gRPC
+# 12. Kong → Response Transformer gRPC (formate la réponse)
+# 13. Kong → Client (HTTP response)
+#
+# Plugins référencés (doivent être créés avant):
+# - cors-global (cors.yaml)
+# - jwt-validation-basic (jwt-firebase.yaml) ← NOUVEAU NOM
+# - request-transformer-jwt (jwt-firebase.yaml) ← NOUVEAU
+# - rate-limiting-global (rate-limiting.yaml)
+# - rate-limiting-auth (rate-limiting.yaml)
+# - rate-limiting-create-account (rate-limiting.yaml)
+# - rate-limiting-sensitive (rate-limiting.yaml)
+# - request-transformer-grpc (grpc-gateway.yaml)
+# - response-transformer-grpc (grpc-gateway.yaml)
+# - grpc-gateway-auth (grpc-gateway.yaml)
