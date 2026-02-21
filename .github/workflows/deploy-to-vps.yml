@@ -125,34 +125,34 @@ jobs:
           USER_REDIS_URL: ${{ secrets.USER_REDIS_URL }}
         run: |
           python3 - <<'PYEOF'
-          import yaml, os
+          import yaml, os, json, sys
 
-          service = "${{ matrix.service }}"
-          data = {}
+          firebase_creds = os.environ.get('AUTH_FIREBASE_CREDENTIALS', '').strip()
+          if firebase_creds:
+              try:
+                  # Validate and re-serialize as compact single-line JSON.
+                  # This catches bad secrets early and avoids yaml.dump issues
+                  # with multi-line PEM keys embedded in the service account JSON.
+                  firebase_creds = json.dumps(json.loads(firebase_creds))
+              except json.JSONDecodeError as e:
+                  print(f"ERROR: AUTH_FIREBASE_CREDENTIALS is not valid JSON: {e}", file=sys.stderr)
+                  sys.exit(1)
+          else:
+              print("WARNING: AUTH_FIREBASE_CREDENTIALS is empty", file=sys.stderr)
 
-          if service == "api-gateway":
-              data = {
-                  'secrets': {
-                      'redisUrl': os.environ.get('GW_REDIS_URL', ''),
-                      'firebaseCredentials': os.environ.get('GW_FIREBASE_CREDENTIALS', ''),
-                      'firebaseProjectId': os.environ.get('GW_FIREBASE_PROJECT_ID', ''),
-                  },
-              }
-          elif service == "auth-service":
-              data = {
-                  'secrets': {
-                      'databaseUrl': os.environ.get('AUTH_DATABASE_URL', ''),
-                      'redisUrl': os.environ.get('AUTH_REDIS_URL', ''),
-                  },
-              }
-          elif service == "user-service":
-              data = {
-                  'secrets': {
-                      'mongodbUrl': os.environ.get('USER_MONGODB_URL', ''),
-                      'redisUrl': os.environ.get('USER_REDIS_URL', ''),
-                  },
-              }
-
+          data = {
+              'secrets': {
+                  'databaseUrl': os.environ.get('AUTH_DATABASE_URL', ''),
+                  'redisUrl': os.environ.get('AUTH_REDIS_URL', ''),
+                  'jwtSecret': os.environ.get('AUTH_JWT_SECRET', ''),
+                  'firebaseCredentials': firebase_creds,
+              },
+              'config': {
+                  'extra': {
+                      'FIREBASE_PROJECT_ID': os.environ.get('AUTH_FIREBASE_PROJECT_ID', ''),
+                  }
+              },
+          }
           with open('/tmp/secrets-values.yaml', 'w') as f:
               yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
           PYEOF
