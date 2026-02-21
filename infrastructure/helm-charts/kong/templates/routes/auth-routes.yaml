@@ -3,36 +3,11 @@
 # Documentation: https://docs.konghq.com/gateway/latest/key-concepts/routes/
 #
 # NOTE: KIC 3.x removed KongIngress.proxy and KongIngress.upstream.
-# Protocol and timeouts are now set via annotations directly on the Service.
+# Protocol and timeouts are set via annotations on the Service in the auth-service Helm chart.
 # Use KongUpstreamPolicy (configuration.konghq.com/v1beta1) for load balancing.
----
-# =============================================================================
-# Kubernetes Service for auth-service
-# KIC 3.x: protocol/timeouts via annotations, no KongIngress.proxy needed
-# =============================================================================
-apiVersion: v1
-kind: Service
-metadata:
-  name: auth-service
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app.kubernetes.io/name: auth-service
-    app.kubernetes.io/component: service
-  annotations:
-    konghq.com/protocol: grpc
-    konghq.com/connect-timeout: "10000"
-    konghq.com/read-timeout: "60000"
-    konghq.com/write-timeout: "60000"
-spec:
-  type: ClusterIP
-  ports:
-    - name: grpc
-      port: 50051
-      targetPort: 50051
-      protocol: TCP
-  selector:
-    app.kubernetes.io/name: auth-service
-
+#
+# NOTE: The Kubernetes Service for auth-service is managed by the auth-service Helm chart,
+# not here. Do NOT define the Service in this file to avoid Helm ownership conflicts.
 ---
 # =============================================================================
 # Ingress Routes - Protected Endpoints (JWT Required)
