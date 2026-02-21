@@ -16,42 +16,22 @@ metadata:
 config:
   # Rate limiting strategy
   # redis = utiliser Redis pour le rate limiting distribué
-  # local = utiliser la mémoire locale Kong (pas distribué)
-  # cluster = utiliser la base de données Kong (mode DB uniquement)
   policy: redis
 
   # Limits (requests per time window)
-  second: null # No per-second limit
   minute: {{ .Values.rateLimiting.global.minute | default 60 }}
   hour: {{ .Values.rateLimiting.global.hour | default 1000 }}
-  day: null # No daily limit
 
-  # Redis configuration
-  # IMPORTANT: Redis Kong tourne dans Docker avec network_mode: host
-  # Il écoute sur 127.0.0.1:6379 (pas dans K8s)
-  redis_host: 127.0.0.1
-  redis_port: 6379
-  redis_password: null
-  redis_database: 1
-  redis_timeout: 2000
-  redis_ssl: false
+  # Redis configuration (nested format, Kong 3.6+)
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    database: 1
+    timeout: 2000
+    ssl: false
 
-  # Behavior
-  # fault_tolerant = continuer si Redis est indisponible
   fault_tolerant: true
-
-  # hide_client_headers = cacher les headers X-RateLimit-*
-  # false = afficher les headers (utile pour les clients)
   hide_client_headers: false
-
-  # Identification
-  # Comment identifier l'utilisateur pour le rate limiting:
-  # - credential = par consumer Kong credential
-  # - ip = par adresse IP
-  # - consumer = par consumer Kong
-  # - header = par valeur d'un header spécifique
-  # - path = par path de la requête
-  # - service = par service backend
   limit_by: ip
 
 plugin: rate-limiting
@@ -78,16 +58,14 @@ config:
   minute: {{ .Values.rateLimiting.auth.minute | default 10 }}
   hour: {{ .Values.rateLimiting.auth.hour | default 100 }}
 
-  redis_host: 127.0.0.1
-  redis_port: 6379
-  redis_password: null
-  redis_database: 1
-  redis_timeout: 2000
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    database: 1
+    timeout: 2000
 
   fault_tolerant: true
   hide_client_headers: false
-
-  # Limit by IP for unauthenticated requests
   limit_by: ip
 
 plugin: rate-limiting
@@ -111,11 +89,11 @@ config:
   hour: {{ .Values.rateLimiting.createAccount.hour | default 10 }}
   day: 20
 
-  redis_host: 127.0.0.1
-  redis_port: 6379
-  redis_password: null
-  redis_database: 1
-  redis_timeout: 2000
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    database: 1
+    timeout: 2000
 
   fault_tolerant: true
   hide_client_headers: false
@@ -142,11 +120,11 @@ config:
   hour: {{ .Values.rateLimiting.sensitive.hour | default 5 }}
   day: 10
 
-  redis_host: 127.0.0.1
-  redis_port: 6379
-  redis_password: null
-  redis_database: 1
-  redis_timeout: 2000
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    database: 1
+    timeout: 2000
 
   fault_tolerant: true
   hide_client_headers: false
@@ -164,14 +142,7 @@ plugin: rate-limiting
 # Voir les clés de rate-limiting dans Redis:
 #   docker exec tissimah-redis-kong redis-cli -p 6380 -a ${KONG_REDIS_PASSWORD} KEYS "rate-limit:*"
 #
-# Voir une clé spécifique:
-#   docker exec tissimah-redis-kong redis-cli -p 6380 -a ${KONG_REDIS_PASSWORD} GET "rate-limit:ip:127.0.0.1:..."
-#
-# Vider le cache rate-limiting (ATTENTION: remet tous les compteurs à zéro):
-#   docker exec tissimah-redis-kong redis-cli -p 6380 -a ${KONG_REDIS_PASSWORD} FLUSHDB
-#
 # Tester le rate-limiting:
-#   # Envoyer 20 requêtes rapides (devrait être limité après 10)
 #   for i in {1..20}; do
 #     curl -i http://localhost/api/v1/auth/health
 #     sleep 0.1
@@ -191,9 +162,8 @@ plugin: rate-limiting
 #
 # Configuration Redis Kong:
 #   - Host: 127.0.0.1 (Docker avec network_mode: host)
-#   - Port: 6380 (différent de Redis auth sur )
+#   - Port: 6379
 #   - Database: 1 (séparé de la database 0)
-#   - Password: depuis Secret K8s kong-redis-secret
 #
 # Troubleshooting:
 #   Si rate-limiting ne fonctionne pas:
@@ -201,10 +171,10 @@ plugin: rate-limiting
 #      docker ps | grep tissimah-redis-kong
 #
 #   2. Tester la connexion depuis Kong pod:
-#      kubectl exec -it deployment/kong -- redis-cli -h 127.0.0.1 -p 6380 -a <password> ping
+#      kubectl exec -it deployment/kong -- redis-cli -h 127.0.0.1 -p 6379 ping
 #
 #   3. Voir les logs Redis:
 #      docker logs tissimah-redis-kong
 #
 #   4. Voir les logs Kong:
-#      kubectl logs -l app.kubernetes.io/name=kong | grep rate
+#      kubectl logs -l app.kubernetes.io/name=kong -c proxy | grep rate
