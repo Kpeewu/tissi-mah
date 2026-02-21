@@ -123,6 +123,7 @@ jobs:
           AUTH_REDIS_URL: ${{ secrets.AUTH_REDIS_URL }}
           AUTH_JWT_SECRET: ${{ secrets.AUTH_JWT_SECRET }}
           AUTH_FIREBASE_CREDENTIALS: ${{ secrets.AUTH_FIREBASE_CREDENTIALS }}
+          AUTH_FIREBASE_PROJECT_ID: ${{ secrets.AUTH_FIREBASE_PROJECT_ID }}
         run: |
           python3 - <<'PYEOF'
           import yaml, os
@@ -132,7 +133,12 @@ jobs:
                   'redisUrl': os.environ.get('AUTH_REDIS_URL', ''),
                   'jwtSecret': os.environ.get('AUTH_JWT_SECRET', ''),
                   'firebaseCredentials': os.environ.get('AUTH_FIREBASE_CREDENTIALS', ''),
-              }
+              },
+              'config': {
+                  'extra': {
+                      'FIREBASE_PROJECT_ID': os.environ.get('AUTH_FIREBASE_PROJECT_ID', ''),
+                  }
+              },
           }
           with open('/tmp/secrets-values.yaml', 'w') as f:
               yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
@@ -269,10 +275,11 @@ jobs:
 #      - Obtenir: kubectl config view --raw | base64 -w 0
 #
 #   2. Secrets GitHub pour auth-service:
-#      - AUTH_DATABASE_URL   : postgresql://user:pass@host:5432/dbname
-#      - AUTH_REDIS_URL      : redis://host:6379
-#      - AUTH_JWT_SECRET     : clé secrète JWT
-#      - AUTH_FIREBASE_CREDENTIALS : contenu JSON du service account Firebase
+#      - AUTH_DATABASE_URL        : postgresql://user:pass@host:5432/dbname
+#      - AUTH_REDIS_URL           : redis://host:6379
+#      - AUTH_JWT_SECRET          : clé secrète JWT
+#      - AUTH_FIREBASE_CREDENTIALS: contenu JSON du service account Firebase
+#      - AUTH_FIREBASE_PROJECT_ID : ID du projet Firebase (ex: my-project-123)
 #
 #   3. Kong installé dans le namespace "default"
 #      - Le workflow déploie les services dans ce même namespace
