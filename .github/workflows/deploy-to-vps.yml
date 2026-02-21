@@ -149,16 +149,48 @@ jobs:
         run: |
           ./scripts/utilities/sync-protos-to-helm.sh ${{ matrix.service }}
 
+      - name: Create secrets override file
+        env:
+          AUTH_DATABASE_URL: ${{ secrets.AUTH_DATABASE_URL }}
+          AUTH_REDIS_URL: ${{ secrets.AUTH_REDIS_URL }}
+          AUTH_JWT_SECRET: ${{ secrets.AUTH_JWT_SECRET }}
+          AUTH_FIREBASE_CREDENTIALS: ${{ secrets.AUTH_FIREBASE_CREDENTIALS }}
+        run: |
+          python3 - <<'PYEOF'
+          import yaml, os
+          data = {
+              'secrets': {
+                  'databaseUrl': os.environ.get('AUTH_DATABASE_URL', ''),
+                  'redisUrl': os.environ.get('AUTH_REDIS_URL', ''),
+                  'jwtSecret': os.environ.get('AUTH_JWT_SECRET', ''),
+                  'firebaseCredentials': os.environ.get('AUTH_FIREBASE_CREDENTIALS', ''),
+              }
+          }
+          with open('/tmp/secrets-values.yaml', 'w') as f:
+              yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+          PYEOF
+
       - name: Deploy with Helm
         run: |
           helm upgrade --install ${{ matrix.service }} \
             services/${{ matrix.service }}/deployments/helm \
             -f services/${{ matrix.service }}/deployments/helm/values/vps-dev.yaml \
+            -f /tmp/secrets-values.yaml \
             --namespace ${{ env.DEPLOY_NAMESPACE }} \
             --create-namespace \
             --set image.tag=develop-${{ github.sha }} \
             --wait \
             --timeout 5m
+
+      - name: Show pod status on failure
+        if: failure()
+        run: |
+          echo "=== Pods ==="
+          kubectl get pods -n ${{ env.DEPLOY_NAMESPACE }} -l app.kubernetes.io/name=${{ matrix.service }}
+          echo "=== Events ==="
+          kubectl describe pod -n ${{ env.DEPLOY_NAMESPACE }} -l app.kubernetes.io/name=${{ matrix.service }} | tail -30
+          echo "=== Logs ==="
+          kubectl logs -n ${{ env.DEPLOY_NAMESPACE }} -l app.kubernetes.io/name=${{ matrix.service }} --tail=50 || true
 
       - name: Deployment info
         run: |
@@ -268,11 +300,17 @@ jobs:
 #      - Contenu: kubeconfig VPS encodé en base64
 #      - Obtenir: kubectl config view --raw | base64 -w 0
 #
-#   2. Kong installé dans le namespace "default"
+#   2. Secrets GitHub pour auth-service:
+#      - AUTH_DATABASE_URL   : postgresql://user:pass@host:5432/dbname
+#      - AUTH_REDIS_URL      : redis://host:6379
+#      - AUTH_JWT_SECRET     : clé secrète JWT
+#      - AUTH_FIREBASE_CREDENTIALS : contenu JSON du service account Firebase
+#
+#   3. Kong installé dans le namespace "default"
 #      - Le workflow déploie les services dans ce même namespace
 #      - Cohérence avec la configuration Kong (auth-routes.yaml)
 #
-#   3. Script sync-protos-to-helm.sh
+#   4. Script sync-protos-to-helm.sh
 #      - Synchronise les fichiers .proto vers les Helm charts
 #      - Nécessaire pour le plugin grpc-gateway de Kong
 #
