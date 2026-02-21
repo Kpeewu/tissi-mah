@@ -147,7 +147,8 @@ Client → Bearer JWT → Kong (validation basique: format + exp)
 | `auth-service` domain + repository | Complet |
 | `auth-service` service layer | Complet |
 | `auth-service` middleware + Firebase JWT | Complet |
-| `auth-service` gRPC handler/server | À implémenter |
+| `auth-service` gRPC handler + server | Complet |
+| `auth-service` cmd/server/main.go | Complet |
 | Tests unitaires + intégration | Structure créée, à compléter |
 | `user-service` | TODO |
 | `payment-service` | TODO |
@@ -161,6 +162,9 @@ Client → Bearer JWT → Kong (validation basique: format + exp)
 | [go.work](go.work) | Workspace Go — modules actifs |
 | [Makefile](Makefile) | Toutes les commandes développeur |
 | [docker-compose.yml](docker-compose.yml) | Bases de données dev local |
+| [services/auth-service/cmd/server/main.go](services/auth-service/cmd/server/main.go) | Point d'entrée — wiring complet |
+| [services/auth-service/internal/grpc/handler.go](services/auth-service/internal/grpc/handler.go) | Handlers gRPC + mapping erreurs |
+| [services/auth-service/internal/grpc/server.go](services/auth-service/internal/grpc/server.go) | Setup serveur gRPC (grpcutil) |
 | [services/auth-service/proto/auth.proto](services/auth-service/proto/auth.proto) | Contrat API gRPC |
 | [services/auth-service/internal/service/interfaces/auth_service.go](services/auth-service/internal/service/interfaces/auth_service.go) | Interface métier principale |
 | [services/auth-service/internal/middleware/interceptor.go](services/auth-service/internal/middleware/interceptor.go) | Intercepteur gRPC + FirebaseIDKey |

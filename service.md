@@ -377,10 +377,12 @@ var (
 |---------------|-----------|------|
 | `ErrorUserNotFound` | `codes.NotFound` (5) | 404 |
 | `ErrorInternalServer` | `codes.Internal` (13) | 500 |
-| `ErrorEmailNotAvailable` | `codes.FailedPrecondition` (9) | 412 |
-| `ErrorPhoneNumberNotAvailable` | `codes.FailedPrecondition` (9) | 412 |
+| `ErrorEmailNotAvailable` | `codes.AlreadyExists` (6) | 409 |
+| `ErrorPhoneNumberNotAvailable` | `codes.AlreadyExists` (6) | 409 |
 | `ErrorDataRetrievalFailed` | `codes.Internal` (13) | 500 |
-| `ErrorCantDeleteAccount` | `codes.Internal` (13) | 500 |
+| `ErrorCantDeleteAccount` | `codes.FailedPrecondition` (9) | 412 |
+
+**Cas spécial Login** : `ErrorUserNotFound` retourne `{Exists: false}` (pas d'erreur gRPC) — le client est redirigé vers l'inscription.
 
 ---
 
@@ -476,27 +478,135 @@ fixtures/
 
 ## 13. Client inter-services
 
+Les clients gRPC inter-services vivent dans `internal/client/` et encapsulent la connexion + les appels proto.
+
 ```go
 // internal/client/user_service_client.go
 type UserServiceClient struct {
-    // connexion gRPC vers user-service
+    conn       *grpc.ClientConn
+    grpcClient userpb.UserServiceClient
 }
 
-func (c *UserServiceClient) CreateUser(ctx context.Context, authID, name, firstName, email, phoneNumber, profilePhotoURL string) (*domain.UserPreview, error) {
-    // TODO: appel gRPC vers user-service
-}
+// Connexion intra-cluster : insecure.NewCredentials() (mTLS géré par le service mesh)
+func NewUserServiceClient(address string) (*UserServiceClient, error)
+func (c *UserServiceClient) Close() error
 
-func (c *UserServiceClient) GetUserByAuthID(ctx context.Context, authID string) (*domain.UserPreview, error) {
-    // TODO: appel gRPC vers user-service
-}
+// Email et PhoneNumber ne transitent PAS vers user-service — ils restent dans auth-service
+func (c *UserServiceClient) CreateUser(ctx, authID, name, firstName, profilePhotoURL) (*domain.UserPreview, error)
+func (c *UserServiceClient) GetUserByAuthID(ctx, authID) (*domain.UserPreview, error)
 ```
 
-**Convention** : les clients sont des **stubs** jusqu'à ce que le service cible soit implémenté.
-La connexion gRPC est initialisée dans `main.go` avec l'adresse depuis la config (`UserService.Address:UserService.Port`).
+**Pattern d'enrichissement** : user-service retourne un `UserPreview` sans email/phone (données auth). Le service layer enrichit le résultat après l'appel :
+
+```go
+userPreview, _ := s.userClient.GetUserByAuthID(ctx, auth.AuthID)
+userPreview.Email = auth.Email           // ajouté par auth-service
+userPreview.PhoneNumber = auth.PhoneNumber
+```
+
+**Proto client** : le proto de user-service est défini dans `proto/user.proto` et généré dans `proto/gen/userpb/`.
+L'adresse est construite depuis la config : `cfg.UserService.Address + ":" + cfg.UserService.Port`.
 
 ---
 
-## 14. Dockerfile (multi-stage)
+## 14. Handler gRPC (Transport Layer)
+
+```go
+// internal/grpc/handler.go
+type AuthHandler struct {
+    authpb.UnimplementedAuthServiceServer  // forward-compat obligatoire
+    service serviceInterfaces.AuthService
+}
+```
+
+### Conventions du handler
+
+- **Embed** `UnimplementedAuthServiceServer` (par valeur, pas pointeur)
+- **Mapper** les erreurs domaine → codes gRPC via `toGRPCError(err)`
+- **Convertir** les types proto ↔ domain (`toProtoUserPreview`)
+- **Ne jamais** mettre de business logic dans le handler
+
+```go
+// Mapping domain → proto
+func toProtoUserPreview(u *domain.UserPreview) *authpb.UserPreview {
+    preview := &authpb.UserPreview{...}
+    if u.Email != nil { preview.Email = *u.Email }       // pointeur → string
+    if u.PhoneNumber != nil { preview.PhoneNumber = *u.PhoneNumber }
+    if u.ProfilePhotoURL != nil { preview.ProfileImageURL = *u.ProfilePhotoURL }
+    return preview
+}
+```
+
+### Cas spécial Login
+
+Login est le seul handler qui **ne retourne pas d'erreur gRPC** quand le compte n'existe pas :
+
+```go
+func (h *AuthHandler) Login(ctx, _) (*LoginResponse, error) {
+    user, err := h.service.LoginUser(ctx)
+    if errors.Is(err, authErrors.ErrorUserNotFound) {
+        return &LoginResponse{Exists: false}, nil  // → client redirige vers inscription
+    }
+    ...
+    return &LoginResponse{Exists: true, User: toProtoUserPreview(user)}, nil
+}
+```
+
+### Setup serveur (`internal/grpc/server.go`)
+
+```go
+func NewAuthServer(cfg, service, validator, logger) (*grpcutil.Server, error) {
+    srv, _ := grpcutil.NewServer(
+        grpcutil.ServerConfig{Port: port, EnableHealthCheck: true, EnableReflection: env != "prod"},
+        logger,
+        grpc.UnaryInterceptor(middleware.AuthInterceptor(validator)),
+    )
+    authpb.RegisterAuthServiceServer(srv.Server(), NewAuthHandler(service))
+    srv.SetServingStatus("auth.AuthService", grpc_health_v1.HealthCheckResponse_SERVING)
+    return srv, nil
+}
+```
+
+- **Health check gRPC v1** activé systématiquement (probes Kubernetes)
+- **Reflection** activée hors prod (grpcurl, Postman)
+- **Un seul intercepteur** unaire : `AuthInterceptor`
+
+---
+
+## 15. Point d'entrée — main.go
+
+Le `main.go` suit le pattern `run()` pour garantir l'exécution des `defer` avant exit :
+
+```go
+func main() {
+    bootstrapLogger := pkgLogger.NewDefault("auth-service")
+    defer bootstrapLogger.Sync()
+    if err := run(bootstrapLogger); err != nil {
+        bootstrapLogger.Fatal("service terminated with error", zap.Error(err))
+    }
+}
+```
+
+### Séquence de démarrage dans `run()`
+
+```
+1. config.Load()                           → toutes les env vars
+2. pkgLogger.New()                         → logger structuré (remplace bootstrap)
+3. signal.NotifyContext(SIGINT, SIGTERM)   → arrêt gracieux
+4. pkgDatabase.NewPostgresPoolFromURL()    → pool pgx
+5. implementations.NewAuth*Repository()   → read + write repos
+6. client.NewUserServiceClient()           → connexion gRPC user-service
+7. firebaseValidator.NewJWTValidator()     → Firebase Admin SDK
+8. service.NewAuthService()               → business logic
+9. grpcServer.NewAuthServer()             → handler + intercepteur + health
+10. srv.Serve(ctx)                         → bloquant jusqu'au signal
+```
+
+Tous les `defer` (pool.Close, userClient.Close, logger.Sync) sont garantis d'être appelés grâce au pattern `run()`.
+
+---
+
+## 16. Dockerfile (multi-stage)
 
 ```dockerfile
 # Stage 1 : Build
@@ -517,7 +627,7 @@ ENTRYPOINT ["/bin/server"]
 
 ---
 
-## 15. Ajouter un nouveau service
+## 17. Ajouter un nouveau service
 
 1. **Créer la structure** : copier le squelette depuis `auth-service`
 2. **go.mod** : module `github.com/Kpeewu/tissi-mah/services/<name>`
