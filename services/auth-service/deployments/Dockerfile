@@ -5,8 +5,8 @@
 # =============================================================================
 
 # Build arguments
-ARG GO_VERSION=1.22
-ARG ALPINE_VERSION=3.19
+ARG GO_VERSION=1.25
+ARG ALPINE_VERSION=3.21
 
 # =============================================================================
 # Stage 1: Dependencies
