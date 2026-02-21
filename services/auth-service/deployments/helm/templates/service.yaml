@@ -4,6 +4,12 @@ metadata:
   name: {{ include "auth-service.fullname" . }}
   labels:
     {{- include "auth-service.labels" . | nindent 4 }}
+  annotations:
+    # KIC 3.x: protocol and timeouts via Service annotations (KongIngress.proxy removed)
+    konghq.com/protocol: grpc
+    konghq.com/connect-timeout: "10000"
+    konghq.com/read-timeout: "60000"
+    konghq.com/write-timeout: "60000"
 spec:
   type: {{ .Values.service.type }}
   ports:
