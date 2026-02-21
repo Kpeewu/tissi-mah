@@ -35,47 +35,15 @@ jobs:
     name: Detect Changed Services
     runs-on: ubuntu-latest
     outputs:
-      auth-service: ${{ steps.filter.outputs.auth-service }}
       services: ${{ steps.set-services.outputs.services }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Manual service selection
-        if: github.event.inputs.service != ''
-        id: manual
-        run: echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
-
-      - uses: dorny/paths-filter@v2
-        if: github.event.inputs.service == ''
-        id: filter
-        with:
-          filters: |
-            auth-service:
-              - 'services/auth-service/**'
-              - 'pkg/**'
-
       - name: Set services to deploy
         id: set-services
         run: |
           if [ -n "${{ github.event.inputs.service }}" ]; then
             echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
           else
-            services=()
-            if [ "${{ steps.filter.outputs.auth-service }}" == "true" ]; then
-              services+=("auth-service")
-            fi
-
-            # workflow_dispatch sans service spécifié → deploy tous les services
-            if [ ${#services[@]} -eq 0 ] && [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-              echo "services=[\"auth-service\"]" >> $GITHUB_OUTPUT
-            elif [ ${#services[@]} -eq 0 ]; then
-              echo "services=[]" >> $GITHUB_OUTPUT
-            else
-              json=$(printf '%s\n' "${services[@]}" | jq -R . | jq -s -c .)
-              echo "services=$json" >> $GITHUB_OUTPUT
-            fi
+            echo "services=[\"auth-service\"]" >> $GITHUB_OUTPUT
           fi
 
   build-and-push:
