@@ -50,7 +50,7 @@ kong:
       containerPort: 8000
       servicePort: 80
     tls:
-      enabled: true
+      enabled: false # TLS terminated by nginx reverse proxy
       containerPort: 8443
       servicePort: 443
 
