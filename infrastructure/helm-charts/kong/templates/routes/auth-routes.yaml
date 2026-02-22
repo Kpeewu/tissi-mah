@@ -225,8 +225,8 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: kong
     # Health check route - NO JWT validation required
-    # Only CORS and rate-limiting (no gRPC transformation needed for simple health check)
-    konghq.com/plugins: cors-global,rate-limiting-global
+    # gRPC plugins needed because backend Service uses konghq.com/protocol: grpc
+    konghq.com/plugins: cors-global,rate-limiting-global,request-transformer-grpc,grpc-gateway-auth,response-transformer-grpc
     konghq.com/protocols: https,http
     konghq.com/methods: GET,OPTIONS
     konghq.com/strip-path: "false"
