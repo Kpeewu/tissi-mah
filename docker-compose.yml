@@ -15,7 +15,11 @@ services:
       - auth_postgres_data:/var/lib/postgresql/data
       - ./services/auth-service/migrations/up:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_AUTH_USER:-dev} -d ${POSTGRES_AUTH_DB:-auth_db} -h localhost"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_AUTH_USER:-dev} -d ${POSTGRES_AUTH_DB:-auth_db} -h localhost",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,7 +35,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_USER_PASSWORD:-dev123}
       MONGO_INITDB_DATABASE: ${MONGO_USER_DB:-user_db}
     ports:
-      - "27017:27017"
+      - "27018:27017"
     volumes:
       - user_mongodb_data:/data/db
     healthcheck:
@@ -47,7 +51,7 @@ services:
     image: redis:7-alpine
     container_name: tissi-mah-redis
     ports:
-      - "6379:6379"
+      - "6381:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -63,7 +67,7 @@ services:
     image: redis:7-alpine
     container_name: tissi-mah-gateway-redis
     ports:
-      - "6381:6379"
+      - "6380:6379"
     volumes:
       - gateway_redis_data:/data
     healthcheck:
@@ -79,7 +83,7 @@ services:
     image: redis:7-alpine
     container_name: tissi-mah-user-redis
     ports:
-      - "6380:6379"
+      - "6382:6379"
     volumes:
       - user_redis_data:/data
     healthcheck:
