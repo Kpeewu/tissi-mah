@@ -51,7 +51,7 @@ WORKDIR /build/services/user-service
 
 # Build with optimizations
 RUN BUILD_TIME=${BUILD_TIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)} && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    GOWORK=off CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-w -s \
         -X main.version=${VERSION} \
         -X main.commitSHA=${COMMIT_SHA} \
