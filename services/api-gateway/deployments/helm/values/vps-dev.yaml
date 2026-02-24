@@ -31,8 +31,9 @@ securityContext:
   readOnlyRootFilesystem: true
 
 service:
-  type: LoadBalancer
+  type: NodePort
   port: 8080
+  nodePort: 30080
 
 config:
   environment: "development"
