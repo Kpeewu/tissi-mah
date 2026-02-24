@@ -94,6 +94,32 @@ func (h *AuthHandler) Health(_ context.Context, _ *authpb.HealthRequest) (*authp
 	}, nil
 }
 
+// GetAuthInfo retourne les données d'authentification d'un utilisateur (inter-service, pas de JWT).
+func (h *AuthHandler) GetAuthInfo(ctx context.Context, req *authpb.GetAuthInfoRequest) (*authpb.GetAuthInfoResponse, error) {
+	auth, err := h.service.GetAuthInfo(ctx, req.AuthID)
+	if err != nil {
+		return nil, toGRPCError(err)
+	}
+
+	resp := &authpb.GetAuthInfoResponse{
+		AuthID:      auth.AuthID,
+		IsActive:    auth.IsActive,
+		IsSuspended: auth.IsSuspended,
+	}
+
+	if auth.Email != nil {
+		resp.Email = *auth.Email
+	}
+	if auth.PhoneNumber != nil {
+		resp.PhoneNumber = *auth.PhoneNumber
+	}
+	if auth.SuspensionEndDate != nil {
+		resp.SuspensionEndDate = auth.SuspensionEndDate.Format(time.RFC3339)
+	}
+
+	return resp, nil
+}
+
 // toGRPCError traduit les erreurs domaine en codes de statut gRPC.
 func toGRPCError(err error) error {
 	switch {

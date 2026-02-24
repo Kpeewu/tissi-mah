@@ -22,7 +22,27 @@ services:
     networks:
       - tissi-mah-network
 
-  # Redis (partagé)
+  # MongoDB pour User Service
+  user-mongodb:
+    image: mongo:7-jammy
+    container_name: tissi-mah-user-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER_USER:-dev}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_USER_PASSWORD:-dev123}
+      MONGO_INITDB_DATABASE: ${MONGO_USER_DB:-user_db}
+    ports:
+      - "27017:27017"
+    volumes:
+      - user_mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis (partagé — auth-service)
   redis:
     image: redis:7-alpine
     container_name: tissi-mah-redis
@@ -38,9 +58,44 @@ services:
     networks:
       - tissi-mah-network
 
+  # Redis dédié pour API Gateway (rate limiting)
+  gateway-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-gateway-redis
+    ports:
+      - "6381:6379"
+    volumes:
+      - gateway_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour User Service
+  user-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-user-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - user_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
 volumes:
   auth_postgres_data:
   redis_data:
+  user_mongodb_data:
+  user_redis_data:
+  gateway_redis_data:
 
 networks:
   tissi-mah-network:

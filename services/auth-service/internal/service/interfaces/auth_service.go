@@ -13,4 +13,5 @@ type AuthService interface {
 	CheckEmail(ctx context.Context, email string) (bool, error)
 	CheckPhoneNumber(ctx context.Context, phoneNumber string) (bool, error)
 	DeleteUserAccount(ctx context.Context, firebaseID string) error
+	GetAuthInfo(ctx context.Context, authID string) (*domain.Auth, error)
 }

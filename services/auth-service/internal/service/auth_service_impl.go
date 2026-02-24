@@ -92,7 +92,7 @@ func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstNa
 
 	// Création du profil utilisateur dans le user-service
 	// Email et PhoneNumber sont stockés dans auth-service, pas dans user-service
-	userPreview, err := s.userClient.CreateUser(ctx, authID, name, firstName, profilePhotoURL)
+	userPreview, err := s.userClient.CreateUser(ctx, authID, firebaseID, name, firstName, profilePhotoURL)
 	if err != nil {
 		return nil, authErrors.ErrorInternalServer
 	}
@@ -159,6 +159,20 @@ func (s *authServiceImpl) CheckPhoneNumber(ctx context.Context, phoneNumber stri
 	}
 
 	return !exists, nil
+}
+
+// GetAuthInfo récupère les données d'authentification par AuthID (inter-service)
+func (s *authServiceImpl) GetAuthInfo(ctx context.Context, authID string) (*domain.Auth, error) {
+	if authID == "" {
+		return nil, authErrors.ErrorUserNotFound
+	}
+
+	auth, err := s.readRepo.GetByAuthID(ctx, authID)
+	if err != nil {
+		return nil, err
+	}
+
+	return auth, nil
 }
 
 // DeleteUserAccount anonymise et supprime le compte d'authentification d'un utilisateur

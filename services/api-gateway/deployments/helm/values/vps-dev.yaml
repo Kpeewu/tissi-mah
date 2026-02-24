@@ -1,0 +1,88 @@
+# VPS Development values for api-gateway
+# Namespace: dev
+
+replicaCount: 1
+
+image:
+  registry: ghcr.io
+  repository: kpeewu/tissi-mah/api-gateway
+  pullPolicy: Always
+  tag: "develop"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: LoadBalancer
+  port: 8080
+
+config:
+  environment: "development"
+  logLevel: "debug"
+  authServiceHost: "auth-service"
+  authServicePort: "50051"
+  userServiceHost: "user-service"
+  userServicePort: "50052"
+  corsAllowedOrigins: "*"
+  extra: {}
+
+secrets:
+  redisUrl: ""
+  firebaseCredentials: ""
+  firebaseProjectId: ""
+  extra: {}
+
+probes:
+  enabled: true
+  liveness:
+    initialDelaySeconds: 10
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+resources:
+  limits:
+    cpu: 300m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: false
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+imagePullSecrets:
+  - name: ghcr-secret

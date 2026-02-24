@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       auth-service: ${{ steps.filter.outputs.auth-service }}
+      api-gateway: ${{ steps.filter.outputs.api-gateway }}
+      user-service: ${{ steps.filter.outputs.user-service }}
       services-matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
@@ -27,17 +29,33 @@ jobs:
         id: filter
         with:
           filters: |
+            api-gateway:
+              - 'services/api-gateway/**'
             auth-service:
               - 'services/auth-service/**'
+            user-service:
+              - 'services/user-service/**'
+            pkg:
+              - 'pkg/**'
 
       - name: Set service matrix
         id: set-matrix
         run: |
           services=()
-          if [ "${{ steps.filter.outputs.auth-service }}" == "true" ]; then
-            services+=("auth-service")
+          if [ "${{ steps.filter.outputs.pkg }}" == "true" ]; then
+            services+=("api-gateway" "auth-service" "user-service")
+          else
+            if [ "${{ steps.filter.outputs.api-gateway }}" == "true" ]; then
+              services+=("api-gateway")
+            fi
+            if [ "${{ steps.filter.outputs.auth-service }}" == "true" ]; then
+              services+=("auth-service")
+            fi
+            if [ "${{ steps.filter.outputs.user-service }}" == "true" ]; then
+              services+=("user-service")
+            fi
           fi
-          
+
           if [ ${#services[@]} -eq 0 ]; then
             echo "matrix=[]" >> $GITHUB_OUTPUT
           else

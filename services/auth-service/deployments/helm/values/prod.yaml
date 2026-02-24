@@ -41,14 +41,14 @@ service:
 config:
   environment: "production"
   logLevel: "warn"
+  userServiceHost: "user-service"
+  userServicePort: "50052"
   extra: {}
 
 # Secrets MUST be provided via AWS Secrets Manager or external secret management
 secrets:
   databaseUrl: ""
   redisUrl: ""
-  jwtSecret: ""
-  firebaseCredentials: ""
   extra: {}
 
 probes:

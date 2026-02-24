@@ -1,0 +1,17 @@
+name: "Terraform Apply - Production"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infrastructure/terraform/**"
+      - ".github/workflows/terraform-apply-prod.yml"
+  workflow_dispatch:
+
+jobs:
+  apply:
+    name: "Terraform Apply (Production)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder
+        run: echo "TODO - Terraform apply production"

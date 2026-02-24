@@ -300,6 +300,50 @@ func (*HealthRequest) Descriptor() ([]byte, []int) {
 	return file_auth_proto_rawDescGZIP(), []int{5}
 }
 
+type GetAuthInfoRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AuthID        string                 `protobuf:"bytes,1,opt,name=AuthID,proto3" json:"AuthID,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAuthInfoRequest) Reset() {
+	*x = GetAuthInfoRequest{}
+	mi := &file_auth_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAuthInfoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAuthInfoRequest) ProtoMessage() {}
+
+func (x *GetAuthInfoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAuthInfoRequest.ProtoReflect.Descriptor instead.
+func (*GetAuthInfoRequest) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GetAuthInfoRequest) GetAuthID() string {
+	if x != nil {
+		return x.AuthID
+	}
+	return ""
+}
+
 type LoginResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ErrorMessage  string                 `protobuf:"bytes,1,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"` // Error identifier if failed, null if success
@@ -311,7 +355,7 @@ type LoginResponse struct {
 
 func (x *LoginResponse) Reset() {
 	*x = LoginResponse{}
-	mi := &file_auth_proto_msgTypes[6]
+	mi := &file_auth_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -323,7 +367,7 @@ func (x *LoginResponse) String() string {
 func (*LoginResponse) ProtoMessage() {}
 
 func (x *LoginResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[6]
+	mi := &file_auth_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -336,7 +380,7 @@ func (x *LoginResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginResponse.ProtoReflect.Descriptor instead.
 func (*LoginResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{6}
+	return file_auth_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *LoginResponse) GetErrorMessage() string {
@@ -370,7 +414,7 @@ type CreateAccountResponse struct {
 
 func (x *CreateAccountResponse) Reset() {
 	*x = CreateAccountResponse{}
-	mi := &file_auth_proto_msgTypes[7]
+	mi := &file_auth_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -382,7 +426,7 @@ func (x *CreateAccountResponse) String() string {
 func (*CreateAccountResponse) ProtoMessage() {}
 
 func (x *CreateAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[7]
+	mi := &file_auth_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -395,7 +439,7 @@ func (x *CreateAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAccountResponse.ProtoReflect.Descriptor instead.
 func (*CreateAccountResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{7}
+	return file_auth_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CreateAccountResponse) GetErrorMessage() string {
@@ -423,7 +467,7 @@ type HealthResponse struct {
 
 func (x *HealthResponse) Reset() {
 	*x = HealthResponse{}
-	mi := &file_auth_proto_msgTypes[8]
+	mi := &file_auth_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -435,7 +479,7 @@ func (x *HealthResponse) String() string {
 func (*HealthResponse) ProtoMessage() {}
 
 func (x *HealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[8]
+	mi := &file_auth_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -448,7 +492,7 @@ func (x *HealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
 func (*HealthResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{8}
+	return file_auth_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *HealthResponse) GetStatus() string {
@@ -482,7 +526,7 @@ type CheckPhoneOrEmailResponse struct {
 
 func (x *CheckPhoneOrEmailResponse) Reset() {
 	*x = CheckPhoneOrEmailResponse{}
-	mi := &file_auth_proto_msgTypes[9]
+	mi := &file_auth_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -494,7 +538,7 @@ func (x *CheckPhoneOrEmailResponse) String() string {
 func (*CheckPhoneOrEmailResponse) ProtoMessage() {}
 
 func (x *CheckPhoneOrEmailResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[9]
+	mi := &file_auth_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -507,7 +551,7 @@ func (x *CheckPhoneOrEmailResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckPhoneOrEmailResponse.ProtoReflect.Descriptor instead.
 func (*CheckPhoneOrEmailResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{9}
+	return file_auth_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CheckPhoneOrEmailResponse) GetErrorMessage() string {
@@ -534,7 +578,7 @@ type AuthServerResponse struct {
 
 func (x *AuthServerResponse) Reset() {
 	*x = AuthServerResponse{}
-	mi := &file_auth_proto_msgTypes[10]
+	mi := &file_auth_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -546,7 +590,7 @@ func (x *AuthServerResponse) String() string {
 func (*AuthServerResponse) ProtoMessage() {}
 
 func (x *AuthServerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[10]
+	mi := &file_auth_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -559,7 +603,7 @@ func (x *AuthServerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthServerResponse.ProtoReflect.Descriptor instead.
 func (*AuthServerResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{10}
+	return file_auth_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AuthServerResponse) GetErrorMessage() string {
@@ -574,6 +618,90 @@ func (x *AuthServerResponse) GetSuccess() bool {
 		return x.Success
 	}
 	return false
+}
+
+type GetAuthInfoResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	AuthID            string                 `protobuf:"bytes,1,opt,name=AuthID,proto3" json:"AuthID,omitempty"`
+	Email             string                 `protobuf:"bytes,2,opt,name=Email,proto3" json:"Email,omitempty"`
+	PhoneNumber       string                 `protobuf:"bytes,3,opt,name=PhoneNumber,proto3" json:"PhoneNumber,omitempty"`
+	IsActive          bool                   `protobuf:"varint,4,opt,name=IsActive,proto3" json:"IsActive,omitempty"`
+	IsSuspended       bool                   `protobuf:"varint,5,opt,name=IsSuspended,proto3" json:"IsSuspended,omitempty"`
+	SuspensionEndDate string                 `protobuf:"bytes,6,opt,name=SuspensionEndDate,proto3" json:"SuspensionEndDate,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GetAuthInfoResponse) Reset() {
+	*x = GetAuthInfoResponse{}
+	mi := &file_auth_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAuthInfoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAuthInfoResponse) ProtoMessage() {}
+
+func (x *GetAuthInfoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAuthInfoResponse.ProtoReflect.Descriptor instead.
+func (*GetAuthInfoResponse) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetAuthInfoResponse) GetAuthID() string {
+	if x != nil {
+		return x.AuthID
+	}
+	return ""
+}
+
+func (x *GetAuthInfoResponse) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *GetAuthInfoResponse) GetPhoneNumber() string {
+	if x != nil {
+		return x.PhoneNumber
+	}
+	return ""
+}
+
+func (x *GetAuthInfoResponse) GetIsActive() bool {
+	if x != nil {
+		return x.IsActive
+	}
+	return false
+}
+
+func (x *GetAuthInfoResponse) GetIsSuspended() bool {
+	if x != nil {
+		return x.IsSuspended
+	}
+	return false
+}
+
+func (x *GetAuthInfoResponse) GetSuspensionEndDate() string {
+	if x != nil {
+		return x.SuspensionEndDate
+	}
+	return ""
 }
 
 type UserPreview struct {
@@ -591,7 +719,7 @@ type UserPreview struct {
 
 func (x *UserPreview) Reset() {
 	*x = UserPreview{}
-	mi := &file_auth_proto_msgTypes[11]
+	mi := &file_auth_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -603,7 +731,7 @@ func (x *UserPreview) String() string {
 func (*UserPreview) ProtoMessage() {}
 
 func (x *UserPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[11]
+	mi := &file_auth_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -616,7 +744,7 @@ func (x *UserPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserPreview.ProtoReflect.Descriptor instead.
 func (*UserPreview) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{11}
+	return file_auth_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *UserPreview) GetAuthID() string {
@@ -686,7 +814,9 @@ const file_auth_proto_rawDesc = "" +
 	"\x11CheckEmailRequest\x12\x14\n" +
 	"\x05Email\x18\x01 \x01(\tR\x05Email\"\x16\n" +
 	"\x14DeleteAccountRequest\"\x0f\n" +
-	"\rHealthRequest\"r\n" +
+	"\rHealthRequest\",\n" +
+	"\x12GetAuthInfoRequest\x12\x16\n" +
+	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\"r\n" +
 	"\rLoginResponse\x12\"\n" +
 	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12\x16\n" +
 	"\x06Exists\x18\x02 \x01(\bR\x06Exists\x12%\n" +
@@ -704,6 +834,13 @@ const file_auth_proto_rawDesc = "" +
 	"\x12AuthServerResponse\x12\"\n" +
 	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12\x18\n" +
 	"\aSuccess\x18\x02 \x01(\bR\aSuccess\"\xd1\x01\n" +
+	"\x13GetAuthInfoResponse\x12\x16\n" +
+	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\x12\x14\n" +
+	"\x05Email\x18\x02 \x01(\tR\x05Email\x12 \n" +
+	"\vPhoneNumber\x18\x03 \x01(\tR\vPhoneNumber\x12\x1a\n" +
+	"\bIsActive\x18\x04 \x01(\bR\bIsActive\x12 \n" +
+	"\vIsSuspended\x18\x05 \x01(\bR\vIsSuspended\x12,\n" +
+	"\x11SuspensionEndDate\x18\x06 \x01(\tR\x11SuspensionEndDate\"\xd1\x01\n" +
 	"\vUserPreview\x12\x16\n" +
 	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\x12\x16\n" +
 	"\x06UserID\x18\x02 \x01(\tR\x06UserID\x12\x12\n" +
@@ -711,7 +848,7 @@ const file_auth_proto_rawDesc = "" +
 	"\tFirstName\x18\x04 \x01(\tR\tFirstName\x12\x14\n" +
 	"\x05Email\x18\x05 \x01(\tR\x05Email\x12 \n" +
 	"\vPhoneNumber\x18\x06 \x01(\tR\vPhoneNumber\x12(\n" +
-	"\x0fProfileImageURL\x18\a \x01(\tR\x0fProfileImageURL2\xf6\x04\n" +
+	"\x0fProfileImageURL\x18\a \x01(\tR\x0fProfileImageURL2\xba\x05\n" +
 	"\vAuthService\x12O\n" +
 	"\x05Login\x12\x12.auth.LoginRequest\x1a\x13.auth.LoginResponse\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\"\x12/api/v1/auth/login\x12o\n" +
 	"\rCreateAccount\x12\x1a.auth.CreateAccountRequest\x1a\x1b.auth.CreateAccountResponse\"%\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/api/v1/auth/createAccount\x12|\n" +
@@ -719,7 +856,8 @@ const file_auth_proto_rawDesc = "" +
 	"\n" +
 	"CheckEmail\x12\x17.auth.CheckEmailRequest\x1a\x1f.auth.CheckPhoneOrEmailResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/api/v1/auth/checkEmail\x12i\n" +
 	"\rDeleteAccount\x12\x1a.auth.DeleteAccountRequest\x1a\x18.auth.AuthServerResponse\"\"\x82\xd3\xe4\x93\x02\x1c*\x1a/api/v1/auth/deleteAccount\x12P\n" +
-	"\x06Health\x12\x13.auth.HealthRequest\x1a\x14.auth.HealthResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/api/v1/auth/healthBBZ@github.com/Kpeewu/tissi-mah/services/auth-service/proto/gen;authb\x06proto3"
+	"\x06Health\x12\x13.auth.HealthRequest\x1a\x14.auth.HealthResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/api/v1/auth/health\x12B\n" +
+	"\vGetAuthInfo\x12\x18.auth.GetAuthInfoRequest\x1a\x19.auth.GetAuthInfoResponseBBZ@github.com/Kpeewu/tissi-mah/services/auth-service/proto/gen;authb\x06proto3"
 
 var (
 	file_auth_proto_rawDescOnce sync.Once
@@ -733,7 +871,7 @@ func file_auth_proto_rawDescGZIP() []byte {
 	return file_auth_proto_rawDescData
 }
 
-var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_auth_proto_goTypes = []any{
 	(*LoginRequest)(nil),              // 0: auth.LoginRequest
 	(*CreateAccountRequest)(nil),      // 1: auth.CreateAccountRequest
@@ -741,30 +879,34 @@ var file_auth_proto_goTypes = []any{
 	(*CheckEmailRequest)(nil),         // 3: auth.CheckEmailRequest
 	(*DeleteAccountRequest)(nil),      // 4: auth.DeleteAccountRequest
 	(*HealthRequest)(nil),             // 5: auth.HealthRequest
-	(*LoginResponse)(nil),             // 6: auth.LoginResponse
-	(*CreateAccountResponse)(nil),     // 7: auth.CreateAccountResponse
-	(*HealthResponse)(nil),            // 8: auth.HealthResponse
-	(*CheckPhoneOrEmailResponse)(nil), // 9: auth.CheckPhoneOrEmailResponse
-	(*AuthServerResponse)(nil),        // 10: auth.AuthServerResponse
-	(*UserPreview)(nil),               // 11: auth.UserPreview
+	(*GetAuthInfoRequest)(nil),        // 6: auth.GetAuthInfoRequest
+	(*LoginResponse)(nil),             // 7: auth.LoginResponse
+	(*CreateAccountResponse)(nil),     // 8: auth.CreateAccountResponse
+	(*HealthResponse)(nil),            // 9: auth.HealthResponse
+	(*CheckPhoneOrEmailResponse)(nil), // 10: auth.CheckPhoneOrEmailResponse
+	(*AuthServerResponse)(nil),        // 11: auth.AuthServerResponse
+	(*GetAuthInfoResponse)(nil),       // 12: auth.GetAuthInfoResponse
+	(*UserPreview)(nil),               // 13: auth.UserPreview
 }
 var file_auth_proto_depIdxs = []int32{
-	11, // 0: auth.LoginResponse.User:type_name -> auth.UserPreview
-	11, // 1: auth.CreateAccountResponse.User:type_name -> auth.UserPreview
+	13, // 0: auth.LoginResponse.User:type_name -> auth.UserPreview
+	13, // 1: auth.CreateAccountResponse.User:type_name -> auth.UserPreview
 	0,  // 2: auth.AuthService.Login:input_type -> auth.LoginRequest
 	1,  // 3: auth.AuthService.CreateAccount:input_type -> auth.CreateAccountRequest
 	2,  // 4: auth.AuthService.CheckPhoneNumber:input_type -> auth.CheckPhoneNumberRequest
 	3,  // 5: auth.AuthService.CheckEmail:input_type -> auth.CheckEmailRequest
 	4,  // 6: auth.AuthService.DeleteAccount:input_type -> auth.DeleteAccountRequest
 	5,  // 7: auth.AuthService.Health:input_type -> auth.HealthRequest
-	6,  // 8: auth.AuthService.Login:output_type -> auth.LoginResponse
-	7,  // 9: auth.AuthService.CreateAccount:output_type -> auth.CreateAccountResponse
-	9,  // 10: auth.AuthService.CheckPhoneNumber:output_type -> auth.CheckPhoneOrEmailResponse
-	9,  // 11: auth.AuthService.CheckEmail:output_type -> auth.CheckPhoneOrEmailResponse
-	10, // 12: auth.AuthService.DeleteAccount:output_type -> auth.AuthServerResponse
-	8,  // 13: auth.AuthService.Health:output_type -> auth.HealthResponse
-	8,  // [8:14] is the sub-list for method output_type
-	2,  // [2:8] is the sub-list for method input_type
+	6,  // 8: auth.AuthService.GetAuthInfo:input_type -> auth.GetAuthInfoRequest
+	7,  // 9: auth.AuthService.Login:output_type -> auth.LoginResponse
+	8,  // 10: auth.AuthService.CreateAccount:output_type -> auth.CreateAccountResponse
+	10, // 11: auth.AuthService.CheckPhoneNumber:output_type -> auth.CheckPhoneOrEmailResponse
+	10, // 12: auth.AuthService.CheckEmail:output_type -> auth.CheckPhoneOrEmailResponse
+	11, // 13: auth.AuthService.DeleteAccount:output_type -> auth.AuthServerResponse
+	9,  // 14: auth.AuthService.Health:output_type -> auth.HealthResponse
+	12, // 15: auth.AuthService.GetAuthInfo:output_type -> auth.GetAuthInfoResponse
+	9,  // [9:16] is the sub-list for method output_type
+	2,  // [2:9] is the sub-list for method input_type
 	2,  // [2:2] is the sub-list for extension type_name
 	2,  // [2:2] is the sub-list for extension extendee
 	0,  // [0:2] is the sub-list for field type_name
@@ -781,7 +923,7 @@ func file_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_proto_rawDesc), len(file_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

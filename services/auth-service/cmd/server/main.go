@@ -13,7 +13,6 @@ import (
 	grpcServer "github.com/Kpeewu/tissi-mah/services/auth-service/internal/grpc"
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/repository/implementations"
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/service"
-	firebaseValidator "github.com/Kpeewu/tissi-mah/services/auth-service/pkg/firebase"
 	"go.uber.org/zap"
 )
 
@@ -69,18 +68,11 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer userClient.Close() //nolint:errcheck
 	logger.Info("user-service client ready", zap.String("address", userServiceAddr))
 
-	// --- Firebase JWT validator ---
-	validator, err := firebaseValidator.NewJWTValidator(ctx, cfg.Firebase.ProjectID)
-	if err != nil {
-		return fmt.Errorf("firebase: %w", err)
-	}
-	logger.Info("firebase jwt validator initialized")
-
 	// --- Auth service ---
 	authService := service.NewAuthService(readRepo, writeRepo, userClient)
 
 	// --- gRPC server ---
-	srv, err := grpcServer.NewAuthServer(cfg, authService, validator, logger)
+	srv, err := grpcServer.NewAuthServer(cfg, authService, logger)
 	if err != nil {
 		return fmt.Errorf("grpc server: %w", err)
 	}

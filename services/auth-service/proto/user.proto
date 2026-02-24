@@ -25,35 +25,42 @@ service UserService {
 // =============================================================================
 
 message CreateUserRequest {
-  string auth_id           = 1;
-  string name              = 2;
-  string first_name        = 3;
-  string profile_photo_url = 4; // optionnel
+  string AuthID          = 1;
+  string Name            = 2;
+  string FirstName       = 3;
+  string ProfilePhotoURL = 4; // optionnel
+  string FirebaseID      = 5;
 }
 
 message GetUserByAuthIDRequest {
-  string auth_id = 1;
+  string AuthID = 1;
 }
 
 // =============================================================================
 // Response Messages
 // =============================================================================
 
+// TripPreference — préférence de trajet individuelle
+message TripPreference {
+  string Preference = 1;
+  bool   IsAllowed  = 2;
+}
+
 message UserProfileResponse {
-  string user_id                       = 1;
-  string auth_id                       = 2;
-  string name                          = 3;
-  string first_name                    = 4;
-  string gender                        = 5;
-  string date_of_birth                 = 6;
-  string bio                           = 7;
-  bool   has_profile_image             = 8;
-  string profile_image_url             = 9;
-  bool   is_driver                     = 10;
-  bool   is_passenger                  = 11;
-  bool   is_driver_profile_verified    = 12;
-  bool   is_passenger_profile_verified = 13;
-  string trip_preferences              = 14; // JSON sérialisé
-  string id_card_expiration_date       = 15;
-  string drive_licence_expiration_date = 16;
+  string UserID                              = 1;
+  string AuthID                              = 2;
+  string Name                                = 3;
+  string FirstName                           = 4;
+  string Gender                              = 5;
+  string DateOfBirth                         = 6;
+  string Bio                                 = 7;
+  bool   HasProfileImage                     = 8;
+  string ProfileImageURL                     = 9;
+  bool   IsDriver                            = 10;
+  bool   IsPassenger                         = 11;
+  bool   IsDriverProfileVerified             = 12;
+  bool   IsPassengerProfileVerified          = 13;
+  repeated TripPreference TripPreferences    = 14;
+  string IDCardExpirationDate                = 15;
+  string DriveLicenceExpirationDate          = 16;
 }

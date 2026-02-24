@@ -27,10 +27,11 @@ const (
 
 type CreateUserRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	AuthId          string                 `protobuf:"bytes,1,opt,name=auth_id,json=authId,proto3" json:"auth_id,omitempty"`
-	Name            string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	FirstName       string                 `protobuf:"bytes,3,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
-	ProfilePhotoUrl string                 `protobuf:"bytes,4,opt,name=profile_photo_url,json=profilePhotoUrl,proto3" json:"profile_photo_url,omitempty"` // optionnel
+	AuthID          string                 `protobuf:"bytes,1,opt,name=AuthID,proto3" json:"AuthID,omitempty"`
+	Name            string                 `protobuf:"bytes,2,opt,name=Name,proto3" json:"Name,omitempty"`
+	FirstName       string                 `protobuf:"bytes,3,opt,name=FirstName,proto3" json:"FirstName,omitempty"`
+	ProfilePhotoURL string                 `protobuf:"bytes,4,opt,name=ProfilePhotoURL,proto3" json:"ProfilePhotoURL,omitempty"` // optionnel
+	FirebaseID      string                 `protobuf:"bytes,5,opt,name=FirebaseID,proto3" json:"FirebaseID,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -65,9 +66,9 @@ func (*CreateUserRequest) Descriptor() ([]byte, []int) {
 	return file_user_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *CreateUserRequest) GetAuthId() string {
+func (x *CreateUserRequest) GetAuthID() string {
 	if x != nil {
-		return x.AuthId
+		return x.AuthID
 	}
 	return ""
 }
@@ -86,16 +87,23 @@ func (x *CreateUserRequest) GetFirstName() string {
 	return ""
 }
 
-func (x *CreateUserRequest) GetProfilePhotoUrl() string {
+func (x *CreateUserRequest) GetProfilePhotoURL() string {
 	if x != nil {
-		return x.ProfilePhotoUrl
+		return x.ProfilePhotoURL
+	}
+	return ""
+}
+
+func (x *CreateUserRequest) GetFirebaseID() string {
+	if x != nil {
+		return x.FirebaseID
 	}
 	return ""
 }
 
 type GetUserByAuthIDRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AuthId        string                 `protobuf:"bytes,1,opt,name=auth_id,json=authId,proto3" json:"auth_id,omitempty"`
+	AuthID        string                 `protobuf:"bytes,1,opt,name=AuthID,proto3" json:"AuthID,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -130,38 +138,91 @@ func (*GetUserByAuthIDRequest) Descriptor() ([]byte, []int) {
 	return file_user_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetUserByAuthIDRequest) GetAuthId() string {
+func (x *GetUserByAuthIDRequest) GetAuthID() string {
 	if x != nil {
-		return x.AuthId
+		return x.AuthID
 	}
 	return ""
 }
 
+// TripPreference — préférence de trajet individuelle
+type TripPreference struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Preference    string                 `protobuf:"bytes,1,opt,name=Preference,proto3" json:"Preference,omitempty"`
+	IsAllowed     bool                   `protobuf:"varint,2,opt,name=IsAllowed,proto3" json:"IsAllowed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TripPreference) Reset() {
+	*x = TripPreference{}
+	mi := &file_user_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TripPreference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TripPreference) ProtoMessage() {}
+
+func (x *TripPreference) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TripPreference.ProtoReflect.Descriptor instead.
+func (*TripPreference) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *TripPreference) GetPreference() string {
+	if x != nil {
+		return x.Preference
+	}
+	return ""
+}
+
+func (x *TripPreference) GetIsAllowed() bool {
+	if x != nil {
+		return x.IsAllowed
+	}
+	return false
+}
+
 type UserProfileResponse struct {
 	state                      protoimpl.MessageState `protogen:"open.v1"`
-	UserId                     string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	AuthId                     string                 `protobuf:"bytes,2,opt,name=auth_id,json=authId,proto3" json:"auth_id,omitempty"`
-	Name                       string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	FirstName                  string                 `protobuf:"bytes,4,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
-	Gender                     string                 `protobuf:"bytes,5,opt,name=gender,proto3" json:"gender,omitempty"`
-	DateOfBirth                string                 `protobuf:"bytes,6,opt,name=date_of_birth,json=dateOfBirth,proto3" json:"date_of_birth,omitempty"`
-	Bio                        string                 `protobuf:"bytes,7,opt,name=bio,proto3" json:"bio,omitempty"`
-	HasProfileImage            bool                   `protobuf:"varint,8,opt,name=has_profile_image,json=hasProfileImage,proto3" json:"has_profile_image,omitempty"`
-	ProfileImageUrl            string                 `protobuf:"bytes,9,opt,name=profile_image_url,json=profileImageUrl,proto3" json:"profile_image_url,omitempty"`
-	IsDriver                   bool                   `protobuf:"varint,10,opt,name=is_driver,json=isDriver,proto3" json:"is_driver,omitempty"`
-	IsPassenger                bool                   `protobuf:"varint,11,opt,name=is_passenger,json=isPassenger,proto3" json:"is_passenger,omitempty"`
-	IsDriverProfileVerified    bool                   `protobuf:"varint,12,opt,name=is_driver_profile_verified,json=isDriverProfileVerified,proto3" json:"is_driver_profile_verified,omitempty"`
-	IsPassengerProfileVerified bool                   `protobuf:"varint,13,opt,name=is_passenger_profile_verified,json=isPassengerProfileVerified,proto3" json:"is_passenger_profile_verified,omitempty"`
-	TripPreferences            string                 `protobuf:"bytes,14,opt,name=trip_preferences,json=tripPreferences,proto3" json:"trip_preferences,omitempty"` // JSON sérialisé
-	IdCardExpirationDate       string                 `protobuf:"bytes,15,opt,name=id_card_expiration_date,json=idCardExpirationDate,proto3" json:"id_card_expiration_date,omitempty"`
-	DriveLicenceExpirationDate string                 `protobuf:"bytes,16,opt,name=drive_licence_expiration_date,json=driveLicenceExpirationDate,proto3" json:"drive_licence_expiration_date,omitempty"`
+	UserID                     string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
+	AuthID                     string                 `protobuf:"bytes,2,opt,name=AuthID,proto3" json:"AuthID,omitempty"`
+	Name                       string                 `protobuf:"bytes,3,opt,name=Name,proto3" json:"Name,omitempty"`
+	FirstName                  string                 `protobuf:"bytes,4,opt,name=FirstName,proto3" json:"FirstName,omitempty"`
+	Gender                     string                 `protobuf:"bytes,5,opt,name=Gender,proto3" json:"Gender,omitempty"`
+	DateOfBirth                string                 `protobuf:"bytes,6,opt,name=DateOfBirth,proto3" json:"DateOfBirth,omitempty"`
+	Bio                        string                 `protobuf:"bytes,7,opt,name=Bio,proto3" json:"Bio,omitempty"`
+	HasProfileImage            bool                   `protobuf:"varint,8,opt,name=HasProfileImage,proto3" json:"HasProfileImage,omitempty"`
+	ProfileImageURL            string                 `protobuf:"bytes,9,opt,name=ProfileImageURL,proto3" json:"ProfileImageURL,omitempty"`
+	IsDriver                   bool                   `protobuf:"varint,10,opt,name=IsDriver,proto3" json:"IsDriver,omitempty"`
+	IsPassenger                bool                   `protobuf:"varint,11,opt,name=IsPassenger,proto3" json:"IsPassenger,omitempty"`
+	IsDriverProfileVerified    bool                   `protobuf:"varint,12,opt,name=IsDriverProfileVerified,proto3" json:"IsDriverProfileVerified,omitempty"`
+	IsPassengerProfileVerified bool                   `protobuf:"varint,13,opt,name=IsPassengerProfileVerified,proto3" json:"IsPassengerProfileVerified,omitempty"`
+	TripPreferences            []*TripPreference      `protobuf:"bytes,14,rep,name=TripPreferences,proto3" json:"TripPreferences,omitempty"`
+	IDCardExpirationDate       string                 `protobuf:"bytes,15,opt,name=IDCardExpirationDate,proto3" json:"IDCardExpirationDate,omitempty"`
+	DriveLicenceExpirationDate string                 `protobuf:"bytes,16,opt,name=DriveLicenceExpirationDate,proto3" json:"DriveLicenceExpirationDate,omitempty"`
 	unknownFields              protoimpl.UnknownFields
 	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *UserProfileResponse) Reset() {
 	*x = UserProfileResponse{}
-	mi := &file_user_proto_msgTypes[2]
+	mi := &file_user_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -173,7 +234,7 @@ func (x *UserProfileResponse) String() string {
 func (*UserProfileResponse) ProtoMessage() {}
 
 func (x *UserProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[2]
+	mi := &file_user_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -186,19 +247,19 @@ func (x *UserProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserProfileResponse.ProtoReflect.Descriptor instead.
 func (*UserProfileResponse) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{2}
+	return file_user_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *UserProfileResponse) GetUserId() string {
+func (x *UserProfileResponse) GetUserID() string {
 	if x != nil {
-		return x.UserId
+		return x.UserID
 	}
 	return ""
 }
 
-func (x *UserProfileResponse) GetAuthId() string {
+func (x *UserProfileResponse) GetAuthID() string {
 	if x != nil {
-		return x.AuthId
+		return x.AuthID
 	}
 	return ""
 }
@@ -245,9 +306,9 @@ func (x *UserProfileResponse) GetHasProfileImage() bool {
 	return false
 }
 
-func (x *UserProfileResponse) GetProfileImageUrl() string {
+func (x *UserProfileResponse) GetProfileImageURL() string {
 	if x != nil {
-		return x.ProfileImageUrl
+		return x.ProfileImageURL
 	}
 	return ""
 }
@@ -280,16 +341,16 @@ func (x *UserProfileResponse) GetIsPassengerProfileVerified() bool {
 	return false
 }
 
-func (x *UserProfileResponse) GetTripPreferences() string {
+func (x *UserProfileResponse) GetTripPreferences() []*TripPreference {
 	if x != nil {
 		return x.TripPreferences
 	}
-	return ""
+	return nil
 }
 
-func (x *UserProfileResponse) GetIdCardExpirationDate() string {
+func (x *UserProfileResponse) GetIDCardExpirationDate() string {
 	if x != nil {
-		return x.IdCardExpirationDate
+		return x.IDCardExpirationDate
 	}
 	return ""
 }
@@ -306,34 +367,40 @@ var File_user_proto protoreflect.FileDescriptor
 const file_user_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"user.proto\x12\x04user\"\x8b\x01\n" +
-	"\x11CreateUserRequest\x12\x17\n" +
-	"\aauth_id\x18\x01 \x01(\tR\x06authId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
+	"user.proto\x12\x04user\"\xa7\x01\n" +
+	"\x11CreateUserRequest\x12\x16\n" +
+	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\x12\x12\n" +
+	"\x04Name\x18\x02 \x01(\tR\x04Name\x12\x1c\n" +
+	"\tFirstName\x18\x03 \x01(\tR\tFirstName\x12(\n" +
+	"\x0fProfilePhotoURL\x18\x04 \x01(\tR\x0fProfilePhotoURL\x12\x1e\n" +
 	"\n" +
-	"first_name\x18\x03 \x01(\tR\tfirstName\x12*\n" +
-	"\x11profile_photo_url\x18\x04 \x01(\tR\x0fprofilePhotoUrl\"1\n" +
-	"\x16GetUserByAuthIDRequest\x12\x17\n" +
-	"\aauth_id\x18\x01 \x01(\tR\x06authId\"\x85\x05\n" +
-	"\x13UserProfileResponse\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
-	"\aauth_id\x18\x02 \x01(\tR\x06authId\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1d\n" +
+	"FirebaseID\x18\x05 \x01(\tR\n" +
+	"FirebaseID\"0\n" +
+	"\x16GetUserByAuthIDRequest\x12\x16\n" +
+	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\"N\n" +
+	"\x0eTripPreference\x12\x1e\n" +
 	"\n" +
-	"first_name\x18\x04 \x01(\tR\tfirstName\x12\x16\n" +
-	"\x06gender\x18\x05 \x01(\tR\x06gender\x12\"\n" +
-	"\rdate_of_birth\x18\x06 \x01(\tR\vdateOfBirth\x12\x10\n" +
-	"\x03bio\x18\a \x01(\tR\x03bio\x12*\n" +
-	"\x11has_profile_image\x18\b \x01(\bR\x0fhasProfileImage\x12*\n" +
-	"\x11profile_image_url\x18\t \x01(\tR\x0fprofileImageUrl\x12\x1b\n" +
-	"\tis_driver\x18\n" +
-	" \x01(\bR\bisDriver\x12!\n" +
-	"\fis_passenger\x18\v \x01(\bR\visPassenger\x12;\n" +
-	"\x1ais_driver_profile_verified\x18\f \x01(\bR\x17isDriverProfileVerified\x12A\n" +
-	"\x1dis_passenger_profile_verified\x18\r \x01(\bR\x1aisPassengerProfileVerified\x12)\n" +
-	"\x10trip_preferences\x18\x0e \x01(\tR\x0ftripPreferences\x125\n" +
-	"\x17id_card_expiration_date\x18\x0f \x01(\tR\x14idCardExpirationDate\x12A\n" +
-	"\x1ddrive_licence_expiration_date\x18\x10 \x01(\tR\x1adriveLicenceExpirationDate2\x9b\x01\n" +
+	"Preference\x18\x01 \x01(\tR\n" +
+	"Preference\x12\x1c\n" +
+	"\tIsAllowed\x18\x02 \x01(\bR\tIsAllowed\"\x83\x05\n" +
+	"\x13UserProfileResponse\x12\x16\n" +
+	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12\x16\n" +
+	"\x06AuthID\x18\x02 \x01(\tR\x06AuthID\x12\x12\n" +
+	"\x04Name\x18\x03 \x01(\tR\x04Name\x12\x1c\n" +
+	"\tFirstName\x18\x04 \x01(\tR\tFirstName\x12\x16\n" +
+	"\x06Gender\x18\x05 \x01(\tR\x06Gender\x12 \n" +
+	"\vDateOfBirth\x18\x06 \x01(\tR\vDateOfBirth\x12\x10\n" +
+	"\x03Bio\x18\a \x01(\tR\x03Bio\x12(\n" +
+	"\x0fHasProfileImage\x18\b \x01(\bR\x0fHasProfileImage\x12(\n" +
+	"\x0fProfileImageURL\x18\t \x01(\tR\x0fProfileImageURL\x12\x1a\n" +
+	"\bIsDriver\x18\n" +
+	" \x01(\bR\bIsDriver\x12 \n" +
+	"\vIsPassenger\x18\v \x01(\bR\vIsPassenger\x128\n" +
+	"\x17IsDriverProfileVerified\x18\f \x01(\bR\x17IsDriverProfileVerified\x12>\n" +
+	"\x1aIsPassengerProfileVerified\x18\r \x01(\bR\x1aIsPassengerProfileVerified\x12>\n" +
+	"\x0fTripPreferences\x18\x0e \x03(\v2\x14.user.TripPreferenceR\x0fTripPreferences\x122\n" +
+	"\x14IDCardExpirationDate\x18\x0f \x01(\tR\x14IDCardExpirationDate\x12>\n" +
+	"\x1aDriveLicenceExpirationDate\x18\x10 \x01(\tR\x1aDriveLicenceExpirationDate2\x9b\x01\n" +
 	"\vUserService\x12@\n" +
 	"\n" +
 	"CreateUser\x12\x17.user.CreateUserRequest\x1a\x19.user.UserProfileResponse\x12J\n" +
@@ -351,22 +418,24 @@ func file_user_proto_rawDescGZIP() []byte {
 	return file_user_proto_rawDescData
 }
 
-var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_user_proto_goTypes = []any{
 	(*CreateUserRequest)(nil),      // 0: user.CreateUserRequest
 	(*GetUserByAuthIDRequest)(nil), // 1: user.GetUserByAuthIDRequest
-	(*UserProfileResponse)(nil),    // 2: user.UserProfileResponse
+	(*TripPreference)(nil),         // 2: user.TripPreference
+	(*UserProfileResponse)(nil),    // 3: user.UserProfileResponse
 }
 var file_user_proto_depIdxs = []int32{
-	0, // 0: user.UserService.CreateUser:input_type -> user.CreateUserRequest
-	1, // 1: user.UserService.GetUserByAuthID:input_type -> user.GetUserByAuthIDRequest
-	2, // 2: user.UserService.CreateUser:output_type -> user.UserProfileResponse
-	2, // 3: user.UserService.GetUserByAuthID:output_type -> user.UserProfileResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	2, // 0: user.UserProfileResponse.TripPreferences:type_name -> user.TripPreference
+	0, // 1: user.UserService.CreateUser:input_type -> user.CreateUserRequest
+	1, // 2: user.UserService.GetUserByAuthID:input_type -> user.GetUserByAuthIDRequest
+	3, // 3: user.UserService.CreateUser:output_type -> user.UserProfileResponse
+	3, // 4: user.UserService.GetUserByAuthID:output_type -> user.UserProfileResponse
+	3, // [3:5] is the sub-list for method output_type
+	1, // [1:3] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_user_proto_init() }
@@ -380,7 +449,7 @@ func file_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_proto_rawDesc), len(file_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
