@@ -35,6 +35,24 @@ jobs:
     outputs:
       services: ${{ steps.set-services.outputs.services }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: dorny/paths-filter@v2
+        if: github.event.inputs.service == ''
+        id: filter
+        with:
+          filters: |
+            api-gateway:
+              - 'services/api-gateway/**'
+            auth-service:
+              - 'services/auth-service/**'
+            user-service:
+              - 'services/user-service/**'
+            pkg:
+              - 'pkg/**'
+
       - name: Set services to deploy
         id: set-services
         run: |
