@@ -2,9 +2,7 @@ package middleware
 
 import (
 	"context"
-	"strings"
 
-	firebaseValidator "github.com/Kpeewu/tissi-mah/services/auth-service/pkg/firebase"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -14,10 +12,10 @@ import (
 type contextKey string
 
 // FirebaseIDKey est la clé du contexte gRPC où est stocké le Firebase UID,
-// injecté par l'intercepteur après validation complète du JWT.
+// injecté par l'api-gateway via la metadata gRPC x-firebase-uid.
 const FirebaseIDKey contextKey = "firebaseID"
 
-// Routes gRPC qui requièrent un JWT Firebase valide
+// Routes gRPC qui requièrent un Firebase UID (transmis par l'api-gateway)
 var protectedMethods = map[string]bool{
 	"/auth.AuthService/Login":         true,
 	"/auth.AuthService/CreateAccount": true,
@@ -26,10 +24,10 @@ var protectedMethods = map[string]bool{
 
 // AuthInterceptor retourne un intercepteur gRPC unaire qui :
 //  1. Laisse passer les routes publiques (Health, CheckEmail, CheckPhoneNumber)
-//  2. Extrait le Bearer token du header Authorization (metadata gRPC)
-//  3. Valide le token avec Firebase Admin SDK (signature, issuer, audience, expiration)
-//  4. Injecte le Firebase UID dans le contexte via FirebaseIDKey
-func AuthInterceptor(validator *firebaseValidator.JWTValidator) grpc.UnaryServerInterceptor {
+//  2. Extrait le Firebase UID depuis la metadata gRPC x-firebase-uid
+//     (injectée par l'api-gateway après validation JWT Firebase)
+//  3. Injecte le Firebase UID dans le contexte via FirebaseIDKey
+func AuthInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if !protectedMethods[info.FullMethod] {
 			return handler(ctx, req)
@@ -40,23 +38,12 @@ func AuthInterceptor(validator *firebaseValidator.JWTValidator) grpc.UnaryServer
 			return nil, status.Error(codes.Unauthenticated, "missing metadata")
 		}
 
-		authHeaders := md.Get("authorization")
-		if len(authHeaders) == 0 {
-			return nil, status.Error(codes.Unauthenticated, "missing authorization header")
+		uids := md.Get("x-firebase-uid")
+		if len(uids) == 0 || uids[0] == "" {
+			return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
 		}
 
-		rawToken := authHeaders[0]
-		if !strings.HasPrefix(rawToken, "Bearer ") {
-			return nil, status.Error(codes.Unauthenticated, "authorization header must be Bearer token")
-		}
-		idToken := strings.TrimPrefix(rawToken, "Bearer ")
-
-		firebaseID, err := validator.VerifyToken(ctx, idToken)
-		if err != nil {
-			return nil, status.Error(codes.Unauthenticated, "invalid or expired token")
-		}
-
-		ctx = context.WithValue(ctx, FirebaseIDKey, firebaseID)
+		ctx = context.WithValue(ctx, FirebaseIDKey, uids[0])
 		return handler(ctx, req)
 	}
 }

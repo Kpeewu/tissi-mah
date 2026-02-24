@@ -8,7 +8,6 @@ import (
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/config"
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/middleware"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/auth-service/internal/service/interfaces"
-	firebaseValidator "github.com/Kpeewu/tissi-mah/services/auth-service/pkg/firebase"
 	authpb "github.com/Kpeewu/tissi-mah/services/auth-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -16,12 +15,11 @@ import (
 )
 
 // NewAuthServer crée et configure le serveur gRPC de auth-service.
-// Il enregistre l'intercepteur JWT, le handler AuthService,
+// Il enregistre l'intercepteur metadata (x-firebase-uid), le handler AuthService,
 // le health check gRPC v1, et la reflection (hors prod).
 func NewAuthServer(
 	cfg *config.Config,
 	service serviceInterfaces.AuthService,
-	validator *firebaseValidator.JWTValidator,
 	logger *zap.Logger,
 ) (*grpcutil.Server, error) {
 	port, err := strconv.Atoi(cfg.Server.Port)
@@ -38,7 +36,7 @@ func NewAuthServer(
 	srv, err := grpcutil.NewServer(
 		serverCfg,
 		logger,
-		grpc.UnaryInterceptor(middleware.AuthInterceptor(validator)),
+		grpc.UnaryInterceptor(middleware.AuthInterceptor()),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)

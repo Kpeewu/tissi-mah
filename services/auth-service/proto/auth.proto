@@ -60,6 +60,10 @@ service AuthService {
     };
   }
 
+  // GetAuthInfo - Inter-service RPC (no auth required)
+  // Retourne les données auth d'un utilisateur pour enrichissement par d'autres services
+  rpc GetAuthInfo(GetAuthInfoRequest) returns (GetAuthInfoResponse);
+
 }
 
 // =============================================================================
@@ -93,6 +97,10 @@ message HealthRequest {
   // No fields required
 }
 
+message GetAuthInfoRequest {
+  string AuthID = 1;
+}
+
 // =============================================================================
 // Response Messages
 // =============================================================================
@@ -124,6 +132,15 @@ message CheckPhoneOrEmailResponse {
 message AuthServerResponse {
   string ErrorMessage = 1;
   bool Success = 2;
+}
+
+message GetAuthInfoResponse {
+  string AuthID = 1;
+  string Email = 2;
+  string PhoneNumber = 3;
+  bool IsActive = 4;
+  bool IsSuspended = 5;
+  string SuspensionEndDate = 6;
 }
 
 // =============================================================================

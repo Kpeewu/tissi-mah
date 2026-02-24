@@ -42,12 +42,13 @@ func (c *UserServiceClient) Close() error {
 
 // CreateUser crée un profil utilisateur dans user-service après la création du compte auth.
 // Retourne un UserPreview partiel (sans email/phone — ceux-ci appartiennent à auth-service).
-func (c *UserServiceClient) CreateUser(ctx context.Context, authID string, name string, firstName string, profilePhotoURL string) (*domain.UserPreview, error) {
+func (c *UserServiceClient) CreateUser(ctx context.Context, authID string, firebaseID string, name string, firstName string, profilePhotoURL string) (*domain.UserPreview, error) {
 	resp, err := c.grpcClient.CreateUser(ctx, &userpb.CreateUserRequest{
-		AuthId:          authID,
+		AuthID:          authID,
 		Name:            name,
 		FirstName:       firstName,
-		ProfilePhotoUrl: profilePhotoURL,
+		ProfilePhotoURL: profilePhotoURL,
+		FirebaseID:      firebaseID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("user-service: CreateUser failed: %w", err)
@@ -60,7 +61,7 @@ func (c *UserServiceClient) CreateUser(ctx context.Context, authID string, name 
 // Retourne un UserPreview partiel (sans email/phone — ceux-ci appartiennent à auth-service).
 func (c *UserServiceClient) GetUserByAuthID(ctx context.Context, authID string) (*domain.UserPreview, error) {
 	resp, err := c.grpcClient.GetUserByAuthID(ctx, &userpb.GetUserByAuthIDRequest{
-		AuthId: authID,
+		AuthID: authID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("user-service: GetUserByAuthID failed: %w", err)
@@ -74,14 +75,14 @@ func (c *UserServiceClient) GetUserByAuthID(ctx context.Context, authID string) 
 // enrichis par auth-service à partir de son propre repository.
 func toUserPreview(resp *userpb.UserProfileResponse) *domain.UserPreview {
 	preview := &domain.UserPreview{
-		AuthID:    resp.AuthId,
-		UserID:    resp.UserId,
+		AuthID:    resp.AuthID,
+		UserID:    resp.UserID,
 		Name:      resp.Name,
 		FirstName: resp.FirstName,
 	}
 
-	if resp.ProfileImageUrl != "" {
-		url := resp.ProfileImageUrl
+	if resp.ProfileImageURL != "" {
+		url := resp.ProfileImageURL
 		preview.ProfilePhotoURL = &url
 	}
 

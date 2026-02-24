@@ -1,0 +1,104 @@
+# Production values for api-gateway
+# Namespace: production
+
+replicaCount: 3
+
+image:
+  registry: ghcr.io
+  repository: kpeewu/tissi-mah/api-gateway
+  pullPolicy: Always
+  tag: ""  # Set via CI/CD with semver tag
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: ""  # Set via CI/CD
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: LoadBalancer
+  port: 8080
+
+config:
+  environment: "production"
+  logLevel: "warn"
+  authServiceHost: "auth-service"
+  authServicePort: "50051"
+  userServiceHost: "user-service"
+  userServicePort: "50052"
+  corsAllowedOrigins: "https://tissi-mah.com,https://www.tissi-mah.com"
+  extra: {}
+
+# Secrets MUST be provided via AWS Secrets Manager or external secret management
+secrets:
+  redisUrl: ""
+  firebaseCredentials: ""
+  firebaseProjectId: ""
+  extra: {}
+
+probes:
+  enabled: true
+  liveness:
+    initialDelaySeconds: 15
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 10
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 3
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 60
+  targetMemoryUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+                - api-gateway
+        topologyKey: kubernetes.io/hostname
+
+imagePullSecrets:
+  - name: ghcr-secret

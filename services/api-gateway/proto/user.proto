@@ -1,0 +1,212 @@
+// User Service Proto Definition
+// This file defines the gRPC service contract for user-service
+//
+// HTTP/REST mapping is defined using google.api.http annotations
+// api-gateway uses these annotations for grpc-gateway transcoding
+
+syntax = "proto3";
+
+package user;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/userpb;user";
+
+import "google/api/annotations.proto";
+
+// =============================================================================
+// User Service
+// =============================================================================
+
+service UserService {
+  // Inter-service RPCs (appelés par auth-service — pas de JWT requis)
+
+  // CreateUser - Crée un nouveau profil utilisateur après création du compte auth
+  rpc CreateUser(CreateUserRequest) returns (UserProfileResponse);
+
+  // GetUserByAuthID - Récupère le profil utilisateur lié à un AuthID
+  rpc GetUserByAuthID(GetUserByAuthIDRequest) returns (UserProfileResponse);
+
+  // Client-facing RPCs (JWT Firebase requis)
+
+  // GetMyProfile - Récupère le profil complet de l'utilisateur connecté
+  rpc GetMyProfile(GetMyProfileRequest) returns (GetMyProfileResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/user/me"
+      body: "*"
+    };
+  }
+
+  // CreateDriverAccount - Active le statut conducteur sur le profil
+  rpc CreateDriverAccount(CreateDriverAccountRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/userProfile/createDriverAccount"
+      body: "*"
+    };
+  }
+
+  // AddTripPreferences - Ajoute les préférences de trajet
+  rpc AddTripPreferences(AddTripPreferencesRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/userProfile/addTripPreferences"
+      body: "*"
+    };
+  }
+
+  // UpdateProfile - Met à jour les informations du profil
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/userProfile/updateProfile"
+      body: "*"
+    };
+  }
+
+  // Health - Health check endpoint (pas de JWT requis)
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/user/health"
+    };
+  }
+}
+
+// =============================================================================
+// Inter-service Request Messages
+// =============================================================================
+
+message CreateUserRequest {
+  string AuthID          = 1;
+  string Name            = 2;
+  string FirstName       = 3;
+  string ProfilePhotoURL = 4; // optionnel
+  string FirebaseID      = 5;
+}
+
+message GetUserByAuthIDRequest {
+  string AuthID = 1;
+}
+
+// =============================================================================
+// Client-facing Request Messages
+// =============================================================================
+
+message GetMyProfileRequest {
+  // Pas de champs — le Firebase UID est extrait du JWT
+}
+
+message CreateDriverAccountRequest {
+  string ProfileID           = 1;
+  bool   CreateDriverAccount = 2;
+}
+
+message AddTripPreferencesRequest {
+  string ProfileID                      = 1;
+  repeated TripPreference Preferences   = 2;
+}
+
+message UpdateProfileRequest {
+  string ProfileID       = 1;
+  optional string FirstName       = 2;
+  optional string LastName        = 3;
+  optional string BirthDate       = 4;
+  optional string Email           = 5;
+  optional string PhoneNumber     = 6;
+  optional string ProfilePictureURL = 7;
+}
+
+message HealthRequest {
+  // Pas de champs
+}
+
+// =============================================================================
+// Response Messages
+// =============================================================================
+
+// TripPreference — préférence de trajet individuelle
+message TripPreference {
+  string Preference = 1;
+  bool   IsAllowed  = 2;
+}
+
+// UserProfileResponse — réponse inter-service (identique au stub dans auth-service)
+message UserProfileResponse {
+  string UserID                              = 1;
+  string AuthID                              = 2;
+  string Name                                = 3;
+  string FirstName                           = 4;
+  string Gender                              = 5;
+  string DateOfBirth                         = 6;
+  string Bio                                 = 7;
+  bool   HasProfileImage                     = 8;
+  string ProfileImageURL                     = 9;
+  bool   IsDriver                            = 10;
+  bool   IsPassenger                         = 11;
+  bool   IsDriverProfileVerified             = 12;
+  bool   IsPassengerProfileVerified          = 13;
+  repeated TripPreference TripPreferences    = 14;
+  string IDCardExpirationDate                = 15;
+  string DriveLicenceExpirationDate          = 16;
+}
+
+// GetMyProfileResponse — réponse client enrichie avec données auth
+message GetMyProfileResponse {
+  string ErrorMessage = 1;
+  FullUserProfile User = 2;
+}
+
+// FullUserProfile — profil complet avec données auth enrichies
+message FullUserProfile {
+  string AuthID                                  = 1;
+  string ProfileID                               = 2;
+  string Name                                    = 3;
+  string FirstName                               = 4;
+  string Gender                                  = 5;
+  string DateOfBirth                             = 6;
+  string Bio                                     = 7;
+  string Email                                   = 8;
+  string PhoneNumber                             = 9;
+  string ProfileImageURL                         = 10;
+  bool   HasProfileImage                         = 11;
+  bool   IsDriver                                = 12;
+  bool   IsPassenger                             = 13;
+  bool   IsDriverProfileVerified                 = 14;
+  bool   IsPassengerProfileVerified              = 15;
+  bool   IsActive                                = 16;
+  bool   IsSuspended                             = 17;
+  string SuspensionEndDate                       = 18;
+  repeated TripPreference TripPreferences        = 19;
+  string IDCardExpirationDate                    = 20;
+  string DriveLicenceExpirationDate              = 21;
+  repeated UserFile UserFiles                    = 22;
+}
+
+message UserFile {
+  string FileID   = 1;
+  string FileURL  = 2;
+  string FileType = 3;
+}
+
+message OperationResponse {
+  string ErrorMessage = 1;
+  bool   Success      = 2;
+}
+
+message UpdateProfileResponse {
+  string ErrorMessage   = 1;
+  FullUserProfile User  = 2;
+}
+
+message HealthResponse {
+  string Status    = 1;
+  string Version   = 2;
+  int64  Timestamp = 3;
+}
+
+// =============================================================================
+// Error Codes Reference (gRPC status codes)
+// =============================================================================
+//
+// 0  - OK                  : Success
+// 3  - INVALID_ARGUMENT    : Invalid request parameters (400)
+// 5  - NOT_FOUND           : Resource not found (404)
+// 7  - PERMISSION_DENIED   : Not authorized (403)
+// 9  - FAILED_PRECONDITION : Pre-condition not met (412)
+// 13 - INTERNAL            : Server error (500)
+// 16 - UNAUTHENTICATED     : Missing or invalid token (401)

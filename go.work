@@ -6,7 +6,8 @@ use (
 	./pkg-test
 
 	// Services - each with their own specific dependencies
+	./services/api-gateway
 	./services/auth-service
-// ./services/user-service      # TODO: Uncomment when implemented
+	./services/user-service
 // ./services/payment-service   # TODO: Uncomment when implemented
 )

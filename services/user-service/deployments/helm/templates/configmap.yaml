@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "user-service.fullname" . }}
+  labels:
+    {{- include "user-service.labels" . | nindent 4 }}
+data:
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  GRPC_PORT: {{ .Values.service.port | quote }}
+  AUTH_SERVICE_HOST: {{ .Values.config.authServiceHost | quote }}
+  AUTH_SERVICE_PORT: {{ .Values.config.authServicePort | quote }}
+  MONGODB_DATABASE: {{ .Values.config.mongodbDatabase | quote }}
+  {{- range $key, $value := .Values.config.extra }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}

@@ -26,8 +26,6 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ${{ github.repository }}
-  # Namespace pour le déploiement VPS-dev
-  # IMPORTANT: Doit correspondre au namespace où Kong est installé
   DEPLOY_NAMESPACE: default
 
 jobs:
@@ -37,13 +35,52 @@ jobs:
     outputs:
       services: ${{ steps.set-services.outputs.services }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: dorny/paths-filter@v2
+        if: github.event.inputs.service == ''
+        id: filter
+        with:
+          filters: |
+            api-gateway:
+              - 'services/api-gateway/**'
+            auth-service:
+              - 'services/auth-service/**'
+            user-service:
+              - 'services/user-service/**'
+            pkg:
+              - 'pkg/**'
+
       - name: Set services to deploy
         id: set-services
         run: |
           if [ -n "${{ github.event.inputs.service }}" ]; then
             echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
           else
-            echo "services=[\"auth-service\"]" >> $GITHUB_OUTPUT
+            services=()
+            # Si pkg a change, on redéploie tous les services
+            if [ "${{ steps.filter.outputs.pkg }}" == "true" ]; then
+              services+=("api-gateway" "auth-service" "user-service")
+            else
+              if [ "${{ steps.filter.outputs.api-gateway }}" == "true" ]; then
+                services+=("api-gateway")
+              fi
+              if [ "${{ steps.filter.outputs.auth-service }}" == "true" ]; then
+                services+=("auth-service")
+              fi
+              if [ "${{ steps.filter.outputs.user-service }}" == "true" ]; then
+                services+=("user-service")
+              fi
+            fi
+
+            if [ ${#services[@]} -eq 0 ]; then
+              echo "services=[]" >> $GITHUB_OUTPUT
+            else
+              json=$(printf '%s\n' "${services[@]}" | jq -R . | jq -s -c .)
+              echo "services=$json" >> $GITHUB_OUTPUT
+            fi
           fi
 
   build-and-push:
@@ -113,33 +150,48 @@ jobs:
           echo "${{ secrets.VPS_KUBECONFIG }}" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
 
-      - name: Sync proto files to Helm chart
-        run: |
-          ./scripts/utilities/sync-protos-to-helm.sh ${{ matrix.service }}
-
       - name: Create secrets override file
         env:
+          # api-gateway secrets
+          GW_REDIS_URL: ${{ secrets.GW_REDIS_URL }}
+          GW_FIREBASE_CREDENTIALS: ${{ secrets.GW_FIREBASE_CREDENTIALS }}
+          GW_FIREBASE_PROJECT_ID: ${{ secrets.GW_FIREBASE_PROJECT_ID }}
+          # auth-service secrets
           AUTH_DATABASE_URL: ${{ secrets.AUTH_DATABASE_URL }}
           AUTH_REDIS_URL: ${{ secrets.AUTH_REDIS_URL }}
-          AUTH_JWT_SECRET: ${{ secrets.AUTH_JWT_SECRET }}
-          AUTH_FIREBASE_CREDENTIALS: ${{ secrets.AUTH_FIREBASE_CREDENTIALS }}
-          AUTH_FIREBASE_PROJECT_ID: ${{ secrets.AUTH_FIREBASE_PROJECT_ID }}
+          # user-service secrets
+          USER_MONGODB_URL: ${{ secrets.USER_MONGODB_URL }}
+          USER_REDIS_URL: ${{ secrets.USER_REDIS_URL }}
         run: |
           python3 - <<'PYEOF'
           import yaml, os
-          data = {
-              'secrets': {
-                  'databaseUrl': os.environ.get('AUTH_DATABASE_URL', ''),
-                  'redisUrl': os.environ.get('AUTH_REDIS_URL', ''),
-                  'jwtSecret': os.environ.get('AUTH_JWT_SECRET', ''),
-                  'firebaseCredentials': os.environ.get('AUTH_FIREBASE_CREDENTIALS', ''),
-              },
-              'config': {
-                  'extra': {
-                      'FIREBASE_PROJECT_ID': os.environ.get('AUTH_FIREBASE_PROJECT_ID', ''),
-                  }
-              },
-          }
+
+          service = "${{ matrix.service }}"
+          data = {}
+
+          if service == "api-gateway":
+              data = {
+                  'secrets': {
+                      'redisUrl': os.environ.get('GW_REDIS_URL', ''),
+                      'firebaseCredentials': os.environ.get('GW_FIREBASE_CREDENTIALS', ''),
+                      'firebaseProjectId': os.environ.get('GW_FIREBASE_PROJECT_ID', ''),
+                  },
+              }
+          elif service == "auth-service":
+              data = {
+                  'secrets': {
+                      'databaseUrl': os.environ.get('AUTH_DATABASE_URL', ''),
+                      'redisUrl': os.environ.get('AUTH_REDIS_URL', ''),
+                  },
+              }
+          elif service == "user-service":
+              data = {
+                  'secrets': {
+                      'mongodbUrl': os.environ.get('USER_MONGODB_URL', ''),
+                      'redisUrl': os.environ.get('USER_REDIS_URL', ''),
+                  },
+              }
+
           with open('/tmp/secrets-values.yaml', 'w') as f:
               yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
           PYEOF
@@ -244,67 +296,50 @@ jobs:
 
           if [ "${{ needs.health-check.result }}" != "success" ]; then
             echo ""
-            echo "⚠️  Deployment may have issues. Check the logs above."
+            echo "Deployment may have issues. Check the logs above."
             exit 1
           fi
 
           echo ""
-          echo "✅ Deployment successful!"
+          echo "Deployment successful!"
           echo ""
           echo "Access your services:"
-          echo "  - Kong Gateway: http://dev.tissi-mah.com"
-          echo "  - Auth Service: http://dev.tissi-mah.com/api/v1/auth/*"
+          echo "  - API Gateway: http://dev.tissi-mah.com"
+          echo "  - Auth API: http://dev.tissi-mah.com/api/v1/auth/*"
+          echo "  - User API: http://dev.tissi-mah.com/api/v1/user/*"
 
 # =============================================================================
 # Notes d'utilisation
 # =============================================================================
 #
-# Ce workflow déploie automatiquement les services modifiés vers le VPS-dev.
+# Ce workflow deploie automatiquement les services modifies vers le VPS-dev.
 #
-# Déclenchement automatique:
+# Declenchement automatique:
 #   - Push sur la branche "develop"
 #   - Modifications dans services/** ou pkg/**
 #
-# Déclenchement manuel:
-#   - GitHub Actions → Deploy to VPS → Run workflow
-#   - Sélectionner un service spécifique (optionnel)
+# Declenchement manuel:
+#   - GitHub Actions -> Deploy to VPS -> Run workflow
+#   - Selectionner un service specifique (optionnel)
 #
-# Prérequis:
-#   1. Secret GitHub: VPS_KUBECONFIG
-#      - Contenu: kubeconfig VPS encodé en base64
-#      - Obtenir: kubectl config view --raw | base64 -w 0
+# Prerequis:
+#   1. Secret GitHub: VPS_KUBECONFIG (kubeconfig VPS encode en base64)
 #
-#   2. Secrets GitHub pour auth-service:
-#      - AUTH_DATABASE_URL        : postgresql://user:pass@host:5432/dbname
-#      - AUTH_REDIS_URL           : redis://host:6379
-#      - AUTH_JWT_SECRET          : clé secrète JWT
-#      - AUTH_FIREBASE_CREDENTIALS: contenu JSON du service account Firebase
-#      - AUTH_FIREBASE_PROJECT_ID : ID du projet Firebase (ex: my-project-123)
+#   2. Secrets GitHub pour api-gateway:
+#      - GW_REDIS_URL            : redis://host:6379
+#      - GW_FIREBASE_CREDENTIALS : contenu JSON du service account Firebase
+#      - GW_FIREBASE_PROJECT_ID  : ID du projet Firebase
 #
-#   3. Kong installé dans le namespace "default"
-#      - Le workflow déploie les services dans ce même namespace
-#      - Cohérence avec la configuration Kong (auth-routes.yaml)
+#   3. Secrets GitHub pour auth-service:
+#      - AUTH_DATABASE_URL : postgresql://user:pass@host:5432/dbname
+#      - AUTH_REDIS_URL    : redis://host:6379
 #
-#   4. Script sync-protos-to-helm.sh
-#      - Synchronise les fichiers .proto vers les Helm charts
-#      - Nécessaire pour le plugin grpc-gateway de Kong
-#
-# Workflow détaillé:
-#   1. detect-changes: Identifie les services modifiés
-#   2. build-and-push: Build Docker images → GHCR
-#   3. deploy: Déploiement Helm dans K3s
-#   4. health-check: Vérification santé pods
-#   5. deployment-summary: Résumé du déploiement
+#   4. Secrets GitHub pour user-service:
+#      - USER_MONGODB_URL : mongodb://user:pass@host:27017/dbname
+#      - USER_REDIS_URL   : redis://host:6379
 #
 # Architecture:
 #   VPS K3s namespace "default":
-#     ├── Kong Gateway (API Gateway)
-#     ├── auth-service (déployé par ce workflow)
-#     ├── user-service (futur)
-#     └── ...
-#
-# En cas d'échec:
-#   - Consulter les logs GitHub Actions
-#   - Vérifier les pods: kubectl get pods -n default
-#   - Voir les logs: kubectl logs -n default <pod-name>
-#   - Vérifier Kong: kubectl logs -l app.kubernetes.io/name=kong
+#     |- api-gateway (HTTP LoadBalancer, port 8080)
+#     |- auth-service (gRPC ClusterIP, port 50051)
+#     |- user-service (gRPC ClusterIP, port 50052)

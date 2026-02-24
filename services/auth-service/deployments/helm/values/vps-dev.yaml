@@ -39,14 +39,14 @@ service:
 config:
   environment: "development"
   logLevel: "debug"
+  userServiceHost: "user-service"
+  userServicePort: "50052"
   extra: {}
 
 # Secrets should be provided via external secret management
 secrets:
   databaseUrl: ""
   redisUrl: ""
-  jwtSecret: ""
-  firebaseCredentials: ""
   extra: {}
 
 probes:

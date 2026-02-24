@@ -45,8 +45,14 @@ jobs:
         id: filter
         with:
           filters: |
+            api-gateway:
+              - 'services/api-gateway/**'
             auth-service:
               - 'services/auth-service/**'
+            user-service:
+              - 'services/user-service/**'
+            pkg:
+              - 'pkg/**'
 
       - name: Get version from tag or commit
         id: set-version
@@ -69,10 +75,20 @@ jobs:
             echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
           else
             services=()
-            if [ "${{ steps.filter.outputs.auth-service }}" == "true" ]; then
-              services+=("auth-service")
+            if [ "${{ steps.filter.outputs.pkg }}" == "true" ]; then
+              services+=("api-gateway" "auth-service" "user-service")
+            else
+              if [ "${{ steps.filter.outputs.api-gateway }}" == "true" ]; then
+                services+=("api-gateway")
+              fi
+              if [ "${{ steps.filter.outputs.auth-service }}" == "true" ]; then
+                services+=("auth-service")
+              fi
+              if [ "${{ steps.filter.outputs.user-service }}" == "true" ]; then
+                services+=("user-service")
+              fi
             fi
-            
+
             if [ ${#services[@]} -eq 0 ]; then
               echo "services=[]" >> $GITHUB_OUTPUT
             else
@@ -158,10 +174,6 @@ jobs:
           mkdir -p ~/.kube
           echo "${{ secrets.PROD_KUBECONFIG }}" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
-
-      - name: Sync proto files to Helm chart
-        run: |
-          ./scripts/utilities/sync-protos-to-helm.sh ${{ matrix.service }}
 
       - name: Get current revision
         id: get-revision

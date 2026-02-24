@@ -1,0 +1,20 @@
+# Binaries
+bin/
+*.exe
+*.test
+
+# Environment
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Coverage
+coverage.out
+coverage.html
+
+# Build artifacts
+integration.test
