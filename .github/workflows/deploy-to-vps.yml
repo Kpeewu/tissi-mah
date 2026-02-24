@@ -30,57 +30,18 @@ env:
 
 jobs:
   detect-changes:
-    name: Detect Changed Services
+    name: Set Services
     runs-on: ubuntu-latest
     outputs:
       services: ${{ steps.set-services.outputs.services }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - uses: dorny/paths-filter@v2
-        if: github.event.inputs.service == ''
-        id: filter
-        with:
-          filters: |
-            api-gateway:
-              - 'services/api-gateway/**'
-            auth-service:
-              - 'services/auth-service/**'
-            user-service:
-              - 'services/user-service/**'
-            pkg:
-              - 'pkg/**'
-
       - name: Set services to deploy
         id: set-services
         run: |
           if [ -n "${{ github.event.inputs.service }}" ]; then
             echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
           else
-            services=()
-            # Si pkg a change, on redéploie tous les services
-            if [ "${{ steps.filter.outputs.pkg }}" == "true" ]; then
-              services+=("api-gateway" "auth-service" "user-service")
-            else
-              if [ "${{ steps.filter.outputs.api-gateway }}" == "true" ]; then
-                services+=("api-gateway")
-              fi
-              if [ "${{ steps.filter.outputs.auth-service }}" == "true" ]; then
-                services+=("auth-service")
-              fi
-              if [ "${{ steps.filter.outputs.user-service }}" == "true" ]; then
-                services+=("user-service")
-              fi
-            fi
-
-            if [ ${#services[@]} -eq 0 ]; then
-              echo "services=[]" >> $GITHUB_OUTPUT
-            else
-              json=$(printf '%s\n' "${services[@]}" | jq -R . | jq -s -c .)
-              echo "services=$json" >> $GITHUB_OUTPUT
-            fi
+            echo 'services=["api-gateway","auth-service","user-service"]' >> $GITHUB_OUTPUT
           fi
 
   build-and-push:
