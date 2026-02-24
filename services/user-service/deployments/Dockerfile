@@ -18,15 +18,17 @@ WORKDIR /build
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
 
-# Copy workspace file and all go.mod files first (for better caching)
-COPY go.work go.work.sum* ./
+# Copy go.mod files first (for better caching)
 COPY pkg/go.mod pkg/go.sum ./pkg/
-COPY pkg-test/go.mod pkg-test/go.sum* ./pkg-test/
 COPY services/user-service/go.mod services/user-service/go.sum* ./services/user-service/
 
+# Create a scoped go.work with only the modules present in this build context
+# (the repo go.work lists all services, but we only have pkg + user-service here)
+RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./services/user-service\n)\n' > go.work
+
 # Download dependencies for all modules
-RUN GOWORK=off go mod download -C ./pkg
-RUN GOWORK=off go mod download -C ./services/user-service
+RUN go mod download -C ./pkg
+RUN go mod download -C ./services/user-service
 
 # =============================================================================
 # Stage 2: Builder
@@ -51,7 +53,7 @@ WORKDIR /build/services/user-service
 
 # Build with optimizations
 RUN BUILD_TIME=${BUILD_TIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)} && \
-    GOWORK=off CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-w -s \
         -X main.version=${VERSION} \
         -X main.commitSHA=${COMMIT_SHA} \
