@@ -1,6 +1,6 @@
 .PHONY: help deps-up deps-down deps-logs deps-clean
-.PHONY: run-auth run-user run-gateway run-client
-.PHONY: proto proto-auth proto-user proto-gateway proto-sync test test-all lint fmt
+.PHONY: run-auth run-user run-gateway run-client run-file
+.PHONY: proto proto-auth proto-user proto-file proto-gateway proto-sync test test-all lint fmt
 .PHONY: install-deps update-deps sync-deps
 .PHONY: workspace-init workspace-sync workspace-tidy
 .PHONY: migrate migrate-status migrate-down db-backup db-restore
@@ -18,6 +18,7 @@ help:
 	@echo "$(YELLOW)🚀 Services :$(NC)"
 	@echo "  make run-auth        - Lancer auth-service (avec deps)"
 	@echo "  make run-user        - Lancer user-service (avec deps)"
+	@echo "  make run-file        - Lancer file-service (avec deps)"
 	@echo "  make run-gateway     - Lancer api-gateway (avec deps)"
 	@echo "  make run-client      - Lancer client-service (avec deps)"
 	@echo ""
@@ -56,11 +57,13 @@ deps-up:
 	@docker-compose up -d
 	@echo "✅ Bases de données démarrées :"
 	@echo "   - Auth PostgreSQL   : localhost:5433"
-	@echo "   - User MongoDB      : localhost:27017"
-	# @echo "   - Client PostgreSQL : localhost:5434"  # TODO: Activer quand client-service sera implémenté
-	@echo "   - Redis (auth)      : localhost:6379"
-	@echo "   - Redis (user)      : localhost:6380"
-	@echo "   - Redis (gateway)   : localhost:6381"
+	@echo "   - User MongoDB      : localhost:27018"
+	@echo "   - File PostgreSQL   : localhost:5434"
+	@echo "   - Redis (auth)      : localhost:6381"
+	@echo "   - Redis (user)      : localhost:6382"
+	@echo "   - Redis (gateway)   : localhost:6380"
+	@echo "   - Redis (file)      : localhost:6383"
+	@echo "   - MinIO (S3)        : localhost:9000 (API) / localhost:9001 (Console)"
 
 deps-down:
 	@echo "🛑 Arrêt des bases de données..."
@@ -89,6 +92,10 @@ run-gateway: deps-up
 	@echo "🚀 Démarrage api-gateway..."
 	@cd services/api-gateway && $(MAKE) run
 
+run-file: deps-up
+	@echo "🚀 Démarrage file-service..."
+	@cd services/file-service && $(MAKE) run
+
 run-client: deps-up
 	@echo "🚀 Démarrage client-service..."
 	@cd services/client-service && $(MAKE) run
@@ -107,6 +114,10 @@ proto-auth:
 proto-user:
 	@echo "🔧 Génération proto user-service..."
 	@cd services/user-service && $(MAKE) proto
+
+proto-file:
+	@echo "🔧 Génération proto file-service..."
+	@cd services/file-service && $(MAKE) proto
 
 proto-gateway:
 	@echo "🔧 Génération proto api-gateway (avec grpc-gateway)..."

@@ -1,0 +1,195 @@
+// File Service Proto Definition
+// Ce service est inter-service uniquement (pas d'exposition HTTP via api-gateway)
+// Il gère l'upload de fichiers vers S3/MinIO et le stockage des métadonnées
+
+syntax = "proto3";
+
+package file;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/file-service/proto/gen;file";
+
+// =============================================================================
+// File Service
+// =============================================================================
+
+service FileService {
+  // --- Upload streaming ---
+  // 1er message = métadonnées, messages suivants = chunks binaires (64KB)
+  rpc UploadUserDocument(stream UploadUserDocumentRequest) returns (UserDocumentResponse);
+  rpc UploadVehicleDocument(stream UploadVehicleDocumentRequest) returns (VehicleDocumentResponse);
+
+  // --- Lecture ---
+  rpc GetUserDocuments(GetUserDocumentsRequest) returns (GetUserDocumentsResponse);
+  rpc GetUserDocument(GetDocumentByIDRequest) returns (UserDocumentResponse);
+  rpc GetCurrentUserDocument(GetCurrentUserDocumentRequest) returns (UserDocumentResponse);
+  rpc GetVehicleDocuments(GetVehicleDocumentsRequest) returns (GetVehicleDocumentsResponse);
+  rpc GetVehicleDocument(GetDocumentByIDRequest) returns (VehicleDocumentResponse);
+
+  // --- Suppression ---
+  rpc DeleteUserDocument(DeleteDocumentRequest) returns (OperationResponse);
+  rpc DeleteVehicleDocument(DeleteDocumentRequest) returns (OperationResponse);
+
+  // --- Revues ---
+  rpc CreateDocumentReview(CreateDocumentReviewRequest) returns (DocumentReviewResponse);
+  rpc GetDocumentReviews(GetDocumentReviewsRequest) returns (GetDocumentReviewsResponse);
+
+  // --- Health ---
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+// =============================================================================
+// Upload Request Messages (streaming)
+// =============================================================================
+
+message UploadUserDocumentRequest {
+  oneof data {
+    UserDocumentMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message UserDocumentMetadata {
+  string user_id = 1;
+  string document_name = 2;
+  string document_type = 3;    // idCardFront, idCardBack, passport, etc.
+  string mime_type = 4;
+  int64 file_size_bytes = 5;
+  string document_number = 6;  // Optionnel
+  string issuing_country = 7;  // Optionnel
+}
+
+message UploadVehicleDocumentRequest {
+  oneof data {
+    VehicleDocumentMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message VehicleDocumentMetadata {
+  string vehicle_id = 1;
+  string document_name = 2;
+  string document_type = 3;      // insurance, registrationCard
+  string mime_type = 4;
+  int64 file_size_bytes = 5;
+  string document_number = 6;    // Optionnel
+  string issuing_authority = 7;  // Optionnel
+}
+
+// =============================================================================
+// Read Request Messages
+// =============================================================================
+
+message GetUserDocumentsRequest {
+  string user_id = 1;
+}
+
+message GetDocumentByIDRequest {
+  string document_id = 1;
+}
+
+message GetCurrentUserDocumentRequest {
+  string user_id = 1;
+  string document_type = 2;
+}
+
+message GetVehicleDocumentsRequest {
+  string vehicle_id = 1;
+}
+
+message DeleteDocumentRequest {
+  string document_id = 1;
+}
+
+// =============================================================================
+// Review Request Messages
+// =============================================================================
+
+message CreateDocumentReviewRequest {
+  string user_document_id = 1;     // Optionnel (l'un des deux)
+  string vehicle_document_id = 2;  // Optionnel (l'un des deux)
+  string decision = 3;             // approved, rejected, resubmission
+  string reason_rejection = 4;     // Optionnel
+  string rejection_details = 5;    // Optionnel
+  string reviewed_by = 6;
+  string reviewed_by_type = 7;     // manual, automatic
+  string notes = 8;                // Optionnel
+  bytes extracted_data = 9;        // Optionnel (JSON)
+}
+
+message GetDocumentReviewsRequest {
+  string user_document_id = 1;     // Optionnel
+  string vehicle_document_id = 2;  // Optionnel
+}
+
+message HealthRequest {}
+
+// =============================================================================
+// Response Messages
+// =============================================================================
+
+message UserDocumentResponse {
+  string document_id = 1;
+  string user_id = 2;
+  string document_name = 3;
+  string document_type = 4;
+  string document_url = 5;
+  int64 file_size_bytes = 6;
+  string mime_type = 7;
+  string document_number = 8;
+  string issuing_country = 9;
+  string status = 10;
+  bool is_current = 11;
+  string uploaded_at = 12;
+  string updated_at = 13;
+}
+
+message VehicleDocumentResponse {
+  string document_id = 1;
+  string vehicle_id = 2;
+  string document_name = 3;
+  string document_type = 4;
+  string document_url = 5;
+  int64 file_size_bytes = 6;
+  string mime_type = 7;
+  string document_number = 8;
+  string issuing_authority = 9;
+  string status = 10;
+  bool is_current = 11;
+  string uploaded_at = 12;
+  string updated_at = 13;
+}
+
+message GetUserDocumentsResponse {
+  repeated UserDocumentResponse documents = 1;
+}
+
+message GetVehicleDocumentsResponse {
+  repeated VehicleDocumentResponse documents = 1;
+}
+
+message OperationResponse {
+  bool success = 1;
+}
+
+message DocumentReviewResponse {
+  string review_id = 1;
+  string user_document_id = 2;
+  string vehicle_document_id = 3;
+  string decision = 4;
+  string reason_rejection = 5;
+  string rejection_details = 6;
+  string reviewed_by = 7;
+  string reviewed_by_type = 8;
+  string reviewed_at = 9;
+  string notes = 10;
+}
+
+message GetDocumentReviewsResponse {
+  repeated DocumentReviewResponse reviews = 1;
+}
+
+message HealthResponse {
+  string status = 1;
+  string version = 2;
+  int64 timestamp = 3;
+}

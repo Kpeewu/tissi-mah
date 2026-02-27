@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "file-service.fullname" . }}
+  labels:
+    {{- include "file-service.labels" . | nindent 4 }}
+data:
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  GRPC_PORT: {{ .Values.service.port | quote }}
+  S3_REGION: {{ .Values.config.s3Region | quote }}
+  S3_BUCKET: {{ .Values.config.s3Bucket | quote }}
+  {{- if .Values.config.s3Endpoint }}
+  S3_ENDPOINT: {{ .Values.config.s3Endpoint | quote }}
+  {{- end }}
+  S3_FORCE_PATH_STYLE: {{ .Values.config.s3ForcePathStyle | default "false" | quote }}
+  {{- range $key, $value := .Values.config.extra }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
