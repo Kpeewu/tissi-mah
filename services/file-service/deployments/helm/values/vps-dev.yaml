@@ -1,0 +1,85 @@
+replicaCount: 1
+
+image:
+  registry: ghcr.io
+  repository: kpeewu/tissi-mah/file-service
+  pullPolicy: Always
+  tag: "develop"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 50053
+
+config:
+  environment: "development"
+  logLevel: "debug"
+  s3Region: "us-east-1"
+  s3Bucket: "tissi-mah-files"
+  s3Endpoint: "http://minio:9000"
+  s3ForcePathStyle: "true"
+  extra: {}
+
+secrets:
+  databaseUrl: ""
+  redisUrl: ""
+  s3AccessKey: ""
+  s3SecretKey: ""
+  extra: {}
+
+probes:
+  enabled: true
+  liveness:
+    initialDelaySeconds: 15
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+resources:
+  limits:
+    cpu: 300m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: false
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+imagePullSecrets:
+  - name: ghcr-secret
