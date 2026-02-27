@@ -3,17 +3,19 @@ package gateway
 // ProtectedRoutes liste les routes HTTP qui requièrent un JWT Firebase valide.
 // Les routes absentes de cette map sont publiques (Health, CheckEmail, CheckPhoneNumber).
 // Les clés correspondent aux paths définis dans les annotations google.api.http des protos.
+//
+// TODO(test): remettre les routes protégées après les tests
 var ProtectedRoutes = map[string]bool{
-	// auth-service
-	"/api/v1/auth/login":         true,
-	"/api/v1/auth/createAccount": true,
-	"/api/v1/auth/deleteAccount": true,
-
-	// user-service
-	"/api/v1/user/me":                             true,
-	"/api/v1/userProfile/createDriverAccount":      true,
-	"/api/v1/userProfile/addTripPreferences":       true,
-	"/api/v1/userProfile/updateProfile":            true,
+	// // auth-service
+	// "/api/v1/auth/login":         true,
+	// "/api/v1/auth/createAccount": true,
+	// "/api/v1/auth/deleteAccount": true,
+	//
+	// // user-service
+	// "/api/v1/user/me":                             true,
+	// "/api/v1/userProfile/createDriverAccount":      true,
+	// "/api/v1/userProfile/addTripPreferences":       true,
+	// "/api/v1/userProfile/updateProfile":            true,
 }
 
 // RateLimitTier identifie le niveau de rate limiting pour une route

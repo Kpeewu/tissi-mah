@@ -16,13 +16,13 @@ import (
 type userServiceImpl struct {
 	readRepo   repoInterfaces.UserRepositoryRead
 	writeRepo  repoInterfaces.UserRepositoryWrite
-	authClient *client.AuthServiceClient
+	authClient client.AuthClient
 }
 
 func NewUserService(
 	readRepo repoInterfaces.UserRepositoryRead,
 	writeRepo repoInterfaces.UserRepositoryWrite,
-	authClient *client.AuthServiceClient,
+	authClient client.AuthClient,
 ) serviceInterfaces.UserService {
 	return &userServiceImpl{
 		readRepo:   readRepo,
