@@ -56,8 +56,8 @@ func run(bootstrapLogger *zap.Logger) error {
 	logger.Info("connected to postgres")
 
 	// --- Repositories ---
-	readRepo := implementations.NewAuthReadRepository(pool)
-	writeRepo := implementations.NewAuthWriteRepository(pool)
+	readRepo := implementations.NewAuthReadRepository(pool, logger)
+	writeRepo := implementations.NewAuthWriteRepository(pool, logger)
 
 	// --- User-service gRPC client ---
 	userServiceAddr := fmt.Sprintf("%s:%s", cfg.UserService.Address, cfg.UserService.Port)
