@@ -50,6 +50,8 @@ jobs:
               - 'services/auth-service/**'
             user-service:
               - 'services/user-service/**'
+            file-service:
+              - 'services/file-service/**'
             pkg:
               - 'pkg/**'
 
@@ -59,7 +61,7 @@ jobs:
           if [ -n "${{ github.event.inputs.service }}" ]; then
             echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
           else
-            echo 'services=["api-gateway","auth-service","user-service"]' >> $GITHUB_OUTPUT
+            echo 'services=["api-gateway","auth-service","user-service","file-service"]' >> $GITHUB_OUTPUT
           fi
 
   build-and-push:
@@ -141,6 +143,11 @@ jobs:
           # user-service secrets
           USER_MONGODB_URL: ${{ secrets.USER_MONGODB_URL }}
           USER_REDIS_URL: ${{ secrets.USER_REDIS_URL }}
+          # file-service secrets
+          FILE_DATABASE_URL: ${{ secrets.FILE_DATABASE_URL }}
+          FILE_REDIS_URL: ${{ secrets.FILE_REDIS_URL }}
+          FILE_S3_ACCESS_KEY: ${{ secrets.FILE_S3_ACCESS_KEY }}
+          FILE_S3_SECRET_KEY: ${{ secrets.FILE_S3_SECRET_KEY }}
         run: |
           python3 - <<'PYEOF'
           import yaml, os, json, sys
@@ -179,6 +186,16 @@ jobs:
                   'secrets': {
                       'mongodbUrl': os.environ.get('USER_MONGODB_URL', ''),
                       'redisUrl': os.environ.get('USER_REDIS_URL', ''),
+                  },
+              }
+
+          elif service == "file-service":
+              data = {
+                  'secrets': {
+                      'databaseUrl': os.environ.get('FILE_DATABASE_URL', ''),
+                      'redisUrl': os.environ.get('FILE_REDIS_URL', ''),
+                      's3AccessKey': os.environ.get('FILE_S3_ACCESS_KEY', ''),
+                      's3SecretKey': os.environ.get('FILE_S3_SECRET_KEY', ''),
                   },
               }
 
@@ -334,8 +351,15 @@ jobs:
 #      - USER_MONGODB_URL : mongodb://user:pass@host:27017/dbname
 #      - USER_REDIS_URL   : redis://host:6379
 #
+#   6. Secrets GitHub pour file-service:
+#      - FILE_DATABASE_URL : postgresql://user:pass@host:5432/dbname
+#      - FILE_REDIS_URL    : redis://host:6379
+#      - FILE_S3_ACCESS_KEY : cle d'acces S3/MinIO
+#      - FILE_S3_SECRET_KEY : cle secrete S3/MinIO
+#
 # Architecture:
 #   VPS K3s namespace "default":
 #     |- api-gateway (HTTP LoadBalancer, port 8080)
 #     |- auth-service (gRPC ClusterIP, port 50051)
 #     |- user-service (gRPC ClusterIP, port 50052)
+#     |- file-service (gRPC ClusterIP, port 50053)

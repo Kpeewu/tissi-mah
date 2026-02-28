@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       auth-service: ${{ steps.filter.outputs.auth-service }}
+      file-service: ${{ steps.filter.outputs.file-service }}
     steps:
       - uses: actions/checkout@v4
 
@@ -29,6 +30,8 @@ jobs:
           filters: |
             auth-service:
               - 'services/auth-service/**'
+            file-service:
+              - 'services/file-service/**'
 
   # Test Auth Service
   test-auth-service:
@@ -88,6 +91,64 @@ jobs:
           flags: auth-service
           name: auth-service-coverage
 
+  # Test File Service
+  test-file-service:
+    name: Test File Service
+    needs: detect-changes
+    if: needs.detect-changes.outputs.file-service == 'true'
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: ${{ secrets.TEST_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.TEST_POSTGRES_DB }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache: true
+          cache-dependency-path: services/file-service/go.sum
+
+      - name: Download dependencies
+        working-directory: services/file-service
+        run: go mod download
+
+      - name: Run unit tests
+        working-directory: services/file-service
+        env:
+          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
+
+      - name: Run integration tests
+        working-directory: services/file-service
+        env:
+          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+        run: |
+          go test -v -race ./tests/integration/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: services/file-service/coverage.out
+          flags: file-service
+          name: file-service-coverage
+
   # Summary job
   test-summary:
     name: Test Summary
@@ -95,6 +156,7 @@ jobs:
       [
         detect-changes,
         test-auth-service,
+        test-file-service,
       ]
     if: always()
     runs-on: ubuntu-latest
@@ -108,6 +170,13 @@ jobs:
             echo "✅ Auth Service: PASSED"
           else
             echo "❌ Auth Service: FAILED"
+            exit 1
+          fi
+
+          if [ "${{ needs.test-file-service.result }}" == "success" ] || [ "${{ needs.detect-changes.outputs.file-service }}" != "true" ]; then
+            echo "✅ File Service: PASSED"
+          else
+            echo "❌ File Service: FAILED"
             exit 1
           fi
 
