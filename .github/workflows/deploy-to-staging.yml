@@ -46,6 +46,8 @@ jobs:
               - 'services/auth-service/**'
             user-service:
               - 'services/user-service/**'
+            file-service:
+              - 'services/file-service/**'
             pkg:
               - 'pkg/**'
 
@@ -57,7 +59,7 @@ jobs:
           else
             services=()
             if [ "${{ steps.filter.outputs.pkg }}" == "true" ]; then
-              services+=("api-gateway" "auth-service" "user-service")
+              services+=("api-gateway" "auth-service" "user-service" "file-service")
             else
               if [ "${{ steps.filter.outputs.api-gateway }}" == "true" ]; then
                 services+=("api-gateway")
@@ -67,6 +69,9 @@ jobs:
               fi
               if [ "${{ steps.filter.outputs.user-service }}" == "true" ]; then
                 services+=("user-service")
+              fi
+              if [ "${{ steps.filter.outputs.file-service }}" == "true" ]; then
+                services+=("file-service")
               fi
             fi
 
