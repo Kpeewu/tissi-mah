@@ -42,7 +42,7 @@ func NewAuthServer(
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)
 	}
 
-	handler := NewAuthHandler(service)
+	handler := NewAuthHandler(service, logger)
 	authpb.RegisterAuthServiceServer(srv.Server(), handler)
 	srv.SetServingStatus("auth.AuthService", grpc_health_v1.HealthCheckResponse_SERVING)
 

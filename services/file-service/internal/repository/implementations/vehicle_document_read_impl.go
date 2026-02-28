@@ -10,17 +10,21 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 )
 
 type vehicleDocumentReadImpl struct {
-	pool *pgxpool.Pool
+	pool   *pgxpool.Pool
+	logger *zap.Logger
 }
 
-func NewVehicleDocumentReadRepository(pool *pgxpool.Pool) i.VehicleDocumentRepositoryRead {
-	return &vehicleDocumentReadImpl{pool: pool}
+func NewVehicleDocumentReadRepository(pool *pgxpool.Pool, logger *zap.Logger) i.VehicleDocumentRepositoryRead {
+	return &vehicleDocumentReadImpl{pool: pool, logger: logger}
 }
 
 func (r *vehicleDocumentReadImpl) GetByID(ctx context.Context, documentID string) (*domain.VehicleDocument, error) {
+	r.logger.Debug("récupération du document véhicule par ID", zap.String("documentID", documentID))
+
 	query := `SELECT document_id, vehicle_id, document_name, document_type,
 	                 document_url, file_size_bytes, mime_type,
 	                 document_number, issued_at, expire_at, issuing_authority,
@@ -38,14 +42,18 @@ func (r *vehicleDocumentReadImpl) GetByID(ctx context.Context, documentID string
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			r.logger.Debug("document véhicule non trouvé", zap.String("documentID", documentID))
 			return nil, fileErrors.ErrorDocumentNotFound
 		}
+		r.logger.Error("erreur récupération document véhicule par ID", zap.String("documentID", documentID), zap.Error(err))
 		return nil, fileErrors.ErrorDataRetrievalFailed
 	}
 	return doc, nil
 }
 
 func (r *vehicleDocumentReadImpl) GetByVehicleID(ctx context.Context, vehicleID string) ([]*domain.VehicleDocument, error) {
+	r.logger.Debug("récupération des documents véhicule par vehicleID", zap.String("vehicleID", vehicleID))
+
 	query := `SELECT document_id, vehicle_id, document_name, document_type,
 	                 document_url, file_size_bytes, mime_type,
 	                 document_number, issued_at, expire_at, issuing_authority,
@@ -56,6 +64,7 @@ func (r *vehicleDocumentReadImpl) GetByVehicleID(ctx context.Context, vehicleID 
 
 	rows, err := r.pool.Query(ctx, query, vehicleID)
 	if err != nil {
+		r.logger.Error("erreur récupération documents véhicule par vehicleID", zap.String("vehicleID", vehicleID), zap.Error(err))
 		return nil, fileErrors.ErrorDataRetrievalFailed
 	}
 	defer rows.Close()
@@ -71,6 +80,7 @@ func (r *vehicleDocumentReadImpl) GetByVehicleID(ctx context.Context, vehicleID 
 			&doc.UploadedAt, &doc.UpdatedAt,
 		)
 		if err != nil {
+			r.logger.Error("erreur scan document véhicule", zap.String("vehicleID", vehicleID), zap.Error(err))
 			return nil, fileErrors.ErrorDataRetrievalFailed
 		}
 		docs = append(docs, doc)

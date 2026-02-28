@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/domain"
 	repoInterfaces "github.com/Kpeewu/tissi-mah/services/file-service/internal/repository/interfaces"
@@ -19,9 +20,9 @@ import (
 
 // Types MIME autorisés
 var allowedMimeTypes = map[string]bool{
-	"image/jpeg": true,
-	"image/png":  true,
-	"image/webp": true,
+	"image/jpeg":      true,
+	"image/png":       true,
+	"image/webp":      true,
 	"application/pdf": true,
 }
 
@@ -36,6 +37,7 @@ type fileServiceImpl struct {
 	reviewRead      repoInterfaces.DocumentReviewRepositoryRead
 	reviewWrite     repoInterfaces.DocumentReviewRepositoryWrite
 	storage         storage.StorageClient
+	logger          *zap.Logger
 }
 
 func NewFileService(
@@ -46,6 +48,7 @@ func NewFileService(
 	reviewRead repoInterfaces.DocumentReviewRepositoryRead,
 	reviewWrite repoInterfaces.DocumentReviewRepositoryWrite,
 	storageClient storage.StorageClient,
+	logger *zap.Logger,
 ) serviceInterfaces.FileService {
 	return &fileServiceImpl{
 		userDocRead:     userDocRead,
@@ -55,24 +58,32 @@ func NewFileService(
 		reviewRead:      reviewRead,
 		reviewWrite:     reviewWrite,
 		storage:         storageClient,
+		logger:          logger,
 	}
 }
 
 // --- Documents utilisateur ---
 
 func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceInterfaces.UploadUserDocumentInput) (*domain.UserDocument, error) {
-	// Validation du type de document
+	s.logger.Debug("upload user document",
+		zap.String("userID", input.UserID),
+		zap.String("type", input.DocumentType),
+		zap.String("mime", input.MimeType),
+		zap.Int64("size", input.FileSizeBytes),
+	)
+
 	if !domain.IsValidUserDocumentType(input.DocumentType) {
+		s.logger.Error("invalid document type", zap.String("type", input.DocumentType))
 		return nil, fileErrors.ErrorInvalidDocumentType
 	}
 
-	// Validation du type MIME
 	if !allowedMimeTypes[input.MimeType] {
+		s.logger.Error("invalid mime type", zap.String("mime", input.MimeType))
 		return nil, fileErrors.ErrorInvalidMimeType
 	}
 
-	// Validation de la taille
 	if input.FileSizeBytes > maxFileSize {
+		s.logger.Error("file too large", zap.Int64("size", input.FileSizeBytes))
 		return nil, fileErrors.ErrorFileTooLarge
 	}
 
@@ -80,13 +91,12 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 	ext := extensionFromMimeType(input.MimeType)
 	s3Key := fmt.Sprintf("%s/%s/%s%s", input.DocumentType, input.UserID, documentID, ext)
 
-	// Upload vers S3/MinIO
 	documentURL, err := s.storage.Upload(ctx, s3Key, input.Data, input.MimeType, input.FileSizeBytes)
 	if err != nil {
+		s.logger.Error("S3 upload failed", zap.Error(err), zap.String("key", s3Key))
 		return nil, fileErrors.ErrorUploadFailed
 	}
 
-	// Marquer l'ancien document courant comme remplacé
 	existing, err := s.userDocRead.GetCurrentByUserIDAndType(ctx, input.UserID, input.DocumentType)
 	if err == nil && existing != nil {
 		_ = s.userDocWrite.MarkAsReplaced(ctx, existing.DocumentID, documentID)
@@ -111,21 +121,26 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 
 	_, err = s.userDocWrite.Create(ctx, doc)
 	if err != nil {
+		s.logger.Error("create user document record failed", zap.Error(err), zap.String("documentID", documentID))
 		return nil, fileErrors.ErrorInternalServer
 	}
 
+	s.logger.Info("user document uploaded", zap.String("documentID", documentID), zap.String("userID", input.UserID))
 	return doc, nil
 }
 
 func (s *fileServiceImpl) GetUserDocuments(ctx context.Context, userID string) ([]*domain.UserDocument, error) {
+	s.logger.Debug("get user documents", zap.String("userID", userID))
 	return s.userDocRead.GetByUserID(ctx, userID)
 }
 
 func (s *fileServiceImpl) GetUserDocument(ctx context.Context, documentID string) (*domain.UserDocument, error) {
+	s.logger.Debug("get user document", zap.String("documentID", documentID))
 	return s.userDocRead.GetByID(ctx, documentID)
 }
 
 func (s *fileServiceImpl) GetCurrentUserDocument(ctx context.Context, userID string, documentType string) (*domain.UserDocument, error) {
+	s.logger.Debug("get current user document", zap.String("userID", userID), zap.String("type", documentType))
 	if !domain.IsValidUserDocumentType(documentType) {
 		return nil, fileErrors.ErrorInvalidDocumentType
 	}
@@ -133,22 +148,37 @@ func (s *fileServiceImpl) GetCurrentUserDocument(ctx context.Context, userID str
 }
 
 func (s *fileServiceImpl) DeleteUserDocument(ctx context.Context, documentID string) error {
+	s.logger.Debug("delete user document", zap.String("documentID", documentID))
 	doc, err := s.userDocRead.GetByID(ctx, documentID)
 	if err != nil {
+		s.logger.Error("delete user document: not found", zap.Error(err), zap.String("documentID", documentID))
 		return err
 	}
 
-	// Extraire la clé S3 depuis l'URL
 	s3Key := s3KeyFromURL(doc.DocumentURL, doc.DocumentType, doc.UserID, doc.DocumentID)
 	_ = s.storage.Delete(ctx, s3Key)
 
-	return s.userDocWrite.Delete(ctx, documentID)
+	if err := s.userDocWrite.Delete(ctx, documentID); err != nil {
+		s.logger.Error("delete user document: db delete failed", zap.Error(err), zap.String("documentID", documentID))
+		return err
+	}
+
+	s.logger.Info("user document deleted", zap.String("documentID", documentID))
+	return nil
 }
 
 // --- Documents véhicule ---
 
 func (s *fileServiceImpl) UploadVehicleDocument(ctx context.Context, input serviceInterfaces.UploadVehicleDocumentInput) (*domain.VehicleDocument, error) {
+	s.logger.Debug("upload vehicle document",
+		zap.String("vehicleID", input.VehicleID),
+		zap.String("type", input.DocumentType),
+		zap.String("mime", input.MimeType),
+		zap.Int64("size", input.FileSizeBytes),
+	)
+
 	if !domain.IsValidVehicleDocumentType(input.DocumentType) {
+		s.logger.Error("invalid vehicle document type", zap.String("type", input.DocumentType))
 		return nil, fileErrors.ErrorInvalidDocumentType
 	}
 
@@ -166,6 +196,7 @@ func (s *fileServiceImpl) UploadVehicleDocument(ctx context.Context, input servi
 
 	documentURL, err := s.storage.Upload(ctx, s3Key, input.Data, input.MimeType, input.FileSizeBytes)
 	if err != nil {
+		s.logger.Error("S3 upload failed for vehicle doc", zap.Error(err), zap.String("key", s3Key))
 		return nil, fileErrors.ErrorUploadFailed
 	}
 
@@ -188,39 +219,59 @@ func (s *fileServiceImpl) UploadVehicleDocument(ctx context.Context, input servi
 
 	_, err = s.vehicleDocWrite.Create(ctx, doc)
 	if err != nil {
+		s.logger.Error("create vehicle document record failed", zap.Error(err), zap.String("documentID", documentID))
 		return nil, fileErrors.ErrorInternalServer
 	}
 
+	s.logger.Info("vehicle document uploaded", zap.String("documentID", documentID), zap.String("vehicleID", input.VehicleID))
 	return doc, nil
 }
 
 func (s *fileServiceImpl) GetVehicleDocuments(ctx context.Context, vehicleID string) ([]*domain.VehicleDocument, error) {
+	s.logger.Debug("get vehicle documents", zap.String("vehicleID", vehicleID))
 	return s.vehicleDocRead.GetByVehicleID(ctx, vehicleID)
 }
 
 func (s *fileServiceImpl) GetVehicleDocument(ctx context.Context, documentID string) (*domain.VehicleDocument, error) {
+	s.logger.Debug("get vehicle document", zap.String("documentID", documentID))
 	return s.vehicleDocRead.GetByID(ctx, documentID)
 }
 
 func (s *fileServiceImpl) DeleteVehicleDocument(ctx context.Context, documentID string) error {
+	s.logger.Debug("delete vehicle document", zap.String("documentID", documentID))
 	doc, err := s.vehicleDocRead.GetByID(ctx, documentID)
 	if err != nil {
+		s.logger.Error("delete vehicle document: not found", zap.Error(err), zap.String("documentID", documentID))
 		return err
 	}
 
 	s3Key := s3KeyFromURL(doc.DocumentURL, doc.DocumentType, doc.VehicleID, doc.DocumentID)
 	_ = s.storage.Delete(ctx, s3Key)
 
-	return s.vehicleDocWrite.Delete(ctx, documentID)
+	if err := s.vehicleDocWrite.Delete(ctx, documentID); err != nil {
+		s.logger.Error("delete vehicle document: db delete failed", zap.Error(err), zap.String("documentID", documentID))
+		return err
+	}
+
+	s.logger.Info("vehicle document deleted", zap.String("documentID", documentID))
+	return nil
 }
 
 // --- Revues ---
 
 func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input serviceInterfaces.CreateReviewInput) (*domain.DocumentReview, error) {
+	s.logger.Debug("create document review",
+		zap.String("userDocID", input.UserDocumentID),
+		zap.String("vehicleDocID", input.VehicleDocumentID),
+		zap.String("decision", input.Decision),
+	)
+
 	if !domain.IsValidReviewDecision(input.Decision) {
+		s.logger.Error("invalid review decision", zap.String("decision", input.Decision))
 		return nil, fileErrors.ErrorInvalidReviewDecision
 	}
 	if !domain.IsValidReviewerType(input.ReviewedByType) {
+		s.logger.Error("invalid reviewer type", zap.String("reviewedByType", input.ReviewedByType))
 		return nil, fileErrors.ErrorInternalServer
 	}
 
@@ -231,9 +282,9 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 
 	if input.UserDocumentID != "" {
 		userDocID = &input.UserDocumentID
-		// Vérifier que le document existe
 		_, err := s.userDocRead.GetByID(ctx, input.UserDocumentID)
 		if err != nil {
+			s.logger.Error("review: user document not found", zap.Error(err), zap.String("userDocID", input.UserDocumentID))
 			return nil, err
 		}
 	}
@@ -241,6 +292,7 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 		vehicleDocID = &input.VehicleDocumentID
 		_, err := s.vehicleDocRead.GetByID(ctx, input.VehicleDocumentID)
 		if err != nil {
+			s.logger.Error("review: vehicle document not found", zap.Error(err), zap.String("vehicleDocID", input.VehicleDocumentID))
 			return nil, err
 		}
 	}
@@ -266,10 +318,10 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 
 	_, err := s.reviewWrite.Create(ctx, review)
 	if err != nil {
+		s.logger.Error("create review record failed", zap.Error(err), zap.String("reviewID", reviewID))
 		return nil, fileErrors.ErrorInternalServer
 	}
 
-	// Mettre à jour le statut du document selon la décision
 	newStatus := mapDecisionToStatus(input.Decision)
 	if input.UserDocumentID != "" {
 		doc, _ := s.userDocRead.GetByID(ctx, input.UserDocumentID)
@@ -286,10 +338,12 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 		}
 	}
 
+	s.logger.Info("document review created", zap.String("reviewID", reviewID), zap.String("decision", input.Decision))
 	return review, nil
 }
 
 func (s *fileServiceImpl) GetDocumentReviews(ctx context.Context, userDocumentID string, vehicleDocumentID string) ([]*domain.DocumentReview, error) {
+	s.logger.Debug("get document reviews", zap.String("userDocID", userDocumentID), zap.String("vehicleDocID", vehicleDocumentID))
 	if userDocumentID != "" {
 		return s.reviewRead.GetByUserDocumentID(ctx, userDocumentID)
 	}

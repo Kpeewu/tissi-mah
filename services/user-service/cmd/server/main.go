@@ -69,12 +69,12 @@ func run(bootstrapLogger *zap.Logger) error {
 	logger.Info("mongodb indexes ensured")
 
 	// --- Repositories ---
-	readRepo := implementations.NewUserReadRepository(usersCollection)
-	writeRepo := implementations.NewUserWriteRepository(usersCollection)
+	readRepo := implementations.NewUserReadRepository(usersCollection, logger)
+	writeRepo := implementations.NewUserWriteRepository(usersCollection, logger)
 
 	// --- Auth-service gRPC client ---
 	authServiceAddr := fmt.Sprintf("%s:%s", cfg.AuthService.Address, cfg.AuthService.Port)
-	authClient, err := client.NewAuthServiceClient(authServiceAddr)
+	authClient, err := client.NewAuthServiceClient(authServiceAddr, logger)
 	if err != nil {
 		return fmt.Errorf("auth-service client: %w", err)
 	}
@@ -82,7 +82,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	logger.Info("auth-service client ready", zap.String("address", authServiceAddr))
 
 	// --- User service ---
-	userService := service.NewUserService(readRepo, writeRepo, authClient)
+	userService := service.NewUserService(readRepo, writeRepo, authClient, logger)
 
 	// --- gRPC server ---
 	srv, err := grpcServer.NewUserServer(cfg, userService, logger)

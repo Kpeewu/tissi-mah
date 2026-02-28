@@ -6,6 +6,7 @@ import (
 
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/domain"
 	userpb "github.com/Kpeewu/tissi-mah/services/auth-service/proto/gen/userpb"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -16,22 +17,26 @@ import (
 type UserServiceClient struct {
 	conn       *grpc.ClientConn
 	grpcClient userpb.UserServiceClient
+	logger     *zap.Logger
 }
 
 // NewUserServiceClient établit la connexion gRPC vers user-service.
 // address doit être au format "host:port" (ex: "user-service:50052").
-func NewUserServiceClient(address string) (*UserServiceClient, error) {
+func NewUserServiceClient(address string, logger *zap.Logger) (*UserServiceClient, error) {
+	logger.Debug("connecting to user-service", zap.String("address", address))
 	conn, err := grpc.NewClient(
 		address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
+		logger.Error("failed to connect to user-service", zap.Error(err), zap.String("address", address))
 		return nil, fmt.Errorf("user-service: failed to connect to %s: %w", address, err)
 	}
 
 	return &UserServiceClient{
 		conn:       conn,
 		grpcClient: userpb.NewUserServiceClient(conn),
+		logger:     logger,
 	}, nil
 }
 
@@ -43,6 +48,11 @@ func (c *UserServiceClient) Close() error {
 // CreateUser crée un profil utilisateur dans user-service après la création du compte auth.
 // Retourne un UserPreview partiel (sans email/phone — ceux-ci appartiennent à auth-service).
 func (c *UserServiceClient) CreateUser(ctx context.Context, authID string, firebaseID string, name string, firstName string, profilePhotoURL string) (*domain.UserPreview, error) {
+	c.logger.Debug("client: CreateUser called",
+		zap.String("authID", authID),
+		zap.String("firebaseID", firebaseID),
+		zap.String("name", name),
+	)
 	resp, err := c.grpcClient.CreateUser(ctx, &userpb.CreateUserRequest{
 		AuthID:          authID,
 		Name:            name,
@@ -51,22 +61,27 @@ func (c *UserServiceClient) CreateUser(ctx context.Context, authID string, fireb
 		FirebaseID:      firebaseID,
 	})
 	if err != nil {
+		c.logger.Error("client: CreateUser failed", zap.Error(err), zap.String("authID", authID))
 		return nil, fmt.Errorf("user-service: CreateUser failed: %w", err)
 	}
 
+	c.logger.Debug("client: CreateUser success", zap.String("authID", authID))
 	return toUserPreview(resp), nil
 }
 
 // GetUserByAuthID récupère le profil utilisateur depuis user-service.
 // Retourne un UserPreview partiel (sans email/phone — ceux-ci appartiennent à auth-service).
 func (c *UserServiceClient) GetUserByAuthID(ctx context.Context, authID string) (*domain.UserPreview, error) {
+	c.logger.Debug("client: GetUserByAuthID called", zap.String("authID", authID))
 	resp, err := c.grpcClient.GetUserByAuthID(ctx, &userpb.GetUserByAuthIDRequest{
 		AuthID: authID,
 	})
 	if err != nil {
+		c.logger.Error("client: GetUserByAuthID failed", zap.Error(err), zap.String("authID", authID))
 		return nil, fmt.Errorf("user-service: GetUserByAuthID failed: %w", err)
 	}
 
+	c.logger.Debug("client: GetUserByAuthID success", zap.String("authID", authID))
 	return toUserPreview(resp), nil
 }
 

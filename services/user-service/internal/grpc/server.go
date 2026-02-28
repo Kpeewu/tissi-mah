@@ -42,7 +42,7 @@ func NewUserServer(
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)
 	}
 
-	handler := NewUserHandler(service)
+	handler := NewUserHandler(service, logger)
 	userpb.RegisterUserServiceServer(srv.Server(), handler)
 	srv.SetServingStatus("user.UserService", grpc_health_v1.HealthCheckResponse_SERVING)
 
