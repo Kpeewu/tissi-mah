@@ -18,18 +18,20 @@ WORKDIR /build
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
 
-# Copy workspace file and all go.mod files first (for better caching)
-COPY go.work go.work.sum* ./
+# Copy go.mod files first (for better caching)
 COPY pkg/go.mod pkg/go.sum ./pkg/
-COPY pkg-test/go.mod pkg-test/go.sum* ./pkg-test/
 COPY services/api-gateway/go.mod services/api-gateway/go.sum* ./services/api-gateway/
 # Proto imports need these modules in workspace
 COPY services/auth-service/go.mod services/auth-service/go.sum* ./services/auth-service/
 COPY services/user-service/go.mod services/user-service/go.sum* ./services/user-service/
 
+# Create a scoped go.work with only the modules present in this build context
+# (the repo go.work lists all services, but we only need the ones api-gateway depends on)
+RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./services/api-gateway\n\t./services/auth-service\n\t./services/user-service\n)\n' > go.work
+
 # Download dependencies for all modules
-RUN GOWORK=off go mod download -C ./pkg
-RUN GOWORK=off go mod download -C ./services/api-gateway
+RUN go mod download -C ./pkg
+RUN go mod download -C ./services/api-gateway
 
 # =============================================================================
 # Stage 2: Builder
