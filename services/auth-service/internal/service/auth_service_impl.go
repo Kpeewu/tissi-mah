@@ -10,23 +10,27 @@ import (
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/auth-service/internal/service/interfaces"
 	authErrors "github.com/Kpeewu/tissi-mah/services/auth-service/pkg/errors"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type authServiceImpl struct {
 	readRepo   repoInterfaces.AuthRepositoryRead
 	writeRepo  repoInterfaces.AuthRepositoryWrite
 	userClient client.UserClient
+	logger     *zap.Logger
 }
 
 func NewAuthService(
 	readRepo repoInterfaces.AuthRepositoryRead,
 	writeRepo repoInterfaces.AuthRepositoryWrite,
-	userClient client.UserClient) serviceInterfaces.AuthService {
+	userClient client.UserClient,
+	logger *zap.Logger) serviceInterfaces.AuthService {
 
 	return &authServiceImpl{
 		readRepo:   readRepo,
 		writeRepo:  writeRepo,
 		userClient: userClient,
+		logger:     logger,
 	}
 }
 
@@ -48,13 +52,17 @@ func (s *authServiceImpl) GetUserByFirebaseID(ctx context.Context, firebaseID st
 func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstName string, email string, phoneNumber string, profilePhotoURL string) (*domain.UserPreview, error) {
 	firebaseID, ok := ctx.Value(middleware.FirebaseIDKey).(string)
 	if !ok || firebaseID == "" {
+		s.logger.Error("firebase ID missing from context")
 		return nil, authErrors.ErrorInternalServer
 	}
+
+	s.logger.Debug("register user", zap.String("firebaseID", firebaseID), zap.String("email", email))
 
 	// Vérification de la disponibilité de l'email
 	if email != "" {
 		_, err := s.readRepo.EmailExists(ctx, email)
 		if err != nil {
+			s.logger.Error("email check failed", zap.String("email", email), zap.Error(err))
 			return nil, err
 		}
 	}
@@ -63,6 +71,7 @@ func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstNa
 	if phoneNumber != "" {
 		_, err := s.readRepo.PhoneNumberExists(ctx, phoneNumber)
 		if err != nil {
+			s.logger.Error("phone check failed", zap.String("phone", phoneNumber), zap.Error(err))
 			return nil, err
 		}
 	}
@@ -87,19 +96,25 @@ func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstNa
 
 	authID, err := s.writeRepo.Create(ctx, auth)
 	if err != nil {
+		s.logger.Error("create auth record failed", zap.Error(err))
 		return nil, err
 	}
+
+	s.logger.Debug("auth record created", zap.String("authID", authID))
 
 	// Création du profil utilisateur dans le user-service
 	// Email et PhoneNumber sont stockés dans auth-service, pas dans user-service
 	userPreview, err := s.userClient.CreateUser(ctx, authID, firebaseID, name, firstName, profilePhotoURL)
 	if err != nil {
+		s.logger.Error("user-service CreateUser failed", zap.Error(err))
 		return nil, authErrors.ErrorInternalServer
 	}
 
 	// Enrichissement avec les données auth (email/phone)
 	userPreview.Email = auth.Email
 	userPreview.PhoneNumber = auth.PhoneNumber
+
+	s.logger.Info("user registered", zap.String("authID", authID), zap.String("firebaseID", firebaseID))
 
 	return userPreview, nil
 }

@@ -69,7 +69,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	logger.Info("user-service client ready", zap.String("address", userServiceAddr))
 
 	// --- Auth service ---
-	authService := service.NewAuthService(readRepo, writeRepo, userClient)
+	authService := service.NewAuthService(readRepo, writeRepo, userClient, logger)
 
 	// --- gRPC server ---
 	srv, err := grpcServer.NewAuthServer(cfg, authService, logger)
