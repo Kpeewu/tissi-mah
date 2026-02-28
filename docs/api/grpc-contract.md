@@ -1,22 +1,13 @@
 # gRPC Contracts
 
-This document describes the gRPC contracts used for inter-service communication in Tissi-Mah. Each service exposes a gRPC API that other services can consume.
+This document describes the gRPC contracts used for inter-service communication in Tissi-Mah.
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Common Types](#common-types)
-3. [Auth Service](#auth-service)
-4. [User Service](#user-service)
-5. [Vehicle Service](#vehicle-service)
-6. [Trips Service](#trips-service)
-7. [Booking Service](#booking-service)
-8. [Payment Service](#payment-service)
-9. [Rating Service](#rating-service)
-10. [File Service](#file-service)
-11. [Notification Service](#notification-service)
-12. [Stats Service](#stats-service)
-13. [Geolocation Service](#geolocation-service)
+2. [Auth Service](#auth-service)
+3. [User Service](#user-service)
+4. [File Service](#file-service)
 
 ---
 
@@ -38,52 +29,31 @@ All inter-service communication uses **gRPC** over HTTP/2 with Protocol Buffers 
 Services discover each other via Kubernetes DNS:
 
 ```
-<service-name>.tissi-mah.svc.cluster.local:<port>
+<service-name>.<namespace>.svc.cluster.local:<port>
 ```
 
 ### Service Ports
 
-| Service | Port |
-|---------|------|
-| auth-service | 50051 |
-| user-service | 50052 |
-| vehicle-service | 50053 |
-| trips-service | 50054 |
-| booking-service | 50055 |
-| payment-service | 50056 |
-| rating-service | 50057 |
-| file-service | 50058 |
-| notification-service | 50059 |
-| stats-service | 50060 |
-| geolocation-service | 50061 |
+| Service | Port | Transport | Exposure |
+|---------|------|-----------|----------|
+| api-gateway | 8080 | HTTP | External (LoadBalancer) |
+| auth-service | 50051 | gRPC | Internal + api-gateway |
+| user-service | 50052 | gRPC | Internal + api-gateway |
+| file-service | 50053 | gRPC | Internal only |
 
-### Proto File Organization
+### Authentication Flow
 
 ```
-services/
-├── auth-service/
-│   └── proto/
-│       ├── auth.proto
-│       └── gen/
-│           ├── auth.pb.go
-│           └── auth_grpc.pb.go
-├── user-service/
-│   └── proto/
-│       ├── user.proto
-│       └── gen/
-└── ... (other services)
+Client (Bearer JWT) -> api-gateway (validates Firebase JWT)
+    -> Sets header: x-firebase-uid
+    -> grpc-gateway converts to gRPC metadata
+    -> service middleware reads x-firebase-uid from metadata
+    -> ctx.Value(middleware.FirebaseIDKey)
 ```
-
----
-
-## Common Types
-
-Common types shared across multiple services.
-
 
 ### Error Handling
 
-gRPC errors are returned using standard gRPC status codes with the error message in the status description:
+gRPC errors use standard status codes with sentinel error messages:
 
 ```go
 // Server side
@@ -91,187 +61,117 @@ return nil, status.Error(codes.NotFound, "ErrUserNotFound")
 
 // Client side
 if st, ok := status.FromError(err); ok {
-    switch st.Code() {
-    case codes.NotFound:
-        // Handle not found
-    }
-    errorMessage := st.Message() // "ErrUserNotFound"
+    code := st.Code()        // codes.NotFound
+    msg := st.Message()      // "ErrUserNotFound"
 }
+```
+
+### Proto File Organization
+
+```
+services/
+├── auth-service/proto/
+│   ├── auth.proto
+│   └── gen/          (generated Go code)
+├── user-service/proto/
+│   ├── user.proto
+│   └── gen/
+├── file-service/proto/
+│   ├── file.proto
+│   └── gen/
+└── api-gateway/proto/
+    ├── auth.proto    (synced from auth-service)
+    ├── user.proto    (synced from user-service)
+    └── gen/          (includes grpc-gateway stubs)
 ```
 
 ---
 
 ## Auth Service
 
-**Address:** `auth-service.tissi-mah.svc.cluster.local:50051`
+**Proto:** `services/auth-service/proto/auth.proto`
+**Package:** `auth`
+**Go package:** `github.com/Kpeewu/tissi-mah/services/auth-service/proto/gen;auth`
+**Address:** `auth-service:50051`
 
-### Proto Definition
+### RPCs
 
-```protobuf
-syntax = "proto3";
-
-package tissimah.auth.v1;
-
-option go_package = "github.com/tissi-mah/auth-service/proto/gen;authpb";
-
-import "google/protobuf/timestamp.proto";
-
-service AuthService {
-    // Check if account exists and return user profile
-    rpc Login(LoginRequest) returns (LoginResponse);
-    
-    // Create new account
-    rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
-    
-    // Check if phone number is available
-    rpc CheckPhoneNumber(CheckPhoneNumberRequest) returns (CheckPhoneNumberResponse);
-    
-    // Check if email is available
-    rpc CheckEmail(CheckEmailRequest) returns (CheckEmailResponse);
-    
-    // Delete account (GDPR)
-    rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
-    
-    // Internal: Check if account exists by Firebase ID
-    rpc AccountExists(AccountExistsRequest) returns (AccountExistsResponse);
-    
-    // Internal: Get auth record by Firebase ID
-    rpc GetAuthByFirebaseID(GetAuthByFirebaseIDRequest) returns (GetAuthByFirebaseIDResponse);
-    
-    // Internal: Deactivate account
-    rpc DeactivateAccount(DeactivateAccountRequest) returns (DeactivateAccountResponse);
-}
-```
+| RPC | Type | HTTP Route | Auth | Description |
+|-----|------|------------|------|-------------|
+| `Login` | Unary | `POST /api/v1/auth/login` | JWT | Check if account exists |
+| `CreateAccount` | Unary | `POST /api/v1/auth/createAccount` | JWT | Create new account |
+| `CheckPhoneNumber` | Unary | `POST /api/v1/auth/checkPhoneNumber` | Public | Check phone availability |
+| `CheckEmail` | Unary | `POST /api/v1/auth/checkEmail` | Public | Check email availability |
+| `DeleteAccount` | Unary | `DELETE /api/v1/auth/deleteAccount` | JWT | Delete account (GDPR) |
+| `GetAuthInfo` | Unary | N/A | Inter-service | Get auth info by AuthID |
+| `Health` | Unary | `GET /api/v1/auth/health` | Public | Health check |
 
 ### Messages
 
-#### Login
-
 ```protobuf
-message LoginRequest {
-    // Empty - Firebase ID is extracted from gRPC metadata
-}
+// --- Client-facing ---
 
+message LoginRequest {}
 message LoginResponse {
-    bool exists = 1;
-    UserProfile user = 2;  // null if exists = false
+    string ErrorMessage = 1;
+    bool Exists = 2;
+    UserPreview User = 3;
 }
 
-message UserProfile {
-    string profile_id = 1;
-    string name = 2;
-    string first_name = 3;
-    string email = 4;
-    string phone_number = 5;
-    string profile_image_url = 6;
-}
-```
-
-#### CreateAccount
-
-```protobuf
 message CreateAccountRequest {
-    string name = 1;
-    string first_name = 2;
-    string email = 3;           // optional
-    string phone_number = 4;    // optional
-    string profile_image_url = 5; // optional
+    string Name = 1;
+    string FirstName = 2;
+    string Email = 3;              // optional
+    string PhoneNumber = 4;        // optional
+    string ProfileImageURL = 5;    // optional
 }
-
 message CreateAccountResponse {
-    UserProfile user = 1;
-}
-```
-
-#### CheckPhoneNumber
-
-```protobuf
-message CheckPhoneNumberRequest {
-    string phone_number = 1;
+    string ErrorMessage = 1;
+    UserPreview User = 2;
 }
 
-message CheckPhoneNumberResponse {
-    bool is_available = 1;
-}
-```
-
-#### CheckEmail
-
-```protobuf
-message CheckEmailRequest {
-    string email = 1;
+message CheckPhoneNumberRequest { string PhoneNumber = 1; }
+message CheckEmailRequest { string Email = 1; }
+message CheckPhoneOrEmailResponse {
+    string ErrorMessage = 1;
+    bool IsAvailable = 2;
 }
 
-message CheckEmailResponse {
-    bool is_available = 1;
-}
-```
-
-#### DeleteAccount
-
-```protobuf
-message DeleteAccountRequest {
-    // Empty - Firebase ID is extracted from gRPC metadata
+message DeleteAccountRequest {}
+message AuthServerResponse {
+    string ErrorMessage = 1;
+    bool Success = 2;
 }
 
-message DeleteAccountResponse {
-    bool success = 1;
-}
-```
+// --- Inter-service ---
 
-#### Internal: AccountExists
-
-Used by other services to check if an account exists.
-
-```protobuf
-message AccountExistsRequest {
-    string firebase_id = 1;
+message GetAuthInfoRequest { string AuthID = 1; }
+message GetAuthInfoResponse {
+    string AuthID = 1;
+    string Email = 2;
+    string PhoneNumber = 3;
+    bool IsActive = 4;
+    bool IsSuspended = 5;
+    string SuspensionEndDate = 6;
 }
 
-message AccountExistsResponse {
-    bool exists = 1;
-    string auth_id = 2;     // Only set if exists = true
-    bool is_active = 3;
-}
-```
+// --- Shared ---
 
-#### Internal: GetAuthByFirebaseID
-
-Used by other services to get full auth record.
-
-```protobuf
-message GetAuthByFirebaseIDRequest {
-    string firebase_id = 1;
+message UserPreview {
+    string AuthID = 1;
+    string UserID = 2;
+    string Name = 3;
+    string FirstName = 4;
+    string Email = 5;
+    string PhoneNumber = 6;
+    string ProfileImageURL = 7;
 }
 
-message GetAuthByFirebaseIDResponse {
-    Auth auth = 1;
-}
-
-message Auth {
-    string auth_id = 1;
-    string firebase_id = 2;
-    string email = 3;
-    string phone = 4;
-    string provider = 5;
-    bool is_active = 6;
-    google.protobuf.Timestamp suspension_end_date = 7;
-    google.protobuf.Timestamp created_at = 8;
-    google.protobuf.Timestamp updated_at = 9;
-}
-```
-
-#### Internal: DeactivateAccount
-
-Used during GDPR deletion process.
-
-```protobuf
-message DeactivateAccountRequest {
-    string auth_id = 1;
-}
-
-message DeactivateAccountResponse {
-    bool success = 1;
+message HealthRequest {}
+message HealthResponse {
+    string Status = 1;
+    string Version = 2;
+    int64 Timestamp = 3;
 }
 ```
 
@@ -279,167 +179,352 @@ message DeactivateAccountResponse {
 
 | Error | gRPC Code | Description |
 |-------|-----------|-------------|
-| `ErrMissingFirebaseID` | `UNAUTHENTICATED` | Firebase ID not in metadata |
-| `ErrAccountNotFound` | `NOT_FOUND` | Account does not exist |
-| `ErrAccountAlreadyExists` | `FAILED_PRECONDITION` | Account already exists |
-| `ErrAccountSuspended` | `UNAUTHENTICATED` | Account is suspended |
-| `ErrAccountDeactivated` | `UNAUTHENTICATED` | Account is deactivated |
-| `ErrPhoneNumberTaken` | `FAILED_PRECONDITION` | Phone number in use |
-| `ErrEmailTaken` | `FAILED_PRECONDITION` | Email in use |
-| `ErrInvalidPhoneNumber` | `INVALID_ARGUMENT` | Invalid phone format |
-| `ErrInvalidEmail` | `INVALID_ARGUMENT` | Invalid email format |
-| `ErrActiveBookingsExist` | `FAILED_PRECONDITION` | Cannot delete with active bookings |
-| `ErrActiveTripsExist` | `FAILED_PRECONDITION` | Cannot delete with upcoming trips |
-| `ErrPendingPayoutsExist` | `FAILED_PRECONDITION` | Cannot delete with pending payouts |
-
-### Client Usage Example (Go)
-
-```go
-package client
-
-import (
-    "context"
-    "time"
-
-    "google.golang.org/grpc"
-    "google.golang.org/grpc/credentials/insecure"
-    
-    authpb "github.com/tissi-mah/auth-service/proto/gen"
-)
-
-type AuthClient struct {
-    client authpb.AuthServiceClient
-    conn   *grpc.ClientConn
-}
-
-func NewAuthClient(address string) (*AuthClient, error) {
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-
-    conn, err := grpc.DialContext(ctx, address,
-        grpc.WithTransportCredentials(insecure.NewCredentials()),
-        grpc.WithBlock(),
-    )
-    if err != nil {
-        return nil, err
-    }
-
-    return &AuthClient{
-        client: authpb.NewAuthServiceClient(conn),
-        conn:   conn,
-    }, nil
-}
-
-func (c *AuthClient) AccountExists(ctx context.Context, firebaseID string) (bool, string, error) {
-    resp, err := c.client.AccountExists(ctx, &authpb.AccountExistsRequest{
-        FirebaseId: firebaseID,
-    })
-    if err != nil {
-        return false, "", err
-    }
-    return resp.Exists, resp.AuthId, nil
-}
-
-func (c *AuthClient) DeactivateAccount(ctx context.Context, authID string) error {
-    _, err := c.client.DeactivateAccount(ctx, &authpb.DeactivateAccountRequest{
-        AuthId: authID,
-    })
-    return err
-}
-
-func (c *AuthClient) Close() error {
-    return c.conn.Close()
-}
-```
+| `ErrMissingFirebaseID` | UNAUTHENTICATED | Firebase ID not in metadata |
+| `ErrAccountNotFound` | NOT_FOUND | Account does not exist |
+| `ErrAccountAlreadyExists` | FAILED_PRECONDITION | Account already exists |
+| `ErrAccountSuspended` | UNAUTHENTICATED | Account is suspended |
+| `ErrAccountDeactivated` | UNAUTHENTICATED | Account was deleted |
+| `ErrPhoneNumberTaken` | FAILED_PRECONDITION | Phone number in use |
+| `ErrEmailTaken` | FAILED_PRECONDITION | Email in use |
+| `ErrInvalidPhoneNumber` | INVALID_ARGUMENT | Invalid phone format |
+| `ErrInvalidEmail` | INVALID_ARGUMENT | Invalid email format |
 
 ### Metadata
 
-Auth service reads the following metadata from incoming requests:
-
 | Key | Source | Description |
 |-----|--------|-------------|
-| `x-firebase-id` | Kong | Firebase UID extracted from JWT |
-| `x-request-id` | Kong/Client | Request tracing ID |
+| `x-firebase-uid` | api-gateway | Firebase UID extracted from JWT |
 
 ---
 
 ## User Service
 
-**Address:** `user-service.tissi-mah.svc.cluster.local:50052`
+**Proto:** `services/user-service/proto/user.proto`
+**Package:** `user`
+**Go package:** `github.com/Kpeewu/tissi-mah/services/user-service/proto/gen;user`
+**Address:** `user-service:50052`
 
-> Documentation to be added.
+### RPCs
 
----
+| RPC | Type | HTTP Route | Auth | Description |
+|-----|------|------------|------|-------------|
+| `CreateUser` | Unary | N/A | Inter-service | Create user profile |
+| `GetUserByAuthID` | Unary | N/A | Inter-service | Get profile by auth ID |
+| `GetMyProfile` | Unary | `POST /api/v1/user/me` | JWT | Get own full profile |
+| `CreateDriverAccount` | Unary | `PATCH /api/v1/userProfile/createDriverAccount` | JWT | Activate driver |
+| `AddTripPreferences` | Unary | `POST /api/v1/userProfile/addTripPreferences` | JWT | Set preferences |
+| `UpdateProfile` | Unary | `PATCH /api/v1/userProfile/updateProfile` | JWT | Update profile |
+| `Health` | Unary | `GET /api/v1/user/health` | Public | Health check |
 
-## Vehicle Service
+### Messages
 
-**Address:** `vehicle-service.tissi-mah.svc.cluster.local:50053`
+```protobuf
+// --- Inter-service ---
 
-> Documentation to be added.
+message CreateUserRequest {
+    string AuthID = 1;
+    string Name = 2;
+    string FirstName = 3;
+    string ProfilePhotoURL = 4;    // optional
+    string FirebaseID = 5;
+}
 
----
+message GetUserByAuthIDRequest { string AuthID = 1; }
 
-## Trips Service
+message UserProfileResponse {
+    string UserID = 1;
+    string AuthID = 2;
+    string Name = 3;
+    string FirstName = 4;
+    string Gender = 5;
+    string DateOfBirth = 6;
+    string Bio = 7;
+    bool HasProfileImage = 8;
+    string ProfileImageURL = 9;
+    bool IsDriver = 10;
+    bool IsPassenger = 11;
+    bool IsDriverProfileVerified = 12;
+    bool IsPassengerProfileVerified = 13;
+    repeated TripPreference TripPreferences = 14;
+    string IDCardExpirationDate = 15;
+    string DriveLicenceExpirationDate = 16;
+}
 
-**Address:** `trips-service.tissi-mah.svc.cluster.local:50054`
+// --- Client-facing ---
 
-> Documentation to be added.
+message GetMyProfileRequest {}
+message GetMyProfileResponse {
+    string ErrorMessage = 1;
+    FullUserProfile User = 2;
+}
 
----
+message CreateDriverAccountRequest {
+    string ProfileID = 1;
+    bool CreateDriverAccount = 2;
+}
 
-## Booking Service
+message AddTripPreferencesRequest {
+    string ProfileID = 1;
+    repeated TripPreference Preferences = 2;
+}
 
-**Address:** `booking-service.tissi-mah.svc.cluster.local:50055`
+message UpdateProfileRequest {
+    string ProfileID = 1;
+    optional string FirstName = 2;
+    optional string LastName = 3;
+    optional string BirthDate = 4;
+    optional string Email = 5;
+    optional string PhoneNumber = 6;
+    optional string ProfilePictureURL = 7;
+}
+message UpdateProfileResponse {
+    string ErrorMessage = 1;
+    FullUserProfile User = 2;
+}
 
-> Documentation to be added.
+// --- Shared ---
 
----
+message FullUserProfile {
+    string AuthID = 1;
+    string ProfileID = 2;
+    string Name = 3;
+    string FirstName = 4;
+    string Gender = 5;
+    string DateOfBirth = 6;
+    string Bio = 7;
+    string Email = 8;
+    string PhoneNumber = 9;
+    string ProfileImageURL = 10;
+    bool HasProfileImage = 11;
+    bool IsDriver = 12;
+    bool IsPassenger = 13;
+    bool IsDriverProfileVerified = 14;
+    bool IsPassengerProfileVerified = 15;
+    bool IsActive = 16;
+    bool IsSuspended = 17;
+    string SuspensionEndDate = 18;
+    repeated TripPreference TripPreferences = 19;
+    string IDCardExpirationDate = 20;
+    string DriveLicenceExpirationDate = 21;
+    repeated UserFile UserFiles = 22;
+}
 
-## Payment Service
+message TripPreference {
+    string Preference = 1;
+    bool IsAllowed = 2;
+}
 
-**Address:** `payment-service.tissi-mah.svc.cluster.local:50056`
+message UserFile {
+    string FileID = 1;
+    string FileURL = 2;
+    string FileType = 3;
+}
 
-> Documentation to be added.
+message OperationResponse {
+    string ErrorMessage = 1;
+    bool Success = 2;
+}
+```
 
----
+### Metadata
 
-## Rating Service
-
-**Address:** `rating-service.tissi-mah.svc.cluster.local:50057`
-
-> Documentation to be added.
+| Key | Source | Description |
+|-----|--------|-------------|
+| `x-firebase-uid` | api-gateway | Firebase UID extracted from JWT |
 
 ---
 
 ## File Service
 
-**Address:** `file-service.tissi-mah.svc.cluster.local:50058`
+**Proto:** `services/file-service/proto/file.proto`
+**Package:** `file`
+**Go package:** `github.com/Kpeewu/tissi-mah/services/file-service/proto/gen;file`
+**Address:** `file-service:50053`
 
-> Documentation to be added.
+> **Note:** This service is inter-service only. No HTTP routes are exposed via api-gateway.
 
----
+### RPCs
 
-## Notification Service
+| RPC | Type | Description |
+|-----|------|-------------|
+| `UploadUserDocument` | Client streaming | Upload user document (metadata + chunks) |
+| `UploadVehicleDocument` | Client streaming | Upload vehicle document (metadata + chunks) |
+| `GetUserDocuments` | Unary | Get all documents for a user |
+| `GetUserDocument` | Unary | Get document by ID |
+| `GetCurrentUserDocument` | Unary | Get current document by user + type |
+| `GetVehicleDocuments` | Unary | Get all documents for a vehicle |
+| `GetVehicleDocument` | Unary | Get vehicle document by ID |
+| `DeleteUserDocument` | Unary | Delete user document |
+| `DeleteVehicleDocument` | Unary | Delete vehicle document |
+| `CreateDocumentReview` | Unary | Create review for a document |
+| `GetDocumentReviews` | Unary | Get reviews for a document |
+| `Health` | Unary | Health check |
 
-**Address:** `notification-service.tissi-mah.svc.cluster.local:50059`
+### Streaming Upload Protocol
 
-> Documentation to be added.
+The upload RPCs use **client-side streaming**:
 
----
+1. **First message:** Metadata only (no chunk data)
+2. **Subsequent messages:** Binary chunks (max 64KB each)
+3. **Server responds** with the created document after all chunks are received
 
-## Stats Service
+```protobuf
+message UploadUserDocumentRequest {
+    oneof data {
+        UserDocumentMetadata metadata = 1;
+        bytes chunk = 2;
+    }
+}
 
-**Address:** `stats-service.tissi-mah.svc.cluster.local:50060`
+message UserDocumentMetadata {
+    string user_id = 1;
+    string document_name = 2;
+    string document_type = 3;       // idCardFront, idCardBack, passport, etc.
+    string mime_type = 4;           // image/jpeg, image/png, application/pdf
+    int64 file_size_bytes = 5;      // max 10MB
+    string document_number = 6;    // optional
+    string issuing_country = 7;    // optional
+}
 
-> Documentation to be added.
+message UploadVehicleDocumentRequest {
+    oneof data {
+        VehicleDocumentMetadata metadata = 1;
+        bytes chunk = 2;
+    }
+}
 
----
+message VehicleDocumentMetadata {
+    string vehicle_id = 1;
+    string document_name = 2;
+    string document_type = 3;        // insurance, registrationCard
+    string mime_type = 4;
+    int64 file_size_bytes = 5;
+    string document_number = 6;     // optional
+    string issuing_authority = 7;   // optional
+}
+```
 
-## Geolocation Service
+### Document Types
 
-**Address:** `geolocation-service.tissi-mah.svc.cluster.local:50061`
+| Category | Types |
+|----------|-------|
+| User documents | `idCardFront`, `idCardBack`, `passport`, `driverLicenceFront`, `driverLicenceBack`, `profilePicture` |
+| Vehicle documents | `insurance`, `registrationCard` |
 
-> Documentation to be added.
+### Document Statuses
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Uploaded, awaiting review |
+| `underReview` | Currently being reviewed |
+| `approved` | Verified and accepted |
+| `rejected` | Rejected |
+| `expired` | Document has expired |
+
+### Messages
+
+```protobuf
+// --- Read ---
+
+message GetUserDocumentsRequest { string user_id = 1; }
+message GetDocumentByIDRequest { string document_id = 1; }
+message GetCurrentUserDocumentRequest {
+    string user_id = 1;
+    string document_type = 2;
+}
+message GetVehicleDocumentsRequest { string vehicle_id = 1; }
+message DeleteDocumentRequest { string document_id = 1; }
+
+// --- Review ---
+
+message CreateDocumentReviewRequest {
+    string user_document_id = 1;      // one required
+    string vehicle_document_id = 2;   // one required
+    string decision = 3;              // approved, rejected, resubmission
+    string reason_rejection = 4;      // optional
+    string rejection_details = 5;     // optional
+    string reviewed_by = 6;
+    string reviewed_by_type = 7;      // manual, automatic
+    string notes = 8;                 // optional
+    bytes extracted_data = 9;         // optional (JSON)
+}
+message GetDocumentReviewsRequest {
+    string user_document_id = 1;      // optional
+    string vehicle_document_id = 2;   // optional
+}
+
+// --- Responses ---
+
+message UserDocumentResponse {
+    string document_id = 1;
+    string user_id = 2;
+    string document_name = 3;
+    string document_type = 4;
+    string document_url = 5;
+    int64 file_size_bytes = 6;
+    string mime_type = 7;
+    string document_number = 8;
+    string issuing_country = 9;
+    string status = 10;
+    bool is_current = 11;
+    string uploaded_at = 12;
+    string updated_at = 13;
+}
+
+message VehicleDocumentResponse {
+    string document_id = 1;
+    string vehicle_id = 2;
+    string document_name = 3;
+    string document_type = 4;
+    string document_url = 5;
+    int64 file_size_bytes = 6;
+    string mime_type = 7;
+    string document_number = 8;
+    string issuing_authority = 9;
+    string status = 10;
+    bool is_current = 11;
+    string uploaded_at = 12;
+    string updated_at = 13;
+}
+
+message GetUserDocumentsResponse { repeated UserDocumentResponse documents = 1; }
+message GetVehicleDocumentsResponse { repeated VehicleDocumentResponse documents = 1; }
+message OperationResponse { bool success = 1; }
+
+message DocumentReviewResponse {
+    string review_id = 1;
+    string user_document_id = 2;
+    string vehicle_document_id = 3;
+    string decision = 4;
+    string reason_rejection = 5;
+    string rejection_details = 6;
+    string reviewed_by = 7;
+    string reviewed_by_type = 8;
+    string reviewed_at = 9;
+    string notes = 10;
+}
+message GetDocumentReviewsResponse { repeated DocumentReviewResponse reviews = 1; }
+```
+
+### S3 Key Format
+
+```
+{document_type}/{user_id|vehicle_id}/{document_id}.{extension}
+```
+
+Example: `idCardFront/u-550e8400/d-123.jpg`
+
+### Errors
+
+| Error | gRPC Code | Description |
+|-------|-----------|-------------|
+| `ErrorDocumentNotFound` | NOT_FOUND | Document does not exist |
+| `ErrorInvalidDocumentType` | INVALID_ARGUMENT | Invalid document type |
+| `ErrorInvalidMimeType` | INVALID_ARGUMENT | Unsupported MIME type |
+| `ErrorUploadFailed` | INTERNAL | S3 upload failed |
+| `ErrorFileTooLarge` | INVALID_ARGUMENT | File exceeds 10MB |
+| `ErrorReviewNotFound` | NOT_FOUND | Review does not exist |
+| `ErrorInvalidReviewDecision` | INVALID_ARGUMENT | Invalid review decision |
 
 ---
 
@@ -447,49 +532,43 @@ Auth service reads the following metadata from incoming requests:
 
 ### Generate Go Code
 
-Each service has a script to generate Go code from proto files:
-
 ```bash
-# From service directory
-./scripts/generate_proto.sh
-
-# Or using Make
+# All services
 make proto
-```
 
-### Script Example
+# Individual service
+make proto-auth
+make proto-user
+make proto-file
 
-```bash
-#!/bin/bash
-# scripts/generate_proto.sh
-
-PROTO_DIR="./proto"
-GEN_DIR="./proto/gen"
-
-mkdir -p $GEN_DIR
-
-protoc \
-    --proto_path=$PROTO_DIR \
-    --go_out=$GEN_DIR \
-    --go_opt=paths=source_relative \
-    --go-grpc_out=$GEN_DIR \
-    --go-grpc_opt=paths=source_relative \
-    $PROTO_DIR/*.proto
-
-echo "Proto files generated in $GEN_DIR"
+# Sync protos to api-gateway (for grpc-gateway)
+make proto-sync
+make proto-gateway
 ```
 
 ### Required Tools
 
 ```bash
-# Install protoc compiler
-# macOS
-brew install protobuf
+# protoc compiler
+brew install protobuf          # macOS
+apt-get install protobuf-compiler  # Ubuntu
 
-# Ubuntu
-apt-get install -y protobuf-compiler
-
-# Install Go plugins
+# Go plugins
 go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+# grpc-gateway (for api-gateway only)
+go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
+```
+
+---
+
+## Inter-Service Communication Map
+
+```
+auth-service ──gRPC──> user-service    (CreateUser, GetUserByAuthID)
+user-service ──gRPC──> auth-service    (GetAuthInfo)
+user-service ──gRPC──> file-service    (Upload/Get/Delete documents)
+api-gateway  ──gRPC──> auth-service    (HTTP transcoding via grpc-gateway)
+api-gateway  ──gRPC──> user-service    (HTTP transcoding via grpc-gateway)
 ```

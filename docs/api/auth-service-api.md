@@ -1,12 +1,12 @@
 # Auth Service API
 
-This document describes the HTTP/REST API exposed by the auth-service through Kong API Gateway. This API is consumed by mobile clients (iOS/Android).
+This document describes the HTTP/REST API exposed by the auth-service through the api-gateway (grpc-gateway). This API is consumed by mobile clients (iOS/Android).
 
 ## Base URL
 
 | Environment | Base URL |
 |-------------|----------|
-| Local | `http://localhost:8000/api/v1` |
+| Local | `http://localhost:8080/api/v1` |
 | VPS-Dev | `https://dev.tissi-mah.com/api/v1` |
 | Staging | `https://staging.tissi-mah.com/api/v1` |
 | Production | `https://api.tissi-mah.com/api/v1` |
@@ -439,6 +439,37 @@ Content-Type: application/json
 curl -X DELETE https://api.tissi-mah.com/api/v1/auth/deleteAccount \
   -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
 ```
+
+---
+
+## Inter-Service RPCs (gRPC only)
+
+These RPCs are not exposed via HTTP. They are called directly by other services (e.g., user-service).
+
+### GetAuthInfo
+
+Retrieves authentication information for a user by their auth ID.
+
+```protobuf
+rpc GetAuthInfo(GetAuthInfoRequest) returns (GetAuthInfoResponse);
+```
+
+#### Request
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `AuthID` | string | Auth service account ID |
+
+#### Response
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `AuthID` | string | Auth account ID |
+| `Email` | string | Email address |
+| `PhoneNumber` | string | Phone number |
+| `IsActive` | boolean | Account active status |
+| `IsSuspended` | boolean | Account suspension status |
+| `SuspensionEndDate` | string | Suspension end date |
 
 ---
 
