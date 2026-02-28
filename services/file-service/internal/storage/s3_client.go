@@ -11,18 +11,20 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
 	fileconfig "github.com/Kpeewu/tissi-mah/services/file-service/internal/config"
+	"go.uber.org/zap"
 )
 
 type s3Client struct {
 	client   *s3.Client
 	bucket   string
 	endpoint string
+	logger   *zap.Logger
 }
 
 // NewS3Client crée un client S3 compatible MinIO/AWS.
 // Si S3_ENDPOINT est défini, le client pointe vers MinIO (dev).
 // Sinon, il utilise AWS S3 standard (prod).
-func NewS3Client(ctx context.Context, cfg fileconfig.S3Config) (StorageClient, error) {
+func NewS3Client(ctx context.Context, cfg fileconfig.S3Config, logger *zap.Logger) (StorageClient, error) {
 	var opts []func(*awsconfig.LoadOptions) error
 
 	opts = append(opts, awsconfig.WithRegion(cfg.Region))
@@ -32,6 +34,7 @@ func NewS3Client(ctx context.Context, cfg fileconfig.S3Config) (StorageClient, e
 
 	awsCfg, err := awsconfig.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
+		logger.Error("failed to load AWS config", zap.Error(err))
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
 
@@ -51,11 +54,18 @@ func NewS3Client(ctx context.Context, cfg fileconfig.S3Config) (StorageClient, e
 		client:   client,
 		bucket:   cfg.Bucket,
 		endpoint: cfg.Endpoint,
+		logger:   logger,
 	}, nil
 }
 
 // Upload envoie un fichier vers S3/MinIO
 func (s *s3Client) Upload(ctx context.Context, key string, data io.Reader, contentType string, size int64) (string, error) {
+	s.logger.Debug("uploading to S3",
+		zap.String("key", key),
+		zap.String("contentType", contentType),
+		zap.Int64("size", size),
+	)
+
 	input := &s3.PutObjectInput{
 		Bucket:        aws.String(s.bucket),
 		Key:           aws.String(key),
@@ -66,14 +76,19 @@ func (s *s3Client) Upload(ctx context.Context, key string, data io.Reader, conte
 
 	_, err := s.client.PutObject(ctx, input)
 	if err != nil {
+		s.logger.Error("S3 upload failed", zap.Error(err), zap.String("key", key))
 		return "", fmt.Errorf("failed to upload to S3: %w", err)
 	}
 
-	return s.GenerateURL(key), nil
+	url := s.GenerateURL(key)
+	s.logger.Info("S3 upload success", zap.String("key", key), zap.String("url", url))
+	return url, nil
 }
 
 // Delete supprime un fichier de S3/MinIO
 func (s *s3Client) Delete(ctx context.Context, key string) error {
+	s.logger.Debug("deleting from S3", zap.String("key", key))
+
 	input := &s3.DeleteObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),
@@ -81,9 +96,11 @@ func (s *s3Client) Delete(ctx context.Context, key string) error {
 
 	_, err := s.client.DeleteObject(ctx, input)
 	if err != nil {
+		s.logger.Error("S3 delete failed", zap.Error(err), zap.String("key", key))
 		return fmt.Errorf("failed to delete from S3: %w", err)
 	}
 
+	s.logger.Debug("S3 delete success", zap.String("key", key))
 	return nil
 }
 

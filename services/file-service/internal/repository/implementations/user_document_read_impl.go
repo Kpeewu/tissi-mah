@@ -10,17 +10,21 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 )
 
 type userDocumentReadImpl struct {
-	pool *pgxpool.Pool
+	pool   *pgxpool.Pool
+	logger *zap.Logger
 }
 
-func NewUserDocumentReadRepository(pool *pgxpool.Pool) i.UserDocumentRepositoryRead {
-	return &userDocumentReadImpl{pool: pool}
+func NewUserDocumentReadRepository(pool *pgxpool.Pool, logger *zap.Logger) i.UserDocumentRepositoryRead {
+	return &userDocumentReadImpl{pool: pool, logger: logger}
 }
 
 func (r *userDocumentReadImpl) GetByID(ctx context.Context, documentID string) (*domain.UserDocument, error) {
+	r.logger.Debug("récupération du document utilisateur par ID", zap.String("documentID", documentID))
+
 	query := `SELECT document_id, user_id, document_name, document_type,
 	                 document_url, file_size_bytes, mime_type,
 	                 document_number, issued_at, expire_at, issuing_country,
@@ -38,14 +42,18 @@ func (r *userDocumentReadImpl) GetByID(ctx context.Context, documentID string) (
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			r.logger.Debug("document utilisateur non trouvé", zap.String("documentID", documentID))
 			return nil, fileErrors.ErrorDocumentNotFound
 		}
+		r.logger.Error("erreur récupération document utilisateur par ID", zap.String("documentID", documentID), zap.Error(err))
 		return nil, fileErrors.ErrorDataRetrievalFailed
 	}
 	return doc, nil
 }
 
 func (r *userDocumentReadImpl) GetByUserID(ctx context.Context, userID string) ([]*domain.UserDocument, error) {
+	r.logger.Debug("récupération des documents utilisateur par userID", zap.String("userID", userID))
+
 	query := `SELECT document_id, user_id, document_name, document_type,
 	                 document_url, file_size_bytes, mime_type,
 	                 document_number, issued_at, expire_at, issuing_country,
@@ -56,6 +64,7 @@ func (r *userDocumentReadImpl) GetByUserID(ctx context.Context, userID string) (
 
 	rows, err := r.pool.Query(ctx, query, userID)
 	if err != nil {
+		r.logger.Error("erreur récupération documents utilisateur par userID", zap.String("userID", userID), zap.Error(err))
 		return nil, fileErrors.ErrorDataRetrievalFailed
 	}
 	defer rows.Close()
@@ -71,6 +80,7 @@ func (r *userDocumentReadImpl) GetByUserID(ctx context.Context, userID string) (
 			&doc.UploadedAt, &doc.UpdatedAt,
 		)
 		if err != nil {
+			r.logger.Error("erreur scan document utilisateur", zap.String("userID", userID), zap.Error(err))
 			return nil, fileErrors.ErrorDataRetrievalFailed
 		}
 		docs = append(docs, doc)
@@ -79,6 +89,11 @@ func (r *userDocumentReadImpl) GetByUserID(ctx context.Context, userID string) (
 }
 
 func (r *userDocumentReadImpl) GetCurrentByUserIDAndType(ctx context.Context, userID string, documentType string) (*domain.UserDocument, error) {
+	r.logger.Debug("récupération du document courant par userID et type",
+		zap.String("userID", userID),
+		zap.String("documentType", documentType),
+	)
+
 	query := `SELECT document_id, user_id, document_name, document_type,
 	                 document_url, file_size_bytes, mime_type,
 	                 document_number, issued_at, expire_at, issuing_country,
@@ -97,8 +112,10 @@ func (r *userDocumentReadImpl) GetCurrentByUserIDAndType(ctx context.Context, us
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			r.logger.Debug("document courant non trouvé", zap.String("userID", userID), zap.String("documentType", documentType))
 			return nil, fileErrors.ErrorDocumentNotFound
 		}
+		r.logger.Error("erreur récupération document courant", zap.String("userID", userID), zap.String("documentType", documentType), zap.Error(err))
 		return nil, fileErrors.ErrorDataRetrievalFailed
 	}
 	return doc, nil

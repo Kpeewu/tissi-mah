@@ -10,6 +10,7 @@ import (
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/auth-service/internal/service/interfaces"
 	authErrors "github.com/Kpeewu/tissi-mah/services/auth-service/pkg/errors"
 	authpb "github.com/Kpeewu/tissi-mah/services/auth-service/proto/gen"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -22,23 +23,28 @@ const serviceVersion = "1.0.0"
 type AuthHandler struct {
 	authpb.UnimplementedAuthServiceServer
 	service serviceInterfaces.AuthService
+	logger  *zap.Logger
 }
 
-func NewAuthHandler(service serviceInterfaces.AuthService) *AuthHandler {
-	return &AuthHandler{service: service}
+func NewAuthHandler(service serviceInterfaces.AuthService, logger *zap.Logger) *AuthHandler {
+	return &AuthHandler{service: service, logger: logger}
 }
 
 // Login vérifie si l'utilisateur authentifié possède déjà un compte.
 // Retourne {Exists: false} (sans erreur gRPC) si aucun compte n'est trouvé,
 // afin que le client redirige vers l'inscription.
 func (h *AuthHandler) Login(ctx context.Context, _ *authpb.LoginRequest) (*authpb.LoginResponse, error) {
+	h.logger.Debug("handler: Login called")
 	user, err := h.service.LoginUser(ctx)
 	if err != nil {
 		if errors.Is(err, authErrors.ErrorUserNotFound) {
+			h.logger.Debug("handler: Login - user not found, returning exists=false")
 			return &authpb.LoginResponse{Exists: false}, nil
 		}
+		h.logger.Error("handler: Login failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
+	h.logger.Info("handler: Login success", zap.String("authID", user.AuthID))
 	return &authpb.LoginResponse{
 		Exists: true,
 		User:   toProtoUserPreview(user),
@@ -47,41 +53,59 @@ func (h *AuthHandler) Login(ctx context.Context, _ *authpb.LoginRequest) (*authp
 
 // CreateAccount crée un nouveau compte utilisateur.
 func (h *AuthHandler) CreateAccount(ctx context.Context, req *authpb.CreateAccountRequest) (*authpb.CreateAccountResponse, error) {
+	h.logger.Debug("handler: CreateAccount called",
+		zap.String("name", req.Name),
+		zap.String("firstName", req.FirstName),
+		zap.String("email", req.Email),
+		zap.String("phone", req.PhoneNumber),
+	)
 	user, err := h.service.RegisterUser(ctx, req.Name, req.FirstName, req.Email, req.PhoneNumber, req.ProfileImageURL)
 	if err != nil {
+		h.logger.Error("handler: CreateAccount failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
+	h.logger.Info("handler: CreateAccount success", zap.String("authID", user.AuthID))
 	return &authpb.CreateAccountResponse{User: toProtoUserPreview(user)}, nil
 }
 
 // CheckEmail vérifie si une adresse email est disponible (non utilisée).
 func (h *AuthHandler) CheckEmail(ctx context.Context, req *authpb.CheckEmailRequest) (*authpb.CheckPhoneOrEmailResponse, error) {
+	h.logger.Debug("handler: CheckEmail called", zap.String("email", req.Email))
 	available, err := h.service.CheckEmail(ctx, req.Email)
 	if err != nil {
+		h.logger.Error("handler: CheckEmail failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
+	h.logger.Debug("handler: CheckEmail result", zap.Bool("available", available))
 	return &authpb.CheckPhoneOrEmailResponse{IsAvailable: available}, nil
 }
 
 // CheckPhoneNumber vérifie si un numéro de téléphone est disponible.
 func (h *AuthHandler) CheckPhoneNumber(ctx context.Context, req *authpb.CheckPhoneNumberRequest) (*authpb.CheckPhoneOrEmailResponse, error) {
+	h.logger.Debug("handler: CheckPhoneNumber called", zap.String("phone", req.PhoneNumber))
 	available, err := h.service.CheckPhoneNumber(ctx, req.PhoneNumber)
 	if err != nil {
+		h.logger.Error("handler: CheckPhoneNumber failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
+	h.logger.Debug("handler: CheckPhoneNumber result", zap.Bool("available", available))
 	return &authpb.CheckPhoneOrEmailResponse{IsAvailable: available}, nil
 }
 
 // DeleteAccount supprime le compte de l'utilisateur authentifié.
 // Le Firebase UID est extrait du contexte (injecté par l'intercepteur JWT).
 func (h *AuthHandler) DeleteAccount(ctx context.Context, _ *authpb.DeleteAccountRequest) (*authpb.AuthServerResponse, error) {
+	h.logger.Debug("handler: DeleteAccount called")
 	firebaseID, ok := ctx.Value(middleware.FirebaseIDKey).(string)
 	if !ok || firebaseID == "" {
+		h.logger.Error("handler: DeleteAccount - missing firebase ID in context")
 		return nil, status.Error(codes.Unauthenticated, "missing firebase ID in context")
 	}
 	if err := h.service.DeleteUserAccount(ctx, firebaseID); err != nil {
+		h.logger.Error("handler: DeleteAccount failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
+	h.logger.Info("handler: DeleteAccount success", zap.String("firebaseID", firebaseID))
 	return &authpb.AuthServerResponse{Success: true}, nil
 }
 
@@ -96,8 +120,10 @@ func (h *AuthHandler) Health(_ context.Context, _ *authpb.HealthRequest) (*authp
 
 // GetAuthInfo retourne les données d'authentification d'un utilisateur (inter-service, pas de JWT).
 func (h *AuthHandler) GetAuthInfo(ctx context.Context, req *authpb.GetAuthInfoRequest) (*authpb.GetAuthInfoResponse, error) {
+	h.logger.Debug("handler: GetAuthInfo called", zap.String("authID", req.AuthID))
 	auth, err := h.service.GetAuthInfo(ctx, req.AuthID)
 	if err != nil {
+		h.logger.Error("handler: GetAuthInfo failed", zap.Error(err), zap.String("authID", req.AuthID))
 		return nil, toGRPCError(err)
 	}
 
@@ -117,6 +143,7 @@ func (h *AuthHandler) GetAuthInfo(ctx context.Context, req *authpb.GetAuthInfoRe
 		resp.SuspensionEndDate = auth.SuspensionEndDate.Format(time.RFC3339)
 	}
 
+	h.logger.Debug("handler: GetAuthInfo success", zap.String("authID", req.AuthID))
 	return resp, nil
 }
 

@@ -40,7 +40,7 @@ func NewFileServer(
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)
 	}
 
-	handler := NewFileHandler(service)
+	handler := NewFileHandler(service, logger)
 	filepb.RegisterFileServiceServer(srv.Server(), handler)
 	srv.SetServingStatus("file.FileService", grpc_health_v1.HealthCheckResponse_SERVING)
 

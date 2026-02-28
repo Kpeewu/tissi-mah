@@ -56,7 +56,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	logger.Info("connected to postgres")
 
 	// --- S3/MinIO storage client ---
-	storageClient, err := storage.NewS3Client(ctx, cfg.S3)
+	storageClient, err := storage.NewS3Client(ctx, cfg.S3, logger)
 	if err != nil {
 		return fmt.Errorf("s3 client: %w", err)
 	}
@@ -66,12 +66,12 @@ func run(bootstrapLogger *zap.Logger) error {
 	)
 
 	// --- Repositories ---
-	userDocRead := implementations.NewUserDocumentReadRepository(pool)
-	userDocWrite := implementations.NewUserDocumentWriteRepository(pool)
-	vehicleDocRead := implementations.NewVehicleDocumentReadRepository(pool)
-	vehicleDocWrite := implementations.NewVehicleDocumentWriteRepository(pool)
-	reviewRead := implementations.NewDocumentReviewReadRepository(pool)
-	reviewWrite := implementations.NewDocumentReviewWriteRepository(pool)
+	userDocRead := implementations.NewUserDocumentReadRepository(pool, logger)
+	userDocWrite := implementations.NewUserDocumentWriteRepository(pool, logger)
+	vehicleDocRead := implementations.NewVehicleDocumentReadRepository(pool, logger)
+	vehicleDocWrite := implementations.NewVehicleDocumentWriteRepository(pool, logger)
+	reviewRead := implementations.NewDocumentReviewReadRepository(pool, logger)
+	reviewWrite := implementations.NewDocumentReviewWriteRepository(pool, logger)
 
 	// --- File service ---
 	fileService := service.NewFileService(
@@ -79,6 +79,7 @@ func run(bootstrapLogger *zap.Logger) error {
 		vehicleDocRead, vehicleDocWrite,
 		reviewRead, reviewWrite,
 		storageClient,
+		logger,
 	)
 
 	// --- gRPC server ---

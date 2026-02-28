@@ -10,17 +10,21 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 )
 
 type documentReviewWriteImpl struct {
-	pool *pgxpool.Pool
+	pool   *pgxpool.Pool
+	logger *zap.Logger
 }
 
-func NewDocumentReviewWriteRepository(pool *pgxpool.Pool) i.DocumentReviewRepositoryWrite {
-	return &documentReviewWriteImpl{pool: pool}
+func NewDocumentReviewWriteRepository(pool *pgxpool.Pool, logger *zap.Logger) i.DocumentReviewRepositoryWrite {
+	return &documentReviewWriteImpl{pool: pool, logger: logger}
 }
 
 func (r *documentReviewWriteImpl) Create(ctx context.Context, review *domain.DocumentReview) (string, error) {
+	r.logger.Debug("création d'une revue de document", zap.String("reviewID", review.ReviewID))
+
 	query := `INSERT INTO document_reviews
 	          (review_id, user_document_id, vehicle_document_id,
 	           decision, reason_rejection, rejection_details,
@@ -39,9 +43,13 @@ func (r *documentReviewWriteImpl) Create(ctx context.Context, review *domain.Doc
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			r.logger.Error("création revue : aucune ligne retournée", zap.String("reviewID", review.ReviewID), zap.Error(err))
 			return "", fileErrors.ErrorDataRetrievalFailed
 		}
+		r.logger.Error("erreur création revue", zap.String("reviewID", review.ReviewID), zap.Error(err))
 		return "", fileErrors.ErrorInternalServer
 	}
+
+	r.logger.Info("revue créée avec succès", zap.String("reviewID", reviewID))
 	return reviewID, nil
 }
