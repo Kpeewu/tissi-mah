@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -9,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	grpcMetadata "google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	authpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/authpb"
@@ -47,7 +49,27 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		return md
 	})
 
-	mux := runtime.NewServeMux(jsonOpts, metadataAnnotator)
+	// Custom error handler : remplace {"code":N,"message":"...","details":[]}
+	// par {"ErrorMessage":"..."} avec le bon code HTTP
+	errorHandler := runtime.WithErrorHandler(func(
+		_ context.Context,
+		_ *runtime.ServeMux,
+		_ runtime.Marshaler,
+		w http.ResponseWriter,
+		_ *http.Request,
+		err error,
+	) {
+		s, _ := status.FromError(err)
+		httpStatus := runtime.HTTPStatusFromCode(s.Code())
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(httpStatus)
+		json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
+			"ErrorMessage": s.Message(),
+		})
+	})
+
+	mux := runtime.NewServeMux(jsonOpts, metadataAnnotator, errorHandler)
 
 	// Options de connexion gRPC vers les services internes (pas de TLS intra-cluster)
 	dialOpts := []grpc.DialOption{
