@@ -148,6 +148,7 @@ jobs:
           FILE_REDIS_URL: ${{ secrets.FILE_REDIS_URL }}
           FILE_S3_ACCESS_KEY: ${{ secrets.FILE_S3_ACCESS_KEY }}
           FILE_S3_SECRET_KEY: ${{ secrets.FILE_S3_SECRET_KEY }}
+          FILE_S3_ENDPOINT: ${{ secrets.FILE_S3_ENDPOINT }}
         run: |
           python3 - <<'PYEOF'
           import yaml, os, json, sys
@@ -191,6 +192,9 @@ jobs:
 
           elif service == "file-service":
               data = {
+                  'config': {
+                      's3Endpoint': os.environ.get('FILE_S3_ENDPOINT', ''),
+                  },
                   'secrets': {
                       'databaseUrl': os.environ.get('FILE_DATABASE_URL', ''),
                       'redisUrl': os.environ.get('FILE_REDIS_URL', ''),
@@ -352,10 +356,11 @@ jobs:
 #      - USER_REDIS_URL   : redis://host:6379
 #
 #   6. Secrets GitHub pour file-service:
-#      - FILE_DATABASE_URL : postgresql://user:pass@host:5432/dbname
-#      - FILE_REDIS_URL    : redis://host:6379
+#      - FILE_DATABASE_URL  : postgresql://user:pass@host:5434/file_db
+#      - FILE_REDIS_URL     : redis://host:6383/0
 #      - FILE_S3_ACCESS_KEY : cle d'acces S3/MinIO
 #      - FILE_S3_SECRET_KEY : cle secrete S3/MinIO
+#      - FILE_S3_ENDPOINT   : http://host:9000 (URL MinIO/S3)
 #
 # Architecture:
 #   VPS K3s namespace "default":
