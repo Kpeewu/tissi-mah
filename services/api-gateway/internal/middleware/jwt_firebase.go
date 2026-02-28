@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/google/uuid"
 	firebaseValidator "github.com/Kpeewu/tissi-mah/services/api-gateway/pkg/firebase"
 	"go.uber.org/zap"
 )
@@ -25,6 +26,10 @@ func JWTFirebase(validator *firebaseValidator.JWTValidator, isProtected Protecte
 	// TODO(test): remettre la validation JWT Firebase après les tests
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Generer et injecter un Firebase UID factice pour les tests
+			fakeUID := uuid.New().String()
+			r.Header.Set(FirebaseUIDHeader, fakeUID)
+			logger.Debug("injected fake firebase uid", zap.String("uid", fakeUID), zap.String("path", r.URL.Path))
 			next.ServeHTTP(w, r)
 		})
 	}
