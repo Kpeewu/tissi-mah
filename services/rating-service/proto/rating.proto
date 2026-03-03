@@ -1,0 +1,174 @@
+// Rating Service Proto Definition
+// This file defines the gRPC service contract for rating-service
+//
+// HTTP/REST mapping is defined using google.api.http annotations
+// Kong API Gateway uses these annotations for gRPC transcoding
+
+syntax = "proto3";
+
+package rating;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/rating-service/proto/gen;rating";
+
+import "google/api/annotations.proto";
+
+// =============================================================================
+// Rating Service
+// =============================================================================
+
+service RatingService {
+  // CreateRating - Soumettre une note après un trajet
+  rpc CreateRating(CreateRatingRequest) returns (CreateRatingResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/ratings"
+      body: "*"
+    };
+  }
+
+  // GetRating - Récupérer une note par son ID
+  rpc GetRating(GetRatingRequest) returns (GetRatingResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/ratings/{rating_id}"
+    };
+  }
+
+  // GetRatingsForUser - Récupérer toutes les notes reçues par un utilisateur
+  rpc GetRatingsForUser(GetRatingsForUserRequest) returns (GetRatingsForUserResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/ratings/user/{user_rated_id}"
+    };
+  }
+
+  // GetAverageRating - Récupérer la moyenne des notes d'un utilisateur
+  rpc GetAverageRating(GetAverageRatingRequest) returns (GetAverageRatingResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/ratings/user/{user_rated_id}/average"
+    };
+  }
+
+  // UpdateRating - Modifier une note existante
+  rpc UpdateRating(UpdateRatingRequest) returns (UpdateRatingResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/ratings/{rating_id}"
+      body: "*"
+    };
+  }
+
+  // DeleteRating - Supprimer une note
+  rpc DeleteRating(DeleteRatingRequest) returns (RatingServerResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/ratings/{rating_id}"
+    };
+  }
+
+  // Health - Health check endpoint (no auth required)
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/ratings/health"
+    };
+  }
+}
+
+// =============================================================================
+// Request Messages
+// =============================================================================
+
+message CreateRatingRequest {
+  string user_rated_id = 1;
+  int32 number_of_stars = 2;
+  string comment = 3; // Optionnel
+}
+
+message GetRatingRequest {
+  string rating_id = 1;
+}
+
+message GetRatingsForUserRequest {
+  string user_rated_id = 1;
+}
+
+message GetAverageRatingRequest {
+  string user_rated_id = 1;
+}
+
+message UpdateRatingRequest {
+  string rating_id = 1;
+  int32 number_of_stars = 2;
+  string comment = 3; // Optionnel
+}
+
+message DeleteRatingRequest {
+  string rating_id = 1;
+}
+
+message HealthRequest {
+  // No fields required
+}
+
+// =============================================================================
+// Response Messages
+// =============================================================================
+
+message CreateRatingResponse {
+  string error_message = 1;
+  RatingDetail rating = 2;
+}
+
+message GetRatingResponse {
+  string error_message = 1;
+  RatingDetail rating = 2;
+}
+
+message GetRatingsForUserResponse {
+  string error_message = 1;
+  repeated RatingDetail ratings = 2;
+}
+
+message GetAverageRatingResponse {
+  string error_message = 1;
+  double average = 2;
+  int32 total_ratings = 3;
+}
+
+message UpdateRatingResponse {
+  string error_message = 1;
+  RatingDetail rating = 2;
+}
+
+message RatingServerResponse {
+  string error_message = 1;
+  bool success = 2;
+}
+
+message HealthResponse {
+  string status = 1;   // "healthy" or "unhealthy"
+  string version = 2;  // Service version
+  int64 timestamp = 3;  // Unix timestamp
+}
+
+// =============================================================================
+// Domain Messages
+// =============================================================================
+
+message RatingDetail {
+  string rating_id = 1;
+  string rater_id = 2;
+  string user_rated_id = 3;
+  int32 number_of_stars = 4;
+  string comment = 5;
+  int64 created_at = 6;  // Unix timestamp
+  int64 updated_at = 7;  // Unix timestamp
+}
+
+// =============================================================================
+// Error Codes Reference (gRPC status codes)
+// =============================================================================
+//
+// 0  - OK                  : Success
+// 3  - INVALID_ARGUMENT    : Invalid request parameters (400)
+// 5  - NOT_FOUND           : Resource not found (404)
+// 6  - ALREADY_EXISTS      : Rating already exists for this pair (409)
+// 7  - PERMISSION_DENIED   : Not authorized (403)
+// 9  - FAILED_PRECONDITION : Pre-condition not met (412)
+// 13 - INTERNAL            : Server error (500)
+// 16 - UNAUTHENTICATED     : Missing or invalid token (401)
