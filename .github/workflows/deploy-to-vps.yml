@@ -52,6 +52,8 @@ jobs:
               - 'services/user-service/**'
             file-service:
               - 'services/file-service/**'
+            rating-service:
+              - 'services/rating-service/**'
             pkg:
               - 'pkg/**'
 
@@ -61,7 +63,7 @@ jobs:
           if [ -n "${{ github.event.inputs.service }}" ]; then
             echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
           else
-            echo 'services=["api-gateway","auth-service","user-service","file-service"]' >> $GITHUB_OUTPUT
+            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service"]' >> $GITHUB_OUTPUT
           fi
 
   build-and-push:
@@ -149,6 +151,9 @@ jobs:
           FILE_S3_ACCESS_KEY: ${{ secrets.FILE_S3_ACCESS_KEY }}
           FILE_S3_SECRET_KEY: ${{ secrets.FILE_S3_SECRET_KEY }}
           FILE_S3_ENDPOINT: ${{ secrets.FILE_S3_ENDPOINT }}
+          # rating-service secrets
+          RATING_DATABASE_URL: ${{ secrets.RATING_DATABASE_URL }}
+          RATING_REDIS_URL: ${{ secrets.RATING_REDIS_URL }}
         run: |
           python3 - <<'PYEOF'
           import yaml, os, json, sys
@@ -200,6 +205,14 @@ jobs:
                       'redisUrl': os.environ.get('FILE_REDIS_URL', ''),
                       's3AccessKey': os.environ.get('FILE_S3_ACCESS_KEY', ''),
                       's3SecretKey': os.environ.get('FILE_S3_SECRET_KEY', ''),
+                  },
+              }
+
+          elif service == "rating-service":
+              data = {
+                  'secrets': {
+                      'databaseUrl': os.environ.get('RATING_DATABASE_URL', ''),
+                      'redisUrl': os.environ.get('RATING_REDIS_URL', ''),
                   },
               }
 
@@ -362,9 +375,14 @@ jobs:
 #      - FILE_S3_SECRET_KEY : cle secrete S3/MinIO
 #      - FILE_S3_ENDPOINT   : http://host:9000 (URL MinIO/S3)
 #
+#   7. Secrets GitHub pour rating-service:
+#      - RATING_DATABASE_URL : postgresql://user:pass@host:5435/rating_db
+#      - RATING_REDIS_URL    : redis://host:6384/0
+#
 # Architecture:
 #   VPS K3s namespace "default":
 #     |- api-gateway (HTTP LoadBalancer, port 8080)
 #     |- auth-service (gRPC ClusterIP, port 50051)
 #     |- user-service (gRPC ClusterIP, port 50052)
 #     |- file-service (gRPC ClusterIP, port 50053)
+#     |- rating-service (gRPC ClusterIP, port 50054)
