@@ -1,0 +1,78 @@
+# Local development values for rating-service
+
+replicaCount: 1
+
+image:
+  repository: rating-service
+  pullPolicy: Never
+  tag: "local"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 50054
+
+config:
+  environment: "local"
+  logLevel: "debug"
+  extra: {}
+
+secrets:
+  databaseUrl: "postgresql://postgres:postgres@rating-postgres:5432/rating_db?sslmode=disable"
+  redisUrl: "redis://redis:6379/0"
+  extra: {}
+
+probes:
+  enabled: false
+  liveness:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 1
+  targetCPUUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: false
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+imagePullSecrets: []
