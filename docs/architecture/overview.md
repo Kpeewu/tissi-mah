@@ -641,7 +641,7 @@ Document Uploaded → Pending Review → Under Review → Approved/Rejected
 | trips-service | 50054 |
 | booking-service | 50055 |
 | payment-service | 50056 |
-| rating-service | 50057 |
+| rating-service | 50054 |
 | file-service | 50058 |
 | notification-service | 50059 |
 | stats-service | 50060 |
