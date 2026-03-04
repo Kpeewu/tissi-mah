@@ -43,6 +43,8 @@ config:
   authServicePort: "50051"
   userServiceHost: "user-service"
   userServicePort: "50052"
+  ratingServiceHost: "rating-service"
+  ratingServicePort: "50054"
   corsAllowedOrigins: "https://staging.tissi-mah.com"
   extra: {}
 
