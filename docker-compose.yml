@@ -135,6 +135,47 @@ services:
     networks:
       - tissi-mah-network
 
+  # PostgreSQL pour Rating Service
+  rating-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-rating-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_RATING_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_RATING_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_RATING_DB:-rating_db}
+    ports:
+      - "5435:5432"
+    volumes:
+      - rating_postgres_data:/var/lib/postgresql/data
+      - ./services/rating-service/migrations/up:/docker-entrypoint-initdb.d
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_RATING_USER:-dev} -d ${POSTGRES_RATING_DB:-rating_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour Rating Service
+  rating-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-rating-redis
+    ports:
+      - "6384:6379"
+    volumes:
+      - rating_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
   # MinIO - Stockage S3 compatible (dev local)
   minio:
     image: minio/minio:latest
@@ -180,6 +221,8 @@ volumes:
   gateway_redis_data:
   file_postgres_data:
   file_redis_data:
+  rating_postgres_data:
+  rating_redis_data:
   minio_data:
 
 networks:
