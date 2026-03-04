@@ -7,7 +7,8 @@ This document describes the gRPC contracts used for inter-service communication 
 1. [Overview](#overview)
 2. [Auth Service](#auth-service)
 3. [User Service](#user-service)
-4. [File Service](#file-service)
+4. [Rating Service](#rating-service)
+5. [File Service](#file-service)
 
 ---
 
@@ -40,6 +41,7 @@ Services discover each other via Kubernetes DNS:
 | auth-service | 50051 | gRPC | Internal + api-gateway |
 | user-service | 50052 | gRPC | Internal + api-gateway |
 | file-service | 50053 | gRPC | Internal only |
+| rating-service | 50054 | gRPC | Internal + api-gateway |
 
 ### Authentication Flow
 
@@ -76,12 +78,16 @@ services/
 ├── user-service/proto/
 │   ├── user.proto
 │   └── gen/
+├── rating-service/proto/
+│   ├── rating.proto
+│   └── gen/
 ├── file-service/proto/
 │   ├── file.proto
 │   └── gen/
 └── api-gateway/proto/
     ├── auth.proto    (synced from auth-service)
     ├── user.proto    (synced from user-service)
+    ├── rating.proto  (synced from rating-service)
     └── gen/          (includes grpc-gateway stubs)
 ```
 
@@ -334,6 +340,115 @@ message OperationResponse {
 
 ---
 
+## Rating Service
+
+**Proto:** `services/rating-service/proto/rating.proto`
+**Package:** `rating`
+**Go package:** `github.com/Kpeewu/tissi-mah/services/rating-service/proto/gen;rating`
+**Address:** `rating-service:50054`
+
+### RPCs
+
+| RPC | Type | HTTP Route | Auth | Description |
+|-----|------|------------|------|-------------|
+| `CreateRating` | Unary | `POST /api/v1/ratings` | JWT | Submit a rating |
+| `GetRating` | Unary | `GET /api/v1/ratings/{rating_id}` | Public | Get rating by ID |
+| `GetRatingsForUser` | Unary | `GET /api/v1/ratings/user/{user_rated_id}` | Public | Get ratings for a user |
+| `GetAverageRating` | Unary | `GET /api/v1/ratings/user/{user_rated_id}/average` | Public | Get user's average rating |
+| `UpdateRating` | Unary | `PUT /api/v1/ratings/{rating_id}` | JWT | Update a rating |
+| `DeleteRating` | Unary | `DELETE /api/v1/ratings/{rating_id}` | JWT | Delete a rating |
+| `Health` | Unary | `GET /api/v1/ratings/health` | Public | Health check |
+
+### Messages
+
+```protobuf
+// --- Client-facing ---
+
+message CreateRatingRequest {
+    string user_rated_id = 1;
+    int32 number_of_stars = 2;
+    string comment = 3;          // optional
+}
+message CreateRatingResponse {
+    string error_message = 1;
+    RatingDetail rating = 2;
+}
+
+message GetRatingRequest { string rating_id = 1; }
+message GetRatingResponse {
+    string error_message = 1;
+    RatingDetail rating = 2;
+}
+
+message GetRatingsForUserRequest { string user_rated_id = 1; }
+message GetRatingsForUserResponse {
+    string error_message = 1;
+    repeated RatingDetail ratings = 2;
+}
+
+message GetAverageRatingRequest { string user_rated_id = 1; }
+message GetAverageRatingResponse {
+    string error_message = 1;
+    double average = 2;
+    int32 total_ratings = 3;
+}
+
+message UpdateRatingRequest {
+    string rating_id = 1;
+    int32 number_of_stars = 2;
+    string comment = 3;          // optional
+}
+message UpdateRatingResponse {
+    string error_message = 1;
+    RatingDetail rating = 2;
+}
+
+message DeleteRatingRequest { string rating_id = 1; }
+message RatingServerResponse {
+    string error_message = 1;
+    bool success = 2;
+}
+
+// --- Shared ---
+
+message RatingDetail {
+    string rating_id = 1;
+    string rater_id = 2;
+    string user_rated_id = 3;
+    int32 number_of_stars = 4;
+    string comment = 5;
+    int64 created_at = 6;       // Unix timestamp
+    int64 updated_at = 7;       // Unix timestamp
+}
+
+message HealthRequest {}
+message HealthResponse {
+    string status = 1;
+    string version = 2;
+    int64 timestamp = 3;
+}
+```
+
+### Errors
+
+| Error | gRPC Code | Description |
+|-------|-----------|-------------|
+| `ErrorRatingNotFound` | NOT_FOUND | Rating does not exist |
+| `ErrorRatingAlreadyExists` | ALREADY_EXISTS | Rating already exists for this rater/user pair |
+| `ErrorInvalidStars` | INVALID_ARGUMENT | Stars must be between 1 and 5 |
+| `ErrorSelfRating` | INVALID_ARGUMENT | Cannot rate yourself |
+| `ErrorUnauthorizedAction` | PERMISSION_DENIED | Only the rater can modify/delete |
+| `ErrorCantDeleteRating` | FAILED_PRECONDITION | Cannot delete this rating |
+| `ErrorInternalServer` | INTERNAL | Server error |
+
+### Metadata
+
+| Key | Source | Description |
+|-----|--------|-------------|
+| `x-firebase-uid` | api-gateway | Firebase UID extracted from JWT |
+
+---
+
 ## File Service
 
 **Proto:** `services/file-service/proto/file.proto`
@@ -539,6 +654,7 @@ make proto
 # Individual service
 make proto-auth
 make proto-user
+make proto-rating
 make proto-file
 
 # Sync protos to api-gateway (for grpc-gateway)
@@ -566,9 +682,10 @@ go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@lat
 ## Inter-Service Communication Map
 
 ```
-auth-service ──gRPC──> user-service    (CreateUser, GetUserByAuthID)
-user-service ──gRPC──> auth-service    (GetAuthInfo)
-user-service ──gRPC──> file-service    (Upload/Get/Delete documents)
-api-gateway  ──gRPC──> auth-service    (HTTP transcoding via grpc-gateway)
-api-gateway  ──gRPC──> user-service    (HTTP transcoding via grpc-gateway)
+auth-service  ──gRPC──> user-service    (CreateUser, GetUserByAuthID)
+user-service  ──gRPC──> auth-service    (GetAuthInfo)
+user-service  ──gRPC──> file-service    (Upload/Get/Delete documents)
+api-gateway   ──gRPC──> auth-service    (HTTP transcoding via grpc-gateway)
+api-gateway   ──gRPC──> user-service    (HTTP transcoding via grpc-gateway)
+api-gateway   ──gRPC──> rating-service  (HTTP transcoding via grpc-gateway)
 ```

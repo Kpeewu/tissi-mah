@@ -14,6 +14,10 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/userProfile/createDriverAccount": true,
 	"/api/v1/userProfile/addTripPreferences":  true,
 	"/api/v1/userProfile/updateProfile":       true,
+
+	// rating-service
+	"/api/v1/ratings":             true, // CreateRating (POST)
+	"/api/v1/ratings/{rating_id}": true, // UpdateRating (PUT), DeleteRating (DELETE)
 }
 
 // RateLimitTier identifie le niveau de rate limiting pour une route

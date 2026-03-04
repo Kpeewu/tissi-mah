@@ -50,7 +50,8 @@ GOOGLE_API_DIR="${PROTO_DIR}/google/api"
 # Output directories
 PROTO_OUT_AUTH="${PROTO_DIR}/gen/authpb"
 PROTO_OUT_USER="${PROTO_DIR}/gen/userpb"
-mkdir -p ${PROTO_OUT_AUTH} ${PROTO_OUT_USER}
+PROTO_OUT_RATING="${PROTO_DIR}/gen/ratingpb"
+mkdir -p ${PROTO_OUT_AUTH} ${PROTO_OUT_USER} ${PROTO_OUT_RATING}
 
 # Download google/api proto files if they don't exist
 if [ ! -f "${GOOGLE_API_DIR}/annotations.proto" ]; then
@@ -94,6 +95,19 @@ protoc \
   --grpc-gateway_opt=generate_unbound_methods=false \
   user.proto
 
+# Generate rating.proto (stubs + grpc-gateway reverse proxy)
+echo "Generating Go code from rating.proto..."
+protoc \
+  --proto_path=${PROTO_DIR} \
+  --go_out=${PROTO_OUT_RATING} \
+  --go_opt=paths=source_relative \
+  --go-grpc_out=${PROTO_OUT_RATING} \
+  --go-grpc_opt=paths=source_relative \
+  --grpc-gateway_out=${PROTO_OUT_RATING} \
+  --grpc-gateway_opt=paths=source_relative \
+  --grpc-gateway_opt=generate_unbound_methods=false \
+  rating.proto
+
 # Check result
 if [ $? -eq 0 ]; then
   echo ""
@@ -103,6 +117,8 @@ if [ $? -eq 0 ]; then
   ls -lh ${PROTO_OUT_AUTH}/*.go 2>/dev/null || echo "No .go files in gen/authpb/"
   echo ""
   ls -lh ${PROTO_OUT_USER}/*.go 2>/dev/null || echo "No .go files in gen/userpb/"
+  echo ""
+  ls -lh ${PROTO_OUT_RATING}/*.go 2>/dev/null || echo "No .go files in gen/ratingpb/"
 else
   echo ""
   echo -e "${RED}❌ Proto generation failed!${NC}"

@@ -12,8 +12,9 @@ type Config struct {
 	Environment EnvironmentConfig
 	Redis       RedisConfig
 	Firebase    FirebaseConfig
-	AuthService ServiceEndpoint
-	UserService ServiceEndpoint
+	AuthService   ServiceEndpoint
+	UserService   ServiceEndpoint
+	RatingService ServiceEndpoint
 	CORS        CORSConfig
 	RateLimit   RateLimitConfig
 	LogLevel    string
@@ -90,6 +91,10 @@ func Load() (*Config, error) {
 		UserService: ServiceEndpoint{
 			Host: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_HOST", "0.0.0.0"),
 			Port: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_PORT", "50052"),
+		},
+		RatingService: ServiceEndpoint{
+			Host: sharedconfig.GetStringOrDefault(values, "RATING_SERVICE_HOST", "0.0.0.0"),
+			Port: sharedconfig.GetStringOrDefault(values, "RATING_SERVICE_PORT", "50054"),
 		},
 		CORS: CORSConfig{
 			AllowedOrigins: sharedconfig.GetStringOrDefault(values, "CORS_ALLOWED_ORIGINS", "*"),

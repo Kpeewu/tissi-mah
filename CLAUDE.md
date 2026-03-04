@@ -20,7 +20,8 @@ tissiMah/
 ├── services/
 │   ├── api-gateway/        # API Gateway HTTP→gRPC (grpc-gateway, Firebase JWT, rate limiting, CORS)
 │   ├── auth-service/       # Service d'authentification (PostgreSQL)
-│   └── user-service/       # Service utilisateur (MongoDB)
+│   ├── user-service/       # Service utilisateur (MongoDB)
+│   └── rating-service/     # Service de notation (PostgreSQL)
 │       # payment-service → TODO
 ├── infrastructure/
 │   └── terraform/          # IaC AWS (VPC, EKS, RDS, ElastiCache, DocumentDB)
@@ -44,6 +45,7 @@ Client (HTTPS) → [K8s Ingress/LoadBalancer]
         → grpc-gateway mux (HTTP→gRPC, injecte x-firebase-uid en metadata)
             → auth-service:50051 (gRPC)
             → user-service:50052 (gRPC)
+            → rating-service:50054 (gRPC)
 ```
 
 ### Flux d'authentification
@@ -121,6 +123,22 @@ grpc/handler.go → middleware/interceptor.go (lire x-firebase-uid) → service 
 
 **Port** : 50052 (gRPC)
 
+### rating-service — Notation des utilisateurs
+
+```
+grpc/handler.go → middleware/interceptor.go (lire x-firebase-uid) → service → repository (PostgreSQL)
+```
+
+**Port** : 50054 (gRPC)
+
+**Endpoints HTTP** (via api-gateway) :
+- `POST /api/v1/ratings` — Créer une note (JWT)
+- `GET /api/v1/ratings/{rating_id}` — Récupérer une note (public)
+- `GET /api/v1/ratings/user/{user_rated_id}` — Notes d'un utilisateur (public)
+- `GET /api/v1/ratings/user/{user_rated_id}/average` — Moyenne (public)
+- `PUT /api/v1/ratings/{rating_id}` — Modifier une note (JWT)
+- `DELETE /api/v1/ratings/{rating_id}` — Supprimer une note (JWT)
+
 ---
 
 ## Variables d'environnement
@@ -138,6 +156,8 @@ grpc/handler.go → middleware/interceptor.go (lire x-firebase-uid) → service 
 | `AUTH_SERVICE_PORT` | non (50051) | Port auth-service |
 | `USER_SERVICE_HOST` | non (0.0.0.0) | Host user-service |
 | `USER_SERVICE_PORT` | non (50052) | Port user-service |
+| `RATING_SERVICE_HOST` | non (0.0.0.0) | Host rating-service |
+| `RATING_SERVICE_PORT` | non (50054) | Port rating-service |
 | `CORS_ALLOWED_ORIGINS` | non (*) | Origines CORS séparées par virgules |
 
 ### auth-service
@@ -164,6 +184,16 @@ grpc/handler.go → middleware/interceptor.go (lire x-firebase-uid) → service 
 | `AUTH_SERVICE_HOST` | non (0.0.0.0) | Host auth-service |
 | `AUTH_SERVICE_PORT` | non (50051) | Port auth-service |
 
+### rating-service
+
+| Variable | Obligatoire | Description |
+|----------|-------------|-------------|
+| `DATABASE_URL` | oui | PostgreSQL connection URL |
+| `REDIS_URL` | oui | Redis connection URL |
+| `ENVIRONMENT` | oui | `local` / `vps-dev` / `staging` / `prod` |
+| `LOG_LEVEL` | oui | `debug` / `info` / `warn` / `error` |
+| `GRPC_PORT` | non (50054) | Port gRPC |
+
 ---
 
 ## Conventions de code
@@ -188,6 +218,7 @@ grpc/handler.go → middleware/interceptor.go (lire x-firebase-uid) → service 
 | `api-gateway` | Complet |
 | `auth-service` | Complet |
 | `user-service` | Complet |
+| `rating-service` | Complet |
 | Tests unitaires + intégration | Structure créée, à compléter |
 | `payment-service` | TODO |
 
@@ -210,4 +241,6 @@ grpc/handler.go → middleware/interceptor.go (lire x-firebase-uid) → service 
 | [services/auth-service/proto/auth.proto](services/auth-service/proto/auth.proto) | Contrat API gRPC auth |
 | [services/user-service/cmd/server/main.go](services/user-service/cmd/server/main.go) | Point d'entrée user-service |
 | [services/user-service/proto/user.proto](services/user-service/proto/user.proto) | Contrat API gRPC user |
+| [services/rating-service/cmd/server/main.go](services/rating-service/cmd/server/main.go) | Point d'entrée rating-service |
+| [services/rating-service/proto/rating.proto](services/rating-service/proto/rating.proto) | Contrat API gRPC rating |
 | [docs/architecture/overview.md](docs/architecture/overview.md) | Vue d'ensemble architecture |

@@ -14,14 +14,16 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	authpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/authpb"
+	ratingpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb"
 	userpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/userpb"
 )
 
 // MuxConfig contient les paramètres pour créer le grpc-gateway ServeMux
 type MuxConfig struct {
-	AuthServiceAddr string
-	UserServiceAddr string
-	Logger          *zap.Logger
+	AuthServiceAddr   string
+	UserServiceAddr   string
+	RatingServiceAddr string
+	Logger            *zap.Logger
 }
 
 // NewGatewayMux crée un runtime.ServeMux configuré avec les handlers
@@ -87,6 +89,12 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		return nil, err
 	}
 	cfg.Logger.Info("registered user-service handler", zap.String("endpoint", cfg.UserServiceAddr))
+
+	// Enregistrer rating-service
+	if err := ratingpb.RegisterRatingServiceHandlerFromEndpoint(ctx, mux, cfg.RatingServiceAddr, dialOpts); err != nil {
+		return nil, err
+	}
+	cfg.Logger.Info("registered rating-service handler", zap.String("endpoint", cfg.RatingServiceAddr))
 
 	return mux, nil
 }

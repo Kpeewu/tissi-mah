@@ -77,9 +77,10 @@ func run(bootstrapLogger *zap.Logger) error {
 
 	// --- grpc-gateway mux ---
 	gwMux, err := gateway.NewGatewayMux(ctx, gateway.MuxConfig{
-		AuthServiceAddr: cfg.AuthService.Address(),
-		UserServiceAddr: cfg.UserService.Address(),
-		Logger:          logger,
+		AuthServiceAddr:   cfg.AuthService.Address(),
+		UserServiceAddr:   cfg.UserService.Address(),
+		RatingServiceAddr: cfg.RatingService.Address(),
+		Logger:            logger,
 	})
 	if err != nil {
 		return fmt.Errorf("gateway mux: %w", err)
@@ -99,6 +100,7 @@ func run(bootstrapLogger *zap.Logger) error {
 		zap.String("port", cfg.Server.Port),
 		zap.String("auth-service", cfg.AuthService.Address()),
 		zap.String("user-service", cfg.UserService.Address()),
+		zap.String("rating-service", cfg.RatingService.Address()),
 	)
 
 	return srv.Serve(ctx)
