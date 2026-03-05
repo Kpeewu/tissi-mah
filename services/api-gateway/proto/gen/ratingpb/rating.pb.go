@@ -892,7 +892,7 @@ const file_rating_proto_rawDesc = "" +
 	"\tGetRating\x12\x18.rating.GetRatingRequest\x1a\x19.rating.GetRatingResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/api/v1/ratings/{rating_id}\x12\x86\x01\n" +
 	"\x11GetRatingsForUser\x12 .rating.GetRatingsForUserRequest\x1a!.rating.GetRatingsForUserResponse\",\x82\xd3\xe4\x93\x02&\x12$/api/v1/ratings/user/{user_rated_id}\x12\x8b\x01\n" +
 	"\x10GetAverageRating\x12\x1f.rating.GetAverageRatingRequest\x1a .rating.GetAverageRatingResponse\"4\x82\xd3\xe4\x93\x02.\x12,/api/v1/ratings/user/{user_rated_id}/average\x12q\n" +
-	"\fUpdateRating\x12\x1b.rating.UpdateRatingRequest\x1a\x1c.rating.UpdateRatingResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\x1a\x1b/api/v1/ratings/{rating_id}\x12n\n" +
+	"\fUpdateRating\x12\x1b.rating.UpdateRatingRequest\x1a\x1c.rating.UpdateRatingResponse\"&\x82\xd3\xe4\x93\x02 :\x01*2\x1b/api/v1/ratings/{rating_id}\x12n\n" +
 	"\fDeleteRating\x12\x1b.rating.DeleteRatingRequest\x1a\x1c.rating.RatingServerResponse\"#\x82\xd3\xe4\x93\x02\x1d*\x1b/api/v1/ratings/{rating_id}\x12W\n" +
 	"\x06Health\x12\x15.rating.HealthRequest\x1a\x16.rating.HealthResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/api/v1/ratings/healthBLZJgithub.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb;ratingb\x06proto3"
 
