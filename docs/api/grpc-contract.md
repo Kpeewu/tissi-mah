@@ -355,7 +355,7 @@ message OperationResponse {
 | `GetRating` | Unary | `GET /api/v1/ratings/{rating_id}` | Public | Get rating by ID |
 | `GetRatingsForUser` | Unary | `GET /api/v1/ratings/user/{user_rated_id}` | Public | Get ratings for a user |
 | `GetAverageRating` | Unary | `GET /api/v1/ratings/user/{user_rated_id}/average` | Public | Get user's average rating |
-| `UpdateRating` | Unary | `PUT /api/v1/ratings/{rating_id}` | JWT | Update a rating |
+| `UpdateRating` | Unary | `PATCH /api/v1/ratings/{rating_id}` | JWT | Update a rating |
 | `DeleteRating` | Unary | `DELETE /api/v1/ratings/{rating_id}` | JWT | Delete a rating |
 | `Health` | Unary | `GET /api/v1/ratings/health` | Public | Health check |
 

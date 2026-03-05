@@ -26,7 +26,7 @@ The token is obtained from Firebase Authentication on the mobile client after th
 | Header | Required | Description |
 |--------|----------|-------------|
 | `Authorization` | Yes (protected) | Firebase JWT token: `Bearer <token>` |
-| `Content-Type` | Yes (POST/PUT) | `application/json` |
+| `Content-Type` | Yes (POST/PATCH) | `application/json` |
 | `Accept` | No | `application/json` |
 | `X-Request-ID` | No | Client-generated UUID for request tracing |
 
@@ -282,7 +282,7 @@ curl https://api.tissi-mah.com/api/v1/ratings/user/u-550e8400/average
 
 ---
 
-### PUT /ratings/{rating_id}
+### PATCH /ratings/{rating_id}
 
 Updates an existing rating. Only the original rater can modify their rating.
 
@@ -291,7 +291,7 @@ Updates an existing rating. Only the original rater can modify their rating.
 #### Request
 
 ```http
-PUT /api/v1/ratings/r-550e8400-e29b-41d4-a716-446655440000 HTTP/1.1
+PATCH /api/v1/ratings/r-550e8400-e29b-41d4-a716-446655440000 HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
 Content-Type: application/json
@@ -342,7 +342,7 @@ Content-Type: application/json
 #### Example (cURL)
 
 ```bash
-curl -X PUT https://api.tissi-mah.com/api/v1/ratings/r-550e8400 \
+curl -X PATCH https://api.tissi-mah.com/api/v1/ratings/r-550e8400 \
   -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
   -H "Content-Type: application/json" \
   -d '{

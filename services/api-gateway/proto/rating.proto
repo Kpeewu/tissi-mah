@@ -49,7 +49,7 @@ service RatingService {
   // UpdateRating - Modifier une note existante
   rpc UpdateRating(UpdateRatingRequest) returns (UpdateRatingResponse) {
     option (google.api.http) = {
-      put: "/api/v1/ratings/{rating_id}"
+      patch: "/api/v1/ratings/{rating_id}"
       body: "*"
     };
   }

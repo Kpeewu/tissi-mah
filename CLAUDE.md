@@ -136,7 +136,7 @@ grpc/handler.go → middleware/interceptor.go (lire x-firebase-uid) → service 
 - `GET /api/v1/ratings/{rating_id}` — Récupérer une note (public)
 - `GET /api/v1/ratings/user/{user_rated_id}` — Notes d'un utilisateur (public)
 - `GET /api/v1/ratings/user/{user_rated_id}/average` — Moyenne (public)
-- `PUT /api/v1/ratings/{rating_id}` — Modifier une note (JWT)
+- `PATCH /api/v1/ratings/{rating_id}` — Modifier une note (JWT)
 - `DELETE /api/v1/ratings/{rating_id}` — Supprimer une note (JWT)
 
 ---
