@@ -13,19 +13,16 @@ This document describes the HTTP/REST API exposed by the rating-service through 
 
 ## Authentication
 
-Protected endpoints require a valid Firebase JWT token in the `Authorization` header.
+All rating-service endpoints are currently **public** (no Firebase JWT required).
+The `rater_id` is provided in the request body for create, update, and delete operations.
+Both `rater_id` and `user_rated_id` are validated against the user-service to ensure they exist.
 
-```
-Authorization: Bearer <firebase_id_token>
-```
-
-The token is obtained from Firebase Authentication on the mobile client after the user signs in.
+> **Note:** When Firebase JWT is fully integrated, protected endpoints will require a valid token and `rater_id` will be extracted from the JWT instead of the body.
 
 ## Common Headers
 
 | Header | Required | Description |
 |--------|----------|-------------|
-| `Authorization` | Yes (protected) | Firebase JWT token: `Bearer <token>` |
 | `Content-Type` | Yes (POST/PATCH) | `application/json` |
 | `Accept` | No | `application/json` |
 | `X-Request-ID` | No | Client-generated UUID for request tracing |
@@ -50,19 +47,19 @@ All errors follow this format:
 
 ### POST /ratings
 
-Creates a new rating for a user. The rater is automatically identified from the Firebase JWT.
+Creates a new rating for a user.
 
-**Authentication:** Required (Firebase JWT)
+**Authentication:** Not required (public)
 
 #### Request
 
 ```http
 POST /api/v1/ratings HTTP/1.1
 Host: api.tissi-mah.com
-Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
 Content-Type: application/json
 
 {
+    "rater_id": "firebase-uid-abc123",
     "user_rated_id": "u-550e8400-e29b-41d4-a716-446655440000",
     "number_of_stars": 4,
     "comment": "Excellent trajet, conducteur ponctuel et agréable"
@@ -73,7 +70,8 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `user_rated_id` | string | Yes | ID of the user being rated |
+| `rater_id` | string | Yes | AuthID of the rater (validated against user-service) |
+| `user_rated_id` | string | Yes | AuthID of the user being rated (validated against user-service) |
 | `number_of_stars` | integer | Yes | Rating from 1 to 5 |
 | `comment` | string | No | Optional text comment |
 
@@ -104,8 +102,8 @@ Content-Type: application/json
 | `error_message` | string | Error message if failed, empty if success |
 | `rating` | object | Created rating details |
 | `rating.rating_id` | string | Unique rating ID |
-| `rating.rater_id` | string | Firebase UID of the rater |
-| `rating.user_rated_id` | string | ID of the user being rated |
+| `rating.rater_id` | string | AuthID of the rater |
+| `rating.user_rated_id` | string | AuthID of the user being rated |
 | `rating.number_of_stars` | integer | Rating (1-5) |
 | `rating.comment` | string | Optional comment |
 | `rating.created_at` | integer | Unix timestamp |
@@ -117,15 +115,16 @@ Content-Type: application/json
 |-------|-----------|-------------|
 | `ErrorInvalidStars` | 400 | Stars must be between 1 and 5 |
 | `ErrorSelfRating` | 400 | Cannot rate yourself |
+| `ErrorUserNotFound` | 404 | rater_id or user_rated_id does not exist in user-service |
 | `ErrorRatingAlreadyExists` | 409 | Already rated this user |
 
 #### Example (cURL)
 
 ```bash
 curl -X POST https://api.tissi-mah.com/api/v1/ratings \
-  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
   -H "Content-Type: application/json" \
   -d '{
+    "rater_id": "firebase-uid-abc123",
     "user_rated_id": "u-550e8400",
     "number_of_stars": 4,
     "comment": "Excellent trajet"
@@ -286,18 +285,18 @@ curl https://api.tissi-mah.com/api/v1/ratings/user/u-550e8400/average
 
 Updates an existing rating. Only the original rater can modify their rating.
 
-**Authentication:** Required (Firebase JWT)
+**Authentication:** Not required (public, rater_id in body)
 
 #### Request
 
 ```http
 PATCH /api/v1/ratings/r-550e8400-e29b-41d4-a716-446655440000 HTTP/1.1
 Host: api.tissi-mah.com
-Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
 Content-Type: application/json
 
 {
     "rating_id": "r-550e8400-e29b-41d4-a716-446655440000",
+    "rater_id": "firebase-uid-abc123",
     "number_of_stars": 5,
     "comment": "Finalement c'était le meilleur trajet !"
 }
@@ -308,6 +307,7 @@ Content-Type: application/json
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `rating_id` | string | Yes | Rating ID (must match URL) |
+| `rater_id` | string | Yes | AuthID of the rater (must match original rater) |
 | `number_of_stars` | integer | Yes | New rating from 1 to 5 |
 | `comment` | string | No | Updated comment |
 
@@ -343,10 +343,10 @@ Content-Type: application/json
 
 ```bash
 curl -X PATCH https://api.tissi-mah.com/api/v1/ratings/r-550e8400 \
-  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
   -H "Content-Type: application/json" \
   -d '{
     "rating_id": "r-550e8400",
+    "rater_id": "firebase-uid-abc123",
     "number_of_stars": 5,
     "comment": "Finalement c était le meilleur trajet !"
   }'
@@ -354,21 +354,31 @@ curl -X PATCH https://api.tissi-mah.com/api/v1/ratings/r-550e8400 \
 
 ---
 
-### DELETE /ratings/{rating_id}
+### POST /ratings/{rating_id}/delete
 
 Deletes a rating. Only the original rater can delete their rating.
 
-**Authentication:** Required (Firebase JWT)
+**Authentication:** Not required (public, rater_id in body)
 
 #### Request
 
 ```http
-DELETE /api/v1/ratings/r-550e8400-e29b-41d4-a716-446655440000 HTTP/1.1
+POST /api/v1/ratings/r-550e8400-e29b-41d4-a716-446655440000/delete HTTP/1.1
 Host: api.tissi-mah.com
-Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
+Content-Type: application/json
+
+{
+    "rater_id": "firebase-uid-abc123"
+}
 ```
 
-**Body:** None required
+#### Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `rater_id` | string | Yes | AuthID of the rater (must match original rater) |
+
+**Note:** `rating_id` is provided in the URL path.
 
 #### Response (Success)
 
@@ -400,8 +410,11 @@ Content-Type: application/json
 #### Example (cURL)
 
 ```bash
-curl -X DELETE https://api.tissi-mah.com/api/v1/ratings/r-550e8400 \
-  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
+curl -X POST https://api.tissi-mah.com/api/v1/ratings/r-550e8400/delete \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rater_id": "firebase-uid-abc123"
+  }'
 ```
 
 ---
@@ -450,6 +463,7 @@ curl https://api.tissi-mah.com/api/v1/ratings/health
 | **No self-rating** | A user cannot rate themselves |
 | **One rating per pair** | A rater can only rate a given user once |
 | **Owner-only modification** | Only the rater can update or delete their rating |
+| **User validation** | Both rater_id and user_rated_id must exist in user-service |
 
 ### Database Constraints
 
@@ -466,6 +480,7 @@ curl https://api.tissi-mah.com/api/v1/ratings/health
 | Error | HTTP | gRPC Code | Description | User Action |
 |-------|------|-----------|-------------|-------------|
 | `ErrorRatingNotFound` | 404 | NOT_FOUND (5) | Rating does not exist | Check rating ID |
+| `ErrorUserNotFound` | 404 | NOT_FOUND (5) | User does not exist in user-service | Check rater_id or user_rated_id |
 | `ErrorRatingAlreadyExists` | 409 | ALREADY_EXISTS (6) | Already rated this user | Update existing rating |
 | `ErrorInvalidStars` | 400 | INVALID_ARGUMENT (3) | Stars not in 1-5 range | Fix stars value |
 | `ErrorSelfRating` | 400 | INVALID_ARGUMENT (3) | Cannot rate yourself | Rate another user |

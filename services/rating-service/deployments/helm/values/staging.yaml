@@ -41,6 +41,8 @@ service:
 config:
   environment: "staging"
   logLevel: "info"
+  userServiceHost: "user-service"
+  userServicePort: "50052"
   extra: {}
 
 # Secrets should be provided via AWS Secrets Manager or external secret management

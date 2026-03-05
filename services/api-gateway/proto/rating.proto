@@ -57,7 +57,8 @@ service RatingService {
   // DeleteRating - Supprimer une note
   rpc DeleteRating(DeleteRatingRequest) returns (RatingServerResponse) {
     option (google.api.http) = {
-      delete: "/api/v1/ratings/{rating_id}"
+      post: "/api/v1/ratings/{rating_id}/delete"
+      body: "*"
     };
   }
 
@@ -77,6 +78,7 @@ message CreateRatingRequest {
   string user_rated_id = 1;
   int32 number_of_stars = 2;
   string comment = 3; // Optionnel
+  string rater_id = 4;
 }
 
 message GetRatingRequest {
@@ -95,10 +97,12 @@ message UpdateRatingRequest {
   string rating_id = 1;
   int32 number_of_stars = 2;
   string comment = 3; // Optionnel
+  string rater_id = 4;
 }
 
 message DeleteRatingRequest {
   string rating_id = 1;
+  string rater_id = 2;
 }
 
 message HealthRequest {

@@ -351,12 +351,12 @@ message OperationResponse {
 
 | RPC | Type | HTTP Route | Auth | Description |
 |-----|------|------------|------|-------------|
-| `CreateRating` | Unary | `POST /api/v1/ratings` | JWT | Submit a rating |
+| `CreateRating` | Unary | `POST /api/v1/ratings` | Public | Submit a rating (rater_id in body) |
 | `GetRating` | Unary | `GET /api/v1/ratings/{rating_id}` | Public | Get rating by ID |
 | `GetRatingsForUser` | Unary | `GET /api/v1/ratings/user/{user_rated_id}` | Public | Get ratings for a user |
 | `GetAverageRating` | Unary | `GET /api/v1/ratings/user/{user_rated_id}/average` | Public | Get user's average rating |
-| `UpdateRating` | Unary | `PATCH /api/v1/ratings/{rating_id}` | JWT | Update a rating |
-| `DeleteRating` | Unary | `DELETE /api/v1/ratings/{rating_id}` | JWT | Delete a rating |
+| `UpdateRating` | Unary | `PATCH /api/v1/ratings/{rating_id}` | Public | Update a rating (rater_id in body) |
+| `DeleteRating` | Unary | `POST /api/v1/ratings/{rating_id}/delete` | Public | Delete a rating (rater_id in body) |
 | `Health` | Unary | `GET /api/v1/ratings/health` | Public | Health check |
 
 ### Messages
@@ -368,6 +368,7 @@ message CreateRatingRequest {
     string user_rated_id = 1;
     int32 number_of_stars = 2;
     string comment = 3;          // optional
+    string rater_id = 4;
 }
 message CreateRatingResponse {
     string error_message = 1;
@@ -397,13 +398,17 @@ message UpdateRatingRequest {
     string rating_id = 1;
     int32 number_of_stars = 2;
     string comment = 3;          // optional
+    string rater_id = 4;
 }
 message UpdateRatingResponse {
     string error_message = 1;
     RatingDetail rating = 2;
 }
 
-message DeleteRatingRequest { string rating_id = 1; }
+message DeleteRatingRequest {
+    string rating_id = 1;
+    string rater_id = 2;
+}
 message RatingServerResponse {
     string error_message = 1;
     bool success = 2;
@@ -434,6 +439,7 @@ message HealthResponse {
 | Error | gRPC Code | Description |
 |-------|-----------|-------------|
 | `ErrorRatingNotFound` | NOT_FOUND | Rating does not exist |
+| `ErrorUserNotFound` | NOT_FOUND | User does not exist in user-service |
 | `ErrorRatingAlreadyExists` | ALREADY_EXISTS | Rating already exists for this rater/user pair |
 | `ErrorInvalidStars` | INVALID_ARGUMENT | Stars must be between 1 and 5 |
 | `ErrorSelfRating` | INVALID_ARGUMENT | Cannot rate yourself |
@@ -687,5 +693,6 @@ user-service  ──gRPC──> auth-service    (GetAuthInfo)
 user-service  ──gRPC──> file-service    (Upload/Get/Delete documents)
 api-gateway   ──gRPC──> auth-service    (HTTP transcoding via grpc-gateway)
 api-gateway   ──gRPC──> user-service    (HTTP transcoding via grpc-gateway)
+rating-service ──gRPC──> user-service    (GetUserByAuthID — validate user exists)
 api-gateway   ──gRPC──> rating-service  (HTTP transcoding via grpc-gateway)
 ```

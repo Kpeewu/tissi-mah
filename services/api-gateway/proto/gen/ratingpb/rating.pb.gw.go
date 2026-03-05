@@ -230,6 +230,9 @@ func request_RatingService_DeleteRating_0(ctx context.Context, marshaler runtime
 		metadata runtime.ServerMetadata
 		err      error
 	)
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
 	}
@@ -251,6 +254,9 @@ func local_request_RatingService_DeleteRating_0(ctx context.Context, marshaler r
 		metadata runtime.ServerMetadata
 		err      error
 	)
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
 	val, ok := pathParams["rating_id"]
 	if !ok {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "rating_id")
@@ -390,13 +396,13 @@ func RegisterRatingServiceHandlerServer(ctx context.Context, mux *runtime.ServeM
 		}
 		forward_RatingService_UpdateRating_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodDelete, pattern_RatingService_DeleteRating_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodPost, pattern_RatingService_DeleteRating_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/DeleteRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{rating_id}"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/DeleteRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{rating_id}/delete"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -555,11 +561,11 @@ func RegisterRatingServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 		}
 		forward_RatingService_UpdateRating_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodDelete, pattern_RatingService_DeleteRating_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodPost, pattern_RatingService_DeleteRating_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/DeleteRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{rating_id}"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/DeleteRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{rating_id}/delete"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -598,7 +604,7 @@ var (
 	pattern_RatingService_GetRatingsForUser_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "ratings", "user", "user_rated_id"}, ""))
 	pattern_RatingService_GetAverageRating_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"api", "v1", "ratings", "user", "user_rated_id", "average"}, ""))
 	pattern_RatingService_UpdateRating_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "ratings", "rating_id"}, ""))
-	pattern_RatingService_DeleteRating_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "ratings", "rating_id"}, ""))
+	pattern_RatingService_DeleteRating_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "ratings", "rating_id", "delete"}, ""))
 	pattern_RatingService_Health_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "ratings", "health"}, ""))
 )
 
