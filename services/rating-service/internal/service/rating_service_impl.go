@@ -37,7 +37,7 @@ func NewRatingService(
 func (s *ratingServiceImpl) CreateRating(ctx context.Context, raterID string, userRatedID string, numberOfStars int16, comment string) (*domain.Rating, error) {
 	if raterID == "" {
 		s.logger.Error("rater_id is required")
-		return nil, ratingErrors.ErrorInvalidStars
+		return nil, ratingErrors.ErrorMissingRaterID
 	}
 
 	s.logger.Debug("create rating",
@@ -136,7 +136,7 @@ func (s *ratingServiceImpl) GetAverageRating(ctx context.Context, userRatedID st
 func (s *ratingServiceImpl) UpdateRating(ctx context.Context, raterID string, ratingID string, numberOfStars int16, comment string) (*domain.Rating, error) {
 	if raterID == "" {
 		s.logger.Error("rater_id is required")
-		return nil, ratingErrors.ErrorInvalidStars
+		return nil, ratingErrors.ErrorMissingRaterID
 	}
 
 	// Vérification : nombre d'étoiles valide
@@ -174,7 +174,7 @@ func (s *ratingServiceImpl) UpdateRating(ctx context.Context, raterID string, ra
 func (s *ratingServiceImpl) DeleteRating(ctx context.Context, raterID string, ratingID string) error {
 	if raterID == "" {
 		s.logger.Error("rater_id is required")
-		return ratingErrors.ErrorInvalidStars
+		return ratingErrors.ErrorMissingRaterID
 	}
 
 	// Récupération de la note existante
