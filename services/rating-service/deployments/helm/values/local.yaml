@@ -35,6 +35,8 @@ service:
 config:
   environment: "local"
   logLevel: "debug"
+  userServiceHost: "user-service"
+  userServicePort: "50052"
   extra: {}
 
 secrets:

@@ -36,7 +36,7 @@ func (h *RatingHandler) CreateRating(ctx context.Context, req *ratingpb.CreateRa
 		zap.Int32("stars", req.NumberOfStars),
 	)
 
-	rating, err := h.service.CreateRating(ctx, req.UserRatedId, int16(req.NumberOfStars), req.Comment)
+	rating, err := h.service.CreateRating(ctx, req.RaterId, req.UserRatedId, int16(req.NumberOfStars), req.Comment)
 	if err != nil {
 		h.logger.Error("handler: CreateRating failed", zap.Error(err))
 		return nil, toGRPCError(err)
@@ -97,7 +97,7 @@ func (h *RatingHandler) GetAverageRating(ctx context.Context, req *ratingpb.GetA
 func (h *RatingHandler) UpdateRating(ctx context.Context, req *ratingpb.UpdateRatingRequest) (*ratingpb.UpdateRatingResponse, error) {
 	h.logger.Debug("handler: UpdateRating called", zap.String("ratingID", req.RatingId))
 
-	rating, err := h.service.UpdateRating(ctx, req.RatingId, int16(req.NumberOfStars), req.Comment)
+	rating, err := h.service.UpdateRating(ctx, req.RaterId, req.RatingId, int16(req.NumberOfStars), req.Comment)
 	if err != nil {
 		h.logger.Error("handler: UpdateRating failed", zap.Error(err))
 		return nil, toGRPCError(err)
@@ -111,7 +111,7 @@ func (h *RatingHandler) UpdateRating(ctx context.Context, req *ratingpb.UpdateRa
 func (h *RatingHandler) DeleteRating(ctx context.Context, req *ratingpb.DeleteRatingRequest) (*ratingpb.RatingServerResponse, error) {
 	h.logger.Debug("handler: DeleteRating called", zap.String("ratingID", req.RatingId))
 
-	if err := h.service.DeleteRating(ctx, req.RatingId); err != nil {
+	if err := h.service.DeleteRating(ctx, req.RaterId, req.RatingId); err != nil {
 		h.logger.Error("handler: DeleteRating failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
@@ -140,6 +140,8 @@ func toGRPCError(err error) error {
 		return status.Error(codes.InvalidArgument, err.Error())
 	case errors.Is(err, ratingErrors.ErrorSelfRating):
 		return status.Error(codes.InvalidArgument, err.Error())
+	case errors.Is(err, ratingErrors.ErrorUserNotFound):
+		return status.Error(codes.NotFound, err.Error())
 	case errors.Is(err, ratingErrors.ErrorUnauthorizedAction):
 		return status.Error(codes.PermissionDenied, err.Error())
 	case errors.Is(err, ratingErrors.ErrorCantDeleteRating):

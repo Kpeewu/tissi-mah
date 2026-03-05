@@ -132,12 +132,12 @@ grpc/handler.go → middleware/interceptor.go (lire x-firebase-uid) → service 
 **Port** : 50054 (gRPC)
 
 **Endpoints HTTP** (via api-gateway) :
-- `POST /api/v1/ratings` — Créer une note (JWT)
+- `POST /api/v1/ratings` — Créer une note (public, rater_id dans le body)
 - `GET /api/v1/ratings/{rating_id}` — Récupérer une note (public)
 - `GET /api/v1/ratings/user/{user_rated_id}` — Notes d'un utilisateur (public)
 - `GET /api/v1/ratings/user/{user_rated_id}/average` — Moyenne (public)
-- `PATCH /api/v1/ratings/{rating_id}` — Modifier une note (JWT)
-- `DELETE /api/v1/ratings/{rating_id}` — Supprimer une note (JWT)
+- `PATCH /api/v1/ratings/{rating_id}` — Modifier une note (public, rater_id dans le body)
+- `POST /api/v1/ratings/{rating_id}/delete` — Supprimer une note (public, rater_id dans le body)
 
 ---
 
@@ -193,6 +193,8 @@ grpc/handler.go → middleware/interceptor.go (lire x-firebase-uid) → service 
 | `ENVIRONMENT` | oui | `local` / `vps-dev` / `staging` / `prod` |
 | `LOG_LEVEL` | oui | `debug` / `info` / `warn` / `error` |
 | `GRPC_PORT` | non (50054) | Port gRPC |
+| `USER_SERVICE_HOST` | non (0.0.0.0) | Host user-service |
+| `USER_SERVICE_PORT` | non (50052) | Port user-service |
 
 ---
 

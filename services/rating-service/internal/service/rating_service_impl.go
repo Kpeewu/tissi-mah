@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
+	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/domain"
-	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/middleware"
 	repoInterfaces "github.com/Kpeewu/tissi-mah/services/rating-service/internal/repository/interfaces"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/rating-service/internal/service/interfaces"
 	ratingErrors "github.com/Kpeewu/tissi-mah/services/rating-service/pkg/errors"
@@ -13,29 +13,31 @@ import (
 )
 
 type ratingServiceImpl struct {
-	readRepo  repoInterfaces.RatingRepositoryRead
-	writeRepo repoInterfaces.RatingRepositoryWrite
-	logger    *zap.Logger
+	readRepo   repoInterfaces.RatingRepositoryRead
+	writeRepo  repoInterfaces.RatingRepositoryWrite
+	userClient client.UserClient
+	logger     *zap.Logger
 }
 
 func NewRatingService(
 	readRepo repoInterfaces.RatingRepositoryRead,
 	writeRepo repoInterfaces.RatingRepositoryWrite,
+	userClient client.UserClient,
 	logger *zap.Logger) serviceInterfaces.RatingService {
 
 	return &ratingServiceImpl{
-		readRepo:  readRepo,
-		writeRepo: writeRepo,
-		logger:    logger,
+		readRepo:   readRepo,
+		writeRepo:  writeRepo,
+		userClient: userClient,
+		logger:     logger,
 	}
 }
 
 // CreateRating crée une nouvelle note pour un utilisateur
-func (s *ratingServiceImpl) CreateRating(ctx context.Context, userRatedID string, numberOfStars int16, comment string) (*domain.Rating, error) {
-	raterID, ok := ctx.Value(middleware.FirebaseIDKey).(string)
-	if !ok || raterID == "" {
-		s.logger.Error("firebase ID missing from context")
-		return nil, ratingErrors.ErrorInternalServer
+func (s *ratingServiceImpl) CreateRating(ctx context.Context, raterID string, userRatedID string, numberOfStars int16, comment string) (*domain.Rating, error) {
+	if raterID == "" {
+		s.logger.Error("rater_id is required")
+		return nil, ratingErrors.ErrorInvalidStars
 	}
 
 	s.logger.Debug("create rating",
@@ -54,6 +56,16 @@ func (s *ratingServiceImpl) CreateRating(ctx context.Context, userRatedID string
 	if numberOfStars < domain.MinStars || numberOfStars > domain.MaxStars {
 		s.logger.Warn("invalid stars", zap.Int16("stars", numberOfStars))
 		return nil, ratingErrors.ErrorInvalidStars
+	}
+
+	// Vérification : le rater existe dans user-service
+	if err := s.validateUserExists(ctx, raterID, "rater"); err != nil {
+		return nil, err
+	}
+
+	// Vérification : le user_rated existe dans user-service
+	if err := s.validateUserExists(ctx, userRatedID, "user_rated"); err != nil {
+		return nil, err
 	}
 
 	// Vérification : une seule note par couple rater/rated
@@ -121,11 +133,10 @@ func (s *ratingServiceImpl) GetAverageRating(ctx context.Context, userRatedID st
 }
 
 // UpdateRating modifie une note existante (seul le rater peut modifier)
-func (s *ratingServiceImpl) UpdateRating(ctx context.Context, ratingID string, numberOfStars int16, comment string) (*domain.Rating, error) {
-	raterID, ok := ctx.Value(middleware.FirebaseIDKey).(string)
-	if !ok || raterID == "" {
-		s.logger.Error("firebase ID missing from context")
-		return nil, ratingErrors.ErrorInternalServer
+func (s *ratingServiceImpl) UpdateRating(ctx context.Context, raterID string, ratingID string, numberOfStars int16, comment string) (*domain.Rating, error) {
+	if raterID == "" {
+		s.logger.Error("rater_id is required")
+		return nil, ratingErrors.ErrorInvalidStars
 	}
 
 	// Vérification : nombre d'étoiles valide
@@ -160,11 +171,10 @@ func (s *ratingServiceImpl) UpdateRating(ctx context.Context, ratingID string, n
 }
 
 // DeleteRating supprime une note (seul le rater peut supprimer)
-func (s *ratingServiceImpl) DeleteRating(ctx context.Context, ratingID string) error {
-	raterID, ok := ctx.Value(middleware.FirebaseIDKey).(string)
-	if !ok || raterID == "" {
-		s.logger.Error("firebase ID missing from context")
-		return ratingErrors.ErrorInternalServer
+func (s *ratingServiceImpl) DeleteRating(ctx context.Context, raterID string, ratingID string) error {
+	if raterID == "" {
+		s.logger.Error("rater_id is required")
+		return ratingErrors.ErrorInvalidStars
 	}
 
 	// Récupération de la note existante
@@ -183,4 +193,25 @@ func (s *ratingServiceImpl) DeleteRating(ctx context.Context, ratingID string) e
 	}
 
 	return s.writeRepo.Delete(ctx, ratingID)
+}
+
+// validateUserExists vérifie qu'un utilisateur existe dans user-service.
+func (s *ratingServiceImpl) validateUserExists(ctx context.Context, authID string, role string) error {
+	exists, err := s.userClient.UserExists(ctx, authID)
+	if err != nil {
+		s.logger.Error("user-service check failed",
+			zap.String("authID", authID),
+			zap.String("role", role),
+			zap.Error(err),
+		)
+		return ratingErrors.ErrorInternalServer
+	}
+	if !exists {
+		s.logger.Warn("user not found",
+			zap.String("authID", authID),
+			zap.String("role", role),
+		)
+		return ratingErrors.ErrorUserNotFound
+	}
+	return nil
 }

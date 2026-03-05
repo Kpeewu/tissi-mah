@@ -8,6 +8,7 @@ import (
 
 	pkgDatabase "github.com/Kpeewu/tissi-mah/pkg/database"
 	pkgLogger "github.com/Kpeewu/tissi-mah/pkg/logger"
+	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/config"
 	grpcServer "github.com/Kpeewu/tissi-mah/services/rating-service/internal/grpc"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/repository/implementations"
@@ -54,12 +55,21 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer pool.Close()
 	logger.Info("connected to postgres")
 
+	// --- User-service client ---
+	userServiceAddr := fmt.Sprintf("%s:%s", cfg.UserService.Address, cfg.UserService.Port)
+	userClient, err := client.NewUserServiceClient(userServiceAddr, logger)
+	if err != nil {
+		return fmt.Errorf("user-service client: %w", err)
+	}
+	defer userClient.Close()
+	logger.Info("user-service client ready", zap.String("address", userServiceAddr))
+
 	// --- Repositories ---
 	readRepo := implementations.NewRatingReadRepository(pool, logger)
 	writeRepo := implementations.NewRatingWriteRepository(pool, logger)
 
 	// --- Rating service ---
-	ratingService := service.NewRatingService(readRepo, writeRepo, logger)
+	ratingService := service.NewRatingService(readRepo, writeRepo, userClient, logger)
 
 	// --- gRPC server ---
 	srv, err := grpcServer.NewRatingServer(cfg, ratingService, logger)
