@@ -1,0 +1,54 @@
+// User Service Proto — contrat utilisé par rating-service
+// Définit uniquement les RPCs dont rating-service a besoin.
+// L'implémentation complète est dans services/user-service.
+
+syntax = "proto3";
+
+package user;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/rating-service/proto/gen/userpb;userpb";
+
+// =============================================================================
+// User Service
+// =============================================================================
+
+service UserService {
+  // Récupère le profil utilisateur lié à un AuthID
+  rpc GetUserByAuthID(GetUserByAuthIDRequest) returns (UserProfileResponse);
+}
+
+// =============================================================================
+// Request Messages
+// =============================================================================
+
+message GetUserByAuthIDRequest {
+  string AuthID = 1;
+}
+
+// =============================================================================
+// Response Messages
+// =============================================================================
+
+message TripPreference {
+  string Preference = 1;
+  bool   IsAllowed  = 2;
+}
+
+message UserProfileResponse {
+  string UserID                              = 1;
+  string AuthID                              = 2;
+  string Name                                = 3;
+  string FirstName                           = 4;
+  string Gender                              = 5;
+  string DateOfBirth                         = 6;
+  string Bio                                 = 7;
+  bool   HasProfileImage                     = 8;
+  string ProfileImageURL                     = 9;
+  bool   IsDriver                            = 10;
+  bool   IsPassenger                         = 11;
+  bool   IsDriverProfileVerified             = 12;
+  bool   IsPassengerProfileVerified          = 13;
+  repeated TripPreference TripPreferences    = 14;
+  string IDCardExpirationDate                = 15;
+  string DriveLicenceExpirationDate          = 16;
+}

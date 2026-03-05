@@ -33,6 +33,7 @@ type CreateRatingRequest struct {
 	UserRatedId   string                 `protobuf:"bytes,1,opt,name=user_rated_id,json=userRatedId,proto3" json:"user_rated_id,omitempty"`
 	NumberOfStars int32                  `protobuf:"varint,2,opt,name=number_of_stars,json=numberOfStars,proto3" json:"number_of_stars,omitempty"`
 	Comment       string                 `protobuf:"bytes,3,opt,name=comment,proto3" json:"comment,omitempty"` // Optionnel
+	RaterId       string                 `protobuf:"bytes,4,opt,name=rater_id,json=raterId,proto3" json:"rater_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -84,6 +85,13 @@ func (x *CreateRatingRequest) GetNumberOfStars() int32 {
 func (x *CreateRatingRequest) GetComment() string {
 	if x != nil {
 		return x.Comment
+	}
+	return ""
+}
+
+func (x *CreateRatingRequest) GetRaterId() string {
+	if x != nil {
+		return x.RaterId
 	}
 	return ""
 }
@@ -225,6 +233,7 @@ type UpdateRatingRequest struct {
 	RatingId      string                 `protobuf:"bytes,1,opt,name=rating_id,json=ratingId,proto3" json:"rating_id,omitempty"`
 	NumberOfStars int32                  `protobuf:"varint,2,opt,name=number_of_stars,json=numberOfStars,proto3" json:"number_of_stars,omitempty"`
 	Comment       string                 `protobuf:"bytes,3,opt,name=comment,proto3" json:"comment,omitempty"` // Optionnel
+	RaterId       string                 `protobuf:"bytes,4,opt,name=rater_id,json=raterId,proto3" json:"rater_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -280,9 +289,17 @@ func (x *UpdateRatingRequest) GetComment() string {
 	return ""
 }
 
+func (x *UpdateRatingRequest) GetRaterId() string {
+	if x != nil {
+		return x.RaterId
+	}
+	return ""
+}
+
 type DeleteRatingRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RatingId      string                 `protobuf:"bytes,1,opt,name=rating_id,json=ratingId,proto3" json:"rating_id,omitempty"`
+	RaterId       string                 `protobuf:"bytes,2,opt,name=rater_id,json=raterId,proto3" json:"rater_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -320,6 +337,13 @@ func (*DeleteRatingRequest) Descriptor() ([]byte, []int) {
 func (x *DeleteRatingRequest) GetRatingId() string {
 	if x != nil {
 		return x.RatingId
+	}
+	return ""
+}
+
+func (x *DeleteRatingRequest) GetRaterId() string {
+	if x != nil {
+		return x.RaterId
 	}
 	return ""
 }
@@ -836,23 +860,26 @@ var File_rating_proto protoreflect.FileDescriptor
 
 const file_rating_proto_rawDesc = "" +
 	"\n" +
-	"\frating.proto\x12\x06rating\x1a\x1cgoogle/api/annotations.proto\"{\n" +
+	"\frating.proto\x12\x06rating\x1a\x1cgoogle/api/annotations.proto\"\x96\x01\n" +
 	"\x13CreateRatingRequest\x12\"\n" +
 	"\ruser_rated_id\x18\x01 \x01(\tR\vuserRatedId\x12&\n" +
 	"\x0fnumber_of_stars\x18\x02 \x01(\x05R\rnumberOfStars\x12\x18\n" +
-	"\acomment\x18\x03 \x01(\tR\acomment\"/\n" +
+	"\acomment\x18\x03 \x01(\tR\acomment\x12\x19\n" +
+	"\brater_id\x18\x04 \x01(\tR\araterId\"/\n" +
 	"\x10GetRatingRequest\x12\x1b\n" +
 	"\trating_id\x18\x01 \x01(\tR\bratingId\">\n" +
 	"\x18GetRatingsForUserRequest\x12\"\n" +
 	"\ruser_rated_id\x18\x01 \x01(\tR\vuserRatedId\"=\n" +
 	"\x17GetAverageRatingRequest\x12\"\n" +
-	"\ruser_rated_id\x18\x01 \x01(\tR\vuserRatedId\"t\n" +
+	"\ruser_rated_id\x18\x01 \x01(\tR\vuserRatedId\"\x8f\x01\n" +
 	"\x13UpdateRatingRequest\x12\x1b\n" +
 	"\trating_id\x18\x01 \x01(\tR\bratingId\x12&\n" +
 	"\x0fnumber_of_stars\x18\x02 \x01(\x05R\rnumberOfStars\x12\x18\n" +
-	"\acomment\x18\x03 \x01(\tR\acomment\"2\n" +
+	"\acomment\x18\x03 \x01(\tR\acomment\x12\x19\n" +
+	"\brater_id\x18\x04 \x01(\tR\araterId\"M\n" +
 	"\x13DeleteRatingRequest\x12\x1b\n" +
-	"\trating_id\x18\x01 \x01(\tR\bratingId\"\x0f\n" +
+	"\trating_id\x18\x01 \x01(\tR\bratingId\x12\x19\n" +
+	"\brater_id\x18\x02 \x01(\tR\araterId\"\x0f\n" +
 	"\rHealthRequest\"i\n" +
 	"\x14CreateRatingResponse\x12#\n" +
 	"\rerror_message\x18\x01 \x01(\tR\ferrorMessage\x12,\n" +
@@ -886,14 +913,14 @@ const file_rating_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\x03R\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\x03R\tupdatedAt2\xb0\x06\n" +
+	"updated_at\x18\a \x01(\x03R\tupdatedAt2\xba\x06\n" +
 	"\rRatingService\x12e\n" +
 	"\fCreateRating\x12\x1b.rating.CreateRatingRequest\x1a\x1c.rating.CreateRatingResponse\"\x1a\x82\xd3\xe4\x93\x02\x14:\x01*\"\x0f/api/v1/ratings\x12e\n" +
 	"\tGetRating\x12\x18.rating.GetRatingRequest\x1a\x19.rating.GetRatingResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/api/v1/ratings/{rating_id}\x12\x86\x01\n" +
 	"\x11GetRatingsForUser\x12 .rating.GetRatingsForUserRequest\x1a!.rating.GetRatingsForUserResponse\",\x82\xd3\xe4\x93\x02&\x12$/api/v1/ratings/user/{user_rated_id}\x12\x8b\x01\n" +
 	"\x10GetAverageRating\x12\x1f.rating.GetAverageRatingRequest\x1a .rating.GetAverageRatingResponse\"4\x82\xd3\xe4\x93\x02.\x12,/api/v1/ratings/user/{user_rated_id}/average\x12q\n" +
-	"\fUpdateRating\x12\x1b.rating.UpdateRatingRequest\x1a\x1c.rating.UpdateRatingResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\x1a\x1b/api/v1/ratings/{rating_id}\x12n\n" +
-	"\fDeleteRating\x12\x1b.rating.DeleteRatingRequest\x1a\x1c.rating.RatingServerResponse\"#\x82\xd3\xe4\x93\x02\x1d*\x1b/api/v1/ratings/{rating_id}\x12W\n" +
+	"\fUpdateRating\x12\x1b.rating.UpdateRatingRequest\x1a\x1c.rating.UpdateRatingResponse\"&\x82\xd3\xe4\x93\x02 :\x01*2\x1b/api/v1/ratings/{rating_id}\x12x\n" +
+	"\fDeleteRating\x12\x1b.rating.DeleteRatingRequest\x1a\x1c.rating.RatingServerResponse\"-\x82\xd3\xe4\x93\x02':\x01*\"\"/api/v1/ratings/{rating_id}/delete\x12W\n" +
 	"\x06Health\x12\x15.rating.HealthRequest\x1a\x16.rating.HealthResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/api/v1/ratings/healthBFZDgithub.com/Kpeewu/tissi-mah/services/rating-service/proto/gen;ratingb\x06proto3"
 
 var (

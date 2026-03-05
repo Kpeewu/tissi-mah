@@ -15,9 +15,8 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/userProfile/addTripPreferences":  true,
 	"/api/v1/userProfile/updateProfile":       true,
 
-	// rating-service
-	"/api/v1/ratings":             true, // CreateRating (POST)
-	"/api/v1/ratings/{rating_id}": true, // UpdateRating (PUT), DeleteRating (DELETE)
+	// rating-service — tous les endpoints publics (rater_id dans le body)
+	// TODO: re-enable JWT protection once Firebase JWT is fully integrated
 }
 
 // RateLimitTier identifie le niveau de rate limiting pour une route

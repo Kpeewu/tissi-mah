@@ -11,4 +11,5 @@ var (
 	ErrorDataRetrievalFailed = errors.New("ErrorDataRetrievalFailed")
 	ErrorUnauthorizedAction  = errors.New("ErrorUnauthorizedAction")
 	ErrorCantDeleteRating    = errors.New("ErrorCantDeleteRating")
+	ErrorUserNotFound        = errors.New("ErrorUserNotFound")
 )

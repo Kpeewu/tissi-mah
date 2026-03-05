@@ -11,7 +11,13 @@ type Config struct {
 	Environment EnvironmentConfig
 	Database    DatabaseConfig
 	Redis       RedisConfig
+	UserService UserServiceConfig
 	LogLevel    string
+}
+
+type UserServiceConfig struct {
+	Address string
+	Port    string
 }
 
 type ServerConfig struct {
@@ -51,6 +57,10 @@ func Load() (*Config, error) {
 		},
 		Redis: RedisConfig{
 			URL: sharedconfig.MustGetString(values, "REDIS_URL"),
+		},
+		UserService: UserServiceConfig{
+			Address: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_HOST", "0.0.0.0"),
+			Port:    sharedconfig.GetStringOrDefault(values, "USER_SERVICE_PORT", "50052"),
 		},
 		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
 	}
