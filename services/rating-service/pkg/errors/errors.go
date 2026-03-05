@@ -12,4 +12,5 @@ var (
 	ErrorUnauthorizedAction  = errors.New("ErrorUnauthorizedAction")
 	ErrorCantDeleteRating    = errors.New("ErrorCantDeleteRating")
 	ErrorUserNotFound        = errors.New("ErrorUserNotFound")
+	ErrorMissingRaterID      = errors.New("ErrorMissingRaterID")
 )
