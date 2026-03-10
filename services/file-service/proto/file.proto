@@ -65,6 +65,15 @@ service FileService {
   rpc GetVehicleDocuments(GetVehicleDocumentsRequest) returns (GetVehicleDocumentsResponse);
   rpc GetVehicleDocument(GetDocumentByIDRequest) returns (VehicleDocumentResponse);
 
+  // --- Suppression document (HTTP via api-gateway) ---
+  // Supprime un fichier après vérification de la propriété (UserID doit être propriétaire)
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse) {
+    option (google.api.http) = {
+      post: "/file/deleteFile"
+      body: "*"
+    };
+  }
+
   // --- Suppression (inter-service) ---
   rpc DeleteUserDocument(DeleteDocumentRequest) returns (OperationResponse);
   rpc DeleteVehicleDocument(DeleteDocumentRequest) returns (OperationResponse);
@@ -90,6 +99,20 @@ message UploadVehicleDocumentsRequest {
 }
 
 message UploadVehicleDocumentsResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// Suppression document (HTTP)
+// =============================================================================
+
+message DeleteFileRequest {
+  string UserID = 1;
+  string FileID = 2;
+}
+
+message DeleteFileResponse {
   bool   Success      = 1;
   string ErrorMessage = 2;
 }

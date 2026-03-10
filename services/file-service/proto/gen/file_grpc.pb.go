@@ -34,6 +34,7 @@ const (
 	FileService_GetCurrentUserDocument_FullMethodName = "/file.FileService/GetCurrentUserDocument"
 	FileService_GetVehicleDocuments_FullMethodName    = "/file.FileService/GetVehicleDocuments"
 	FileService_GetVehicleDocument_FullMethodName     = "/file.FileService/GetVehicleDocument"
+	FileService_DeleteFile_FullMethodName             = "/file.FileService/DeleteFile"
 	FileService_DeleteUserDocument_FullMethodName     = "/file.FileService/DeleteUserDocument"
 	FileService_DeleteVehicleDocument_FullMethodName  = "/file.FileService/DeleteVehicleDocument"
 	FileService_CreateDocumentReview_FullMethodName   = "/file.FileService/CreateDocumentReview"
@@ -70,6 +71,9 @@ type FileServiceClient interface {
 	GetCurrentUserDocument(ctx context.Context, in *GetCurrentUserDocumentRequest, opts ...grpc.CallOption) (*UserDocumentResponse, error)
 	GetVehicleDocuments(ctx context.Context, in *GetVehicleDocumentsRequest, opts ...grpc.CallOption) (*GetVehicleDocumentsResponse, error)
 	GetVehicleDocument(ctx context.Context, in *GetDocumentByIDRequest, opts ...grpc.CallOption) (*VehicleDocumentResponse, error)
+	// --- Suppression document (HTTP via api-gateway) ---
+	// Supprime un fichier après vérification de la propriété (UserID doit être propriétaire)
+	DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*DeleteFileResponse, error)
 	// --- Suppression (inter-service) ---
 	DeleteUserDocument(ctx context.Context, in *DeleteDocumentRequest, opts ...grpc.CallOption) (*OperationResponse, error)
 	DeleteVehicleDocument(ctx context.Context, in *DeleteDocumentRequest, opts ...grpc.CallOption) (*OperationResponse, error)
@@ -204,6 +208,16 @@ func (c *fileServiceClient) GetVehicleDocument(ctx context.Context, in *GetDocum
 	return out, nil
 }
 
+func (c *fileServiceClient) DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*DeleteFileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteFileResponse)
+	err := c.cc.Invoke(ctx, FileService_DeleteFile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *fileServiceClient) DeleteUserDocument(ctx context.Context, in *DeleteDocumentRequest, opts ...grpc.CallOption) (*OperationResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(OperationResponse)
@@ -283,6 +297,9 @@ type FileServiceServer interface {
 	GetCurrentUserDocument(context.Context, *GetCurrentUserDocumentRequest) (*UserDocumentResponse, error)
 	GetVehicleDocuments(context.Context, *GetVehicleDocumentsRequest) (*GetVehicleDocumentsResponse, error)
 	GetVehicleDocument(context.Context, *GetDocumentByIDRequest) (*VehicleDocumentResponse, error)
+	// --- Suppression document (HTTP via api-gateway) ---
+	// Supprime un fichier après vérification de la propriété (UserID doit être propriétaire)
+	DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error)
 	// --- Suppression (inter-service) ---
 	DeleteUserDocument(context.Context, *DeleteDocumentRequest) (*OperationResponse, error)
 	DeleteVehicleDocument(context.Context, *DeleteDocumentRequest) (*OperationResponse, error)
@@ -333,6 +350,9 @@ func (UnimplementedFileServiceServer) GetVehicleDocuments(context.Context, *GetV
 }
 func (UnimplementedFileServiceServer) GetVehicleDocument(context.Context, *GetDocumentByIDRequest) (*VehicleDocumentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetVehicleDocument not implemented")
+}
+func (UnimplementedFileServiceServer) DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteFile not implemented")
 }
 func (UnimplementedFileServiceServer) DeleteUserDocument(context.Context, *DeleteDocumentRequest) (*OperationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteUserDocument not implemented")
@@ -546,6 +566,24 @@ func _FileService_GetVehicleDocument_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FileService_DeleteFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServiceServer).DeleteFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileService_DeleteFile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServiceServer).DeleteFile(ctx, req.(*DeleteFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _FileService_DeleteUserDocument_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeleteDocumentRequest)
 	if err := dec(in); err != nil {
@@ -678,6 +716,10 @@ var FileService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetVehicleDocument",
 			Handler:    _FileService_GetVehicleDocument_Handler,
+		},
+		{
+			MethodName: "DeleteFile",
+			Handler:    _FileService_DeleteFile_Handler,
 		},
 		{
 			MethodName: "DeleteUserDocument",

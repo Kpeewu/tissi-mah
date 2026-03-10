@@ -46,6 +46,12 @@ type GetDocumentResult struct {
 	FileType string
 }
 
+// DeleteFileInput contient les données pour supprimer un fichier avec vérification de propriété.
+type DeleteFileInput struct {
+	UserID string
+	FileID string
+}
+
 // ChangeDocumentInput contient les données pour remplacer le fichier d'un document existant.
 type ChangeDocumentInput struct {
 	UserID      string
@@ -108,6 +114,9 @@ type FileService interface {
 
 	// Récupère un document par FileID avec contrôle d'accès (propriétaire ou support)
 	GetDocument(ctx context.Context, input GetDocumentInput) (*GetDocumentResult, error)
+
+	// Supprime un fichier après vérification que UserID est bien propriétaire (S3 + DB)
+	DeleteFile(ctx context.Context, input DeleteFileInput) error
 
 	// Supprime un document utilisateur (S3 + DB)
 	DeleteUserDocument(ctx context.Context, documentID string) error

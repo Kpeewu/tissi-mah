@@ -186,6 +186,27 @@ func (s *fileServiceImpl) GetDocument(ctx context.Context, input serviceInterfac
 	}, nil
 }
 
+func (s *fileServiceImpl) DeleteFile(ctx context.Context, input serviceInterfaces.DeleteFileInput) error {
+	s.logger.Debug("delete file", zap.String("userID", input.UserID), zap.String("fileID", input.FileID))
+
+	doc, err := s.userDocRead.GetByID(ctx, input.FileID)
+	if err != nil {
+		s.logger.Error("delete file: document not found", zap.Error(err), zap.String("fileID", input.FileID))
+		return fileErrors.ErrorDocumentNotFound
+	}
+
+	if doc.UserID != input.UserID {
+		s.logger.Warn("delete file: unauthorized",
+			zap.String("fileID", input.FileID),
+			zap.String("userID", input.UserID),
+			zap.String("docOwner", doc.UserID),
+		)
+		return fileErrors.ErrorUnauthorized
+	}
+
+	return s.DeleteUserDocument(ctx, input.FileID)
+}
+
 func (s *fileServiceImpl) DeleteUserDocument(ctx context.Context, documentID string) error {
 	s.logger.Debug("delete user document", zap.String("documentID", documentID))
 	doc, err := s.userDocRead.GetByID(ctx, documentID)

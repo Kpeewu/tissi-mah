@@ -89,6 +89,31 @@ func (h *FileHandler) UploadUserDocument(stream filepb.FileService_UploadUserDoc
 	return stream.SendAndClose(toProtoUserDocument(doc))
 }
 
+// --- Suppression document (HTTP via api-gateway) ---
+
+// DeleteFile supprime un document après vérification que UserID est bien propriétaire.
+func (h *FileHandler) DeleteFile(ctx context.Context, req *filepb.DeleteFileRequest) (*filepb.DeleteFileResponse, error) {
+	h.logger.Debug("handler: DeleteFile called",
+		zap.String("userID", req.UserID),
+		zap.String("fileID", req.FileID),
+	)
+
+	err := h.service.DeleteFile(ctx, serviceInterfaces.DeleteFileInput{
+		UserID: req.UserID,
+		FileID: req.FileID,
+	})
+	if err != nil {
+		h.logger.Error("handler: DeleteFile failed", zap.String("fileID", req.FileID), zap.Error(err))
+		return &filepb.DeleteFileResponse{
+			Success:      false,
+			ErrorMessage: err.Error(),
+		}, nil
+	}
+
+	h.logger.Info("handler: DeleteFile success", zap.String("fileID", req.FileID))
+	return &filepb.DeleteFileResponse{Success: true}, nil
+}
+
 // --- Lecture document (HTTP via api-gateway) ---
 
 // GetDocument récupère un document par son ID avec contrôle d'accès.
