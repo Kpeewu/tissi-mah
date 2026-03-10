@@ -12,10 +12,11 @@ type Config struct {
 	Environment EnvironmentConfig
 	Redis       RedisConfig
 	Firebase    FirebaseConfig
-	AuthService   ServiceEndpoint
-	UserService   ServiceEndpoint
-	RatingService ServiceEndpoint
-	FileService   ServiceEndpoint
+	AuthService    ServiceEndpoint
+	UserService    ServiceEndpoint
+	RatingService  ServiceEndpoint
+	FileService    ServiceEndpoint
+	VehicleService ServiceEndpoint
 	CORS          CORSConfig
 	RateLimit   RateLimitConfig
 	LogLevel    string
@@ -100,6 +101,10 @@ func Load() (*Config, error) {
 		FileService: ServiceEndpoint{
 			Host: sharedconfig.GetStringOrDefault(values, "FILE_SERVICE_HOST", "0.0.0.0"),
 			Port: sharedconfig.GetStringOrDefault(values, "FILE_SERVICE_PORT", "50053"),
+		},
+		VehicleService: ServiceEndpoint{
+			Host: sharedconfig.GetStringOrDefault(values, "VEHICLE_SERVICE_HOST", "0.0.0.0"),
+			Port: sharedconfig.GetStringOrDefault(values, "VEHICLE_SERVICE_PORT", "50055"),
 		},
 		CORS: CORSConfig{
 			AllowedOrigins: sharedconfig.GetStringOrDefault(values, "CORS_ALLOWED_ORIGINS", "*"),

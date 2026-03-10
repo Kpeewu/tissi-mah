@@ -24,6 +24,13 @@ var ProtectedRoutes = map[string]bool{
 	"/file/changeDocument":         true,
 	"/file/getDocument":            true,
 	"/file/deleteFile":             true,
+
+	// vehicle-service
+	"/vehicle/add":             true,
+	"/vehicle/update":          true,
+	"/vehicle/delete":          true,
+	"/vehicle/details":         true,
+	"/vehicle/getUserVehicles": true,
 }
 
 // RateLimitTier identifie le niveau de rate limiting pour une route

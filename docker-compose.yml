@@ -176,6 +176,47 @@ services:
     networks:
       - tissi-mah-network
 
+  # PostgreSQL pour Vehicle Service
+  vehicle-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-vehicle-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_VEHICLE_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_VEHICLE_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_VEHICLE_DB:-vehicle_db}
+    ports:
+      - "5436:5432"
+    volumes:
+      - vehicle_postgres_data:/var/lib/postgresql/data
+      - ./services/vehicle-service/migrations/up:/docker-entrypoint-initdb.d
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_VEHICLE_USER:-dev} -d ${POSTGRES_VEHICLE_DB:-vehicle_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour Vehicle Service
+  vehicle-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-vehicle-redis
+    ports:
+      - "6385:6379"
+    volumes:
+      - vehicle_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
   # MinIO - Stockage S3 compatible (dev local)
   minio:
     image: minio/minio:latest
@@ -223,6 +264,8 @@ volumes:
   file_redis_data:
   rating_postgres_data:
   rating_redis_data:
+  vehicle_postgres_data:
+  vehicle_redis_data:
   minio_data:
 
 networks:

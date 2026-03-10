@@ -1,0 +1,135 @@
+syntax = "proto3";
+package vehicle;
+option go_package = "github.com/Kpeewu/tissi-mah/services/vehicle-service/proto/gen;vehicle";
+import "google/api/annotations.proto";
+
+// VehicleService gère la création, mise à jour, suppression et consultation des véhicules.
+service VehicleService {
+  // AddVehicle crée un nouveau véhicule pour un utilisateur.
+  rpc AddVehicle(AddVehicleRequest) returns (AddVehicleResponse) {
+    option (google.api.http) = { post: "/vehicle/add" body: "*" };
+  }
+  // UpdateVehicle met à jour les informations modifiables d'un véhicule.
+  rpc UpdateVehicle(UpdateVehicleRequest) returns (UpdateVehicleResponse) {
+    option (google.api.http) = { patch: "/vehicle/update" body: "*" };
+  }
+  // DeleteVehicle supprime un véhicule.
+  rpc DeleteVehicle(DeleteVehicleRequest) returns (DeleteVehicleResponse) {
+    option (google.api.http) = { post: "/vehicle/delete" body: "*" };
+  }
+  // GetVehicleDetails retourne les détails complets d'un véhicule.
+  rpc GetVehicleDetails(GetVehicleDetailsRequest) returns (GetVehicleDetailsResponse) {
+    option (google.api.http) = { post: "/vehicle/details" body: "*" };
+  }
+  // GetUserVehicles retourne la liste des véhicules d'un utilisateur.
+  rpc GetUserVehicles(GetUserVehiclesRequest) returns (GetUserVehiclesResponse) {
+    option (google.api.http) = { post: "/vehicle/getUserVehicles" body: "*" };
+  }
+  // Health retourne l'état de santé du service.
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = { get: "/vehicle/health" };
+  }
+}
+
+// AddVehicleRequest contient les informations nécessaires pour créer un véhicule.
+message AddVehicleRequest {
+  string UserId = 1;
+  string Brand = 2;
+  int32 NumberOfSeats = 3;
+  string BrandModel = 4;
+  string Color = 5;
+  string LicencePlate = 6;
+}
+
+// AddVehicleResponse retourne l'identifiant du véhicule créé.
+message AddVehicleResponse {
+  string VehicleId = 1;
+  string ErrorMessage = 2;
+}
+
+// UpdateVehicleRequest contient les champs modifiables d'un véhicule.
+// Color et LicencePlate sont optionnels.
+message UpdateVehicleRequest {
+  string UserId = 1;
+  string VehicleId = 2;
+  string Color = 3;
+  string LicencePlate = 4;
+}
+
+// UpdateVehicleResponse indique si la mise à jour a réussi.
+message UpdateVehicleResponse {
+  bool Success = 1;
+  string ErrorMessage = 2;
+}
+
+// DeleteVehicleRequest identifie le véhicule à supprimer.
+message DeleteVehicleRequest {
+  string UserId = 1;
+  string VehicleId = 2;
+}
+
+// DeleteVehicleResponse indique si la suppression a réussi.
+message DeleteVehicleResponse {
+  bool Success = 1;
+  string ErrorMessage = 2;
+}
+
+// GetVehicleDetailsRequest identifie le véhicule dont on veut les détails.
+message GetVehicleDetailsRequest {
+  string UserId = 1;
+  string VehicleId = 2;
+}
+
+// GetVehicleDetailsResponse retourne les détails complets d'un véhicule.
+message GetVehicleDetailsResponse {
+  VehicleDetail Vehicle = 1;
+  string ErrorMessage = 2;
+}
+
+// GetUserVehiclesRequest identifie l'utilisateur dont on veut les véhicules.
+message GetUserVehiclesRequest {
+  string UserId = 1;
+}
+
+// GetUserVehiclesResponse retourne la liste des aperçus de véhicules.
+message GetUserVehiclesResponse {
+  repeated VehiclePreview Vehicles = 1;
+  string ErrorMessage = 2;
+}
+
+message HealthRequest {}
+
+// HealthResponse retourne l'état de santé du service.
+message HealthResponse {
+  string Status = 1;
+  string Version = 2;
+  int64 Timestamp = 3;
+}
+
+// VehicleDocuments contient les URLs des documents du véhicule.
+message VehicleDocuments {
+  string AssuranceUrl = 1;
+  string VehicleRegistrationUrl = 2;
+}
+
+// VehicleDetail contient les informations complètes d'un véhicule.
+message VehicleDetail {
+  string VehicleId = 1;
+  string UserId = 2;
+  string Brand = 3;
+  int32 NumberOfSeats = 4;
+  string BrandModel = 5;
+  string Color = 6;
+  string LicencePlate = 7;
+  bool IsVerified = 8;
+  VehicleDocuments Documents = 9;
+}
+
+// VehiclePreview contient un aperçu réduit d'un véhicule pour les listes.
+message VehiclePreview {
+  string VehicleId = 1;
+  string Brand = 2;
+  string BrandModel = 3;
+  string LicencePlate = 4;
+  bool IsVerified = 5;
+}
