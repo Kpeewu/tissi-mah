@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/Kpeewu/tissi-mah/services/vehicle-service/internal/cache"
 	clientInterfaces "github.com/Kpeewu/tissi-mah/services/vehicle-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/vehicle-service/internal/domain"
 	repoInterfaces "github.com/Kpeewu/tissi-mah/services/vehicle-service/internal/repository/interfaces"
@@ -16,6 +17,7 @@ type vehicleServiceImpl struct {
 	readRepo   repoInterfaces.VehicleRepositoryRead
 	writeRepo  repoInterfaces.VehicleRepositoryWrite
 	fileClient clientInterfaces.FileServiceClient
+	cache      *cache.VehicleCache
 	logger     *zap.Logger
 }
 
@@ -24,12 +26,14 @@ func NewVehicleService(
 	readRepo repoInterfaces.VehicleRepositoryRead,
 	writeRepo repoInterfaces.VehicleRepositoryWrite,
 	fileClient clientInterfaces.FileServiceClient,
+	vehicleCache *cache.VehicleCache,
 	logger *zap.Logger,
 ) serviceInterfaces.VehicleService {
 	return &vehicleServiceImpl{
 		readRepo:   readRepo,
 		writeRepo:  writeRepo,
 		fileClient: fileClient,
+		cache:      vehicleCache,
 		logger:     logger,
 	}
 }
@@ -76,10 +80,21 @@ func (s *vehicleServiceImpl) AddVehicle(ctx context.Context, input serviceInterf
 }
 
 // GetVehicleDetails récupère les détails complets d'un véhicule,
-// incluant ses documents depuis file-service.
+// incluant ses documents depuis file-service. Utilise le cache Redis.
 func (s *vehicleServiceImpl) GetVehicleDetails(ctx context.Context, userID string, vehicleID string) (*domain.VehicleDetails, error) {
 	if vehicleID == "" {
 		return nil, vehicleErrors.ErrorInvalidInput
+	}
+
+	// Tentative de lecture depuis le cache
+	if s.cache != nil {
+		if cached, err := s.cache.GetVehicleDetails(ctx, vehicleID); err == nil && cached != nil {
+			// Vérification de la propriété sur les données cachées
+			if cached.Vehicle.UserID != userID {
+				return nil, vehicleErrors.ErrorUnauthorized
+			}
+			return cached, nil
+		}
 	}
 
 	vehicle, err := s.readRepo.GetByID(ctx, vehicleID)
@@ -107,10 +122,19 @@ func (s *vehicleServiceImpl) GetVehicleDetails(ctx context.Context, userID strin
 		docs = domain.VehicleDocuments{}
 	}
 
-	return &domain.VehicleDetails{
+	details := &domain.VehicleDetails{
 		Vehicle:   vehicle,
 		Documents: docs,
-	}, nil
+	}
+
+	// Mise en cache du résultat
+	if s.cache != nil {
+		if err := s.cache.SetVehicleDetails(ctx, vehicleID, details); err != nil {
+			s.logger.Warn("failed to cache vehicle details", zap.Error(err), zap.String("vehicleID", vehicleID))
+		}
+	}
+
+	return details, nil
 }
 
 // GetUserVehicles récupère les aperçus de tous les véhicules d'un utilisateur.
@@ -167,6 +191,11 @@ func (s *vehicleServiceImpl) UpdateVehicle(ctx context.Context, input serviceInt
 		return err
 	}
 
+	// Invalidation du cache après modification
+	if s.cache != nil {
+		s.cache.InvalidateVehicle(ctx, input.VehicleID)
+	}
+
 	s.logger.Info("vehicle updated", zap.String("vehicleID", input.VehicleID))
 	return nil
 }
@@ -192,7 +221,16 @@ func (s *vehicleServiceImpl) DeleteVehicle(ctx context.Context, userID string, v
 		return vehicleErrors.ErrorUnauthorized
 	}
 
-	return s.writeRepo.Delete(ctx, vehicleID)
+	if err := s.writeRepo.Delete(ctx, vehicleID); err != nil {
+		return err
+	}
+
+	// Invalidation du cache après suppression
+	if s.cache != nil {
+		s.cache.InvalidateVehicle(ctx, vehicleID)
+	}
+
+	return nil
 }
 
 // VerifyVehicle met à jour le statut de vérification d'un véhicule.
@@ -201,5 +239,14 @@ func (s *vehicleServiceImpl) VerifyVehicle(ctx context.Context, vehicleID string
 		return vehicleErrors.ErrorInvalidInput
 	}
 
-	return s.writeRepo.SetVerified(ctx, vehicleID, isVerified)
+	if err := s.writeRepo.SetVerified(ctx, vehicleID, isVerified); err != nil {
+		return err
+	}
+
+	// Invalidation du cache après changement de statut de vérification
+	if s.cache != nil {
+		s.cache.InvalidateVehicle(ctx, vehicleID)
+	}
+
+	return nil
 }

@@ -54,6 +54,8 @@ jobs:
               - 'services/file-service/**'
             rating-service:
               - 'services/rating-service/**'
+            vehicle-service:
+              - 'services/vehicle-service/**'
             pkg:
               - 'pkg/**'
 
@@ -63,7 +65,7 @@ jobs:
           if [ -n "${{ github.event.inputs.service }}" ]; then
             echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
           else
-            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service"]' >> $GITHUB_OUTPUT
+            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service"]' >> $GITHUB_OUTPUT
           fi
 
   build-and-push:
@@ -154,6 +156,9 @@ jobs:
           # rating-service secrets
           RATING_DATABASE_URL: ${{ secrets.RATING_DATABASE_URL }}
           RATING_REDIS_URL: ${{ secrets.RATING_REDIS_URL }}
+          # vehicle-service secrets
+          VEHICLE_DATABASE_URL: ${{ secrets.VEHICLE_DATABASE_URL }}
+          VEHICLE_REDIS_URL: ${{ secrets.VEHICLE_REDIS_URL }}
         run: |
           python3 - <<'PYEOF'
           import yaml, os, json, sys
@@ -213,6 +218,14 @@ jobs:
                   'secrets': {
                       'databaseUrl': os.environ.get('RATING_DATABASE_URL', ''),
                       'redisUrl': os.environ.get('RATING_REDIS_URL', ''),
+                  },
+              }
+
+          elif service == "vehicle-service":
+              data = {
+                  'secrets': {
+                      'databaseUrl': os.environ.get('VEHICLE_DATABASE_URL', ''),
+                      'redisUrl': os.environ.get('VEHICLE_REDIS_URL', ''),
                   },
               }
 
@@ -379,6 +392,10 @@ jobs:
 #      - RATING_DATABASE_URL : postgresql://user:pass@host:5435/rating_db
 #      - RATING_REDIS_URL    : redis://host:6384/0
 #
+#   8. Secrets GitHub pour vehicle-service:
+#      - VEHICLE_DATABASE_URL : postgresql://user:pass@host:5436/vehicle_db
+#      - VEHICLE_REDIS_URL    : redis://host:6385/0
+#
 # Architecture:
 #   VPS K3s namespace "default":
 #     |- api-gateway (HTTP LoadBalancer, port 8080)
@@ -386,3 +403,4 @@ jobs:
 #     |- user-service (gRPC ClusterIP, port 50052)
 #     |- file-service (gRPC ClusterIP, port 50053)
 #     |- rating-service (gRPC ClusterIP, port 50054)
+#     |- vehicle-service (gRPC ClusterIP, port 50055)
