@@ -13,19 +13,21 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	authpb   "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/authpb"
-	filepb   "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/filepb"
-	ratingpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb"
-	userpb   "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/userpb"
+	authpb    "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/authpb"
+	filepb    "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/filepb"
+	ratingpb  "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb"
+	userpb    "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/userpb"
+	vehiclepb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/vehiclepb"
 )
 
 // MuxConfig contient les paramètres pour créer le grpc-gateway ServeMux
 type MuxConfig struct {
-	AuthServiceAddr   string
-	UserServiceAddr   string
-	RatingServiceAddr string
-	FileServiceAddr   string
-	Logger            *zap.Logger
+	AuthServiceAddr    string
+	UserServiceAddr    string
+	RatingServiceAddr  string
+	FileServiceAddr    string
+	VehicleServiceAddr string
+	Logger             *zap.Logger
 }
 
 // NewGatewayMux crée un runtime.ServeMux configuré avec les handlers
@@ -103,6 +105,12 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		return nil, err
 	}
 	cfg.Logger.Info("registered file-service handler", zap.String("endpoint", cfg.FileServiceAddr))
+
+	// Enregistrer vehicle-service
+	if err := vehiclepb.RegisterVehicleServiceHandlerFromEndpoint(ctx, mux, cfg.VehicleServiceAddr, dialOpts); err != nil {
+		return nil, err
+	}
+	cfg.Logger.Info("registered vehicle-service handler", zap.String("endpoint", cfg.VehicleServiceAddr))
 
 	return mux, nil
 }
