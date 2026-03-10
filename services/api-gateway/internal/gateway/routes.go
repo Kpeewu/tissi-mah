@@ -19,7 +19,10 @@ var ProtectedRoutes = map[string]bool{
 	// TODO: re-enable JWT protection once Firebase JWT is fully integrated
 
 	// file-service
-	"/file/uploadIdDocument": true,
+	"/file/uploadIdDocument":       true,
+	"/file/uploadVehicleDocuments": true,
+	"/file/changeDocument":         true,
+	"/file/getDocument":            true,
 }
 
 // RateLimitTier identifie le niveau de rate limiting pour une route

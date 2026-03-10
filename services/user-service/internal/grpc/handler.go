@@ -74,7 +74,7 @@ func (h *UserHandler) GetMyProfile(ctx context.Context, _ *userpb.GetMyProfileRe
 		return nil, toGRPCError(err)
 	}
 
-	h.logger.Info("GetMyProfile réussi", zap.String("profile_id", profile.ProfileID))
+	h.logger.Info("GetMyProfile réussi", zap.String("profile_id", profile.UserID))
 	return &userpb.GetMyProfileResponse{
 		User: toProtoFullProfile(profile),
 	}, nil
@@ -82,21 +82,21 @@ func (h *UserHandler) GetMyProfile(ctx context.Context, _ *userpb.GetMyProfileRe
 
 // CreateDriverAccount active ou désactive le statut conducteur
 func (h *UserHandler) CreateDriverAccount(ctx context.Context, req *userpb.CreateDriverAccountRequest) (*userpb.OperationResponse, error) {
-	h.logger.Debug("CreateDriverAccount appelé", zap.String("profile_id", req.ProfileID), zap.Bool("create_driver", req.CreateDriverAccount))
+	h.logger.Debug("CreateDriverAccount appelé", zap.String("profile_id", req.UserID), zap.Bool("create_driver", req.CreateDriverAccount))
 
-	err := h.service.CreateDriverAccount(ctx, req.ProfileID, req.CreateDriverAccount)
+	err := h.service.CreateDriverAccount(ctx, req.UserID, req.CreateDriverAccount)
 	if err != nil {
-		h.logger.Error("CreateDriverAccount échoué", zap.Error(err), zap.String("profile_id", req.ProfileID))
+		h.logger.Error("CreateDriverAccount échoué", zap.Error(err), zap.String("profile_id", req.UserID))
 		return nil, toGRPCError(err)
 	}
 
-	h.logger.Info("CreateDriverAccount réussi", zap.String("profile_id", req.ProfileID))
+	h.logger.Info("CreateDriverAccount réussi", zap.String("profile_id", req.UserID))
 	return &userpb.OperationResponse{Success: true}, nil
 }
 
 // AddTripPreferences ajoute les préférences de trajet
 func (h *UserHandler) AddTripPreferences(ctx context.Context, req *userpb.AddTripPreferencesRequest) (*userpb.OperationResponse, error) {
-	h.logger.Debug("AddTripPreferences appelé", zap.String("profile_id", req.ProfileID), zap.Int("nb_preferences", len(req.Preferences)))
+	h.logger.Debug("AddTripPreferences appelé", zap.String("profile_id", req.UserID), zap.Int("nb_preferences", len(req.Preferences)))
 
 	prefs := make([]domain.TripPreference, len(req.Preferences))
 	for i, p := range req.Preferences {
@@ -106,22 +106,22 @@ func (h *UserHandler) AddTripPreferences(ctx context.Context, req *userpb.AddTri
 		}
 	}
 
-	err := h.service.AddTripPreferences(ctx, req.ProfileID, prefs)
+	err := h.service.AddTripPreferences(ctx, req.UserID, prefs)
 	if err != nil {
-		h.logger.Error("AddTripPreferences échoué", zap.Error(err), zap.String("profile_id", req.ProfileID))
+		h.logger.Error("AddTripPreferences échoué", zap.Error(err), zap.String("profile_id", req.UserID))
 		return nil, toGRPCError(err)
 	}
 
-	h.logger.Info("AddTripPreferences réussi", zap.String("profile_id", req.ProfileID))
+	h.logger.Info("AddTripPreferences réussi", zap.String("profile_id", req.UserID))
 	return &userpb.OperationResponse{Success: true}, nil
 }
 
 // UpdateProfile met à jour les informations du profil
 func (h *UserHandler) UpdateProfile(ctx context.Context, req *userpb.UpdateProfileRequest) (*userpb.UpdateProfileResponse, error) {
-	h.logger.Debug("UpdateProfile appelé", zap.String("profile_id", req.ProfileID))
+	h.logger.Debug("UpdateProfile appelé", zap.String("profile_id", req.UserID))
 
 	updateReq := serviceInterfaces.UpdateProfileRequest{
-		ProfileID: req.ProfileID,
+		UserID: req.UserID,
 	}
 
 	if req.FirstName != nil {
@@ -151,11 +151,11 @@ func (h *UserHandler) UpdateProfile(ctx context.Context, req *userpb.UpdateProfi
 
 	profile, err := h.service.UpdateProfile(ctx, updateReq)
 	if err != nil {
-		h.logger.Error("UpdateProfile échoué", zap.Error(err), zap.String("profile_id", req.ProfileID))
+		h.logger.Error("UpdateProfile échoué", zap.Error(err), zap.String("profile_id", req.UserID))
 		return nil, toGRPCError(err)
 	}
 
-	h.logger.Info("UpdateProfile réussi", zap.String("profile_id", req.ProfileID))
+	h.logger.Info("UpdateProfile réussi", zap.String("profile_id", req.UserID))
 	return &userpb.UpdateProfileResponse{
 		User: toProtoFullProfile(profile),
 	}, nil
@@ -177,7 +177,7 @@ func toGRPCError(err error) error {
 		return status.Error(codes.NotFound, err.Error())
 	case errors.Is(err, userErrors.ErrorProfileAlreadyExists):
 		return status.Error(codes.AlreadyExists, err.Error())
-	case errors.Is(err, userErrors.ErrorInvalidProfileID):
+	case errors.Is(err, userErrors.ErrorInvalidUserID):
 		return status.Error(codes.InvalidArgument, err.Error())
 	case errors.Is(err, userErrors.ErrorAuthServiceUnavailable):
 		return status.Error(codes.Unavailable, err.Error())
@@ -236,7 +236,7 @@ func toProtoFullProfile(p *serviceInterfaces.FullProfile) *userpb.FullUserProfil
 
 	return &userpb.FullUserProfile{
 		AuthID:                     p.AuthID,
-		ProfileID:                  p.ProfileID,
+		UserID:                     p.UserID,
 		Name:                       p.Name,
 		FirstName:                  p.FirstName,
 		Gender:                     p.Gender,

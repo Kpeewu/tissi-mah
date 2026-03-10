@@ -92,17 +92,17 @@ message GetMyProfileRequest {
 }
 
 message CreateDriverAccountRequest {
-  string ProfileID           = 1;
+  string UserID              = 1;
   bool   CreateDriverAccount = 2;
 }
 
 message AddTripPreferencesRequest {
-  string ProfileID                      = 1;
+  string UserID                         = 1;
   repeated TripPreference Preferences   = 2;
 }
 
 message UpdateProfileRequest {
-  string ProfileID       = 1;
+  string UserID          = 1;
   optional string FirstName       = 2;
   optional string LastName        = 3;
   optional string BirthDate       = 4;
@@ -154,7 +154,7 @@ message GetMyProfileResponse {
 // FullUserProfile — profil complet avec données auth enrichies
 message FullUserProfile {
   string AuthID                                  = 1;
-  string ProfileID                               = 2;
+  string UserID                                  = 2;
   string Name                                    = 3;
   string FirstName                               = 4;
   string Gender                                  = 5;

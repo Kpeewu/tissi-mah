@@ -26,9 +26,421 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type UploadVehicleDocumentsRequest struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	UserID              string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
+	VehicleID           string                 `protobuf:"bytes,2,opt,name=VehicleID,proto3" json:"VehicleID,omitempty"`
+	DriverLicenceImage  []byte                 `protobuf:"bytes,3,opt,name=DriverLicenceImage,proto3" json:"DriverLicenceImage,omitempty"`
+	Assurance           []byte                 `protobuf:"bytes,4,opt,name=Assurance,proto3" json:"Assurance,omitempty"`
+	VehicleRegistration []byte                 `protobuf:"bytes,5,opt,name=VehicleRegistration,proto3" json:"VehicleRegistration,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *UploadVehicleDocumentsRequest) Reset() {
+	*x = UploadVehicleDocumentsRequest{}
+	mi := &file_file_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadVehicleDocumentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadVehicleDocumentsRequest) ProtoMessage() {}
+
+func (x *UploadVehicleDocumentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_file_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadVehicleDocumentsRequest.ProtoReflect.Descriptor instead.
+func (*UploadVehicleDocumentsRequest) Descriptor() ([]byte, []int) {
+	return file_file_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *UploadVehicleDocumentsRequest) GetUserID() string {
+	if x != nil {
+		return x.UserID
+	}
+	return ""
+}
+
+func (x *UploadVehicleDocumentsRequest) GetVehicleID() string {
+	if x != nil {
+		return x.VehicleID
+	}
+	return ""
+}
+
+func (x *UploadVehicleDocumentsRequest) GetDriverLicenceImage() []byte {
+	if x != nil {
+		return x.DriverLicenceImage
+	}
+	return nil
+}
+
+func (x *UploadVehicleDocumentsRequest) GetAssurance() []byte {
+	if x != nil {
+		return x.Assurance
+	}
+	return nil
+}
+
+func (x *UploadVehicleDocumentsRequest) GetVehicleRegistration() []byte {
+	if x != nil {
+		return x.VehicleRegistration
+	}
+	return nil
+}
+
+type UploadVehicleDocumentsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadVehicleDocumentsResponse) Reset() {
+	*x = UploadVehicleDocumentsResponse{}
+	mi := &file_file_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadVehicleDocumentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadVehicleDocumentsResponse) ProtoMessage() {}
+
+func (x *UploadVehicleDocumentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_file_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadVehicleDocumentsResponse.ProtoReflect.Descriptor instead.
+func (*UploadVehicleDocumentsResponse) Descriptor() ([]byte, []int) {
+	return file_file_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *UploadVehicleDocumentsResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *UploadVehicleDocumentsResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+type GetDocumentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FileID        string                 `protobuf:"bytes,1,opt,name=FileID,proto3" json:"FileID,omitempty"`
+	UserID        string                 `protobuf:"bytes,2,opt,name=UserID,proto3" json:"UserID,omitempty"`       // Optionnel — vérifie la propriété
+	SupportID     string                 `protobuf:"bytes,3,opt,name=SupportID,proto3" json:"SupportID,omitempty"` // Optionnel — accès support sans vérification
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDocumentRequest) Reset() {
+	*x = GetDocumentRequest{}
+	mi := &file_file_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentRequest) ProtoMessage() {}
+
+func (x *GetDocumentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_file_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentRequest.ProtoReflect.Descriptor instead.
+func (*GetDocumentRequest) Descriptor() ([]byte, []int) {
+	return file_file_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetDocumentRequest) GetFileID() string {
+	if x != nil {
+		return x.FileID
+	}
+	return ""
+}
+
+func (x *GetDocumentRequest) GetUserID() string {
+	if x != nil {
+		return x.UserID
+	}
+	return ""
+}
+
+func (x *GetDocumentRequest) GetSupportID() string {
+	if x != nil {
+		return x.SupportID
+	}
+	return ""
+}
+
+type DocumentFile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FileID        string                 `protobuf:"bytes,1,opt,name=FileID,proto3" json:"FileID,omitempty"`
+	FileURL       string                 `protobuf:"bytes,2,opt,name=FileURL,proto3" json:"FileURL,omitempty"`
+	FileType      string                 `protobuf:"bytes,3,opt,name=FileType,proto3" json:"FileType,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocumentFile) Reset() {
+	*x = DocumentFile{}
+	mi := &file_file_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentFile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentFile) ProtoMessage() {}
+
+func (x *DocumentFile) ProtoReflect() protoreflect.Message {
+	mi := &file_file_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentFile.ProtoReflect.Descriptor instead.
+func (*DocumentFile) Descriptor() ([]byte, []int) {
+	return file_file_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *DocumentFile) GetFileID() string {
+	if x != nil {
+		return x.FileID
+	}
+	return ""
+}
+
+func (x *DocumentFile) GetFileURL() string {
+	if x != nil {
+		return x.FileURL
+	}
+	return ""
+}
+
+func (x *DocumentFile) GetFileType() string {
+	if x != nil {
+		return x.FileType
+	}
+	return ""
+}
+
+type GetDocumentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ErrorMessage  string                 `protobuf:"bytes,1,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	File          *DocumentFile          `protobuf:"bytes,2,opt,name=File,proto3" json:"File,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDocumentResponse) Reset() {
+	*x = GetDocumentResponse{}
+	mi := &file_file_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentResponse) ProtoMessage() {}
+
+func (x *GetDocumentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_file_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentResponse.ProtoReflect.Descriptor instead.
+func (*GetDocumentResponse) Descriptor() ([]byte, []int) {
+	return file_file_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetDocumentResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *GetDocumentResponse) GetFile() *DocumentFile {
+	if x != nil {
+		return x.File
+	}
+	return nil
+}
+
+type ChangeDocumentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserID        string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
+	FileID        string                 `protobuf:"bytes,2,opt,name=FileID,proto3" json:"FileID,omitempty"`
+	NewDocument   []byte                 `protobuf:"bytes,3,opt,name=NewDocument,proto3" json:"NewDocument,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChangeDocumentRequest) Reset() {
+	*x = ChangeDocumentRequest{}
+	mi := &file_file_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChangeDocumentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChangeDocumentRequest) ProtoMessage() {}
+
+func (x *ChangeDocumentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_file_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChangeDocumentRequest.ProtoReflect.Descriptor instead.
+func (*ChangeDocumentRequest) Descriptor() ([]byte, []int) {
+	return file_file_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ChangeDocumentRequest) GetUserID() string {
+	if x != nil {
+		return x.UserID
+	}
+	return ""
+}
+
+func (x *ChangeDocumentRequest) GetFileID() string {
+	if x != nil {
+		return x.FileID
+	}
+	return ""
+}
+
+func (x *ChangeDocumentRequest) GetNewDocument() []byte {
+	if x != nil {
+		return x.NewDocument
+	}
+	return nil
+}
+
+type ChangeDocumentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChangeDocumentResponse) Reset() {
+	*x = ChangeDocumentResponse{}
+	mi := &file_file_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChangeDocumentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChangeDocumentResponse) ProtoMessage() {}
+
+func (x *ChangeDocumentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_file_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChangeDocumentResponse.ProtoReflect.Descriptor instead.
+func (*ChangeDocumentResponse) Descriptor() ([]byte, []int) {
+	return file_file_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ChangeDocumentResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *ChangeDocumentResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
 type UploadIdDocumentRequest struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	ProfileID string                 `protobuf:"bytes,1,opt,name=ProfileID,proto3" json:"ProfileID,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	UserID string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
 	// Type : IDCard | Passport | DriverLicence
 	DocumentType string `protobuf:"bytes,2,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"`
 	// Obligatoire si DocumentType = IDCard
@@ -45,7 +457,7 @@ type UploadIdDocumentRequest struct {
 
 func (x *UploadIdDocumentRequest) Reset() {
 	*x = UploadIdDocumentRequest{}
-	mi := &file_file_proto_msgTypes[0]
+	mi := &file_file_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -57,7 +469,7 @@ func (x *UploadIdDocumentRequest) String() string {
 func (*UploadIdDocumentRequest) ProtoMessage() {}
 
 func (x *UploadIdDocumentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[0]
+	mi := &file_file_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -70,12 +482,12 @@ func (x *UploadIdDocumentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadIdDocumentRequest.ProtoReflect.Descriptor instead.
 func (*UploadIdDocumentRequest) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{0}
+	return file_file_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *UploadIdDocumentRequest) GetProfileID() string {
+func (x *UploadIdDocumentRequest) GetUserID() string {
 	if x != nil {
-		return x.ProfileID
+		return x.UserID
 	}
 	return ""
 }
@@ -132,7 +544,7 @@ type UploadIdDocumentResponse struct {
 
 func (x *UploadIdDocumentResponse) Reset() {
 	*x = UploadIdDocumentResponse{}
-	mi := &file_file_proto_msgTypes[1]
+	mi := &file_file_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -144,7 +556,7 @@ func (x *UploadIdDocumentResponse) String() string {
 func (*UploadIdDocumentResponse) ProtoMessage() {}
 
 func (x *UploadIdDocumentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[1]
+	mi := &file_file_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -157,7 +569,7 @@ func (x *UploadIdDocumentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadIdDocumentResponse.ProtoReflect.Descriptor instead.
 func (*UploadIdDocumentResponse) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{1}
+	return file_file_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *UploadIdDocumentResponse) GetSuccess() bool {
@@ -187,7 +599,7 @@ type UploadUserDocumentRequest struct {
 
 func (x *UploadUserDocumentRequest) Reset() {
 	*x = UploadUserDocumentRequest{}
-	mi := &file_file_proto_msgTypes[2]
+	mi := &file_file_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -199,7 +611,7 @@ func (x *UploadUserDocumentRequest) String() string {
 func (*UploadUserDocumentRequest) ProtoMessage() {}
 
 func (x *UploadUserDocumentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[2]
+	mi := &file_file_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -212,7 +624,7 @@ func (x *UploadUserDocumentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadUserDocumentRequest.ProtoReflect.Descriptor instead.
 func (*UploadUserDocumentRequest) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{2}
+	return file_file_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UploadUserDocumentRequest) GetData() isUploadUserDocumentRequest_Data {
@@ -258,20 +670,20 @@ func (*UploadUserDocumentRequest_Chunk) isUploadUserDocumentRequest_Data() {}
 
 type UserDocumentMetadata struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	DocumentName   string                 `protobuf:"bytes,2,opt,name=document_name,json=documentName,proto3" json:"document_name,omitempty"`
-	DocumentType   string                 `protobuf:"bytes,3,opt,name=document_type,json=documentType,proto3" json:"document_type,omitempty"` // idCardFront, idCardBack, passport, etc.
-	MimeType       string                 `protobuf:"bytes,4,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
-	FileSizeBytes  int64                  `protobuf:"varint,5,opt,name=file_size_bytes,json=fileSizeBytes,proto3" json:"file_size_bytes,omitempty"`
-	DocumentNumber string                 `protobuf:"bytes,6,opt,name=document_number,json=documentNumber,proto3" json:"document_number,omitempty"` // Optionnel
-	IssuingCountry string                 `protobuf:"bytes,7,opt,name=issuing_country,json=issuingCountry,proto3" json:"issuing_country,omitempty"` // Optionnel
+	UserId         string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"`
+	DocumentName   string                 `protobuf:"bytes,2,opt,name=DocumentName,proto3" json:"DocumentName,omitempty"`
+	DocumentType   string                 `protobuf:"bytes,3,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"` // idCardFront, idCardBack, passport, etc.
+	MimeType       string                 `protobuf:"bytes,4,opt,name=MimeType,proto3" json:"MimeType,omitempty"`
+	FileSizeBytes  int64                  `protobuf:"varint,5,opt,name=FileSizeBytes,proto3" json:"FileSizeBytes,omitempty"`
+	DocumentNumber string                 `protobuf:"bytes,6,opt,name=DocumentNumber,proto3" json:"DocumentNumber,omitempty"` // Optionnel
+	IssuingCountry string                 `protobuf:"bytes,7,opt,name=IssuingCountry,proto3" json:"IssuingCountry,omitempty"` // Optionnel
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *UserDocumentMetadata) Reset() {
 	*x = UserDocumentMetadata{}
-	mi := &file_file_proto_msgTypes[3]
+	mi := &file_file_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -283,7 +695,7 @@ func (x *UserDocumentMetadata) String() string {
 func (*UserDocumentMetadata) ProtoMessage() {}
 
 func (x *UserDocumentMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[3]
+	mi := &file_file_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -296,7 +708,7 @@ func (x *UserDocumentMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserDocumentMetadata.ProtoReflect.Descriptor instead.
 func (*UserDocumentMetadata) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{3}
+	return file_file_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UserDocumentMetadata) GetUserId() string {
@@ -361,7 +773,7 @@ type UploadVehicleDocumentRequest struct {
 
 func (x *UploadVehicleDocumentRequest) Reset() {
 	*x = UploadVehicleDocumentRequest{}
-	mi := &file_file_proto_msgTypes[4]
+	mi := &file_file_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -373,7 +785,7 @@ func (x *UploadVehicleDocumentRequest) String() string {
 func (*UploadVehicleDocumentRequest) ProtoMessage() {}
 
 func (x *UploadVehicleDocumentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[4]
+	mi := &file_file_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -386,7 +798,7 @@ func (x *UploadVehicleDocumentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadVehicleDocumentRequest.ProtoReflect.Descriptor instead.
 func (*UploadVehicleDocumentRequest) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{4}
+	return file_file_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *UploadVehicleDocumentRequest) GetData() isUploadVehicleDocumentRequest_Data {
@@ -432,20 +844,20 @@ func (*UploadVehicleDocumentRequest_Chunk) isUploadVehicleDocumentRequest_Data()
 
 type VehicleDocumentMetadata struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	VehicleId        string                 `protobuf:"bytes,1,opt,name=vehicle_id,json=vehicleId,proto3" json:"vehicle_id,omitempty"`
-	DocumentName     string                 `protobuf:"bytes,2,opt,name=document_name,json=documentName,proto3" json:"document_name,omitempty"`
-	DocumentType     string                 `protobuf:"bytes,3,opt,name=document_type,json=documentType,proto3" json:"document_type,omitempty"` // insurance, registrationCard
-	MimeType         string                 `protobuf:"bytes,4,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
-	FileSizeBytes    int64                  `protobuf:"varint,5,opt,name=file_size_bytes,json=fileSizeBytes,proto3" json:"file_size_bytes,omitempty"`
-	DocumentNumber   string                 `protobuf:"bytes,6,opt,name=document_number,json=documentNumber,proto3" json:"document_number,omitempty"`       // Optionnel
-	IssuingAuthority string                 `protobuf:"bytes,7,opt,name=issuing_authority,json=issuingAuthority,proto3" json:"issuing_authority,omitempty"` // Optionnel
+	VehicleId        string                 `protobuf:"bytes,1,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"`
+	DocumentName     string                 `protobuf:"bytes,2,opt,name=DocumentName,proto3" json:"DocumentName,omitempty"`
+	DocumentType     string                 `protobuf:"bytes,3,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"` // insurance, registrationCard
+	MimeType         string                 `protobuf:"bytes,4,opt,name=MimeType,proto3" json:"MimeType,omitempty"`
+	FileSizeBytes    int64                  `protobuf:"varint,5,opt,name=FileSizeBytes,proto3" json:"FileSizeBytes,omitempty"`
+	DocumentNumber   string                 `protobuf:"bytes,6,opt,name=DocumentNumber,proto3" json:"DocumentNumber,omitempty"`     // Optionnel
+	IssuingAuthority string                 `protobuf:"bytes,7,opt,name=IssuingAuthority,proto3" json:"IssuingAuthority,omitempty"` // Optionnel
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
 
 func (x *VehicleDocumentMetadata) Reset() {
 	*x = VehicleDocumentMetadata{}
-	mi := &file_file_proto_msgTypes[5]
+	mi := &file_file_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -457,7 +869,7 @@ func (x *VehicleDocumentMetadata) String() string {
 func (*VehicleDocumentMetadata) ProtoMessage() {}
 
 func (x *VehicleDocumentMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[5]
+	mi := &file_file_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -470,7 +882,7 @@ func (x *VehicleDocumentMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VehicleDocumentMetadata.ProtoReflect.Descriptor instead.
 func (*VehicleDocumentMetadata) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{5}
+	return file_file_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *VehicleDocumentMetadata) GetVehicleId() string {
@@ -524,14 +936,14 @@ func (x *VehicleDocumentMetadata) GetIssuingAuthority() string {
 
 type GetUserDocumentsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetUserDocumentsRequest) Reset() {
 	*x = GetUserDocumentsRequest{}
-	mi := &file_file_proto_msgTypes[6]
+	mi := &file_file_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -543,7 +955,7 @@ func (x *GetUserDocumentsRequest) String() string {
 func (*GetUserDocumentsRequest) ProtoMessage() {}
 
 func (x *GetUserDocumentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[6]
+	mi := &file_file_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -556,7 +968,7 @@ func (x *GetUserDocumentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserDocumentsRequest.ProtoReflect.Descriptor instead.
 func (*GetUserDocumentsRequest) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{6}
+	return file_file_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetUserDocumentsRequest) GetUserId() string {
@@ -568,14 +980,14 @@ func (x *GetUserDocumentsRequest) GetUserId() string {
 
 type GetDocumentByIDRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	DocumentId    string                 `protobuf:"bytes,1,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetDocumentByIDRequest) Reset() {
 	*x = GetDocumentByIDRequest{}
-	mi := &file_file_proto_msgTypes[7]
+	mi := &file_file_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -587,7 +999,7 @@ func (x *GetDocumentByIDRequest) String() string {
 func (*GetDocumentByIDRequest) ProtoMessage() {}
 
 func (x *GetDocumentByIDRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[7]
+	mi := &file_file_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -600,7 +1012,7 @@ func (x *GetDocumentByIDRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDocumentByIDRequest.ProtoReflect.Descriptor instead.
 func (*GetDocumentByIDRequest) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{7}
+	return file_file_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetDocumentByIDRequest) GetDocumentId() string {
@@ -612,15 +1024,15 @@ func (x *GetDocumentByIDRequest) GetDocumentId() string {
 
 type GetCurrentUserDocumentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	DocumentType  string                 `protobuf:"bytes,2,opt,name=document_type,json=documentType,proto3" json:"document_type,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"`
+	DocumentType  string                 `protobuf:"bytes,2,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetCurrentUserDocumentRequest) Reset() {
 	*x = GetCurrentUserDocumentRequest{}
-	mi := &file_file_proto_msgTypes[8]
+	mi := &file_file_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -632,7 +1044,7 @@ func (x *GetCurrentUserDocumentRequest) String() string {
 func (*GetCurrentUserDocumentRequest) ProtoMessage() {}
 
 func (x *GetCurrentUserDocumentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[8]
+	mi := &file_file_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -645,7 +1057,7 @@ func (x *GetCurrentUserDocumentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCurrentUserDocumentRequest.ProtoReflect.Descriptor instead.
 func (*GetCurrentUserDocumentRequest) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{8}
+	return file_file_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetCurrentUserDocumentRequest) GetUserId() string {
@@ -664,14 +1076,14 @@ func (x *GetCurrentUserDocumentRequest) GetDocumentType() string {
 
 type GetVehicleDocumentsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	VehicleId     string                 `protobuf:"bytes,1,opt,name=vehicle_id,json=vehicleId,proto3" json:"vehicle_id,omitempty"`
+	VehicleId     string                 `protobuf:"bytes,1,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetVehicleDocumentsRequest) Reset() {
 	*x = GetVehicleDocumentsRequest{}
-	mi := &file_file_proto_msgTypes[9]
+	mi := &file_file_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -683,7 +1095,7 @@ func (x *GetVehicleDocumentsRequest) String() string {
 func (*GetVehicleDocumentsRequest) ProtoMessage() {}
 
 func (x *GetVehicleDocumentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[9]
+	mi := &file_file_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -696,7 +1108,7 @@ func (x *GetVehicleDocumentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVehicleDocumentsRequest.ProtoReflect.Descriptor instead.
 func (*GetVehicleDocumentsRequest) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{9}
+	return file_file_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetVehicleDocumentsRequest) GetVehicleId() string {
@@ -708,14 +1120,14 @@ func (x *GetVehicleDocumentsRequest) GetVehicleId() string {
 
 type DeleteDocumentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	DocumentId    string                 `protobuf:"bytes,1,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DeleteDocumentRequest) Reset() {
 	*x = DeleteDocumentRequest{}
-	mi := &file_file_proto_msgTypes[10]
+	mi := &file_file_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -727,7 +1139,7 @@ func (x *DeleteDocumentRequest) String() string {
 func (*DeleteDocumentRequest) ProtoMessage() {}
 
 func (x *DeleteDocumentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[10]
+	mi := &file_file_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -740,7 +1152,7 @@ func (x *DeleteDocumentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteDocumentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteDocumentRequest) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{10}
+	return file_file_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *DeleteDocumentRequest) GetDocumentId() string {
@@ -752,22 +1164,22 @@ func (x *DeleteDocumentRequest) GetDocumentId() string {
 
 type CreateDocumentReviewRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	UserDocumentId    string                 `protobuf:"bytes,1,opt,name=user_document_id,json=userDocumentId,proto3" json:"user_document_id,omitempty"`          // Optionnel (l'un des deux)
-	VehicleDocumentId string                 `protobuf:"bytes,2,opt,name=vehicle_document_id,json=vehicleDocumentId,proto3" json:"vehicle_document_id,omitempty"` // Optionnel (l'un des deux)
-	Decision          string                 `protobuf:"bytes,3,opt,name=decision,proto3" json:"decision,omitempty"`                                              // approved, rejected, resubmission
-	ReasonRejection   string                 `protobuf:"bytes,4,opt,name=reason_rejection,json=reasonRejection,proto3" json:"reason_rejection,omitempty"`         // Optionnel
-	RejectionDetails  string                 `protobuf:"bytes,5,opt,name=rejection_details,json=rejectionDetails,proto3" json:"rejection_details,omitempty"`      // Optionnel
-	ReviewedBy        string                 `protobuf:"bytes,6,opt,name=reviewed_by,json=reviewedBy,proto3" json:"reviewed_by,omitempty"`
-	ReviewedByType    string                 `protobuf:"bytes,7,opt,name=reviewed_by_type,json=reviewedByType,proto3" json:"reviewed_by_type,omitempty"` // manual, automatic
-	Notes             string                 `protobuf:"bytes,8,opt,name=notes,proto3" json:"notes,omitempty"`                                           // Optionnel
-	ExtractedData     []byte                 `protobuf:"bytes,9,opt,name=extracted_data,json=extractedData,proto3" json:"extracted_data,omitempty"`      // Optionnel (JSON)
+	UserDocumentId    string                 `protobuf:"bytes,1,opt,name=UserDocumentId,proto3" json:"UserDocumentId,omitempty"`       // Optionnel (l'un des deux)
+	VehicleDocumentId string                 `protobuf:"bytes,2,opt,name=VehicleDocumentId,proto3" json:"VehicleDocumentId,omitempty"` // Optionnel (l'un des deux)
+	Decision          string                 `protobuf:"bytes,3,opt,name=Decision,proto3" json:"Decision,omitempty"`                   // approved, rejected, resubmission
+	ReasonRejection   string                 `protobuf:"bytes,4,opt,name=ReasonRejection,proto3" json:"ReasonRejection,omitempty"`     // Optionnel
+	RejectionDetails  string                 `protobuf:"bytes,5,opt,name=RejectionDetails,proto3" json:"RejectionDetails,omitempty"`   // Optionnel
+	ReviewedBy        string                 `protobuf:"bytes,6,opt,name=ReviewedBy,proto3" json:"ReviewedBy,omitempty"`
+	ReviewedByType    string                 `protobuf:"bytes,7,opt,name=ReviewedByType,proto3" json:"ReviewedByType,omitempty"` // manual, automatic
+	Notes             string                 `protobuf:"bytes,8,opt,name=Notes,proto3" json:"Notes,omitempty"`                   // Optionnel
+	ExtractedData     []byte                 `protobuf:"bytes,9,opt,name=ExtractedData,proto3" json:"ExtractedData,omitempty"`   // Optionnel (JSON)
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
 func (x *CreateDocumentReviewRequest) Reset() {
 	*x = CreateDocumentReviewRequest{}
-	mi := &file_file_proto_msgTypes[11]
+	mi := &file_file_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -779,7 +1191,7 @@ func (x *CreateDocumentReviewRequest) String() string {
 func (*CreateDocumentReviewRequest) ProtoMessage() {}
 
 func (x *CreateDocumentReviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[11]
+	mi := &file_file_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -792,7 +1204,7 @@ func (x *CreateDocumentReviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateDocumentReviewRequest.ProtoReflect.Descriptor instead.
 func (*CreateDocumentReviewRequest) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{11}
+	return file_file_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CreateDocumentReviewRequest) GetUserDocumentId() string {
@@ -860,15 +1272,15 @@ func (x *CreateDocumentReviewRequest) GetExtractedData() []byte {
 
 type GetDocumentReviewsRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	UserDocumentId    string                 `protobuf:"bytes,1,opt,name=user_document_id,json=userDocumentId,proto3" json:"user_document_id,omitempty"`          // Optionnel
-	VehicleDocumentId string                 `protobuf:"bytes,2,opt,name=vehicle_document_id,json=vehicleDocumentId,proto3" json:"vehicle_document_id,omitempty"` // Optionnel
+	UserDocumentId    string                 `protobuf:"bytes,1,opt,name=UserDocumentId,proto3" json:"UserDocumentId,omitempty"`       // Optionnel
+	VehicleDocumentId string                 `protobuf:"bytes,2,opt,name=VehicleDocumentId,proto3" json:"VehicleDocumentId,omitempty"` // Optionnel
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GetDocumentReviewsRequest) Reset() {
 	*x = GetDocumentReviewsRequest{}
-	mi := &file_file_proto_msgTypes[12]
+	mi := &file_file_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -880,7 +1292,7 @@ func (x *GetDocumentReviewsRequest) String() string {
 func (*GetDocumentReviewsRequest) ProtoMessage() {}
 
 func (x *GetDocumentReviewsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[12]
+	mi := &file_file_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -893,7 +1305,7 @@ func (x *GetDocumentReviewsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDocumentReviewsRequest.ProtoReflect.Descriptor instead.
 func (*GetDocumentReviewsRequest) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{12}
+	return file_file_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetDocumentReviewsRequest) GetUserDocumentId() string {
@@ -918,7 +1330,7 @@ type HealthRequest struct {
 
 func (x *HealthRequest) Reset() {
 	*x = HealthRequest{}
-	mi := &file_file_proto_msgTypes[13]
+	mi := &file_file_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -930,7 +1342,7 @@ func (x *HealthRequest) String() string {
 func (*HealthRequest) ProtoMessage() {}
 
 func (x *HealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[13]
+	mi := &file_file_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -943,31 +1355,31 @@ func (x *HealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthRequest.ProtoReflect.Descriptor instead.
 func (*HealthRequest) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{13}
+	return file_file_proto_rawDescGZIP(), []int{20}
 }
 
 type UserDocumentResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	DocumentId     string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
-	UserId         string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	DocumentName   string                 `protobuf:"bytes,3,opt,name=document_name,json=documentName,proto3" json:"document_name,omitempty"`
-	DocumentType   string                 `protobuf:"bytes,4,opt,name=document_type,json=documentType,proto3" json:"document_type,omitempty"`
-	DocumentUrl    string                 `protobuf:"bytes,5,opt,name=document_url,json=documentUrl,proto3" json:"document_url,omitempty"`
-	FileSizeBytes  int64                  `protobuf:"varint,6,opt,name=file_size_bytes,json=fileSizeBytes,proto3" json:"file_size_bytes,omitempty"`
-	MimeType       string                 `protobuf:"bytes,7,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
-	DocumentNumber string                 `protobuf:"bytes,8,opt,name=document_number,json=documentNumber,proto3" json:"document_number,omitempty"`
-	IssuingCountry string                 `protobuf:"bytes,9,opt,name=issuing_country,json=issuingCountry,proto3" json:"issuing_country,omitempty"`
-	Status         string                 `protobuf:"bytes,10,opt,name=status,proto3" json:"status,omitempty"`
-	IsCurrent      bool                   `protobuf:"varint,11,opt,name=is_current,json=isCurrent,proto3" json:"is_current,omitempty"`
-	UploadedAt     string                 `protobuf:"bytes,12,opt,name=uploaded_at,json=uploadedAt,proto3" json:"uploaded_at,omitempty"`
-	UpdatedAt      string                 `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	DocumentId     string                 `protobuf:"bytes,1,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`
+	UserId         string                 `protobuf:"bytes,2,opt,name=UserId,proto3" json:"UserId,omitempty"`
+	DocumentName   string                 `protobuf:"bytes,3,opt,name=DocumentName,proto3" json:"DocumentName,omitempty"`
+	DocumentType   string                 `protobuf:"bytes,4,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"`
+	DocumentUrl    string                 `protobuf:"bytes,5,opt,name=DocumentUrl,proto3" json:"DocumentUrl,omitempty"`
+	FileSizeBytes  int64                  `protobuf:"varint,6,opt,name=FileSizeBytes,proto3" json:"FileSizeBytes,omitempty"`
+	MimeType       string                 `protobuf:"bytes,7,opt,name=MimeType,proto3" json:"MimeType,omitempty"`
+	DocumentNumber string                 `protobuf:"bytes,8,opt,name=DocumentNumber,proto3" json:"DocumentNumber,omitempty"`
+	IssuingCountry string                 `protobuf:"bytes,9,opt,name=IssuingCountry,proto3" json:"IssuingCountry,omitempty"`
+	Status         string                 `protobuf:"bytes,10,opt,name=Status,proto3" json:"Status,omitempty"`
+	IsCurrent      bool                   `protobuf:"varint,11,opt,name=IsCurrent,proto3" json:"IsCurrent,omitempty"`
+	UploadedAt     string                 `protobuf:"bytes,12,opt,name=UploadedAt,proto3" json:"UploadedAt,omitempty"`
+	UpdatedAt      string                 `protobuf:"bytes,13,opt,name=UpdatedAt,proto3" json:"UpdatedAt,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *UserDocumentResponse) Reset() {
 	*x = UserDocumentResponse{}
-	mi := &file_file_proto_msgTypes[14]
+	mi := &file_file_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -979,7 +1391,7 @@ func (x *UserDocumentResponse) String() string {
 func (*UserDocumentResponse) ProtoMessage() {}
 
 func (x *UserDocumentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[14]
+	mi := &file_file_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -992,7 +1404,7 @@ func (x *UserDocumentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserDocumentResponse.ProtoReflect.Descriptor instead.
 func (*UserDocumentResponse) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{14}
+	return file_file_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *UserDocumentResponse) GetDocumentId() string {
@@ -1088,26 +1500,26 @@ func (x *UserDocumentResponse) GetUpdatedAt() string {
 
 type VehicleDocumentResponse struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	DocumentId       string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
-	VehicleId        string                 `protobuf:"bytes,2,opt,name=vehicle_id,json=vehicleId,proto3" json:"vehicle_id,omitempty"`
-	DocumentName     string                 `protobuf:"bytes,3,opt,name=document_name,json=documentName,proto3" json:"document_name,omitempty"`
-	DocumentType     string                 `protobuf:"bytes,4,opt,name=document_type,json=documentType,proto3" json:"document_type,omitempty"`
-	DocumentUrl      string                 `protobuf:"bytes,5,opt,name=document_url,json=documentUrl,proto3" json:"document_url,omitempty"`
-	FileSizeBytes    int64                  `protobuf:"varint,6,opt,name=file_size_bytes,json=fileSizeBytes,proto3" json:"file_size_bytes,omitempty"`
-	MimeType         string                 `protobuf:"bytes,7,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
-	DocumentNumber   string                 `protobuf:"bytes,8,opt,name=document_number,json=documentNumber,proto3" json:"document_number,omitempty"`
-	IssuingAuthority string                 `protobuf:"bytes,9,opt,name=issuing_authority,json=issuingAuthority,proto3" json:"issuing_authority,omitempty"`
-	Status           string                 `protobuf:"bytes,10,opt,name=status,proto3" json:"status,omitempty"`
-	IsCurrent        bool                   `protobuf:"varint,11,opt,name=is_current,json=isCurrent,proto3" json:"is_current,omitempty"`
-	UploadedAt       string                 `protobuf:"bytes,12,opt,name=uploaded_at,json=uploadedAt,proto3" json:"uploaded_at,omitempty"`
-	UpdatedAt        string                 `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	DocumentId       string                 `protobuf:"bytes,1,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`
+	VehicleId        string                 `protobuf:"bytes,2,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"`
+	DocumentName     string                 `protobuf:"bytes,3,opt,name=DocumentName,proto3" json:"DocumentName,omitempty"`
+	DocumentType     string                 `protobuf:"bytes,4,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"`
+	DocumentUrl      string                 `protobuf:"bytes,5,opt,name=DocumentUrl,proto3" json:"DocumentUrl,omitempty"`
+	FileSizeBytes    int64                  `protobuf:"varint,6,opt,name=FileSizeBytes,proto3" json:"FileSizeBytes,omitempty"`
+	MimeType         string                 `protobuf:"bytes,7,opt,name=MimeType,proto3" json:"MimeType,omitempty"`
+	DocumentNumber   string                 `protobuf:"bytes,8,opt,name=DocumentNumber,proto3" json:"DocumentNumber,omitempty"`
+	IssuingAuthority string                 `protobuf:"bytes,9,opt,name=IssuingAuthority,proto3" json:"IssuingAuthority,omitempty"`
+	Status           string                 `protobuf:"bytes,10,opt,name=Status,proto3" json:"Status,omitempty"`
+	IsCurrent        bool                   `protobuf:"varint,11,opt,name=IsCurrent,proto3" json:"IsCurrent,omitempty"`
+	UploadedAt       string                 `protobuf:"bytes,12,opt,name=UploadedAt,proto3" json:"UploadedAt,omitempty"`
+	UpdatedAt        string                 `protobuf:"bytes,13,opt,name=UpdatedAt,proto3" json:"UpdatedAt,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
 
 func (x *VehicleDocumentResponse) Reset() {
 	*x = VehicleDocumentResponse{}
-	mi := &file_file_proto_msgTypes[15]
+	mi := &file_file_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1119,7 +1531,7 @@ func (x *VehicleDocumentResponse) String() string {
 func (*VehicleDocumentResponse) ProtoMessage() {}
 
 func (x *VehicleDocumentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[15]
+	mi := &file_file_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1132,7 +1544,7 @@ func (x *VehicleDocumentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VehicleDocumentResponse.ProtoReflect.Descriptor instead.
 func (*VehicleDocumentResponse) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{15}
+	return file_file_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *VehicleDocumentResponse) GetDocumentId() string {
@@ -1235,7 +1647,7 @@ type GetUserDocumentsResponse struct {
 
 func (x *GetUserDocumentsResponse) Reset() {
 	*x = GetUserDocumentsResponse{}
-	mi := &file_file_proto_msgTypes[16]
+	mi := &file_file_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1247,7 +1659,7 @@ func (x *GetUserDocumentsResponse) String() string {
 func (*GetUserDocumentsResponse) ProtoMessage() {}
 
 func (x *GetUserDocumentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[16]
+	mi := &file_file_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1260,7 +1672,7 @@ func (x *GetUserDocumentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserDocumentsResponse.ProtoReflect.Descriptor instead.
 func (*GetUserDocumentsResponse) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{16}
+	return file_file_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetUserDocumentsResponse) GetDocuments() []*UserDocumentResponse {
@@ -1279,7 +1691,7 @@ type GetVehicleDocumentsResponse struct {
 
 func (x *GetVehicleDocumentsResponse) Reset() {
 	*x = GetVehicleDocumentsResponse{}
-	mi := &file_file_proto_msgTypes[17]
+	mi := &file_file_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1291,7 +1703,7 @@ func (x *GetVehicleDocumentsResponse) String() string {
 func (*GetVehicleDocumentsResponse) ProtoMessage() {}
 
 func (x *GetVehicleDocumentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[17]
+	mi := &file_file_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1304,7 +1716,7 @@ func (x *GetVehicleDocumentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVehicleDocumentsResponse.ProtoReflect.Descriptor instead.
 func (*GetVehicleDocumentsResponse) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{17}
+	return file_file_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GetVehicleDocumentsResponse) GetDocuments() []*VehicleDocumentResponse {
@@ -1316,14 +1728,14 @@ func (x *GetVehicleDocumentsResponse) GetDocuments() []*VehicleDocumentResponse 
 
 type OperationResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *OperationResponse) Reset() {
 	*x = OperationResponse{}
-	mi := &file_file_proto_msgTypes[18]
+	mi := &file_file_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1335,7 +1747,7 @@ func (x *OperationResponse) String() string {
 func (*OperationResponse) ProtoMessage() {}
 
 func (x *OperationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[18]
+	mi := &file_file_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1348,7 +1760,7 @@ func (x *OperationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperationResponse.ProtoReflect.Descriptor instead.
 func (*OperationResponse) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{18}
+	return file_file_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *OperationResponse) GetSuccess() bool {
@@ -1360,23 +1772,23 @@ func (x *OperationResponse) GetSuccess() bool {
 
 type DocumentReviewResponse struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	ReviewId          string                 `protobuf:"bytes,1,opt,name=review_id,json=reviewId,proto3" json:"review_id,omitempty"`
-	UserDocumentId    string                 `protobuf:"bytes,2,opt,name=user_document_id,json=userDocumentId,proto3" json:"user_document_id,omitempty"`
-	VehicleDocumentId string                 `protobuf:"bytes,3,opt,name=vehicle_document_id,json=vehicleDocumentId,proto3" json:"vehicle_document_id,omitempty"`
-	Decision          string                 `protobuf:"bytes,4,opt,name=decision,proto3" json:"decision,omitempty"`
-	ReasonRejection   string                 `protobuf:"bytes,5,opt,name=reason_rejection,json=reasonRejection,proto3" json:"reason_rejection,omitempty"`
-	RejectionDetails  string                 `protobuf:"bytes,6,opt,name=rejection_details,json=rejectionDetails,proto3" json:"rejection_details,omitempty"`
-	ReviewedBy        string                 `protobuf:"bytes,7,opt,name=reviewed_by,json=reviewedBy,proto3" json:"reviewed_by,omitempty"`
-	ReviewedByType    string                 `protobuf:"bytes,8,opt,name=reviewed_by_type,json=reviewedByType,proto3" json:"reviewed_by_type,omitempty"`
-	ReviewedAt        string                 `protobuf:"bytes,9,opt,name=reviewed_at,json=reviewedAt,proto3" json:"reviewed_at,omitempty"`
-	Notes             string                 `protobuf:"bytes,10,opt,name=notes,proto3" json:"notes,omitempty"`
+	ReviewId          string                 `protobuf:"bytes,1,opt,name=ReviewId,proto3" json:"ReviewId,omitempty"`
+	UserDocumentId    string                 `protobuf:"bytes,2,opt,name=UserDocumentId,proto3" json:"UserDocumentId,omitempty"`
+	VehicleDocumentId string                 `protobuf:"bytes,3,opt,name=VehicleDocumentId,proto3" json:"VehicleDocumentId,omitempty"`
+	Decision          string                 `protobuf:"bytes,4,opt,name=Decision,proto3" json:"Decision,omitempty"`
+	ReasonRejection   string                 `protobuf:"bytes,5,opt,name=ReasonRejection,proto3" json:"ReasonRejection,omitempty"`
+	RejectionDetails  string                 `protobuf:"bytes,6,opt,name=RejectionDetails,proto3" json:"RejectionDetails,omitempty"`
+	ReviewedBy        string                 `protobuf:"bytes,7,opt,name=ReviewedBy,proto3" json:"ReviewedBy,omitempty"`
+	ReviewedByType    string                 `protobuf:"bytes,8,opt,name=ReviewedByType,proto3" json:"ReviewedByType,omitempty"`
+	ReviewedAt        string                 `protobuf:"bytes,9,opt,name=ReviewedAt,proto3" json:"ReviewedAt,omitempty"`
+	Notes             string                 `protobuf:"bytes,10,opt,name=Notes,proto3" json:"Notes,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
 func (x *DocumentReviewResponse) Reset() {
 	*x = DocumentReviewResponse{}
-	mi := &file_file_proto_msgTypes[19]
+	mi := &file_file_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1388,7 +1800,7 @@ func (x *DocumentReviewResponse) String() string {
 func (*DocumentReviewResponse) ProtoMessage() {}
 
 func (x *DocumentReviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[19]
+	mi := &file_file_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1401,7 +1813,7 @@ func (x *DocumentReviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DocumentReviewResponse.ProtoReflect.Descriptor instead.
 func (*DocumentReviewResponse) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{19}
+	return file_file_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *DocumentReviewResponse) GetReviewId() string {
@@ -1476,14 +1888,14 @@ func (x *DocumentReviewResponse) GetNotes() string {
 
 type GetDocumentReviewsResponse struct {
 	state         protoimpl.MessageState    `protogen:"open.v1"`
-	Reviews       []*DocumentReviewResponse `protobuf:"bytes,1,rep,name=reviews,proto3" json:"reviews,omitempty"`
+	Reviews       []*DocumentReviewResponse `protobuf:"bytes,1,rep,name=Reviews,proto3" json:"Reviews,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetDocumentReviewsResponse) Reset() {
 	*x = GetDocumentReviewsResponse{}
-	mi := &file_file_proto_msgTypes[20]
+	mi := &file_file_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1495,7 +1907,7 @@ func (x *GetDocumentReviewsResponse) String() string {
 func (*GetDocumentReviewsResponse) ProtoMessage() {}
 
 func (x *GetDocumentReviewsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[20]
+	mi := &file_file_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1508,7 +1920,7 @@ func (x *GetDocumentReviewsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDocumentReviewsResponse.ProtoReflect.Descriptor instead.
 func (*GetDocumentReviewsResponse) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{20}
+	return file_file_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GetDocumentReviewsResponse) GetReviews() []*DocumentReviewResponse {
@@ -1520,16 +1932,16 @@ func (x *GetDocumentReviewsResponse) GetReviews() []*DocumentReviewResponse {
 
 type HealthResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
-	Timestamp     int64                  `protobuf:"varint,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Status        string                 `protobuf:"bytes,1,opt,name=Status,proto3" json:"Status,omitempty"`
+	Version       string                 `protobuf:"bytes,2,opt,name=Version,proto3" json:"Version,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,3,opt,name=Timestamp,proto3" json:"Timestamp,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *HealthResponse) Reset() {
 	*x = HealthResponse{}
-	mi := &file_file_proto_msgTypes[21]
+	mi := &file_file_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1541,7 +1953,7 @@ func (x *HealthResponse) String() string {
 func (*HealthResponse) ProtoMessage() {}
 
 func (x *HealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[21]
+	mi := &file_file_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1554,7 +1966,7 @@ func (x *HealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
 func (*HealthResponse) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{21}
+	return file_file_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *HealthResponse) GetStatus() string {
@@ -1583,9 +1995,36 @@ var File_file_proto protoreflect.FileDescriptor
 const file_file_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"file.proto\x12\x04file\x1a\x1cgoogle/api/annotations.proto\"\x9b\x02\n" +
-	"\x17UploadIdDocumentRequest\x12\x1c\n" +
-	"\tProfileID\x18\x01 \x01(\tR\tProfileID\x12\"\n" +
+	"file.proto\x12\x04file\x1a\x1cgoogle/api/annotations.proto\"\xd5\x01\n" +
+	"\x1dUploadVehicleDocumentsRequest\x12\x16\n" +
+	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12\x1c\n" +
+	"\tVehicleID\x18\x02 \x01(\tR\tVehicleID\x12.\n" +
+	"\x12DriverLicenceImage\x18\x03 \x01(\fR\x12DriverLicenceImage\x12\x1c\n" +
+	"\tAssurance\x18\x04 \x01(\fR\tAssurance\x120\n" +
+	"\x13VehicleRegistration\x18\x05 \x01(\fR\x13VehicleRegistration\"^\n" +
+	"\x1eUploadVehicleDocumentsResponse\x12\x18\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"b\n" +
+	"\x12GetDocumentRequest\x12\x16\n" +
+	"\x06FileID\x18\x01 \x01(\tR\x06FileID\x12\x16\n" +
+	"\x06UserID\x18\x02 \x01(\tR\x06UserID\x12\x1c\n" +
+	"\tSupportID\x18\x03 \x01(\tR\tSupportID\"\\\n" +
+	"\fDocumentFile\x12\x16\n" +
+	"\x06FileID\x18\x01 \x01(\tR\x06FileID\x12\x18\n" +
+	"\aFileURL\x18\x02 \x01(\tR\aFileURL\x12\x1a\n" +
+	"\bFileType\x18\x03 \x01(\tR\bFileType\"a\n" +
+	"\x13GetDocumentResponse\x12\"\n" +
+	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12&\n" +
+	"\x04File\x18\x02 \x01(\v2\x12.file.DocumentFileR\x04File\"i\n" +
+	"\x15ChangeDocumentRequest\x12\x16\n" +
+	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12\x16\n" +
+	"\x06FileID\x18\x02 \x01(\tR\x06FileID\x12 \n" +
+	"\vNewDocument\x18\x03 \x01(\fR\vNewDocument\"V\n" +
+	"\x16ChangeDocumentResponse\x12\x18\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\x95\x02\n" +
+	"\x17UploadIdDocumentRequest\x12\x16\n" +
+	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12\"\n" +
 	"\fDocumentType\x18\x02 \x01(\tR\fDocumentType\x12 \n" +
 	"\vIDCardRecto\x18\x03 \x01(\fR\vIDCardRecto\x12 \n" +
 	"\vIDCardVerso\x18\x04 \x01(\fR\vIDCardVerso\x12.\n" +
@@ -1598,126 +2037,131 @@ const file_file_proto_rawDesc = "" +
 	"\x19UploadUserDocumentRequest\x128\n" +
 	"\bmetadata\x18\x01 \x01(\v2\x1a.file.UserDocumentMetadataH\x00R\bmetadata\x12\x16\n" +
 	"\x05chunk\x18\x02 \x01(\fH\x00R\x05chunkB\x06\n" +
-	"\x04data\"\x90\x02\n" +
-	"\x14UserDocumentMetadata\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12#\n" +
-	"\rdocument_name\x18\x02 \x01(\tR\fdocumentName\x12#\n" +
-	"\rdocument_type\x18\x03 \x01(\tR\fdocumentType\x12\x1b\n" +
-	"\tmime_type\x18\x04 \x01(\tR\bmimeType\x12&\n" +
-	"\x0ffile_size_bytes\x18\x05 \x01(\x03R\rfileSizeBytes\x12'\n" +
-	"\x0fdocument_number\x18\x06 \x01(\tR\x0edocumentNumber\x12'\n" +
-	"\x0fissuing_country\x18\a \x01(\tR\x0eissuingCountry\"{\n" +
+	"\x04data\"\x88\x02\n" +
+	"\x14UserDocumentMetadata\x12\x16\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x12\"\n" +
+	"\fDocumentName\x18\x02 \x01(\tR\fDocumentName\x12\"\n" +
+	"\fDocumentType\x18\x03 \x01(\tR\fDocumentType\x12\x1a\n" +
+	"\bMimeType\x18\x04 \x01(\tR\bMimeType\x12$\n" +
+	"\rFileSizeBytes\x18\x05 \x01(\x03R\rFileSizeBytes\x12&\n" +
+	"\x0eDocumentNumber\x18\x06 \x01(\tR\x0eDocumentNumber\x12&\n" +
+	"\x0eIssuingCountry\x18\a \x01(\tR\x0eIssuingCountry\"{\n" +
 	"\x1cUploadVehicleDocumentRequest\x12;\n" +
 	"\bmetadata\x18\x01 \x01(\v2\x1d.file.VehicleDocumentMetadataH\x00R\bmetadata\x12\x16\n" +
 	"\x05chunk\x18\x02 \x01(\fH\x00R\x05chunkB\x06\n" +
-	"\x04data\"\x9d\x02\n" +
-	"\x17VehicleDocumentMetadata\x12\x1d\n" +
+	"\x04data\"\x95\x02\n" +
+	"\x17VehicleDocumentMetadata\x12\x1c\n" +
+	"\tVehicleId\x18\x01 \x01(\tR\tVehicleId\x12\"\n" +
+	"\fDocumentName\x18\x02 \x01(\tR\fDocumentName\x12\"\n" +
+	"\fDocumentType\x18\x03 \x01(\tR\fDocumentType\x12\x1a\n" +
+	"\bMimeType\x18\x04 \x01(\tR\bMimeType\x12$\n" +
+	"\rFileSizeBytes\x18\x05 \x01(\x03R\rFileSizeBytes\x12&\n" +
+	"\x0eDocumentNumber\x18\x06 \x01(\tR\x0eDocumentNumber\x12*\n" +
+	"\x10IssuingAuthority\x18\a \x01(\tR\x10IssuingAuthority\"1\n" +
+	"\x17GetUserDocumentsRequest\x12\x16\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"8\n" +
+	"\x16GetDocumentByIDRequest\x12\x1e\n" +
 	"\n" +
-	"vehicle_id\x18\x01 \x01(\tR\tvehicleId\x12#\n" +
-	"\rdocument_name\x18\x02 \x01(\tR\fdocumentName\x12#\n" +
-	"\rdocument_type\x18\x03 \x01(\tR\fdocumentType\x12\x1b\n" +
-	"\tmime_type\x18\x04 \x01(\tR\bmimeType\x12&\n" +
-	"\x0ffile_size_bytes\x18\x05 \x01(\x03R\rfileSizeBytes\x12'\n" +
-	"\x0fdocument_number\x18\x06 \x01(\tR\x0edocumentNumber\x12+\n" +
-	"\x11issuing_authority\x18\a \x01(\tR\x10issuingAuthority\"2\n" +
-	"\x17GetUserDocumentsRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"9\n" +
-	"\x16GetDocumentByIDRequest\x12\x1f\n" +
-	"\vdocument_id\x18\x01 \x01(\tR\n" +
-	"documentId\"]\n" +
-	"\x1dGetCurrentUserDocumentRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12#\n" +
-	"\rdocument_type\x18\x02 \x01(\tR\fdocumentType\";\n" +
-	"\x1aGetVehicleDocumentsRequest\x12\x1d\n" +
+	"DocumentId\x18\x01 \x01(\tR\n" +
+	"DocumentId\"[\n" +
+	"\x1dGetCurrentUserDocumentRequest\x12\x16\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x12\"\n" +
+	"\fDocumentType\x18\x02 \x01(\tR\fDocumentType\":\n" +
+	"\x1aGetVehicleDocumentsRequest\x12\x1c\n" +
+	"\tVehicleId\x18\x01 \x01(\tR\tVehicleId\"7\n" +
+	"\x15DeleteDocumentRequest\x12\x1e\n" +
 	"\n" +
-	"vehicle_id\x18\x01 \x01(\tR\tvehicleId\"8\n" +
-	"\x15DeleteDocumentRequest\x12\x1f\n" +
-	"\vdocument_id\x18\x01 \x01(\tR\n" +
-	"documentId\"\xf3\x02\n" +
-	"\x1bCreateDocumentReviewRequest\x12(\n" +
-	"\x10user_document_id\x18\x01 \x01(\tR\x0euserDocumentId\x12.\n" +
-	"\x13vehicle_document_id\x18\x02 \x01(\tR\x11vehicleDocumentId\x12\x1a\n" +
-	"\bdecision\x18\x03 \x01(\tR\bdecision\x12)\n" +
-	"\x10reason_rejection\x18\x04 \x01(\tR\x0freasonRejection\x12+\n" +
-	"\x11rejection_details\x18\x05 \x01(\tR\x10rejectionDetails\x12\x1f\n" +
-	"\vreviewed_by\x18\x06 \x01(\tR\n" +
-	"reviewedBy\x12(\n" +
-	"\x10reviewed_by_type\x18\a \x01(\tR\x0ereviewedByType\x12\x14\n" +
-	"\x05notes\x18\b \x01(\tR\x05notes\x12%\n" +
-	"\x0eextracted_data\x18\t \x01(\fR\rextractedData\"u\n" +
-	"\x19GetDocumentReviewsRequest\x12(\n" +
-	"\x10user_document_id\x18\x01 \x01(\tR\x0euserDocumentId\x12.\n" +
-	"\x13vehicle_document_id\x18\x02 \x01(\tR\x11vehicleDocumentId\"\x0f\n" +
-	"\rHealthRequest\"\xcb\x03\n" +
-	"\x14UserDocumentResponse\x12\x1f\n" +
-	"\vdocument_id\x18\x01 \x01(\tR\n" +
-	"documentId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\x12#\n" +
-	"\rdocument_name\x18\x03 \x01(\tR\fdocumentName\x12#\n" +
-	"\rdocument_type\x18\x04 \x01(\tR\fdocumentType\x12!\n" +
-	"\fdocument_url\x18\x05 \x01(\tR\vdocumentUrl\x12&\n" +
-	"\x0ffile_size_bytes\x18\x06 \x01(\x03R\rfileSizeBytes\x12\x1b\n" +
-	"\tmime_type\x18\a \x01(\tR\bmimeType\x12'\n" +
-	"\x0fdocument_number\x18\b \x01(\tR\x0edocumentNumber\x12'\n" +
-	"\x0fissuing_country\x18\t \x01(\tR\x0eissuingCountry\x12\x16\n" +
-	"\x06status\x18\n" +
-	" \x01(\tR\x06status\x12\x1d\n" +
+	"DocumentId\x18\x01 \x01(\tR\n" +
+	"DocumentId\"\xe9\x02\n" +
+	"\x1bCreateDocumentReviewRequest\x12&\n" +
+	"\x0eUserDocumentId\x18\x01 \x01(\tR\x0eUserDocumentId\x12,\n" +
+	"\x11VehicleDocumentId\x18\x02 \x01(\tR\x11VehicleDocumentId\x12\x1a\n" +
+	"\bDecision\x18\x03 \x01(\tR\bDecision\x12(\n" +
+	"\x0fReasonRejection\x18\x04 \x01(\tR\x0fReasonRejection\x12*\n" +
+	"\x10RejectionDetails\x18\x05 \x01(\tR\x10RejectionDetails\x12\x1e\n" +
 	"\n" +
-	"is_current\x18\v \x01(\bR\tisCurrent\x12\x1f\n" +
-	"\vuploaded_at\x18\f \x01(\tR\n" +
-	"uploadedAt\x12\x1d\n" +
+	"ReviewedBy\x18\x06 \x01(\tR\n" +
+	"ReviewedBy\x12&\n" +
+	"\x0eReviewedByType\x18\a \x01(\tR\x0eReviewedByType\x12\x14\n" +
+	"\x05Notes\x18\b \x01(\tR\x05Notes\x12$\n" +
+	"\rExtractedData\x18\t \x01(\fR\rExtractedData\"q\n" +
+	"\x19GetDocumentReviewsRequest\x12&\n" +
+	"\x0eUserDocumentId\x18\x01 \x01(\tR\x0eUserDocumentId\x12,\n" +
+	"\x11VehicleDocumentId\x18\x02 \x01(\tR\x11VehicleDocumentId\"\x0f\n" +
+	"\rHealthRequest\"\xbe\x03\n" +
+	"\x14UserDocumentResponse\x12\x1e\n" +
 	"\n" +
-	"updated_at\x18\r \x01(\tR\tupdatedAt\"\xd8\x03\n" +
-	"\x17VehicleDocumentResponse\x12\x1f\n" +
-	"\vdocument_id\x18\x01 \x01(\tR\n" +
-	"documentId\x12\x1d\n" +
+	"DocumentId\x18\x01 \x01(\tR\n" +
+	"DocumentId\x12\x16\n" +
+	"\x06UserId\x18\x02 \x01(\tR\x06UserId\x12\"\n" +
+	"\fDocumentName\x18\x03 \x01(\tR\fDocumentName\x12\"\n" +
+	"\fDocumentType\x18\x04 \x01(\tR\fDocumentType\x12 \n" +
+	"\vDocumentUrl\x18\x05 \x01(\tR\vDocumentUrl\x12$\n" +
+	"\rFileSizeBytes\x18\x06 \x01(\x03R\rFileSizeBytes\x12\x1a\n" +
+	"\bMimeType\x18\a \x01(\tR\bMimeType\x12&\n" +
+	"\x0eDocumentNumber\x18\b \x01(\tR\x0eDocumentNumber\x12&\n" +
+	"\x0eIssuingCountry\x18\t \x01(\tR\x0eIssuingCountry\x12\x16\n" +
+	"\x06Status\x18\n" +
+	" \x01(\tR\x06Status\x12\x1c\n" +
+	"\tIsCurrent\x18\v \x01(\bR\tIsCurrent\x12\x1e\n" +
 	"\n" +
-	"vehicle_id\x18\x02 \x01(\tR\tvehicleId\x12#\n" +
-	"\rdocument_name\x18\x03 \x01(\tR\fdocumentName\x12#\n" +
-	"\rdocument_type\x18\x04 \x01(\tR\fdocumentType\x12!\n" +
-	"\fdocument_url\x18\x05 \x01(\tR\vdocumentUrl\x12&\n" +
-	"\x0ffile_size_bytes\x18\x06 \x01(\x03R\rfileSizeBytes\x12\x1b\n" +
-	"\tmime_type\x18\a \x01(\tR\bmimeType\x12'\n" +
-	"\x0fdocument_number\x18\b \x01(\tR\x0edocumentNumber\x12+\n" +
-	"\x11issuing_authority\x18\t \x01(\tR\x10issuingAuthority\x12\x16\n" +
-	"\x06status\x18\n" +
-	" \x01(\tR\x06status\x12\x1d\n" +
+	"UploadedAt\x18\f \x01(\tR\n" +
+	"UploadedAt\x12\x1c\n" +
+	"\tUpdatedAt\x18\r \x01(\tR\tUpdatedAt\"\xcb\x03\n" +
+	"\x17VehicleDocumentResponse\x12\x1e\n" +
 	"\n" +
-	"is_current\x18\v \x01(\bR\tisCurrent\x12\x1f\n" +
-	"\vuploaded_at\x18\f \x01(\tR\n" +
-	"uploadedAt\x12\x1d\n" +
+	"DocumentId\x18\x01 \x01(\tR\n" +
+	"DocumentId\x12\x1c\n" +
+	"\tVehicleId\x18\x02 \x01(\tR\tVehicleId\x12\"\n" +
+	"\fDocumentName\x18\x03 \x01(\tR\fDocumentName\x12\"\n" +
+	"\fDocumentType\x18\x04 \x01(\tR\fDocumentType\x12 \n" +
+	"\vDocumentUrl\x18\x05 \x01(\tR\vDocumentUrl\x12$\n" +
+	"\rFileSizeBytes\x18\x06 \x01(\x03R\rFileSizeBytes\x12\x1a\n" +
+	"\bMimeType\x18\a \x01(\tR\bMimeType\x12&\n" +
+	"\x0eDocumentNumber\x18\b \x01(\tR\x0eDocumentNumber\x12*\n" +
+	"\x10IssuingAuthority\x18\t \x01(\tR\x10IssuingAuthority\x12\x16\n" +
+	"\x06Status\x18\n" +
+	" \x01(\tR\x06Status\x12\x1c\n" +
+	"\tIsCurrent\x18\v \x01(\bR\tIsCurrent\x12\x1e\n" +
 	"\n" +
-	"updated_at\x18\r \x01(\tR\tupdatedAt\"T\n" +
+	"UploadedAt\x18\f \x01(\tR\n" +
+	"UploadedAt\x12\x1c\n" +
+	"\tUpdatedAt\x18\r \x01(\tR\tUpdatedAt\"T\n" +
 	"\x18GetUserDocumentsResponse\x128\n" +
 	"\tdocuments\x18\x01 \x03(\v2\x1a.file.UserDocumentResponseR\tdocuments\"Z\n" +
 	"\x1bGetVehicleDocumentsResponse\x12;\n" +
 	"\tdocuments\x18\x01 \x03(\v2\x1d.file.VehicleDocumentResponseR\tdocuments\"-\n" +
 	"\x11OperationResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\"\x85\x03\n" +
-	"\x16DocumentReviewResponse\x12\x1b\n" +
-	"\treview_id\x18\x01 \x01(\tR\breviewId\x12(\n" +
-	"\x10user_document_id\x18\x02 \x01(\tR\x0euserDocumentId\x12.\n" +
-	"\x13vehicle_document_id\x18\x03 \x01(\tR\x11vehicleDocumentId\x12\x1a\n" +
-	"\bdecision\x18\x04 \x01(\tR\bdecision\x12)\n" +
-	"\x10reason_rejection\x18\x05 \x01(\tR\x0freasonRejection\x12+\n" +
-	"\x11rejection_details\x18\x06 \x01(\tR\x10rejectionDetails\x12\x1f\n" +
-	"\vreviewed_by\x18\a \x01(\tR\n" +
-	"reviewedBy\x12(\n" +
-	"\x10reviewed_by_type\x18\b \x01(\tR\x0ereviewedByType\x12\x1f\n" +
-	"\vreviewed_at\x18\t \x01(\tR\n" +
-	"reviewedAt\x12\x14\n" +
-	"\x05notes\x18\n" +
-	" \x01(\tR\x05notes\"T\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\"\xfa\x02\n" +
+	"\x16DocumentReviewResponse\x12\x1a\n" +
+	"\bReviewId\x18\x01 \x01(\tR\bReviewId\x12&\n" +
+	"\x0eUserDocumentId\x18\x02 \x01(\tR\x0eUserDocumentId\x12,\n" +
+	"\x11VehicleDocumentId\x18\x03 \x01(\tR\x11VehicleDocumentId\x12\x1a\n" +
+	"\bDecision\x18\x04 \x01(\tR\bDecision\x12(\n" +
+	"\x0fReasonRejection\x18\x05 \x01(\tR\x0fReasonRejection\x12*\n" +
+	"\x10RejectionDetails\x18\x06 \x01(\tR\x10RejectionDetails\x12\x1e\n" +
+	"\n" +
+	"ReviewedBy\x18\a \x01(\tR\n" +
+	"ReviewedBy\x12&\n" +
+	"\x0eReviewedByType\x18\b \x01(\tR\x0eReviewedByType\x12\x1e\n" +
+	"\n" +
+	"ReviewedAt\x18\t \x01(\tR\n" +
+	"ReviewedAt\x12\x14\n" +
+	"\x05Notes\x18\n" +
+	" \x01(\tR\x05Notes\"T\n" +
 	"\x1aGetDocumentReviewsResponse\x126\n" +
-	"\areviews\x18\x01 \x03(\v2\x1c.file.DocumentReviewResponseR\areviews\"`\n" +
+	"\aReviews\x18\x01 \x03(\v2\x1c.file.DocumentReviewResponseR\aReviews\"`\n" +
 	"\x0eHealthResponse\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1c\n" +
-	"\ttimestamp\x18\x03 \x01(\x03R\ttimestamp2\xe2\b\n" +
+	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
+	"\aVersion\x18\x02 \x01(\tR\aVersion\x12\x1c\n" +
+	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp2\xbe\v\n" +
 	"\vFileService\x12S\n" +
 	"\x12UploadUserDocument\x12\x1f.file.UploadUserDocumentRequest\x1a\x1a.file.UserDocumentResponse(\x01\x12\\\n" +
 	"\x15UploadVehicleDocument\x12\".file.UploadVehicleDocumentRequest\x1a\x1d.file.VehicleDocumentResponse(\x01\x12t\n" +
-	"\x10UploadIdDocument\x12\x1d.file.UploadIdDocumentRequest\x1a\x1e.file.UploadIdDocumentResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/file/uploadIdDocument\x12Q\n" +
+	"\x10UploadIdDocument\x12\x1d.file.UploadIdDocumentRequest\x1a\x1e.file.UploadIdDocumentResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/file/uploadIdDocument\x12\x8c\x01\n" +
+	"\x16UploadVehicleDocuments\x12#.file.UploadVehicleDocumentsRequest\x1a$.file.UploadVehicleDocumentsResponse\"'\x82\xd3\xe4\x93\x02!:\x01*\"\x1c/file/uploadVehicleDocuments\x12l\n" +
+	"\x0eChangeDocument\x12\x1b.file.ChangeDocumentRequest\x1a\x1c.file.ChangeDocumentResponse\"\x1f\x82\xd3\xe4\x93\x02\x19:\x01*2\x14/file/changeDocument\x12]\n" +
+	"\vGetDocument\x12\x18.file.GetDocumentRequest\x1a\x19.file.GetDocumentResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/file/getDocument\x12Q\n" +
 	"\x10GetUserDocuments\x12\x1d.file.GetUserDocumentsRequest\x1a\x1e.file.GetUserDocumentsResponse\x12K\n" +
 	"\x0fGetUserDocument\x12\x1c.file.GetDocumentByIDRequest\x1a\x1a.file.UserDocumentResponse\x12Y\n" +
 	"\x16GetCurrentUserDocument\x12#.file.GetCurrentUserDocumentRequest\x1a\x1a.file.UserDocumentResponse\x12Z\n" +
@@ -1741,68 +2185,82 @@ func file_file_proto_rawDescGZIP() []byte {
 	return file_file_proto_rawDescData
 }
 
-var file_file_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_file_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_file_proto_goTypes = []any{
-	(*UploadIdDocumentRequest)(nil),       // 0: file.UploadIdDocumentRequest
-	(*UploadIdDocumentResponse)(nil),      // 1: file.UploadIdDocumentResponse
-	(*UploadUserDocumentRequest)(nil),     // 2: file.UploadUserDocumentRequest
-	(*UserDocumentMetadata)(nil),          // 3: file.UserDocumentMetadata
-	(*UploadVehicleDocumentRequest)(nil),  // 4: file.UploadVehicleDocumentRequest
-	(*VehicleDocumentMetadata)(nil),       // 5: file.VehicleDocumentMetadata
-	(*GetUserDocumentsRequest)(nil),       // 6: file.GetUserDocumentsRequest
-	(*GetDocumentByIDRequest)(nil),        // 7: file.GetDocumentByIDRequest
-	(*GetCurrentUserDocumentRequest)(nil), // 8: file.GetCurrentUserDocumentRequest
-	(*GetVehicleDocumentsRequest)(nil),    // 9: file.GetVehicleDocumentsRequest
-	(*DeleteDocumentRequest)(nil),         // 10: file.DeleteDocumentRequest
-	(*CreateDocumentReviewRequest)(nil),   // 11: file.CreateDocumentReviewRequest
-	(*GetDocumentReviewsRequest)(nil),     // 12: file.GetDocumentReviewsRequest
-	(*HealthRequest)(nil),                 // 13: file.HealthRequest
-	(*UserDocumentResponse)(nil),          // 14: file.UserDocumentResponse
-	(*VehicleDocumentResponse)(nil),       // 15: file.VehicleDocumentResponse
-	(*GetUserDocumentsResponse)(nil),      // 16: file.GetUserDocumentsResponse
-	(*GetVehicleDocumentsResponse)(nil),   // 17: file.GetVehicleDocumentsResponse
-	(*OperationResponse)(nil),             // 18: file.OperationResponse
-	(*DocumentReviewResponse)(nil),        // 19: file.DocumentReviewResponse
-	(*GetDocumentReviewsResponse)(nil),    // 20: file.GetDocumentReviewsResponse
-	(*HealthResponse)(nil),                // 21: file.HealthResponse
+	(*UploadVehicleDocumentsRequest)(nil),  // 0: file.UploadVehicleDocumentsRequest
+	(*UploadVehicleDocumentsResponse)(nil), // 1: file.UploadVehicleDocumentsResponse
+	(*GetDocumentRequest)(nil),             // 2: file.GetDocumentRequest
+	(*DocumentFile)(nil),                   // 3: file.DocumentFile
+	(*GetDocumentResponse)(nil),            // 4: file.GetDocumentResponse
+	(*ChangeDocumentRequest)(nil),          // 5: file.ChangeDocumentRequest
+	(*ChangeDocumentResponse)(nil),         // 6: file.ChangeDocumentResponse
+	(*UploadIdDocumentRequest)(nil),        // 7: file.UploadIdDocumentRequest
+	(*UploadIdDocumentResponse)(nil),       // 8: file.UploadIdDocumentResponse
+	(*UploadUserDocumentRequest)(nil),      // 9: file.UploadUserDocumentRequest
+	(*UserDocumentMetadata)(nil),           // 10: file.UserDocumentMetadata
+	(*UploadVehicleDocumentRequest)(nil),   // 11: file.UploadVehicleDocumentRequest
+	(*VehicleDocumentMetadata)(nil),        // 12: file.VehicleDocumentMetadata
+	(*GetUserDocumentsRequest)(nil),        // 13: file.GetUserDocumentsRequest
+	(*GetDocumentByIDRequest)(nil),         // 14: file.GetDocumentByIDRequest
+	(*GetCurrentUserDocumentRequest)(nil),  // 15: file.GetCurrentUserDocumentRequest
+	(*GetVehicleDocumentsRequest)(nil),     // 16: file.GetVehicleDocumentsRequest
+	(*DeleteDocumentRequest)(nil),          // 17: file.DeleteDocumentRequest
+	(*CreateDocumentReviewRequest)(nil),    // 18: file.CreateDocumentReviewRequest
+	(*GetDocumentReviewsRequest)(nil),      // 19: file.GetDocumentReviewsRequest
+	(*HealthRequest)(nil),                  // 20: file.HealthRequest
+	(*UserDocumentResponse)(nil),           // 21: file.UserDocumentResponse
+	(*VehicleDocumentResponse)(nil),        // 22: file.VehicleDocumentResponse
+	(*GetUserDocumentsResponse)(nil),       // 23: file.GetUserDocumentsResponse
+	(*GetVehicleDocumentsResponse)(nil),    // 24: file.GetVehicleDocumentsResponse
+	(*OperationResponse)(nil),              // 25: file.OperationResponse
+	(*DocumentReviewResponse)(nil),         // 26: file.DocumentReviewResponse
+	(*GetDocumentReviewsResponse)(nil),     // 27: file.GetDocumentReviewsResponse
+	(*HealthResponse)(nil),                 // 28: file.HealthResponse
 }
 var file_file_proto_depIdxs = []int32{
-	3,  // 0: file.UploadUserDocumentRequest.metadata:type_name -> file.UserDocumentMetadata
-	5,  // 1: file.UploadVehicleDocumentRequest.metadata:type_name -> file.VehicleDocumentMetadata
-	14, // 2: file.GetUserDocumentsResponse.documents:type_name -> file.UserDocumentResponse
-	15, // 3: file.GetVehicleDocumentsResponse.documents:type_name -> file.VehicleDocumentResponse
-	19, // 4: file.GetDocumentReviewsResponse.reviews:type_name -> file.DocumentReviewResponse
-	2,  // 5: file.FileService.UploadUserDocument:input_type -> file.UploadUserDocumentRequest
-	4,  // 6: file.FileService.UploadVehicleDocument:input_type -> file.UploadVehicleDocumentRequest
-	0,  // 7: file.FileService.UploadIdDocument:input_type -> file.UploadIdDocumentRequest
-	6,  // 8: file.FileService.GetUserDocuments:input_type -> file.GetUserDocumentsRequest
-	7,  // 9: file.FileService.GetUserDocument:input_type -> file.GetDocumentByIDRequest
-	8,  // 10: file.FileService.GetCurrentUserDocument:input_type -> file.GetCurrentUserDocumentRequest
-	9,  // 11: file.FileService.GetVehicleDocuments:input_type -> file.GetVehicleDocumentsRequest
-	7,  // 12: file.FileService.GetVehicleDocument:input_type -> file.GetDocumentByIDRequest
-	10, // 13: file.FileService.DeleteUserDocument:input_type -> file.DeleteDocumentRequest
-	10, // 14: file.FileService.DeleteVehicleDocument:input_type -> file.DeleteDocumentRequest
-	11, // 15: file.FileService.CreateDocumentReview:input_type -> file.CreateDocumentReviewRequest
-	12, // 16: file.FileService.GetDocumentReviews:input_type -> file.GetDocumentReviewsRequest
-	13, // 17: file.FileService.Health:input_type -> file.HealthRequest
-	14, // 18: file.FileService.UploadUserDocument:output_type -> file.UserDocumentResponse
-	15, // 19: file.FileService.UploadVehicleDocument:output_type -> file.VehicleDocumentResponse
-	1,  // 20: file.FileService.UploadIdDocument:output_type -> file.UploadIdDocumentResponse
-	16, // 21: file.FileService.GetUserDocuments:output_type -> file.GetUserDocumentsResponse
-	14, // 22: file.FileService.GetUserDocument:output_type -> file.UserDocumentResponse
-	14, // 23: file.FileService.GetCurrentUserDocument:output_type -> file.UserDocumentResponse
-	17, // 24: file.FileService.GetVehicleDocuments:output_type -> file.GetVehicleDocumentsResponse
-	15, // 25: file.FileService.GetVehicleDocument:output_type -> file.VehicleDocumentResponse
-	18, // 26: file.FileService.DeleteUserDocument:output_type -> file.OperationResponse
-	18, // 27: file.FileService.DeleteVehicleDocument:output_type -> file.OperationResponse
-	19, // 28: file.FileService.CreateDocumentReview:output_type -> file.DocumentReviewResponse
-	20, // 29: file.FileService.GetDocumentReviews:output_type -> file.GetDocumentReviewsResponse
-	21, // 30: file.FileService.Health:output_type -> file.HealthResponse
-	18, // [18:31] is the sub-list for method output_type
-	5,  // [5:18] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	3,  // 0: file.GetDocumentResponse.File:type_name -> file.DocumentFile
+	10, // 1: file.UploadUserDocumentRequest.metadata:type_name -> file.UserDocumentMetadata
+	12, // 2: file.UploadVehicleDocumentRequest.metadata:type_name -> file.VehicleDocumentMetadata
+	21, // 3: file.GetUserDocumentsResponse.documents:type_name -> file.UserDocumentResponse
+	22, // 4: file.GetVehicleDocumentsResponse.documents:type_name -> file.VehicleDocumentResponse
+	26, // 5: file.GetDocumentReviewsResponse.Reviews:type_name -> file.DocumentReviewResponse
+	9,  // 6: file.FileService.UploadUserDocument:input_type -> file.UploadUserDocumentRequest
+	11, // 7: file.FileService.UploadVehicleDocument:input_type -> file.UploadVehicleDocumentRequest
+	7,  // 8: file.FileService.UploadIdDocument:input_type -> file.UploadIdDocumentRequest
+	0,  // 9: file.FileService.UploadVehicleDocuments:input_type -> file.UploadVehicleDocumentsRequest
+	5,  // 10: file.FileService.ChangeDocument:input_type -> file.ChangeDocumentRequest
+	2,  // 11: file.FileService.GetDocument:input_type -> file.GetDocumentRequest
+	13, // 12: file.FileService.GetUserDocuments:input_type -> file.GetUserDocumentsRequest
+	14, // 13: file.FileService.GetUserDocument:input_type -> file.GetDocumentByIDRequest
+	15, // 14: file.FileService.GetCurrentUserDocument:input_type -> file.GetCurrentUserDocumentRequest
+	16, // 15: file.FileService.GetVehicleDocuments:input_type -> file.GetVehicleDocumentsRequest
+	14, // 16: file.FileService.GetVehicleDocument:input_type -> file.GetDocumentByIDRequest
+	17, // 17: file.FileService.DeleteUserDocument:input_type -> file.DeleteDocumentRequest
+	17, // 18: file.FileService.DeleteVehicleDocument:input_type -> file.DeleteDocumentRequest
+	18, // 19: file.FileService.CreateDocumentReview:input_type -> file.CreateDocumentReviewRequest
+	19, // 20: file.FileService.GetDocumentReviews:input_type -> file.GetDocumentReviewsRequest
+	20, // 21: file.FileService.Health:input_type -> file.HealthRequest
+	21, // 22: file.FileService.UploadUserDocument:output_type -> file.UserDocumentResponse
+	22, // 23: file.FileService.UploadVehicleDocument:output_type -> file.VehicleDocumentResponse
+	8,  // 24: file.FileService.UploadIdDocument:output_type -> file.UploadIdDocumentResponse
+	1,  // 25: file.FileService.UploadVehicleDocuments:output_type -> file.UploadVehicleDocumentsResponse
+	6,  // 26: file.FileService.ChangeDocument:output_type -> file.ChangeDocumentResponse
+	4,  // 27: file.FileService.GetDocument:output_type -> file.GetDocumentResponse
+	23, // 28: file.FileService.GetUserDocuments:output_type -> file.GetUserDocumentsResponse
+	21, // 29: file.FileService.GetUserDocument:output_type -> file.UserDocumentResponse
+	21, // 30: file.FileService.GetCurrentUserDocument:output_type -> file.UserDocumentResponse
+	24, // 31: file.FileService.GetVehicleDocuments:output_type -> file.GetVehicleDocumentsResponse
+	22, // 32: file.FileService.GetVehicleDocument:output_type -> file.VehicleDocumentResponse
+	25, // 33: file.FileService.DeleteUserDocument:output_type -> file.OperationResponse
+	25, // 34: file.FileService.DeleteVehicleDocument:output_type -> file.OperationResponse
+	26, // 35: file.FileService.CreateDocumentReview:output_type -> file.DocumentReviewResponse
+	27, // 36: file.FileService.GetDocumentReviews:output_type -> file.GetDocumentReviewsResponse
+	28, // 37: file.FileService.Health:output_type -> file.HealthResponse
+	22, // [22:38] is the sub-list for method output_type
+	6,  // [6:22] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_file_proto_init() }
@@ -1810,11 +2268,11 @@ func file_file_proto_init() {
 	if File_file_proto != nil {
 		return
 	}
-	file_file_proto_msgTypes[2].OneofWrappers = []any{
+	file_file_proto_msgTypes[9].OneofWrappers = []any{
 		(*UploadUserDocumentRequest_Metadata)(nil),
 		(*UploadUserDocumentRequest_Chunk)(nil),
 	}
-	file_file_proto_msgTypes[4].OneofWrappers = []any{
+	file_file_proto_msgTypes[11].OneofWrappers = []any{
 		(*UploadVehicleDocumentRequest_Metadata)(nil),
 		(*UploadVehicleDocumentRequest_Chunk)(nil),
 	}
@@ -1824,7 +2282,7 @@ func file_file_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_file_proto_rawDesc), len(file_file_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   22,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

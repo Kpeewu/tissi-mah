@@ -202,7 +202,7 @@ func TestGetMyProfile(t *testing.T) {
 
 		// Verification des champs provenant du User
 		assert.Equal(t, "auth-001", profile.AuthID)
-		assert.Equal(t, "user-001", profile.ProfileID)
+		assert.Equal(t, "user-001", profile.UserID)
 		assert.Equal(t, "Doe", profile.Name)
 		assert.Equal(t, "John", profile.FirstName)
 		assert.True(t, profile.HasProfileImage)
@@ -346,13 +346,13 @@ func TestCreateDriverAccount(t *testing.T) {
 		mockWriteRepo.AssertExpectations(t)
 	})
 
-	t.Run("erreur - profileID vide retourne ErrorInvalidProfileID", func(t *testing.T) {
+	t.Run("erreur - profileID vide retourne ErrorInvalidUserID", func(t *testing.T) {
 		mockReadRepo, mockWriteRepo, _, svc := newService()
 
 		err := svc.CreateDriverAccount(context.Background(), "", true)
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, userErrors.ErrorInvalidProfileID)
+		assert.ErrorIs(t, err, userErrors.ErrorInvalidUserID)
 
 		mockReadRepo.AssertNotCalled(t, "GetByUserID")
 		mockWriteRepo.AssertNotCalled(t, "Update")
@@ -434,7 +434,7 @@ func TestAddTripPreferences(t *testing.T) {
 		mockWriteRepo.AssertExpectations(t)
 	})
 
-	t.Run("erreur - profileID vide retourne ErrorInvalidProfileID", func(t *testing.T) {
+	t.Run("erreur - profileID vide retourne ErrorInvalidUserID", func(t *testing.T) {
 		mockReadRepo, mockWriteRepo, _, svc := newService()
 
 		preferences := []domain.TripPreference{
@@ -444,7 +444,7 @@ func TestAddTripPreferences(t *testing.T) {
 		err := svc.AddTripPreferences(context.Background(), "", preferences)
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, userErrors.ErrorInvalidProfileID)
+		assert.ErrorIs(t, err, userErrors.ErrorInvalidUserID)
 
 		mockReadRepo.AssertNotCalled(t, "GetByUserID")
 		mockWriteRepo.AssertNotCalled(t, "Update")
@@ -525,7 +525,7 @@ func TestUpdateProfile(t *testing.T) {
 			Return(authInfo, nil)
 
 		req := serviceInterfaces.UpdateProfileRequest{
-			ProfileID:         "user-update-01",
+			UserID:         "user-update-01",
 			FirstName:         stringPtr("Amadou"),
 			LastName:          stringPtr("Diallo"),
 			BirthDate:         stringPtr("1990-01-15"),
@@ -546,7 +546,7 @@ func TestUpdateProfile(t *testing.T) {
 
 		// Verification du FullProfile retourne
 		assert.Equal(t, "auth-update-01", profile.AuthID)
-		assert.Equal(t, "user-update-01", profile.ProfileID)
+		assert.Equal(t, "user-update-01", profile.UserID)
 		assert.Equal(t, "Amadou", profile.FirstName)
 		assert.Equal(t, "Diallo", profile.Name)
 		assert.Equal(t, "1990-01-15", profile.DateOfBirth)
@@ -589,7 +589,7 @@ func TestUpdateProfile(t *testing.T) {
 			Return(authInfo, nil)
 
 		req := serviceInterfaces.UpdateProfileRequest{
-			ProfileID: "user-update-02",
+			UserID: "user-update-02",
 			FirstName: stringPtr("Mamadou"),
 			// Pas de LastName, BirthDate, ProfilePictureURL
 		}
@@ -632,7 +632,7 @@ func TestUpdateProfile(t *testing.T) {
 			Return(authInfo, nil)
 
 		req := serviceInterfaces.UpdateProfileRequest{
-			ProfileID:         "user-update-03",
+			UserID:         "user-update-03",
 			ProfilePictureURL: stringPtr(""),
 		}
 
@@ -650,11 +650,11 @@ func TestUpdateProfile(t *testing.T) {
 		mockAuthClient.AssertExpectations(t)
 	})
 
-	t.Run("erreur - profileID vide retourne ErrorInvalidProfileID", func(t *testing.T) {
+	t.Run("erreur - profileID vide retourne ErrorInvalidUserID", func(t *testing.T) {
 		mockReadRepo, mockWriteRepo, mockAuthClient, svc := newService()
 
 		req := serviceInterfaces.UpdateProfileRequest{
-			ProfileID: "",
+			UserID: "",
 			FirstName: stringPtr("Amadou"),
 		}
 
@@ -662,7 +662,7 @@ func TestUpdateProfile(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, profile)
-		assert.ErrorIs(t, err, userErrors.ErrorInvalidProfileID)
+		assert.ErrorIs(t, err, userErrors.ErrorInvalidUserID)
 
 		mockReadRepo.AssertNotCalled(t, "GetByUserID")
 		mockWriteRepo.AssertNotCalled(t, "Update")
@@ -677,7 +677,7 @@ func TestUpdateProfile(t *testing.T) {
 			Return(nil, repoErr)
 
 		req := serviceInterfaces.UpdateProfileRequest{
-			ProfileID: "user-unknown",
+			UserID: "user-unknown",
 			FirstName: stringPtr("Amadou"),
 		}
 
@@ -708,7 +708,7 @@ func TestUpdateProfile(t *testing.T) {
 			Return(nil, updateErr)
 
 		req := serviceInterfaces.UpdateProfileRequest{
-			ProfileID: "user-update-04",
+			UserID: "user-update-04",
 			FirstName: stringPtr("Amadou"),
 		}
 
@@ -739,7 +739,7 @@ func TestUpdateProfile(t *testing.T) {
 			Return(nil, errors.New("grpc connection refused"))
 
 		req := serviceInterfaces.UpdateProfileRequest{
-			ProfileID: "user-update-05",
+			UserID: "user-update-05",
 			FirstName: stringPtr("Amadou"),
 		}
 

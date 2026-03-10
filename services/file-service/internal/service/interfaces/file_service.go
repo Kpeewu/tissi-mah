@@ -31,13 +31,45 @@ type UploadVehicleDocumentInput struct {
 	IssuingAuthority string
 }
 
+// GetDocumentInput contient les paramètres pour récupérer un document.
+// UserID ou SupportID doit être fourni (pas les deux à la fois).
+type GetDocumentInput struct {
+	FileID    string
+	UserID    string // Optionnel — l'utilisateur doit être propriétaire du document
+	SupportID string // Optionnel — accès support sans vérification de propriété
+}
+
+// GetDocumentResult contient le document récupéré.
+type GetDocumentResult struct {
+	FileID   string
+	FileURL  string
+	FileType string
+}
+
+// ChangeDocumentInput contient les données pour remplacer le fichier d'un document existant.
+type ChangeDocumentInput struct {
+	UserID      string
+	FileID      string
+	NewDocument []byte
+}
+
+// UploadVehicleDocumentsInput contient les documents du véhicule à uploader.
+// Tous les champs sont obligatoires.
+type UploadVehicleDocumentsInput struct {
+	UserID              string
+	VehicleID           string
+	DriverLicenceImage  []byte
+	Assurance           []byte
+	VehicleRegistration []byte
+}
+
 // UploadIdDocumentInput contient les fichiers d'identité à uploader.
 // Les champs requis dépendent du DocumentType :
 //   - IDCard       : IDCardRecto + IDCardVerso
 //   - Passport     : Passport
 //   - DriverLicence: DriverLicenceRecto + DriverLicenceVerso
 type UploadIdDocumentInput struct {
-	ProfileID          string
+	UserID             string
 	DocumentType       string // IDCard | Passport | DriverLicence
 	IDCardRecto        []byte
 	IDCardVerso        []byte
@@ -74,6 +106,9 @@ type FileService interface {
 	// Récupère le document courant d'un utilisateur par type
 	GetCurrentUserDocument(ctx context.Context, userID string, documentType string) (*domain.UserDocument, error)
 
+	// Récupère un document par FileID avec contrôle d'accès (propriétaire ou support)
+	GetDocument(ctx context.Context, input GetDocumentInput) (*GetDocumentResult, error)
+
 	// Supprime un document utilisateur (S3 + DB)
 	DeleteUserDocument(ctx context.Context, documentID string) error
 
@@ -91,11 +126,22 @@ type FileService interface {
 	// Supprime un document véhicule (S3 + DB)
 	DeleteVehicleDocument(ctx context.Context, documentID string) error
 
+	// --- Remplacement de document ---
+
+	// Remplace le fichier d'un document utilisateur existant par un nouveau.
+	ChangeDocument(ctx context.Context, input ChangeDocumentInput) error
+
 	// --- Upload identité ---
 
 	// Upload les documents d'identité vers S3/MinIO et sauvegarde les URLs en base.
 	// Les fichiers fournis sont uploadés individuellement (un par type de pièce).
 	UploadIdDocument(ctx context.Context, input UploadIdDocumentInput) error
+
+	// --- Upload documents véhicule ---
+
+	// Upload les documents du véhicule (permis, assurance, carte grise) vers S3/MinIO
+	// et sauvegarde les URLs en base.
+	UploadVehicleDocuments(ctx context.Context, input UploadVehicleDocumentsInput) error
 
 	// --- Revues ---
 

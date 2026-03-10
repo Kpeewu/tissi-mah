@@ -2,13 +2,13 @@
 // This file defines the gRPC service contract for rating-service
 //
 // HTTP/REST mapping is defined using google.api.http annotations
-// api-gateway uses these annotations for grpc-gateway transcoding
+// Kong API Gateway uses these annotations for gRPC transcoding
 
 syntax = "proto3";
 
 package rating;
 
-option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb;rating";
+option go_package = "github.com/Kpeewu/tissi-mah/services/rating-service/proto/gen;rating";
 
 import "google/api/annotations.proto";
 
@@ -28,28 +28,28 @@ service RatingService {
   // GetRating - Récupérer une note par son ID
   rpc GetRating(GetRatingRequest) returns (GetRatingResponse) {
     option (google.api.http) = {
-      get: "/api/v1/ratings/{rating_id}"
+      get: "/api/v1/ratings/{RatingId}"
     };
   }
 
   // GetRatingsForUser - Récupérer toutes les notes reçues par un utilisateur
   rpc GetRatingsForUser(GetRatingsForUserRequest) returns (GetRatingsForUserResponse) {
     option (google.api.http) = {
-      get: "/api/v1/ratings/user/{user_rated_id}"
+      get: "/api/v1/ratings/user/{UserRatedId}"
     };
   }
 
   // GetAverageRating - Récupérer la moyenne des notes d'un utilisateur
   rpc GetAverageRating(GetAverageRatingRequest) returns (GetAverageRatingResponse) {
     option (google.api.http) = {
-      get: "/api/v1/ratings/user/{user_rated_id}/average"
+      get: "/api/v1/ratings/user/{UserRatedId}/average"
     };
   }
 
   // UpdateRating - Modifier une note existante
   rpc UpdateRating(UpdateRatingRequest) returns (UpdateRatingResponse) {
     option (google.api.http) = {
-      patch: "/api/v1/ratings/{rating_id}"
+      patch: "/api/v1/ratings/{RatingId}"
       body: "*"
     };
   }
@@ -57,7 +57,7 @@ service RatingService {
   // DeleteRating - Supprimer une note
   rpc DeleteRating(DeleteRatingRequest) returns (RatingServerResponse) {
     option (google.api.http) = {
-      post: "/api/v1/ratings/{rating_id}/delete"
+      post: "/api/v1/ratings/{RatingId}/delete"
       body: "*"
     };
   }
@@ -75,34 +75,34 @@ service RatingService {
 // =============================================================================
 
 message CreateRatingRequest {
-  string user_rated_id = 1;
-  int32 number_of_stars = 2;
-  string comment = 3; // Optionnel
-  string rater_id = 4;
+  string UserRatedId = 1;
+  int32 NumberOfStars = 2;
+  string Comment = 3; // Optionnel
+  string RaterId = 4;
 }
 
 message GetRatingRequest {
-  string rating_id = 1;
+  string RatingId = 1;
 }
 
 message GetRatingsForUserRequest {
-  string user_rated_id = 1;
+  string UserRatedId = 1;
 }
 
 message GetAverageRatingRequest {
-  string user_rated_id = 1;
+  string UserRatedId = 1;
 }
 
 message UpdateRatingRequest {
-  string rating_id = 1;
-  int32 number_of_stars = 2;
-  string comment = 3; // Optionnel
-  string rater_id = 4;
+  string RatingId = 1;
+  int32 NumberOfStars = 2;
+  string Comment = 3; // Optionnel
+  string RaterId = 4;
 }
 
 message DeleteRatingRequest {
-  string rating_id = 1;
-  string rater_id = 2;
+  string RatingId = 1;
+  string RaterId = 2;
 }
 
 message HealthRequest {
@@ -114,40 +114,40 @@ message HealthRequest {
 // =============================================================================
 
 message CreateRatingResponse {
-  string error_message = 1;
+  string ErrorMessage = 1;
   RatingDetail rating = 2;
 }
 
 message GetRatingResponse {
-  string error_message = 1;
+  string ErrorMessage = 1;
   RatingDetail rating = 2;
 }
 
 message GetRatingsForUserResponse {
-  string error_message = 1;
+  string ErrorMessage = 1;
   repeated RatingDetail ratings = 2;
 }
 
 message GetAverageRatingResponse {
-  string error_message = 1;
-  double average = 2;
-  int32 total_ratings = 3;
+  string ErrorMessage = 1;
+  double Average = 2;
+  int32 TotalRatings = 3;
 }
 
 message UpdateRatingResponse {
-  string error_message = 1;
+  string ErrorMessage = 1;
   RatingDetail rating = 2;
 }
 
 message RatingServerResponse {
-  string error_message = 1;
-  bool success = 2;
+  string ErrorMessage = 1;
+  bool Success = 2;
 }
 
 message HealthResponse {
-  string status = 1;   // "healthy" or "unhealthy"
-  string version = 2;  // Service version
-  int64 timestamp = 3;  // Unix timestamp
+  string Status = 1;   // "healthy" or "unhealthy"
+  string Version = 2;  // Service version
+  int64 Timestamp = 3;  // Unix timestamp
 }
 
 // =============================================================================
@@ -155,13 +155,13 @@ message HealthResponse {
 // =============================================================================
 
 message RatingDetail {
-  string rating_id = 1;
-  string rater_id = 2;
-  string user_rated_id = 3;
-  int32 number_of_stars = 4;
-  string comment = 5;
-  int64 created_at = 6;  // Unix timestamp
-  int64 updated_at = 7;  // Unix timestamp
+  string RatingId = 1;
+  string RaterId = 2;
+  string UserRatedId = 3;
+  int32 NumberOfStars = 4;
+  string Comment = 5;
+  int64 CreatedAt = 6;  // Unix timestamp
+  int64 UpdatedAt = 7;  // Unix timestamp
 }
 
 // =============================================================================

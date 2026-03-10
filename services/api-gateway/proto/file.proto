@@ -30,6 +30,34 @@ service FileService {
     };
   }
 
+  // --- Upload documents véhicule (HTTP via api-gateway) ---
+  // Upload le permis de conduire, l'assurance et la carte grise du véhicule (base64 dans JSON)
+  // Les fichiers sont uploadés dans S3/MinIO et les URLs stockées en base
+  rpc UploadVehicleDocuments(UploadVehicleDocumentsRequest) returns (UploadVehicleDocumentsResponse) {
+    option (google.api.http) = {
+      post: "/file/uploadVehicleDocuments"
+      body: "*"
+    };
+  }
+
+  // --- Remplacement de document (HTTP via api-gateway) ---
+  // Remplace le fichier d'un document existant par un nouveau (base64 dans JSON)
+  rpc ChangeDocument(ChangeDocumentRequest) returns (ChangeDocumentResponse) {
+    option (google.api.http) = {
+      patch: "/file/changeDocument"
+      body: "*"
+    };
+  }
+
+  // --- Lecture document (HTTP via api-gateway) ---
+  // Récupère un document par son ID.
+  // Si UserID fourni : vérifie la propriété. Si SupportID fourni : accès direct.
+  rpc GetDocument(GetDocumentRequest) returns (GetDocumentResponse) {
+    option (google.api.http) = {
+      get: "/file/getDocument"
+    };
+  }
+
   // --- Lecture (inter-service) ---
   rpc GetUserDocuments(GetUserDocumentsRequest) returns (GetUserDocumentsResponse);
   rpc GetUserDocument(GetDocumentByIDRequest) returns (UserDocumentResponse);
@@ -50,11 +78,64 @@ service FileService {
 }
 
 // =============================================================================
+// Upload documents véhicule (HTTP)
+// =============================================================================
+
+message UploadVehicleDocumentsRequest {
+  string UserID               = 1;
+  string VehicleID            = 2;
+  bytes  DriverLicenceImage   = 3;
+  bytes  Assurance            = 4;
+  bytes  VehicleRegistration  = 5;
+}
+
+message UploadVehicleDocumentsResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// Lecture document (HTTP)
+// =============================================================================
+
+message GetDocumentRequest {
+  string FileID     = 1;
+  string UserID     = 2; // Optionnel — vérifie la propriété
+  string SupportID  = 3; // Optionnel — accès support sans vérification
+}
+
+message DocumentFile {
+  string FileID   = 1;
+  string FileURL  = 2;
+  string FileType = 3;
+}
+
+message GetDocumentResponse {
+  string       ErrorMessage = 1;
+  DocumentFile File         = 2;
+}
+
+// =============================================================================
+// Remplacement de document (HTTP)
+// =============================================================================
+
+message ChangeDocumentRequest {
+  string UserID      = 1;
+  string FileID      = 2;
+  bytes  NewDocument = 3;
+}
+
+message ChangeDocumentResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
 // Upload identité (HTTP)
 // =============================================================================
 
 message UploadIdDocumentRequest {
-  string ProfileID = 1;
+  string UserID    = 1;
   // Type : IDCard | Passport | DriverLicence
   string DocumentType = 2;
 
@@ -87,13 +168,13 @@ message UploadUserDocumentRequest {
 }
 
 message UserDocumentMetadata {
-  string user_id = 1;
-  string document_name = 2;
-  string document_type = 3; // idCardFront, idCardBack, passport, etc.
-  string mime_type = 4;
-  int64 file_size_bytes = 5;
-  string document_number = 6; // Optionnel
-  string issuing_country = 7; // Optionnel
+  string UserId = 1;
+  string DocumentName = 2;
+  string DocumentType = 3; // idCardFront, idCardBack, passport, etc.
+  string MimeType = 4;
+  int64 FileSizeBytes = 5;
+  string DocumentNumber = 6; // Optionnel
+  string IssuingCountry = 7; // Optionnel
 }
 
 message UploadVehicleDocumentRequest {
@@ -104,13 +185,13 @@ message UploadVehicleDocumentRequest {
 }
 
 message VehicleDocumentMetadata {
-  string vehicle_id = 1;
-  string document_name = 2;
-  string document_type = 3; // insurance, registrationCard
-  string mime_type = 4;
-  int64 file_size_bytes = 5;
-  string document_number = 6; // Optionnel
-  string issuing_authority = 7; // Optionnel
+  string VehicleId = 1;
+  string DocumentName = 2;
+  string DocumentType = 3; // insurance, registrationCard
+  string MimeType = 4;
+  int64 FileSizeBytes = 5;
+  string DocumentNumber = 6; // Optionnel
+  string IssuingAuthority = 7; // Optionnel
 }
 
 // =============================================================================
@@ -118,24 +199,24 @@ message VehicleDocumentMetadata {
 // =============================================================================
 
 message GetUserDocumentsRequest {
-  string user_id = 1;
+  string UserId = 1;
 }
 
 message GetDocumentByIDRequest {
-  string document_id = 1;
+  string DocumentId = 1;
 }
 
 message GetCurrentUserDocumentRequest {
-  string user_id = 1;
-  string document_type = 2;
+  string UserId = 1;
+  string DocumentType = 2;
 }
 
 message GetVehicleDocumentsRequest {
-  string vehicle_id = 1;
+  string VehicleId = 1;
 }
 
 message DeleteDocumentRequest {
-  string document_id = 1;
+  string DocumentId = 1;
 }
 
 // =============================================================================
@@ -143,20 +224,20 @@ message DeleteDocumentRequest {
 // =============================================================================
 
 message CreateDocumentReviewRequest {
-  string user_document_id = 1; // Optionnel (l'un des deux)
-  string vehicle_document_id = 2; // Optionnel (l'un des deux)
-  string decision = 3; // approved, rejected, resubmission
-  string reason_rejection = 4; // Optionnel
-  string rejection_details = 5; // Optionnel
-  string reviewed_by = 6;
-  string reviewed_by_type = 7; // manual, automatic
-  string notes = 8; // Optionnel
-  bytes extracted_data = 9; // Optionnel (JSON)
+  string UserDocumentId = 1; // Optionnel (l'un des deux)
+  string VehicleDocumentId = 2; // Optionnel (l'un des deux)
+  string Decision = 3; // approved, rejected, resubmission
+  string ReasonRejection = 4; // Optionnel
+  string RejectionDetails = 5; // Optionnel
+  string ReviewedBy = 6;
+  string ReviewedByType = 7; // manual, automatic
+  string Notes = 8; // Optionnel
+  bytes ExtractedData = 9; // Optionnel (JSON)
 }
 
 message GetDocumentReviewsRequest {
-  string user_document_id = 1; // Optionnel
-  string vehicle_document_id = 2; // Optionnel
+  string UserDocumentId = 1; // Optionnel
+  string VehicleDocumentId = 2; // Optionnel
 }
 
 message HealthRequest {}
@@ -166,35 +247,35 @@ message HealthRequest {}
 // =============================================================================
 
 message UserDocumentResponse {
-  string document_id = 1;
-  string user_id = 2;
-  string document_name = 3;
-  string document_type = 4;
-  string document_url = 5;
-  int64 file_size_bytes = 6;
-  string mime_type = 7;
-  string document_number = 8;
-  string issuing_country = 9;
-  string status = 10;
-  bool is_current = 11;
-  string uploaded_at = 12;
-  string updated_at = 13;
+  string DocumentId = 1;
+  string UserId = 2;
+  string DocumentName = 3;
+  string DocumentType = 4;
+  string DocumentUrl = 5;
+  int64 FileSizeBytes = 6;
+  string MimeType = 7;
+  string DocumentNumber = 8;
+  string IssuingCountry = 9;
+  string Status = 10;
+  bool IsCurrent = 11;
+  string UploadedAt = 12;
+  string UpdatedAt = 13;
 }
 
 message VehicleDocumentResponse {
-  string document_id = 1;
-  string vehicle_id = 2;
-  string document_name = 3;
-  string document_type = 4;
-  string document_url = 5;
-  int64 file_size_bytes = 6;
-  string mime_type = 7;
-  string document_number = 8;
-  string issuing_authority = 9;
-  string status = 10;
-  bool is_current = 11;
-  string uploaded_at = 12;
-  string updated_at = 13;
+  string DocumentId = 1;
+  string VehicleId = 2;
+  string DocumentName = 3;
+  string DocumentType = 4;
+  string DocumentUrl = 5;
+  int64 FileSizeBytes = 6;
+  string MimeType = 7;
+  string DocumentNumber = 8;
+  string IssuingAuthority = 9;
+  string Status = 10;
+  bool IsCurrent = 11;
+  string UploadedAt = 12;
+  string UpdatedAt = 13;
 }
 
 message GetUserDocumentsResponse {
@@ -206,28 +287,28 @@ message GetVehicleDocumentsResponse {
 }
 
 message OperationResponse {
-  bool success = 1;
+  bool Success = 1;
 }
 
 message DocumentReviewResponse {
-  string review_id = 1;
-  string user_document_id = 2;
-  string vehicle_document_id = 3;
-  string decision = 4;
-  string reason_rejection = 5;
-  string rejection_details = 6;
-  string reviewed_by = 7;
-  string reviewed_by_type = 8;
-  string reviewed_at = 9;
-  string notes = 10;
+  string ReviewId = 1;
+  string UserDocumentId = 2;
+  string VehicleDocumentId = 3;
+  string Decision = 4;
+  string ReasonRejection = 5;
+  string RejectionDetails = 6;
+  string ReviewedBy = 7;
+  string ReviewedByType = 8;
+  string ReviewedAt = 9;
+  string Notes = 10;
 }
 
 message GetDocumentReviewsResponse {
-  repeated DocumentReviewResponse reviews = 1;
+  repeated DocumentReviewResponse Reviews = 1;
 }
 
 message HealthResponse {
-  string status = 1;
-  string version = 2;
-  int64 timestamp = 3;
+  string Status = 1;
+  string Version = 2;
+  int64 Timestamp = 3;
 }

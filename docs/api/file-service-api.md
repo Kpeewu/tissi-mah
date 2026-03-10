@@ -155,6 +155,83 @@ curl -X POST https://api.tissimah.kpeewu.dev/file/uploadIdDocument \
 
 ---
 
+### POST /file/uploadVehicleDocuments
+
+Uploads the vehicle documents (driver's licence, insurance, registration card). Files are sent as base64-encoded bytes in the JSON body. The service uploads each file to S3/MinIO and stores the URL in the database.
+
+**Authentication:** Required (Firebase JWT)
+
+#### Request
+
+```http
+POST /file/uploadVehicleDocuments HTTP/1.1
+Host: api.tissimah.kpeewu.dev
+Authorization: Bearer <firebase_id_token>
+Content-Type: application/json
+
+{
+    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "VehicleID": "v-550e8400-e29b-41d4-a716-446655440000",
+    "DriverLicenceImage": "<base64-encoded bytes>",
+    "Assurance": "<base64-encoded bytes>",
+    "VehicleRegistration": "<base64-encoded bytes>"
+}
+```
+
+#### Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `ProfileID` | string | Yes | User profile ID |
+| `VehicleID` | string | Yes | Vehicle ID |
+| `DriverLicenceImage` | bytes (base64) | Yes | Driver's licence scan |
+| `Assurance` | bytes (base64) | Yes | Insurance document |
+| `VehicleRegistration` | bytes (base64) | Yes | Vehicle registration card (carte grise) |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Success": true,
+    "ErrorMessage": ""
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Success` | boolean | `true` if all files uploaded successfully |
+| `ErrorMessage` | string | Error identifier if failed, `""` if success |
+
+#### Errors
+
+| ErrorMessage | HTTP | Description |
+|--------------|------|-------------|
+| `ErrorInvalidDocumentType` | 400 | A required file is missing or `VehicleID` is empty |
+| `ErrorUploadFailed` | 500 | S3/MinIO upload failed |
+| `ErrorInternalServer` | 500 | Internal error |
+
+#### Example (cURL)
+
+```bash
+curl -X POST https://api.tissimah.kpeewu.dev/file/uploadVehicleDocuments \
+  -H "Authorization: Bearer <firebase_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "VehicleID": "v-550e8400-e29b-41d4-a716-446655440000",
+    "DriverLicenceImage": "<base64>",
+    "Assurance": "<base64>",
+    "VehicleRegistration": "<base64>"
+  }'
+```
+
+---
+
 ## Inter-Service RPCs (gRPC only)
 
 These RPCs are not exposed via HTTP. They are called directly by other services.

@@ -6,7 +6,7 @@ var (
 	ErrorInternalServer       = errors.New("ErrorInternalServer")
 	ErrorUserNotFound         = errors.New("ErrorUserNotFound")
 	ErrorDataRetrievalFailed  = errors.New("ErrorDataRetrievalFailed")
-	ErrorInvalidProfileID     = errors.New("ErrorInvalidProfileID")
+	ErrorInvalidUserID        = errors.New("ErrorInvalidUserID")
 	ErrorProfileAlreadyExists = errors.New("ErrorProfileAlreadyExists")
 	ErrorAuthServiceUnavailable = errors.New("ErrorAuthServiceUnavailable")
 )
