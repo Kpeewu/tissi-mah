@@ -186,7 +186,7 @@ func (*GetMyProfileRequest) Descriptor() ([]byte, []int) {
 
 type CreateDriverAccountRequest struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
-	ProfileID           string                 `protobuf:"bytes,1,opt,name=ProfileID,proto3" json:"ProfileID,omitempty"`
+	UserID              string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
 	CreateDriverAccount bool                   `protobuf:"varint,2,opt,name=CreateDriverAccount,proto3" json:"CreateDriverAccount,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
@@ -222,9 +222,9 @@ func (*CreateDriverAccountRequest) Descriptor() ([]byte, []int) {
 	return file_user_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *CreateDriverAccountRequest) GetProfileID() string {
+func (x *CreateDriverAccountRequest) GetUserID() string {
 	if x != nil {
-		return x.ProfileID
+		return x.UserID
 	}
 	return ""
 }
@@ -238,7 +238,7 @@ func (x *CreateDriverAccountRequest) GetCreateDriverAccount() bool {
 
 type AddTripPreferencesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProfileID     string                 `protobuf:"bytes,1,opt,name=ProfileID,proto3" json:"ProfileID,omitempty"`
+	UserID        string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
 	Preferences   []*TripPreference      `protobuf:"bytes,2,rep,name=Preferences,proto3" json:"Preferences,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -274,9 +274,9 @@ func (*AddTripPreferencesRequest) Descriptor() ([]byte, []int) {
 	return file_user_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *AddTripPreferencesRequest) GetProfileID() string {
+func (x *AddTripPreferencesRequest) GetUserID() string {
 	if x != nil {
-		return x.ProfileID
+		return x.UserID
 	}
 	return ""
 }
@@ -290,7 +290,7 @@ func (x *AddTripPreferencesRequest) GetPreferences() []*TripPreference {
 
 type UpdateProfileRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	ProfileID         string                 `protobuf:"bytes,1,opt,name=ProfileID,proto3" json:"ProfileID,omitempty"`
+	UserID            string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
 	FirstName         *string                `protobuf:"bytes,2,opt,name=FirstName,proto3,oneof" json:"FirstName,omitempty"`
 	LastName          *string                `protobuf:"bytes,3,opt,name=LastName,proto3,oneof" json:"LastName,omitempty"`
 	BirthDate         *string                `protobuf:"bytes,4,opt,name=BirthDate,proto3,oneof" json:"BirthDate,omitempty"`
@@ -331,9 +331,9 @@ func (*UpdateProfileRequest) Descriptor() ([]byte, []int) {
 	return file_user_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *UpdateProfileRequest) GetProfileID() string {
+func (x *UpdateProfileRequest) GetUserID() string {
 	if x != nil {
-		return x.ProfileID
+		return x.UserID
 	}
 	return ""
 }
@@ -691,7 +691,7 @@ func (x *GetMyProfileResponse) GetUser() *FullUserProfile {
 type FullUserProfile struct {
 	state                      protoimpl.MessageState `protogen:"open.v1"`
 	AuthID                     string                 `protobuf:"bytes,1,opt,name=AuthID,proto3" json:"AuthID,omitempty"`
-	ProfileID                  string                 `protobuf:"bytes,2,opt,name=ProfileID,proto3" json:"ProfileID,omitempty"`
+	UserID                     string                 `protobuf:"bytes,2,opt,name=UserID,proto3" json:"UserID,omitempty"`
 	Name                       string                 `protobuf:"bytes,3,opt,name=Name,proto3" json:"Name,omitempty"`
 	FirstName                  string                 `protobuf:"bytes,4,opt,name=FirstName,proto3" json:"FirstName,omitempty"`
 	Gender                     string                 `protobuf:"bytes,5,opt,name=Gender,proto3" json:"Gender,omitempty"`
@@ -753,9 +753,9 @@ func (x *FullUserProfile) GetAuthID() string {
 	return ""
 }
 
-func (x *FullUserProfile) GetProfileID() string {
+func (x *FullUserProfile) GetUserID() string {
 	if x != nil {
-		return x.ProfileID
+		return x.UserID
 	}
 	return ""
 }
@@ -1140,15 +1140,15 @@ const file_user_proto_rawDesc = "" +
 	"FirebaseID\"0\n" +
 	"\x16GetUserByAuthIDRequest\x12\x16\n" +
 	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\"\x15\n" +
-	"\x13GetMyProfileRequest\"l\n" +
-	"\x1aCreateDriverAccountRequest\x12\x1c\n" +
-	"\tProfileID\x18\x01 \x01(\tR\tProfileID\x120\n" +
-	"\x13CreateDriverAccount\x18\x02 \x01(\bR\x13CreateDriverAccount\"q\n" +
-	"\x19AddTripPreferencesRequest\x12\x1c\n" +
-	"\tProfileID\x18\x01 \x01(\tR\tProfileID\x126\n" +
-	"\vPreferences\x18\x02 \x03(\v2\x14.user.TripPreferenceR\vPreferences\"\xe9\x02\n" +
-	"\x14UpdateProfileRequest\x12\x1c\n" +
-	"\tProfileID\x18\x01 \x01(\tR\tProfileID\x12!\n" +
+	"\x13GetMyProfileRequest\"f\n" +
+	"\x1aCreateDriverAccountRequest\x12\x16\n" +
+	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x120\n" +
+	"\x13CreateDriverAccount\x18\x02 \x01(\bR\x13CreateDriverAccount\"k\n" +
+	"\x19AddTripPreferencesRequest\x12\x16\n" +
+	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x126\n" +
+	"\vPreferences\x18\x02 \x03(\v2\x14.user.TripPreferenceR\vPreferences\"\xe3\x02\n" +
+	"\x14UpdateProfileRequest\x12\x16\n" +
+	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12!\n" +
 	"\tFirstName\x18\x02 \x01(\tH\x00R\tFirstName\x88\x01\x01\x12\x1f\n" +
 	"\bLastName\x18\x03 \x01(\tH\x01R\bLastName\x88\x01\x01\x12!\n" +
 	"\tBirthDate\x18\x04 \x01(\tH\x02R\tBirthDate\x88\x01\x01\x12\x19\n" +
@@ -1189,10 +1189,10 @@ const file_user_proto_rawDesc = "" +
 	"\x1aDriveLicenceExpirationDate\x18\x10 \x01(\tR\x1aDriveLicenceExpirationDate\"e\n" +
 	"\x14GetMyProfileResponse\x12\"\n" +
 	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12)\n" +
-	"\x04User\x18\x02 \x01(\v2\x15.user.FullUserProfileR\x04User\"\xd7\x06\n" +
+	"\x04User\x18\x02 \x01(\v2\x15.user.FullUserProfileR\x04User\"\xd1\x06\n" +
 	"\x0fFullUserProfile\x12\x16\n" +
-	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\x12\x1c\n" +
-	"\tProfileID\x18\x02 \x01(\tR\tProfileID\x12\x12\n" +
+	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\x12\x16\n" +
+	"\x06UserID\x18\x02 \x01(\tR\x06UserID\x12\x12\n" +
 	"\x04Name\x18\x03 \x01(\tR\x04Name\x12\x1c\n" +
 	"\tFirstName\x18\x04 \x01(\tR\tFirstName\x12\x16\n" +
 	"\x06Gender\x18\x05 \x01(\tR\x06Gender\x12 \n" +

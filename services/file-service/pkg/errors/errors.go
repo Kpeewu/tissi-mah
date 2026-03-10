@@ -5,6 +5,7 @@ import "errors"
 var (
 	ErrorInternalServer        = errors.New("ErrorInternalServer")
 	ErrorDocumentNotFound      = errors.New("ErrorDocumentNotFound")
+	ErrorUnauthorized          = errors.New("ErrorUnauthorized")
 	ErrorInvalidDocumentType   = errors.New("ErrorInvalidDocumentType")
 	ErrorInvalidMimeType       = errors.New("ErrorInvalidMimeType")
 	ErrorUploadFailed          = errors.New("ErrorUploadFailed")

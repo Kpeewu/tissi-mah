@@ -71,13 +71,13 @@ func request_RatingService_GetRating_0(ctx context.Context, marshaler runtime.Ma
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
 	}
-	val, ok := pathParams["rating_id"]
+	val, ok := pathParams["RatingId"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "rating_id")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "RatingId")
 	}
 	protoReq.RatingId, err = runtime.String(val)
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "rating_id", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "RatingId", err)
 	}
 	msg, err := client.GetRating(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -89,13 +89,13 @@ func local_request_RatingService_GetRating_0(ctx context.Context, marshaler runt
 		metadata runtime.ServerMetadata
 		err      error
 	)
-	val, ok := pathParams["rating_id"]
+	val, ok := pathParams["RatingId"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "rating_id")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "RatingId")
 	}
 	protoReq.RatingId, err = runtime.String(val)
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "rating_id", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "RatingId", err)
 	}
 	msg, err := server.GetRating(ctx, &protoReq)
 	return msg, metadata, err
@@ -110,13 +110,13 @@ func request_RatingService_GetRatingsForUser_0(ctx context.Context, marshaler ru
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
 	}
-	val, ok := pathParams["user_rated_id"]
+	val, ok := pathParams["UserRatedId"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "user_rated_id")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "UserRatedId")
 	}
 	protoReq.UserRatedId, err = runtime.String(val)
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "user_rated_id", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "UserRatedId", err)
 	}
 	msg, err := client.GetRatingsForUser(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -128,13 +128,13 @@ func local_request_RatingService_GetRatingsForUser_0(ctx context.Context, marsha
 		metadata runtime.ServerMetadata
 		err      error
 	)
-	val, ok := pathParams["user_rated_id"]
+	val, ok := pathParams["UserRatedId"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "user_rated_id")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "UserRatedId")
 	}
 	protoReq.UserRatedId, err = runtime.String(val)
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "user_rated_id", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "UserRatedId", err)
 	}
 	msg, err := server.GetRatingsForUser(ctx, &protoReq)
 	return msg, metadata, err
@@ -149,13 +149,13 @@ func request_RatingService_GetAverageRating_0(ctx context.Context, marshaler run
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
 	}
-	val, ok := pathParams["user_rated_id"]
+	val, ok := pathParams["UserRatedId"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "user_rated_id")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "UserRatedId")
 	}
 	protoReq.UserRatedId, err = runtime.String(val)
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "user_rated_id", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "UserRatedId", err)
 	}
 	msg, err := client.GetAverageRating(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -167,13 +167,13 @@ func local_request_RatingService_GetAverageRating_0(ctx context.Context, marshal
 		metadata runtime.ServerMetadata
 		err      error
 	)
-	val, ok := pathParams["user_rated_id"]
+	val, ok := pathParams["UserRatedId"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "user_rated_id")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "UserRatedId")
 	}
 	protoReq.UserRatedId, err = runtime.String(val)
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "user_rated_id", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "UserRatedId", err)
 	}
 	msg, err := server.GetAverageRating(ctx, &protoReq)
 	return msg, metadata, err
@@ -191,13 +191,13 @@ func request_RatingService_UpdateRating_0(ctx context.Context, marshaler runtime
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
 	}
-	val, ok := pathParams["rating_id"]
+	val, ok := pathParams["RatingId"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "rating_id")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "RatingId")
 	}
 	protoReq.RatingId, err = runtime.String(val)
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "rating_id", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "RatingId", err)
 	}
 	msg, err := client.UpdateRating(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -212,13 +212,13 @@ func local_request_RatingService_UpdateRating_0(ctx context.Context, marshaler r
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	val, ok := pathParams["rating_id"]
+	val, ok := pathParams["RatingId"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "rating_id")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "RatingId")
 	}
 	protoReq.RatingId, err = runtime.String(val)
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "rating_id", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "RatingId", err)
 	}
 	msg, err := server.UpdateRating(ctx, &protoReq)
 	return msg, metadata, err
@@ -236,13 +236,13 @@ func request_RatingService_DeleteRating_0(ctx context.Context, marshaler runtime
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
 	}
-	val, ok := pathParams["rating_id"]
+	val, ok := pathParams["RatingId"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "rating_id")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "RatingId")
 	}
 	protoReq.RatingId, err = runtime.String(val)
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "rating_id", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "RatingId", err)
 	}
 	msg, err := client.DeleteRating(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -257,13 +257,13 @@ func local_request_RatingService_DeleteRating_0(ctx context.Context, marshaler r
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	val, ok := pathParams["rating_id"]
+	val, ok := pathParams["RatingId"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "rating_id")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "RatingId")
 	}
 	protoReq.RatingId, err = runtime.String(val)
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "rating_id", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "RatingId", err)
 	}
 	msg, err := server.DeleteRating(ctx, &protoReq)
 	return msg, metadata, err
@@ -322,7 +322,7 @@ func RegisterRatingServiceHandlerServer(ctx context.Context, mux *runtime.ServeM
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/GetRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{rating_id}"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/GetRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{RatingId}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -342,7 +342,7 @@ func RegisterRatingServiceHandlerServer(ctx context.Context, mux *runtime.ServeM
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/GetRatingsForUser", runtime.WithHTTPPathPattern("/api/v1/ratings/user/{user_rated_id}"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/GetRatingsForUser", runtime.WithHTTPPathPattern("/api/v1/ratings/user/{UserRatedId}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -362,7 +362,7 @@ func RegisterRatingServiceHandlerServer(ctx context.Context, mux *runtime.ServeM
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/GetAverageRating", runtime.WithHTTPPathPattern("/api/v1/ratings/user/{user_rated_id}/average"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/GetAverageRating", runtime.WithHTTPPathPattern("/api/v1/ratings/user/{UserRatedId}/average"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -382,7 +382,7 @@ func RegisterRatingServiceHandlerServer(ctx context.Context, mux *runtime.ServeM
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/UpdateRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{rating_id}"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/UpdateRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{RatingId}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -402,7 +402,7 @@ func RegisterRatingServiceHandlerServer(ctx context.Context, mux *runtime.ServeM
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/DeleteRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{rating_id}/delete"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/DeleteRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{RatingId}/delete"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -497,7 +497,7 @@ func RegisterRatingServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/GetRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{rating_id}"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/GetRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{RatingId}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -514,7 +514,7 @@ func RegisterRatingServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/GetRatingsForUser", runtime.WithHTTPPathPattern("/api/v1/ratings/user/{user_rated_id}"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/GetRatingsForUser", runtime.WithHTTPPathPattern("/api/v1/ratings/user/{UserRatedId}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -531,7 +531,7 @@ func RegisterRatingServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/GetAverageRating", runtime.WithHTTPPathPattern("/api/v1/ratings/user/{user_rated_id}/average"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/GetAverageRating", runtime.WithHTTPPathPattern("/api/v1/ratings/user/{UserRatedId}/average"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -548,7 +548,7 @@ func RegisterRatingServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/UpdateRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{rating_id}"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/UpdateRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{RatingId}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -565,7 +565,7 @@ func RegisterRatingServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/DeleteRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{rating_id}/delete"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/DeleteRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{RatingId}/delete"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -600,11 +600,11 @@ func RegisterRatingServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 
 var (
 	pattern_RatingService_CreateRating_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "ratings"}, ""))
-	pattern_RatingService_GetRating_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "ratings", "rating_id"}, ""))
-	pattern_RatingService_GetRatingsForUser_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "ratings", "user", "user_rated_id"}, ""))
-	pattern_RatingService_GetAverageRating_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"api", "v1", "ratings", "user", "user_rated_id", "average"}, ""))
-	pattern_RatingService_UpdateRating_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "ratings", "rating_id"}, ""))
-	pattern_RatingService_DeleteRating_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "ratings", "rating_id", "delete"}, ""))
+	pattern_RatingService_GetRating_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "ratings", "RatingId"}, ""))
+	pattern_RatingService_GetRatingsForUser_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "ratings", "user", "UserRatedId"}, ""))
+	pattern_RatingService_GetAverageRating_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"api", "v1", "ratings", "user", "UserRatedId", "average"}, ""))
+	pattern_RatingService_UpdateRating_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "ratings", "RatingId"}, ""))
+	pattern_RatingService_DeleteRating_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "ratings", "RatingId", "delete"}, ""))
 	pattern_RatingService_Health_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "ratings", "health"}, ""))
 )
 

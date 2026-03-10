@@ -9,7 +9,7 @@ import (
 // FullProfile contient le profil utilisateur enrichi avec les données auth
 type FullProfile struct {
 	AuthID                     string
-	ProfileID                  string
+	UserID                     string
 	Name                       string
 	FirstName                  string
 	Gender                     string
@@ -34,7 +34,7 @@ type FullProfile struct {
 
 // UpdateProfileRequest contient les champs à mettre à jour (optionnels)
 type UpdateProfileRequest struct {
-	ProfileID       string
+	UserID          string
 	FirstName       *string
 	LastName        *string
 	BirthDate       *string

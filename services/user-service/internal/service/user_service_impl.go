@@ -117,7 +117,7 @@ func (s *userServiceImpl) CreateDriverAccount(ctx context.Context, profileID str
 	s.logger.Debug("modification statut conducteur", zap.String("profile_id", profileID), zap.Bool("create_driver", createDriver))
 
 	if profileID == "" {
-		return userErrors.ErrorInvalidProfileID
+		return userErrors.ErrorInvalidUserID
 	}
 
 	user, err := s.readRepo.GetByUserID(ctx, profileID)
@@ -147,7 +147,7 @@ func (s *userServiceImpl) AddTripPreferences(ctx context.Context, profileID stri
 	s.logger.Debug("ajout préférences de trajet", zap.String("profile_id", profileID), zap.Int("nb_preferences", len(preferences)))
 
 	if profileID == "" {
-		return userErrors.ErrorInvalidProfileID
+		return userErrors.ErrorInvalidUserID
 	}
 
 	user, err := s.readRepo.GetByUserID(ctx, profileID)
@@ -170,15 +170,15 @@ func (s *userServiceImpl) AddTripPreferences(ctx context.Context, profileID stri
 
 // UpdateProfile met à jour les informations du profil
 func (s *userServiceImpl) UpdateProfile(ctx context.Context, req serviceInterfaces.UpdateProfileRequest) (*serviceInterfaces.FullProfile, error) {
-	s.logger.Debug("mise à jour du profil", zap.String("profile_id", req.ProfileID))
+	s.logger.Debug("mise à jour du profil", zap.String("profile_id", req.UserID))
 
-	if req.ProfileID == "" {
-		return nil, userErrors.ErrorInvalidProfileID
+	if req.UserID == "" {
+		return nil, userErrors.ErrorInvalidUserID
 	}
 
-	user, err := s.readRepo.GetByUserID(ctx, req.ProfileID)
+	user, err := s.readRepo.GetByUserID(ctx, req.UserID)
 	if err != nil {
-		s.logger.Error("échec de la récupération du profil pour mise à jour", zap.Error(err), zap.String("profile_id", req.ProfileID))
+		s.logger.Error("échec de la récupération du profil pour mise à jour", zap.Error(err), zap.String("profile_id", req.UserID))
 		return nil, err
 	}
 
@@ -199,7 +199,7 @@ func (s *userServiceImpl) UpdateProfile(ctx context.Context, req serviceInterfac
 
 	updated, err := s.writeRepo.Update(ctx, user)
 	if err != nil {
-		s.logger.Error("échec de la mise à jour du profil", zap.Error(err), zap.String("profile_id", req.ProfileID))
+		s.logger.Error("échec de la mise à jour du profil", zap.Error(err), zap.String("profile_id", req.UserID))
 		return nil, err
 	}
 
@@ -210,7 +210,7 @@ func (s *userServiceImpl) UpdateProfile(ctx context.Context, req serviceInterfac
 		return nil, userErrors.ErrorAuthServiceUnavailable
 	}
 
-	s.logger.Info("profil mis à jour avec succès", zap.String("profile_id", req.ProfileID))
+	s.logger.Info("profil mis à jour avec succès", zap.String("profile_id", req.UserID))
 	return toFullProfile(updated, authInfo), nil
 }
 
@@ -218,7 +218,7 @@ func (s *userServiceImpl) UpdateProfile(ctx context.Context, req serviceInterfac
 func toFullProfile(user *domain.User, authInfo *client.AuthInfo) *serviceInterfaces.FullProfile {
 	return &serviceInterfaces.FullProfile{
 		AuthID:                     user.AuthID,
-		ProfileID:                  user.UserID,
+		UserID:                     user.UserID,
 		Name:                       user.Name,
 		FirstName:                  user.FirstName,
 		Gender:                     user.Gender,

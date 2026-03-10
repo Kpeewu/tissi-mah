@@ -26,11 +26,15 @@ const (
 	FileService_UploadUserDocument_FullMethodName     = "/file.FileService/UploadUserDocument"
 	FileService_UploadVehicleDocument_FullMethodName  = "/file.FileService/UploadVehicleDocument"
 	FileService_UploadIdDocument_FullMethodName       = "/file.FileService/UploadIdDocument"
+	FileService_UploadVehicleDocuments_FullMethodName = "/file.FileService/UploadVehicleDocuments"
+	FileService_ChangeDocument_FullMethodName         = "/file.FileService/ChangeDocument"
+	FileService_GetDocument_FullMethodName            = "/file.FileService/GetDocument"
 	FileService_GetUserDocuments_FullMethodName       = "/file.FileService/GetUserDocuments"
 	FileService_GetUserDocument_FullMethodName        = "/file.FileService/GetUserDocument"
 	FileService_GetCurrentUserDocument_FullMethodName = "/file.FileService/GetCurrentUserDocument"
 	FileService_GetVehicleDocuments_FullMethodName    = "/file.FileService/GetVehicleDocuments"
 	FileService_GetVehicleDocument_FullMethodName     = "/file.FileService/GetVehicleDocument"
+	FileService_DeleteFile_FullMethodName             = "/file.FileService/DeleteFile"
 	FileService_DeleteUserDocument_FullMethodName     = "/file.FileService/DeleteUserDocument"
 	FileService_DeleteVehicleDocument_FullMethodName  = "/file.FileService/DeleteVehicleDocument"
 	FileService_CreateDocumentReview_FullMethodName   = "/file.FileService/CreateDocumentReview"
@@ -50,12 +54,26 @@ type FileServiceClient interface {
 	// Upload un ou plusieurs documents d'identité (base64 dans JSON)
 	// Les fichiers sont uploadés dans S3/MinIO et les URLs stockées en base
 	UploadIdDocument(ctx context.Context, in *UploadIdDocumentRequest, opts ...grpc.CallOption) (*UploadIdDocumentResponse, error)
+	// --- Upload documents véhicule (HTTP via api-gateway) ---
+	// Upload le permis de conduire, l'assurance et la carte grise du véhicule (base64 dans JSON)
+	// Les fichiers sont uploadés dans S3/MinIO et les URLs stockées en base
+	UploadVehicleDocuments(ctx context.Context, in *UploadVehicleDocumentsRequest, opts ...grpc.CallOption) (*UploadVehicleDocumentsResponse, error)
+	// --- Remplacement de document (HTTP via api-gateway) ---
+	// Remplace le fichier d'un document existant par un nouveau (base64 dans JSON)
+	ChangeDocument(ctx context.Context, in *ChangeDocumentRequest, opts ...grpc.CallOption) (*ChangeDocumentResponse, error)
+	// --- Lecture document (HTTP via api-gateway) ---
+	// Récupère un document par son ID.
+	// Si UserID fourni : vérifie la propriété. Si SupportID fourni : accès direct.
+	GetDocument(ctx context.Context, in *GetDocumentRequest, opts ...grpc.CallOption) (*GetDocumentResponse, error)
 	// --- Lecture (inter-service) ---
 	GetUserDocuments(ctx context.Context, in *GetUserDocumentsRequest, opts ...grpc.CallOption) (*GetUserDocumentsResponse, error)
 	GetUserDocument(ctx context.Context, in *GetDocumentByIDRequest, opts ...grpc.CallOption) (*UserDocumentResponse, error)
 	GetCurrentUserDocument(ctx context.Context, in *GetCurrentUserDocumentRequest, opts ...grpc.CallOption) (*UserDocumentResponse, error)
 	GetVehicleDocuments(ctx context.Context, in *GetVehicleDocumentsRequest, opts ...grpc.CallOption) (*GetVehicleDocumentsResponse, error)
 	GetVehicleDocument(ctx context.Context, in *GetDocumentByIDRequest, opts ...grpc.CallOption) (*VehicleDocumentResponse, error)
+	// --- Suppression document (HTTP via api-gateway) ---
+	// Supprime un fichier après vérification de la propriété (UserID doit être propriétaire)
+	DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*DeleteFileResponse, error)
 	// --- Suppression (inter-service) ---
 	DeleteUserDocument(ctx context.Context, in *DeleteDocumentRequest, opts ...grpc.CallOption) (*OperationResponse, error)
 	DeleteVehicleDocument(ctx context.Context, in *DeleteDocumentRequest, opts ...grpc.CallOption) (*OperationResponse, error)
@@ -110,6 +128,36 @@ func (c *fileServiceClient) UploadIdDocument(ctx context.Context, in *UploadIdDo
 	return out, nil
 }
 
+func (c *fileServiceClient) UploadVehicleDocuments(ctx context.Context, in *UploadVehicleDocumentsRequest, opts ...grpc.CallOption) (*UploadVehicleDocumentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UploadVehicleDocumentsResponse)
+	err := c.cc.Invoke(ctx, FileService_UploadVehicleDocuments_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fileServiceClient) ChangeDocument(ctx context.Context, in *ChangeDocumentRequest, opts ...grpc.CallOption) (*ChangeDocumentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChangeDocumentResponse)
+	err := c.cc.Invoke(ctx, FileService_ChangeDocument_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fileServiceClient) GetDocument(ctx context.Context, in *GetDocumentRequest, opts ...grpc.CallOption) (*GetDocumentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDocumentResponse)
+	err := c.cc.Invoke(ctx, FileService_GetDocument_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *fileServiceClient) GetUserDocuments(ctx context.Context, in *GetUserDocumentsRequest, opts ...grpc.CallOption) (*GetUserDocumentsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetUserDocumentsResponse)
@@ -154,6 +202,16 @@ func (c *fileServiceClient) GetVehicleDocument(ctx context.Context, in *GetDocum
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(VehicleDocumentResponse)
 	err := c.cc.Invoke(ctx, FileService_GetVehicleDocument_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fileServiceClient) DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*DeleteFileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteFileResponse)
+	err := c.cc.Invoke(ctx, FileService_DeleteFile_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -222,12 +280,26 @@ type FileServiceServer interface {
 	// Upload un ou plusieurs documents d'identité (base64 dans JSON)
 	// Les fichiers sont uploadés dans S3/MinIO et les URLs stockées en base
 	UploadIdDocument(context.Context, *UploadIdDocumentRequest) (*UploadIdDocumentResponse, error)
+	// --- Upload documents véhicule (HTTP via api-gateway) ---
+	// Upload le permis de conduire, l'assurance et la carte grise du véhicule (base64 dans JSON)
+	// Les fichiers sont uploadés dans S3/MinIO et les URLs stockées en base
+	UploadVehicleDocuments(context.Context, *UploadVehicleDocumentsRequest) (*UploadVehicleDocumentsResponse, error)
+	// --- Remplacement de document (HTTP via api-gateway) ---
+	// Remplace le fichier d'un document existant par un nouveau (base64 dans JSON)
+	ChangeDocument(context.Context, *ChangeDocumentRequest) (*ChangeDocumentResponse, error)
+	// --- Lecture document (HTTP via api-gateway) ---
+	// Récupère un document par son ID.
+	// Si UserID fourni : vérifie la propriété. Si SupportID fourni : accès direct.
+	GetDocument(context.Context, *GetDocumentRequest) (*GetDocumentResponse, error)
 	// --- Lecture (inter-service) ---
 	GetUserDocuments(context.Context, *GetUserDocumentsRequest) (*GetUserDocumentsResponse, error)
 	GetUserDocument(context.Context, *GetDocumentByIDRequest) (*UserDocumentResponse, error)
 	GetCurrentUserDocument(context.Context, *GetCurrentUserDocumentRequest) (*UserDocumentResponse, error)
 	GetVehicleDocuments(context.Context, *GetVehicleDocumentsRequest) (*GetVehicleDocumentsResponse, error)
 	GetVehicleDocument(context.Context, *GetDocumentByIDRequest) (*VehicleDocumentResponse, error)
+	// --- Suppression document (HTTP via api-gateway) ---
+	// Supprime un fichier après vérification de la propriété (UserID doit être propriétaire)
+	DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error)
 	// --- Suppression (inter-service) ---
 	DeleteUserDocument(context.Context, *DeleteDocumentRequest) (*OperationResponse, error)
 	DeleteVehicleDocument(context.Context, *DeleteDocumentRequest) (*OperationResponse, error)
@@ -255,6 +327,15 @@ func (UnimplementedFileServiceServer) UploadVehicleDocument(grpc.ClientStreaming
 func (UnimplementedFileServiceServer) UploadIdDocument(context.Context, *UploadIdDocumentRequest) (*UploadIdDocumentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UploadIdDocument not implemented")
 }
+func (UnimplementedFileServiceServer) UploadVehicleDocuments(context.Context, *UploadVehicleDocumentsRequest) (*UploadVehicleDocumentsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UploadVehicleDocuments not implemented")
+}
+func (UnimplementedFileServiceServer) ChangeDocument(context.Context, *ChangeDocumentRequest) (*ChangeDocumentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ChangeDocument not implemented")
+}
+func (UnimplementedFileServiceServer) GetDocument(context.Context, *GetDocumentRequest) (*GetDocumentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDocument not implemented")
+}
 func (UnimplementedFileServiceServer) GetUserDocuments(context.Context, *GetUserDocumentsRequest) (*GetUserDocumentsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUserDocuments not implemented")
 }
@@ -269,6 +350,9 @@ func (UnimplementedFileServiceServer) GetVehicleDocuments(context.Context, *GetV
 }
 func (UnimplementedFileServiceServer) GetVehicleDocument(context.Context, *GetDocumentByIDRequest) (*VehicleDocumentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetVehicleDocument not implemented")
+}
+func (UnimplementedFileServiceServer) DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteFile not implemented")
 }
 func (UnimplementedFileServiceServer) DeleteUserDocument(context.Context, *DeleteDocumentRequest) (*OperationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteUserDocument not implemented")
@@ -334,6 +418,60 @@ func _FileService_UploadIdDocument_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(FileServiceServer).UploadIdDocument(ctx, req.(*UploadIdDocumentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FileService_UploadVehicleDocuments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UploadVehicleDocumentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServiceServer).UploadVehicleDocuments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileService_UploadVehicleDocuments_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServiceServer).UploadVehicleDocuments(ctx, req.(*UploadVehicleDocumentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FileService_ChangeDocument_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangeDocumentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServiceServer).ChangeDocument(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileService_ChangeDocument_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServiceServer).ChangeDocument(ctx, req.(*ChangeDocumentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FileService_GetDocument_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDocumentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServiceServer).GetDocument(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileService_GetDocument_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServiceServer).GetDocument(ctx, req.(*GetDocumentRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -424,6 +562,24 @@ func _FileService_GetVehicleDocument_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(FileServiceServer).GetVehicleDocument(ctx, req.(*GetDocumentByIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FileService_DeleteFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServiceServer).DeleteFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileService_DeleteFile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServiceServer).DeleteFile(ctx, req.(*DeleteFileRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -530,6 +686,18 @@ var FileService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _FileService_UploadIdDocument_Handler,
 		},
 		{
+			MethodName: "UploadVehicleDocuments",
+			Handler:    _FileService_UploadVehicleDocuments_Handler,
+		},
+		{
+			MethodName: "ChangeDocument",
+			Handler:    _FileService_ChangeDocument_Handler,
+		},
+		{
+			MethodName: "GetDocument",
+			Handler:    _FileService_GetDocument_Handler,
+		},
+		{
 			MethodName: "GetUserDocuments",
 			Handler:    _FileService_GetUserDocuments_Handler,
 		},
@@ -548,6 +716,10 @@ var FileService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetVehicleDocument",
 			Handler:    _FileService_GetVehicleDocument_Handler,
+		},
+		{
+			MethodName: "DeleteFile",
+			Handler:    _FileService_DeleteFile_Handler,
 		},
 		{
 			MethodName: "DeleteUserDocument",

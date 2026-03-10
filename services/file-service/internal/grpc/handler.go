@@ -89,18 +89,103 @@ func (h *FileHandler) UploadUserDocument(stream filepb.FileService_UploadUserDoc
 	return stream.SendAndClose(toProtoUserDocument(doc))
 }
 
+// --- Suppression document (HTTP via api-gateway) ---
+
+// DeleteFile supprime un document après vérification que UserID est bien propriétaire.
+func (h *FileHandler) DeleteFile(ctx context.Context, req *filepb.DeleteFileRequest) (*filepb.DeleteFileResponse, error) {
+	h.logger.Debug("handler: DeleteFile called",
+		zap.String("userID", req.UserID),
+		zap.String("fileID", req.FileID),
+	)
+
+	err := h.service.DeleteFile(ctx, serviceInterfaces.DeleteFileInput{
+		UserID: req.UserID,
+		FileID: req.FileID,
+	})
+	if err != nil {
+		h.logger.Error("handler: DeleteFile failed", zap.String("fileID", req.FileID), zap.Error(err))
+		return &filepb.DeleteFileResponse{
+			Success:      false,
+			ErrorMessage: err.Error(),
+		}, nil
+	}
+
+	h.logger.Info("handler: DeleteFile success", zap.String("fileID", req.FileID))
+	return &filepb.DeleteFileResponse{Success: true}, nil
+}
+
+// --- Lecture document (HTTP via api-gateway) ---
+
+// GetDocument récupère un document par son ID avec contrôle d'accès.
+// Si UserID fourni : vérifie la propriété. Si SupportID fourni : accès direct.
+func (h *FileHandler) GetDocument(ctx context.Context, req *filepb.GetDocumentRequest) (*filepb.GetDocumentResponse, error) {
+	h.logger.Debug("handler: GetDocument called",
+		zap.String("fileID", req.FileID),
+		zap.String("userID", req.UserID),
+		zap.String("supportID", req.SupportID),
+	)
+
+	result, err := h.service.GetDocument(ctx, serviceInterfaces.GetDocumentInput{
+		FileID:    req.FileID,
+		UserID:    req.UserID,
+		SupportID: req.SupportID,
+	})
+	if err != nil {
+		h.logger.Error("handler: GetDocument failed", zap.String("fileID", req.FileID), zap.Error(err))
+		return &filepb.GetDocumentResponse{ErrorMessage: err.Error()}, nil
+	}
+
+	h.logger.Info("handler: GetDocument success", zap.String("fileID", req.FileID))
+	return &filepb.GetDocumentResponse{
+		File: &filepb.DocumentFile{
+			FileID:   result.FileID,
+			FileURL:  result.FileURL,
+			FileType: result.FileType,
+		},
+	}, nil
+}
+
+// --- Remplacement de document (HTTP via api-gateway) ---
+
+// ChangeDocument remplace le fichier d'un document utilisateur existant.
+func (h *FileHandler) ChangeDocument(ctx context.Context, req *filepb.ChangeDocumentRequest) (*filepb.ChangeDocumentResponse, error) {
+	h.logger.Debug("handler: ChangeDocument called",
+		zap.String("userID", req.UserID),
+		zap.String("fileID", req.FileID),
+	)
+
+	err := h.service.ChangeDocument(ctx, serviceInterfaces.ChangeDocumentInput{
+		UserID:      req.UserID,
+		FileID:      req.FileID,
+		NewDocument: req.NewDocument,
+	})
+	if err != nil {
+		h.logger.Error("handler: ChangeDocument failed",
+			zap.String("fileID", req.FileID),
+			zap.Error(err),
+		)
+		return &filepb.ChangeDocumentResponse{
+			Success:      false,
+			ErrorMessage: err.Error(),
+		}, nil
+	}
+
+	h.logger.Info("handler: ChangeDocument success", zap.String("fileID", req.FileID))
+	return &filepb.ChangeDocumentResponse{Success: true}, nil
+}
+
 // --- Upload identité (HTTP via api-gateway) ---
 
 // UploadIdDocument reçoit les documents d'identité en base64 JSON, les upload vers S3/MinIO
 // et sauvegarde les URLs en base. Retourne toujours HTTP 200 avec ErrorMessage si erreur.
 func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadIdDocumentRequest) (*filepb.UploadIdDocumentResponse, error) {
 	h.logger.Debug("handler: UploadIdDocument called",
-		zap.String("profileID", req.ProfileID),
+		zap.String("profileID", req.UserID),
 		zap.String("documentType", req.DocumentType),
 	)
 
 	err := h.service.UploadIdDocument(ctx, serviceInterfaces.UploadIdDocumentInput{
-		ProfileID:          req.ProfileID,
+		UserID:          req.UserID,
 		DocumentType:       req.DocumentType,
 		IDCardRecto:        req.IDCardRecto,
 		IDCardVerso:        req.IDCardVerso,
@@ -110,7 +195,7 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 	})
 	if err != nil {
 		h.logger.Error("handler: UploadIdDocument failed",
-			zap.String("profileID", req.ProfileID),
+			zap.String("profileID", req.UserID),
 			zap.Error(err),
 		)
 		return &filepb.UploadIdDocumentResponse{
@@ -119,8 +204,38 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 		}, nil
 	}
 
-	h.logger.Info("handler: UploadIdDocument success", zap.String("profileID", req.ProfileID))
+	h.logger.Info("handler: UploadIdDocument success", zap.String("profileID", req.UserID))
 	return &filepb.UploadIdDocumentResponse{Success: true}, nil
+}
+
+// UploadVehicleDocuments reçoit les documents du véhicule en base64 JSON,
+// les upload vers S3/MinIO et sauvegarde les URLs en base.
+func (h *FileHandler) UploadVehicleDocuments(ctx context.Context, req *filepb.UploadVehicleDocumentsRequest) (*filepb.UploadVehicleDocumentsResponse, error) {
+	h.logger.Debug("handler: UploadVehicleDocuments called",
+		zap.String("profileID", req.UserID),
+		zap.String("vehicleID", req.VehicleID),
+	)
+
+	err := h.service.UploadVehicleDocuments(ctx, serviceInterfaces.UploadVehicleDocumentsInput{
+		UserID:           req.UserID,
+		VehicleID:           req.VehicleID,
+		DriverLicenceImage:  req.DriverLicenceImage,
+		Assurance:           req.Assurance,
+		VehicleRegistration: req.VehicleRegistration,
+	})
+	if err != nil {
+		h.logger.Error("handler: UploadVehicleDocuments failed",
+			zap.String("vehicleID", req.VehicleID),
+			zap.Error(err),
+		)
+		return &filepb.UploadVehicleDocumentsResponse{
+			Success:      false,
+			ErrorMessage: err.Error(),
+		}, nil
+	}
+
+	h.logger.Info("handler: UploadVehicleDocuments success", zap.String("vehicleID", req.VehicleID))
+	return &filepb.UploadVehicleDocumentsResponse{Success: true}, nil
 }
 
 // --- Upload streaming : documents véhicule ---
@@ -398,6 +513,9 @@ func toGRPCError(err error) error {
 		errors.Is(err, fileErrors.ErrorInvalidMimeType),
 		errors.Is(err, fileErrors.ErrorInvalidReviewDecision):
 		return status.Error(codes.InvalidArgument, err.Error())
+
+	case errors.Is(err, fileErrors.ErrorUnauthorized):
+		return status.Error(codes.PermissionDenied, err.Error())
 
 	case errors.Is(err, fileErrors.ErrorFileTooLarge):
 		return status.Error(codes.ResourceExhausted, err.Error())

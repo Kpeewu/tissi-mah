@@ -2,13 +2,13 @@
 // This file defines the gRPC service contract for user-service
 //
 // HTTP/REST mapping is defined using google.api.http annotations
-// api-gateway uses these annotations for grpc-gateway transcoding
+// Kong API Gateway uses these annotations for gRPC transcoding
 
 syntax = "proto3";
 
 package user;
 
-option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/userpb;user";
+option go_package = "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen;user";
 
 import "google/api/annotations.proto";
 
@@ -92,17 +92,17 @@ message GetMyProfileRequest {
 }
 
 message CreateDriverAccountRequest {
-  string ProfileID           = 1;
+  string UserID              = 1;
   bool   CreateDriverAccount = 2;
 }
 
 message AddTripPreferencesRequest {
-  string ProfileID                      = 1;
+  string UserID                         = 1;
   repeated TripPreference Preferences   = 2;
 }
 
 message UpdateProfileRequest {
-  string ProfileID       = 1;
+  string UserID          = 1;
   optional string FirstName       = 2;
   optional string LastName        = 3;
   optional string BirthDate       = 4;
@@ -154,7 +154,7 @@ message GetMyProfileResponse {
 // FullUserProfile — profil complet avec données auth enrichies
 message FullUserProfile {
   string AuthID                                  = 1;
-  string ProfileID                               = 2;
+  string UserID                                  = 2;
   string Name                                    = 3;
   string FirstName                               = 4;
   string Gender                                  = 5;

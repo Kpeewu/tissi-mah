@@ -61,7 +61,7 @@ func newDomainUser() *domain.User {
 func newFullProfile() *serviceInterfaces.FullProfile {
 	return &serviceInterfaces.FullProfile{
 		AuthID:                     "auth-123",
-		ProfileID:                  "profile-456",
+		UserID:                     "profile-456",
 		Name:                       "Doe",
 		FirstName:                  "John",
 		Gender:                     "male",
@@ -271,7 +271,7 @@ func TestGetMyProfile_Success(t *testing.T) {
 
 	u := resp.User
 	assert.Equal(t, profile.AuthID, u.AuthID)
-	assert.Equal(t, profile.ProfileID, u.ProfileID)
+	assert.Equal(t, profile.UserID, u.UserID)
 	assert.Equal(t, profile.Name, u.Name)
 	assert.Equal(t, profile.FirstName, u.FirstName)
 	assert.Equal(t, profile.Gender, u.Gender)
@@ -362,7 +362,7 @@ func TestCreateDriverAccount_Success(t *testing.T) {
 	mockService.On("CreateDriverAccount", ctx, "profile-123", true).Return(nil)
 
 	req := &userpb.CreateDriverAccountRequest{
-		ProfileID:           "profile-123",
+		UserID:           "profile-123",
 		CreateDriverAccount: true,
 	}
 
@@ -375,14 +375,14 @@ func TestCreateDriverAccount_Success(t *testing.T) {
 }
 
 func TestCreateDriverAccount_InvalidProfileID(t *testing.T) {
-	// Vérifie que ErrorInvalidProfileID est traduit en codes.InvalidArgument
+	// Vérifie que ErrorInvalidUserID est traduit en codes.InvalidArgument
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
-	mockService.On("CreateDriverAccount", ctx, "invalid-id", true).Return(userErrors.ErrorInvalidProfileID)
+	mockService.On("CreateDriverAccount", ctx, "invalid-id", true).Return(userErrors.ErrorInvalidUserID)
 
 	req := &userpb.CreateDriverAccountRequest{
-		ProfileID:           "invalid-id",
+		UserID:           "invalid-id",
 		CreateDriverAccount: true,
 	}
 
@@ -401,7 +401,7 @@ func TestCreateDriverAccount_NotFound(t *testing.T) {
 	mockService.On("CreateDriverAccount", ctx, "profile-unknown", true).Return(userErrors.ErrorUserNotFound)
 
 	req := &userpb.CreateDriverAccountRequest{
-		ProfileID:           "profile-unknown",
+		UserID:           "profile-unknown",
 		CreateDriverAccount: true,
 	}
 
@@ -420,7 +420,7 @@ func TestCreateDriverAccount_InternalError(t *testing.T) {
 	mockService.On("CreateDriverAccount", ctx, "profile-123", false).Return(userErrors.ErrorInternalServer)
 
 	req := &userpb.CreateDriverAccountRequest{
-		ProfileID:           "profile-123",
+		UserID:           "profile-123",
 		CreateDriverAccount: false,
 	}
 
@@ -449,7 +449,7 @@ func TestAddTripPreferences_Success(t *testing.T) {
 	mockService.On("AddTripPreferences", ctx, "profile-123", expectedPrefs).Return(nil)
 
 	req := &userpb.AddTripPreferencesRequest{
-		ProfileID: "profile-123",
+		UserID: "profile-123",
 		Preferences: []*userpb.TripPreference{
 			{Preference: "music", IsAllowed: true},
 			{Preference: "smoking", IsAllowed: false},
@@ -466,14 +466,14 @@ func TestAddTripPreferences_Success(t *testing.T) {
 }
 
 func TestAddTripPreferences_InvalidProfileID(t *testing.T) {
-	// Vérifie que ErrorInvalidProfileID est traduit en codes.InvalidArgument
+	// Vérifie que ErrorInvalidUserID est traduit en codes.InvalidArgument
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
-	mockService.On("AddTripPreferences", ctx, "bad-id", mock.Anything).Return(userErrors.ErrorInvalidProfileID)
+	mockService.On("AddTripPreferences", ctx, "bad-id", mock.Anything).Return(userErrors.ErrorInvalidUserID)
 
 	req := &userpb.AddTripPreferencesRequest{
-		ProfileID: "bad-id",
+		UserID: "bad-id",
 		Preferences: []*userpb.TripPreference{
 			{Preference: "music", IsAllowed: true},
 		},
@@ -494,7 +494,7 @@ func TestAddTripPreferences_InternalError(t *testing.T) {
 	mockService.On("AddTripPreferences", ctx, "profile-123", mock.Anything).Return(userErrors.ErrorInternalServer)
 
 	req := &userpb.AddTripPreferencesRequest{
-		ProfileID: "profile-123",
+		UserID: "profile-123",
 		Preferences: []*userpb.TripPreference{
 			{Preference: "music", IsAllowed: true},
 		},
@@ -515,7 +515,7 @@ func TestAddTripPreferences_EmptyList(t *testing.T) {
 	mockService.On("AddTripPreferences", ctx, "profile-123", []domain.TripPreference{}).Return(nil)
 
 	req := &userpb.AddTripPreferencesRequest{
-		ProfileID:   "profile-123",
+		UserID:   "profile-123",
 		Preferences: []*userpb.TripPreference{},
 	}
 
@@ -538,7 +538,7 @@ func TestUpdateProfile_SuccessAllFields(t *testing.T) {
 	profile := newFullProfile()
 
 	mockService.On("UpdateProfile", ctx, mock.MatchedBy(func(req serviceInterfaces.UpdateProfileRequest) bool {
-		return req.ProfileID == "profile-456" &&
+		return req.UserID == "profile-456" &&
 			req.FirstName != nil && *req.FirstName == "Jean" &&
 			req.LastName != nil && *req.LastName == "Dupont" &&
 			req.BirthDate != nil && *req.BirthDate == "1992-05-20" &&
@@ -548,7 +548,7 @@ func TestUpdateProfile_SuccessAllFields(t *testing.T) {
 	})).Return(profile, nil)
 
 	req := &userpb.UpdateProfileRequest{
-		ProfileID:         "profile-456",
+		UserID:         "profile-456",
 		FirstName:         stringPtr("Jean"),
 		LastName:          stringPtr("Dupont"),
 		BirthDate:         stringPtr("1992-05-20"),
@@ -563,7 +563,7 @@ func TestUpdateProfile_SuccessAllFields(t *testing.T) {
 	require.NotNil(t, resp)
 	require.NotNil(t, resp.User)
 	assert.Equal(t, profile.AuthID, resp.User.AuthID)
-	assert.Equal(t, profile.ProfileID, resp.User.ProfileID)
+	assert.Equal(t, profile.UserID, resp.User.UserID)
 	assert.Equal(t, profile.Name, resp.User.Name)
 	assert.Equal(t, profile.Email, resp.User.Email)
 	assert.Equal(t, profile.PhoneNumber, resp.User.PhoneNumber)
@@ -578,7 +578,7 @@ func TestUpdateProfile_SuccessPartialFields(t *testing.T) {
 	profile := newFullProfile()
 
 	mockService.On("UpdateProfile", ctx, mock.MatchedBy(func(req serviceInterfaces.UpdateProfileRequest) bool {
-		return req.ProfileID == "profile-456" &&
+		return req.UserID == "profile-456" &&
 			req.FirstName != nil && *req.FirstName == "Marie" &&
 			req.LastName == nil &&
 			req.BirthDate == nil &&
@@ -588,7 +588,7 @@ func TestUpdateProfile_SuccessPartialFields(t *testing.T) {
 	})).Return(profile, nil)
 
 	req := &userpb.UpdateProfileRequest{
-		ProfileID: "profile-456",
+		UserID: "profile-456",
 		FirstName: stringPtr("Marie"),
 	}
 
@@ -597,21 +597,21 @@ func TestUpdateProfile_SuccessPartialFields(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.NotNil(t, resp.User)
-	assert.Equal(t, profile.ProfileID, resp.User.ProfileID)
+	assert.Equal(t, profile.UserID, resp.User.UserID)
 	mockService.AssertExpectations(t)
 }
 
 func TestUpdateProfile_InvalidProfileID(t *testing.T) {
-	// Vérifie que ErrorInvalidProfileID est traduit en codes.InvalidArgument
+	// Vérifie que ErrorInvalidUserID est traduit en codes.InvalidArgument
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
 	mockService.On("UpdateProfile", ctx, mock.MatchedBy(func(req serviceInterfaces.UpdateProfileRequest) bool {
-		return req.ProfileID == "bad-id"
-	})).Return(nil, userErrors.ErrorInvalidProfileID)
+		return req.UserID == "bad-id"
+	})).Return(nil, userErrors.ErrorInvalidUserID)
 
 	req := &userpb.UpdateProfileRequest{
-		ProfileID: "bad-id",
+		UserID: "bad-id",
 		FirstName: stringPtr("Test"),
 	}
 
@@ -628,11 +628,11 @@ func TestUpdateProfile_InternalError(t *testing.T) {
 	ctx := context.Background()
 
 	mockService.On("UpdateProfile", ctx, mock.MatchedBy(func(req serviceInterfaces.UpdateProfileRequest) bool {
-		return req.ProfileID == "profile-456"
+		return req.UserID == "profile-456"
 	})).Return(nil, userErrors.ErrorInternalServer)
 
 	req := &userpb.UpdateProfileRequest{
-		ProfileID: "profile-456",
+		UserID: "profile-456",
 		Email:     stringPtr("test@example.com"),
 	}
 
@@ -695,15 +695,15 @@ func TestToGRPCError_ErrorProfileAlreadyExists(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-func TestToGRPCError_ErrorInvalidProfileID(t *testing.T) {
-	// Vérifie le mapping ErrorInvalidProfileID → codes.InvalidArgument
+func TestToGRPCError_ErrorInvalidUserID(t *testing.T) {
+	// Vérifie le mapping ErrorInvalidUserID → codes.InvalidArgument
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
-	mockService.On("CreateDriverAccount", ctx, "bad", true).Return(userErrors.ErrorInvalidProfileID)
+	mockService.On("CreateDriverAccount", ctx, "bad", true).Return(userErrors.ErrorInvalidUserID)
 
 	_, err := handler.CreateDriverAccount(ctx, &userpb.CreateDriverAccountRequest{
-		ProfileID: "bad", CreateDriverAccount: true,
+		UserID: "bad", CreateDriverAccount: true,
 	})
 	assertGRPCCode(t, err, codes.InvalidArgument)
 	mockService.AssertExpectations(t)
