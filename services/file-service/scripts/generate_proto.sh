@@ -8,6 +8,7 @@ set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Get script directory and change to service root
@@ -39,9 +40,25 @@ export PATH="$PATH:$(go env GOPATH)/bin"
 # Set paths
 PROTO_DIR="proto"
 PROTO_OUT="${PROTO_DIR}/gen"
+GOOGLE_API_DIR="${PROTO_DIR}/google/api"
 
 # Create output directory
 mkdir -p ${PROTO_OUT}
+
+# Download google/api proto files if they don't exist (requis pour annotations.proto)
+if [ ! -f "${GOOGLE_API_DIR}/annotations.proto" ]; then
+  echo ""
+  echo -e "${BLUE}Downloading google/api proto dependencies...${NC}"
+  mkdir -p ${GOOGLE_API_DIR}
+
+  curl -sSL -o "${GOOGLE_API_DIR}/annotations.proto" \
+    "https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/annotations.proto"
+
+  curl -sSL -o "${GOOGLE_API_DIR}/http.proto" \
+    "https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/http.proto"
+
+  echo -e "${GREEN}✓${NC} Downloaded google/api proto files"
+fi
 
 # Check if proto files exist
 if [ ! -f "${PROTO_DIR}/file.proto" ]; then
@@ -49,7 +66,7 @@ if [ ! -f "${PROTO_DIR}/file.proto" ]; then
   exit 1
 fi
 
-# Generate file.proto (pas de google/api car inter-service uniquement)
+# Generate file.proto
 echo "Generating Go code from file.proto..."
 protoc \
   --proto_path=${PROTO_DIR} \

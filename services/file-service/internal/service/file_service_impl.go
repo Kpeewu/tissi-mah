@@ -1,9 +1,11 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
@@ -368,6 +370,87 @@ func extensionFromMimeType(mimeType string) string {
 	default:
 		return ""
 	}
+}
+
+// --- Upload identité ---
+
+// UploadIdDocument upload les documents d'identité vers S3/MinIO et sauvegarde les URLs en base.
+// Les fichiers sont uploadés individuellement via UploadUserDocument.
+func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInterfaces.UploadIdDocumentInput) error {
+	s.logger.Debug("upload id document", zap.String("profileID", input.ProfileID), zap.String("type", input.DocumentType))
+
+	if input.ProfileID == "" {
+		return fileErrors.ErrorInvalidDocumentType
+	}
+
+	// Détermine les fichiers requis selon le type de document
+	type fileUpload struct {
+		data     []byte
+		docType  string
+		docName  string
+	}
+
+	var uploads []fileUpload
+
+	switch input.DocumentType {
+	case "IDCard":
+		if len(input.IDCardRecto) == 0 || len(input.IDCardVerso) == 0 {
+			s.logger.Error("IDCard: recto et verso obligatoires", zap.String("profileID", input.ProfileID))
+			return fileErrors.ErrorInvalidDocumentType
+		}
+		uploads = []fileUpload{
+			{data: input.IDCardRecto, docType: "idCardFront", docName: "id_card_recto"},
+			{data: input.IDCardVerso, docType: "idCardBack", docName: "id_card_verso"},
+		}
+	case "Passport":
+		if len(input.Passport) == 0 {
+			s.logger.Error("Passport: fichier obligatoire", zap.String("profileID", input.ProfileID))
+			return fileErrors.ErrorInvalidDocumentType
+		}
+		uploads = []fileUpload{
+			{data: input.Passport, docType: "passport", docName: "passport"},
+		}
+	case "DriverLicence":
+		if len(input.DriverLicenceRecto) == 0 || len(input.DriverLicenceVerso) == 0 {
+			s.logger.Error("DriverLicence: recto et verso obligatoires", zap.String("profileID", input.ProfileID))
+			return fileErrors.ErrorInvalidDocumentType
+		}
+		uploads = []fileUpload{
+			{data: input.DriverLicenceRecto, docType: "driverLicenceFront", docName: "driver_licence_recto"},
+			{data: input.DriverLicenceVerso, docType: "driverLicenceBack", docName: "driver_licence_verso"},
+		}
+	default:
+		s.logger.Error("type de document inconnu", zap.String("type", input.DocumentType))
+		return fileErrors.ErrorInvalidDocumentType
+	}
+
+	// Upload chaque fichier vers S3 + DB
+	for _, u := range uploads {
+		mimeType := http.DetectContentType(u.data)
+		if !allowedMimeTypes[mimeType] {
+			mimeType = "image/jpeg"
+		}
+
+		_, err := s.UploadUserDocument(ctx, serviceInterfaces.UploadUserDocumentInput{
+			UserID:        input.ProfileID,
+			DocumentName:  u.docName,
+			DocumentType:  u.docType,
+			MimeType:      mimeType,
+			FileSizeBytes: int64(len(u.data)),
+			Data:          bytes.NewReader(u.data),
+		})
+		if err != nil {
+			s.logger.Error("upload id document file failed",
+				zap.String("profileID", input.ProfileID),
+				zap.String("docType", u.docType),
+				zap.Error(err),
+			)
+			return err
+		}
+		s.logger.Info("id document file uploaded", zap.String("profileID", input.ProfileID), zap.String("docType", u.docType))
+	}
+
+	return nil
 }
 
 func s3KeyFromURL(documentURL string, documentType string, ownerID string, documentID string) string {

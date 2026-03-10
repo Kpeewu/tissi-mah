@@ -31,6 +31,21 @@ type UploadVehicleDocumentInput struct {
 	IssuingAuthority string
 }
 
+// UploadIdDocumentInput contient les fichiers d'identité à uploader.
+// Les champs requis dépendent du DocumentType :
+//   - IDCard       : IDCardRecto + IDCardVerso
+//   - Passport     : Passport
+//   - DriverLicence: DriverLicenceRecto + DriverLicenceVerso
+type UploadIdDocumentInput struct {
+	ProfileID          string
+	DocumentType       string // IDCard | Passport | DriverLicence
+	IDCardRecto        []byte
+	IDCardVerso        []byte
+	DriverLicenceRecto []byte
+	DriverLicenceVerso []byte
+	Passport           []byte
+}
+
 // CreateReviewInput contient les données nécessaires à la création d'une revue
 type CreateReviewInput struct {
 	UserDocumentID    string
@@ -75,6 +90,12 @@ type FileService interface {
 
 	// Supprime un document véhicule (S3 + DB)
 	DeleteVehicleDocument(ctx context.Context, documentID string) error
+
+	// --- Upload identité ---
+
+	// Upload les documents d'identité vers S3/MinIO et sauvegarde les URLs en base.
+	// Les fichiers fournis sont uploadés individuellement (un par type de pièce).
+	UploadIdDocument(ctx context.Context, input UploadIdDocumentInput) error
 
 	// --- Revues ---
 

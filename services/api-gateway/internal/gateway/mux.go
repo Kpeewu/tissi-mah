@@ -13,9 +13,10 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	authpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/authpb"
+	authpb   "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/authpb"
+	filepb   "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/filepb"
 	ratingpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb"
-	userpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/userpb"
+	userpb   "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/userpb"
 )
 
 // MuxConfig contient les paramètres pour créer le grpc-gateway ServeMux
@@ -23,6 +24,7 @@ type MuxConfig struct {
 	AuthServiceAddr   string
 	UserServiceAddr   string
 	RatingServiceAddr string
+	FileServiceAddr   string
 	Logger            *zap.Logger
 }
 
@@ -95,6 +97,12 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		return nil, err
 	}
 	cfg.Logger.Info("registered rating-service handler", zap.String("endpoint", cfg.RatingServiceAddr))
+
+	// Enregistrer file-service
+	if err := filepb.RegisterFileServiceHandlerFromEndpoint(ctx, mux, cfg.FileServiceAddr, dialOpts); err != nil {
+		return nil, err
+	}
+	cfg.Logger.Info("registered file-service handler", zap.String("endpoint", cfg.FileServiceAddr))
 
 	return mux, nil
 }

@@ -89,6 +89,40 @@ func (h *FileHandler) UploadUserDocument(stream filepb.FileService_UploadUserDoc
 	return stream.SendAndClose(toProtoUserDocument(doc))
 }
 
+// --- Upload identité (HTTP via api-gateway) ---
+
+// UploadIdDocument reçoit les documents d'identité en base64 JSON, les upload vers S3/MinIO
+// et sauvegarde les URLs en base. Retourne toujours HTTP 200 avec ErrorMessage si erreur.
+func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadIdDocumentRequest) (*filepb.UploadIdDocumentResponse, error) {
+	h.logger.Debug("handler: UploadIdDocument called",
+		zap.String("profileID", req.ProfileID),
+		zap.String("documentType", req.DocumentType),
+	)
+
+	err := h.service.UploadIdDocument(ctx, serviceInterfaces.UploadIdDocumentInput{
+		ProfileID:          req.ProfileID,
+		DocumentType:       req.DocumentType,
+		IDCardRecto:        req.IDCardRecto,
+		IDCardVerso:        req.IDCardVerso,
+		DriverLicenceRecto: req.DriverLicenceRecto,
+		DriverLicenceVerso: req.DriverLicenceVerso,
+		Passport:           req.Passport,
+	})
+	if err != nil {
+		h.logger.Error("handler: UploadIdDocument failed",
+			zap.String("profileID", req.ProfileID),
+			zap.Error(err),
+		)
+		return &filepb.UploadIdDocumentResponse{
+			Success:      false,
+			ErrorMessage: err.Error(),
+		}, nil
+	}
+
+	h.logger.Info("handler: UploadIdDocument success", zap.String("profileID", req.ProfileID))
+	return &filepb.UploadIdDocumentResponse{Success: true}, nil
+}
+
 // --- Upload streaming : documents véhicule ---
 
 func (h *FileHandler) UploadVehicleDocument(stream filepb.FileService_UploadVehicleDocumentServer) error {

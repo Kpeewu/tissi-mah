@@ -1,32 +1,163 @@
 # File Service API
 
-This document describes the gRPC API exposed by the file-service. This service is **inter-service only** and is not exposed via the api-gateway HTTP endpoints.
+This document describes the API exposed by the file-service. Some endpoints are accessible via HTTP through the api-gateway; others are inter-service gRPC only.
 
 ## Overview
 
 The file-service is responsible for:
-- Receiving files from other services via gRPC client-side streaming
+- Receiving files from mobile clients (base64 JSON) or other services (gRPC streaming)
 - Uploading files to S3/MinIO object storage
-- Storing document metadata in PostgreSQL
+- Storing document metadata and URLs in PostgreSQL
 - Managing document reviews and verification workflows
 
-## Service Discovery
+## Base URL (HTTP endpoints)
+
+| Environment | Base URL |
+|-------------|----------|
+| Local | `http://localhost:8080` |
+| VPS-Dev | `https://api.tissimah.kpeewu.dev` |
+| Staging | `https://staging.tissi-mah.com` |
+| Production | `https://api.tissi-mah.com` |
+
+## Service Discovery (gRPC inter-service)
 
 | Environment | Address |
 |-------------|---------|
 | Local | `localhost:50053` |
 | Kubernetes | `file-service.default.svc.cluster.local:50053` |
 
-## Communication Flow
+## Authentication
+
+Protected HTTP endpoints require a valid Firebase JWT token in the `Authorization` header.
 
 ```
-client -> api-gateway -> user-service -> file-service -> S3/MinIO
-                                      -> file-service -> PostgreSQL (metadata)
+Authorization: Bearer <firebase_id_token>
+```
+
+## Error Response Format (HTTP)
+
+All HTTP errors return the appropriate status code with this JSON body:
+
+```json
+{
+    "ErrorMessage": "ErrorInvalidDocumentType"
+}
+```
+
+| HTTP Code | Meaning |
+|-----------|---------|
+| 200 | Success |
+| 400 | Invalid request parameters (`INVALID_ARGUMENT`) |
+| 401 | Missing or invalid token (`UNAUTHENTICATED`) |
+| 404 | Resource not found (`NOT_FOUND`) |
+| 500 | Internal server error (`INTERNAL`) |
+
+---
+
+## HTTP Endpoints
+
+### POST /file/uploadIdDocument
+
+Uploads one or more identity documents for a user profile. Files are sent as base64-encoded bytes in the JSON body. The service uploads each file to S3/MinIO and stores the URL in the database.
+
+**Authentication:** Required (Firebase JWT)
+
+#### Request
+
+```http
+POST /file/uploadIdDocument HTTP/1.1
+Host: api.tissimah.kpeewu.dev
+Authorization: Bearer <firebase_id_token>
+Content-Type: application/json
+
+{
+    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "DocumentType": "IDCard",
+    "IDCardRecto": "<base64-encoded bytes>",
+    "IDCardVerso": "<base64-encoded bytes>"
+}
+```
+
+#### Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `ProfileID` | string | Yes | User profile ID |
+| `DocumentType` | string | Yes | `IDCard`, `Passport`, or `DriverLicence` |
+| `IDCardRecto` | bytes (base64) | If `IDCard` | Front of ID card |
+| `IDCardVerso` | bytes (base64) | If `IDCard` | Back of ID card |
+| `DriverLicenceRecto` | bytes (base64) | If `DriverLicence` | Front of driver's licence |
+| `DriverLicenceVerso` | bytes (base64) | If `DriverLicence` | Back of driver's licence |
+| `Passport` | bytes (base64) | If `Passport` | Passport scan |
+
+> **Note:** grpc-gateway automatically handles base64 encoding/decoding for `bytes` fields. Send files as base64 strings in the JSON body.
+
+#### Required fields per DocumentType
+
+| DocumentType | Required fields |
+|--------------|----------------|
+| `IDCard` | `IDCardRecto` + `IDCardVerso` |
+| `Passport` | `Passport` |
+| `DriverLicence` | `DriverLicenceRecto` + `DriverLicenceVerso` |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Success": true,
+    "ErrorMessage": ""
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Success` | boolean | `true` if all files uploaded successfully |
+| `ErrorMessage` | string | Error identifier if failed, `""` if success |
+
+#### Errors
+
+| ErrorMessage | HTTP | Description |
+|--------------|------|-------------|
+| `ErrorInvalidDocumentType` | 400 | Unknown `DocumentType` value |
+| `ErrorMissingDocumentFiles` | 400 | Required files missing for the given `DocumentType` |
+| `ErrorUploadFailed` | 500 | S3/MinIO upload failed |
+| `ErrorInternalServer` | 500 | Internal error |
+
+#### Example (cURL)
+
+```bash
+# IDCard upload
+curl -X POST https://api.tissimah.kpeewu.dev/file/uploadIdDocument \
+  -H "Authorization: Bearer <firebase_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "DocumentType": "IDCard",
+    "IDCardRecto": "<base64>",
+    "IDCardVerso": "<base64>"
+  }'
+
+# Passport upload
+curl -X POST https://api.tissimah.kpeewu.dev/file/uploadIdDocument \
+  -H "Authorization: Bearer <firebase_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "DocumentType": "Passport",
+    "Passport": "<base64>"
+  }'
 ```
 
 ---
 
-## RPCs
+## Inter-Service RPCs (gRPC only)
+
+These RPCs are not exposed via HTTP. They are called directly by other services.
 
 ### UploadUserDocument (Client Streaming)
 
@@ -43,7 +174,7 @@ rpc UploadUserDocument(stream UploadUserDocumentRequest) returns (UserDocumentRe
 ```json
 {
     "metadata": {
-        "user_id": "u-550e8400-e29b-41d4-a716-446655440000",
+        "user_id": "8b1d4173-d563-4f81-aeb1-8bf565816545",
         "document_name": "id-card-front.jpg",
         "document_type": "idCardFront",
         "mime_type": "image/jpeg",
@@ -85,26 +216,6 @@ rpc UploadUserDocument(stream UploadUserDocumentRequest) returns (UserDocumentRe
 | `driverLicenceBack` | Back of driver's licence |
 | `profilePicture` | Profile picture |
 
-#### Response
-
-```json
-{
-    "document_id": "d-550e8400-e29b-41d4-a716-446655440000",
-    "user_id": "u-550e8400",
-    "document_name": "id-card-front.jpg",
-    "document_type": "idCardFront",
-    "document_url": "http://minio:9000/tissi-mah-files/idCardFront/u-550e8400/d-550e8400.jpg",
-    "file_size_bytes": 245760,
-    "mime_type": "image/jpeg",
-    "document_number": "AB123456",
-    "issuing_country": "TG",
-    "status": "pending",
-    "is_current": true,
-    "uploaded_at": "2026-02-28T10:00:00Z",
-    "updated_at": "2026-02-28T10:00:00Z"
-}
-```
-
 ---
 
 ### UploadVehicleDocument (Client Streaming)
@@ -127,13 +238,6 @@ rpc UploadVehicleDocument(stream UploadVehicleDocumentRequest) returns (VehicleD
 | `document_number` | string | No | Document number |
 | `issuing_authority` | string | No | Issuing authority name |
 
-#### Valid Vehicle Document Types
-
-| Type | Description |
-|------|-------------|
-| `insurance` | Vehicle insurance document |
-| `registrationCard` | Vehicle registration card |
-
 ---
 
 ### GetUserDocuments
@@ -144,33 +248,9 @@ Retrieves all documents for a specific user.
 rpc GetUserDocuments(GetUserDocumentsRequest) returns (GetUserDocumentsResponse);
 ```
 
-#### Request
-
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `user_id` | string | Yes | User profile ID |
-
-#### Response
-
-```json
-{
-    "documents": [
-        {
-            "document_id": "d-123",
-            "user_id": "u-550e8400",
-            "document_name": "id-card-front.jpg",
-            "document_type": "idCardFront",
-            "document_url": "http://...",
-            "file_size_bytes": 245760,
-            "mime_type": "image/jpeg",
-            "status": "approved",
-            "is_current": true,
-            "uploaded_at": "2026-02-28T10:00:00Z",
-            "updated_at": "2026-02-28T10:00:00Z"
-        }
-    ]
-}
-```
 
 ---
 
@@ -205,8 +285,6 @@ rpc GetCurrentUserDocument(GetCurrentUserDocumentRequest) returns (UserDocumentR
 
 ### GetVehicleDocuments
 
-Retrieves all documents for a specific vehicle.
-
 ```protobuf
 rpc GetVehicleDocuments(GetVehicleDocumentsRequest) returns (GetVehicleDocumentsResponse);
 ```
@@ -218,8 +296,6 @@ rpc GetVehicleDocuments(GetVehicleDocumentsRequest) returns (GetVehicleDocuments
 ---
 
 ### GetVehicleDocument
-
-Retrieves a specific vehicle document by ID.
 
 ```protobuf
 rpc GetVehicleDocument(GetDocumentByIDRequest) returns (VehicleDocumentResponse);
@@ -243,19 +319,9 @@ rpc DeleteUserDocument(DeleteDocumentRequest) returns (OperationResponse);
 |-------|------|----------|-------------|
 | `document_id` | string | Yes | Document ID to delete |
 
-#### Response
-
-```json
-{
-    "success": true
-}
-```
-
 ---
 
 ### DeleteVehicleDocument
-
-Deletes a vehicle document (file from S3 + metadata from database).
 
 ```protobuf
 rpc DeleteVehicleDocument(DeleteDocumentRequest) returns (OperationResponse);
@@ -269,13 +335,11 @@ rpc DeleteVehicleDocument(DeleteDocumentRequest) returns (OperationResponse);
 
 ### CreateDocumentReview
 
-Creates a review for a document (user or vehicle). Exactly one of `user_document_id` or `vehicle_document_id` must be provided.
+Creates a review for a document. Exactly one of `user_document_id` or `vehicle_document_id` must be provided.
 
 ```protobuf
 rpc CreateDocumentReview(CreateDocumentReviewRequest) returns (DocumentReviewResponse);
 ```
-
-#### Request
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -289,36 +353,15 @@ rpc CreateDocumentReview(CreateDocumentReviewRequest) returns (DocumentReviewRes
 | `notes` | string | No | Internal review notes |
 | `extracted_data` | bytes | No | JSON data extracted from document |
 
-#### Decision Effects
-
 | Decision | Document Status | Description |
 |----------|----------------|-------------|
 | `approved` | `approved` | Document is verified and accepted |
 | `rejected` | `rejected` | Document is rejected permanently |
 | `resubmission` | `pending` | Document needs to be re-submitted |
 
-#### Response
-
-```json
-{
-    "review_id": "r-550e8400",
-    "user_document_id": "d-123",
-    "vehicle_document_id": "",
-    "decision": "approved",
-    "reason_rejection": "",
-    "rejection_details": "",
-    "reviewed_by": "admin@tissi-mah.com",
-    "reviewed_by_type": "manual",
-    "reviewed_at": "2026-02-28T10:30:00Z",
-    "notes": "Document verified"
-}
-```
-
 ---
 
 ### GetDocumentReviews
-
-Retrieves all reviews for a document. Provide either `user_document_id` or `vehicle_document_id`.
 
 ```protobuf
 rpc GetDocumentReviews(GetDocumentReviewsRequest) returns (GetDocumentReviewsResponse);
@@ -328,42 +371,6 @@ rpc GetDocumentReviews(GetDocumentReviewsRequest) returns (GetDocumentReviewsRes
 |-------|------|----------|-------------|
 | `user_document_id` | string | One required | User document ID |
 | `vehicle_document_id` | string | One required | Vehicle document ID |
-
-#### Response
-
-```json
-{
-    "reviews": [
-        {
-            "review_id": "r-550e8400",
-            "decision": "approved",
-            "reviewed_by": "admin@tissi-mah.com",
-            "reviewed_by_type": "manual",
-            "reviewed_at": "2026-02-28T10:30:00Z"
-        }
-    ]
-}
-```
-
----
-
-### Health
-
-Health check endpoint.
-
-```protobuf
-rpc Health(HealthRequest) returns (HealthResponse);
-```
-
-#### Response
-
-```json
-{
-    "status": "SERVING",
-    "version": "v1.0.0",
-    "timestamp": 1709136000
-}
-```
 
 ---
 
@@ -392,7 +399,7 @@ Documents are stored in S3/MinIO with the following key pattern:
 {document_type}/{user_id|vehicle_id}/{document_id}.{extension}
 ```
 
-Example: `idCardFront/u-550e8400/d-123.jpg`
+Example: `idCardFront/8b1d4173/d-550e8400.jpg`
 
 ## Supported MIME Types
 
@@ -407,18 +414,19 @@ Example: `idCardFront/u-550e8400/d-123.jpg`
 | Limit | Value |
 |-------|-------|
 | Max file size | 10 MB |
-| Max chunk size | 64 KB |
+| Max chunk size (streaming) | 64 KB |
 
-## Error Codes
+## Error Reference
 
-| Error | gRPC Code | Description |
-|-------|-----------|-------------|
-| `ErrorDocumentNotFound` | NOT_FOUND (5) | Document does not exist |
-| `ErrorInvalidDocumentType` | INVALID_ARGUMENT (3) | Invalid document type |
-| `ErrorInvalidMimeType` | INVALID_ARGUMENT (3) | Unsupported MIME type |
-| `ErrorUploadFailed` | INTERNAL (13) | S3 upload failed |
-| `ErrorFileTooLarge` | INVALID_ARGUMENT (3) | File exceeds 10MB limit |
-| `ErrorReviewNotFound` | NOT_FOUND (5) | Review does not exist |
-| `ErrorInvalidReviewDecision` | INVALID_ARGUMENT (3) | Invalid review decision |
-| `ErrorDataRetrievalFailed` | INTERNAL (13) | Database query failed |
-| `ErrorInternalServer` | INTERNAL (13) | Internal server error |
+| ErrorMessage | HTTP | gRPC | Description |
+|--------------|------|------|-------------|
+| `ErrorDocumentNotFound` | 404 | NOT_FOUND | Document does not exist |
+| `ErrorInvalidDocumentType` | 400 | INVALID_ARGUMENT | Invalid document type |
+| `ErrorMissingDocumentFiles` | 400 | INVALID_ARGUMENT | Required files missing for document type |
+| `ErrorInvalidMimeType` | 400 | INVALID_ARGUMENT | Unsupported MIME type |
+| `ErrorUploadFailed` | 500 | INTERNAL | S3 upload failed |
+| `ErrorFileTooLarge` | 400 | INVALID_ARGUMENT | File exceeds 10MB limit |
+| `ErrorReviewNotFound` | 404 | NOT_FOUND | Review does not exist |
+| `ErrorInvalidReviewDecision` | 400 | INVALID_ARGUMENT | Invalid review decision |
+| `ErrorDataRetrievalFailed` | 500 | INTERNAL | Database query failed |
+| `ErrorInternalServer` | 500 | INTERNAL | Internal server error |

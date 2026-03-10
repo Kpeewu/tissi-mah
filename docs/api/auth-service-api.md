@@ -6,14 +6,14 @@ This document describes the HTTP/REST API exposed by the auth-service through th
 
 | Environment | Base URL |
 |-------------|----------|
-| Local | `http://localhost:8080/api/v1` |
-| VPS-Dev | `https://dev.tissi-mah.com/api/v1` |
-| Staging | `https://staging.tissi-mah.com/api/v1` |
-| Production | `https://api.tissi-mah.com/api/v1` |
+| Local | `http://localhost:8080` |
+| VPS-Dev | `https://api.tissimah.kpeewu.dev` |
+| Staging | `https://staging.tissi-mah.com` |
+| Production | `https://api.tissi-mah.com` |
 
 ## Authentication
 
-All endpoints require a valid Firebase JWT token in the `Authorization` header.
+Protected endpoints require a valid Firebase JWT token in the `Authorization` header.
 
 ```
 Authorization: Bearer <firebase_id_token>
@@ -25,50 +25,51 @@ The token is obtained from Firebase Authentication on the mobile client after th
 
 | Header | Required | Description |
 |--------|----------|-------------|
-| `Authorization` | Yes | Firebase JWT token: `Bearer <token>` |
-| `Content-Type` | Yes (POST/PUT) | `application/json` |
-| `Accept` | No | `application/json` |
-| `Accept-Language` | No | Preferred language: `fr`, `en` |
-| `X-Request-ID` | No | Client-generated UUID for request tracing |
+| `Authorization` | Yes (protected) | Firebase JWT token: `Bearer <token>` |
+| `Content-Type` | Yes (POST) | `application/json` |
 
 ## Error Response Format
 
-All errors follow this format:
+All errors return the appropriate HTTP status code with this JSON body:
 
 ```json
 {
-    "errorMessage": "ErrUserNotFound",
-    "code": 5,
-    "details": null
+    "ErrorMessage": "ErrorPhoneNumberNotAvailable"
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `errorMessage` | string | Error identifier (matches backend error variable name) |
-| `code` | integer | gRPC status code |
-| `details` | object \| null | Additional error details (optional) |
+> **Note:** JSON field names use PascalCase throughout the API (matching proto field names with `UseProtoNames: true`).
+
+| HTTP Code | Meaning |
+|-----------|---------|
+| 200 | Success |
+| 400 | Invalid request parameters (`INVALID_ARGUMENT`) |
+| 401 | Missing or invalid token (`UNAUTHENTICATED`) |
+| 404 | Resource not found (`NOT_FOUND`) |
+| 409 | Resource already exists (`ALREADY_EXISTS`) |
+| 412 | Pre-condition not met (`FAILED_PRECONDITION`) |
+| 500 | Internal server error (`INTERNAL`) |
 
 ---
 
 ## Endpoints
 
-### POST /auth/login
+### POST /api/v1/auth/login
 
-Checks if the authenticated user has an existing account. If yes, returns the user profile.
+Checks if the authenticated Firebase user has an existing account. If yes, returns the user profile.
+
+**Authentication:** Required (Firebase JWT)
 
 #### Request
 
 ```http
 POST /api/v1/auth/login HTTP/1.1
-Host: api.tissi-mah.com
-Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+Host: api.tissimah.kpeewu.dev
+Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
-Accept: application/json
-X-Request-ID: 550e8400-e29b-41d4-a716-446655440000
 ```
 
-**Body:** None required
+**Body:** None required (Firebase UID extracted from JWT)
 
 #### Response (Account Exists)
 
@@ -77,15 +78,16 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-    "errorMessage": null,
-    "exists": true,
-    "user": {
-        "profileId": "u-550e8400-e29b-41d4-a716-446655440000",
-        "name": "Doe",
-        "firstName": "Samuel",
-        "email": "samuel@example.com",
-        "phoneNumber": "+22891",
-        "profileImageURL": "https://tissi-mah-files.s3.amazonaws.com/profiles/u-550e8400/photo.jpg"
+    "ErrorMessage": "",
+    "Exists": true,
+    "User": {
+        "AuthID": "8b1518f9-0949-4872-92a4-5dbdfb7863d9",
+        "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+        "Name": "Doe",
+        "FirstName": "Samuel",
+        "Email": "samuel@example.com",
+        "PhoneNumber": "+22890123456",
+        "ProfileImageURL": ""
     }
 }
 ```
@@ -97,9 +99,9 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-    "errorMessage": null,
-    "exists": false,
-    "user": null
+    "ErrorMessage": "",
+    "Exists": false,
+    "User": null
 }
 ```
 
@@ -107,53 +109,47 @@ Content-Type: application/json
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `errorMessage` | string \| null | Error message if failed, `null` if success |
-| `exists` | boolean | `true` if account exists, `false` otherwise |
-| `user` | object \| null | User profile if exists, `null` otherwise |
-| `user.profileId` | string | Unique user ID (prefixed with `u-`) |
-| `user.name` | string | Last name |
-| `user.firstName` | string | First name |
-| `user.email` | string | Email address |
-| `user.phoneNumber` | string | Phone number (E.164 format) |
-| `user.profileImageURL` | string | URL to profile picture |
-
-#### Errors
-
-| Error | HTTP Code | Description |
-|-------|-----------|-------------|
-| `ErrAccountSuspended` | 401 | Account is temporarily suspended |
-| `ErrAccountDeactivated` | 401 | Account has been deleted |
+| `ErrorMessage` | string | Error identifier if failed, `""` if success |
+| `Exists` | boolean | `true` if account exists, `false` otherwise |
+| `User` | object \| null | User profile if exists, `null` otherwise |
+| `User.AuthID` | string | Auth service account ID |
+| `User.UserID` | string | User profile ID |
+| `User.Name` | string | Last name |
+| `User.FirstName` | string | First name |
+| `User.Email` | string | Email address |
+| `User.PhoneNumber` | string | Phone number (E.164 format) |
+| `User.ProfileImageURL` | string | URL to profile picture |
 
 #### Example (cURL)
 
 ```bash
-curl -X POST https://api.tissi-mah.com/api/v1/auth/login \
-  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+curl -X POST https://api.tissimah.kpeewu.dev/api/v1/auth/login \
+  -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json"
 ```
 
 ---
 
-### POST /auth/createAccount
+### POST /api/v1/auth/createAccount
 
 Creates a new account for the authenticated Firebase user.
+
+**Authentication:** Required (Firebase JWT)
 
 #### Request
 
 ```http
 POST /api/v1/auth/createAccount HTTP/1.1
-Host: api.tissi-mah.com
-Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+Host: api.tissimah.kpeewu.dev
+Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
-Accept: application/json
-X-Request-ID: 550e8400-e29b-41d4-a716-446655440001
 
 {
-    "name": "samuel",
-    "firstName": "Doe",
-    "email": "samuel@example.com",
-    "phoneNumber": "+22890123456",
-    "profileImageURL": "https://example.com/photo.jpg"
+    "Name": "samuel",
+    "FirstName": "Doe",
+    "Email": "samuel@example.com",
+    "PhoneNumber": "+22890123456",
+    "ProfileImageURL": "https://example.com/photo.jpg"
 }
 ```
 
@@ -161,27 +157,30 @@ X-Request-ID: 550e8400-e29b-41d4-a716-446655440001
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `name` | string | Yes | Last name (max 100 characters) |
-| `firstName` | string | Yes | First name (max 100 characters) |
-| `email` | string | No | Email address |
-| `phoneNumber` | string | No | Phone number (E.164 format: `+228XXXXXXXXXX`) |
-| `profileImageURL` | string | No | URL to profile picture |
+| `Name` | string | Yes | Last name |
+| `FirstName` | string | Yes | First name |
+| `Email` | string | No | Email address (required if no PhoneNumber) |
+| `PhoneNumber` | string | No | Phone number E.164 (required if no Email) |
+| `ProfileImageURL` | string | No | URL to profile picture |
+
+> At least one of `Email` or `PhoneNumber` must be provided.
 
 #### Response (Success)
 
 ```http
-HTTP/1.1 201 Created
+HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-    "errorMessage": null,
-    "user": {
-        "profileId": "u-550e8400-e29b-41d4-a716-446655440000",
-        "name": "samuel",
-        "firstName": "Doe",
-        "email": "samuel@example.com",
-        "phoneNumber": "+22890123456",
-        "profileImageURL": "https://tissi-mah-files.s3.amazonaws.com/profiles/u-550e8400/photo.jpg"
+    "ErrorMessage": "",
+    "User": {
+        "AuthID": "8b1518f9-0949-4872-92a4-5dbdfb7863d9",
+        "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+        "Name": "samuel",
+        "FirstName": "Doe",
+        "Email": "samuel@example.com",
+        "PhoneNumber": "+22890123456",
+        "ProfileImageURL": ""
     }
 }
 ```
@@ -190,56 +189,49 @@ Content-Type: application/json
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `errorMessage` | string \| null | Error message if failed, `null` if success |
-| `user` | object | Created user profile |
-| `user.profileId` | string | Unique user ID (prefixed with `u-`) |
-| `user.name` | string | Last name |
-| `user.firstName` | string | First name |
-| `user.email` | string | Email address |
-| `user.phoneNumber` | string | Phone number |
-| `user.profileImageURL` | string | URL to profile picture |
+| `ErrorMessage` | string | Error identifier if failed, `""` if success |
+| `User` | object | Created user profile |
 
 #### Errors
 
-| Error | HTTP Code | Description |
-|-------|-----------|-------------|
-| `ErrAccountAlreadyExists` | 412 | Firebase ID already has an account |
-| `ErrPhoneNumberTaken` | 412 | Phone number is already in use |
-| `ErrEmailTaken` | 412 | Email is already in use |
-| `ErrInvalidPhoneNumber` | 400 | Invalid phone number format |
-| `ErrInvalidEmail` | 400 | Invalid email format |
+| ErrorMessage | HTTP | Description |
+|--------------|------|-------------|
+| `ErrorInternalServer` | 500 | Internal error (e.g. DB) |
+| `ErrorEmailNotAvailable` | 409 | Email already in use |
+| `ErrorPhoneNumberNotAvailable` | 409 | Phone already in use |
 
 #### Example (cURL)
 
 ```bash
-curl -X POST https://api.tissi-mah.com/api/v1/auth/createAccount \
-  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+curl -X POST https://api.tissimah.kpeewu.dev/api/v1/auth/createAccount \
+  -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "samuel",
-    "firstName": "Doe",
-    "email": "samuel@example.com",
-    "phoneNumber": "+22890123456"
+    "Name": "samuel",
+    "FirstName": "Doe",
+    "Email": "samuel@example.com",
+    "PhoneNumber": "+22890123456"
   }'
 ```
 
 ---
 
-### POST /auth/checkPhoneNumber
+### POST /api/v1/auth/checkPhoneNumber
 
 Checks if a phone number is available for registration.
+
+**Authentication:** Required (Firebase JWT)
 
 #### Request
 
 ```http
 POST /api/v1/auth/checkPhoneNumber HTTP/1.1
-Host: api.tissi-mah.com
-Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+Host: api.tissimah.kpeewu.dev
+Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
-Accept: application/json
 
 {
-    "phoneNumber": "+22890123456"
+    "PhoneNumber": "+22890123456"
 }
 ```
 
@@ -247,7 +239,7 @@ Accept: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `phoneNumber` | string | Yes | Phone number to check (E.164 format) |
+| `PhoneNumber` | string | Yes | Phone number to check (E.164 format) |
 
 #### Response (Available)
 
@@ -256,62 +248,49 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-    "errorMessage": null,
-    "isAvailable": true
+    "ErrorMessage": "",
+    "IsAvailable": true
 }
 ```
 
 #### Response (Not Available)
 
 ```http
-HTTP/1.1 200 OK
+HTTP/1.1 409 Conflict
 Content-Type: application/json
 
 {
-    "errorMessage": null,
-    "isAvailable": false
+    "ErrorMessage": "ErrorPhoneNumberNotAvailable"
 }
 ```
-
-#### Response Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `errorMessage` | string \| null | Error message if failed, `null` if success |
-| `isAvailable` | boolean | `true` if available, `false` if taken |
-
-#### Errors
-
-| Error | HTTP Code | Description |
-|-------|-----------|-------------|
-| `ErrInvalidPhoneNumber` | 400 | Invalid phone number format |
 
 #### Example (cURL)
 
 ```bash
-curl -X POST https://api.tissi-mah.com/api/v1/auth/checkPhoneNumber \
-  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+curl -X POST https://api.tissimah.kpeewu.dev/api/v1/auth/checkPhoneNumber \
+  -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json" \
-  -d '{"phoneNumber": "+22890123456"}'
+  -d '{"PhoneNumber": "+22890123456"}'
 ```
 
 ---
 
-### POST /auth/checkEmail
+### POST /api/v1/auth/checkEmail
 
-Checks if an email is available for registration.
+Checks if an email address is available for registration.
+
+**Authentication:** Required (Firebase JWT)
 
 #### Request
 
 ```http
 POST /api/v1/auth/checkEmail HTTP/1.1
-Host: api.tissi-mah.com
-Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+Host: api.tissimah.kpeewu.dev
+Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
-Accept: application/json
 
 {
-    "email": "samuel@example.com"
+    "Email": "samuel@example.com"
 }
 ```
 
@@ -319,7 +298,7 @@ Accept: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `email` | string | Yes | Email to check |
+| `Email` | string | Yes | Email to check |
 
 #### Response (Available)
 
@@ -328,68 +307,47 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-    "errorMessage": null,
-    "isAvailable": true
+    "ErrorMessage": "",
+    "IsAvailable": true
 }
 ```
 
 #### Response (Not Available)
 
 ```http
-HTTP/1.1 200 OK
+HTTP/1.1 409 Conflict
 Content-Type: application/json
 
 {
-    "errorMessage": null,
-    "isAvailable": false
+    "ErrorMessage": "ErrorEmailNotAvailable"
 }
 ```
-
-#### Response Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `errorMessage` | string \| null | Error message if failed, `null` if success |
-| `isAvailable` | boolean | `true` if available, `false` if taken |
-
-#### Errors
-
-| Error | HTTP Code | Description |
-|-------|-----------|-------------|
-| `ErrInvalidEmail` | 400 | Invalid email format |
 
 #### Example (cURL)
 
 ```bash
-curl -X POST https://api.tissi-mah.com/api/v1/auth/checkEmail \
-  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+curl -X POST https://api.tissimah.kpeewu.dev/api/v1/auth/checkEmail \
+  -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json" \
-  -d '{"email": "samuel@example.com"}'
+  -d '{"Email": "samuel@example.com"}'
 ```
 
 ---
 
-### DELETE /auth/deleteAccount
+### DELETE /api/v1/auth/deleteAccount
 
-Permanently deletes the user's account and anonymizes their data in compliance with GDPR.
+Permanently deletes the user's account and anonymizes their data (GDPR).
 
-**⚠️ Warning:** This action is irreversible. All personal data will be deleted or anonymized.
+**Authentication:** Required (Firebase JWT)
 
-#### Pre-conditions
-
-The account cannot be deleted if:
-- There are active bookings (pending or approved)
-- There are upcoming trips (as driver)
-- There are pending payouts
+**⚠️ Irreversible.** All personal data will be deleted or anonymized.
 
 #### Request
 
 ```http
 DELETE /api/v1/auth/deleteAccount HTTP/1.1
-Host: api.tissi-mah.com
-Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
-Accept: application/json
-X-Request-ID: 550e8400-e29b-41d4-a716-446655440002
+Host: api.tissimah.kpeewu.dev
+Authorization: Bearer <firebase_id_token>
 ```
 
 **Body:** None required
@@ -401,50 +359,30 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-    "errorMessage": null,
-    "success": true
+    "ErrorMessage": "",
+    "Success": true
 }
 ```
 
-#### Response Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `errorMessage` | string \| null | Error message if failed, `null` if success |
-| `success` | boolean | `true` if account was deleted |
-
 #### Errors
 
-| Error | HTTP Code | Description |
-|-------|-----------|-------------|
-| `ErrActiveBookingsExist` | 412 | Cannot delete with active bookings |
-| `ErrActiveTripsExist` | 412 | Cannot delete with upcoming trips (as driver) |
-| `ErrPendingPayoutsExist` | 412 | Cannot delete with pending payouts |
-
-#### What Gets Deleted/Anonymized
-
-| Data | Action |
-|------|--------|
-| Personal info (name, email, phone) | Anonymized |
-| Profile picture | Deleted |
-| KYC documents | Deleted |
-| Vehicles | Deleted |
-| Ratings given | Deleted |
-| Bookings | Anonymized (kept for legal reasons) |
-| Payments | Anonymized (kept 10 years for legal reasons) |
+| ErrorMessage | HTTP | Description |
+|--------------|------|-------------|
+| `ErrorCantDeleteAccount` | 412 | Active bookings or trips pending |
+| `ErrorInternalServer` | 500 | Internal error |
 
 #### Example (cURL)
 
 ```bash
-curl -X DELETE https://api.tissi-mah.com/api/v1/auth/deleteAccount \
-  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
+curl -X DELETE https://api.tissimah.kpeewu.dev/api/v1/auth/deleteAccount \
+  -H "Authorization: Bearer <firebase_token>"
 ```
 
 ---
 
 ## Inter-Service RPCs (gRPC only)
 
-These RPCs are not exposed via HTTP. They are called directly by other services (e.g., user-service).
+Not exposed via HTTP. Called directly by other services.
 
 ### GetAuthInfo
 
@@ -454,53 +392,8 @@ Retrieves authentication information for a user by their auth ID.
 rpc GetAuthInfo(GetAuthInfoRequest) returns (GetAuthInfoResponse);
 ```
 
-#### Request
-
 | Field | Type | Description |
 |-------|------|-------------|
 | `AuthID` | string | Auth service account ID |
 
-#### Response
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `AuthID` | string | Auth account ID |
-| `Email` | string | Email address |
-| `PhoneNumber` | string | Phone number |
-| `IsActive` | boolean | Account active status |
-| `IsSuspended` | boolean | Account suspension status |
-| `SuspensionEndDate` | string | Suspension end date |
-
----
-
-## Error Reference
-
-### HTTP Status Codes
-
-| HTTP Code | gRPC Code | Meaning |
-|-----------|-----------|---------|
-| 200 | `OK` (0) | Success |
-| 201 | `OK` (0) | Created successfully |
-| 400 | `INVALID_ARGUMENT` (3) | Invalid request parameters |
-| 401 | `UNAUTHENTICATED` (16) | Missing or invalid token |
-| 403 | `PERMISSION_DENIED` (7) | Not authorized |
-| 404 | `NOT_FOUND` (5) | Resource not found |
-| 412 | `FAILED_PRECONDITION` (9) | Pre-condition not met |
-| 500 | `INTERNAL` (13) | Server error |
-
-### Auth Service Errors
-
-| Error | HTTP | Description | User Action |
-|-------|------|-------------|-------------|
-| `ErrAccountNotFound` | 404 | Account does not exist | Create account |
-| `ErrAccountAlreadyExists` | 412 | Account already exists | Login instead |
-| `ErrAccountSuspended` | 401 | Account is suspended | Contact support |
-| `ErrAccountDeactivated` | 401 | Account was deleted | Create new account |
-| `ErrPhoneNumberTaken` | 412 | Phone already in use | Use different phone |
-| `ErrEmailTaken` | 412 | Email already in use | Use different email |
-| `ErrInvalidPhoneNumber` | 400 | Invalid phone format | Use E.164 format |
-| `ErrInvalidEmail` | 400 | Invalid email format | Check email format |
-| `ErrActiveBookingsExist` | 412 | Has active bookings | Complete/cancel bookings |
-| `ErrActiveTripsExist` | 412 | Has upcoming trips | Cancel trips first |
-| `ErrPendingPayoutsExist` | 412 | Has pending payouts | Wait for payout |
-
+Response fields: `AuthID`, `Email`, `PhoneNumber`, `IsActive`, `IsSuspended`, `SuspensionEndDate`.

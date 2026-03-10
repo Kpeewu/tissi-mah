@@ -6,10 +6,10 @@ This document describes the HTTP/REST API exposed by the user-service through th
 
 | Environment | Base URL |
 |-------------|----------|
-| Local | `http://localhost:8080/api/v1` |
-| VPS-Dev | `https://dev.tissi-mah.com/api/v1` |
-| Staging | `https://staging.tissi-mah.com/api/v1` |
-| Production | `https://api.tissi-mah.com/api/v1` |
+| Local | `http://localhost:8080` |
+| VPS-Dev | `https://api.tissimah.kpeewu.dev` |
+| Staging | `https://staging.tissi-mah.com` |
+| Production | `https://api.tissi-mah.com` |
 
 ## Authentication
 
@@ -27,32 +27,33 @@ The token is obtained from Firebase Authentication on the mobile client after th
 |--------|----------|-------------|
 | `Authorization` | Yes (protected) | Firebase JWT token: `Bearer <token>` |
 | `Content-Type` | Yes (POST/PATCH) | `application/json` |
-| `Accept` | No | `application/json` |
-| `X-Request-ID` | No | Client-generated UUID for request tracing |
 
 ## Error Response Format
 
-All errors follow this format:
+All errors return the appropriate HTTP status code with this JSON body:
 
 ```json
 {
-    "errorMessage": "ErrUserNotFound",
-    "code": 5,
-    "details": null
+    "ErrorMessage": "ErrUserNotFound"
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `errorMessage` | string | Error identifier |
-| `code` | integer | gRPC status code |
-| `details` | object \| null | Additional error details (optional) |
+> **Note:** JSON field names use PascalCase throughout the API (matching proto field names with `UseProtoNames: true`).
+
+| HTTP Code | Meaning |
+|-----------|---------|
+| 200 | Success |
+| 400 | Invalid request parameters (`INVALID_ARGUMENT`) |
+| 401 | Missing or invalid token (`UNAUTHENTICATED`) |
+| 404 | Resource not found (`NOT_FOUND`) |
+| 412 | Pre-condition not met (`FAILED_PRECONDITION`) |
+| 500 | Internal server error (`INTERNAL`) |
 
 ---
 
 ## Endpoints
 
-### POST /user/me
+### POST /api/v1/user/me
 
 Retrieves the complete profile of the authenticated user, including auth data and files.
 
@@ -62,8 +63,8 @@ Retrieves the complete profile of the authenticated user, including auth data an
 
 ```http
 POST /api/v1/user/me HTTP/1.1
-Host: api.tissi-mah.com
-Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
+Host: api.tissimah.kpeewu.dev
+Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
 ```
 
@@ -76,37 +77,37 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-    "errorMessage": null,
-    "user": {
-        "authID": "firebase-uid-abc123",
-        "profileID": "u-550e8400-e29b-41d4-a716-446655440000",
-        "name": "Doe",
-        "firstName": "Samuel",
-        "gender": "male",
-        "dateOfBirth": "1995-03-15",
-        "bio": "Passager regulier",
-        "email": "samuel@example.com",
-        "phoneNumber": "+22891234567",
-        "profileImageURL": "https://tissi-mah-files.s3.amazonaws.com/profiles/photo.jpg",
-        "hasProfileImage": true,
-        "isDriver": true,
-        "isPassenger": true,
-        "isDriverProfileVerified": false,
-        "isPassengerProfileVerified": true,
-        "isActive": true,
-        "isSuspended": false,
-        "suspensionEndDate": "",
-        "tripPreferences": [
-            {"preference": "music", "isAllowed": true},
-            {"preference": "smoking", "isAllowed": false}
+    "ErrorMessage": "",
+    "User": {
+        "AuthID": "firebase-uid-abc123",
+        "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+        "Name": "Doe",
+        "FirstName": "Samuel",
+        "Gender": "male",
+        "DateOfBirth": "1995-03-15",
+        "Bio": "Passager regulier",
+        "Email": "samuel@example.com",
+        "PhoneNumber": "+22891234567",
+        "ProfileImageURL": "https://tissi-mah-files.s3.amazonaws.com/profiles/photo.jpg",
+        "HasProfileImage": true,
+        "IsDriver": true,
+        "IsPassenger": true,
+        "IsDriverProfileVerified": false,
+        "IsPassengerProfileVerified": true,
+        "IsActive": true,
+        "IsSuspended": false,
+        "SuspensionEndDate": "",
+        "TripPreferences": [
+            {"Preference": "music", "IsAllowed": true},
+            {"Preference": "smoking", "IsAllowed": false}
         ],
-        "idCardExpirationDate": "2028-06-15",
-        "driveLicenceExpirationDate": "2030-12-01",
-        "userFiles": [
+        "IDCardExpirationDate": "2028-06-15",
+        "DriveLicenceExpirationDate": "2030-12-01",
+        "UserFiles": [
             {
-                "fileID": "f-123",
-                "fileURL": "https://tissi-mah-files.s3.amazonaws.com/idCardFront/photo.jpg",
-                "fileType": "idCardFront"
+                "FileID": "d-550e8400-e29b-41d4-a716-446655440000",
+                "FileURL": "https://tissi-mah-files.s3.amazonaws.com/idCardFront/photo.jpg",
+                "FileType": "idCardFront"
             }
         ]
     }
@@ -117,42 +118,49 @@ Content-Type: application/json
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `errorMessage` | string \| null | Error message if failed |
-| `user` | object | Full user profile |
-| `user.authID` | string | Auth service ID |
-| `user.profileID` | string | User profile ID |
-| `user.name` | string | Last name |
-| `user.firstName` | string | First name |
-| `user.gender` | string | Gender |
-| `user.dateOfBirth` | string | Birth date (YYYY-MM-DD) |
-| `user.bio` | string | User biography |
-| `user.email` | string | Email address |
-| `user.phoneNumber` | string | Phone number (E.164) |
-| `user.profileImageURL` | string | Profile picture URL |
-| `user.hasProfileImage` | boolean | Whether user has a profile image |
-| `user.isDriver` | boolean | Driver account activated |
-| `user.isPassenger` | boolean | Passenger account activated |
-| `user.isDriverProfileVerified` | boolean | Driver verification status |
-| `user.isPassengerProfileVerified` | boolean | Passenger verification status |
-| `user.isActive` | boolean | Account active status |
-| `user.isSuspended` | boolean | Account suspension status |
-| `user.suspensionEndDate` | string | Suspension end date (if suspended) |
-| `user.tripPreferences` | array | Trip preferences list |
-| `user.idCardExpirationDate` | string | ID card expiration date |
-| `user.driveLicenceExpirationDate` | string | Driver licence expiration date |
-| `user.userFiles` | array | User uploaded files |
+| `ErrorMessage` | string | Error identifier if failed, `""` if success |
+| `User` | object | Full user profile |
+| `User.AuthID` | string | Auth service ID |
+| `User.ProfileID` | string | User profile ID |
+| `User.Name` | string | Last name |
+| `User.FirstName` | string | First name |
+| `User.Gender` | string | Gender |
+| `User.DateOfBirth` | string | Birth date (YYYY-MM-DD) |
+| `User.Bio` | string | User biography |
+| `User.Email` | string | Email address |
+| `User.PhoneNumber` | string | Phone number (E.164) |
+| `User.ProfileImageURL` | string | Profile picture URL |
+| `User.HasProfileImage` | boolean | Whether user has a profile image |
+| `User.IsDriver` | boolean | Driver account activated |
+| `User.IsPassenger` | boolean | Passenger account activated |
+| `User.IsDriverProfileVerified` | boolean | Driver verification status |
+| `User.IsPassengerProfileVerified` | boolean | Passenger verification status |
+| `User.IsActive` | boolean | Account active status |
+| `User.IsSuspended` | boolean | Account suspension status |
+| `User.SuspensionEndDate` | string | Suspension end date (if suspended) |
+| `User.TripPreferences` | array | Trip preferences list |
+| `User.IDCardExpirationDate` | string | ID card expiration date |
+| `User.DriveLicenceExpirationDate` | string | Driver licence expiration date |
+| `User.UserFiles` | array | User uploaded files |
+
+#### Errors
+
+| ErrorMessage | HTTP | Description |
+|--------------|------|-------------|
+| `ErrUserNotFound` | 404 | User profile not found |
+| `ErrorInternalServer` | 500 | Internal error |
 
 #### Example (cURL)
 
 ```bash
-curl -X POST https://api.tissi-mah.com/api/v1/user/me \
-  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+curl -X POST https://api.tissimah.kpeewu.dev/api/v1/user/me \
+  -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json"
 ```
 
 ---
 
-### PATCH /userProfile/createDriverAccount
+### PATCH /api/v1/userProfile/createDriverAccount
 
 Activates or deactivates the driver account on the user's profile.
 
@@ -162,13 +170,13 @@ Activates or deactivates the driver account on the user's profile.
 
 ```http
 PATCH /api/v1/userProfile/createDriverAccount HTTP/1.1
-Host: api.tissi-mah.com
-Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
+Host: api.tissimah.kpeewu.dev
+Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
 
 {
-    "profileID": "u-550e8400-e29b-41d4-a716-446655440000",
-    "createDriverAccount": true
+    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "CreateDriverAccount": true
 }
 ```
 
@@ -176,8 +184,8 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `profileID` | string | Yes | User profile ID |
-| `createDriverAccount` | boolean | Yes | `true` to activate, `false` to deactivate |
+| `ProfileID` | string | Yes | User profile ID |
+| `CreateDriverAccount` | boolean | Yes | `true` to activate, `false` to deactivate |
 
 #### Response (Success)
 
@@ -186,23 +194,30 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-    "errorMessage": null,
-    "success": true
+    "ErrorMessage": "",
+    "Success": true
 }
 ```
+
+#### Errors
+
+| ErrorMessage | HTTP | Description |
+|--------------|------|-------------|
+| `ErrUserNotFound` | 404 | User profile not found |
+| `ErrorInternalServer` | 500 | Internal error |
 
 #### Example (cURL)
 
 ```bash
-curl -X PATCH https://api.tissi-mah.com/api/v1/userProfile/createDriverAccount \
-  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+curl -X PATCH https://api.tissimah.kpeewu.dev/api/v1/userProfile/createDriverAccount \
+  -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json" \
-  -d '{"profileID": "u-550e8400", "createDriverAccount": true}'
+  -d '{"ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545", "CreateDriverAccount": true}'
 ```
 
 ---
 
-### POST /userProfile/addTripPreferences
+### POST /api/v1/userProfile/addTripPreferences
 
 Adds or updates trip preferences for the user.
 
@@ -212,17 +227,17 @@ Adds or updates trip preferences for the user.
 
 ```http
 POST /api/v1/userProfile/addTripPreferences HTTP/1.1
-Host: api.tissi-mah.com
-Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
+Host: api.tissimah.kpeewu.dev
+Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
 
 {
-    "profileID": "u-550e8400-e29b-41d4-a716-446655440000",
-    "preferences": [
-        {"preference": "music", "isAllowed": true},
-        {"preference": "smoking", "isAllowed": false},
-        {"preference": "pets", "isAllowed": true},
-        {"preference": "conversation", "isAllowed": true}
+    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "Preferences": [
+        {"Preference": "music", "IsAllowed": true},
+        {"Preference": "smoking", "IsAllowed": false},
+        {"Preference": "pets", "IsAllowed": true},
+        {"Preference": "conversation", "IsAllowed": true}
     ]
 }
 ```
@@ -231,10 +246,10 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `profileID` | string | Yes | User profile ID |
-| `preferences` | array | Yes | List of trip preferences |
-| `preferences[].preference` | string | Yes | Preference name |
-| `preferences[].isAllowed` | boolean | Yes | Whether the preference is allowed |
+| `ProfileID` | string | Yes | User profile ID |
+| `Preferences` | array | Yes | List of trip preferences |
+| `Preferences[].Preference` | string | Yes | Preference name |
+| `Preferences[].IsAllowed` | boolean | Yes | Whether the preference is allowed |
 
 #### Response (Success)
 
@@ -243,31 +258,38 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-    "errorMessage": null,
-    "success": true
+    "ErrorMessage": "",
+    "Success": true
 }
 ```
+
+#### Errors
+
+| ErrorMessage | HTTP | Description |
+|--------------|------|-------------|
+| `ErrUserNotFound` | 404 | User profile not found |
+| `ErrorInternalServer` | 500 | Internal error |
 
 #### Example (cURL)
 
 ```bash
-curl -X POST https://api.tissi-mah.com/api/v1/userProfile/addTripPreferences \
-  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+curl -X POST https://api.tissimah.kpeewu.dev/api/v1/userProfile/addTripPreferences \
+  -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "profileID": "u-550e8400",
-    "preferences": [
-        {"preference": "music", "isAllowed": true},
-        {"preference": "smoking", "isAllowed": false}
+    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "Preferences": [
+        {"Preference": "music", "IsAllowed": true},
+        {"Preference": "smoking", "IsAllowed": false}
     ]
   }'
 ```
 
 ---
 
-### PATCH /userProfile/updateProfile
+### PATCH /api/v1/userProfile/updateProfile
 
-Updates the user's profile information. All fields are optional.
+Updates the user's profile information. All fields except `ProfileID` are optional.
 
 **Authentication:** Required (Firebase JWT)
 
@@ -275,18 +297,18 @@ Updates the user's profile information. All fields are optional.
 
 ```http
 PATCH /api/v1/userProfile/updateProfile HTTP/1.1
-Host: api.tissi-mah.com
-Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
+Host: api.tissimah.kpeewu.dev
+Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
 
 {
-    "profileID": "u-550e8400-e29b-41d4-a716-446655440000",
-    "firstName": "Samuel",
-    "lastName": "Doe",
-    "birthDate": "1995-03-15",
-    "email": "new-email@example.com",
-    "phoneNumber": "+22891234567",
-    "profilePictureURL": "https://example.com/new-photo.jpg"
+    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "FirstName": "Samuel",
+    "LastName": "Doe",
+    "BirthDate": "1995-03-15",
+    "Email": "new-email@example.com",
+    "PhoneNumber": "+22891234567",
+    "ProfilePictureURL": "https://example.com/new-photo.jpg"
 }
 ```
 
@@ -294,13 +316,13 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `profileID` | string | Yes | User profile ID |
-| `firstName` | string | No | New first name |
-| `lastName` | string | No | New last name |
-| `birthDate` | string | No | Birth date (YYYY-MM-DD) |
-| `email` | string | No | New email address |
-| `phoneNumber` | string | No | New phone number (E.164) |
-| `profilePictureURL` | string | No | New profile picture URL |
+| `ProfileID` | string | Yes | User profile ID |
+| `FirstName` | string | No | New first name |
+| `LastName` | string | No | New last name |
+| `BirthDate` | string | No | Birth date (YYYY-MM-DD) |
+| `Email` | string | No | New email address |
+| `PhoneNumber` | string | No | New phone number (E.164) |
+| `ProfilePictureURL` | string | No | New profile picture URL |
 
 #### Response (Success)
 
@@ -309,12 +331,12 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-    "errorMessage": null,
-    "user": {
-        "authID": "firebase-uid-abc123",
-        "profileID": "u-550e8400-e29b-41d4-a716-446655440000",
-        "name": "Doe",
-        "firstName": "Samuel",
+    "ErrorMessage": "",
+    "User": {
+        "AuthID": "firebase-uid-abc123",
+        "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+        "Name": "Doe",
+        "FirstName": "Samuel",
         ...
     }
 }
@@ -324,25 +346,34 @@ Content-Type: application/json
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `errorMessage` | string \| null | Error message if failed |
-| `user` | object | Updated full user profile (same structure as GetMyProfile) |
+| `ErrorMessage` | string | Error identifier if failed, `""` if success |
+| `User` | object | Updated full user profile (same structure as GetMyProfile) |
+
+#### Errors
+
+| ErrorMessage | HTTP | Description |
+|--------------|------|-------------|
+| `ErrUserNotFound` | 404 | User profile not found |
+| `ErrPhoneNumberTaken` | 412 | Phone already in use |
+| `ErrEmailTaken` | 412 | Email already in use |
+| `ErrorInternalServer` | 500 | Internal error |
 
 #### Example (cURL)
 
 ```bash
-curl -X PATCH https://api.tissi-mah.com/api/v1/userProfile/updateProfile \
-  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+curl -X PATCH https://api.tissimah.kpeewu.dev/api/v1/userProfile/updateProfile \
+  -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "profileID": "u-550e8400",
-    "firstName": "Samuel",
-    "lastName": "Doe"
+    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "FirstName": "Samuel",
+    "LastName": "Doe"
   }'
 ```
 
 ---
 
-### GET /user/health
+### GET /api/v1/user/health
 
 Health check endpoint for the user-service.
 
@@ -352,7 +383,7 @@ Health check endpoint for the user-service.
 
 ```http
 GET /api/v1/user/health HTTP/1.1
-Host: api.tissi-mah.com
+Host: api.tissimah.kpeewu.dev
 ```
 
 #### Response
@@ -362,23 +393,23 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-    "status": "SERVING",
-    "version": "v1.0.0",
-    "timestamp": 1709136000
+    "Status": "SERVING",
+    "Version": "v1.0.0",
+    "Timestamp": 1709136000
 }
 ```
 
 #### Example (cURL)
 
 ```bash
-curl https://api.tissi-mah.com/api/v1/user/health
+curl https://api.tissimah.kpeewu.dev/api/v1/user/health
 ```
 
 ---
 
 ## Inter-Service RPCs (gRPC only)
 
-These RPCs are not exposed via HTTP. They are called directly by other services.
+Not exposed via HTTP. Called directly by other services.
 
 ### CreateUser
 
@@ -412,11 +443,12 @@ rpc GetUserByAuthID(GetUserByAuthIDRequest) returns (UserProfileResponse);
 
 ## Error Reference
 
-| Error | HTTP | Description | User Action |
-|-------|------|-------------|-------------|
-| `ErrUserNotFound` | 404 | User profile not found | Create account |
-| `ErrInvalidProfileID` | 400 | Invalid profile ID format | Check ID format |
-| `ErrInvalidPhoneNumber` | 400 | Invalid phone format | Use E.164 format |
-| `ErrInvalidEmail` | 400 | Invalid email format | Check email |
-| `ErrPhoneNumberTaken` | 412 | Phone already in use | Use different phone |
-| `ErrEmailTaken` | 412 | Email already in use | Use different email |
+| ErrorMessage | HTTP | Description |
+|--------------|------|-------------|
+| `ErrUserNotFound` | 404 | User profile not found |
+| `ErrInvalidProfileID` | 400 | Invalid profile ID format |
+| `ErrInvalidPhoneNumber` | 400 | Invalid phone format (use E.164) |
+| `ErrInvalidEmail` | 400 | Invalid email format |
+| `ErrPhoneNumberTaken` | 412 | Phone already in use |
+| `ErrEmailTaken` | 412 | Email already in use |
+| `ErrorInternalServer` | 500 | Internal server error |
