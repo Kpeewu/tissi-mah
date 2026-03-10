@@ -127,6 +127,7 @@ proto-sync:
 	@echo "🔄 Synchronisation des protos vers api-gateway..."
 	@cp services/auth-service/proto/auth.proto services/api-gateway/proto/auth.proto
 	@cp services/user-service/proto/user.proto services/api-gateway/proto/user.proto
+	@cp services/file-service/proto/file.proto services/api-gateway/proto/file.proto
 	@echo "✅ Protos synchronisés — pensez à lancer make proto-gateway"
 
 # === TESTS ===

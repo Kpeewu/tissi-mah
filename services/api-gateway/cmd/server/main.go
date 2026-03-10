@@ -80,6 +80,7 @@ func run(bootstrapLogger *zap.Logger) error {
 		AuthServiceAddr:   cfg.AuthService.Address(),
 		UserServiceAddr:   cfg.UserService.Address(),
 		RatingServiceAddr: cfg.RatingService.Address(),
+		FileServiceAddr:   cfg.FileService.Address(),
 		Logger:            logger,
 	})
 	if err != nil {
@@ -101,6 +102,7 @@ func run(bootstrapLogger *zap.Logger) error {
 		zap.String("auth-service", cfg.AuthService.Address()),
 		zap.String("user-service", cfg.UserService.Address()),
 		zap.String("rating-service", cfg.RatingService.Address()),
+		zap.String("file-service", cfg.FileService.Address()),
 	)
 
 	return srv.Serve(ctx)

@@ -51,7 +51,8 @@ GOOGLE_API_DIR="${PROTO_DIR}/google/api"
 PROTO_OUT_AUTH="${PROTO_DIR}/gen/authpb"
 PROTO_OUT_USER="${PROTO_DIR}/gen/userpb"
 PROTO_OUT_RATING="${PROTO_DIR}/gen/ratingpb"
-mkdir -p ${PROTO_OUT_AUTH} ${PROTO_OUT_USER} ${PROTO_OUT_RATING}
+PROTO_OUT_FILE="${PROTO_DIR}/gen/filepb"
+mkdir -p ${PROTO_OUT_AUTH} ${PROTO_OUT_USER} ${PROTO_OUT_RATING} ${PROTO_OUT_FILE}
 
 # Download google/api proto files if they don't exist
 if [ ! -f "${GOOGLE_API_DIR}/annotations.proto" ]; then
@@ -107,6 +108,19 @@ protoc \
   --grpc-gateway_opt=paths=source_relative \
   --grpc-gateway_opt=generate_unbound_methods=false \
   rating.proto
+
+# Generate file.proto (stubs + grpc-gateway reverse proxy)
+echo "Generating Go code from file.proto..."
+protoc \
+  --proto_path=${PROTO_DIR} \
+  --go_out=${PROTO_OUT_FILE} \
+  --go_opt=paths=source_relative \
+  --go-grpc_out=${PROTO_OUT_FILE} \
+  --go-grpc_opt=paths=source_relative \
+  --grpc-gateway_out=${PROTO_OUT_FILE} \
+  --grpc-gateway_opt=paths=source_relative \
+  --grpc-gateway_opt=generate_unbound_methods=false \
+  file.proto
 
 # Check result
 if [ $? -eq 0 ]; then
