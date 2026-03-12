@@ -16,6 +16,7 @@ import (
 	authpb    "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/authpb"
 	filepb    "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/filepb"
 	ratingpb  "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb"
+	trippb    "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/trippb"
 	userpb    "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/userpb"
 	vehiclepb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/vehiclepb"
 )
@@ -27,6 +28,7 @@ type MuxConfig struct {
 	RatingServiceAddr  string
 	FileServiceAddr    string
 	VehicleServiceAddr string
+	TripsServiceAddr   string
 	Logger             *zap.Logger
 }
 
@@ -111,6 +113,12 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		return nil, err
 	}
 	cfg.Logger.Info("registered vehicle-service handler", zap.String("endpoint", cfg.VehicleServiceAddr))
+
+	// Enregistrer trips-service
+	if err := trippb.RegisterTripServiceHandlerFromEndpoint(ctx, mux, cfg.TripsServiceAddr, dialOpts); err != nil {
+		return nil, err
+	}
+	cfg.Logger.Info("registered trips-service handler", zap.String("endpoint", cfg.TripsServiceAddr))
 
 	return mux, nil
 }

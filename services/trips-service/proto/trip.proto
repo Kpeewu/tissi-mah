@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package trip;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/trips-service/proto/gen;trip";
+
+import "google/api/annotations.proto";
+
+// TripService gère la création et la gestion des trajets.
+service TripService {
+  // CreateTrip crée un nouveau trajet avec ses waypoints.
+  rpc CreateTrip(CreateTripRequest) returns (CreateTripResponse) {
+    option (google.api.http) = {
+      post: "/trip/driver/createTrip"
+      body: "*"
+    };
+  }
+
+  // Health retourne l'état de santé du service.
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/trip/health"
+    };
+  }
+}
+
+// =============================================================================
+// CreateTrip
+// =============================================================================
+
+// WaypointInput représente un point de passage à créer avec le trajet.
+message WaypointInput {
+  int32  SequencerOrder     = 1;
+  string WaypointType       = 2; // departure | stop | arrival
+  string LocationName       = 3;
+  double LocationLng        = 4;
+  double LocationLat        = 5;
+  string City               = 6;
+  string Country            = 7;
+  string ScheduledDatetime  = 8; // RFC3339 — optionnel pour departure
+  int32  PriceFromPrevious  = 9;
+}
+
+// CreateTripRequest contient toutes les informations pour créer un trajet.
+message CreateTripRequest {
+  string DriverId                    = 1;
+  string VehicleId                   = 2;
+  string DepartureDatetime           = 3;  // RFC3339
+  string EstimatedArrivalDatetime    = 4;  // RFC3339
+  int32  EstimatedDurationMinutes    = 5;
+  int32  EstimatedDistanceMeters     = 6;
+  int32  TotalSeats                  = 7;
+  int32  PricePerSeat                = 8;
+  bool   AllowLuggages               = 9;
+  bool   AllowPets                   = 10;
+  bool   AllowSmoking                = 11;
+  bool   AllowFood                   = 12;
+  bool   AutoApprove                 = 13;
+  string Description                 = 14;
+  repeated WaypointInput TripWaypoints           = 15;
+  repeated string        PaymentMethodsAccepted  = 16; // mobileMoney | card | paypal | cash
+}
+
+// CreateTripResponse retourne l'identifiant du trajet créé.
+message CreateTripResponse {
+  string TripId       = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// Health
+// =============================================================================
+
+message HealthRequest {}
+
+message HealthResponse {
+  string Status    = 1;
+  string Version   = 2;
+  int64  Timestamp = 3;
+}
