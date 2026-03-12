@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"math"
 
+	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/cache"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/domain"
 	repoInterfaces "github.com/Kpeewu/tissi-mah/services/rating-service/internal/repository/interfaces"
@@ -16,6 +18,7 @@ type ratingServiceImpl struct {
 	readRepo   repoInterfaces.RatingRepositoryRead
 	writeRepo  repoInterfaces.RatingRepositoryWrite
 	userClient client.UserClient
+	cache      *cache.RatingCache // nil si Redis indisponible
 	logger     *zap.Logger
 }
 
@@ -23,24 +26,30 @@ func NewRatingService(
 	readRepo repoInterfaces.RatingRepositoryRead,
 	writeRepo repoInterfaces.RatingRepositoryWrite,
 	userClient client.UserClient,
+	ratingCache *cache.RatingCache,
 	logger *zap.Logger) serviceInterfaces.RatingService {
 
 	return &ratingServiceImpl{
 		readRepo:   readRepo,
 		writeRepo:  writeRepo,
 		userClient: userClient,
+		cache:      ratingCache,
 		logger:     logger,
 	}
 }
 
-// CreateRating crée une nouvelle note pour un utilisateur
-func (s *ratingServiceImpl) CreateRating(ctx context.Context, raterID string, userRatedID string, numberOfStars int16, comment string) (*domain.Rating, error) {
+// RateUser crée une nouvelle note pour un utilisateur
+func (s *ratingServiceImpl) RateUser(ctx context.Context, raterID string, userRatedID string, numberOfStars int16, comment string) (*domain.Rating, error) {
 	if raterID == "" {
 		s.logger.Error("rater_id is required")
 		return nil, ratingErrors.ErrorMissingRaterID
 	}
+	if userRatedID == "" {
+		s.logger.Error("user_rated_id is required")
+		return nil, ratingErrors.ErrorMissingUserRatedID
+	}
 
-	s.logger.Debug("create rating",
+	s.logger.Debug("rate user",
 		zap.String("raterID", raterID),
 		zap.String("userRatedID", userRatedID),
 		zap.Int16("stars", numberOfStars),
@@ -102,41 +111,77 @@ func (s *ratingServiceImpl) CreateRating(ctx context.Context, raterID string, us
 
 	s.logger.Info("rating created", zap.String("ratingID", ratingID))
 
-	return s.readRepo.GetByID(ctx, ratingID)
-}
-
-// GetRating récupère une note par son ID
-func (s *ratingServiceImpl) GetRating(ctx context.Context, ratingID string) (*domain.Rating, error) {
-	if ratingID == "" {
-		return nil, ratingErrors.ErrorRatingNotFound
-	}
+	// Invalider le cache de l'utilisateur noté
+	s.invalidateCache(ctx, userRatedID)
 
 	return s.readRepo.GetByID(ctx, ratingID)
 }
 
-// GetRatingsForUser récupère toutes les notes reçues par un utilisateur
-func (s *ratingServiceImpl) GetRatingsForUser(ctx context.Context, userRatedID string) ([]*domain.Rating, error) {
+// GetUserRatings récupère toutes les notes reçues par un utilisateur
+func (s *ratingServiceImpl) GetUserRatings(ctx context.Context, userRatedID string) ([]*domain.Rating, error) {
 	if userRatedID == "" {
-		return nil, ratingErrors.ErrorDataRetrievalFailed
+		return nil, ratingErrors.ErrorMissingUserRatedID
 	}
 
-	return s.readRepo.GetByUserRatedID(ctx, userRatedID)
+	// Vérifier le cache
+	if s.cache != nil {
+		cached, err := s.cache.GetUserRatings(ctx, userRatedID)
+		if err == nil && cached != nil {
+			return cached, nil
+		}
+	}
+
+	ratings, err := s.readRepo.GetByUserRatedID(ctx, userRatedID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Mettre en cache
+	if s.cache != nil {
+		s.cache.SetUserRatings(ctx, userRatedID, ratings) //nolint:errcheck
+	}
+
+	return ratings, nil
 }
 
-// GetAverageRating récupère la moyenne et le nombre total de notes d'un utilisateur
-func (s *ratingServiceImpl) GetAverageRating(ctx context.Context, userRatedID string) (float64, int32, error) {
+// GetUserRatingsAverage récupère la moyenne (1 décimale) et le nombre total de notes d'un utilisateur
+func (s *ratingServiceImpl) GetUserRatingsAverage(ctx context.Context, userRatedID string) (float64, int32, error) {
 	if userRatedID == "" {
-		return 0, 0, ratingErrors.ErrorDataRetrievalFailed
+		return 0, 0, ratingErrors.ErrorMissingUserRatedID
 	}
 
-	return s.readRepo.GetAverageByUserRatedID(ctx, userRatedID)
+	// Vérifier le cache
+	if s.cache != nil {
+		cached, err := s.cache.GetUserAverage(ctx, userRatedID)
+		if err == nil && cached != nil {
+			return cached.Average, cached.TotalRatings, nil
+		}
+	}
+
+	average, total, err := s.readRepo.GetAverageByUserRatedID(ctx, userRatedID)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	// Arrondir à 1 chiffre après la virgule
+	average = math.Round(average*10) / 10
+
+	// Mettre en cache
+	if s.cache != nil {
+		s.cache.SetUserAverage(ctx, userRatedID, average, total) //nolint:errcheck
+	}
+
+	return average, total, nil
 }
 
 // UpdateRating modifie une note existante (seul le rater peut modifier)
-func (s *ratingServiceImpl) UpdateRating(ctx context.Context, raterID string, ratingID string, numberOfStars int16, comment string) (*domain.Rating, error) {
+func (s *ratingServiceImpl) UpdateRating(ctx context.Context, raterID string, ratingID string, userRatedID string, numberOfStars int16, comment string) (*domain.Rating, error) {
 	if raterID == "" {
 		s.logger.Error("rater_id is required")
 		return nil, ratingErrors.ErrorMissingRaterID
+	}
+	if ratingID == "" {
+		return nil, ratingErrors.ErrorRatingNotFound
 	}
 
 	// Vérification : nombre d'étoiles valide
@@ -167,32 +212,15 @@ func (s *ratingServiceImpl) UpdateRating(ctx context.Context, raterID string, ra
 	existing.NumberOfStars = numberOfStars
 	existing.Comment = commentPtr
 
-	return s.writeRepo.Update(ctx, existing)
-}
-
-// DeleteRating supprime une note (seul le rater peut supprimer)
-func (s *ratingServiceImpl) DeleteRating(ctx context.Context, raterID string, ratingID string) error {
-	if raterID == "" {
-		s.logger.Error("rater_id is required")
-		return ratingErrors.ErrorMissingRaterID
-	}
-
-	// Récupération de la note existante
-	existing, err := s.readRepo.GetByID(ctx, ratingID)
+	updated, err := s.writeRepo.Update(ctx, existing)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Vérification : seul le rater peut supprimer sa note
-	if existing.RaterID != raterID {
-		s.logger.Warn("unauthorized delete attempt",
-			zap.String("raterID", raterID),
-			zap.String("ratingOwner", existing.RaterID),
-		)
-		return ratingErrors.ErrorUnauthorizedAction
-	}
+	// Invalider le cache de l'utilisateur noté
+	s.invalidateCache(ctx, existing.UserRatedID)
 
-	return s.writeRepo.Delete(ctx, ratingID)
+	return updated, nil
 }
 
 // validateUserExists vérifie qu'un utilisateur existe dans user-service.
@@ -214,4 +242,11 @@ func (s *ratingServiceImpl) validateUserExists(ctx context.Context, authID strin
 		return ratingErrors.ErrorUserNotFound
 	}
 	return nil
+}
+
+// invalidateCache supprime le cache lié à un utilisateur noté.
+func (s *ratingServiceImpl) invalidateCache(ctx context.Context, userRatedID string) {
+	if s.cache != nil {
+		s.cache.InvalidateUser(ctx, userRatedID)
+	}
 }

@@ -35,9 +35,9 @@ var (
 	_ = metadata.Join
 )
 
-func request_RatingService_CreateRating_0(ctx context.Context, marshaler runtime.Marshaler, client RatingServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_RatingService_RateUser_0(ctx context.Context, marshaler runtime.Marshaler, client RatingServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq CreateRatingRequest
+		protoReq RateUserRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -46,136 +46,89 @@ func request_RatingService_CreateRating_0(ctx context.Context, marshaler runtime
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
 	}
-	msg, err := client.CreateRating(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.RateUser(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 }
 
-func local_request_RatingService_CreateRating_0(ctx context.Context, marshaler runtime.Marshaler, server RatingServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_RatingService_RateUser_0(ctx context.Context, marshaler runtime.Marshaler, server RatingServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq CreateRatingRequest
+		protoReq RateUserRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	msg, err := server.CreateRating(ctx, &protoReq)
+	msg, err := server.RateUser(ctx, &protoReq)
 	return msg, metadata, err
 }
 
-func request_RatingService_GetRating_0(ctx context.Context, marshaler runtime.Marshaler, client RatingServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+var filter_RatingService_GetUserRatings_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+
+func request_RatingService_GetUserRatings_0(ctx context.Context, marshaler runtime.Marshaler, client RatingServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq GetRatingRequest
+		protoReq GetUserRatingsRequest
 		metadata runtime.ServerMetadata
-		err      error
 	)
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
 	}
-	val, ok := pathParams["RatingId"]
-	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "RatingId")
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	protoReq.RatingId, err = runtime.String(val)
-	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "RatingId", err)
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_RatingService_GetUserRatings_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	msg, err := client.GetRating(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GetUserRatings(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 }
 
-func local_request_RatingService_GetRating_0(ctx context.Context, marshaler runtime.Marshaler, server RatingServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_RatingService_GetUserRatings_0(ctx context.Context, marshaler runtime.Marshaler, server RatingServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq GetRatingRequest
+		protoReq GetUserRatingsRequest
 		metadata runtime.ServerMetadata
-		err      error
 	)
-	val, ok := pathParams["RatingId"]
-	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "RatingId")
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	protoReq.RatingId, err = runtime.String(val)
-	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "RatingId", err)
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_RatingService_GetUserRatings_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	msg, err := server.GetRating(ctx, &protoReq)
+	msg, err := server.GetUserRatings(ctx, &protoReq)
 	return msg, metadata, err
 }
 
-func request_RatingService_GetRatingsForUser_0(ctx context.Context, marshaler runtime.Marshaler, client RatingServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+var filter_RatingService_GetUserRatingsAverage_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+
+func request_RatingService_GetUserRatingsAverage_0(ctx context.Context, marshaler runtime.Marshaler, client RatingServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq GetRatingsForUserRequest
+		protoReq GetUserRatingsAverageRequest
 		metadata runtime.ServerMetadata
-		err      error
 	)
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
 	}
-	val, ok := pathParams["UserRatedId"]
-	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "UserRatedId")
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	protoReq.UserRatedId, err = runtime.String(val)
-	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "UserRatedId", err)
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_RatingService_GetUserRatingsAverage_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	msg, err := client.GetRatingsForUser(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GetUserRatingsAverage(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 }
 
-func local_request_RatingService_GetRatingsForUser_0(ctx context.Context, marshaler runtime.Marshaler, server RatingServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_RatingService_GetUserRatingsAverage_0(ctx context.Context, marshaler runtime.Marshaler, server RatingServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq GetRatingsForUserRequest
+		protoReq GetUserRatingsAverageRequest
 		metadata runtime.ServerMetadata
-		err      error
 	)
-	val, ok := pathParams["UserRatedId"]
-	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "UserRatedId")
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	protoReq.UserRatedId, err = runtime.String(val)
-	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "UserRatedId", err)
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_RatingService_GetUserRatingsAverage_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	msg, err := server.GetRatingsForUser(ctx, &protoReq)
-	return msg, metadata, err
-}
-
-func request_RatingService_GetAverageRating_0(ctx context.Context, marshaler runtime.Marshaler, client RatingServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var (
-		protoReq GetAverageRatingRequest
-		metadata runtime.ServerMetadata
-		err      error
-	)
-	if req.Body != nil {
-		_, _ = io.Copy(io.Discard, req.Body)
-	}
-	val, ok := pathParams["UserRatedId"]
-	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "UserRatedId")
-	}
-	protoReq.UserRatedId, err = runtime.String(val)
-	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "UserRatedId", err)
-	}
-	msg, err := client.GetAverageRating(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
-	return msg, metadata, err
-}
-
-func local_request_RatingService_GetAverageRating_0(ctx context.Context, marshaler runtime.Marshaler, server RatingServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var (
-		protoReq GetAverageRatingRequest
-		metadata runtime.ServerMetadata
-		err      error
-	)
-	val, ok := pathParams["UserRatedId"]
-	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "UserRatedId")
-	}
-	protoReq.UserRatedId, err = runtime.String(val)
-	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "UserRatedId", err)
-	}
-	msg, err := server.GetAverageRating(ctx, &protoReq)
+	msg, err := server.GetUserRatingsAverage(ctx, &protoReq)
 	return msg, metadata, err
 }
 
@@ -183,21 +136,12 @@ func request_RatingService_UpdateRating_0(ctx context.Context, marshaler runtime
 	var (
 		protoReq UpdateRatingRequest
 		metadata runtime.ServerMetadata
-		err      error
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
-	}
-	val, ok := pathParams["RatingId"]
-	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "RatingId")
-	}
-	protoReq.RatingId, err = runtime.String(val)
-	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "RatingId", err)
 	}
 	msg, err := client.UpdateRating(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -207,65 +151,11 @@ func local_request_RatingService_UpdateRating_0(ctx context.Context, marshaler r
 	var (
 		protoReq UpdateRatingRequest
 		metadata runtime.ServerMetadata
-		err      error
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	val, ok := pathParams["RatingId"]
-	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "RatingId")
-	}
-	protoReq.RatingId, err = runtime.String(val)
-	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "RatingId", err)
 	}
 	msg, err := server.UpdateRating(ctx, &protoReq)
-	return msg, metadata, err
-}
-
-func request_RatingService_DeleteRating_0(ctx context.Context, marshaler runtime.Marshaler, client RatingServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var (
-		protoReq DeleteRatingRequest
-		metadata runtime.ServerMetadata
-		err      error
-	)
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if req.Body != nil {
-		_, _ = io.Copy(io.Discard, req.Body)
-	}
-	val, ok := pathParams["RatingId"]
-	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "RatingId")
-	}
-	protoReq.RatingId, err = runtime.String(val)
-	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "RatingId", err)
-	}
-	msg, err := client.DeleteRating(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
-	return msg, metadata, err
-}
-
-func local_request_RatingService_DeleteRating_0(ctx context.Context, marshaler runtime.Marshaler, server RatingServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var (
-		protoReq DeleteRatingRequest
-		metadata runtime.ServerMetadata
-		err      error
-	)
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	val, ok := pathParams["RatingId"]
-	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "RatingId")
-	}
-	protoReq.RatingId, err = runtime.String(val)
-	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "RatingId", err)
-	}
-	msg, err := server.DeleteRating(ctx, &protoReq)
 	return msg, metadata, err
 }
 
@@ -296,85 +186,65 @@ func local_request_RatingService_Health_0(ctx context.Context, marshaler runtime
 // Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterRatingServiceHandlerFromEndpoint instead.
 // GRPC interceptors will not work for this type of registration. To use interceptors, you must use the "runtime.WithMiddlewares" option in the "runtime.NewServeMux" call.
 func RegisterRatingServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, server RatingServiceServer) error {
-	mux.Handle(http.MethodPost, pattern_RatingService_CreateRating_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodPost, pattern_RatingService_RateUser_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/CreateRating", runtime.WithHTTPPathPattern("/api/v1/ratings"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/RateUser", runtime.WithHTTPPathPattern("/api/v1/ratings/rateUser"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_RatingService_CreateRating_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_RatingService_RateUser_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_RatingService_CreateRating_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_RatingService_RateUser_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodGet, pattern_RatingService_GetRating_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodGet, pattern_RatingService_GetUserRatings_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/GetRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{RatingId}"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/GetUserRatings", runtime.WithHTTPPathPattern("/api/v1/ratings/user/getUserRatings"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_RatingService_GetRating_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_RatingService_GetUserRatings_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_RatingService_GetRating_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_RatingService_GetUserRatings_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodGet, pattern_RatingService_GetRatingsForUser_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodGet, pattern_RatingService_GetUserRatingsAverage_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/GetRatingsForUser", runtime.WithHTTPPathPattern("/api/v1/ratings/user/{UserRatedId}"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/GetUserRatingsAverage", runtime.WithHTTPPathPattern("/api/v1/ratings/user/getUserRatingsAverage"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_RatingService_GetRatingsForUser_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_RatingService_GetUserRatingsAverage_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_RatingService_GetRatingsForUser_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-	})
-	mux.Handle(http.MethodGet, pattern_RatingService_GetAverageRating_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		var stream runtime.ServerTransportStream
-		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/GetAverageRating", runtime.WithHTTPPathPattern("/api/v1/ratings/user/{UserRatedId}/average"))
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := local_request_RatingService_GetAverageRating_0(annotatedContext, inboundMarshaler, server, req, pathParams)
-		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
-		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
-		if err != nil {
-			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		forward_RatingService_GetAverageRating_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_RatingService_GetUserRatingsAverage_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodPatch, pattern_RatingService_UpdateRating_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -382,7 +252,7 @@ func RegisterRatingServiceHandlerServer(ctx context.Context, mux *runtime.ServeM
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/UpdateRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{RatingId}"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/UpdateRating", runtime.WithHTTPPathPattern("/api/v1/ratings/updateRating"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -395,26 +265,6 @@ func RegisterRatingServiceHandlerServer(ctx context.Context, mux *runtime.ServeM
 			return
 		}
 		forward_RatingService_UpdateRating_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-	})
-	mux.Handle(http.MethodPost, pattern_RatingService_DeleteRating_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		var stream runtime.ServerTransportStream
-		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/rating.RatingService/DeleteRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{RatingId}/delete"))
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := local_request_RatingService_DeleteRating_0(annotatedContext, inboundMarshaler, server, req, pathParams)
-		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
-		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
-		if err != nil {
-			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		forward_RatingService_DeleteRating_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodGet, pattern_RatingService_Health_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -476,79 +326,62 @@ func RegisterRatingServiceHandler(ctx context.Context, mux *runtime.ServeMux, co
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
 // "RatingServiceClient" to call the correct interceptors. This client ignores the HTTP middlewares.
 func RegisterRatingServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client RatingServiceClient) error {
-	mux.Handle(http.MethodPost, pattern_RatingService_CreateRating_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodPost, pattern_RatingService_RateUser_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/CreateRating", runtime.WithHTTPPathPattern("/api/v1/ratings"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/RateUser", runtime.WithHTTPPathPattern("/api/v1/ratings/rateUser"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_RatingService_CreateRating_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_RatingService_RateUser_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_RatingService_CreateRating_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_RatingService_RateUser_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodGet, pattern_RatingService_GetRating_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodGet, pattern_RatingService_GetUserRatings_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/GetRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{RatingId}"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/GetUserRatings", runtime.WithHTTPPathPattern("/api/v1/ratings/user/getUserRatings"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_RatingService_GetRating_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_RatingService_GetUserRatings_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_RatingService_GetRating_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_RatingService_GetUserRatings_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
-	mux.Handle(http.MethodGet, pattern_RatingService_GetRatingsForUser_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodGet, pattern_RatingService_GetUserRatingsAverage_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/GetRatingsForUser", runtime.WithHTTPPathPattern("/api/v1/ratings/user/{UserRatedId}"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/GetUserRatingsAverage", runtime.WithHTTPPathPattern("/api/v1/ratings/user/getUserRatingsAverage"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_RatingService_GetRatingsForUser_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_RatingService_GetUserRatingsAverage_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_RatingService_GetRatingsForUser_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-	})
-	mux.Handle(http.MethodGet, pattern_RatingService_GetAverageRating_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/GetAverageRating", runtime.WithHTTPPathPattern("/api/v1/ratings/user/{UserRatedId}/average"))
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := request_RatingService_GetAverageRating_0(annotatedContext, inboundMarshaler, client, req, pathParams)
-		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
-		if err != nil {
-			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		forward_RatingService_GetAverageRating_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_RatingService_GetUserRatingsAverage_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodPatch, pattern_RatingService_UpdateRating_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/UpdateRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{RatingId}"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/UpdateRating", runtime.WithHTTPPathPattern("/api/v1/ratings/updateRating"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -560,23 +393,6 @@ func RegisterRatingServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 			return
 		}
 		forward_RatingService_UpdateRating_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-	})
-	mux.Handle(http.MethodPost, pattern_RatingService_DeleteRating_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/rating.RatingService/DeleteRating", runtime.WithHTTPPathPattern("/api/v1/ratings/{RatingId}/delete"))
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := request_RatingService_DeleteRating_0(annotatedContext, inboundMarshaler, client, req, pathParams)
-		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
-		if err != nil {
-			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		forward_RatingService_DeleteRating_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodGet, pattern_RatingService_Health_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -599,21 +415,17 @@ func RegisterRatingServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 }
 
 var (
-	pattern_RatingService_CreateRating_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "ratings"}, ""))
-	pattern_RatingService_GetRating_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "ratings", "RatingId"}, ""))
-	pattern_RatingService_GetRatingsForUser_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "ratings", "user", "UserRatedId"}, ""))
-	pattern_RatingService_GetAverageRating_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"api", "v1", "ratings", "user", "UserRatedId", "average"}, ""))
-	pattern_RatingService_UpdateRating_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "ratings", "RatingId"}, ""))
-	pattern_RatingService_DeleteRating_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "ratings", "RatingId", "delete"}, ""))
-	pattern_RatingService_Health_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "ratings", "health"}, ""))
+	pattern_RatingService_RateUser_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "ratings", "rateUser"}, ""))
+	pattern_RatingService_GetUserRatings_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "ratings", "user", "getUserRatings"}, ""))
+	pattern_RatingService_GetUserRatingsAverage_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "ratings", "user", "getUserRatingsAverage"}, ""))
+	pattern_RatingService_UpdateRating_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "ratings", "updateRating"}, ""))
+	pattern_RatingService_Health_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "ratings", "health"}, ""))
 )
 
 var (
-	forward_RatingService_CreateRating_0      = runtime.ForwardResponseMessage
-	forward_RatingService_GetRating_0         = runtime.ForwardResponseMessage
-	forward_RatingService_GetRatingsForUser_0 = runtime.ForwardResponseMessage
-	forward_RatingService_GetAverageRating_0  = runtime.ForwardResponseMessage
-	forward_RatingService_UpdateRating_0      = runtime.ForwardResponseMessage
-	forward_RatingService_DeleteRating_0      = runtime.ForwardResponseMessage
-	forward_RatingService_Health_0            = runtime.ForwardResponseMessage
+	forward_RatingService_RateUser_0              = runtime.ForwardResponseMessage
+	forward_RatingService_GetUserRatings_0        = runtime.ForwardResponseMessage
+	forward_RatingService_GetUserRatingsAverage_0 = runtime.ForwardResponseMessage
+	forward_RatingService_UpdateRating_0          = runtime.ForwardResponseMessage
+	forward_RatingService_Health_0                = runtime.ForwardResponseMessage
 )

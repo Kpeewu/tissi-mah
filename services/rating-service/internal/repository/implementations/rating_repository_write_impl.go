@@ -90,25 +90,3 @@ func (r *ratingWriteRepositoryImpl) Update(ctx context.Context, rating *domain.R
 	r.logger.Info("rating updated", zap.String("ratingID", rating.RatingID))
 	return updated, nil
 }
-
-// delete a rating
-func (r *ratingWriteRepositoryImpl) Delete(ctx context.Context, ratingID string) error {
-	r.logger.Debug("deleting rating", zap.String("ratingID", ratingID))
-
-	query := `DELETE FROM ratings WHERE rating_id = $1`
-
-	result, err := r.pool.Exec(ctx, query, ratingID)
-
-	if err != nil {
-		r.logger.Error("delete rating failed", zap.Error(err), zap.String("ratingID", ratingID))
-		return ratingErrors.ErrorCantDeleteRating
-	}
-
-	if result.RowsAffected() == 0 {
-		r.logger.Debug("rating not found for deletion", zap.String("ratingID", ratingID))
-		return ratingErrors.ErrorRatingNotFound
-	}
-
-	r.logger.Info("rating deleted", zap.String("ratingID", ratingID))
-	return nil
-}
