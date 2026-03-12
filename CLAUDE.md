@@ -126,18 +126,19 @@ grpc/handler.go → middleware/interceptor.go (lire x-firebase-uid) → service 
 ### rating-service — Notation des utilisateurs
 
 ```
-grpc/handler.go → middleware/interceptor.go (lire x-firebase-uid) → service → repository (PostgreSQL)
+grpc/handler.go → middleware/interceptor.go (public) → service → repository (PostgreSQL) + cache (Redis)
 ```
 
 **Port** : 50054 (gRPC)
 
 **Endpoints HTTP** (via api-gateway) :
-- `POST /api/v1/ratings` — Créer une note (public, rater_id dans le body)
-- `GET /api/v1/ratings/{rating_id}` — Récupérer une note (public)
-- `GET /api/v1/ratings/user/{user_rated_id}` — Notes d'un utilisateur (public)
-- `GET /api/v1/ratings/user/{user_rated_id}/average` — Moyenne (public)
-- `PATCH /api/v1/ratings/{rating_id}` — Modifier une note (public, rater_id dans le body)
-- `POST /api/v1/ratings/{rating_id}/delete` — Supprimer une note (public, rater_id dans le body)
+- `POST /api/v1/ratings/rateUser` — Créer une note (public, RaterId dans le body)
+- `GET /api/v1/ratings/user/getUserRatings` — Notes d'un utilisateur (public, cachées 5 min)
+- `GET /api/v1/ratings/user/getUserRatingsAverage` — Moyenne arrondie 1 décimale (public, cachée 5 min)
+- `PATCH /api/v1/ratings/updateRating` — Modifier une note (public, RaterId dans le body)
+- `GET /api/v1/ratings/health` — Health check (public)
+
+**Note** : La suppression de notes n'est pas autorisée. Cache Redis avec dégradation gracieuse.
 
 ---
 
