@@ -10,7 +10,7 @@ var (
 	ErrorSelfRating          = errors.New("ErrorSelfRating")
 	ErrorDataRetrievalFailed = errors.New("ErrorDataRetrievalFailed")
 	ErrorUnauthorizedAction  = errors.New("ErrorUnauthorizedAction")
-	ErrorCantDeleteRating    = errors.New("ErrorCantDeleteRating")
 	ErrorUserNotFound        = errors.New("ErrorUserNotFound")
 	ErrorMissingRaterID      = errors.New("ErrorMissingRaterID")
+	ErrorMissingUserRatedID  = errors.New("ErrorMissingUserRatedID")
 )

@@ -8,6 +8,7 @@ import (
 
 	pkgDatabase "github.com/Kpeewu/tissi-mah/pkg/database"
 	pkgLogger "github.com/Kpeewu/tissi-mah/pkg/logger"
+	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/cache"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/config"
 	grpcServer "github.com/Kpeewu/tissi-mah/services/rating-service/internal/grpc"
@@ -64,12 +65,28 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer userClient.Close()
 	logger.Info("user-service client ready", zap.String("address", userServiceAddr))
 
+	// --- Redis (cache) ---
+	redisClient, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.Redis.URL)
+	if err != nil {
+		// Redis non bloquant — le service démarre sans cache si Redis est indisponible
+		logger.Warn("redis not reachable, cache disabled", zap.Error(err))
+		redisClient = nil
+	} else {
+		logger.Info("connected to redis for caching")
+	}
+
+	var ratingCache *cache.RatingCache
+	if redisClient != nil {
+		ratingCache = cache.NewRatingCache(redisClient, logger)
+		defer redisClient.Close() //nolint:errcheck
+	}
+
 	// --- Repositories ---
 	readRepo := implementations.NewRatingReadRepository(pool, logger)
 	writeRepo := implementations.NewRatingWriteRepository(pool, logger)
 
 	// --- Rating service ---
-	ratingService := service.NewRatingService(readRepo, writeRepo, userClient, logger)
+	ratingService := service.NewRatingService(readRepo, writeRepo, userClient, ratingCache, logger)
 
 	// --- gRPC server ---
 	srv, err := grpcServer.NewRatingServer(cfg, ratingService, logger)

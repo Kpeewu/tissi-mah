@@ -17,8 +17,6 @@ import (
 const serviceVersion = "1.0.0"
 
 // RatingHandler implémente ratingpb.RatingServiceServer.
-// Il traduit les requêtes proto en appels de service et mappe les erreurs domaine
-// vers les codes gRPC appropriés.
 type RatingHandler struct {
 	ratingpb.UnimplementedRatingServiceServer
 	service serviceInterfaces.RatingService
@@ -29,43 +27,31 @@ func NewRatingHandler(service serviceInterfaces.RatingService, logger *zap.Logge
 	return &RatingHandler{service: service, logger: logger}
 }
 
-// CreateRating crée une nouvelle note pour un utilisateur.
-func (h *RatingHandler) CreateRating(ctx context.Context, req *ratingpb.CreateRatingRequest) (*ratingpb.CreateRatingResponse, error) {
-	h.logger.Debug("handler: CreateRating called",
+// RateUser crée une nouvelle note pour un utilisateur.
+func (h *RatingHandler) RateUser(ctx context.Context, req *ratingpb.RateUserRequest) (*ratingpb.RateUserResponse, error) {
+	h.logger.Debug("handler: RateUser called",
+		zap.String("raterID", req.RaterId),
 		zap.String("userRatedID", req.UserRatedId),
 		zap.Int32("stars", req.NumberOfStars),
 	)
 
-	rating, err := h.service.CreateRating(ctx, req.RaterId, req.UserRatedId, int16(req.NumberOfStars), req.Comment)
+	rating, err := h.service.RateUser(ctx, req.RaterId, req.UserRatedId, int16(req.NumberOfStars), req.Comment)
 	if err != nil {
-		h.logger.Error("handler: CreateRating failed", zap.Error(err))
+		h.logger.Error("handler: RateUser failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
 
-	h.logger.Info("handler: CreateRating success", zap.String("ratingID", rating.RatingID))
-	return &ratingpb.CreateRatingResponse{Rating: toProtoRatingDetail(rating)}, nil
+	h.logger.Info("handler: RateUser success", zap.String("ratingID", rating.RatingID))
+	return &ratingpb.RateUserResponse{Rating: toProtoRatingDetail(rating)}, nil
 }
 
-// GetRating récupère une note par son ID.
-func (h *RatingHandler) GetRating(ctx context.Context, req *ratingpb.GetRatingRequest) (*ratingpb.GetRatingResponse, error) {
-	h.logger.Debug("handler: GetRating called", zap.String("ratingID", req.RatingId))
+// GetUserRatings récupère toutes les notes reçues par un utilisateur.
+func (h *RatingHandler) GetUserRatings(ctx context.Context, req *ratingpb.GetUserRatingsRequest) (*ratingpb.GetUserRatingsResponse, error) {
+	h.logger.Debug("handler: GetUserRatings called", zap.String("userRatedID", req.UserRatedId))
 
-	rating, err := h.service.GetRating(ctx, req.RatingId)
+	ratings, err := h.service.GetUserRatings(ctx, req.UserRatedId)
 	if err != nil {
-		h.logger.Error("handler: GetRating failed", zap.Error(err))
-		return nil, toGRPCError(err)
-	}
-
-	return &ratingpb.GetRatingResponse{Rating: toProtoRatingDetail(rating)}, nil
-}
-
-// GetRatingsForUser récupère toutes les notes reçues par un utilisateur.
-func (h *RatingHandler) GetRatingsForUser(ctx context.Context, req *ratingpb.GetRatingsForUserRequest) (*ratingpb.GetRatingsForUserResponse, error) {
-	h.logger.Debug("handler: GetRatingsForUser called", zap.String("userRatedID", req.UserRatedId))
-
-	ratings, err := h.service.GetRatingsForUser(ctx, req.UserRatedId)
-	if err != nil {
-		h.logger.Error("handler: GetRatingsForUser failed", zap.Error(err))
+		h.logger.Error("handler: GetUserRatings failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
 
@@ -74,20 +60,20 @@ func (h *RatingHandler) GetRatingsForUser(ctx context.Context, req *ratingpb.Get
 		protoRatings = append(protoRatings, toProtoRatingDetail(r))
 	}
 
-	return &ratingpb.GetRatingsForUserResponse{Ratings: protoRatings}, nil
+	return &ratingpb.GetUserRatingsResponse{Ratings: protoRatings}, nil
 }
 
-// GetAverageRating récupère la moyenne des notes d'un utilisateur.
-func (h *RatingHandler) GetAverageRating(ctx context.Context, req *ratingpb.GetAverageRatingRequest) (*ratingpb.GetAverageRatingResponse, error) {
-	h.logger.Debug("handler: GetAverageRating called", zap.String("userRatedID", req.UserRatedId))
+// GetUserRatingsAverage récupère la moyenne des notes d'un utilisateur.
+func (h *RatingHandler) GetUserRatingsAverage(ctx context.Context, req *ratingpb.GetUserRatingsAverageRequest) (*ratingpb.GetUserRatingsAverageResponse, error) {
+	h.logger.Debug("handler: GetUserRatingsAverage called", zap.String("userRatedID", req.UserRatedId))
 
-	average, total, err := h.service.GetAverageRating(ctx, req.UserRatedId)
+	average, total, err := h.service.GetUserRatingsAverage(ctx, req.UserRatedId)
 	if err != nil {
-		h.logger.Error("handler: GetAverageRating failed", zap.Error(err))
+		h.logger.Error("handler: GetUserRatingsAverage failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
 
-	return &ratingpb.GetAverageRatingResponse{
+	return &ratingpb.GetUserRatingsAverageResponse{
 		Average:      average,
 		TotalRatings: total,
 	}, nil
@@ -97,7 +83,7 @@ func (h *RatingHandler) GetAverageRating(ctx context.Context, req *ratingpb.GetA
 func (h *RatingHandler) UpdateRating(ctx context.Context, req *ratingpb.UpdateRatingRequest) (*ratingpb.UpdateRatingResponse, error) {
 	h.logger.Debug("handler: UpdateRating called", zap.String("ratingID", req.RatingId))
 
-	rating, err := h.service.UpdateRating(ctx, req.RaterId, req.RatingId, int16(req.NumberOfStars), req.Comment)
+	rating, err := h.service.UpdateRating(ctx, req.RaterId, req.RatingId, req.UserRatedId, int16(req.NumberOfStars), req.Comment)
 	if err != nil {
 		h.logger.Error("handler: UpdateRating failed", zap.Error(err))
 		return nil, toGRPCError(err)
@@ -107,23 +93,10 @@ func (h *RatingHandler) UpdateRating(ctx context.Context, req *ratingpb.UpdateRa
 	return &ratingpb.UpdateRatingResponse{Rating: toProtoRatingDetail(rating)}, nil
 }
 
-// DeleteRating supprime une note (seul le rater peut supprimer).
-func (h *RatingHandler) DeleteRating(ctx context.Context, req *ratingpb.DeleteRatingRequest) (*ratingpb.RatingServerResponse, error) {
-	h.logger.Debug("handler: DeleteRating called", zap.String("ratingID", req.RatingId))
-
-	if err := h.service.DeleteRating(ctx, req.RaterId, req.RatingId); err != nil {
-		h.logger.Error("handler: DeleteRating failed", zap.Error(err))
-		return nil, toGRPCError(err)
-	}
-
-	h.logger.Info("handler: DeleteRating success", zap.String("ratingID", req.RatingId))
-	return &ratingpb.RatingServerResponse{Success: true}, nil
-}
-
 // Health retourne l'état de santé du service (route publique, sans auth).
 func (h *RatingHandler) Health(_ context.Context, _ *ratingpb.HealthRequest) (*ratingpb.HealthResponse, error) {
 	return &ratingpb.HealthResponse{
-		Status:    "healthy",
+		Status:    "SERVING",
 		Version:   serviceVersion,
 		Timestamp: time.Now().Unix(),
 	}, nil
@@ -134,6 +107,8 @@ func toGRPCError(err error) error {
 	switch {
 	case errors.Is(err, ratingErrors.ErrorRatingNotFound):
 		return status.Error(codes.NotFound, err.Error())
+	case errors.Is(err, ratingErrors.ErrorUserNotFound):
+		return status.Error(codes.NotFound, err.Error())
 	case errors.Is(err, ratingErrors.ErrorRatingAlreadyExists):
 		return status.Error(codes.AlreadyExists, err.Error())
 	case errors.Is(err, ratingErrors.ErrorInvalidStars):
@@ -142,12 +117,10 @@ func toGRPCError(err error) error {
 		return status.Error(codes.InvalidArgument, err.Error())
 	case errors.Is(err, ratingErrors.ErrorMissingRaterID):
 		return status.Error(codes.InvalidArgument, err.Error())
-	case errors.Is(err, ratingErrors.ErrorUserNotFound):
-		return status.Error(codes.NotFound, err.Error())
+	case errors.Is(err, ratingErrors.ErrorMissingUserRatedID):
+		return status.Error(codes.InvalidArgument, err.Error())
 	case errors.Is(err, ratingErrors.ErrorUnauthorizedAction):
 		return status.Error(codes.PermissionDenied, err.Error())
-	case errors.Is(err, ratingErrors.ErrorCantDeleteRating):
-		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, ratingErrors.ErrorDataRetrievalFailed),
 		errors.Is(err, ratingErrors.ErrorInternalServer):
 		return status.Error(codes.Internal, err.Error())
@@ -157,14 +130,15 @@ func toGRPCError(err error) error {
 }
 
 // toProtoRatingDetail convertit domain.Rating en message proto RatingDetail.
+// Les timestamps sont formatés en ISO 8601 (TIMESTAMPTZ).
 func toProtoRatingDetail(r *domain.Rating) *ratingpb.RatingDetail {
 	detail := &ratingpb.RatingDetail{
 		RatingId:      r.RatingID,
 		RaterId:       r.RaterID,
 		UserRatedId:   r.UserRatedID,
 		NumberOfStars: int32(r.NumberOfStars),
-		CreatedAt:     r.CreatedAt.Unix(),
-		UpdatedAt:     r.UpdatedAt.Unix(),
+		CreatedAt:     r.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:     r.UpdatedAt.Format(time.RFC3339),
 	}
 	if r.Comment != nil {
 		detail.Comment = *r.Comment

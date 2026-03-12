@@ -2,7 +2,7 @@
 // This file defines the gRPC service contract for rating-service
 //
 // HTTP/REST mapping is defined using google.api.http annotations
-// Kong API Gateway uses these annotations for gRPC transcoding
+// api-gateway uses these annotations for grpc-gateway transcoding
 
 syntax = "proto3";
 
@@ -17,47 +17,32 @@ import "google/api/annotations.proto";
 // =============================================================================
 
 service RatingService {
-  // CreateRating - Soumettre une note après un trajet
-  rpc CreateRating(CreateRatingRequest) returns (CreateRatingResponse) {
+  // RateUser - Soumettre une note après un trajet
+  rpc RateUser(RateUserRequest) returns (RateUserResponse) {
     option (google.api.http) = {
-      post: "/api/v1/ratings"
+      post: "/api/v1/ratings/rateUser"
       body: "*"
     };
   }
 
-  // GetRating - Récupérer une note par son ID
-  rpc GetRating(GetRatingRequest) returns (GetRatingResponse) {
+  // GetUserRatings - Récupérer toutes les notes reçues par un utilisateur
+  rpc GetUserRatings(GetUserRatingsRequest) returns (GetUserRatingsResponse) {
     option (google.api.http) = {
-      get: "/api/v1/ratings/{RatingId}"
+      get: "/api/v1/ratings/user/getUserRatings"
     };
   }
 
-  // GetRatingsForUser - Récupérer toutes les notes reçues par un utilisateur
-  rpc GetRatingsForUser(GetRatingsForUserRequest) returns (GetRatingsForUserResponse) {
+  // GetUserRatingsAverage - Récupérer la moyenne des notes d'un utilisateur
+  rpc GetUserRatingsAverage(GetUserRatingsAverageRequest) returns (GetUserRatingsAverageResponse) {
     option (google.api.http) = {
-      get: "/api/v1/ratings/user/{UserRatedId}"
-    };
-  }
-
-  // GetAverageRating - Récupérer la moyenne des notes d'un utilisateur
-  rpc GetAverageRating(GetAverageRatingRequest) returns (GetAverageRatingResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/ratings/user/{UserRatedId}/average"
+      get: "/api/v1/ratings/user/getUserRatingsAverage"
     };
   }
 
   // UpdateRating - Modifier une note existante
   rpc UpdateRating(UpdateRatingRequest) returns (UpdateRatingResponse) {
     option (google.api.http) = {
-      patch: "/api/v1/ratings/{RatingId}"
-      body: "*"
-    };
-  }
-
-  // DeleteRating - Supprimer une note
-  rpc DeleteRating(DeleteRatingRequest) returns (RatingServerResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/ratings/{RatingId}/delete"
+      patch: "/api/v1/ratings/updateRating"
       body: "*"
     };
   }
@@ -74,35 +59,27 @@ service RatingService {
 // Request Messages
 // =============================================================================
 
-message CreateRatingRequest {
-  string UserRatedId = 1;
-  int32 NumberOfStars = 2;
-  string Comment = 3; // Optionnel
-  string RaterId = 4;
+message RateUserRequest {
+  string RaterId = 1;
+  string UserRatedId = 2;
+  int32 NumberOfStars = 3;
+  string Comment = 4; // Optionnel
 }
 
-message GetRatingRequest {
-  string RatingId = 1;
-}
-
-message GetRatingsForUserRequest {
+message GetUserRatingsRequest {
   string UserRatedId = 1;
 }
 
-message GetAverageRatingRequest {
+message GetUserRatingsAverageRequest {
   string UserRatedId = 1;
 }
 
 message UpdateRatingRequest {
   string RatingId = 1;
-  int32 NumberOfStars = 2;
-  string Comment = 3; // Optionnel
-  string RaterId = 4;
-}
-
-message DeleteRatingRequest {
-  string RatingId = 1;
   string RaterId = 2;
+  string UserRatedId = 3;
+  int32 NumberOfStars = 4;
+  string Comment = 5; // Optionnel
 }
 
 message HealthRequest {
@@ -113,22 +90,17 @@ message HealthRequest {
 // Response Messages
 // =============================================================================
 
-message CreateRatingResponse {
+message RateUserResponse {
   string ErrorMessage = 1;
-  RatingDetail rating = 2;
+  RatingDetail Rating = 2;
 }
 
-message GetRatingResponse {
+message GetUserRatingsResponse {
   string ErrorMessage = 1;
-  RatingDetail rating = 2;
+  repeated RatingDetail Ratings = 2;
 }
 
-message GetRatingsForUserResponse {
-  string ErrorMessage = 1;
-  repeated RatingDetail ratings = 2;
-}
-
-message GetAverageRatingResponse {
+message GetUserRatingsAverageResponse {
   string ErrorMessage = 1;
   double Average = 2;
   int32 TotalRatings = 3;
@@ -136,18 +108,13 @@ message GetAverageRatingResponse {
 
 message UpdateRatingResponse {
   string ErrorMessage = 1;
-  RatingDetail rating = 2;
-}
-
-message RatingServerResponse {
-  string ErrorMessage = 1;
-  bool Success = 2;
+  RatingDetail Rating = 2;
 }
 
 message HealthResponse {
-  string Status = 1;   // "healthy" or "unhealthy"
-  string Version = 2;  // Service version
-  int64 Timestamp = 3;  // Unix timestamp
+  string Status = 1;
+  string Version = 2;
+  int64 Timestamp = 3;
 }
 
 // =============================================================================
@@ -160,8 +127,8 @@ message RatingDetail {
   string UserRatedId = 3;
   int32 NumberOfStars = 4;
   string Comment = 5;
-  int64 CreatedAt = 6;  // Unix timestamp
-  int64 UpdatedAt = 7;  // Unix timestamp
+  string CreatedAt = 6;  // ISO 8601 / TIMESTAMPTZ
+  string UpdatedAt = 7;  // ISO 8601 / TIMESTAMPTZ
 }
 
 // =============================================================================
@@ -173,6 +140,4 @@ message RatingDetail {
 // 5  - NOT_FOUND           : Resource not found (404)
 // 6  - ALREADY_EXISTS      : Rating already exists for this pair (409)
 // 7  - PERMISSION_DENIED   : Not authorized (403)
-// 9  - FAILED_PRECONDITION : Pre-condition not met (412)
 // 13 - INTERNAL            : Server error (500)
-// 16 - UNAUTHENTICATED     : Missing or invalid token (401)

@@ -12,7 +12,4 @@ type RatingRepositoryWrite interface {
 
 	// update an existing rating
 	Update(ctx context.Context, rating *domain.Rating) (*domain.Rating, error)
-
-	// delete a rating
-	Delete(ctx context.Context, ratingID string) error
 }

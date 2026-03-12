@@ -349,109 +349,105 @@ message OperationResponse {
 
 ### RPCs
 
-| RPC | Type | HTTP Route | Auth | Description |
-|-----|------|------------|------|-------------|
-| `CreateRating` | Unary | `POST /api/v1/ratings` | Public | Submit a rating (rater_id in body) |
-| `GetRating` | Unary | `GET /api/v1/ratings/{rating_id}` | Public | Get rating by ID |
-| `GetRatingsForUser` | Unary | `GET /api/v1/ratings/user/{user_rated_id}` | Public | Get ratings for a user |
-| `GetAverageRating` | Unary | `GET /api/v1/ratings/user/{user_rated_id}/average` | Public | Get user's average rating |
-| `UpdateRating` | Unary | `PATCH /api/v1/ratings/{rating_id}` | Public | Update a rating (rater_id in body) |
-| `DeleteRating` | Unary | `POST /api/v1/ratings/{rating_id}/delete` | Public | Delete a rating (rater_id in body) |
-| `Health` | Unary | `GET /api/v1/ratings/health` | Public | Health check |
+| RPC | Type | HTTP Route | Auth | Cache | Description |
+|-----|------|------------|------|-------|-------------|
+| `RateUser` | Unary | `POST /api/v1/ratings/rateUser` | Public | Invalidates | Submit a rating (RaterId in body) |
+| `GetUserRatings` | Unary | `GET /api/v1/ratings/user/getUserRatings` | Public | 5 min TTL | Get ratings for a user |
+| `GetUserRatingsAverage` | Unary | `GET /api/v1/ratings/user/getUserRatingsAverage` | Public | 5 min TTL | Get user's average rating |
+| `UpdateRating` | Unary | `PATCH /api/v1/ratings/updateRating` | Public | Invalidates | Update a rating (RaterId in body) |
+| `Health` | Unary | `GET /api/v1/ratings/health` | Public | - | Health check |
 
-### Messages
+### Messages (PascalCase)
 
 ```protobuf
 // --- Client-facing ---
 
-message CreateRatingRequest {
-    string user_rated_id = 1;
-    int32 number_of_stars = 2;
-    string comment = 3;          // optional
-    string rater_id = 4;
+message RateUserRequest {
+    string RaterId = 1;
+    string UserRatedId = 2;
+    int32 NumberOfStars = 3;
+    string Comment = 4;          // optional
 }
-message CreateRatingResponse {
-    string error_message = 1;
-    RatingDetail rating = 2;
-}
-
-message GetRatingRequest { string rating_id = 1; }
-message GetRatingResponse {
-    string error_message = 1;
-    RatingDetail rating = 2;
+message RateUserResponse {
+    string ErrorMessage = 1;
+    RatingDetail Rating = 2;
 }
 
-message GetRatingsForUserRequest { string user_rated_id = 1; }
-message GetRatingsForUserResponse {
-    string error_message = 1;
-    repeated RatingDetail ratings = 2;
+message GetUserRatingsRequest { string UserRatedId = 1; }
+message GetUserRatingsResponse {
+    string ErrorMessage = 1;
+    repeated RatingDetail Ratings = 2;
 }
 
-message GetAverageRatingRequest { string user_rated_id = 1; }
-message GetAverageRatingResponse {
-    string error_message = 1;
-    double average = 2;
-    int32 total_ratings = 3;
+message GetUserRatingsAverageRequest { string UserRatedId = 1; }
+message GetUserRatingsAverageResponse {
+    string ErrorMessage = 1;
+    double Average = 2;          // Arrondi à 1 décimale
+    int32 TotalRatings = 3;
 }
 
 message UpdateRatingRequest {
-    string rating_id = 1;
-    int32 number_of_stars = 2;
-    string comment = 3;          // optional
-    string rater_id = 4;
+    string RatingId = 1;
+    string RaterId = 2;
+    string UserRatedId = 3;
+    int32 NumberOfStars = 4;
+    string Comment = 5;          // optional
 }
 message UpdateRatingResponse {
-    string error_message = 1;
-    RatingDetail rating = 2;
-}
-
-message DeleteRatingRequest {
-    string rating_id = 1;
-    string rater_id = 2;
-}
-message RatingServerResponse {
-    string error_message = 1;
-    bool success = 2;
+    string ErrorMessage = 1;
+    RatingDetail Rating = 2;
 }
 
 // --- Shared ---
 
 message RatingDetail {
-    string rating_id = 1;
-    string rater_id = 2;
-    string user_rated_id = 3;
-    int32 number_of_stars = 4;
-    string comment = 5;
-    int64 created_at = 6;       // Unix timestamp
-    int64 updated_at = 7;       // Unix timestamp
+    string RatingId = 1;
+    string RaterId = 2;
+    string UserRatedId = 3;
+    int32 NumberOfStars = 4;
+    string Comment = 5;
+    string CreatedAt = 6;       // ISO 8601 (TIMESTAMPTZ)
+    string UpdatedAt = 7;       // ISO 8601 (TIMESTAMPTZ)
 }
 
 message HealthRequest {}
 message HealthResponse {
-    string status = 1;
-    string version = 2;
-    int64 timestamp = 3;
+    string Status = 1;
+    string Version = 2;
+    int64 Timestamp = 3;
 }
 ```
+
+### Caching (Redis)
+
+| Route | Strategy | TTL | Key Pattern |
+|-------|----------|-----|-------------|
+| `GetUserRatings` | Cache-aside | 5 min | `rating:user:{userRatedId}` |
+| `GetUserRatingsAverage` | Cache-aside | 5 min | `rating:average:{userRatedId}` |
+| `RateUser` | Invalidate | - | Deletes both keys for the rated user |
+| `UpdateRating` | Invalidate | - | Deletes both keys for the rated user |
+
+Redis est non-bloquant : si Redis est indisponible, le service fonctionne sans cache.
 
 ### Errors
 
 | Error | gRPC Code | Description |
 |-------|-----------|-------------|
+| `ErrorMissingRaterID` | INVALID_ARGUMENT | RaterId is required |
+| `ErrorMissingUserRatedID` | INVALID_ARGUMENT | UserRatedId is required |
 | `ErrorRatingNotFound` | NOT_FOUND | Rating does not exist |
 | `ErrorUserNotFound` | NOT_FOUND | User does not exist in user-service |
 | `ErrorRatingAlreadyExists` | ALREADY_EXISTS | Rating already exists for this rater/user pair |
 | `ErrorInvalidStars` | INVALID_ARGUMENT | Stars must be between 1 and 5 |
 | `ErrorSelfRating` | INVALID_ARGUMENT | Cannot rate yourself |
-| `ErrorUnauthorizedAction` | PERMISSION_DENIED | Only the rater can modify/delete |
-| `ErrorCantDeleteRating` | FAILED_PRECONDITION | Cannot delete this rating |
+| `ErrorUnauthorizedAction` | PERMISSION_DENIED | Only the rater can modify |
 | `ErrorInternalServer` | INTERNAL | Server error |
 
-### Metadata
+### Notes
 
-| Key | Source | Description |
-|-----|--------|-------------|
-| `x-firebase-uid` | api-gateway | Firebase UID extracted from JWT |
+- Les utilisateurs ne peuvent **pas supprimer** leurs avis
+- Le `RaterId` est validé contre le user-service (doit exister)
+- Tous les endpoints sont publics (pas de JWT Firebase requis pour l'instant)
 
 ---
 
