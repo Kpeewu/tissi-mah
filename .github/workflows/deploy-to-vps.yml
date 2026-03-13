@@ -56,6 +56,8 @@ jobs:
               - 'services/rating-service/**'
             vehicle-service:
               - 'services/vehicle-service/**'
+            trips-service:
+              - 'services/trips-service/**'
             pkg:
               - 'pkg/**'
 
@@ -65,7 +67,7 @@ jobs:
           if [ -n "${{ github.event.inputs.service }}" ]; then
             echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
           else
-            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service"]' >> $GITHUB_OUTPUT
+            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service"]' >> $GITHUB_OUTPUT
           fi
 
   build-and-push:
@@ -159,6 +161,9 @@ jobs:
           # vehicle-service secrets
           VEHICLE_DATABASE_URL: ${{ secrets.VEHICLE_DATABASE_URL }}
           VEHICLE_REDIS_URL: ${{ secrets.VEHICLE_REDIS_URL }}
+          # trips-service secrets
+          TRIPS_DATABASE_URL: ${{ secrets.TRIPS_DATABASE_URL }}
+          TRIPS_REDIS_URL: ${{ secrets.TRIPS_REDIS_URL }}
         run: |
           python3 - <<'PYEOF'
           import yaml, os, json, sys
@@ -226,6 +231,14 @@ jobs:
                   'secrets': {
                       'databaseUrl': os.environ.get('VEHICLE_DATABASE_URL', ''),
                       'redisUrl': os.environ.get('VEHICLE_REDIS_URL', ''),
+                  },
+              }
+
+          elif service == "trips-service":
+              data = {
+                  'secrets': {
+                      'databaseUrl': os.environ.get('TRIPS_DATABASE_URL', ''),
+                      'redisUrl': os.environ.get('TRIPS_REDIS_URL', ''),
                   },
               }
 
@@ -396,6 +409,10 @@ jobs:
 #      - VEHICLE_DATABASE_URL : postgresql://user:pass@host:5436/vehicle_db
 #      - VEHICLE_REDIS_URL    : redis://host:6385/0
 #
+#   9. Secrets GitHub pour trips-service:
+#      - TRIPS_DATABASE_URL : postgresql://user:pass@host:5437/trips_db
+#      - TRIPS_REDIS_URL    : redis://host:6386/0
+#
 # Architecture:
 #   VPS K3s namespace "default":
 #     |- api-gateway (HTTP LoadBalancer, port 8080)
@@ -404,3 +421,4 @@ jobs:
 #     |- file-service (gRPC ClusterIP, port 50053)
 #     |- rating-service (gRPC ClusterIP, port 50054)
 #     |- vehicle-service (gRPC ClusterIP, port 50055)
+#     |- trips-service (gRPC ClusterIP, port 50056)
