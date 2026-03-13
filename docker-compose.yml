@@ -217,6 +217,31 @@ services:
     networks:
       - tissi-mah-network
 
+  # PostgreSQL pour Trips Service
+  trips-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-trips-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_TRIPS_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_TRIPS_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_TRIPS_DB:-trips_db}
+    ports:
+      - "5437:5432"
+    volumes:
+      - trips_postgres_data:/var/lib/postgresql/data
+      - ./services/trips-service/migrations/up:/docker-entrypoint-initdb.d
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_TRIPS_USER:-dev} -d ${POSTGRES_TRIPS_DB:-trips_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
   # Redis dédié pour Trips Service
   trips-redis:
     image: redis:7-alpine
@@ -282,6 +307,7 @@ volumes:
   rating_redis_data:
   vehicle_postgres_data:
   vehicle_redis_data:
+  trips_postgres_data:
   trips_redis_data:
   minio_data:
 
