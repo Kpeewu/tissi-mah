@@ -217,9 +217,9 @@ services:
     networks:
       - tissi-mah-network
 
-  # PostgreSQL pour Trips Service
+  # PostgreSQL pour Trips Service (PostGIS requis pour les coordonnées géographiques)
   trips-postgres:
-    image: postgres:15-alpine
+    image: postgis/postgis:15-3.4-alpine
     container_name: tissi-mah-trips-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_TRIPS_USER:-dev}
