@@ -7,7 +7,6 @@ var (
 	ErrorTripNotFound             = errors.New("ErrorTripNotFound")
 	ErrorDriverNotVerified        = errors.New("ErrorDriverNotVerified")
 	ErrorDriverNotFound           = errors.New("ErrorDriverNotFound")
-	ErrorTripOverlap              = errors.New("ErrorTripOverlap")
 	ErrorInvalidInput             = errors.New("ErrorInvalidInput")
 	ErrorInvalidDatetime          = errors.New("ErrorInvalidDatetime")
 	ErrorInvalidWaypoints         = errors.New("ErrorInvalidWaypoints")

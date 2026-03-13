@@ -8,6 +8,7 @@ import (
 
 	pkgDatabase "github.com/Kpeewu/tissi-mah/pkg/database"
 	pkgLogger "github.com/Kpeewu/tissi-mah/pkg/logger"
+	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/cache"
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/config"
 	grpcServer "github.com/Kpeewu/tissi-mah/services/trips-service/internal/grpc"
@@ -63,12 +64,31 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer userClient.Close()
 	logger.Info("user-service client ready", zap.String("address", cfg.UserService.Addr()))
 
+	// --- Vehicle-service client ---
+	vehicleClient, err := client.NewVehicleServiceClient(cfg.VehicleService.Addr(), logger)
+	if err != nil {
+		return fmt.Errorf("vehicle-service client: %w", err)
+	}
+	defer vehicleClient.Close()
+	logger.Info("vehicle-service client ready", zap.String("address", cfg.VehicleService.Addr()))
+
+	// --- Redis (cache, graceful degradation) ---
+	var tripCache *cache.TripCache
+	redisClient, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.Redis.URL)
+	if err != nil {
+		logger.Warn("redis unavailable, running without cache", zap.Error(err))
+	} else {
+		defer redisClient.Close()
+		tripCache = cache.NewTripCache(redisClient, logger)
+		logger.Info("redis connected, cache enabled")
+	}
+
 	// --- Repositories ---
 	readRepo := implementations.NewTripReadRepository(pool, logger)
 	writeRepo := implementations.NewTripWriteRepository(pool, logger)
 
 	// --- Trip service ---
-	tripService := service.NewTripService(readRepo, writeRepo, userClient, logger)
+	tripService := service.NewTripService(readRepo, writeRepo, userClient, vehicleClient, tripCache, logger)
 
 	// --- gRPC server ---
 	srv, err := grpcServer.NewTripServer(cfg, tripService, logger)

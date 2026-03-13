@@ -25,6 +25,9 @@ service UserService {
   // GetUserByAuthID - Récupère le profil utilisateur lié à un AuthID
   rpc GetUserByAuthID(GetUserByAuthIDRequest) returns (UserProfileResponse);
 
+  // GetUserByUserID - Récupère le profil utilisateur par son UserID interne
+  rpc GetUserByUserID(GetUserByUserIDRequest) returns (UserProfileResponse);
+
   // Client-facing RPCs (JWT Firebase requis)
 
   // GetMyProfile - Récupère le profil complet de l'utilisateur connecté
@@ -81,6 +84,10 @@ message CreateUserRequest {
 
 message GetUserByAuthIDRequest {
   string AuthID = 1;
+}
+
+message GetUserByUserIDRequest {
+  string UserID = 1;
 }
 
 // =============================================================================

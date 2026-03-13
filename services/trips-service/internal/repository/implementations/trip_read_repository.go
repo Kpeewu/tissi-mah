@@ -2,8 +2,8 @@ package implementations
 
 import (
 	"context"
-	"time"
 
+	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
 	i "github.com/Kpeewu/tissi-mah/services/trips-service/internal/repository/interfaces"
 	tripErrors "github.com/Kpeewu/tissi-mah/services/trips-service/pkg/errors"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -19,35 +19,92 @@ func NewTripReadRepository(pool *pgxpool.Pool, logger *zap.Logger) i.TripReposit
 	return &tripReadRepositoryImpl{pool: pool, logger: logger}
 }
 
-// HasOverlappingTrip vérifie si le conducteur a déjà un trajet qui chevauche
-// la fenêtre [departure - 2h, estimatedArrival + 2h].
-// Un trajet chevauche si :  existingDeparture < newArrival + 2h  ET  existingArrival > newDeparture - 2h
-func (r *tripReadRepositoryImpl) HasOverlappingTrip(ctx context.Context, driverID string, departure time.Time, estimatedArrival time.Time) (bool, error) {
-	r.logger.Debug("checking trip overlap",
-		zap.String("driverID", driverID),
-		zap.Time("departure", departure),
-		zap.Time("estimatedArrival", estimatedArrival),
-	)
+
+// GetDriverTripsPreviews retourne la liste paginée des trajets d'un conducteur
+// dont le statut est différent de "completed", avec les noms des points de départ et d'arrivée.
+func (r *tripReadRepositoryImpl) GetDriverTripsPreviews(ctx context.Context, driverID string, pageIndex int) ([]*domain.TripPreview, error) {
+	r.logger.Debug("GetDriverTripsPreviews", zap.String("driverID", driverID), zap.Int("pageIndex", pageIndex))
 
 	query := `
-		SELECT EXISTS (
-			SELECT 1
-			FROM trips
-			WHERE driver_id = $1
-			  AND status NOT IN ('cancelled', 'completed')
-			  AND departure_datetime          < $3 + INTERVAL '2 hours'
-			  AND estimated_arrival_datetime  > $2 - INTERVAL '2 hours'
-		)`
+		SELECT
+			t.trip_id,
+			t.driver_id,
+			t.vehicle_id,
+			t.departure_datetime,
+			t.total_seats,
+			t.available_seats,
+			dep.location_name AS departure_location_name,
+			arr.location_name AS arrival_location_name
+		FROM trips t
+		JOIN trips_waypoints dep ON dep.trip_id = t.trip_id AND dep.waypoint_type = 'departure'::waypoint_type
+		JOIN trips_waypoints arr ON arr.trip_id = t.trip_id AND arr.waypoint_type = 'arrival'::waypoint_type
+		WHERE t.driver_id = $1
+		  AND t.status <> 'completed'::trip_status
+		  AND t.deleted_at IS NULL
+		ORDER BY t.departure_datetime DESC
+		LIMIT 10 OFFSET $2`
 
-	var exists bool
-	err := r.pool.QueryRow(ctx, query, driverID, departure, estimatedArrival).Scan(&exists)
+	return r.scanTripPreviews(ctx, query, driverID, pageIndex)
+}
+
+// GetDriverCompletedTripsPreviews retourne la liste paginée des trajets complétés d'un conducteur.
+func (r *tripReadRepositoryImpl) GetDriverCompletedTripsPreviews(ctx context.Context, driverID string, pageIndex int) ([]*domain.TripPreview, error) {
+	r.logger.Debug("GetDriverCompletedTripsPreviews", zap.String("driverID", driverID), zap.Int("pageIndex", pageIndex))
+
+	query := `
+		SELECT
+			t.trip_id,
+			t.driver_id,
+			t.vehicle_id,
+			t.departure_datetime,
+			t.total_seats,
+			t.available_seats,
+			dep.location_name AS departure_location_name,
+			arr.location_name AS arrival_location_name
+		FROM trips t
+		JOIN trips_waypoints dep ON dep.trip_id = t.trip_id AND dep.waypoint_type = 'departure'::waypoint_type
+		JOIN trips_waypoints arr ON arr.trip_id = t.trip_id AND arr.waypoint_type = 'arrival'::waypoint_type
+		WHERE t.driver_id = $1
+		  AND t.status = 'completed'::trip_status
+		  AND t.deleted_at IS NULL
+		ORDER BY t.departure_datetime DESC
+		LIMIT 10 OFFSET $2`
+
+	return r.scanTripPreviews(ctx, query, driverID, pageIndex)
+}
+
+// scanTripPreviews exécute une requête de previews et scanne les résultats.
+func (r *tripReadRepositoryImpl) scanTripPreviews(ctx context.Context, query string, driverID string, pageIndex int) ([]*domain.TripPreview, error) {
+	rows, err := r.pool.Query(ctx, query, driverID, pageIndex*10)
 	if err != nil {
-		r.logger.Error("HasOverlappingTrip query failed",
-			zap.Error(err),
-			zap.String("driverID", driverID),
-		)
-		return false, tripErrors.ErrorDataRetrievalFailed
+		r.logger.Error("trip previews query failed", zap.Error(err), zap.String("driverID", driverID))
+		return nil, tripErrors.ErrorDataRetrievalFailed
+	}
+	defer rows.Close()
+
+	var previews []*domain.TripPreview
+	for rows.Next() {
+		p := &domain.TripPreview{}
+		if err := rows.Scan(
+			&p.TripID,
+			&p.DriverID,
+			&p.VehicleID,
+			&p.DepartureDatetime,
+			&p.TotalSeats,
+			&p.AvailableSeats,
+			&p.DepartureLocationName,
+			&p.ArrivalLocationName,
+		); err != nil {
+			r.logger.Error("trip previews scan failed", zap.Error(err))
+			return nil, tripErrors.ErrorDataRetrievalFailed
+		}
+		previews = append(previews, p)
 	}
 
-	return exists, nil
+	if err := rows.Err(); err != nil {
+		r.logger.Error("trip previews rows error", zap.Error(err))
+		return nil, tripErrors.ErrorDataRetrievalFailed
+	}
+
+	return previews, nil
 }

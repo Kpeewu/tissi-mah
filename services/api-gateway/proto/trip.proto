@@ -16,6 +16,30 @@ service TripService {
     };
   }
 
+  // CreateRecurringTrip programme un trajet récurrent (quotidien, hebdo, custom).
+  rpc CreateRecurringTrip(CreateRecurringTripRequest) returns (CreateRecurringTripResponse) {
+    option (google.api.http) = {
+      post: "/trip/driver/createRecurringTrip"
+      body: "*"
+    };
+  }
+
+  // GetTripsPreviews retourne la liste paginée des trajets créés par le conducteur
+  // dont le statut est différent de "completed".
+  rpc GetTripsPreviews(GetTripsPreviewsRequest) returns (GetTripsPreviewsResponse) {
+    option (google.api.http) = {
+      get: "/trip/driver/getTripsPreviews"
+    };
+  }
+
+  // GetCompletedTripsPreviews retourne la liste paginée des trajets complétés
+  // du conducteur.
+  rpc GetCompletedTripsPreviews(GetCompletedTripsPreviewsRequest) returns (GetCompletedTripsPreviewsResponse) {
+    option (google.api.http) = {
+      get: "/trip/driver/getCompletedTripsPreviews"
+    };
+  }
+
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -65,6 +89,103 @@ message CreateTripRequest {
 message CreateTripResponse {
   string TripId       = 1;
   string ErrorMessage = 2;
+}
+
+// =============================================================================
+// CreateRecurringTrip
+// =============================================================================
+
+// DaysOfWeekInput liste les jours de la semaine (1=Lundi … 7=Dimanche).
+message DaysOfWeekInput {
+  repeated int32 Days = 1;
+}
+
+// CreateRecurringTripRequest contient toutes les informations pour programmer
+// un trajet récurrent.
+message CreateRecurringTripRequest {
+  string          DriverId              = 1;
+  string          VehicleId             = 2;
+  string          DepartureTime         = 3;  // RFC3339 — seule la partie heure est utilisée
+  string          RecurrenceType        = 4;  // daily | weekly | custom
+  DaysOfWeekInput DaysOfWeek            = 5;  // 1=Lundi … 7=Dimanche
+  string          StartDate             = 6;  // YYYY-MM-DD
+  string          EndDate               = 7;  // YYYY-MM-DD
+  int32           TotalSeats            = 8;
+  int32           PricePerSeat          = 9;
+  bool            AllowLuggages         = 10;
+  bool            AllowPets             = 11;
+  bool            AllowFood             = 12;
+  bool            AllowSmoking          = 13;
+  bool            AutoApprove           = 14;
+  string          Description           = 15;
+  int32           GenerationHorizonDays = 16;
+  repeated WaypointInput TripWaypoints  = 17;
+}
+
+// CreateRecurringTripResponse confirme la création du pattern récurrent.
+message CreateRecurringTripResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// GetTripsPreviews
+// =============================================================================
+
+message GetTripsPreviewsRequest {
+  string DriverId = 1;
+  int32  Index    = 2; // index de page (0-based, 10 items par page)
+}
+
+// TripPreview contient les informations résumées d'un trajet pour l'affichage en liste.
+message TripPreview {
+  string TripId                 = 1;
+  string DriverId               = 2;
+  string DriverName             = 3;
+  string VehicleId              = 4;
+  string VehicleBrand           = 5;
+  string VehiclePlate           = 6;
+  string DepartureDate          = 7;  // YYYY-MM-DD
+  string DepartureTime          = 8;  // HH:MM
+  int32  TotalSeats             = 9;
+  int32  AvailableSeats         = 10;
+  string DepartureLocationName  = 11;
+  string ArrivalLocationName    = 12;
+}
+
+message GetTripsPreviewsResponse {
+  repeated TripPreview TripsPreviews = 1;
+  string ErrorMessage                = 2;
+}
+
+// =============================================================================
+// GetCompletedTripsPreviews
+// =============================================================================
+
+message GetCompletedTripsPreviewsRequest {
+  string DriverId = 1;
+  int32  Index    = 2; // index de page (0-based, 10 items par page)
+}
+
+// CompletedTripPreview contient les informations résumées d'un trajet complété.
+message CompletedTripPreview {
+  string TripId                 = 1;
+  string DriverId               = 2;
+  string DriverName             = 3;
+  string VehicleId              = 4;
+  string VehicleBrand           = 5;
+  string VehiclePlateNumber     = 6;
+  string DepartureDate          = 7;  // YYYY-MM-DD
+  string DepartureTime          = 8;  // HH:MM
+  int32  TotalSeats             = 9;
+  int32  AvailableSeats         = 10;
+  string DepartureLocationName  = 11;
+  string ArrivalLocationName    = 12;
+}
+
+message GetCompletedTripsPreviewsResponse {
+  repeated CompletedTripPreview TripsPreviews = 1;
+  string ErrorMessage                         = 2;
 }
 
 // =============================================================================

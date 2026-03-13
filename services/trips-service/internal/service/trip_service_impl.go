@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/cache"
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
 	repoInterfaces "github.com/Kpeewu/tissi-mah/services/trips-service/internal/repository/interfaces"
@@ -16,23 +17,29 @@ import (
 const minWaypoints = 2
 
 type tripServiceImpl struct {
-	readRepo   repoInterfaces.TripRepositoryRead
-	writeRepo  repoInterfaces.TripRepositoryWrite
-	userClient client.UserClient
-	logger     *zap.Logger
+	readRepo      repoInterfaces.TripRepositoryRead
+	writeRepo     repoInterfaces.TripRepositoryWrite
+	userClient    client.UserClient
+	vehicleClient client.VehicleClient
+	cache         *cache.TripCache
+	logger        *zap.Logger
 }
 
 func NewTripService(
 	readRepo repoInterfaces.TripRepositoryRead,
 	writeRepo repoInterfaces.TripRepositoryWrite,
 	userClient client.UserClient,
+	vehicleClient client.VehicleClient,
+	tripCache *cache.TripCache,
 	logger *zap.Logger,
 ) serviceInterfaces.TripService {
 	return &tripServiceImpl{
-		readRepo:   readRepo,
-		writeRepo:  writeRepo,
-		userClient: userClient,
-		logger:     logger,
+		readRepo:      readRepo,
+		writeRepo:     writeRepo,
+		userClient:    userClient,
+		vehicleClient: vehicleClient,
+		cache:         tripCache,
+		logger:        logger,
 	}
 }
 
@@ -59,20 +66,6 @@ func (s *tripServiceImpl) CreateTrip(ctx context.Context, input *serviceInterfac
 		return nil, err
 	}
 
-	// Vérification : pas de chevauchement (intervalle minimum 2h)
-	overlaps, err := s.readRepo.HasOverlappingTrip(ctx, input.DriverID, departure, estimatedArrival)
-	if err != nil {
-		s.logger.Error("overlap check failed", zap.Error(err), zap.String("driverID", input.DriverID))
-		return nil, tripErrors.ErrorInternalServer
-	}
-	if overlaps {
-		s.logger.Warn("trip overlap detected",
-			zap.String("driverID", input.DriverID),
-			zap.Time("departure", departure),
-		)
-		return nil, tripErrors.ErrorTripOverlap
-	}
-
 	// Construction du domaine
 	trip, waypoints := s.buildTripAndWaypoints(input, departure, estimatedArrival)
 
@@ -81,6 +74,11 @@ func (s *tripServiceImpl) CreateTrip(ctx context.Context, input *serviceInterfac
 	if err != nil {
 		s.logger.Error("create trip failed", zap.Error(err), zap.String("tripID", trip.TripID))
 		return nil, err
+	}
+
+	// Invalidation du cache des previews pour ce conducteur
+	if s.cache != nil {
+		s.cache.InvalidateDriverPreviews(ctx, input.DriverID)
 	}
 
 	s.logger.Info("trip created", zap.String("tripID", tripID))

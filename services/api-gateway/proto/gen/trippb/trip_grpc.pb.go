@@ -19,8 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	TripService_CreateTrip_FullMethodName = "/trip.TripService/CreateTrip"
-	TripService_Health_FullMethodName     = "/trip.TripService/Health"
+	TripService_CreateTrip_FullMethodName                = "/trip.TripService/CreateTrip"
+	TripService_CreateRecurringTrip_FullMethodName       = "/trip.TripService/CreateRecurringTrip"
+	TripService_GetTripsPreviews_FullMethodName          = "/trip.TripService/GetTripsPreviews"
+	TripService_GetCompletedTripsPreviews_FullMethodName = "/trip.TripService/GetCompletedTripsPreviews"
+	TripService_Health_FullMethodName                    = "/trip.TripService/Health"
 )
 
 // TripServiceClient is the client API for TripService service.
@@ -31,6 +34,14 @@ const (
 type TripServiceClient interface {
 	// CreateTrip crée un nouveau trajet avec ses waypoints.
 	CreateTrip(ctx context.Context, in *CreateTripRequest, opts ...grpc.CallOption) (*CreateTripResponse, error)
+	// CreateRecurringTrip programme un trajet récurrent (quotidien, hebdo, custom).
+	CreateRecurringTrip(ctx context.Context, in *CreateRecurringTripRequest, opts ...grpc.CallOption) (*CreateRecurringTripResponse, error)
+	// GetTripsPreviews retourne la liste paginée des trajets créés par le conducteur
+	// dont le statut est différent de "completed".
+	GetTripsPreviews(ctx context.Context, in *GetTripsPreviewsRequest, opts ...grpc.CallOption) (*GetTripsPreviewsResponse, error)
+	// GetCompletedTripsPreviews retourne la liste paginée des trajets complétés
+	// du conducteur.
+	GetCompletedTripsPreviews(ctx context.Context, in *GetCompletedTripsPreviewsRequest, opts ...grpc.CallOption) (*GetCompletedTripsPreviewsResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -47,6 +58,36 @@ func (c *tripServiceClient) CreateTrip(ctx context.Context, in *CreateTripReques
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreateTripResponse)
 	err := c.cc.Invoke(ctx, TripService_CreateTrip_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tripServiceClient) CreateRecurringTrip(ctx context.Context, in *CreateRecurringTripRequest, opts ...grpc.CallOption) (*CreateRecurringTripResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateRecurringTripResponse)
+	err := c.cc.Invoke(ctx, TripService_CreateRecurringTrip_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tripServiceClient) GetTripsPreviews(ctx context.Context, in *GetTripsPreviewsRequest, opts ...grpc.CallOption) (*GetTripsPreviewsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTripsPreviewsResponse)
+	err := c.cc.Invoke(ctx, TripService_GetTripsPreviews_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tripServiceClient) GetCompletedTripsPreviews(ctx context.Context, in *GetCompletedTripsPreviewsRequest, opts ...grpc.CallOption) (*GetCompletedTripsPreviewsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetCompletedTripsPreviewsResponse)
+	err := c.cc.Invoke(ctx, TripService_GetCompletedTripsPreviews_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -71,6 +112,14 @@ func (c *tripServiceClient) Health(ctx context.Context, in *HealthRequest, opts 
 type TripServiceServer interface {
 	// CreateTrip crée un nouveau trajet avec ses waypoints.
 	CreateTrip(context.Context, *CreateTripRequest) (*CreateTripResponse, error)
+	// CreateRecurringTrip programme un trajet récurrent (quotidien, hebdo, custom).
+	CreateRecurringTrip(context.Context, *CreateRecurringTripRequest) (*CreateRecurringTripResponse, error)
+	// GetTripsPreviews retourne la liste paginée des trajets créés par le conducteur
+	// dont le statut est différent de "completed".
+	GetTripsPreviews(context.Context, *GetTripsPreviewsRequest) (*GetTripsPreviewsResponse, error)
+	// GetCompletedTripsPreviews retourne la liste paginée des trajets complétés
+	// du conducteur.
+	GetCompletedTripsPreviews(context.Context, *GetCompletedTripsPreviewsRequest) (*GetCompletedTripsPreviewsResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedTripServiceServer()
@@ -85,6 +134,15 @@ type UnimplementedTripServiceServer struct{}
 
 func (UnimplementedTripServiceServer) CreateTrip(context.Context, *CreateTripRequest) (*CreateTripResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateTrip not implemented")
+}
+func (UnimplementedTripServiceServer) CreateRecurringTrip(context.Context, *CreateRecurringTripRequest) (*CreateRecurringTripResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateRecurringTrip not implemented")
+}
+func (UnimplementedTripServiceServer) GetTripsPreviews(context.Context, *GetTripsPreviewsRequest) (*GetTripsPreviewsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetTripsPreviews not implemented")
+}
+func (UnimplementedTripServiceServer) GetCompletedTripsPreviews(context.Context, *GetCompletedTripsPreviewsRequest) (*GetCompletedTripsPreviewsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetCompletedTripsPreviews not implemented")
 }
 func (UnimplementedTripServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -128,6 +186,60 @@ func _TripService_CreateTrip_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TripService_CreateRecurringTrip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateRecurringTripRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).CreateRecurringTrip(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_CreateRecurringTrip_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).CreateRecurringTrip(ctx, req.(*CreateRecurringTripRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TripService_GetTripsPreviews_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTripsPreviewsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).GetTripsPreviews(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_GetTripsPreviews_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).GetTripsPreviews(ctx, req.(*GetTripsPreviewsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TripService_GetCompletedTripsPreviews_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCompletedTripsPreviewsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).GetCompletedTripsPreviews(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_GetCompletedTripsPreviews_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).GetCompletedTripsPreviews(ctx, req.(*GetCompletedTripsPreviewsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _TripService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -156,6 +268,18 @@ var TripService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateTrip",
 			Handler:    _TripService_CreateTrip_Handler,
+		},
+		{
+			MethodName: "CreateRecurringTrip",
+			Handler:    _TripService_CreateRecurringTrip_Handler,
+		},
+		{
+			MethodName: "GetTripsPreviews",
+			Handler:    _TripService_GetTripsPreviews_Handler,
+		},
+		{
+			MethodName: "GetCompletedTripsPreviews",
+			Handler:    _TripService_GetCompletedTripsPreviews_Handler,
 		},
 		{
 			MethodName: "Health",

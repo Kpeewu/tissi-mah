@@ -55,10 +55,13 @@ func (r *tripWriteRepositoryImpl) Create(ctx context.Context, trip *domain.Trip,
 	return tripID, nil
 }
 
+// insertTrip insère un trajet dans la transaction fournie.
+// recurring_pattern_id peut être nil pour les trajets ponctuels.
 func (r *tripWriteRepositoryImpl) insertTrip(ctx context.Context, tx pgx.Tx, trip *domain.Trip) (string, error) {
 	query := `
 		INSERT INTO trips (
 			trip_id, driver_id, vehicle_id,
+			recurring_pattern_id,
 			departure_datetime, estimated_arrival_datetime,
 			estimated_duration_minutes, estimated_distance_meters,
 			total_seats, available_seats, price_per_seat,
@@ -67,18 +70,20 @@ func (r *tripWriteRepositoryImpl) insertTrip(ctx context.Context, tx pgx.Tx, tri
 			status, auto_approve_enabled, description
 		) VALUES (
 			$1, $2, $3,
-			$4, $5,
-			$6, $7,
-			$8, $9, $10,
-			$11::payment_method[],
-			$12, $13, $14, $15,
-			$16::trip_status, $17, $18
+			$4,
+			$5, $6,
+			$7, $8,
+			$9, $10, $11,
+			$12::payment_method[],
+			$13, $14, $15, $16,
+			$17::trip_status, $18, $19
 		)
 		RETURNING trip_id`
 
 	var tripID string
 	err := tx.QueryRow(ctx, query,
 		trip.TripID, trip.DriverID, trip.VehicleID,
+		trip.RecurringPatternID,
 		trip.DepartureDatetime, trip.EstimatedArrivalDatetime,
 		trip.EstimatedDurationMinutes, trip.EstimatedDistanceMeters,
 		trip.TotalSeats, trip.AvailableSeats, trip.PricePerSeat,
@@ -98,6 +103,7 @@ func (r *tripWriteRepositoryImpl) insertTrip(ctx context.Context, tx pgx.Tx, tri
 	return tripID, nil
 }
 
+// insertWaypoints insère les waypoints d'un trajet dans la transaction fournie.
 func (r *tripWriteRepositoryImpl) insertWaypoints(ctx context.Context, tx pgx.Tx, tripID string, waypoints []*domain.Waypoint) error {
 	query := `
 		INSERT INTO trips_waypoints (

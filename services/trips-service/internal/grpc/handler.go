@@ -65,6 +65,131 @@ func (h *TripHandler) CreateTrip(ctx context.Context, req *trippb.CreateTripRequ
 	return &trippb.CreateTripResponse{TripId: trip.TripID}, nil
 }
 
+// CreateRecurringTrip programme un trajet récurrent.
+func (h *TripHandler) CreateRecurringTrip(ctx context.Context, req *trippb.CreateRecurringTripRequest) (*trippb.CreateRecurringTripResponse, error) {
+	h.logger.Debug("handler: CreateRecurringTrip called",
+		zap.String("driverID", req.DriverId),
+		zap.String("vehicleID", req.VehicleId),
+		zap.String("recurrenceType", req.RecurrenceType),
+	)
+
+	var daysOfWeek []int32
+	if req.DaysOfWeek != nil {
+		daysOfWeek = req.DaysOfWeek.Days
+	}
+
+	input := &serviceInterfaces.CreateRecurringTripInput{
+		DriverID:              req.DriverId,
+		VehicleID:             req.VehicleId,
+		DepartureTime:         req.DepartureTime,
+		RecurrenceType:        req.RecurrenceType,
+		DaysOfWeek:            daysOfWeek,
+		StartDate:             req.StartDate,
+		EndDate:               req.EndDate,
+		TotalSeats:            int(req.TotalSeats),
+		PricePerSeat:          int(req.PricePerSeat),
+		AllowLuggages:         req.AllowLuggages,
+		AllowPets:             req.AllowPets,
+		AllowFood:             req.AllowFood,
+		AllowSmoking:          req.AllowSmoking,
+		AutoApprove:           req.AutoApprove,
+		Description:           req.Description,
+		GenerationHorizonDays: int(req.GenerationHorizonDays),
+		Waypoints:             toServiceWaypoints(req.TripWaypoints),
+	}
+
+	_, err := h.service.CreateRecurringTrip(ctx, input)
+	if err != nil {
+		h.logger.Error("handler: CreateRecurringTrip failed", zap.Error(err))
+		return &trippb.CreateRecurringTripResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: CreateRecurringTrip success")
+	return &trippb.CreateRecurringTripResponse{Success: true}, nil
+}
+
+// GetTripsPreviews retourne la liste paginée des trajets du conducteur.
+func (h *TripHandler) GetTripsPreviews(ctx context.Context, req *trippb.GetTripsPreviewsRequest) (*trippb.GetTripsPreviewsResponse, error) {
+	h.logger.Debug("handler: GetTripsPreviews called",
+		zap.String("driverID", req.DriverId),
+		zap.Int32("index", req.Index),
+	)
+
+	results, err := h.service.GetTripsPreviews(ctx, &serviceInterfaces.GetTripsPreviewsInput{
+		DriverID:  req.DriverId,
+		PageIndex: int(req.Index),
+	})
+	if err != nil {
+		h.logger.Error("handler: GetTripsPreviews failed", zap.Error(err))
+		return &trippb.GetTripsPreviewsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	pbPreviews := make([]*trippb.TripPreview, 0, len(results))
+	for _, r := range results {
+		pbPreviews = append(pbPreviews, &trippb.TripPreview{
+			TripId:                r.TripID,
+			DriverId:              r.DriverID,
+			DriverName:            r.DriverName,
+			VehicleId:             r.VehicleID,
+			VehicleBrand:          r.VehicleBrand,
+			VehiclePlate:          r.VehiclePlate,
+			DepartureDate:         r.DepartureDatetime.Format("2006-01-02"),
+			DepartureTime:         r.DepartureDatetime.Format("15:04"),
+			TotalSeats:            int32(r.TotalSeats),
+			AvailableSeats:        int32(r.AvailableSeats),
+			DepartureLocationName: r.DepartureLocationName,
+			ArrivalLocationName:   r.ArrivalLocationName,
+		})
+	}
+
+	h.logger.Info("handler: GetTripsPreviews success",
+		zap.String("driverID", req.DriverId),
+		zap.Int("count", len(pbPreviews)),
+	)
+	return &trippb.GetTripsPreviewsResponse{TripsPreviews: pbPreviews}, nil
+}
+
+// GetCompletedTripsPreviews retourne la liste paginée des trajets complétés du conducteur.
+func (h *TripHandler) GetCompletedTripsPreviews(ctx context.Context, req *trippb.GetCompletedTripsPreviewsRequest) (*trippb.GetCompletedTripsPreviewsResponse, error) {
+	h.logger.Debug("handler: GetCompletedTripsPreviews called",
+		zap.String("driverID", req.DriverId),
+		zap.Int32("index", req.Index),
+	)
+
+	results, err := h.service.GetCompletedTripsPreviews(ctx, &serviceInterfaces.GetTripsPreviewsInput{
+		DriverID:  req.DriverId,
+		PageIndex: int(req.Index),
+	})
+	if err != nil {
+		h.logger.Error("handler: GetCompletedTripsPreviews failed", zap.Error(err))
+		return &trippb.GetCompletedTripsPreviewsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	pbPreviews := make([]*trippb.CompletedTripPreview, 0, len(results))
+	for _, r := range results {
+		pbPreviews = append(pbPreviews, &trippb.CompletedTripPreview{
+			TripId:                r.TripID,
+			DriverId:              r.DriverID,
+			DriverName:            r.DriverName,
+			VehicleId:             r.VehicleID,
+			VehicleBrand:          r.VehicleBrand,
+			VehiclePlateNumber:    r.VehiclePlateNumber,
+			DepartureDate:         r.DepartureDatetime.Format("2006-01-02"),
+			DepartureTime:         r.DepartureDatetime.Format("15:04"),
+			TotalSeats:            int32(r.TotalSeats),
+			AvailableSeats:        int32(r.AvailableSeats),
+			DepartureLocationName: r.DepartureLocationName,
+			ArrivalLocationName:   r.ArrivalLocationName,
+		})
+	}
+
+	h.logger.Info("handler: GetCompletedTripsPreviews success",
+		zap.String("driverID", req.DriverId),
+		zap.Int("count", len(pbPreviews)),
+	)
+	return &trippb.GetCompletedTripsPreviewsResponse{TripsPreviews: pbPreviews}, nil
+}
+
 // Health retourne l'état de santé du service.
 func (h *TripHandler) Health(_ context.Context, _ *trippb.HealthRequest) (*trippb.HealthResponse, error) {
 	return &trippb.HealthResponse{
@@ -104,8 +229,6 @@ func toGRPCError(err error) error {
 		return status.Error(codes.NotFound, err.Error())
 	case errors.Is(err, tripErrors.ErrorDriverNotVerified):
 		return status.Error(codes.PermissionDenied, err.Error())
-	case errors.Is(err, tripErrors.ErrorTripOverlap):
-		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, tripErrors.ErrorUnauthorized):
 		return status.Error(codes.PermissionDenied, err.Error())
 	case errors.Is(err, tripErrors.ErrorTripNotFound):

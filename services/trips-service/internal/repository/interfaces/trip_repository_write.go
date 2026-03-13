@@ -12,4 +12,9 @@ type TripRepositoryWrite interface {
 	// Create insère un trajet et ses waypoints dans une transaction unique.
 	// Retourne le tripID en cas de succès.
 	Create(ctx context.Context, trip *domain.Trip, waypoints []*domain.Waypoint) (string, error)
+
+	// CreateRecurringPattern insère un pattern récurrent, ses waypoints de pattern,
+	// puis génère les instances de trajet dans l'horizon [startDate, min(endDate, today+horizonDays)].
+	// Tout est atomique. Retourne le patternID en cas de succès.
+	CreateRecurringPattern(ctx context.Context, pattern *domain.RecurringPattern, patternWaypoints []*domain.PatternWaypoint) (string, error)
 }

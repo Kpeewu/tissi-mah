@@ -10,11 +10,15 @@ replace github.com/Kpeewu/tissi-mah/pkg => ../../pkg
 
 replace github.com/Kpeewu/tissi-mah/services/user-service => ../user-service
 
+replace github.com/Kpeewu/tissi-mah/services/vehicle-service => ../vehicle-service
+
 require (
 	github.com/Kpeewu/tissi-mah/pkg v0.0.0-00010101000000-000000000000
 	github.com/Kpeewu/tissi-mah/services/user-service v0.0.0-00010101000000-000000000000
+	github.com/Kpeewu/tissi-mah/services/vehicle-service v0.0.0-00010101000000-000000000000
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.8.0
+	github.com/redis/go-redis/v9 v9.17.2
 	go.uber.org/zap v1.27.1
 	google.golang.org/genproto/googleapis/api v0.0.0-20251029180050-ab9386a59fda
 	google.golang.org/grpc v1.78.0
@@ -31,7 +35,6 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
-	github.com/redis/go-redis/v9 v9.17.2 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect

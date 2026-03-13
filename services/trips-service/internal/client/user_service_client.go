@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	userpb "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen"
 	"go.uber.org/zap"
@@ -51,17 +52,36 @@ func (c *UserServiceClient) Close() error {
 func (c *UserServiceClient) IsVerifiedDriver(ctx context.Context, userID string) (bool, error) {
 	c.logger.Debug("client: IsVerifiedDriver called", zap.String("userID", userID))
 
-	resp, err := c.grpcClient.GetUserByAuthID(ctx, &userpb.GetUserByAuthIDRequest{
-		AuthID: userID,
+	resp, err := c.grpcClient.GetUserByUserID(ctx, &userpb.GetUserByUserIDRequest{
+		UserID: userID,
 	})
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 			c.logger.Debug("client: user not found", zap.String("userID", userID))
 			return false, nil
 		}
-		c.logger.Error("client: GetUserByAuthID failed", zap.Error(err), zap.String("userID", userID))
-		return false, fmt.Errorf("user-service: GetUserByAuthID failed: %w", err)
+		c.logger.Error("client: GetUserByUserID failed", zap.Error(err), zap.String("userID", userID))
+		return false, fmt.Errorf("user-service: GetUserByUserID failed: %w", err)
 	}
 
 	return resp.IsDriverProfileVerified, nil
+}
+
+// GetDriverName retourne le nom complet de l'utilisateur ("FirstName Name").
+// Retourne une chaîne vide si l'utilisateur n'est pas trouvé.
+func (c *UserServiceClient) GetDriverName(ctx context.Context, userID string) (string, error) {
+	c.logger.Debug("client: GetDriverName called", zap.String("userID", userID))
+
+	resp, err := c.grpcClient.GetUserByUserID(ctx, &userpb.GetUserByUserIDRequest{
+		UserID: userID,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return "", nil
+		}
+		c.logger.Error("client: GetUserByUserID failed", zap.Error(err), zap.String("userID", userID))
+		return "", fmt.Errorf("user-service: GetUserByUserID failed: %w", err)
+	}
+
+	return strings.TrimSpace(resp.FirstName + " " + resp.Name), nil
 }
