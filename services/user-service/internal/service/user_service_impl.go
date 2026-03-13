@@ -84,6 +84,23 @@ func (s *userServiceImpl) GetUserByAuthID(ctx context.Context, authID string) (*
 	return user, nil
 }
 
+// GetUserByUserID récupère le profil utilisateur par son UserID interne (appelé par trips-service)
+func (s *userServiceImpl) GetUserByUserID(ctx context.Context, userID string) (*domain.User, error) {
+	s.logger.Debug("récupération profil par userID", zap.String("user_id", userID))
+
+	if userID == "" {
+		return nil, userErrors.ErrorUserNotFound
+	}
+
+	user, err := s.readRepo.GetByUserID(ctx, userID)
+	if err != nil {
+		s.logger.Error("échec de la récupération du profil par userID", zap.Error(err), zap.String("user_id", userID))
+		return nil, err
+	}
+
+	return user, nil
+}
+
 // GetMyProfile récupère le profil complet de l'utilisateur connecté avec enrichissement auth
 func (s *userServiceImpl) GetMyProfile(ctx context.Context) (*serviceInterfaces.FullProfile, error) {
 	s.logger.Debug("récupération du profil de l'utilisateur connecté")

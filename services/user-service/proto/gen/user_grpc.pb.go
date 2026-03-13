@@ -27,6 +27,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	UserService_CreateUser_FullMethodName          = "/user.UserService/CreateUser"
 	UserService_GetUserByAuthID_FullMethodName     = "/user.UserService/GetUserByAuthID"
+	UserService_GetUserByUserID_FullMethodName     = "/user.UserService/GetUserByUserID"
 	UserService_GetMyProfile_FullMethodName        = "/user.UserService/GetMyProfile"
 	UserService_CreateDriverAccount_FullMethodName = "/user.UserService/CreateDriverAccount"
 	UserService_AddTripPreferences_FullMethodName  = "/user.UserService/AddTripPreferences"
@@ -42,6 +43,8 @@ type UserServiceClient interface {
 	CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*UserProfileResponse, error)
 	// GetUserByAuthID - Récupère le profil utilisateur lié à un AuthID
 	GetUserByAuthID(ctx context.Context, in *GetUserByAuthIDRequest, opts ...grpc.CallOption) (*UserProfileResponse, error)
+	// GetUserByUserID - Récupère le profil utilisateur par son UserID interne
+	GetUserByUserID(ctx context.Context, in *GetUserByUserIDRequest, opts ...grpc.CallOption) (*UserProfileResponse, error)
 	// GetMyProfile - Récupère le profil complet de l'utilisateur connecté
 	GetMyProfile(ctx context.Context, in *GetMyProfileRequest, opts ...grpc.CallOption) (*GetMyProfileResponse, error)
 	// CreateDriverAccount - Active le statut conducteur sur le profil
@@ -76,6 +79,16 @@ func (c *userServiceClient) GetUserByAuthID(ctx context.Context, in *GetUserByAu
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(UserProfileResponse)
 	err := c.cc.Invoke(ctx, UserService_GetUserByAuthID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) GetUserByUserID(ctx context.Context, in *GetUserByUserIDRequest, opts ...grpc.CallOption) (*UserProfileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UserProfileResponse)
+	err := c.cc.Invoke(ctx, UserService_GetUserByUserID_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -140,6 +153,8 @@ type UserServiceServer interface {
 	CreateUser(context.Context, *CreateUserRequest) (*UserProfileResponse, error)
 	// GetUserByAuthID - Récupère le profil utilisateur lié à un AuthID
 	GetUserByAuthID(context.Context, *GetUserByAuthIDRequest) (*UserProfileResponse, error)
+	// GetUserByUserID - Récupère le profil utilisateur par son UserID interne
+	GetUserByUserID(context.Context, *GetUserByUserIDRequest) (*UserProfileResponse, error)
 	// GetMyProfile - Récupère le profil complet de l'utilisateur connecté
 	GetMyProfile(context.Context, *GetMyProfileRequest) (*GetMyProfileResponse, error)
 	// CreateDriverAccount - Active le statut conducteur sur le profil
@@ -165,6 +180,9 @@ func (UnimplementedUserServiceServer) CreateUser(context.Context, *CreateUserReq
 }
 func (UnimplementedUserServiceServer) GetUserByAuthID(context.Context, *GetUserByAuthIDRequest) (*UserProfileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUserByAuthID not implemented")
+}
+func (UnimplementedUserServiceServer) GetUserByUserID(context.Context, *GetUserByUserIDRequest) (*UserProfileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUserByUserID not implemented")
 }
 func (UnimplementedUserServiceServer) GetMyProfile(context.Context, *GetMyProfileRequest) (*GetMyProfileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetMyProfile not implemented")
@@ -234,6 +252,24 @@ func _UserService_GetUserByAuthID_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UserServiceServer).GetUserByAuthID(ctx, req.(*GetUserByAuthIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_GetUserByUserID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserByUserIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetUserByUserID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetUserByUserID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetUserByUserID(ctx, req.(*GetUserByUserIDRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -342,6 +378,10 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUserByAuthID",
 			Handler:    _UserService_GetUserByAuthID_Handler,
+		},
+		{
+			MethodName: "GetUserByUserID",
+			Handler:    _UserService_GetUserByUserID_Handler,
 		},
 		{
 			MethodName: "GetMyProfile",

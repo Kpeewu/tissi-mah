@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "trips-service.fullname" . }}
+  labels:
+    {{- include "trips-service.labels" . | nindent 4 }}
+data:
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  GRPC_PORT: {{ .Values.service.port | quote }}
+  USER_SERVICE_HOST: {{ .Values.config.userServiceHost | quote }}
+  USER_SERVICE_PORT: {{ .Values.config.userServicePort | quote }}
+  VEHICLE_SERVICE_HOST: {{ .Values.config.vehicleServiceHost | quote }}
+  VEHICLE_SERVICE_PORT: {{ .Values.config.vehicleServicePort | quote }}
+  {{- range $key, $value := .Values.config.extra }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}

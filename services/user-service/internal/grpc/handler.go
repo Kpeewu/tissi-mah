@@ -62,6 +62,20 @@ func (h *UserHandler) GetUserByAuthID(ctx context.Context, req *userpb.GetUserBy
 	return toProtoUserProfile(user), nil
 }
 
+// GetUserByUserID récupère le profil utilisateur par son UserID interne (appelé par trips-service)
+func (h *UserHandler) GetUserByUserID(ctx context.Context, req *userpb.GetUserByUserIDRequest) (*userpb.UserProfileResponse, error) {
+	h.logger.Debug("GetUserByUserID appelé", zap.String("user_id", req.UserID))
+
+	user, err := h.service.GetUserByUserID(ctx, req.UserID)
+	if err != nil {
+		h.logger.Error("GetUserByUserID échoué", zap.Error(err), zap.String("user_id", req.UserID))
+		return nil, toGRPCError(err)
+	}
+
+	h.logger.Debug("GetUserByUserID réussi", zap.String("user_id", req.UserID))
+	return toProtoUserProfile(user), nil
+}
+
 // --- Client-facing RPCs ---
 
 // GetMyProfile récupère le profil complet de l'utilisateur connecté

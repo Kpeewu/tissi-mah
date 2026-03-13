@@ -12,5 +12,6 @@ use (
 	./services/rating-service
 	./services/user-service
 	./services/vehicle-service
+	./services/trips-service
 // ./services/payment-service   # TODO: Uncomment when implemented
 )

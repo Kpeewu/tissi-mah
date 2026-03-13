@@ -82,6 +82,7 @@ func run(bootstrapLogger *zap.Logger) error {
 		RatingServiceAddr:  cfg.RatingService.Address(),
 		FileServiceAddr:    cfg.FileService.Address(),
 		VehicleServiceAddr: cfg.VehicleService.Address(),
+		TripsServiceAddr:   cfg.TripsService.Address(),
 		Logger:             logger,
 	})
 	if err != nil {
@@ -105,6 +106,7 @@ func run(bootstrapLogger *zap.Logger) error {
 		zap.String("rating-service", cfg.RatingService.Address()),
 		zap.String("file-service", cfg.FileService.Address()),
 		zap.String("vehicle-service", cfg.VehicleService.Address()),
+		zap.String("trips-service", cfg.TripsService.Address()),
 	)
 
 	return srv.Serve(ctx)

@@ -1,6 +1,6 @@
 .PHONY: help deps-up deps-down deps-logs deps-clean
 .PHONY: run-auth run-user run-gateway run-client run-file
-.PHONY: proto proto-auth proto-user proto-file proto-gateway proto-sync test test-all lint fmt
+.PHONY: proto proto-auth proto-user proto-file proto-trips proto-gateway proto-sync test test-all lint fmt
 .PHONY: install-deps update-deps sync-deps
 .PHONY: workspace-init workspace-sync workspace-tidy
 .PHONY: migrate migrate-status migrate-down db-backup db-restore
@@ -119,6 +119,10 @@ proto-file:
 	@echo "🔧 Génération proto file-service..."
 	@cd services/file-service && $(MAKE) proto
 
+proto-trips:
+	@echo "🔧 Génération proto trips-service..."
+	@cd services/trips-service && $(MAKE) proto
+
 proto-gateway:
 	@echo "🔧 Génération proto api-gateway (avec grpc-gateway)..."
 	@cd services/api-gateway && $(MAKE) proto
@@ -128,6 +132,8 @@ proto-sync:
 	@cp services/auth-service/proto/auth.proto services/api-gateway/proto/auth.proto
 	@cp services/user-service/proto/user.proto services/api-gateway/proto/user.proto
 	@cp services/file-service/proto/file.proto services/api-gateway/proto/file.proto
+	@cp services/trips-service/proto/trip.proto services/api-gateway/proto/trip.proto
+	@sed -i '' 's|option go_package = "github.com/Kpeewu/tissi-mah/services/trips-service/proto/gen;trip"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/trippb;trippb"|' services/api-gateway/proto/trip.proto
 	@echo "✅ Protos synchronisés — pensez à lancer make proto-gateway"
 
 # === TESTS ===

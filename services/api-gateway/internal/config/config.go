@@ -17,6 +17,7 @@ type Config struct {
 	RatingService  ServiceEndpoint
 	FileService    ServiceEndpoint
 	VehicleService ServiceEndpoint
+	TripsService   ServiceEndpoint
 	CORS          CORSConfig
 	RateLimit   RateLimitConfig
 	LogLevel    string
@@ -105,6 +106,10 @@ func Load() (*Config, error) {
 		VehicleService: ServiceEndpoint{
 			Host: sharedconfig.GetStringOrDefault(values, "VEHICLE_SERVICE_HOST", "0.0.0.0"),
 			Port: sharedconfig.GetStringOrDefault(values, "VEHICLE_SERVICE_PORT", "50055"),
+		},
+		TripsService: ServiceEndpoint{
+			Host: sharedconfig.GetStringOrDefault(values, "TRIPS_SERVICE_HOST", "0.0.0.0"),
+			Port: sharedconfig.GetStringOrDefault(values, "TRIPS_SERVICE_PORT", "50056"),
 		},
 		CORS: CORSConfig{
 			AllowedOrigins: sharedconfig.GetStringOrDefault(values, "CORS_ALLOWED_ORIGINS", "*"),

@@ -52,7 +52,8 @@ PROTO_OUT_AUTH="${PROTO_DIR}/gen/authpb"
 PROTO_OUT_USER="${PROTO_DIR}/gen/userpb"
 PROTO_OUT_RATING="${PROTO_DIR}/gen/ratingpb"
 PROTO_OUT_FILE="${PROTO_DIR}/gen/filepb"
-mkdir -p ${PROTO_OUT_AUTH} ${PROTO_OUT_USER} ${PROTO_OUT_RATING} ${PROTO_OUT_FILE}
+PROTO_OUT_TRIP="${PROTO_DIR}/gen/trippb"
+mkdir -p ${PROTO_OUT_AUTH} ${PROTO_OUT_USER} ${PROTO_OUT_RATING} ${PROTO_OUT_FILE} ${PROTO_OUT_TRIP}
 
 # Download google/api proto files if they don't exist
 if [ ! -f "${GOOGLE_API_DIR}/annotations.proto" ]; then
@@ -121,6 +122,19 @@ protoc \
   --grpc-gateway_opt=paths=source_relative \
   --grpc-gateway_opt=generate_unbound_methods=false \
   file.proto
+
+# Generate trip.proto (stubs + grpc-gateway reverse proxy)
+echo "Generating Go code from trip.proto..."
+protoc \
+  --proto_path=${PROTO_DIR} \
+  --go_out=${PROTO_OUT_TRIP} \
+  --go_opt=paths=source_relative \
+  --go-grpc_out=${PROTO_OUT_TRIP} \
+  --go-grpc_opt=paths=source_relative \
+  --grpc-gateway_out=${PROTO_OUT_TRIP} \
+  --grpc-gateway_opt=paths=source_relative \
+  --grpc-gateway_opt=generate_unbound_methods=false \
+  trip.proto
 
 # Check result
 if [ $? -eq 0 ]; then
