@@ -15,4 +15,7 @@ var (
 	ErrorFileTooLarge              = errors.New("ErrorFileTooLarge")
 	ErrorMissingDocumentReference  = errors.New("ErrorMissingDocumentReference")
 	ErrorMultipleDocumentReference = errors.New("ErrorMultipleDocumentReference")
+	ErrorInvalidReviewStatus       = errors.New("ErrorInvalidReviewStatus")
+	ErrorInvalidReviewType         = errors.New("ErrorInvalidReviewType")
+	ErrorInvalidReasonRejection    = errors.New("ErrorInvalidReasonRejection")
 )

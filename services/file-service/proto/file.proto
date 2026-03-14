@@ -249,13 +249,37 @@ message DeleteDocumentRequest {
 message CreateDocumentReviewRequest {
   string UserDocumentId = 1; // Optionnel (l'un des deux)
   string VehicleDocumentId = 2; // Optionnel (l'un des deux)
-  string Decision = 3; // approved, rejected, resubmission
-  string ReasonRejection = 4; // Optionnel
-  string RejectionDetails = 5; // Optionnel
-  string ReviewedBy = 6;
-  string ReviewedByType = 7; // manual, automatic
-  string Notes = 8; // Optionnel
-  bytes ExtractedData = 9; // Optionnel (JSON)
+
+  // Persona
+  string PersonaInquiryId = 3; // Optionnel
+  string PersonaTemplateId = 4; // Optionnel
+  string PersonaSessionToken = 5; // Optionnel
+  string SessionExpiresAt = 6; // Optionnel (ISO 8601)
+
+  // Webhook
+  string WebhookEventType = 7; // Optionnel
+  string WebhookReceivedAt = 8; // Optionnel (ISO 8601)
+  bytes PersonaRawPayload = 9; // Optionnel (JSON)
+
+  // Retry / versioning
+  int32 AttemptNumber = 10; // Défaut 1
+  string PreviousReviewId = 11; // Optionnel
+
+  // Décision
+  string Status = 12; // pending | inProgress | submitted | completed | expired | failed
+  string Decision = 13; // approved, rejected, resubmission
+  string ReasonRejection = 14; // Optionnel (enum)
+  string RejectionDetails = 15; // Optionnel
+
+  // Réviseur
+  string ReviewedBy = 16;
+  string ReviewType = 17; // manual, automatic
+
+  string Notes = 18; // Optionnel
+  bytes ExtractedData = 19; // Optionnel (JSON)
+
+  // Timestamps
+  string SubmittedAt = 20; // Optionnel (ISO 8601)
 }
 
 message GetDocumentReviewsRequest {
@@ -317,13 +341,39 @@ message DocumentReviewResponse {
   string ReviewId = 1;
   string UserDocumentId = 2;
   string VehicleDocumentId = 3;
-  string Decision = 4;
-  string ReasonRejection = 5;
-  string RejectionDetails = 6;
-  string ReviewedBy = 7;
-  string ReviewedByType = 8;
-  string ReviewedAt = 9;
-  string Notes = 10;
+
+  // Persona
+  string PersonaInquiryId = 4;
+  string PersonaTemplateId = 5;
+  string PersonaSessionToken = 6;
+  string SessionExpiresAt = 7; // ISO 8601
+
+  // Webhook
+  string WebhookEventType = 8;
+  string WebhookReceivedAt = 9; // ISO 8601
+  bytes PersonaRawPayload = 10; // JSON
+
+  // Retry / versioning
+  int32 AttemptNumber = 11;
+  string PreviousReviewId = 12;
+
+  // Décision
+  string Status = 13;
+  string Decision = 14;
+  string ReasonRejection = 15;
+  string RejectionDetails = 16;
+
+  // Réviseur
+  string ReviewedBy = 17;
+  string ReviewType = 18;
+  string ReviewedAt = 19; // ISO 8601
+
+  string Notes = 20;
+  bytes ExtractedData = 21; // JSON
+
+  // Timestamps
+  string SubmittedAt = 22; // ISO 8601
+  string UpdatedAt = 23; // ISO 8601
 }
 
 message GetDocumentReviewsResponse {

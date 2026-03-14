@@ -340,9 +340,23 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 		s.logger.Error("invalid review decision", zap.String("decision", input.Decision))
 		return nil, fileErrors.ErrorInvalidReviewDecision
 	}
-	if !domain.IsValidReviewerType(input.ReviewedByType) {
-		s.logger.Error("invalid reviewer type", zap.String("reviewedByType", input.ReviewedByType))
-		return nil, fileErrors.ErrorInternalServer
+	if !domain.IsValidReviewType(input.ReviewType) {
+		s.logger.Error("invalid review type", zap.String("reviewType", input.ReviewType))
+		return nil, fileErrors.ErrorInvalidReviewType
+	}
+
+	reviewStatus := input.Status
+	if reviewStatus == "" {
+		reviewStatus = "pending"
+	}
+	if !domain.IsValidReviewStatus(reviewStatus) {
+		s.logger.Error("invalid review status", zap.String("status", reviewStatus))
+		return nil, fileErrors.ErrorInvalidReviewStatus
+	}
+
+	if !domain.IsValidReasonRejection(input.ReasonRejection) {
+		s.logger.Error("invalid reason rejection", zap.String("reasonRejection", input.ReasonRejection))
+		return nil, fileErrors.ErrorInvalidReasonRejection
 	}
 
 	reviewID := uuid.New().String()
@@ -372,18 +386,83 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 		extractedData = input.ExtractedData
 	}
 
+	var personaRawPayload json.RawMessage
+	if len(input.PersonaRawPayload) > 0 {
+		personaRawPayload = input.PersonaRawPayload
+	}
+
+	var sessionExpiresAt *time.Time
+	if input.SessionExpiresAt != "" {
+		t, err := time.Parse(time.RFC3339, input.SessionExpiresAt)
+		if err != nil {
+			s.logger.Error("invalid session_expires_at format", zap.String("value", input.SessionExpiresAt), zap.Error(err))
+			return nil, fileErrors.ErrorInternalServer
+		}
+		sessionExpiresAt = &t
+	}
+
+	var webhookReceivedAt *time.Time
+	if input.WebhookReceivedAt != "" {
+		t, err := time.Parse(time.RFC3339, input.WebhookReceivedAt)
+		if err != nil {
+			s.logger.Error("invalid webhook_received_at format", zap.String("value", input.WebhookReceivedAt), zap.Error(err))
+			return nil, fileErrors.ErrorInternalServer
+		}
+		webhookReceivedAt = &t
+	}
+
+	var submittedAt *time.Time
+	if input.SubmittedAt != "" {
+		t, err := time.Parse(time.RFC3339, input.SubmittedAt)
+		if err != nil {
+			s.logger.Error("invalid submitted_at format", zap.String("value", input.SubmittedAt), zap.Error(err))
+			return nil, fileErrors.ErrorInternalServer
+		}
+		submittedAt = &t
+	}
+
+	var previousReviewID *string
+	if input.PreviousReviewID != "" {
+		previousReviewID = &input.PreviousReviewID
+	}
+
+	attemptNumber := int16(input.AttemptNumber)
+	if attemptNumber == 0 {
+		attemptNumber = 1
+	}
+
+	now := time.Now().UTC()
 	review := &domain.DocumentReview{
 		ReviewID:          reviewID,
 		UserDocumentID:    userDocID,
 		VehicleDocumentID: vehicleDocID,
-		Decision:          input.Decision,
-		ReasonRejection:   input.ReasonRejection,
-		RejectionDetails:  input.RejectionDetails,
-		ReviewedBy:        input.ReviewedBy,
-		ReviewedByType:    input.ReviewedByType,
-		ReviewedAt:        time.Now().UTC(),
-		Notes:             input.Notes,
-		ExtractedData:     extractedData,
+
+		PersonaInquiryID:    input.PersonaInquiryID,
+		PersonaTemplateID:   input.PersonaTemplateID,
+		PersonaSessionToken: input.PersonaSessionToken,
+		SessionExpiresAt:    sessionExpiresAt,
+
+		WebhookEventType:  input.WebhookEventType,
+		WebhookReceivedAt: webhookReceivedAt,
+		PersonaRawPayload: personaRawPayload,
+
+		AttemptNumber:    attemptNumber,
+		PreviousReviewID: previousReviewID,
+
+		Status:           reviewStatus,
+		Decision:         input.Decision,
+		ReasonRejection:  input.ReasonRejection,
+		RejectionDetails: input.RejectionDetails,
+
+		ReviewedBy: input.ReviewedBy,
+		ReviewType: input.ReviewType,
+		ReviewedAt: now,
+
+		Notes:         input.Notes,
+		ExtractedData: extractedData,
+
+		SubmittedAt: submittedAt,
+		UpdatedAt:   now,
 	}
 
 	_, err := s.reviewWrite.Create(ctx, review)
