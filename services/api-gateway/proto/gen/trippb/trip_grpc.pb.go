@@ -23,6 +23,9 @@ const (
 	TripService_CreateRecurringTrip_FullMethodName       = "/trip.TripService/CreateRecurringTrip"
 	TripService_GetTripsPreviews_FullMethodName          = "/trip.TripService/GetTripsPreviews"
 	TripService_GetCompletedTripsPreviews_FullMethodName = "/trip.TripService/GetCompletedTripsPreviews"
+	TripService_ChangeTripDateAndTime_FullMethodName     = "/trip.TripService/ChangeTripDateAndTime"
+	TripService_ChangeTripVehicle_FullMethodName         = "/trip.TripService/ChangeTripVehicle"
+	TripService_ChangeTripAllowances_FullMethodName      = "/trip.TripService/ChangeTripAllowances"
 	TripService_Health_FullMethodName                    = "/trip.TripService/Health"
 )
 
@@ -42,6 +45,16 @@ type TripServiceClient interface {
 	// GetCompletedTripsPreviews retourne la liste paginée des trajets complétés
 	// du conducteur.
 	GetCompletedTripsPreviews(ctx context.Context, in *GetCompletedTripsPreviewsRequest, opts ...grpc.CallOption) (*GetCompletedTripsPreviewsResponse, error)
+	// ChangeTripDateAndTime modifie la date et l'heure de départ d'un trajet planifié.
+	// Seuls les trajets avec le statut "scheduled" peuvent être modifiés.
+	ChangeTripDateAndTime(ctx context.Context, in *ChangeTripDateAndTimeRequest, opts ...grpc.CallOption) (*ChangeTripDateAndTimeResponse, error)
+	// ChangeTripVehicle modifie le véhicule associé à un trajet planifié.
+	// Seuls les trajets avec le statut "scheduled" peuvent être modifiés.
+	ChangeTripVehicle(ctx context.Context, in *ChangeTripVehicleRequest, opts ...grpc.CallOption) (*ChangeTripVehicleResponse, error)
+	// ChangeTripAllowances modifie les autorisations d'un trajet planifié.
+	// Seuls les trajets avec le statut "scheduled" peuvent être modifiés.
+	// Impossible moins de 24h avant le départ.
+	ChangeTripAllowances(ctx context.Context, in *ChangeTripAllowancesRequest, opts ...grpc.CallOption) (*ChangeTripAllowancesResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -94,6 +107,36 @@ func (c *tripServiceClient) GetCompletedTripsPreviews(ctx context.Context, in *G
 	return out, nil
 }
 
+func (c *tripServiceClient) ChangeTripDateAndTime(ctx context.Context, in *ChangeTripDateAndTimeRequest, opts ...grpc.CallOption) (*ChangeTripDateAndTimeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChangeTripDateAndTimeResponse)
+	err := c.cc.Invoke(ctx, TripService_ChangeTripDateAndTime_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tripServiceClient) ChangeTripVehicle(ctx context.Context, in *ChangeTripVehicleRequest, opts ...grpc.CallOption) (*ChangeTripVehicleResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChangeTripVehicleResponse)
+	err := c.cc.Invoke(ctx, TripService_ChangeTripVehicle_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tripServiceClient) ChangeTripAllowances(ctx context.Context, in *ChangeTripAllowancesRequest, opts ...grpc.CallOption) (*ChangeTripAllowancesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChangeTripAllowancesResponse)
+	err := c.cc.Invoke(ctx, TripService_ChangeTripAllowances_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *tripServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -120,6 +163,16 @@ type TripServiceServer interface {
 	// GetCompletedTripsPreviews retourne la liste paginée des trajets complétés
 	// du conducteur.
 	GetCompletedTripsPreviews(context.Context, *GetCompletedTripsPreviewsRequest) (*GetCompletedTripsPreviewsResponse, error)
+	// ChangeTripDateAndTime modifie la date et l'heure de départ d'un trajet planifié.
+	// Seuls les trajets avec le statut "scheduled" peuvent être modifiés.
+	ChangeTripDateAndTime(context.Context, *ChangeTripDateAndTimeRequest) (*ChangeTripDateAndTimeResponse, error)
+	// ChangeTripVehicle modifie le véhicule associé à un trajet planifié.
+	// Seuls les trajets avec le statut "scheduled" peuvent être modifiés.
+	ChangeTripVehicle(context.Context, *ChangeTripVehicleRequest) (*ChangeTripVehicleResponse, error)
+	// ChangeTripAllowances modifie les autorisations d'un trajet planifié.
+	// Seuls les trajets avec le statut "scheduled" peuvent être modifiés.
+	// Impossible moins de 24h avant le départ.
+	ChangeTripAllowances(context.Context, *ChangeTripAllowancesRequest) (*ChangeTripAllowancesResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedTripServiceServer()
@@ -143,6 +196,15 @@ func (UnimplementedTripServiceServer) GetTripsPreviews(context.Context, *GetTrip
 }
 func (UnimplementedTripServiceServer) GetCompletedTripsPreviews(context.Context, *GetCompletedTripsPreviewsRequest) (*GetCompletedTripsPreviewsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetCompletedTripsPreviews not implemented")
+}
+func (UnimplementedTripServiceServer) ChangeTripDateAndTime(context.Context, *ChangeTripDateAndTimeRequest) (*ChangeTripDateAndTimeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ChangeTripDateAndTime not implemented")
+}
+func (UnimplementedTripServiceServer) ChangeTripVehicle(context.Context, *ChangeTripVehicleRequest) (*ChangeTripVehicleResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ChangeTripVehicle not implemented")
+}
+func (UnimplementedTripServiceServer) ChangeTripAllowances(context.Context, *ChangeTripAllowancesRequest) (*ChangeTripAllowancesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ChangeTripAllowances not implemented")
 }
 func (UnimplementedTripServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -240,6 +302,60 @@ func _TripService_GetCompletedTripsPreviews_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TripService_ChangeTripDateAndTime_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangeTripDateAndTimeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).ChangeTripDateAndTime(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_ChangeTripDateAndTime_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).ChangeTripDateAndTime(ctx, req.(*ChangeTripDateAndTimeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TripService_ChangeTripVehicle_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangeTripVehicleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).ChangeTripVehicle(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_ChangeTripVehicle_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).ChangeTripVehicle(ctx, req.(*ChangeTripVehicleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TripService_ChangeTripAllowances_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangeTripAllowancesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).ChangeTripAllowances(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_ChangeTripAllowances_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).ChangeTripAllowances(ctx, req.(*ChangeTripAllowancesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _TripService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -280,6 +396,18 @@ var TripService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetCompletedTripsPreviews",
 			Handler:    _TripService_GetCompletedTripsPreviews_Handler,
+		},
+		{
+			MethodName: "ChangeTripDateAndTime",
+			Handler:    _TripService_ChangeTripDateAndTime_Handler,
+		},
+		{
+			MethodName: "ChangeTripVehicle",
+			Handler:    _TripService_ChangeTripVehicle_Handler,
+		},
+		{
+			MethodName: "ChangeTripAllowances",
+			Handler:    _TripService_ChangeTripAllowances_Handler,
 		},
 		{
 			MethodName: "Health",

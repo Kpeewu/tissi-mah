@@ -12,4 +12,7 @@ var (
 	ErrorInvalidWaypoints         = errors.New("ErrorInvalidWaypoints")
 	ErrorUnauthorized             = errors.New("ErrorUnauthorized")
 	ErrorDataRetrievalFailed      = errors.New("ErrorDataRetrievalFailed")
+	ErrorTripNotScheduled         = errors.New("ErrorTripNotScheduled")
+	ErrorVehicleNotFound          = errors.New("ErrorVehicleNotFound")
+	ErrorTripDepartureTooSoon     = errors.New("ErrorTripDepartureTooSoon")
 )

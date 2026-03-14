@@ -86,6 +86,108 @@ func (s *tripServiceImpl) CreateTrip(ctx context.Context, input *serviceInterfac
 	return trip, nil
 }
 
+// ChangeTripDateAndTime modifie la date/heure de départ d'un trajet planifié.
+func (s *tripServiceImpl) ChangeTripDateAndTime(ctx context.Context, input *serviceInterfaces.ChangeTripDateAndTimeInput) error {
+	s.logger.Debug("service: ChangeTripDateAndTime called",
+		zap.String("driverID", input.DriverID),
+		zap.String("tripID", input.TripID),
+	)
+
+	if input.DriverID == "" || input.TripID == "" || input.DepartureDatetime == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	newDatetime, err := time.Parse(time.RFC3339, input.DepartureDatetime)
+	if err != nil {
+		s.logger.Warn("invalid departure datetime", zap.String("value", input.DepartureDatetime))
+		return tripErrors.ErrorInvalidDatetime
+	}
+
+	if err := s.writeRepo.UpdateDepartureDatetime(ctx, input.TripID, input.DriverID, newDatetime); err != nil {
+		return err
+	}
+
+	// Invalidation du cache des previews pour ce conducteur
+	if s.cache != nil {
+		s.cache.InvalidateDriverPreviews(ctx, input.DriverID)
+	}
+
+	s.logger.Info("trip departure datetime updated",
+		zap.String("tripID", input.TripID),
+		zap.String("driverID", input.DriverID),
+	)
+	return nil
+}
+
+// ChangeTripVehicle modifie le véhicule associé à un trajet planifié.
+func (s *tripServiceImpl) ChangeTripVehicle(ctx context.Context, input *serviceInterfaces.ChangeTripVehicleInput) error {
+	s.logger.Debug("service: ChangeTripVehicle called",
+		zap.String("driverID", input.DriverID),
+		zap.String("tripID", input.TripID),
+		zap.String("vehicleID", input.VehicleID),
+	)
+
+	if input.DriverID == "" || input.TripID == "" || input.VehicleID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	// Vérification : le véhicule existe et appartient au conducteur
+	brand, _, err := s.vehicleClient.GetVehicleInfo(ctx, input.DriverID, input.VehicleID)
+	if err != nil {
+		s.logger.Error("vehicle-service check failed",
+			zap.Error(err),
+			zap.String("vehicleID", input.VehicleID),
+		)
+		return tripErrors.ErrorInternalServer
+	}
+	if brand == "" {
+		s.logger.Warn("vehicle not found or does not belong to driver",
+			zap.String("driverID", input.DriverID),
+			zap.String("vehicleID", input.VehicleID),
+		)
+		return tripErrors.ErrorVehicleNotFound
+	}
+
+	if err := s.writeRepo.UpdateVehicle(ctx, input.TripID, input.DriverID, input.VehicleID); err != nil {
+		return err
+	}
+
+	// Invalidation du cache des previews pour ce conducteur
+	if s.cache != nil {
+		s.cache.InvalidateDriverPreviews(ctx, input.DriverID)
+	}
+
+	s.logger.Info("trip vehicle updated",
+		zap.String("tripID", input.TripID),
+		zap.String("vehicleID", input.VehicleID),
+	)
+	return nil
+}
+
+// ChangeTripAllowances modifie les autorisations d'un trajet planifié.
+func (s *tripServiceImpl) ChangeTripAllowances(ctx context.Context, input *serviceInterfaces.ChangeTripAllowancesInput) error {
+	s.logger.Debug("service: ChangeTripAllowances called",
+		zap.String("driverID", input.DriverID),
+		zap.String("tripID", input.TripID),
+	)
+
+	if input.DriverID == "" || input.TripID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	if err := s.writeRepo.UpdateAllowances(ctx, input.TripID, input.DriverID,
+		input.AllowPets, input.AllowFood, input.AllowSmoking, input.AllowLuggages,
+	); err != nil {
+		return err
+	}
+
+	s.logger.Info("trip allowances updated",
+		zap.String("tripID", input.TripID),
+		zap.String("driverID", input.DriverID),
+	)
+	return nil
+}
+
 // validateInput vérifie les champs obligatoires et la cohérence des waypoints.
 func (s *tripServiceImpl) validateInput(input *serviceInterfaces.CreateTripInput) error {
 	if input.DriverID == "" || input.VehicleID == "" {

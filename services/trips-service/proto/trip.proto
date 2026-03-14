@@ -40,6 +40,34 @@ service TripService {
     };
   }
 
+  // ChangeTripDateAndTime modifie la date et l'heure de départ d'un trajet planifié.
+  // Seuls les trajets avec le statut "scheduled" peuvent être modifiés.
+  rpc ChangeTripDateAndTime(ChangeTripDateAndTimeRequest) returns (ChangeTripDateAndTimeResponse) {
+    option (google.api.http) = {
+      patch: "/trip/driver/changeTripDateAndTime"
+      body: "*"
+    };
+  }
+
+  // ChangeTripVehicle modifie le véhicule associé à un trajet planifié.
+  // Seuls les trajets avec le statut "scheduled" peuvent être modifiés.
+  rpc ChangeTripVehicle(ChangeTripVehicleRequest) returns (ChangeTripVehicleResponse) {
+    option (google.api.http) = {
+      patch: "/trip/driver/changeTripVehicle"
+      body: "*"
+    };
+  }
+
+  // ChangeTripAllowances modifie les autorisations d'un trajet planifié.
+  // Seuls les trajets avec le statut "scheduled" peuvent être modifiés.
+  // Impossible moins de 24h avant le départ.
+  rpc ChangeTripAllowances(ChangeTripAllowancesRequest) returns (ChangeTripAllowancesResponse) {
+    option (google.api.http) = {
+      patch: "/trip/driver/changeTripAllowances"
+      body: "*"
+    };
+  }
+
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -186,6 +214,54 @@ message CompletedTripPreview {
 message GetCompletedTripsPreviewsResponse {
   repeated CompletedTripPreview TripsPreviews = 1;
   string ErrorMessage                         = 2;
+}
+
+// =============================================================================
+// ChangeTripDateAndTime
+// =============================================================================
+
+message ChangeTripDateAndTimeRequest {
+  string DriverId            = 1;
+  string TripId              = 2;
+  string DepartureDatetime   = 3;  // RFC3339
+}
+
+message ChangeTripDateAndTimeResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// ChangeTripVehicle
+// =============================================================================
+
+message ChangeTripVehicleRequest {
+  string DriverId  = 1;
+  string TripId    = 2;
+  string VehicleId = 3;
+}
+
+message ChangeTripVehicleResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// ChangeTripAllowances
+// =============================================================================
+
+message ChangeTripAllowancesRequest {
+  string DriverId      = 1;
+  string TripId        = 2;
+  bool   AllowPets     = 3;
+  bool   AllowFood     = 4;
+  bool   AllowSmoking  = 5;
+  bool   AllowLuggage  = 6;
+}
+
+message ChangeTripAllowancesResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
 }
 
 // =============================================================================

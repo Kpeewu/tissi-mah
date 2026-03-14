@@ -190,6 +190,73 @@ func (h *TripHandler) GetCompletedTripsPreviews(ctx context.Context, req *trippb
 	return &trippb.GetCompletedTripsPreviewsResponse{TripsPreviews: pbPreviews}, nil
 }
 
+// ChangeTripDateAndTime modifie la date/heure de départ d'un trajet planifié.
+func (h *TripHandler) ChangeTripDateAndTime(ctx context.Context, req *trippb.ChangeTripDateAndTimeRequest) (*trippb.ChangeTripDateAndTimeResponse, error) {
+	h.logger.Debug("handler: ChangeTripDateAndTime called",
+		zap.String("driverID", req.DriverId),
+		zap.String("tripID", req.TripId),
+	)
+
+	err := h.service.ChangeTripDateAndTime(ctx, &serviceInterfaces.ChangeTripDateAndTimeInput{
+		DriverID:          req.DriverId,
+		TripID:            req.TripId,
+		DepartureDatetime: req.DepartureDatetime,
+	})
+	if err != nil {
+		h.logger.Error("handler: ChangeTripDateAndTime failed", zap.Error(err))
+		return &trippb.ChangeTripDateAndTimeResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: ChangeTripDateAndTime success", zap.String("tripID", req.TripId))
+	return &trippb.ChangeTripDateAndTimeResponse{Success: true}, nil
+}
+
+// ChangeTripVehicle modifie le véhicule associé à un trajet planifié.
+func (h *TripHandler) ChangeTripVehicle(ctx context.Context, req *trippb.ChangeTripVehicleRequest) (*trippb.ChangeTripVehicleResponse, error) {
+	h.logger.Debug("handler: ChangeTripVehicle called",
+		zap.String("driverID", req.DriverId),
+		zap.String("tripID", req.TripId),
+		zap.String("vehicleID", req.VehicleId),
+	)
+
+	err := h.service.ChangeTripVehicle(ctx, &serviceInterfaces.ChangeTripVehicleInput{
+		DriverID:  req.DriverId,
+		TripID:    req.TripId,
+		VehicleID: req.VehicleId,
+	})
+	if err != nil {
+		h.logger.Error("handler: ChangeTripVehicle failed", zap.Error(err))
+		return &trippb.ChangeTripVehicleResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: ChangeTripVehicle success", zap.String("tripID", req.TripId))
+	return &trippb.ChangeTripVehicleResponse{Success: true}, nil
+}
+
+// ChangeTripAllowances modifie les autorisations d'un trajet planifié.
+func (h *TripHandler) ChangeTripAllowances(ctx context.Context, req *trippb.ChangeTripAllowancesRequest) (*trippb.ChangeTripAllowancesResponse, error) {
+	h.logger.Debug("handler: ChangeTripAllowances called",
+		zap.String("driverID", req.DriverId),
+		zap.String("tripID", req.TripId),
+	)
+
+	err := h.service.ChangeTripAllowances(ctx, &serviceInterfaces.ChangeTripAllowancesInput{
+		DriverID:      req.DriverId,
+		TripID:        req.TripId,
+		AllowPets:     req.AllowPets,
+		AllowFood:     req.AllowFood,
+		AllowSmoking:  req.AllowSmoking,
+		AllowLuggages: req.AllowLuggage,
+	})
+	if err != nil {
+		h.logger.Error("handler: ChangeTripAllowances failed", zap.Error(err))
+		return &trippb.ChangeTripAllowancesResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: ChangeTripAllowances success", zap.String("tripID", req.TripId))
+	return &trippb.ChangeTripAllowancesResponse{Success: true}, nil
+}
+
 // Health retourne l'état de santé du service.
 func (h *TripHandler) Health(_ context.Context, _ *trippb.HealthRequest) (*trippb.HealthResponse, error) {
 	return &trippb.HealthResponse{
@@ -233,6 +300,12 @@ func toGRPCError(err error) error {
 		return status.Error(codes.PermissionDenied, err.Error())
 	case errors.Is(err, tripErrors.ErrorTripNotFound):
 		return status.Error(codes.NotFound, err.Error())
+	case errors.Is(err, tripErrors.ErrorTripNotScheduled):
+		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, tripErrors.ErrorVehicleNotFound):
+		return status.Error(codes.NotFound, err.Error())
+	case errors.Is(err, tripErrors.ErrorTripDepartureTooSoon):
+		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, tripErrors.ErrorDataRetrievalFailed),
 		errors.Is(err, tripErrors.ErrorInternalServer):
 		return status.Error(codes.Internal, err.Error())

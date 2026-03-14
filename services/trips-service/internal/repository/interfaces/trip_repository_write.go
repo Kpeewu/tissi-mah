@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
 )
@@ -17,4 +18,20 @@ type TripRepositoryWrite interface {
 	// puis génère les instances de trajet dans l'horizon [startDate, min(endDate, today+horizonDays)].
 	// Tout est atomique. Retourne le patternID en cas de succès.
 	CreateRecurringPattern(ctx context.Context, pattern *domain.RecurringPattern, patternWaypoints []*domain.PatternWaypoint) (string, error)
+
+	// UpdateDepartureDatetime met à jour la date/heure de départ d'un trajet planifié.
+	// Retourne ErrorTripNotFound si le trajet n'existe pas, ErrorUnauthorized si le conducteur
+	// n'est pas propriétaire du trajet, ErrorTripNotScheduled si le statut n'est pas "scheduled".
+	UpdateDepartureDatetime(ctx context.Context, tripID, driverID string, newDatetime time.Time) error
+
+	// UpdateVehicle met à jour le véhicule associé à un trajet planifié.
+	// Retourne ErrorTripNotFound si le trajet n'existe pas, ErrorUnauthorized si le conducteur
+	// n'est pas propriétaire du trajet, ErrorTripNotScheduled si le statut n'est pas "scheduled".
+	UpdateVehicle(ctx context.Context, tripID, driverID, vehicleID string) error
+
+	// UpdateAllowances met à jour les autorisations d'un trajet planifié.
+	// Retourne ErrorTripNotFound si le trajet n'existe pas, ErrorUnauthorized si le conducteur
+	// n'est pas propriétaire du trajet, ErrorTripNotScheduled si le statut n'est pas "scheduled",
+	// ErrorTripDepartureTooSoon si le départ est dans moins de 24h.
+	UpdateAllowances(ctx context.Context, tripID, driverID string, allowPets, allowFood, allowSmoking, allowLuggages bool) error
 }

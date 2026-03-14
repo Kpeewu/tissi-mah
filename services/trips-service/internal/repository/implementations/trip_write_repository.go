@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
 	i "github.com/Kpeewu/tissi-mah/services/trips-service/internal/repository/interfaces"
@@ -144,4 +145,147 @@ func (r *tripWriteRepositoryImpl) insertWaypoints(ctx context.Context, tx pgx.Tx
 	}
 
 	return nil
+}
+
+// UpdateDepartureDatetime met à jour la date/heure de départ d'un trajet planifié.
+// Si aucune ligne n'est mise à jour, une SELECT détermine la raison exacte.
+func (r *tripWriteRepositoryImpl) UpdateDepartureDatetime(ctx context.Context, tripID, driverID string, newDatetime time.Time) error {
+	r.logger.Debug("updating trip departure datetime",
+		zap.String("tripID", tripID),
+		zap.String("driverID", driverID),
+		zap.Time("newDatetime", newDatetime),
+	)
+
+	query := `
+		UPDATE trips
+		SET departure_datetime = $3, updated_at = NOW()
+		WHERE trip_id = $1 AND driver_id = $2 AND status = 'scheduled'`
+
+	tag, err := r.pool.Exec(ctx, query, tripID, driverID, newDatetime)
+	if err != nil {
+		r.logger.Error("update departure datetime failed", zap.Error(err), zap.String("tripID", tripID))
+		return fmt.Errorf("%w: %s", tripErrors.ErrorInternalServer, err.Error())
+	}
+
+	if tag.RowsAffected() == 1 {
+		r.logger.Info("trip departure datetime updated", zap.String("tripID", tripID))
+		return nil
+	}
+
+	// Aucune ligne mise à jour — déterminer pourquoi
+	var foundDriverID string
+	var foundStatus string
+	selectQuery := `SELECT driver_id, status FROM trips WHERE trip_id = $1`
+	err = r.pool.QueryRow(ctx, selectQuery, tripID).Scan(&foundDriverID, &foundStatus)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return tripErrors.ErrorTripNotFound
+		}
+		r.logger.Error("select trip for diagnosis failed", zap.Error(err), zap.String("tripID", tripID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	if foundDriverID != driverID {
+		return tripErrors.ErrorUnauthorized
+	}
+	return tripErrors.ErrorTripNotScheduled
+}
+
+// UpdateVehicle met à jour le véhicule associé à un trajet planifié.
+// Si aucune ligne n'est mise à jour, une SELECT détermine la raison exacte.
+func (r *tripWriteRepositoryImpl) UpdateVehicle(ctx context.Context, tripID, driverID, vehicleID string) error {
+	r.logger.Debug("updating trip vehicle",
+		zap.String("tripID", tripID),
+		zap.String("driverID", driverID),
+		zap.String("vehicleID", vehicleID),
+	)
+
+	query := `
+		UPDATE trips
+		SET vehicle_id = $3, updated_at = NOW()
+		WHERE trip_id = $1 AND driver_id = $2 AND status = 'scheduled'`
+
+	tag, err := r.pool.Exec(ctx, query, tripID, driverID, vehicleID)
+	if err != nil {
+		r.logger.Error("update vehicle failed", zap.Error(err), zap.String("tripID", tripID))
+		return fmt.Errorf("%w: %s", tripErrors.ErrorInternalServer, err.Error())
+	}
+
+	if tag.RowsAffected() == 1 {
+		r.logger.Info("trip vehicle updated", zap.String("tripID", tripID))
+		return nil
+	}
+
+	return r.diagnoseTripUpdateFailure(ctx, tripID, driverID)
+}
+
+// UpdateAllowances met à jour les autorisations d'un trajet planifié.
+// La contrainte 24h est vérifiée directement dans le WHERE pour atomicité.
+func (r *tripWriteRepositoryImpl) UpdateAllowances(ctx context.Context, tripID, driverID string, allowPets, allowFood, allowSmoking, allowLuggages bool) error {
+	r.logger.Debug("updating trip allowances",
+		zap.String("tripID", tripID),
+		zap.String("driverID", driverID),
+	)
+
+	query := `
+		UPDATE trips
+		SET allow_pets = $3, allow_food = $4, allow_smoking = $5, allow_luggages = $6, updated_at = NOW()
+		WHERE trip_id = $1
+		  AND driver_id = $2
+		  AND status = 'scheduled'
+		  AND departure_datetime > NOW() + INTERVAL '24 hours'`
+
+	tag, err := r.pool.Exec(ctx, query, tripID, driverID, allowPets, allowFood, allowSmoking, allowLuggages)
+	if err != nil {
+		r.logger.Error("update allowances failed", zap.Error(err), zap.String("tripID", tripID))
+		return fmt.Errorf("%w: %s", tripErrors.ErrorInternalServer, err.Error())
+	}
+
+	if tag.RowsAffected() == 1 {
+		r.logger.Info("trip allowances updated", zap.String("tripID", tripID))
+		return nil
+	}
+
+	// Pour UpdateAllowances, on a besoin de departure_datetime pour distinguer
+	// TripNotScheduled de TripDepartureTooSoon
+	var foundDriverID string
+	var foundStatus string
+	var departureDatetime time.Time
+	selectQuery := `SELECT driver_id, status, departure_datetime FROM trips WHERE trip_id = $1`
+	err = r.pool.QueryRow(ctx, selectQuery, tripID).Scan(&foundDriverID, &foundStatus, &departureDatetime)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return tripErrors.ErrorTripNotFound
+		}
+		r.logger.Error("select trip for diagnosis failed", zap.Error(err), zap.String("tripID", tripID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	if foundDriverID != driverID {
+		return tripErrors.ErrorUnauthorized
+	}
+	if foundStatus != string(domain.TripStatusScheduled) {
+		return tripErrors.ErrorTripNotScheduled
+	}
+	return tripErrors.ErrorTripDepartureTooSoon
+}
+
+// diagnoseTripUpdateFailure effectue un SELECT pour déterminer pourquoi un UPDATE a affecté 0 lignes.
+func (r *tripWriteRepositoryImpl) diagnoseTripUpdateFailure(ctx context.Context, tripID, driverID string) error {
+	var foundDriverID string
+	var foundStatus string
+	selectQuery := `SELECT driver_id, status FROM trips WHERE trip_id = $1`
+	err := r.pool.QueryRow(ctx, selectQuery, tripID).Scan(&foundDriverID, &foundStatus)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return tripErrors.ErrorTripNotFound
+		}
+		r.logger.Error("select trip for diagnosis failed", zap.Error(err), zap.String("tripID", tripID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	if foundDriverID != driverID {
+		return tripErrors.ErrorUnauthorized
+	}
+	return tripErrors.ErrorTripNotScheduled
 }

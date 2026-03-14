@@ -25,6 +25,20 @@ type TripService interface {
 	// GetCompletedTripsPreviews retourne la liste paginée des trajets complétés
 	// d'un conducteur, enrichie avec le nom du conducteur et les infos du véhicule.
 	GetCompletedTripsPreviews(ctx context.Context, input *GetTripsPreviewsInput) ([]*CompletedTripPreviewResult, error)
+
+	// ChangeTripDateAndTime modifie la date/heure de départ d'un trajet planifié.
+	// Seuls les trajets avec le statut "scheduled" peuvent être modifiés.
+	ChangeTripDateAndTime(ctx context.Context, input *ChangeTripDateAndTimeInput) error
+
+	// ChangeTripVehicle modifie le véhicule associé à un trajet planifié.
+	// Seuls les trajets avec le statut "scheduled" peuvent être modifiés.
+	// Vérifie que le véhicule appartient au conducteur via vehicle-service.
+	ChangeTripVehicle(ctx context.Context, input *ChangeTripVehicleInput) error
+
+	// ChangeTripAllowances modifie les autorisations d'un trajet planifié.
+	// Seuls les trajets avec le statut "scheduled" peuvent être modifiés,
+	// et uniquement plus de 24h avant le départ.
+	ChangeTripAllowances(ctx context.Context, input *ChangeTripAllowancesInput) error
 }
 
 // GetTripsPreviewsInput contient les paramètres de la requête de liste.
@@ -94,6 +108,33 @@ type CreateTripInput struct {
 	AutoApprove              bool
 	Description              string
 	Waypoints                []WaypointInput
+}
+
+// ChangeTripDateAndTimeInput contient les données nécessaires à la modification
+// de la date/heure de départ d'un trajet.
+type ChangeTripDateAndTimeInput struct {
+	DriverID          string
+	TripID            string
+	DepartureDatetime string // RFC3339
+}
+
+// ChangeTripVehicleInput contient les données nécessaires à la modification
+// du véhicule d'un trajet.
+type ChangeTripVehicleInput struct {
+	DriverID  string
+	TripID    string
+	VehicleID string
+}
+
+// ChangeTripAllowancesInput contient les données nécessaires à la modification
+// des autorisations d'un trajet.
+type ChangeTripAllowancesInput struct {
+	DriverID      string
+	TripID        string
+	AllowPets     bool
+	AllowFood     bool
+	AllowSmoking  bool
+	AllowLuggages bool
 }
 
 // CreateRecurringTripInput regroupe toutes les données nécessaires à la création
