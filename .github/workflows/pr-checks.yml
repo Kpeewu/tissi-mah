@@ -1,6 +1,8 @@
-name: PR Checks
+name: CI Checks
 
 on:
+  push:
+    branches: [develop, staging, main]
   pull_request:
     branches: [develop, staging, main]
     paths:
@@ -47,8 +49,11 @@ jobs:
         id: set-matrix
         run: |
           services=()
-          if [ "${{ steps.filter.outputs.pkg }}" == "true" ]; then
-            services+=("api-gateway" "auth-service" "user-service" "file-service" "trips-service")
+          # Sur un push direct, on relance tous les services
+          if [ "${{ github.event_name }}" == "push" ]; then
+            services=("api-gateway" "auth-service" "user-service" "file-service" "trips-service")
+          elif [ "${{ steps.filter.outputs.pkg }}" == "true" ]; then
+            services=("api-gateway" "auth-service" "user-service" "file-service" "trips-service")
           else
             if [ "${{ steps.filter.outputs.api-gateway }}" == "true" ]; then
               services+=("api-gateway")
@@ -88,7 +93,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version-file: "go.work"
           cache: true
           cache-dependency-path: services/${{ matrix.service }}/go.sum
 
@@ -127,7 +132,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version-file: "go.work"
           cache: true
           cache-dependency-path: services/${{ matrix.service }}/go.sum
 
@@ -164,7 +169,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version-file: "go.work"
 
       - name: Run Gosec
         uses: securego/gosec@master

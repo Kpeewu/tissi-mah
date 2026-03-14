@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS recurring_patterns (
     is_active               BOOLEAN             NOT NULL DEFAULT TRUE,
     created_at              TIMESTAMPTZ         NOT NULL DEFAULT NOW(),
     updated_at              TIMESTAMPTZ         NOT NULL DEFAULT NOW(),
+    deleted_at              TIMESTAMPTZ,
 
     CONSTRAINT ck_recurring_patterns_end_after_start
         CHECK (end_date >= start_date),
@@ -139,6 +140,7 @@ CREATE TABLE IF NOT EXISTS trips (
     description                 TEXT,
     created_at                  TIMESTAMPTZ         NOT NULL DEFAULT NOW(),
     updated_at                  TIMESTAMPTZ         NOT NULL DEFAULT NOW(),
+    deleted_at                  TIMESTAMPTZ,
 
     CONSTRAINT ck_trips_available_seats
         CHECK (available_seats >= 0 AND available_seats <= total_seats),
@@ -186,6 +188,11 @@ CREATE INDEX IF NOT EXISTS idx_trips_departure_datetime
 -- Recherche des trajets d'un driver par statut (dashboard conducteur)
 CREATE INDEX IF NOT EXISTS idx_trips_driver_status
     ON trips(driver_id, status, departure_datetime);
+
+-- Soft-delete : trajets non supprimés
+CREATE INDEX IF NOT EXISTS idx_trips_not_deleted
+    ON trips(deleted_at)
+    WHERE deleted_at IS NULL;
 
 CREATE TRIGGER update_trips_updated_at
     BEFORE UPDATE ON trips
