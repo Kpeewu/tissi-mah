@@ -326,6 +326,16 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 		zap.String("decision", input.Decision),
 	)
 
+	// Vérification : exactement un des deux document IDs doit être fourni
+	if input.UserDocumentID == "" && input.VehicleDocumentID == "" {
+		s.logger.Error("review must reference either a user document or a vehicle document")
+		return nil, fileErrors.ErrorMissingDocumentReference
+	}
+	if input.UserDocumentID != "" && input.VehicleDocumentID != "" {
+		s.logger.Error("review must reference only one document, not both")
+		return nil, fileErrors.ErrorMultipleDocumentReference
+	}
+
 	if !domain.IsValidReviewDecision(input.Decision) {
 		s.logger.Error("invalid review decision", zap.String("decision", input.Decision))
 		return nil, fileErrors.ErrorInvalidReviewDecision

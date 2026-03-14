@@ -12,5 +12,7 @@ var (
 	ErrorDataRetrievalFailed   = errors.New("ErrorDataRetrievalFailed")
 	ErrorReviewNotFound        = errors.New("ErrorReviewNotFound")
 	ErrorInvalidReviewDecision = errors.New("ErrorInvalidReviewDecision")
-	ErrorFileTooLarge          = errors.New("ErrorFileTooLarge")
+	ErrorFileTooLarge              = errors.New("ErrorFileTooLarge")
+	ErrorMissingDocumentReference  = errors.New("ErrorMissingDocumentReference")
+	ErrorMultipleDocumentReference = errors.New("ErrorMultipleDocumentReference")
 )
