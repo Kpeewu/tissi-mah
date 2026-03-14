@@ -319,6 +319,46 @@ func (h *TripHandler) EndTrip(ctx context.Context, req *trippb.EndTripRequest) (
 	return &trippb.EndTripResponse{Success: true}, nil
 }
 
+// ConfirmWaypointDeparture enregistre le départ du conducteur d'un waypoint de type "stop".
+func (h *TripHandler) ConfirmWaypointDeparture(ctx context.Context, req *trippb.ConfirmWaypointDepartureRequest) (*trippb.ConfirmWaypointDepartureResponse, error) {
+	h.logger.Debug("handler: ConfirmWaypointDeparture called",
+		zap.String("driverID", req.DriverId),
+		zap.String("waypointID", req.WaypointId),
+	)
+
+	err := h.service.ConfirmWaypointDeparture(ctx, &serviceInterfaces.ConfirmWaypointDepartureInput{
+		DriverID:   req.DriverId,
+		WaypointID: req.WaypointId,
+	})
+	if err != nil {
+		h.logger.Error("handler: ConfirmWaypointDeparture failed", zap.Error(err))
+		return &trippb.ConfirmWaypointDepartureResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: ConfirmWaypointDeparture success", zap.String("waypointID", req.WaypointId))
+	return &trippb.ConfirmWaypointDepartureResponse{Success: true}, nil
+}
+
+// ConfirmWaypointArrival enregistre l'arrivée du conducteur à un waypoint de type "stop".
+func (h *TripHandler) ConfirmWaypointArrival(ctx context.Context, req *trippb.ConfirmWaypointArrivalRequest) (*trippb.ConfirmWaypointArrivalResponse, error) {
+	h.logger.Debug("handler: ConfirmWaypointArrival called",
+		zap.String("driverID", req.DriverId),
+		zap.String("waypointID", req.WaypointId),
+	)
+
+	err := h.service.ConfirmWaypointArrival(ctx, &serviceInterfaces.ConfirmWaypointArrivalInput{
+		DriverID:   req.DriverId,
+		WaypointID: req.WaypointId,
+	})
+	if err != nil {
+		h.logger.Error("handler: ConfirmWaypointArrival failed", zap.Error(err))
+		return &trippb.ConfirmWaypointArrivalResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: ConfirmWaypointArrival success", zap.String("waypointID", req.WaypointId))
+	return &trippb.ConfirmWaypointArrivalResponse{Success: true}, nil
+}
+
 // Health retourne l'état de santé du service.
 func (h *TripHandler) Health(_ context.Context, _ *trippb.HealthRequest) (*trippb.HealthResponse, error) {
 	return &trippb.HealthResponse{
@@ -373,6 +413,15 @@ func toGRPCError(err error) error {
 	case errors.Is(err, tripErrors.ErrorDriverAlreadyHasActiveTrip):
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, tripErrors.ErrorTripNotInProgress):
+		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, tripErrors.ErrorWaypointNotFound):
+		return status.Error(codes.NotFound, err.Error())
+	case errors.Is(err, tripErrors.ErrorWaypointNotAStop),
+		errors.Is(err, tripErrors.ErrorWaypointAlreadyArrived),
+		errors.Is(err, tripErrors.ErrorAnotherStopAlreadyActive),
+		errors.Is(err, tripErrors.ErrorPreviousWaypointNotConfirmed),
+		errors.Is(err, tripErrors.ErrorWaypointNotArrived),
+		errors.Is(err, tripErrors.ErrorWaypointAlreadyDeparted):
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, tripErrors.ErrorDataRetrievalFailed),
 		errors.Is(err, tripErrors.ErrorInternalServer):

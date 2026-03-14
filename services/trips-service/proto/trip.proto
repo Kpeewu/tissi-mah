@@ -94,6 +94,22 @@ service TripService {
     };
   }
 
+  // ConfirmWaypointArrival enregistre l'arrivée du conducteur à un waypoint de type "stop".
+  rpc ConfirmWaypointArrival(ConfirmWaypointArrivalRequest) returns (ConfirmWaypointArrivalResponse) {
+    option (google.api.http) = {
+      patch: "/trip/driver/confirmWaypointArrival"
+      body: "*"
+    };
+  }
+
+  // ConfirmWaypointDeparture enregistre le départ du conducteur d'un waypoint de type "stop".
+  rpc ConfirmWaypointDeparture(ConfirmWaypointDepartureRequest) returns (ConfirmWaypointDepartureResponse) {
+    option (google.api.http) = {
+      patch: "/trip/driver/confirmWaypointDeparture"
+      body: "*"
+    };
+  }
+
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -329,6 +345,34 @@ message EndTripRequest {
 }
 
 message EndTripResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// ConfirmWaypointArrival
+// =============================================================================
+
+message ConfirmWaypointArrivalRequest {
+  string DriverId   = 1;
+  string WaypointId = 2;
+}
+
+message ConfirmWaypointArrivalResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// ConfirmWaypointDeparture
+// =============================================================================
+
+message ConfirmWaypointDepartureRequest {
+  string DriverId   = 1;
+  string WaypointId = 2;
+}
+
+message ConfirmWaypointDepartureResponse {
   bool   Success      = 1;
   string ErrorMessage = 2;
 }

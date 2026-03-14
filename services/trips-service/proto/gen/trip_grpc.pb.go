@@ -29,6 +29,8 @@ const (
 	TripService_ChangeAutoApprove_FullMethodName         = "/trip.TripService/ChangeAutoApprove"
 	TripService_StartTrip_FullMethodName                 = "/trip.TripService/StartTrip"
 	TripService_EndTrip_FullMethodName                   = "/trip.TripService/EndTrip"
+	TripService_ConfirmWaypointArrival_FullMethodName    = "/trip.TripService/ConfirmWaypointArrival"
+	TripService_ConfirmWaypointDeparture_FullMethodName  = "/trip.TripService/ConfirmWaypointDeparture"
 	TripService_Health_FullMethodName                    = "/trip.TripService/Health"
 )
 
@@ -66,6 +68,10 @@ type TripServiceClient interface {
 	StartTrip(ctx context.Context, in *StartTripRequest, opts ...grpc.CallOption) (*StartTripResponse, error)
 	// EndTrip termine un trajet en cours et passe son statut à "completed".
 	EndTrip(ctx context.Context, in *EndTripRequest, opts ...grpc.CallOption) (*EndTripResponse, error)
+	// ConfirmWaypointArrival enregistre l'arrivée du conducteur à un waypoint de type "stop".
+	ConfirmWaypointArrival(ctx context.Context, in *ConfirmWaypointArrivalRequest, opts ...grpc.CallOption) (*ConfirmWaypointArrivalResponse, error)
+	// ConfirmWaypointDeparture enregistre le départ du conducteur d'un waypoint de type "stop".
+	ConfirmWaypointDeparture(ctx context.Context, in *ConfirmWaypointDepartureRequest, opts ...grpc.CallOption) (*ConfirmWaypointDepartureResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -178,6 +184,26 @@ func (c *tripServiceClient) EndTrip(ctx context.Context, in *EndTripRequest, opt
 	return out, nil
 }
 
+func (c *tripServiceClient) ConfirmWaypointArrival(ctx context.Context, in *ConfirmWaypointArrivalRequest, opts ...grpc.CallOption) (*ConfirmWaypointArrivalResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfirmWaypointArrivalResponse)
+	err := c.cc.Invoke(ctx, TripService_ConfirmWaypointArrival_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tripServiceClient) ConfirmWaypointDeparture(ctx context.Context, in *ConfirmWaypointDepartureRequest, opts ...grpc.CallOption) (*ConfirmWaypointDepartureResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfirmWaypointDepartureResponse)
+	err := c.cc.Invoke(ctx, TripService_ConfirmWaypointDeparture_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *tripServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -222,6 +248,10 @@ type TripServiceServer interface {
 	StartTrip(context.Context, *StartTripRequest) (*StartTripResponse, error)
 	// EndTrip termine un trajet en cours et passe son statut à "completed".
 	EndTrip(context.Context, *EndTripRequest) (*EndTripResponse, error)
+	// ConfirmWaypointArrival enregistre l'arrivée du conducteur à un waypoint de type "stop".
+	ConfirmWaypointArrival(context.Context, *ConfirmWaypointArrivalRequest) (*ConfirmWaypointArrivalResponse, error)
+	// ConfirmWaypointDeparture enregistre le départ du conducteur d'un waypoint de type "stop".
+	ConfirmWaypointDeparture(context.Context, *ConfirmWaypointDepartureRequest) (*ConfirmWaypointDepartureResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedTripServiceServer()
@@ -263,6 +293,12 @@ func (UnimplementedTripServiceServer) StartTrip(context.Context, *StartTripReque
 }
 func (UnimplementedTripServiceServer) EndTrip(context.Context, *EndTripRequest) (*EndTripResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method EndTrip not implemented")
+}
+func (UnimplementedTripServiceServer) ConfirmWaypointArrival(context.Context, *ConfirmWaypointArrivalRequest) (*ConfirmWaypointArrivalResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConfirmWaypointArrival not implemented")
+}
+func (UnimplementedTripServiceServer) ConfirmWaypointDeparture(context.Context, *ConfirmWaypointDepartureRequest) (*ConfirmWaypointDepartureResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConfirmWaypointDeparture not implemented")
 }
 func (UnimplementedTripServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -468,6 +504,42 @@ func _TripService_EndTrip_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TripService_ConfirmWaypointArrival_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfirmWaypointArrivalRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).ConfirmWaypointArrival(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_ConfirmWaypointArrival_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).ConfirmWaypointArrival(ctx, req.(*ConfirmWaypointArrivalRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TripService_ConfirmWaypointDeparture_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfirmWaypointDepartureRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).ConfirmWaypointDeparture(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_ConfirmWaypointDeparture_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).ConfirmWaypointDeparture(ctx, req.(*ConfirmWaypointDepartureRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _TripService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -532,6 +604,14 @@ var TripService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "EndTrip",
 			Handler:    _TripService_EndTrip_Handler,
+		},
+		{
+			MethodName: "ConfirmWaypointArrival",
+			Handler:    _TripService_ConfirmWaypointArrival_Handler,
+		},
+		{
+			MethodName: "ConfirmWaypointDeparture",
+			Handler:    _TripService_ConfirmWaypointDeparture_Handler,
 		},
 		{
 			MethodName: "Health",

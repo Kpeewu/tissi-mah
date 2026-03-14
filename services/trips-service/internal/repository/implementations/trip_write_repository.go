@@ -347,10 +347,10 @@ func (r *tripWriteRepositoryImpl) StartTrip(ctx context.Context, tripID, driverI
 		return r.diagnoseTripUpdateFailure(ctx, tripID, driverID)
 	}
 
-	// Met à jour l'heure réelle sur le waypoint de départ
+	// Met à jour l'heure réelle et les minutes réelles sur le waypoint de départ
 	_, err = tx.Exec(ctx,
 		`UPDATE trips_waypoints
-		 SET actual_scheduled_pickup_datetime = NOW(), updated_at = NOW()
+		 SET actual_scheduled_pickup_datetime = NOW(), minutes_from_departure = 0, updated_at = NOW()
 		 WHERE trip_id = $1 AND waypoint_type = 'departure'::waypoint_type`,
 		tripID,
 	)
@@ -402,10 +402,10 @@ func (r *tripWriteRepositoryImpl) EndTrip(ctx context.Context, tripID, driverID 
 		return r.diagnoseEndTripFailure(ctx, tripID, driverID)
 	}
 
-	// Met à jour l'heure réelle sur le waypoint d'arrivée
+	// Met à jour l'heure réelle d'arrivée sur le waypoint d'arrivée
 	_, err = tx.Exec(ctx,
 		`UPDATE trips_waypoints
-		 SET actual_scheduled_pickup_datetime = NOW(), updated_at = NOW()
+		 SET actual_arrival_datetime = NOW(), updated_at = NOW()
 		 WHERE trip_id = $1 AND waypoint_type = 'arrival'::waypoint_type`,
 		tripID,
 	)
@@ -420,6 +420,190 @@ func (r *tripWriteRepositoryImpl) EndTrip(ctx context.Context, tripID, driverID 
 	}
 
 	r.logger.Info("trip ended", zap.String("tripID", tripID))
+	return nil
+}
+
+// ConfirmWaypointArrival enregistre l'arrivée du conducteur à un stop dans une transaction atomique.
+func (r *tripWriteRepositoryImpl) ConfirmWaypointArrival(ctx context.Context, waypointID, driverID string) error {
+	r.logger.Debug("confirming waypoint arrival",
+		zap.String("waypointID", waypointID),
+		zap.String("driverID", driverID),
+	)
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		r.logger.Error("begin transaction failed", zap.Error(err))
+		return tripErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// Récupère le waypoint, le trip associé (driver_id, status) et l'ordre du waypoint
+	var tripID string
+	var waypointType string
+	var sequencerOrder int16
+	var actualArrivalDatetime *time.Time
+	var tripDriverID string
+	var tripStatus string
+	err = tx.QueryRow(ctx, `
+		SELECT w.trip_id, w.waypoint_type, w.sequencer_order, w.actual_arrival_datetime,
+		       t.driver_id, t.status
+		FROM trips_waypoints w
+		JOIN trips t ON t.trip_id = w.trip_id
+		WHERE w.waypoint_id = $1`,
+		waypointID,
+	).Scan(&tripID, &waypointType, &sequencerOrder, &actualArrivalDatetime, &tripDriverID, &tripStatus)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return tripErrors.ErrorWaypointNotFound
+		}
+		r.logger.Error("select waypoint+trip failed", zap.Error(err), zap.String("waypointID", waypointID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	if tripDriverID != driverID {
+		return tripErrors.ErrorUnauthorized
+	}
+	if tripStatus != "inProgress" {
+		return tripErrors.ErrorTripNotInProgress
+	}
+	if waypointType != "stop" {
+		return tripErrors.ErrorWaypointNotAStop
+	}
+	if actualArrivalDatetime != nil {
+		return tripErrors.ErrorWaypointAlreadyArrived
+	}
+
+	// Vérifie qu'aucun autre stop de ce trajet n'est arrivé sans être encore parti
+	var activeStops int
+	err = tx.QueryRow(ctx, `
+		SELECT COUNT(*) FROM trips_waypoints
+		WHERE trip_id = $1
+		  AND waypoint_type = 'stop'::waypoint_type
+		  AND waypoint_id != $2
+		  AND actual_arrival_datetime IS NOT NULL
+		  AND actual_scheduled_pickup_datetime IS NULL`,
+		tripID, waypointID,
+	).Scan(&activeStops)
+	if err != nil {
+		r.logger.Error("check active stops failed", zap.Error(err), zap.String("tripID", tripID))
+		return tripErrors.ErrorInternalServer
+	}
+	if activeStops > 0 {
+		return tripErrors.ErrorAnotherStopAlreadyActive
+	}
+
+	// Vérifie que le waypoint précédent (sequencer_order - 1) a été confirmé
+	// (actual_scheduled_pickup_datetime IS NOT NULL)
+	var prevConfirmed bool
+	err = tx.QueryRow(ctx, `
+		SELECT COUNT(*) > 0 FROM trips_waypoints
+		WHERE trip_id = $1
+		  AND sequencer_order = $2
+		  AND actual_scheduled_pickup_datetime IS NOT NULL`,
+		tripID, sequencerOrder-1,
+	).Scan(&prevConfirmed)
+	if err != nil {
+		r.logger.Error("check previous waypoint failed", zap.Error(err), zap.String("tripID", tripID))
+		return tripErrors.ErrorInternalServer
+	}
+	if !prevConfirmed {
+		return tripErrors.ErrorPreviousWaypointNotConfirmed
+	}
+
+	// Enregistre l'arrivée
+	_, err = tx.Exec(ctx, `
+		UPDATE trips_waypoints
+		SET actual_arrival_datetime = NOW(), updated_at = NOW()
+		WHERE waypoint_id = $1`,
+		waypointID,
+	)
+	if err != nil {
+		r.logger.Error("update waypoint arrival failed", zap.Error(err), zap.String("waypointID", waypointID))
+		return fmt.Errorf("%w: %s", tripErrors.ErrorInternalServer, err.Error())
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		r.logger.Error("commit transaction failed", zap.Error(err), zap.String("waypointID", waypointID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	r.logger.Info("waypoint arrival confirmed", zap.String("waypointID", waypointID), zap.String("tripID", tripID))
+	return nil
+}
+
+// ConfirmWaypointDeparture enregistre le départ du conducteur d'un stop dans une transaction atomique.
+func (r *tripWriteRepositoryImpl) ConfirmWaypointDeparture(ctx context.Context, waypointID, driverID string) error {
+	r.logger.Debug("confirming waypoint departure",
+		zap.String("waypointID", waypointID),
+		zap.String("driverID", driverID),
+	)
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		r.logger.Error("begin transaction failed", zap.Error(err))
+		return tripErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var tripID string
+	var waypointType string
+	var actualArrivalDatetime *time.Time
+	var actualDepartureDatetime *time.Time
+	var tripDriverID string
+	var tripStatus string
+	err = tx.QueryRow(ctx, `
+		SELECT w.trip_id, w.waypoint_type, w.actual_arrival_datetime, w.actual_scheduled_pickup_datetime,
+		       t.driver_id, t.status
+		FROM trips_waypoints w
+		JOIN trips t ON t.trip_id = w.trip_id
+		WHERE w.waypoint_id = $1`,
+		waypointID,
+	).Scan(&tripID, &waypointType, &actualArrivalDatetime, &actualDepartureDatetime, &tripDriverID, &tripStatus)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return tripErrors.ErrorWaypointNotFound
+		}
+		r.logger.Error("select waypoint+trip failed", zap.Error(err), zap.String("waypointID", waypointID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	if tripDriverID != driverID {
+		return tripErrors.ErrorUnauthorized
+	}
+	if tripStatus != "inProgress" {
+		return tripErrors.ErrorTripNotInProgress
+	}
+	if waypointType != "stop" {
+		return tripErrors.ErrorWaypointNotAStop
+	}
+	if actualArrivalDatetime == nil {
+		return tripErrors.ErrorWaypointNotArrived
+	}
+	if actualDepartureDatetime != nil {
+		return tripErrors.ErrorWaypointAlreadyDeparted
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE trips_waypoints tw
+		SET actual_scheduled_pickup_datetime = NOW(),
+		    minutes_from_departure = GREATEST(0, (EXTRACT(EPOCH FROM (NOW() - t.actual_departure_datetime)) / 60)::INTEGER),
+		    updated_at = NOW()
+		FROM trips t
+		WHERE tw.waypoint_id = $1
+		  AND t.trip_id = $2`,
+		waypointID, tripID,
+	)
+	if err != nil {
+		r.logger.Error("update waypoint departure failed", zap.Error(err), zap.String("waypointID", waypointID))
+		return fmt.Errorf("%w: %s", tripErrors.ErrorInternalServer, err.Error())
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		r.logger.Error("commit transaction failed", zap.Error(err), zap.String("waypointID", waypointID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	r.logger.Info("waypoint departure confirmed", zap.String("waypointID", waypointID), zap.String("tripID", tripID))
 	return nil
 }
 

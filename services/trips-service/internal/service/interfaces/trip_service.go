@@ -52,6 +52,12 @@ type TripService interface {
 	// EndTrip termine un trajet en cours. Passe le statut à "completed" et renseigne
 	// l'heure réelle d'arrivée sur le trajet et le waypoint d'arrivée.
 	EndTrip(ctx context.Context, input *EndTripInput) error
+
+	// ConfirmWaypointArrival enregistre l'arrivée du conducteur à un waypoint de type "stop".
+	ConfirmWaypointArrival(ctx context.Context, input *ConfirmWaypointArrivalInput) error
+
+	// ConfirmWaypointDeparture enregistre le départ du conducteur d'un waypoint de type "stop".
+	ConfirmWaypointDeparture(ctx context.Context, input *ConfirmWaypointDepartureInput) error
 }
 
 // GetTripsPreviewsInput contient les paramètres de la requête de liste.
@@ -168,6 +174,20 @@ type StartTripInput struct {
 type EndTripInput struct {
 	DriverID string
 	TripID   string
+}
+
+// ConfirmWaypointArrivalInput contient les données nécessaires à la confirmation
+// de l'arrivée du conducteur à un waypoint de type "stop".
+type ConfirmWaypointArrivalInput struct {
+	DriverID   string
+	WaypointID string
+}
+
+// ConfirmWaypointDepartureInput contient les données nécessaires à la confirmation
+// du départ du conducteur d'un waypoint de type "stop".
+type ConfirmWaypointDepartureInput struct {
+	DriverID   string
+	WaypointID string
 }
 
 // CreateRecurringTripInput regroupe toutes les données nécessaires à la création

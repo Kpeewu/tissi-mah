@@ -278,6 +278,50 @@ func (s *tripServiceImpl) EndTrip(ctx context.Context, input *serviceInterfaces.
 	return nil
 }
 
+// ConfirmWaypointDeparture enregistre le départ du conducteur d'un stop.
+func (s *tripServiceImpl) ConfirmWaypointDeparture(ctx context.Context, input *serviceInterfaces.ConfirmWaypointDepartureInput) error {
+	s.logger.Debug("service: ConfirmWaypointDeparture called",
+		zap.String("driverID", input.DriverID),
+		zap.String("waypointID", input.WaypointID),
+	)
+
+	if input.DriverID == "" || input.WaypointID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	if err := s.writeRepo.ConfirmWaypointDeparture(ctx, input.WaypointID, input.DriverID); err != nil {
+		return err
+	}
+
+	s.logger.Info("waypoint departure confirmed",
+		zap.String("waypointID", input.WaypointID),
+		zap.String("driverID", input.DriverID),
+	)
+	return nil
+}
+
+// ConfirmWaypointArrival enregistre l'arrivée du conducteur à un stop.
+func (s *tripServiceImpl) ConfirmWaypointArrival(ctx context.Context, input *serviceInterfaces.ConfirmWaypointArrivalInput) error {
+	s.logger.Debug("service: ConfirmWaypointArrival called",
+		zap.String("driverID", input.DriverID),
+		zap.String("waypointID", input.WaypointID),
+	)
+
+	if input.DriverID == "" || input.WaypointID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	if err := s.writeRepo.ConfirmWaypointArrival(ctx, input.WaypointID, input.DriverID); err != nil {
+		return err
+	}
+
+	s.logger.Info("waypoint arrival confirmed",
+		zap.String("waypointID", input.WaypointID),
+		zap.String("driverID", input.DriverID),
+	)
+	return nil
+}
+
 // validateInput vérifie les champs obligatoires et la cohérence des waypoints.
 func (s *tripServiceImpl) validateInput(input *serviceInterfaces.CreateTripInput) error {
 	if input.DriverID == "" || input.VehicleID == "" {

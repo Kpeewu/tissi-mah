@@ -23,6 +23,7 @@ type Waypoint struct {
 	City                          string
 	Country                       string
 	ScheduledPickupDatetime       *time.Time
+	ActualArrivalDatetime         *time.Time
 	ActualScheduledPickupDatetime *time.Time
 	MinutesFromDeparture          int
 	PriceFromPrevious             int

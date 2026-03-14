@@ -55,4 +55,19 @@ type TripRepositoryWrite interface {
 	// Retourne ErrorTripNotFound si le trajet n'existe pas, ErrorUnauthorized si le conducteur
 	// n'est pas propriétaire du trajet, ErrorTripNotInProgress si le statut n'est pas "inProgress".
 	EndTrip(ctx context.Context, tripID, driverID string) error
+
+	// ConfirmWaypointArrival enregistre l'arrivée du conducteur à un waypoint de type "stop".
+	// Vérifie que le trip est inProgress, que le conducteur en est propriétaire, que le waypoint
+	// est bien un "stop", qu'aucun autre stop n'est déjà actif (arrivé mais non parti), et que
+	// le waypoint précédent dans l'ordre a bien été confirmé.
+	// Retourne ErrorWaypointNotFound, ErrorUnauthorized, ErrorTripNotInProgress,
+	// ErrorWaypointNotAStop, ErrorWaypointAlreadyArrived, ErrorAnotherStopAlreadyActive,
+	// ErrorPreviousWaypointNotConfirmed selon le cas.
+	ConfirmWaypointArrival(ctx context.Context, waypointID, driverID string) error
+
+	// ConfirmWaypointDeparture enregistre le départ du conducteur d'un waypoint de type "stop".
+	// L'arrivée doit avoir été confirmée au préalable (actual_arrival_datetime IS NOT NULL).
+	// Retourne ErrorWaypointNotFound, ErrorUnauthorized, ErrorTripNotInProgress,
+	// ErrorWaypointNotAStop, ErrorWaypointNotArrived, ErrorWaypointAlreadyDeparted selon le cas.
+	ConfirmWaypointDeparture(ctx context.Context, waypointID, driverID string) error
 }
