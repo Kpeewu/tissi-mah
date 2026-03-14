@@ -88,13 +88,37 @@ type UploadIdDocumentInput struct {
 type CreateReviewInput struct {
 	UserDocumentID    string
 	VehicleDocumentID string
-	Decision          string
-	ReasonRejection   string
-	RejectionDetails  string
-	ReviewedBy        string
-	ReviewedByType    string
-	Notes             string
-	ExtractedData     []byte
+
+	// Persona
+	PersonaInquiryID    string
+	PersonaTemplateID   string
+	PersonaSessionToken string
+	SessionExpiresAt    string // ISO 8601
+
+	// Webhook
+	WebhookEventType  string
+	WebhookReceivedAt string // ISO 8601
+	PersonaRawPayload []byte // JSON
+
+	// Retry / versioning
+	AttemptNumber    int32
+	PreviousReviewID string
+
+	// Décision
+	Status           string
+	Decision         string
+	ReasonRejection  string
+	RejectionDetails string
+
+	// Réviseur
+	ReviewedBy string
+	ReviewType string
+
+	Notes         string
+	ExtractedData []byte // JSON
+
+	// Timestamps
+	SubmittedAt string // ISO 8601
 }
 
 type FileService interface {
