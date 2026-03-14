@@ -8,17 +8,21 @@ go 1.25.5
 
 replace github.com/Kpeewu/tissi-mah/pkg => ../../pkg
 
+replace github.com/Kpeewu/tissi-mah/pkg-test => ../../pkg-test
+
 replace github.com/Kpeewu/tissi-mah/services/user-service => ../user-service
 
 replace github.com/Kpeewu/tissi-mah/services/vehicle-service => ../vehicle-service
 
 require (
 	github.com/Kpeewu/tissi-mah/pkg v0.0.0-00010101000000-000000000000
+	github.com/Kpeewu/tissi-mah/pkg-test v0.0.0-00010101000000-000000000000
 	github.com/Kpeewu/tissi-mah/services/user-service v0.0.0-00010101000000-000000000000
 	github.com/Kpeewu/tissi-mah/services/vehicle-service v0.0.0-00010101000000-000000000000
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/redis/go-redis/v9 v9.17.2
+	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.1
 	google.golang.org/genproto/googleapis/api v0.0.0-20251029180050-ab9386a59fda
 	google.golang.org/grpc v1.78.0

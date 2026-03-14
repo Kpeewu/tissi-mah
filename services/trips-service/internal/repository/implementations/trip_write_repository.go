@@ -119,7 +119,7 @@ func (r *tripWriteRepositoryImpl) insertWaypoints(ctx context.Context, tx pgx.Tx
 			$1, $2, $3,
 			$4::waypoint_type, $5,
 			$6, $7,
-			ST_SetSRID(ST_MakePoint($7, $6), 4326)::geography,
+			ST_SetSRID(ST_MakePoint($13::float8, $14::float8), 4326)::geography,
 			$8, $9,
 			$10,
 			$11, $12
@@ -133,6 +133,7 @@ func (r *tripWriteRepositoryImpl) insertWaypoints(ctx context.Context, tx pgx.Tx
 			wp.City, wp.Country,
 			wp.ScheduledPickupDatetime,
 			wp.MinutesFromDeparture, wp.PriceFromPrevious,
+			wp.LocationLng, wp.LocationLat, // $13=lng, $14=lat pour ST_MakePoint
 		)
 		if err != nil {
 			r.logger.Error("insert waypoint failed",
@@ -317,7 +318,7 @@ func (r *tripWriteRepositoryImpl) StartTrip(ctx context.Context, tripID, driverI
 	// Vérifie qu'aucun autre trajet du conducteur n'est déjà inProgress
 	var activeCount int
 	err = tx.QueryRow(ctx,
-		`SELECT COUNT(*) FROM trips WHERE driver_id = $1 AND status = 'inProgress'::trip_status AND deleted_at IS NULL`,
+		`SELECT COUNT(*) FROM trips WHERE driver_id = $1 AND status = 'inProgress'::trip_status`,
 		driverID,
 	).Scan(&activeCount)
 	if err != nil {

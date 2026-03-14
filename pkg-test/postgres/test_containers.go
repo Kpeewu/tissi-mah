@@ -3,11 +3,11 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
 	"time"
 
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
 	postgresContainer "github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -15,12 +15,26 @@ import (
 )
 
 const (
-	postgresImage    = "postgres:17-alpine"
-	postgresUser     = "test_user"
-	postgresPassword = "test_password"
-	postgresDB       = "test_db"
-	postgresPort     = "5432/tcp"
+	defaultPostgresImage = "postgres:17-alpine"
+	postgresUser         = "test_user"
+	postgresPassword     = "test_password"
+	postgresDB           = "test_db"
+	postgresPort         = "5432/tcp"
 )
+
+// Option configure SetupTestPostgres.
+type Option func(*testPostgresConfig)
+
+type testPostgresConfig struct {
+	image string
+}
+
+// WithImage permet de spécifier une image Docker personnalisée (ex: postgis/postgis).
+func WithImage(image string) Option {
+	return func(c *testPostgresConfig) {
+		c.image = image
+	}
+}
 
 type TestPostgres struct {
 	Pool             *pgxpool.Pool
@@ -39,9 +53,9 @@ func (tp *TestPostgres) CleanUp(ctx context.Context) error {
 	return nil
 }
 
-func startPostgresContainer(ctx context.Context) (*postgresContainer.PostgresContainer, error) {
+func startPostgresContainer(ctx context.Context, image string) (*postgresContainer.PostgresContainer, error) {
 	container, err := postgresContainer.Run(ctx,
-		postgresImage,
+		image,
 		postgresContainer.WithDatabase(postgresDB),
 		postgresContainer.WithUsername(postgresUser),
 		postgresContainer.WithPassword(postgresPassword),
@@ -81,25 +95,51 @@ func connectToPostgres(ctx context.Context, connString string) (*pgxpool.Pool, e
 	return pool, nil
 }
 
-func runMigrations(connString string, migrationPath string) error {
-
-	m, err := migrate.New("file://"+migrationPath, connString)
-
+// runMigrations exécute tous les fichiers *.sql du répertoire donné dans l'ordre alphabétique.
+// Compatible avec la structure migrations/up/*.sql sans convention de nommage golang-migrate.
+func runMigrations(ctx context.Context, pool *pgxpool.Pool, migrationPath string) error {
+	absPath, err := filepath.Abs(migrationPath)
 	if err != nil {
-		return fmt.Errorf("failed to create migrate instance: %w", err)
+		return fmt.Errorf("failed to resolve migration path: %w", err)
 	}
 
-	defer m.Close()
+	entries, err := os.ReadDir(absPath)
+	if err != nil {
+		return fmt.Errorf("failed to read migration directory %s: %w", absPath, err)
+	}
 
-	if err := m.Up(); err != nil && err == migrate.ErrNoChange {
-		return fmt.Errorf("failed to run migrations: %w", err)
+	var files []string
+	for _, e := range entries {
+		if !e.IsDir() && filepath.Ext(e.Name()) == ".sql" {
+			files = append(files, filepath.Join(absPath, e.Name()))
+		}
+	}
+	sort.Strings(files)
+
+	if len(files) == 0 {
+		return fmt.Errorf("no .sql files found in %s", absPath)
+	}
+
+	for _, f := range files {
+		sql, err := os.ReadFile(f)
+		if err != nil {
+			return fmt.Errorf("failed to read %s: %w", f, err)
+		}
+		if _, err := pool.Exec(ctx, string(sql)); err != nil {
+			return fmt.Errorf("failed to execute %s: %w", filepath.Base(f), err)
+		}
 	}
 
 	return nil
 }
 
-func SetupTestPostgres(ctx context.Context, migrationsPath string) (*TestPostgres, error) {
-	container, err := startPostgresContainer(ctx)
+func SetupTestPostgres(ctx context.Context, migrationsPath string, opts ...Option) (*TestPostgres, error) {
+	cfg := &testPostgresConfig{image: defaultPostgresImage}
+	for _, o := range opts {
+		o(cfg)
+	}
+
+	container, err := startPostgresContainer(ctx, cfg.image)
 
 	if err != nil {
 		return nil, err
@@ -118,13 +158,12 @@ func SetupTestPostgres(ctx context.Context, migrationsPath string) (*TestPostgre
 		return nil, err
 	}
 
-	if err := runMigrations(connString, migrationsPath); err != nil {
+	if err := runMigrations(ctx, pool, migrationsPath); err != nil {
 		pool.Close()
 		container.Terminate(ctx)
 		return nil, err
 	}
 
-	// 5. Retourner la struct TestPostgres
 	return &TestPostgres{
 		Pool:             pool,
 		Container:        container,
