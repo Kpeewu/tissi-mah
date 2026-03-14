@@ -511,7 +511,9 @@ func toGRPCError(err error) error {
 
 	case errors.Is(err, fileErrors.ErrorInvalidDocumentType),
 		errors.Is(err, fileErrors.ErrorInvalidMimeType),
-		errors.Is(err, fileErrors.ErrorInvalidReviewDecision):
+		errors.Is(err, fileErrors.ErrorInvalidReviewDecision),
+		errors.Is(err, fileErrors.ErrorMissingDocumentReference),
+		errors.Is(err, fileErrors.ErrorMultipleDocumentReference):
 		return status.Error(codes.InvalidArgument, err.Error())
 
 	case errors.Is(err, fileErrors.ErrorUnauthorized):
