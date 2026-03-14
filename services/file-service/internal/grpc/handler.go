@@ -393,13 +393,31 @@ func (h *FileHandler) CreateDocumentReview(ctx context.Context, req *filepb.Crea
 	input := serviceInterfaces.CreateReviewInput{
 		UserDocumentID:    req.UserDocumentId,
 		VehicleDocumentID: req.VehicleDocumentId,
-		Decision:          req.Decision,
-		ReasonRejection:   req.ReasonRejection,
-		RejectionDetails:  req.RejectionDetails,
-		ReviewedBy:        req.ReviewedBy,
-		ReviewedByType:    req.ReviewedByType,
-		Notes:             req.Notes,
-		ExtractedData:     req.ExtractedData,
+
+		PersonaInquiryID:    req.PersonaInquiryId,
+		PersonaTemplateID:   req.PersonaTemplateId,
+		PersonaSessionToken: req.PersonaSessionToken,
+		SessionExpiresAt:    req.SessionExpiresAt,
+
+		WebhookEventType:  req.WebhookEventType,
+		WebhookReceivedAt: req.WebhookReceivedAt,
+		PersonaRawPayload: req.PersonaRawPayload,
+
+		AttemptNumber:    req.AttemptNumber,
+		PreviousReviewID: req.PreviousReviewId,
+
+		Status:           req.Status,
+		Decision:         req.Decision,
+		ReasonRejection:  req.ReasonRejection,
+		RejectionDetails: req.RejectionDetails,
+
+		ReviewedBy: req.ReviewedBy,
+		ReviewType: req.ReviewType,
+
+		Notes:         req.Notes,
+		ExtractedData: req.ExtractedData,
+
+		SubmittedAt: req.SubmittedAt,
 	}
 
 	review, err := h.service.CreateDocumentReview(ctx, input)
@@ -481,20 +499,48 @@ func toProtoVehicleDocument(doc *domain.VehicleDocument) *filepb.VehicleDocument
 
 func toProtoDocumentReview(review *domain.DocumentReview) *filepb.DocumentReviewResponse {
 	resp := &filepb.DocumentReviewResponse{
-		ReviewId:         review.ReviewID,
+		ReviewId: review.ReviewID,
+
+		PersonaInquiryId:    review.PersonaInquiryID,
+		PersonaTemplateId:   review.PersonaTemplateID,
+		PersonaSessionToken: review.PersonaSessionToken,
+
+		WebhookEventType:  review.WebhookEventType,
+		PersonaRawPayload: review.PersonaRawPayload,
+
+		AttemptNumber: int32(review.AttemptNumber),
+
+		Status:           review.Status,
 		Decision:         review.Decision,
 		ReasonRejection:  review.ReasonRejection,
 		RejectionDetails: review.RejectionDetails,
-		ReviewedBy:       review.ReviewedBy,
-		ReviewedByType:   review.ReviewedByType,
-		ReviewedAt:       review.ReviewedAt.Format(time.RFC3339),
-		Notes:            review.Notes,
+
+		ReviewedBy: review.ReviewedBy,
+		ReviewType: review.ReviewType,
+		ReviewedAt: review.ReviewedAt.Format(time.RFC3339),
+
+		Notes:         review.Notes,
+		ExtractedData: review.ExtractedData,
+
+		UpdatedAt: review.UpdatedAt.Format(time.RFC3339),
 	}
 	if review.UserDocumentID != nil {
 		resp.UserDocumentId = *review.UserDocumentID
 	}
 	if review.VehicleDocumentID != nil {
 		resp.VehicleDocumentId = *review.VehicleDocumentID
+	}
+	if review.SessionExpiresAt != nil {
+		resp.SessionExpiresAt = review.SessionExpiresAt.Format(time.RFC3339)
+	}
+	if review.WebhookReceivedAt != nil {
+		resp.WebhookReceivedAt = review.WebhookReceivedAt.Format(time.RFC3339)
+	}
+	if review.PreviousReviewID != nil {
+		resp.PreviousReviewId = *review.PreviousReviewID
+	}
+	if review.SubmittedAt != nil {
+		resp.SubmittedAt = review.SubmittedAt.Format(time.RFC3339)
 	}
 	return resp
 }
@@ -513,7 +559,10 @@ func toGRPCError(err error) error {
 		errors.Is(err, fileErrors.ErrorInvalidMimeType),
 		errors.Is(err, fileErrors.ErrorInvalidReviewDecision),
 		errors.Is(err, fileErrors.ErrorMissingDocumentReference),
-		errors.Is(err, fileErrors.ErrorMultipleDocumentReference):
+		errors.Is(err, fileErrors.ErrorMultipleDocumentReference),
+		errors.Is(err, fileErrors.ErrorInvalidReviewStatus),
+		errors.Is(err, fileErrors.ErrorInvalidReviewType),
+		errors.Is(err, fileErrors.ErrorInvalidReasonRejection):
 		return status.Error(codes.InvalidArgument, err.Error())
 
 	case errors.Is(err, fileErrors.ErrorUnauthorized):

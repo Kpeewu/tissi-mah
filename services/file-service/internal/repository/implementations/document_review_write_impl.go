@@ -27,18 +27,27 @@ func (r *documentReviewWriteImpl) Create(ctx context.Context, review *domain.Doc
 
 	query := `INSERT INTO document_reviews
 	          (review_id, user_document_id, vehicle_document_id,
-	           decision, reason_rejection, rejection_details,
-	           reviewed_by, reviewed_by_type,
-	           notes, extracted_data)
-	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	           persona_inquiry_id, persona_template_id, persona_session_token, session_expires_at,
+	           webhook_event_type, webhook_received_at, persona_raw_payload,
+	           attempt_number, previous_review_id,
+	           status, decision, reason_rejection, rejection_details,
+	           reviewed_by, review_type,
+	           notes, extracted_data,
+	           submitted_at, updated_at)
+	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+	                  $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
 	          RETURNING review_id`
 
 	var reviewID string
 	err := r.pool.QueryRow(ctx, query,
 		review.ReviewID, review.UserDocumentID, review.VehicleDocumentID,
-		review.Decision, review.ReasonRejection, review.RejectionDetails,
-		review.ReviewedBy, review.ReviewedByType,
+		review.PersonaInquiryID, review.PersonaTemplateID, review.PersonaSessionToken, review.SessionExpiresAt,
+		review.WebhookEventType, review.WebhookReceivedAt, review.PersonaRawPayload,
+		review.AttemptNumber, review.PreviousReviewID,
+		review.Status, review.Decision, review.ReasonRejection, review.RejectionDetails,
+		review.ReviewedBy, review.ReviewType,
 		review.Notes, review.ExtractedData,
+		review.SubmittedAt, review.UpdatedAt,
 	).Scan(&reviewID)
 
 	if err != nil {
