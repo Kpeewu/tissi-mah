@@ -26,10 +26,16 @@ COPY services/user-service/go.mod services/user-service/go.sum* ./services/user-
 COPY services/vehicle-service/go.mod services/vehicle-service/go.sum* ./services/vehicle-service/
 COPY services/trips-service/go.mod services/trips-service/go.sum* ./services/trips-service/
 
-# Create a scoped go.work with pkg + file-service + user-service + vehicle-service + trips-service
+# pkg-test est un module de test uniquement, mais trips-service/go.mod a un replace directive qui
+# pointe vers lui. On crée un stub minimal (go.mod vide) pour satisfaire la résolution Go sans
+# inclure aucune dépendance de test dans l'image de production.
+RUN mkdir -p pkg-test && \
+    printf 'module github.com/Kpeewu/tissi-mah/pkg-test\n\ngo 1.25\n' > pkg-test/go.mod
+
+# Create a scoped go.work with pkg + pkg-test stub + file-service + user-service + vehicle-service + trips-service
 # file-service is required because vehicle-service has a replace directive pointing to it,
 # and workspace replace directives are merged globally
-RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./services/file-service\n\t./services/user-service\n\t./services/vehicle-service\n\t./services/trips-service\n)\n' > go.work
+RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/user-service\n\t./services/vehicle-service\n\t./services/trips-service\n)\n' > go.work
 
 # Download dependencies for all modules
 RUN go mod download -C ./pkg
