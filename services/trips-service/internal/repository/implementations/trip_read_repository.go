@@ -2,13 +2,29 @@ package implementations
 
 import (
 	"context"
+	"errors"
 
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
 	i "github.com/Kpeewu/tissi-mah/services/trips-service/internal/repository/interfaces"
 	tripErrors "github.com/Kpeewu/tissi-mah/services/trips-service/pkg/errors"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
+
+// GetTripTotalSeats retourne le nombre total de places d'un trajet.
+func (r *tripReadRepositoryImpl) GetTripTotalSeats(ctx context.Context, tripID string) (int16, error) {
+	var totalSeats int16
+	err := r.pool.QueryRow(ctx, `SELECT total_seats FROM trips WHERE trip_id = $1 AND deleted_at IS NULL`, tripID).Scan(&totalSeats)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, tripErrors.ErrorTripNotFound
+		}
+		r.logger.Error("GetTripTotalSeats failed", zap.Error(err), zap.String("tripID", tripID))
+		return 0, tripErrors.ErrorInternalServer
+	}
+	return totalSeats, nil
+}
 
 type tripReadRepositoryImpl struct {
 	pool   *pgxpool.Pool

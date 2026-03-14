@@ -132,7 +132,7 @@ func (s *tripServiceImpl) ChangeTripVehicle(ctx context.Context, input *serviceI
 	}
 
 	// Vérification : le véhicule existe et appartient au conducteur
-	brand, _, err := s.vehicleClient.GetVehicleInfo(ctx, input.DriverID, input.VehicleID)
+	brand, _, vehicleSeats, err := s.vehicleClient.GetVehicleInfo(ctx, input.DriverID, input.VehicleID)
 	if err != nil {
 		s.logger.Error("vehicle-service check failed",
 			zap.Error(err),
@@ -146,6 +146,19 @@ func (s *tripServiceImpl) ChangeTripVehicle(ctx context.Context, input *serviceI
 			zap.String("vehicleID", input.VehicleID),
 		)
 		return tripErrors.ErrorVehicleNotFound
+	}
+
+	// Vérification : le véhicule doit avoir au moins autant de places que le trajet
+	tripTotalSeats, err := s.readRepo.GetTripTotalSeats(ctx, input.TripID)
+	if err != nil {
+		return err
+	}
+	if vehicleSeats < int(tripTotalSeats) {
+		s.logger.Warn("vehicle has fewer seats than trip requires",
+			zap.Int("vehicleSeats", vehicleSeats),
+			zap.Int16("tripTotalSeats", tripTotalSeats),
+		)
+		return tripErrors.ErrorVehicleInsufficientSeats
 	}
 
 	if err := s.writeRepo.UpdateVehicle(ctx, input.TripID, input.DriverID, input.VehicleID); err != nil {

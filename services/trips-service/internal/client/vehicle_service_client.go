@@ -45,9 +45,9 @@ func (c *VehicleServiceClient) Close() error {
 	return c.conn.Close()
 }
 
-// GetVehicleInfo retourne la marque et la plaque d'immatriculation d'un véhicule.
-// Retourne des chaînes vides si le véhicule n'est pas trouvé.
-func (c *VehicleServiceClient) GetVehicleInfo(ctx context.Context, driverID, vehicleID string) (brand, plate string, err error) {
+// GetVehicleInfo retourne la marque, la plaque d'immatriculation et le nombre de places d'un véhicule.
+// Retourne des chaînes vides et 0 si le véhicule n'est pas trouvé.
+func (c *VehicleServiceClient) GetVehicleInfo(ctx context.Context, driverID, vehicleID string) (brand, plate string, numberOfSeats int, err error) {
 	c.logger.Debug("client: GetVehicleInfo called",
 		zap.String("driverID", driverID),
 		zap.String("vehicleID", vehicleID),
@@ -59,14 +59,14 @@ func (c *VehicleServiceClient) GetVehicleInfo(ctx context.Context, driverID, veh
 	})
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-			return "", "", nil
+			return "", "", 0, nil
 		}
 		c.logger.Error("client: GetVehicleDetails failed", zap.Error(err))
-		return "", "", fmt.Errorf("vehicle-service: GetVehicleDetails failed: %w", err)
+		return "", "", 0, fmt.Errorf("vehicle-service: GetVehicleDetails failed: %w", err)
 	}
 
 	if resp.Vehicle == nil {
-		return "", "", nil
+		return "", "", 0, nil
 	}
-	return resp.Vehicle.Brand, resp.Vehicle.LicencePlate, nil
+	return resp.Vehicle.Brand, resp.Vehicle.LicencePlate, int(resp.Vehicle.NumberOfSeats), nil
 }
