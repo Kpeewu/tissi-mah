@@ -33,10 +33,18 @@ var ProtectedRoutes = map[string]bool{
 	"/vehicle/getUserVehicles": true,
 
 	// trips-service
-	"/trip/driver/createTrip":          true,
-	"/trip/driver/createRecurringTrip": true,
-	"/trip/driver/getTripsPreviews":              true,
-	"/trip/driver/getCompletedTripsPreviews":     true,
+	"/trip/driver/createTrip":                true,
+	"/trip/driver/createRecurringTrip":        true,
+	"/trip/driver/getTripsPreviews":           true,
+	"/trip/driver/getCompletedTripsPreviews":  true,
+	"/trip/driver/changeTripDateAndTime": true,
+	"/trip/driver/changeTripVehicle":     true,
+	"/trip/driver/changeTripAllowances":  true,
+	"/trip/driver/activeAutoApprouve":    true,
+	"/trip/driver/startTrip":                  true,
+	"/trip/driver/endTrip":                    true,
+	"/trip/driver/confirmWaypointArrival":     true,
+	"/trip/driver/confirmWaypointDeparture":   true,
 }
 
 // RateLimitTier identifie le niveau de rate limiting pour une route

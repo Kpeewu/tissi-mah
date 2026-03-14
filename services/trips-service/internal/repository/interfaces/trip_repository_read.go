@@ -15,4 +15,8 @@ type TripRepositoryRead interface {
 	// GetDriverCompletedTripsPreviews retourne la liste paginée des trajets complétés
 	// d'un conducteur (10 items, ordre décroissant de départ).
 	GetDriverCompletedTripsPreviews(ctx context.Context, driverID string, pageIndex int) ([]*domain.TripPreview, error)
+
+	// GetTripTotalSeats retourne le nombre total de places d'un trajet.
+	// Retourne ErrorTripNotFound si le trajet n'existe pas.
+	GetTripTotalSeats(ctx context.Context, tripID string) (int16, error)
 }

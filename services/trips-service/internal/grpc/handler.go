@@ -190,6 +190,175 @@ func (h *TripHandler) GetCompletedTripsPreviews(ctx context.Context, req *trippb
 	return &trippb.GetCompletedTripsPreviewsResponse{TripsPreviews: pbPreviews}, nil
 }
 
+// ChangeTripDateAndTime modifie la date/heure de départ d'un trajet planifié.
+func (h *TripHandler) ChangeTripDateAndTime(ctx context.Context, req *trippb.ChangeTripDateAndTimeRequest) (*trippb.ChangeTripDateAndTimeResponse, error) {
+	h.logger.Debug("handler: ChangeTripDateAndTime called",
+		zap.String("driverID", req.DriverId),
+		zap.String("tripID", req.TripId),
+	)
+
+	err := h.service.ChangeTripDateAndTime(ctx, &serviceInterfaces.ChangeTripDateAndTimeInput{
+		DriverID:          req.DriverId,
+		TripID:            req.TripId,
+		DepartureDatetime: req.DepartureDatetime,
+	})
+	if err != nil {
+		h.logger.Error("handler: ChangeTripDateAndTime failed", zap.Error(err))
+		return &trippb.ChangeTripDateAndTimeResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: ChangeTripDateAndTime success", zap.String("tripID", req.TripId))
+	return &trippb.ChangeTripDateAndTimeResponse{Success: true}, nil
+}
+
+// ChangeTripVehicle modifie le véhicule associé à un trajet planifié.
+func (h *TripHandler) ChangeTripVehicle(ctx context.Context, req *trippb.ChangeTripVehicleRequest) (*trippb.ChangeTripVehicleResponse, error) {
+	h.logger.Debug("handler: ChangeTripVehicle called",
+		zap.String("driverID", req.DriverId),
+		zap.String("tripID", req.TripId),
+		zap.String("vehicleID", req.VehicleId),
+	)
+
+	err := h.service.ChangeTripVehicle(ctx, &serviceInterfaces.ChangeTripVehicleInput{
+		DriverID:  req.DriverId,
+		TripID:    req.TripId,
+		VehicleID: req.VehicleId,
+	})
+	if err != nil {
+		h.logger.Error("handler: ChangeTripVehicle failed", zap.Error(err))
+		return &trippb.ChangeTripVehicleResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: ChangeTripVehicle success", zap.String("tripID", req.TripId))
+	return &trippb.ChangeTripVehicleResponse{Success: true}, nil
+}
+
+// ChangeTripAllowances modifie les autorisations d'un trajet planifié.
+func (h *TripHandler) ChangeTripAllowances(ctx context.Context, req *trippb.ChangeTripAllowancesRequest) (*trippb.ChangeTripAllowancesResponse, error) {
+	h.logger.Debug("handler: ChangeTripAllowances called",
+		zap.String("driverID", req.DriverId),
+		zap.String("tripID", req.TripId),
+	)
+
+	err := h.service.ChangeTripAllowances(ctx, &serviceInterfaces.ChangeTripAllowancesInput{
+		DriverID:      req.DriverId,
+		TripID:        req.TripId,
+		AllowPets:     req.AllowPets,
+		AllowFood:     req.AllowFood,
+		AllowSmoking:  req.AllowSmoking,
+		AllowLuggages: req.AllowLuggage,
+	})
+	if err != nil {
+		h.logger.Error("handler: ChangeTripAllowances failed", zap.Error(err))
+		return &trippb.ChangeTripAllowancesResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: ChangeTripAllowances success", zap.String("tripID", req.TripId))
+	return &trippb.ChangeTripAllowancesResponse{Success: true}, nil
+}
+
+// ChangeAutoApprove active ou désactive l'approbation automatique d'un trajet.
+func (h *TripHandler) ChangeAutoApprove(ctx context.Context, req *trippb.ChangeAutoApproveRequest) (*trippb.ChangeAutoApproveResponse, error) {
+	h.logger.Debug("handler: ChangeAutoApprove called",
+		zap.String("driverID", req.DriverId),
+		zap.String("tripID", req.TripId),
+		zap.Bool("autoApprove", req.AutoApprove),
+	)
+
+	err := h.service.ChangeAutoApprove(ctx, &serviceInterfaces.ChangeAutoApproveInput{
+		DriverID:    req.DriverId,
+		TripID:      req.TripId,
+		AutoApprove: req.AutoApprove,
+	})
+	if err != nil {
+		h.logger.Error("handler: ChangeAutoApprove failed", zap.Error(err))
+		return &trippb.ChangeAutoApproveResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: ChangeAutoApprove success", zap.String("tripID", req.TripId))
+	return &trippb.ChangeAutoApproveResponse{Success: true}, nil
+}
+
+// StartTrip démarre un trajet planifié.
+func (h *TripHandler) StartTrip(ctx context.Context, req *trippb.StartTripRequest) (*trippb.StartTripResponse, error) {
+	h.logger.Debug("handler: StartTrip called",
+		zap.String("driverID", req.DriverId),
+		zap.String("tripID", req.TripId),
+	)
+
+	err := h.service.StartTrip(ctx, &serviceInterfaces.StartTripInput{
+		DriverID: req.DriverId,
+		TripID:   req.TripId,
+	})
+	if err != nil {
+		h.logger.Error("handler: StartTrip failed", zap.Error(err))
+		return &trippb.StartTripResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: StartTrip success", zap.String("tripID", req.TripId))
+	return &trippb.StartTripResponse{Success: true}, nil
+}
+
+// EndTrip termine un trajet en cours.
+func (h *TripHandler) EndTrip(ctx context.Context, req *trippb.EndTripRequest) (*trippb.EndTripResponse, error) {
+	h.logger.Debug("handler: EndTrip called",
+		zap.String("driverID", req.DriverId),
+		zap.String("tripID", req.TripId),
+	)
+
+	err := h.service.EndTrip(ctx, &serviceInterfaces.EndTripInput{
+		DriverID: req.DriverId,
+		TripID:   req.TripId,
+	})
+	if err != nil {
+		h.logger.Error("handler: EndTrip failed", zap.Error(err))
+		return &trippb.EndTripResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: EndTrip success", zap.String("tripID", req.TripId))
+	return &trippb.EndTripResponse{Success: true}, nil
+}
+
+// ConfirmWaypointDeparture enregistre le départ du conducteur d'un waypoint de type "stop".
+func (h *TripHandler) ConfirmWaypointDeparture(ctx context.Context, req *trippb.ConfirmWaypointDepartureRequest) (*trippb.ConfirmWaypointDepartureResponse, error) {
+	h.logger.Debug("handler: ConfirmWaypointDeparture called",
+		zap.String("driverID", req.DriverId),
+		zap.String("waypointID", req.WaypointId),
+	)
+
+	err := h.service.ConfirmWaypointDeparture(ctx, &serviceInterfaces.ConfirmWaypointDepartureInput{
+		DriverID:   req.DriverId,
+		WaypointID: req.WaypointId,
+	})
+	if err != nil {
+		h.logger.Error("handler: ConfirmWaypointDeparture failed", zap.Error(err))
+		return &trippb.ConfirmWaypointDepartureResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: ConfirmWaypointDeparture success", zap.String("waypointID", req.WaypointId))
+	return &trippb.ConfirmWaypointDepartureResponse{Success: true}, nil
+}
+
+// ConfirmWaypointArrival enregistre l'arrivée du conducteur à un waypoint de type "stop".
+func (h *TripHandler) ConfirmWaypointArrival(ctx context.Context, req *trippb.ConfirmWaypointArrivalRequest) (*trippb.ConfirmWaypointArrivalResponse, error) {
+	h.logger.Debug("handler: ConfirmWaypointArrival called",
+		zap.String("driverID", req.DriverId),
+		zap.String("waypointID", req.WaypointId),
+	)
+
+	err := h.service.ConfirmWaypointArrival(ctx, &serviceInterfaces.ConfirmWaypointArrivalInput{
+		DriverID:   req.DriverId,
+		WaypointID: req.WaypointId,
+	})
+	if err != nil {
+		h.logger.Error("handler: ConfirmWaypointArrival failed", zap.Error(err))
+		return &trippb.ConfirmWaypointArrivalResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: ConfirmWaypointArrival success", zap.String("waypointID", req.WaypointId))
+	return &trippb.ConfirmWaypointArrivalResponse{Success: true}, nil
+}
+
 // Health retourne l'état de santé du service.
 func (h *TripHandler) Health(_ context.Context, _ *trippb.HealthRequest) (*trippb.HealthResponse, error) {
 	return &trippb.HealthResponse{
@@ -233,6 +402,27 @@ func toGRPCError(err error) error {
 		return status.Error(codes.PermissionDenied, err.Error())
 	case errors.Is(err, tripErrors.ErrorTripNotFound):
 		return status.Error(codes.NotFound, err.Error())
+	case errors.Is(err, tripErrors.ErrorTripNotScheduled):
+		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, tripErrors.ErrorVehicleNotFound):
+		return status.Error(codes.NotFound, err.Error())
+	case errors.Is(err, tripErrors.ErrorVehicleInsufficientSeats):
+		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, tripErrors.ErrorTripDepartureTooSoon):
+		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, tripErrors.ErrorDriverAlreadyHasActiveTrip):
+		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, tripErrors.ErrorTripNotInProgress):
+		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, tripErrors.ErrorWaypointNotFound):
+		return status.Error(codes.NotFound, err.Error())
+	case errors.Is(err, tripErrors.ErrorWaypointNotAStop),
+		errors.Is(err, tripErrors.ErrorWaypointAlreadyArrived),
+		errors.Is(err, tripErrors.ErrorAnotherStopAlreadyActive),
+		errors.Is(err, tripErrors.ErrorPreviousWaypointNotConfirmed),
+		errors.Is(err, tripErrors.ErrorWaypointNotArrived),
+		errors.Is(err, tripErrors.ErrorWaypointAlreadyDeparted):
+		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, tripErrors.ErrorDataRetrievalFailed),
 		errors.Is(err, tripErrors.ErrorInternalServer):
 		return status.Error(codes.Internal, err.Error())

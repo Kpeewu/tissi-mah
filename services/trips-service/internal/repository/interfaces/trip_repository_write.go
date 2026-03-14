@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
 )
@@ -17,4 +18,56 @@ type TripRepositoryWrite interface {
 	// puis génère les instances de trajet dans l'horizon [startDate, min(endDate, today+horizonDays)].
 	// Tout est atomique. Retourne le patternID en cas de succès.
 	CreateRecurringPattern(ctx context.Context, pattern *domain.RecurringPattern, patternWaypoints []*domain.PatternWaypoint) (string, error)
+
+	// UpdateDepartureDatetime met à jour la date/heure de départ d'un trajet planifié.
+	// Retourne ErrorTripNotFound si le trajet n'existe pas, ErrorUnauthorized si le conducteur
+	// n'est pas propriétaire du trajet, ErrorTripNotScheduled si le statut n'est pas "scheduled".
+	UpdateDepartureDatetime(ctx context.Context, tripID, driverID string, newDatetime time.Time) error
+
+	// UpdateVehicle met à jour le véhicule associé à un trajet planifié.
+	// Retourne ErrorTripNotFound si le trajet n'existe pas, ErrorUnauthorized si le conducteur
+	// n'est pas propriétaire du trajet, ErrorTripNotScheduled si le statut n'est pas "scheduled".
+	UpdateVehicle(ctx context.Context, tripID, driverID, vehicleID string) error
+
+	// UpdateAllowances met à jour les autorisations d'un trajet planifié.
+	// Retourne ErrorTripNotFound si le trajet n'existe pas, ErrorUnauthorized si le conducteur
+	// n'est pas propriétaire du trajet, ErrorTripNotScheduled si le statut n'est pas "scheduled",
+	// ErrorTripDepartureTooSoon si le départ est dans moins de 24h.
+	UpdateAllowances(ctx context.Context, tripID, driverID string, allowPets, allowFood, allowSmoking, allowLuggages bool) error
+
+	// UpdateAutoApprove active ou désactive l'approbation automatique d'un trajet.
+	// Retourne ErrorTripNotFound si le trajet n'existe pas, ErrorUnauthorized si le conducteur
+	// n'est pas propriétaire du trajet, ErrorTripNotScheduled si le statut n'est pas "scheduled"
+	// ou "inProgress".
+	UpdateAutoApprove(ctx context.Context, tripID, driverID string, autoApprove bool) error
+
+	// StartTrip passe un trajet planifié au statut "inProgress" de façon atomique.
+	// Définit actual_departure_datetime sur le trajet et actual_scheduled_pickup_datetime
+	// sur le waypoint de départ.
+	// Retourne ErrorDriverAlreadyHasActiveTrip si le conducteur a déjà un trajet inProgress,
+	// ErrorTripNotFound si le trajet n'existe pas, ErrorUnauthorized si le conducteur n'est
+	// pas propriétaire du trajet, ErrorTripNotScheduled si le statut n'est pas "scheduled".
+	StartTrip(ctx context.Context, tripID, driverID string) error
+
+	// EndTrip passe un trajet en cours au statut "completed" de façon atomique.
+	// Définit actual_arrival_datetime sur le trajet et actual_scheduled_pickup_datetime
+	// sur le waypoint d'arrivée.
+	// Retourne ErrorTripNotFound si le trajet n'existe pas, ErrorUnauthorized si le conducteur
+	// n'est pas propriétaire du trajet, ErrorTripNotInProgress si le statut n'est pas "inProgress".
+	EndTrip(ctx context.Context, tripID, driverID string) error
+
+	// ConfirmWaypointArrival enregistre l'arrivée du conducteur à un waypoint de type "stop".
+	// Vérifie que le trip est inProgress, que le conducteur en est propriétaire, que le waypoint
+	// est bien un "stop", qu'aucun autre stop n'est déjà actif (arrivé mais non parti), et que
+	// le waypoint précédent dans l'ordre a bien été confirmé.
+	// Retourne ErrorWaypointNotFound, ErrorUnauthorized, ErrorTripNotInProgress,
+	// ErrorWaypointNotAStop, ErrorWaypointAlreadyArrived, ErrorAnotherStopAlreadyActive,
+	// ErrorPreviousWaypointNotConfirmed selon le cas.
+	ConfirmWaypointArrival(ctx context.Context, waypointID, driverID string) error
+
+	// ConfirmWaypointDeparture enregistre le départ du conducteur d'un waypoint de type "stop".
+	// L'arrivée doit avoir été confirmée au préalable (actual_arrival_datetime IS NOT NULL).
+	// Retourne ErrorWaypointNotFound, ErrorUnauthorized, ErrorTripNotInProgress,
+	// ErrorWaypointNotAStop, ErrorWaypointNotArrived, ErrorWaypointAlreadyDeparted selon le cas.
+	ConfirmWaypointDeparture(ctx context.Context, waypointID, driverID string) error
 }
