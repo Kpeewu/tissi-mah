@@ -39,6 +39,19 @@ type TripService interface {
 	// Seuls les trajets avec le statut "scheduled" peuvent être modifiés,
 	// et uniquement plus de 24h avant le départ.
 	ChangeTripAllowances(ctx context.Context, input *ChangeTripAllowancesInput) error
+
+	// ChangeAutoApprove active ou désactive l'approbation automatique d'un trajet.
+	// Le trajet doit avoir le statut "scheduled" ou "inProgress".
+	ChangeAutoApprove(ctx context.Context, input *ChangeAutoApproveInput) error
+
+	// StartTrip démarre un trajet planifié. Le conducteur ne peut avoir qu'un seul
+	// trajet inProgress à la fois. Passe le statut à "inProgress" et renseigne
+	// l'heure réelle de départ sur le trajet et le waypoint de départ.
+	StartTrip(ctx context.Context, input *StartTripInput) error
+
+	// EndTrip termine un trajet en cours. Passe le statut à "completed" et renseigne
+	// l'heure réelle d'arrivée sur le trajet et le waypoint d'arrivée.
+	EndTrip(ctx context.Context, input *EndTripInput) error
 }
 
 // GetTripsPreviewsInput contient les paramètres de la requête de liste.
@@ -135,6 +148,26 @@ type ChangeTripAllowancesInput struct {
 	AllowFood     bool
 	AllowSmoking  bool
 	AllowLuggages bool
+}
+
+// ChangeAutoApproveInput contient les données nécessaires à la modification
+// de l'approbation automatique d'un trajet.
+type ChangeAutoApproveInput struct {
+	DriverID    string
+	TripID      string
+	AutoApprove bool
+}
+
+// StartTripInput contient les données nécessaires au démarrage d'un trajet.
+type StartTripInput struct {
+	DriverID string
+	TripID   string
+}
+
+// EndTripInput contient les données nécessaires à la fin d'un trajet.
+type EndTripInput struct {
+	DriverID string
+	TripID   string
 }
 
 // CreateRecurringTripInput regroupe toutes les données nécessaires à la création

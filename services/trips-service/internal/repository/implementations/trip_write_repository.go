@@ -270,6 +270,178 @@ func (r *tripWriteRepositoryImpl) UpdateAllowances(ctx context.Context, tripID, 
 	return tripErrors.ErrorTripDepartureTooSoon
 }
 
+// UpdateAutoApprove active ou désactive l'approbation automatique d'un trajet planifié ou en cours.
+func (r *tripWriteRepositoryImpl) UpdateAutoApprove(ctx context.Context, tripID, driverID string, autoApprove bool) error {
+	r.logger.Debug("updating trip auto_approve",
+		zap.String("tripID", tripID),
+		zap.String("driverID", driverID),
+		zap.Bool("autoApprove", autoApprove),
+	)
+
+	query := `
+		UPDATE trips
+		SET auto_approve_enabled = $3, updated_at = NOW()
+		WHERE trip_id = $1 AND driver_id = $2
+		  AND status IN ('scheduled'::trip_status, 'inProgress'::trip_status)`
+
+	tag, err := r.pool.Exec(ctx, query, tripID, driverID, autoApprove)
+	if err != nil {
+		r.logger.Error("update auto_approve failed", zap.Error(err), zap.String("tripID", tripID))
+		return fmt.Errorf("%w: %s", tripErrors.ErrorInternalServer, err.Error())
+	}
+
+	if tag.RowsAffected() == 1 {
+		r.logger.Info("trip auto_approve updated", zap.String("tripID", tripID))
+		return nil
+	}
+
+	return r.diagnoseTripUpdateFailure(ctx, tripID, driverID)
+}
+
+// StartTrip passe un trajet planifié au statut inProgress de façon atomique.
+// Vérifie en transaction que le conducteur n'a pas d'autre trajet inProgress,
+// puis met à jour le statut du trajet et l'heure réelle de départ du waypoint de départ.
+func (r *tripWriteRepositoryImpl) StartTrip(ctx context.Context, tripID, driverID string) error {
+	r.logger.Debug("starting trip",
+		zap.String("tripID", tripID),
+		zap.String("driverID", driverID),
+	)
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		r.logger.Error("begin transaction failed", zap.Error(err))
+		return tripErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// Vérifie qu'aucun autre trajet du conducteur n'est déjà inProgress
+	var activeCount int
+	err = tx.QueryRow(ctx,
+		`SELECT COUNT(*) FROM trips WHERE driver_id = $1 AND status = 'inProgress'::trip_status AND deleted_at IS NULL`,
+		driverID,
+	).Scan(&activeCount)
+	if err != nil {
+		r.logger.Error("check active trip failed", zap.Error(err))
+		return tripErrors.ErrorInternalServer
+	}
+	if activeCount > 0 {
+		return tripErrors.ErrorDriverAlreadyHasActiveTrip
+	}
+
+	// Met à jour le statut du trajet et l'heure réelle de départ
+	tag, err := tx.Exec(ctx,
+		`UPDATE trips
+		 SET status = 'inProgress'::trip_status, actual_departure_datetime = NOW(), updated_at = NOW()
+		 WHERE trip_id = $1 AND driver_id = $2 AND status = 'scheduled'::trip_status`,
+		tripID, driverID,
+	)
+	if err != nil {
+		r.logger.Error("update trip status failed", zap.Error(err), zap.String("tripID", tripID))
+		return fmt.Errorf("%w: %s", tripErrors.ErrorInternalServer, err.Error())
+	}
+	if tag.RowsAffected() == 0 {
+		// Rollback implicite via defer ; on diagnostique via un SELECT hors transaction
+		if rbErr := tx.Rollback(ctx); rbErr != nil && !errors.Is(rbErr, pgx.ErrTxClosed) {
+			r.logger.Warn("rollback failed", zap.Error(rbErr))
+		}
+		return r.diagnoseTripUpdateFailure(ctx, tripID, driverID)
+	}
+
+	// Met à jour l'heure réelle sur le waypoint de départ
+	_, err = tx.Exec(ctx,
+		`UPDATE trips_waypoints
+		 SET actual_scheduled_pickup_datetime = NOW(), updated_at = NOW()
+		 WHERE trip_id = $1 AND waypoint_type = 'departure'::waypoint_type`,
+		tripID,
+	)
+	if err != nil {
+		r.logger.Error("update departure waypoint failed", zap.Error(err), zap.String("tripID", tripID))
+		return fmt.Errorf("%w: %s", tripErrors.ErrorInternalServer, err.Error())
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		r.logger.Error("commit transaction failed", zap.Error(err), zap.String("tripID", tripID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	r.logger.Info("trip started", zap.String("tripID", tripID))
+	return nil
+}
+
+// EndTrip passe un trajet en cours au statut completed de façon atomique.
+// Met à jour actual_arrival_datetime sur le trajet et actual_scheduled_pickup_datetime
+// sur le waypoint d'arrivée.
+func (r *tripWriteRepositoryImpl) EndTrip(ctx context.Context, tripID, driverID string) error {
+	r.logger.Debug("ending trip",
+		zap.String("tripID", tripID),
+		zap.String("driverID", driverID),
+	)
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		r.logger.Error("begin transaction failed", zap.Error(err))
+		return tripErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// Met à jour le statut du trajet et l'heure réelle d'arrivée
+	tag, err := tx.Exec(ctx,
+		`UPDATE trips
+		 SET status = 'completed'::trip_status, actual_arrival_datetime = NOW(), updated_at = NOW()
+		 WHERE trip_id = $1 AND driver_id = $2 AND status = 'inProgress'::trip_status`,
+		tripID, driverID,
+	)
+	if err != nil {
+		r.logger.Error("update trip status to completed failed", zap.Error(err), zap.String("tripID", tripID))
+		return fmt.Errorf("%w: %s", tripErrors.ErrorInternalServer, err.Error())
+	}
+	if tag.RowsAffected() == 0 {
+		if rbErr := tx.Rollback(ctx); rbErr != nil && !errors.Is(rbErr, pgx.ErrTxClosed) {
+			r.logger.Warn("rollback failed", zap.Error(rbErr))
+		}
+		return r.diagnoseEndTripFailure(ctx, tripID, driverID)
+	}
+
+	// Met à jour l'heure réelle sur le waypoint d'arrivée
+	_, err = tx.Exec(ctx,
+		`UPDATE trips_waypoints
+		 SET actual_scheduled_pickup_datetime = NOW(), updated_at = NOW()
+		 WHERE trip_id = $1 AND waypoint_type = 'arrival'::waypoint_type`,
+		tripID,
+	)
+	if err != nil {
+		r.logger.Error("update arrival waypoint failed", zap.Error(err), zap.String("tripID", tripID))
+		return fmt.Errorf("%w: %s", tripErrors.ErrorInternalServer, err.Error())
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		r.logger.Error("commit transaction failed", zap.Error(err), zap.String("tripID", tripID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	r.logger.Info("trip ended", zap.String("tripID", tripID))
+	return nil
+}
+
+// diagnoseEndTripFailure effectue un SELECT pour déterminer pourquoi l'UPDATE endTrip a affecté 0 lignes.
+func (r *tripWriteRepositoryImpl) diagnoseEndTripFailure(ctx context.Context, tripID, driverID string) error {
+	var foundDriverID string
+	var foundStatus string
+	err := r.pool.QueryRow(ctx, `SELECT driver_id, status FROM trips WHERE trip_id = $1`, tripID).
+		Scan(&foundDriverID, &foundStatus)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return tripErrors.ErrorTripNotFound
+		}
+		r.logger.Error("select trip for diagnosis failed", zap.Error(err), zap.String("tripID", tripID))
+		return tripErrors.ErrorInternalServer
+	}
+	if foundDriverID != driverID {
+		return tripErrors.ErrorUnauthorized
+	}
+	return tripErrors.ErrorTripNotInProgress
+}
+
 // diagnoseTripUpdateFailure effectue un SELECT pour déterminer pourquoi un UPDATE a affecté 0 lignes.
 func (r *tripWriteRepositoryImpl) diagnoseTripUpdateFailure(ctx context.Context, tripID, driverID string) error {
 	var foundDriverID string

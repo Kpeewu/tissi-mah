@@ -15,5 +15,7 @@ var (
 	ErrorTripNotScheduled         = errors.New("ErrorTripNotScheduled")
 	ErrorVehicleNotFound             = errors.New("ErrorVehicleNotFound")
 	ErrorVehicleInsufficientSeats    = errors.New("ErrorVehicleInsufficientSeats")
-	ErrorTripDepartureTooSoon        = errors.New("ErrorTripDepartureTooSoon")
+	ErrorTripDepartureTooSoon           = errors.New("ErrorTripDepartureTooSoon")
+	ErrorDriverAlreadyHasActiveTrip     = errors.New("ErrorDriverAlreadyHasActiveTrip")
+	ErrorTripNotInProgress              = errors.New("ErrorTripNotInProgress")
 )

@@ -257,6 +257,48 @@ func (h *TripHandler) ChangeTripAllowances(ctx context.Context, req *trippb.Chan
 	return &trippb.ChangeTripAllowancesResponse{Success: true}, nil
 }
 
+// ChangeAutoApprove active ou désactive l'approbation automatique d'un trajet.
+func (h *TripHandler) ChangeAutoApprove(ctx context.Context, req *trippb.ChangeAutoApproveRequest) (*trippb.ChangeAutoApproveResponse, error) {
+	h.logger.Debug("handler: ChangeAutoApprove called",
+		zap.String("driverID", req.DriverId),
+		zap.String("tripID", req.TripId),
+		zap.Bool("autoApprove", req.AutoApprove),
+	)
+
+	err := h.service.ChangeAutoApprove(ctx, &serviceInterfaces.ChangeAutoApproveInput{
+		DriverID:    req.DriverId,
+		TripID:      req.TripId,
+		AutoApprove: req.AutoApprove,
+	})
+	if err != nil {
+		h.logger.Error("handler: ChangeAutoApprove failed", zap.Error(err))
+		return &trippb.ChangeAutoApproveResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: ChangeAutoApprove success", zap.String("tripID", req.TripId))
+	return &trippb.ChangeAutoApproveResponse{Success: true}, nil
+}
+
+// StartTrip démarre un trajet planifié.
+func (h *TripHandler) StartTrip(ctx context.Context, req *trippb.StartTripRequest) (*trippb.StartTripResponse, error) {
+	h.logger.Debug("handler: StartTrip called",
+		zap.String("driverID", req.DriverId),
+		zap.String("tripID", req.TripId),
+	)
+
+	err := h.service.StartTrip(ctx, &serviceInterfaces.StartTripInput{
+		DriverID: req.DriverId,
+		TripID:   req.TripId,
+	})
+	if err != nil {
+		h.logger.Error("handler: StartTrip failed", zap.Error(err))
+		return &trippb.StartTripResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: StartTrip success", zap.String("tripID", req.TripId))
+	return &trippb.StartTripResponse{Success: true}, nil
+}
+
 // Health retourne l'état de santé du service.
 func (h *TripHandler) Health(_ context.Context, _ *trippb.HealthRequest) (*trippb.HealthResponse, error) {
 	return &trippb.HealthResponse{
@@ -307,6 +349,8 @@ func toGRPCError(err error) error {
 	case errors.Is(err, tripErrors.ErrorVehicleInsufficientSeats):
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, tripErrors.ErrorTripDepartureTooSoon):
+		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, tripErrors.ErrorDriverAlreadyHasActiveTrip):
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, tripErrors.ErrorDataRetrievalFailed),
 		errors.Is(err, tripErrors.ErrorInternalServer):

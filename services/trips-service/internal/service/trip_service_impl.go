@@ -201,6 +201,83 @@ func (s *tripServiceImpl) ChangeTripAllowances(ctx context.Context, input *servi
 	return nil
 }
 
+// ChangeAutoApprove active ou désactive l'approbation automatique d'un trajet.
+func (s *tripServiceImpl) ChangeAutoApprove(ctx context.Context, input *serviceInterfaces.ChangeAutoApproveInput) error {
+	s.logger.Debug("service: ChangeAutoApprove called",
+		zap.String("driverID", input.DriverID),
+		zap.String("tripID", input.TripID),
+		zap.Bool("autoApprove", input.AutoApprove),
+	)
+
+	if input.DriverID == "" || input.TripID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	if err := s.writeRepo.UpdateAutoApprove(ctx, input.TripID, input.DriverID, input.AutoApprove); err != nil {
+		return err
+	}
+
+	s.logger.Info("trip auto_approve updated",
+		zap.String("tripID", input.TripID),
+		zap.String("driverID", input.DriverID),
+	)
+	return nil
+}
+
+// StartTrip démarre un trajet planifié.
+func (s *tripServiceImpl) StartTrip(ctx context.Context, input *serviceInterfaces.StartTripInput) error {
+	s.logger.Debug("service: StartTrip called",
+		zap.String("driverID", input.DriverID),
+		zap.String("tripID", input.TripID),
+	)
+
+	if input.DriverID == "" || input.TripID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	if err := s.writeRepo.StartTrip(ctx, input.TripID, input.DriverID); err != nil {
+		return err
+	}
+
+	// Invalidation du cache des previews pour ce conducteur
+	if s.cache != nil {
+		s.cache.InvalidateDriverPreviews(ctx, input.DriverID)
+	}
+
+	s.logger.Info("trip started",
+		zap.String("tripID", input.TripID),
+		zap.String("driverID", input.DriverID),
+	)
+	return nil
+}
+
+// EndTrip termine un trajet en cours.
+func (s *tripServiceImpl) EndTrip(ctx context.Context, input *serviceInterfaces.EndTripInput) error {
+	s.logger.Debug("service: EndTrip called",
+		zap.String("driverID", input.DriverID),
+		zap.String("tripID", input.TripID),
+	)
+
+	if input.DriverID == "" || input.TripID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	if err := s.writeRepo.EndTrip(ctx, input.TripID, input.DriverID); err != nil {
+		return err
+	}
+
+	// Invalidation du cache des previews pour ce conducteur
+	if s.cache != nil {
+		s.cache.InvalidateDriverPreviews(ctx, input.DriverID)
+	}
+
+	s.logger.Info("trip ended",
+		zap.String("tripID", input.TripID),
+		zap.String("driverID", input.DriverID),
+	)
+	return nil
+}
+
 // validateInput vérifie les champs obligatoires et la cohérence des waypoints.
 func (s *tripServiceImpl) validateInput(input *serviceInterfaces.CreateTripInput) error {
 	if input.DriverID == "" || input.VehicleID == "" {

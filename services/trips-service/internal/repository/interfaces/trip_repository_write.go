@@ -34,4 +34,25 @@ type TripRepositoryWrite interface {
 	// n'est pas propriétaire du trajet, ErrorTripNotScheduled si le statut n'est pas "scheduled",
 	// ErrorTripDepartureTooSoon si le départ est dans moins de 24h.
 	UpdateAllowances(ctx context.Context, tripID, driverID string, allowPets, allowFood, allowSmoking, allowLuggages bool) error
+
+	// UpdateAutoApprove active ou désactive l'approbation automatique d'un trajet.
+	// Retourne ErrorTripNotFound si le trajet n'existe pas, ErrorUnauthorized si le conducteur
+	// n'est pas propriétaire du trajet, ErrorTripNotScheduled si le statut n'est pas "scheduled"
+	// ou "inProgress".
+	UpdateAutoApprove(ctx context.Context, tripID, driverID string, autoApprove bool) error
+
+	// StartTrip passe un trajet planifié au statut "inProgress" de façon atomique.
+	// Définit actual_departure_datetime sur le trajet et actual_scheduled_pickup_datetime
+	// sur le waypoint de départ.
+	// Retourne ErrorDriverAlreadyHasActiveTrip si le conducteur a déjà un trajet inProgress,
+	// ErrorTripNotFound si le trajet n'existe pas, ErrorUnauthorized si le conducteur n'est
+	// pas propriétaire du trajet, ErrorTripNotScheduled si le statut n'est pas "scheduled".
+	StartTrip(ctx context.Context, tripID, driverID string) error
+
+	// EndTrip passe un trajet en cours au statut "completed" de façon atomique.
+	// Définit actual_arrival_datetime sur le trajet et actual_scheduled_pickup_datetime
+	// sur le waypoint d'arrivée.
+	// Retourne ErrorTripNotFound si le trajet n'existe pas, ErrorUnauthorized si le conducteur
+	// n'est pas propriétaire du trajet, ErrorTripNotInProgress si le statut n'est pas "inProgress".
+	EndTrip(ctx context.Context, tripID, driverID string) error
 }

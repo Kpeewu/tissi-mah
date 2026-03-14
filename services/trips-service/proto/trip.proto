@@ -68,6 +68,32 @@ service TripService {
     };
   }
 
+  // ChangeAutoApprove active ou désactive l'approbation automatique d'un trajet.
+  // Le trajet doit avoir le statut "scheduled" ou "inProgress".
+  rpc ChangeAutoApprove(ChangeAutoApproveRequest) returns (ChangeAutoApproveResponse) {
+    option (google.api.http) = {
+      patch: "/trip/driver/activeAutoApprouve"
+      body: "*"
+    };
+  }
+
+  // StartTrip démarre un trajet planifié et passe son statut à "inProgress".
+  // Le conducteur ne peut avoir qu'un seul trajet inProgress à la fois.
+  rpc StartTrip(StartTripRequest) returns (StartTripResponse) {
+    option (google.api.http) = {
+      patch: "/trip/driver/startTrip"
+      body: "*"
+    };
+  }
+
+  // EndTrip termine un trajet en cours et passe son statut à "completed".
+  rpc EndTrip(EndTripRequest) returns (EndTripResponse) {
+    option (google.api.http) = {
+      patch: "/trip/driver/endTrip"
+      body: "*"
+    };
+  }
+
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -260,6 +286,49 @@ message ChangeTripAllowancesRequest {
 }
 
 message ChangeTripAllowancesResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// ChangeAutoApprove
+// =============================================================================
+
+message ChangeAutoApproveRequest {
+  string DriverId     = 1;
+  string TripId       = 2;
+  bool   AutoApprove  = 3;
+}
+
+message ChangeAutoApproveResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// StartTrip
+// =============================================================================
+
+message StartTripRequest {
+  string DriverId = 1;
+  string TripId   = 2;
+}
+
+message StartTripResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// EndTrip
+// =============================================================================
+
+message EndTripRequest {
+  string DriverId = 1;
+  string TripId   = 2;
+}
+
+message EndTripResponse {
   bool   Success      = 1;
   string ErrorMessage = 2;
 }

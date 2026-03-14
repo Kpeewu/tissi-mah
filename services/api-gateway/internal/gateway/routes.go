@@ -40,6 +40,8 @@ var ProtectedRoutes = map[string]bool{
 	"/trip/driver/changeTripDateAndTime": true,
 	"/trip/driver/changeTripVehicle":     true,
 	"/trip/driver/changeTripAllowances":  true,
+	"/trip/driver/activeAutoApprouve":    true,
+	"/trip/driver/startTrip":             true,
 }
 
 // RateLimitTier identifie le niveau de rate limiting pour une route
