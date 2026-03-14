@@ -86,6 +86,14 @@ service TripService {
     };
   }
 
+  // EndTrip termine un trajet en cours et passe son statut à "completed".
+  rpc EndTrip(EndTripRequest) returns (EndTripResponse) {
+    option (google.api.http) = {
+      patch: "/trip/driver/endTrip"
+      body: "*"
+    };
+  }
+
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -307,6 +315,20 @@ message StartTripRequest {
 }
 
 message StartTripResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// EndTrip
+// =============================================================================
+
+message EndTripRequest {
+  string DriverId = 1;
+  string TripId   = 2;
+}
+
+message EndTripResponse {
   bool   Success      = 1;
   string ErrorMessage = 2;
 }

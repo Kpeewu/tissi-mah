@@ -28,6 +28,7 @@ const (
 	TripService_ChangeTripAllowances_FullMethodName      = "/trip.TripService/ChangeTripAllowances"
 	TripService_ChangeAutoApprove_FullMethodName         = "/trip.TripService/ChangeAutoApprove"
 	TripService_StartTrip_FullMethodName                 = "/trip.TripService/StartTrip"
+	TripService_EndTrip_FullMethodName                   = "/trip.TripService/EndTrip"
 	TripService_Health_FullMethodName                    = "/trip.TripService/Health"
 )
 
@@ -63,6 +64,8 @@ type TripServiceClient interface {
 	// StartTrip démarre un trajet planifié et passe son statut à "inProgress".
 	// Le conducteur ne peut avoir qu'un seul trajet inProgress à la fois.
 	StartTrip(ctx context.Context, in *StartTripRequest, opts ...grpc.CallOption) (*StartTripResponse, error)
+	// EndTrip termine un trajet en cours et passe son statut à "completed".
+	EndTrip(ctx context.Context, in *EndTripRequest, opts ...grpc.CallOption) (*EndTripResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -165,6 +168,16 @@ func (c *tripServiceClient) StartTrip(ctx context.Context, in *StartTripRequest,
 	return out, nil
 }
 
+func (c *tripServiceClient) EndTrip(ctx context.Context, in *EndTripRequest, opts ...grpc.CallOption) (*EndTripResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EndTripResponse)
+	err := c.cc.Invoke(ctx, TripService_EndTrip_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *tripServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -207,6 +220,8 @@ type TripServiceServer interface {
 	// StartTrip démarre un trajet planifié et passe son statut à "inProgress".
 	// Le conducteur ne peut avoir qu'un seul trajet inProgress à la fois.
 	StartTrip(context.Context, *StartTripRequest) (*StartTripResponse, error)
+	// EndTrip termine un trajet en cours et passe son statut à "completed".
+	EndTrip(context.Context, *EndTripRequest) (*EndTripResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedTripServiceServer()
@@ -245,6 +260,9 @@ func (UnimplementedTripServiceServer) ChangeAutoApprove(context.Context, *Change
 }
 func (UnimplementedTripServiceServer) StartTrip(context.Context, *StartTripRequest) (*StartTripResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method StartTrip not implemented")
+}
+func (UnimplementedTripServiceServer) EndTrip(context.Context, *EndTripRequest) (*EndTripResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method EndTrip not implemented")
 }
 func (UnimplementedTripServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -432,6 +450,24 @@ func _TripService_StartTrip_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TripService_EndTrip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EndTripRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).EndTrip(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_EndTrip_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).EndTrip(ctx, req.(*EndTripRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _TripService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -492,6 +528,10 @@ var TripService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "StartTrip",
 			Handler:    _TripService_StartTrip_Handler,
+		},
+		{
+			MethodName: "EndTrip",
+			Handler:    _TripService_EndTrip_Handler,
 		},
 		{
 			MethodName: "Health",

@@ -299,6 +299,26 @@ func (h *TripHandler) StartTrip(ctx context.Context, req *trippb.StartTripReques
 	return &trippb.StartTripResponse{Success: true}, nil
 }
 
+// EndTrip termine un trajet en cours.
+func (h *TripHandler) EndTrip(ctx context.Context, req *trippb.EndTripRequest) (*trippb.EndTripResponse, error) {
+	h.logger.Debug("handler: EndTrip called",
+		zap.String("driverID", req.DriverId),
+		zap.String("tripID", req.TripId),
+	)
+
+	err := h.service.EndTrip(ctx, &serviceInterfaces.EndTripInput{
+		DriverID: req.DriverId,
+		TripID:   req.TripId,
+	})
+	if err != nil {
+		h.logger.Error("handler: EndTrip failed", zap.Error(err))
+		return &trippb.EndTripResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: EndTrip success", zap.String("tripID", req.TripId))
+	return &trippb.EndTripResponse{Success: true}, nil
+}
+
 // Health retourne l'état de santé du service.
 func (h *TripHandler) Health(_ context.Context, _ *trippb.HealthRequest) (*trippb.HealthResponse, error) {
 	return &trippb.HealthResponse{
@@ -351,6 +371,8 @@ func toGRPCError(err error) error {
 	case errors.Is(err, tripErrors.ErrorTripDepartureTooSoon):
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, tripErrors.ErrorDriverAlreadyHasActiveTrip):
+		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, tripErrors.ErrorTripNotInProgress):
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, tripErrors.ErrorDataRetrievalFailed),
 		errors.Is(err, tripErrors.ErrorInternalServer):
