@@ -80,7 +80,12 @@ service FileService {
 
   // --- Revues (inter-service) ---
   rpc CreateDocumentReview(CreateDocumentReviewRequest) returns (DocumentReviewResponse);
+  rpc GetDocumentReview(GetDocumentReviewByIDRequest) returns (DocumentReviewResponse);
   rpc GetDocumentReviews(GetDocumentReviewsRequest) returns (GetDocumentReviewsResponse);
+  rpc GetDocumentReviewByPersonaInquiryID(GetDocumentReviewByPersonaInquiryIDRequest) returns (DocumentReviewResponse);
+  rpc GetDocumentReviewsByUserID(GetDocumentReviewsByUserIDRequest) returns (GetDocumentReviewsResponse);
+  rpc UpdateDocumentReview(UpdateDocumentReviewRequest) returns (DocumentReviewResponse);
+  rpc ListDocumentReviews(ListDocumentReviewsRequest) returns (GetDocumentReviewsResponse);
 
   // --- Health ---
   rpc Health(HealthRequest) returns (HealthResponse);
@@ -285,6 +290,54 @@ message CreateDocumentReviewRequest {
 message GetDocumentReviewsRequest {
   string UserDocumentId = 1; // Optionnel
   string VehicleDocumentId = 2; // Optionnel
+}
+
+message GetDocumentReviewByIDRequest {
+  string ReviewId = 1;
+}
+
+message GetDocumentReviewByPersonaInquiryIDRequest {
+  string PersonaInquiryId = 1;
+}
+
+message GetDocumentReviewsByUserIDRequest {
+  string UserId = 1;
+}
+
+message UpdateDocumentReviewRequest {
+  string ReviewId = 1;
+
+  // Persona
+  string PersonaSessionToken = 2; // Optionnel
+  string SessionExpiresAt = 3; // Optionnel (ISO 8601)
+
+  // Webhook
+  string WebhookEventType = 4; // Optionnel
+  string WebhookReceivedAt = 5; // Optionnel (ISO 8601)
+  bytes PersonaRawPayload = 6; // Optionnel (JSON)
+
+  // Décision
+  string Status = 7; // Optionnel
+  string Decision = 8; // Optionnel
+  string ReasonRejection = 9; // Optionnel
+  string RejectionDetails = 10; // Optionnel
+
+  // Réviseur
+  string ReviewedBy = 11; // Optionnel
+  string ReviewType = 12; // Optionnel
+
+  string Notes = 13; // Optionnel
+
+  // Timestamps
+  string SubmittedAt = 14; // Optionnel (ISO 8601)
+}
+
+message ListDocumentReviewsRequest {
+  string UserId = 1; // Optionnel — filtre par utilisateur
+  string Status = 2; // Optionnel — filtre par statut
+  string Decision = 3; // Optionnel — filtre par décision
+  int32 Page = 4; // Numéro de page (0-based)
+  int32 PageSize = 5; // Nombre de résultats par page
 }
 
 message HealthRequest {}
