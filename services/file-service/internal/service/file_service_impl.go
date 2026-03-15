@@ -99,10 +99,8 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 		return nil, fileErrors.ErrorUploadFailed
 	}
 
-	existing, err := s.userDocRead.GetCurrentByUserIDAndType(ctx, input.UserID, input.DocumentType)
-	if err == nil && existing != nil {
-		_ = s.userDocWrite.MarkAsReplaced(ctx, existing.DocumentID, documentID)
-	}
+	// Chercher le document courant avant la création du nouveau (pour le remplacer ensuite)
+	existing, _ := s.userDocRead.GetCurrentByUserIDAndType(ctx, input.UserID, input.DocumentType)
 
 	now := time.Now().UTC()
 	doc := &domain.UserDocument{
@@ -125,6 +123,11 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 	if err != nil {
 		s.logger.Error("create user document record failed", zap.Error(err), zap.String("documentID", documentID))
 		return nil, fileErrors.ErrorInternalServer
+	}
+
+	// MarkAsReplaced APRÈS la création du nouveau doc pour satisfaire la contrainte FK
+	if existing != nil {
+		_ = s.userDocWrite.MarkAsReplaced(ctx, existing.DocumentID, documentID)
 	}
 
 	s.logger.Info("user document uploaded", zap.String("documentID", documentID), zap.String("userID", input.UserID))
