@@ -222,6 +222,7 @@ grpc/handler.go → middleware/interceptor.go (public) → service → repositor
 | `auth-service` | Complet |
 | `user-service` | Complet |
 | `rating-service` | Complet |
+| `trips-service` | Complet |
 | Tests unitaires + intégration | Structure créée, à compléter |
 | `payment-service` | TODO |
 
@@ -246,4 +247,7 @@ grpc/handler.go → middleware/interceptor.go (public) → service → repositor
 | [services/user-service/proto/user.proto](services/user-service/proto/user.proto) | Contrat API gRPC user |
 | [services/rating-service/cmd/server/main.go](services/rating-service/cmd/server/main.go) | Point d'entrée rating-service |
 | [services/rating-service/proto/rating.proto](services/rating-service/proto/rating.proto) | Contrat API gRPC rating |
+| [services/trips-service/cmd/server/main.go](services/trips-service/cmd/server/main.go) | Point d'entrée trips-service |
+| [services/trips-service/proto/trip.proto](services/trips-service/proto/trip.proto) | Contrat API gRPC trips |
+| [docs/api/trips-service-api.md](docs/api/trips-service-api.md) | Documentation endpoints trips-service |
 | [docs/architecture/overview.md](docs/architecture/overview.md) | Vue d'ensemble architecture |
