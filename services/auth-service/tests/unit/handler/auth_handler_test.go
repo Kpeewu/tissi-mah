@@ -12,6 +12,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"go.uber.org/zap"
+
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/domain"
 	grpcHandler "github.com/Kpeewu/tissi-mah/services/auth-service/internal/grpc"
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/middleware"
@@ -27,7 +29,7 @@ import (
 // newHandler crée un handler avec un mock service frais.
 func newHandler() (*grpcHandler.AuthHandler, *mocks.MockAuthService) {
 	mockService := new(mocks.MockAuthService)
-	handler := grpcHandler.NewAuthHandler(mockService)
+	handler := grpcHandler.NewAuthHandler(mockService, zap.NewNop())
 	return handler, mockService
 }
 
@@ -719,7 +721,7 @@ func TestToGRPCError_Mapping(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			mockService := new(mocks.MockAuthService)
-			handler := grpcHandler.NewAuthHandler(mockService)
+			handler := grpcHandler.NewAuthHandler(mockService, zap.NewNop())
 
 			tc.setupMock(mockService)
 
