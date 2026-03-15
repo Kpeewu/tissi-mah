@@ -18,6 +18,7 @@ type userServiceImpl struct {
 	readRepo   repoInterfaces.UserRepositoryRead
 	writeRepo  repoInterfaces.UserRepositoryWrite
 	authClient client.AuthClient
+	fileClient client.FileClient
 	logger     *zap.Logger
 }
 
@@ -25,12 +26,14 @@ func NewUserService(
 	readRepo repoInterfaces.UserRepositoryRead,
 	writeRepo repoInterfaces.UserRepositoryWrite,
 	authClient client.AuthClient,
+	fileClient client.FileClient,
 	logger *zap.Logger,
 ) serviceInterfaces.UserService {
 	return &userServiceImpl{
 		readRepo:   readRepo,
 		writeRepo:  writeRepo,
 		authClient: authClient,
+		fileClient: fileClient,
 		logger:     logger.Named("service"),
 	}
 }
@@ -125,8 +128,11 @@ func (s *userServiceImpl) GetMyProfile(ctx context.Context) (*serviceInterfaces.
 		return nil, userErrors.ErrorAuthServiceUnavailable
 	}
 
+	idExpiry := s.getDocExpiry(ctx, user.UserID, "idCardFront", "idCardBack")
+	drExpiry := s.getDocExpiry(ctx, user.UserID, "driverLicenceFront", "driverLicenceBack")
+
 	s.logger.Info("profil complet récupéré avec succès", zap.String("user_id", user.UserID))
-	return toFullProfile(user, authInfo), nil
+	return toFullProfile(user, authInfo, idExpiry, drExpiry), nil
 }
 
 // CreateDriverAccount active ou désactive le statut conducteur
@@ -227,12 +233,24 @@ func (s *userServiceImpl) UpdateProfile(ctx context.Context, req serviceInterfac
 		return nil, userErrors.ErrorAuthServiceUnavailable
 	}
 
+	idExpiry := s.getDocExpiry(ctx, updated.UserID, "idCardFront", "idCardBack")
+	drExpiry := s.getDocExpiry(ctx, updated.UserID, "driverLicenceFront", "driverLicenceBack")
+
 	s.logger.Info("profil mis à jour avec succès", zap.String("profile_id", req.UserID))
-	return toFullProfile(updated, authInfo), nil
+	return toFullProfile(updated, authInfo, idExpiry, drExpiry), nil
 }
 
-// toFullProfile convertit un User + AuthInfo en FullProfile
-func toFullProfile(user *domain.User, authInfo *client.AuthInfo) *serviceInterfaces.FullProfile {
+// getDocExpiry récupère expired_at du document courant, en essayant primary puis fallback.
+// Retourne "" si aucun document n'est trouvé ou si file-service est indisponible.
+func (s *userServiceImpl) getDocExpiry(ctx context.Context, userID, primary, fallback string) string {
+	if exp := s.fileClient.GetDocumentExpiry(ctx, userID, primary); exp != "" {
+		return exp
+	}
+	return s.fileClient.GetDocumentExpiry(ctx, userID, fallback)
+}
+
+// toFullProfile convertit un User + AuthInfo + dates d'expiration en FullProfile
+func toFullProfile(user *domain.User, authInfo *client.AuthInfo, idExpiry, drExpiry string) *serviceInterfaces.FullProfile {
 	return &serviceInterfaces.FullProfile{
 		AuthID:                     user.AuthID,
 		UserID:                     user.UserID,
@@ -253,8 +271,7 @@ func toFullProfile(user *domain.User, authInfo *client.AuthInfo) *serviceInterfa
 		IsSuspended:                authInfo.IsSuspended,
 		SuspensionEndDate:          authInfo.SuspensionEndDate,
 		TripPreferences:            user.TripPreferences,
-		IDCardExpirationDate:       user.IDCardExpirationDate,
-		DriveLicenceExpirationDate: user.DriveLicenceExpirationDate,
-		UserFiles:                  []domain.UserFile{},
+		IDCardExpirationDate:       idExpiry,
+		DriveLicenceExpirationDate: drExpiry,
 	}
 }

@@ -96,6 +96,18 @@ protoc \
   --go-grpc_opt=paths=source_relative \
   auth.proto
 
+# Generate file.proto (client gRPC vers file-service)
+PROTO_OUT_FILE="${PROTO_OUT}/filepb"
+mkdir -p ${PROTO_OUT_FILE}
+echo "Generating Go code from file.proto..."
+protoc \
+  --proto_path=${PROTO_DIR} \
+  --go_out=${PROTO_OUT_FILE} \
+  --go_opt=paths=source_relative \
+  --go-grpc_out=${PROTO_OUT_FILE} \
+  --go-grpc_opt=paths=source_relative \
+  file.proto
+
 # Check result
 if [ $? -eq 0 ]; then
   echo ""
@@ -104,6 +116,7 @@ if [ $? -eq 0 ]; then
   echo "Generated files:"
   ls -lh ${PROTO_OUT}/*.go 2>/dev/null || echo "No .go files in gen/"
   ls -lh ${PROTO_OUT_AUTH}/*.go 2>/dev/null || echo "No .go files in gen/authpb/"
+  ls -lh ${PROTO_OUT_FILE}/*.go 2>/dev/null || echo "No .go files in gen/filepb/"
 else
   echo ""
   echo -e "${RED}❌ Proto generation failed!${NC}"

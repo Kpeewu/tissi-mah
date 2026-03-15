@@ -51,9 +51,7 @@ func newDomainUser() *domain.User {
 			{Preference: "music", IsAllowed: true},
 			{Preference: "smoking", IsAllowed: false},
 		},
-		IDCardExpirationDate:       "2030-12-31",
-		DriveLicenceExpirationDate: "2028-06-15",
-		CreatedAt:                  time.Now().UTC(),
+		CreatedAt: time.Now().UTC(),
 		UpdatedAt:                  time.Now().UTC(),
 	}
 }
@@ -84,9 +82,6 @@ func newFullProfile() *serviceInterfaces.FullProfile {
 		},
 		IDCardExpirationDate:       "2030-12-31",
 		DriveLicenceExpirationDate: "2028-06-15",
-		UserFiles: []domain.UserFile{
-			{FileID: "file-1", FileURL: "https://example.com/id.jpg", FileType: "id_card"},
-		},
 	}
 }
 
@@ -142,8 +137,6 @@ func TestCreateUser_Success(t *testing.T) {
 	assert.Equal(t, user.IsPassenger, resp.IsPassenger)
 	assert.Equal(t, user.IsDriverProfileVerified, resp.IsDriverProfileVerified)
 	assert.Equal(t, user.IsPassengerProfileVerified, resp.IsPassengerProfileVerified)
-	assert.Equal(t, user.IDCardExpirationDate, resp.IDCardExpirationDate)
-	assert.Equal(t, user.DriveLicenceExpirationDate, resp.DriveLicenceExpirationDate)
 	require.Len(t, resp.TripPreferences, 2)
 	assert.Equal(t, "music", resp.TripPreferences[0].Preference)
 	assert.True(t, resp.TripPreferences[0].IsAllowed)
@@ -296,12 +289,6 @@ func TestGetMyProfile_Success(t *testing.T) {
 	require.Len(t, u.TripPreferences, 1)
 	assert.Equal(t, "music", u.TripPreferences[0].Preference)
 	assert.True(t, u.TripPreferences[0].IsAllowed)
-
-	// Vérification des fichiers utilisateur
-	require.Len(t, u.UserFiles, 1)
-	assert.Equal(t, "file-1", u.UserFiles[0].FileID)
-	assert.Equal(t, "https://example.com/id.jpg", u.UserFiles[0].FileURL)
-	assert.Equal(t, "id_card", u.UserFiles[0].FileType)
 
 	mockService.AssertExpectations(t)
 }

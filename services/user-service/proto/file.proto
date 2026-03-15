@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package file;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen/filepb;filepb";
+
+// Stub minimal — seul GetCurrentUserDocument est utilisé par user-service.
+// Les numéros de champs correspondent exactement au fichier file.proto d'origine
+// pour la compatibilité wire format.
+
+service FileService {
+  rpc GetCurrentUserDocument(GetCurrentUserDocumentRequest) returns (UserDocumentResponse);
+}
+
+message GetCurrentUserDocumentRequest {
+  string UserId       = 1;
+  string DocumentType = 2;
+}
+
+message UserDocumentResponse {
+  string DocumentId   = 1;
+  string DocumentType = 4;
+  string Status       = 10;
+  bool   IsCurrent    = 11;
+  string expired_at   = 14; // ISO 8601 ou "" si non défini
+}

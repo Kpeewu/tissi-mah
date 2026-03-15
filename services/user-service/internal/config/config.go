@@ -12,6 +12,7 @@ type Config struct {
 	MongoDB     MongoDBConfig
 	Redis       RedisConfig
 	AuthService AuthServiceConfig
+	FileService FileServiceConfig
 	LogLevel    string
 }
 
@@ -34,6 +35,11 @@ type RedisConfig struct {
 }
 
 type AuthServiceConfig struct {
+	Address string
+	Port    string
+}
+
+type FileServiceConfig struct {
 	Address string
 	Port    string
 }
@@ -63,6 +69,10 @@ func Load() (*Config, error) {
 		AuthService: AuthServiceConfig{
 			Address: sharedconfig.GetStringOrDefault(values, "AUTH_SERVICE_HOST", "0.0.0.0"),
 			Port:    sharedconfig.GetStringOrDefault(values, "AUTH_SERVICE_PORT", "50051"),
+		},
+		FileService: FileServiceConfig{
+			Address: sharedconfig.GetStringOrDefault(values, "FILE_SERVICE_HOST", "0.0.0.0"),
+			Port:    sharedconfig.GetStringOrDefault(values, "FILE_SERVICE_PORT", "50053"),
 		},
 		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
 	}

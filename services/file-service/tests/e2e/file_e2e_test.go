@@ -279,6 +279,43 @@ func TestE2E_GetCurrentUserDocument(t *testing.T) {
 		assert.Equal(t, second.DocumentId, resp.DocumentId)
 		assert.NotEqual(t, first.DocumentId, resp.DocumentId)
 	})
+
+	t.Run("document sans date d expiration - ExpiredAt est vide", func(t *testing.T) {
+		cleanTables(t)
+
+		uploadUserDoc(t, "e2e-no-expiry", "idCardFront")
+
+		resp, err := grpcClient.GetCurrentUserDocument(ctx, &filepb.GetCurrentUserDocumentRequest{
+			UserId:       "e2e-no-expiry",
+			DocumentType: "idCardFront",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, "", resp.ExpiredAt, "ExpiredAt doit être vide si non défini")
+	})
+
+	t.Run("document avec date d expiration - ExpiredAt est rempli", func(t *testing.T) {
+		cleanTables(t)
+
+		uploaded := uploadUserDoc(t, "e2e-with-expiry", "driverLicenceFront")
+
+		// Mettre à jour expire_at directement en base
+		expiry := time.Date(2032, 3, 1, 0, 0, 0, 0, time.UTC)
+		_, err := testPool.Exec(ctx,
+			`UPDATE user_documents SET expire_at = $1 WHERE document_id = $2`,
+			expiry, uploaded.DocumentId,
+		)
+		require.NoError(t, err)
+
+		resp, err := grpcClient.GetCurrentUserDocument(ctx, &filepb.GetCurrentUserDocumentRequest{
+			UserId:       "e2e-with-expiry",
+			DocumentType: "driverLicenceFront",
+		})
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp.ExpiredAt, "ExpiredAt doit être non-vide")
+		assert.Contains(t, resp.ExpiredAt, "2032", "ExpiredAt doit contenir l'année 2032")
+	})
 }
 
 // =============================================================================

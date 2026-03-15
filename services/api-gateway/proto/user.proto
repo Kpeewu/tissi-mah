@@ -181,7 +181,6 @@ message FullUserProfile {
   repeated TripPreference TripPreferences        = 19;
   string IDCardExpirationDate                    = 20;
   string DriveLicenceExpirationDate              = 21;
-  repeated UserFile UserFiles                    = 22;
 }
 
 message UserFile {

@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"testing"
+	"time"
 
 	fileErrors "github.com/Kpeewu/tissi-mah/services/file-service/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -108,5 +109,19 @@ func TestUserDocumentRead_GetCurrentByUserIDAndType(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, replacement.DocumentID, result.DocumentID)
+	})
+
+	t.Run("document with expired_at set — champ correctement lu depuis la base", func(t *testing.T) {
+		cleanTables(t)
+		expiry := time.Date(2030, 6, 15, 0, 0, 0, 0, time.UTC)
+		doc := newUserDoc("user-expiry", "idCardFront")
+		doc.ExpireAt = &expiry
+		insertUserDoc(t, doc)
+
+		result, err := newUserDocReadRepo().GetCurrentByUserIDAndType(context.Background(), "user-expiry", "idCardFront")
+
+		require.NoError(t, err)
+		require.NotNil(t, result.ExpireAt, "ExpireAt doit être non-nil")
+		assert.Equal(t, expiry.UTC(), result.ExpireAt.UTC())
 	})
 }
