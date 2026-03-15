@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	"github.com/Kpeewu/tissi-mah/services/user-service/fixtures"
 	"github.com/Kpeewu/tissi-mah/services/user-service/internal/client"
@@ -26,7 +27,7 @@ func newService() (*mocks.MockUserRepositoryRead, *mocks.MockUserRepositoryWrite
 	mockReadRepo := new(mocks.MockUserRepositoryRead)
 	mockWriteRepo := new(mocks.MockUserRepositoryWrite)
 	mockAuthClient := new(mocks.MockAuthClient)
-	svc := service.NewUserService(mockReadRepo, mockWriteRepo, mockAuthClient)
+	svc := service.NewUserService(mockReadRepo, mockWriteRepo, mockAuthClient, zap.NewNop())
 	return mockReadRepo, mockWriteRepo, mockAuthClient, svc
 }
 

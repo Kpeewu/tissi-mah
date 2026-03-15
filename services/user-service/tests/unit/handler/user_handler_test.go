@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -25,7 +26,7 @@ import (
 // newMockAndHandler crée un mock service et un handler pour chaque test
 func newMockAndHandler() (*mocks.MockUserService, *grpcHandler.UserHandler) {
 	mockService := new(mocks.MockUserService)
-	handler := grpcHandler.NewUserHandler(mockService)
+	handler := grpcHandler.NewUserHandler(mockService, zap.NewNop())
 	return mockService, handler
 }
 
