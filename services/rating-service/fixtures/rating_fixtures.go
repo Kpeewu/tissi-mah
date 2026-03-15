@@ -61,9 +61,9 @@ func NewTestRating(opts ...RatingOption) *domain.Rating {
 	defaultComment := "Excellent trajet, conducteur ponctuel"
 
 	rating := &domain.Rating{
-		RatingID:      "rating_" + id,
-		RaterID:       "rater_" + uuid.New().String(),
-		UserRatedID:   "rated_" + uuid.New().String(),
+		RatingID:      id,
+		RaterID:       uuid.New().String(),
+		UserRatedID:   uuid.New().String(),
 		NumberOfStars: 4,
 		Comment:       &defaultComment,
 		CreatedAt:     now,
