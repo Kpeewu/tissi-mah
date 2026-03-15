@@ -15,6 +15,7 @@ import (
 
 	authpb    "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/authpb"
 	filepb    "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/filepb"
+	kycpb     "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/kycpb"
 	ratingpb  "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb"
 	trippb    "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/trippb"
 	userpb    "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/userpb"
@@ -29,6 +30,7 @@ type MuxConfig struct {
 	FileServiceAddr    string
 	VehicleServiceAddr string
 	TripsServiceAddr   string
+	KYCServiceAddr     string
 	Logger             *zap.Logger
 }
 
@@ -119,6 +121,12 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		return nil, err
 	}
 	cfg.Logger.Info("registered trips-service handler", zap.String("endpoint", cfg.TripsServiceAddr))
+
+	// Enregistrer kyc-service
+	if err := kycpb.RegisterKYCServiceHandlerFromEndpoint(ctx, mux, cfg.KYCServiceAddr, dialOpts); err != nil {
+		return nil, err
+	}
+	cfg.Logger.Info("registered kyc-service handler", zap.String("endpoint", cfg.KYCServiceAddr))
 
 	return mux, nil
 }
