@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
+
+	"github.com/Kpeewu/tissi-mah/services/auth-service/fixtures"
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/domain"
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/middleware"
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/service"
@@ -15,8 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-
-	"github.com/Kpeewu/tissi-mah/services/auth-service/fixtures"
 )
 
 // --- Helpers ---
@@ -32,7 +33,7 @@ func newTestService() (*mocks.MockAuthRepositoryRead, *mocks.MockAuthRepositoryW
 	mockReadRepo := new(mocks.MockAuthRepositoryRead)
 	mockWriteRepo := new(mocks.MockAuthRepositoryWrite)
 	mockUserClient := new(mocks.MockUserClient)
-	svc := service.NewAuthService(mockReadRepo, mockWriteRepo, mockUserClient)
+	svc := service.NewAuthService(mockReadRepo, mockWriteRepo, mockUserClient, zap.NewNop())
 	return mockReadRepo, mockWriteRepo, mockUserClient, svc
 }
 
