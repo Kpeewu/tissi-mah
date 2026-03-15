@@ -24,9 +24,9 @@ func TestRatingRepositoryWrite_Create(t *testing.T) {
 		cleanupRatingsTable(t, ctx)
 
 		rating := &domain.Rating{
-			RatingID:      "rating_" + uuid.New().String(),
-			RaterID:       "rater-create-test",
-			UserRatedID:   "rated-create-test",
+			RatingID:      uuid.New().String(),
+			RaterID:       uuid.New().String(),
+			UserRatedID:   uuid.New().String(),
 			NumberOfStars: 4,
 			Comment:       ptrString("Bon trajet"),
 		}
@@ -52,9 +52,9 @@ func TestRatingRepositoryWrite_Create(t *testing.T) {
 		cleanupRatingsTable(t, ctx)
 
 		rating := &domain.Rating{
-			RatingID:      "rating_" + uuid.New().String(),
-			RaterID:       "rater-no-comment",
-			UserRatedID:   "rated-no-comment",
+			RatingID:      uuid.New().String(),
+			RaterID:       uuid.New().String(),
+			UserRatedID:   uuid.New().String(),
 			NumberOfStars: 5,
 			Comment:       nil,
 		}
@@ -78,7 +78,7 @@ func TestRatingRepositoryWrite_Create(t *testing.T) {
 		require.NoError(t, fixtures.InsertRating(ctx, testPool, rating1))
 
 		rating2 := &domain.Rating{
-			RatingID:      "rating_" + uuid.New().String(),
+			RatingID:      uuid.New().String(),
 			RaterID:       "rater-dup",
 			UserRatedID:   "rated-dup",
 			NumberOfStars: 3,
@@ -93,7 +93,7 @@ func TestRatingRepositoryWrite_Create(t *testing.T) {
 		cleanupRatingsTable(t, ctx)
 
 		rating := &domain.Rating{
-			RatingID:      "rating_" + uuid.New().String(),
+			RatingID:      uuid.New().String(),
 			RaterID:       "same-user",
 			UserRatedID:   "same-user",
 			NumberOfStars: 5,
@@ -108,9 +108,9 @@ func TestRatingRepositoryWrite_Create(t *testing.T) {
 		cleanupRatingsTable(t, ctx)
 
 		rating := &domain.Rating{
-			RatingID:      "rating_" + uuid.New().String(),
-			RaterID:       "rater-invalid",
-			UserRatedID:   "rated-invalid",
+			RatingID:      uuid.New().String(),
+			RaterID:       uuid.New().String(),
+			UserRatedID:   uuid.New().String(),
 			NumberOfStars: 6,
 		}
 
