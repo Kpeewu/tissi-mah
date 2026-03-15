@@ -19,6 +19,14 @@ func (m *MockFileServiceClient) GetCurrentUserDocument(ctx context.Context, user
 	return args.Get(0).(*domain.DocumentRef), args.Error(1)
 }
 
+func (m *MockFileServiceClient) GetUserDocuments(ctx context.Context, userID string) ([]*domain.DocumentRef, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.DocumentRef), args.Error(1)
+}
+
 func (m *MockFileServiceClient) GetVehicleDocuments(ctx context.Context, vehicleID string) ([]*domain.DocumentRef, error) {
 	args := m.Called(ctx, vehicleID)
 	if args.Get(0) == nil {
