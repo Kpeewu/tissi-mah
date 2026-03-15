@@ -62,7 +62,7 @@ func (r *authWriteRepositoryImpl) Update(ctx context.Context, auth *domain.Auth)
 	query := `UPDATE auth SET
 					email = $1, phone_number = $2, is_active = $3, is_suspended = $4, suspension_end_date = $5
 				WHERE auth_id = $6
-				RETURNING auth_id, firebase_id, phone_number, is_active, is_suspended, suspension_end_date, created_at, updated_at, deleted_at`
+				RETURNING auth_id, firebase_id, email, phone_number, is_active, is_suspended, suspension_end_date, created_at, updated_at, deleted_at`
 
 	err := r.pool.QueryRow(ctx, query, auth.Email, auth.PhoneNumber, auth.IsActive, auth.IsSuspended, auth.SuspensionEndDate, auth.AuthID).Scan(
 		&auth.AuthID,
