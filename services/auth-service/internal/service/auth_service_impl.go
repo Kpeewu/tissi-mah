@@ -60,19 +60,25 @@ func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstNa
 
 	// Vérification de la disponibilité de l'email
 	if email != "" {
-		_, err := s.readRepo.EmailExists(ctx, email)
+		exists, err := s.readRepo.EmailExists(ctx, email)
 		if err != nil {
 			s.logger.Error("email check failed", zap.String("email", email), zap.Error(err))
 			return nil, err
+		}
+		if exists {
+			return nil, authErrors.ErrorEmailNotAvailable
 		}
 	}
 
 	// Vérification de la disponibilité du numéro de téléphone
 	if phoneNumber != "" {
-		_, err := s.readRepo.PhoneNumberExists(ctx, phoneNumber)
+		exists, err := s.readRepo.PhoneNumberExists(ctx, phoneNumber)
 		if err != nil {
 			s.logger.Error("phone check failed", zap.String("phone", phoneNumber), zap.Error(err))
 			return nil, err
+		}
+		if exists {
+			return nil, authErrors.ErrorPhoneNumberNotAvailable
 		}
 	}
 

@@ -181,12 +181,7 @@ func (r *authReadRepositoryImpl) EmailExists(ctx context.Context, email string) 
 		return false, authErrors.ErrorDataRetrievalFailed
 	}
 
-	if exists {
-		r.logger.Debug("email already taken", zap.String("email", email))
-		return true, authErrors.ErrorEmailNotAvailable
-	}
-
-	return false, nil
+	return exists, nil
 }
 
 // check if phone number already used
@@ -203,10 +198,5 @@ func (r *authReadRepositoryImpl) PhoneNumberExists(ctx context.Context, phoneNum
 		return false, authErrors.ErrorDataRetrievalFailed
 	}
 
-	if exists {
-		r.logger.Debug("phone already taken", zap.String("phone", phoneNumber))
-		return true, authErrors.ErrorPhoneNumberNotAvailable
-	}
-
-	return false, nil
+	return exists, nil
 }

@@ -130,7 +130,7 @@ func TestAuthRepositoryRead_GetByPhoneNumber(t *testing.T) {
 		require.NoError(t, err, "Failed to insert test user")
 
 		// Act
-		result, err := repo.GetByPhoneNumber(ctx, *testAuth.Email)
+		result, err := repo.GetByPhoneNumber(ctx, *testAuth.PhoneNumber)
 
 		// Assert
 		assert.NoError(t, err)
@@ -167,7 +167,7 @@ func TestAuthRepositoryRead_EmailExists(t *testing.T) {
 		exists, err := repo.EmailExists(ctx, *testAuth.Email)
 
 		// Assert
-		assert.NoError(t, authErrors.ErrorEmailNotAvailable)
+		assert.NoError(t, err)
 		assert.True(t, exists)
 	})
 
@@ -198,7 +198,7 @@ func TestAuthRepositoryRead_PhoneNumberExists(t *testing.T) {
 		exists, err := repo.PhoneNumberExists(ctx, *testAuth.PhoneNumber)
 
 		// Assert
-		assert.NoError(t, authErrors.ErrorPhoneNumberNotAvailable)
+		assert.NoError(t, err)
 		assert.True(t, exists)
 	})
 
