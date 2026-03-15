@@ -494,6 +494,11 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 	return review, nil
 }
 
+func (s *fileServiceImpl) GetDocumentReview(ctx context.Context, reviewID string) (*domain.DocumentReview, error) {
+	s.logger.Debug("get document review", zap.String("reviewID", reviewID))
+	return s.reviewRead.GetByID(ctx, reviewID)
+}
+
 func (s *fileServiceImpl) GetDocumentReviews(ctx context.Context, userDocumentID string, vehicleDocumentID string) ([]*domain.DocumentReview, error) {
 	s.logger.Debug("get document reviews", zap.String("userDocID", userDocumentID), zap.String("vehicleDocID", vehicleDocumentID))
 	if userDocumentID != "" {
@@ -503,6 +508,47 @@ func (s *fileServiceImpl) GetDocumentReviews(ctx context.Context, userDocumentID
 		return s.reviewRead.GetByVehicleDocumentID(ctx, vehicleDocumentID)
 	}
 	return nil, fileErrors.ErrorDocumentNotFound
+}
+
+func (s *fileServiceImpl) GetDocumentReviewByPersonaInquiryID(ctx context.Context, personaInquiryID string) (*domain.DocumentReview, error) {
+	s.logger.Debug("get document review by persona_inquiry_id", zap.String("personaInquiryID", personaInquiryID))
+	return s.reviewRead.GetByPersonaInquiryID(ctx, personaInquiryID)
+}
+
+func (s *fileServiceImpl) GetDocumentReviewsByUserID(ctx context.Context, userID string) ([]*domain.DocumentReview, error) {
+	s.logger.Debug("get document reviews by userID", zap.String("userID", userID))
+	return s.reviewRead.GetByUserID(ctx, userID)
+}
+
+func (s *fileServiceImpl) UpdateDocumentReview(ctx context.Context, review *domain.DocumentReview) (*domain.DocumentReview, error) {
+	s.logger.Debug("update document review", zap.String("reviewID", review.ReviewID))
+
+	if err := s.reviewWrite.Update(ctx, review); err != nil {
+		s.logger.Error("failed to update document review", zap.String("reviewID", review.ReviewID), zap.Error(err))
+		return nil, err
+	}
+
+	// Relire la revue mise à jour
+	updated, err := s.reviewRead.GetByID(ctx, review.ReviewID)
+	if err != nil {
+		s.logger.Error("failed to read updated review", zap.String("reviewID", review.ReviewID), zap.Error(err))
+		return nil, err
+	}
+
+	s.logger.Info("document review updated", zap.String("reviewID", updated.ReviewID))
+	return updated, nil
+}
+
+func (s *fileServiceImpl) ListDocumentReviews(ctx context.Context, userID string, status string, decision string, page int32, pageSize int32) ([]*domain.DocumentReview, error) {
+	s.logger.Debug("list document reviews",
+		zap.String("userID", userID),
+		zap.String("status", status),
+		zap.String("decision", decision),
+		zap.Int32("page", page),
+		zap.Int32("pageSize", pageSize),
+	)
+	offset := page * pageSize
+	return s.reviewRead.List(ctx, userID, status, decision, offset, pageSize)
 }
 
 // --- Helpers ---
