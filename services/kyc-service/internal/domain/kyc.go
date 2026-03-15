@@ -87,6 +87,12 @@ type PersonaSession struct {
 	ExpiresAt    time.Time
 }
 
+// DocumentRef contient l'identifiant d'un document retourné par le file-service
+type DocumentRef struct {
+	DocumentID   string
+	DocumentType string
+}
+
 // PendingReview est une vue allégée pour le statut KYC
 type PendingReview struct {
 	ReviewID         string

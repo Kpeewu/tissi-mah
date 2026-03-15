@@ -8,6 +8,12 @@ import (
 
 // FileServiceClient est l'interface pour communiquer avec le file-service via gRPC
 type FileServiceClient interface {
+	// Récupère le document utilisateur courant par type
+	GetCurrentUserDocument(ctx context.Context, userID string, documentType string) (*domain.DocumentRef, error)
+
+	// Récupère les documents d'un véhicule
+	GetVehicleDocuments(ctx context.Context, vehicleID string) ([]*domain.DocumentRef, error)
+
 	// Crée une revue de document dans le file-service
 	CreateDocumentReview(ctx context.Context, review *domain.Review) (*domain.Review, error)
 

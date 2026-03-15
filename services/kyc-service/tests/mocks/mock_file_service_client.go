@@ -11,6 +11,22 @@ type MockFileServiceClient struct {
 	mock.Mock
 }
 
+func (m *MockFileServiceClient) GetCurrentUserDocument(ctx context.Context, userID string, documentType string) (*domain.DocumentRef, error) {
+	args := m.Called(ctx, userID, documentType)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.DocumentRef), args.Error(1)
+}
+
+func (m *MockFileServiceClient) GetVehicleDocuments(ctx context.Context, vehicleID string) ([]*domain.DocumentRef, error) {
+	args := m.Called(ctx, vehicleID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.DocumentRef), args.Error(1)
+}
+
 func (m *MockFileServiceClient) CreateDocumentReview(ctx context.Context, review *domain.Review) (*domain.Review, error) {
 	args := m.Called(ctx, review)
 	if args.Get(0) == nil {
