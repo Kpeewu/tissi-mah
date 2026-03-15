@@ -22,8 +22,14 @@ RUN apk add --no-cache git ca-certificates tzdata
 COPY pkg/go.mod pkg/go.sum ./pkg/
 COPY services/file-service/go.mod services/file-service/go.sum* ./services/file-service/
 
+# pkg-test est un module de test uniquement, mais file-service/go.mod a un replace directive qui
+# pointe vers lui. On crée un stub minimal pour satisfaire la résolution Go sans inclure
+# aucune dépendance de test dans l'image de production.
+RUN mkdir -p pkg-test && \
+    printf 'module github.com/Kpeewu/tissi-mah/pkg-test\n\ngo 1.25\n' > pkg-test/go.mod
+
 # Create a scoped go.work with only the modules present in this build context
-RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./services/file-service\n)\n' > go.work
+RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n)\n' > go.work
 
 # Download dependencies for all modules
 RUN go mod download -C ./pkg

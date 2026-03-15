@@ -22,9 +22,15 @@ RUN apk add --no-cache git ca-certificates tzdata
 COPY pkg/go.mod pkg/go.sum ./pkg/
 COPY services/user-service/go.mod services/user-service/go.sum* ./services/user-service/
 
+# pkg-test est un module de test uniquement, mais user-service/go.mod a un replace directive qui
+# pointe vers lui. On crée un stub minimal pour satisfaire la résolution Go sans inclure
+# aucune dépendance de test dans l'image de production.
+RUN mkdir -p pkg-test && \
+    printf 'module github.com/Kpeewu/tissi-mah/pkg-test\n\ngo 1.25\n' > pkg-test/go.mod
+
 # Create a scoped go.work with only the modules present in this build context
-# (the repo go.work lists all services, but we only have pkg + user-service here)
-RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./services/user-service\n)\n' > go.work
+# (the repo go.work lists all services, but we only have pkg + pkg-test stub + user-service here)
+RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/user-service\n)\n' > go.work
 
 # Download dependencies for all modules
 RUN go mod download -C ./pkg
