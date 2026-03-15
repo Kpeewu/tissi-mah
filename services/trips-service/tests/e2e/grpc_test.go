@@ -264,3 +264,567 @@ func TestE2E_ConfirmWaypointArrival_InvalidWaypointID(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, codes.NotFound, st.Code())
 }
+
+// =============================================================================
+// Health
+// =============================================================================
+
+func TestE2E_Health(t *testing.T) {
+	conn, _, _, cleanup := setupServer(t)
+	defer cleanup()
+
+	client := trippb.NewTripServiceClient(conn)
+	resp, err := client.Health(context.Background(), &trippb.HealthRequest{})
+
+	require.NoError(t, err)
+	assert.Equal(t, "SERVING", resp.Status)
+	assert.NotEmpty(t, resp.Version)
+	assert.NotZero(t, resp.Timestamp)
+}
+
+// =============================================================================
+// CreateTrip — cas d'erreur
+// =============================================================================
+
+func TestE2E_CreateTrip_UnverifiedDriver(t *testing.T) {
+	ctx := context.Background()
+	conn, mockUserClient, _, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+	driverID := "driver-unverified"
+	vehicleID := "vehicle-unverified"
+
+	// Conducteur non certifié
+	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(false, nil)
+
+	_, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
+
+	require.Error(t, err)
+	st, ok := status.FromError(err)
+	require.True(t, ok)
+	assert.Equal(t, codes.PermissionDenied, st.Code())
+	mockUserClient.AssertExpectations(t)
+}
+
+func TestE2E_CreateTrip_InvalidWaypoints(t *testing.T) {
+	ctx := context.Background()
+	conn, mockUserClient, _, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+	driverID := "driver-invalid-wp"
+	vehicleID := "vehicle-invalid-wp"
+
+	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil).Maybe()
+
+	req := validCreateTripRequest(driverID, vehicleID)
+	req.TripWaypoints = nil // aucun waypoint
+
+	_, err := client.CreateTrip(ctx, req)
+
+	require.Error(t, err)
+	st, ok := status.FromError(err)
+	require.True(t, ok)
+	assert.Equal(t, codes.InvalidArgument, st.Code())
+}
+
+func TestE2E_CreateTrip_MissingDriverID(t *testing.T) {
+	ctx := context.Background()
+	conn, _, _, cleanup := setupServer(t)
+	defer cleanup()
+
+	client := trippb.NewTripServiceClient(conn)
+
+	req := validCreateTripRequest("", "vehicle-x")
+	_, err := client.CreateTrip(ctx, req)
+
+	require.Error(t, err)
+	st, ok := status.FromError(err)
+	require.True(t, ok)
+	assert.Equal(t, codes.InvalidArgument, st.Code())
+}
+
+// =============================================================================
+// GetTripsPreviews
+// =============================================================================
+
+func TestE2E_GetTripsPreviews_EmptyList(t *testing.T) {
+	ctx := context.Background()
+	conn, _, _, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+
+	resp, err := client.GetTripsPreviews(ctx, &trippb.GetTripsPreviewsRequest{
+		DriverId: "driver-no-trips",
+		Index:    0,
+	})
+
+	require.NoError(t, err)
+	assert.Empty(t, resp.TripsPreviews)
+}
+
+func TestE2E_GetTripsPreviews_WithTrips(t *testing.T) {
+	ctx := context.Background()
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+	driverID := "driver-preview-list"
+	vehicleID := "vehicle-preview-list"
+
+	// Créer 2 trajets via l'API
+	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+
+	req1 := validCreateTripRequest(driverID, vehicleID)
+	_, err := client.CreateTrip(ctx, req1)
+	require.NoError(t, err)
+
+	req2 := validCreateTripRequest(driverID, vehicleID)
+	req2.DepartureDatetime = time.Now().Add(5 * time.Hour).Format(time.RFC3339)
+	req2.EstimatedArrivalDatetime = time.Now().Add(7 * time.Hour).Format(time.RFC3339)
+	_, err = client.CreateTrip(ctx, req2)
+	require.NoError(t, err)
+
+	// Enrichissement : GetDriverName + GetVehicleInfo (1 véhicule unique)
+	mockUserClient.On("GetDriverName", mock.Anything, driverID).Return("Jean Test", nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, nil)
+
+	resp, err := client.GetTripsPreviews(ctx, &trippb.GetTripsPreviewsRequest{
+		DriverId: driverID,
+		Index:    0,
+	})
+
+	require.NoError(t, err)
+	assert.Len(t, resp.TripsPreviews, 2)
+	assert.Equal(t, driverID, resp.TripsPreviews[0].DriverId)
+	assert.Equal(t, "Jean Test", resp.TripsPreviews[0].DriverName)
+}
+
+// =============================================================================
+// GetCompletedTripsPreviews
+// =============================================================================
+
+func TestE2E_GetCompletedTripsPreviews(t *testing.T) {
+	ctx := context.Background()
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+	driverID := "driver-completed"
+	vehicleID := "vehicle-completed"
+
+	// Créer un trajet, le démarrer, puis le terminer
+	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+
+	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
+	require.NoError(t, err)
+	require.NotEmpty(t, createResp.TripId)
+
+	_, err = client.StartTrip(ctx, &trippb.StartTripRequest{DriverId: driverID, TripId: createResp.TripId})
+	require.NoError(t, err)
+
+	_, err = client.EndTrip(ctx, &trippb.EndTripRequest{DriverId: driverID, TripId: createResp.TripId})
+	require.NoError(t, err)
+
+	// Enrichissement pour GetCompletedTripsPreviews (1 trajet)
+	mockUserClient.On("GetDriverName", mock.Anything, driverID).Return("Jean Test", nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, nil)
+
+	// Le trajet doit apparaître dans les trajets complétés
+	completed, err := client.GetCompletedTripsPreviews(ctx, &trippb.GetCompletedTripsPreviewsRequest{
+		DriverId: driverID,
+		Index:    0,
+	})
+	require.NoError(t, err)
+	require.Len(t, completed.TripsPreviews, 1)
+	assert.Equal(t, createResp.TripId, completed.TripsPreviews[0].TripId)
+	assert.Equal(t, "Jean Test", completed.TripsPreviews[0].DriverName)
+
+	// Et ne doit plus apparaître dans les trajets actifs (liste vide → pas d'enrichissement)
+	active, err := client.GetTripsPreviews(ctx, &trippb.GetTripsPreviewsRequest{
+		DriverId: driverID,
+		Index:    0,
+	})
+	require.NoError(t, err)
+	assert.Empty(t, active.TripsPreviews)
+
+	mockUserClient.AssertExpectations(t)
+	mockVehicleClient.AssertExpectations(t)
+}
+
+// =============================================================================
+// ChangeTripDateAndTime
+// =============================================================================
+
+func TestE2E_ChangeTripDateAndTime_Success(t *testing.T) {
+	ctx := context.Background()
+	conn, mockUserClient, _, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+	driverID := "driver-change-date"
+	vehicleID := "vehicle-change-date"
+
+	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
+	require.NoError(t, err)
+
+	// Nouvelle heure de départ : dans 90 min (toujours avant l'arrivée à 3h)
+	newDatetime := time.Now().UTC().Add(90 * time.Minute).Format(time.RFC3339)
+
+	resp, err := client.ChangeTripDateAndTime(ctx, &trippb.ChangeTripDateAndTimeRequest{
+		DriverId:          driverID,
+		TripId:            createResp.TripId,
+		DepartureDatetime: newDatetime,
+	})
+
+	require.NoError(t, err)
+	assert.True(t, resp.Success)
+	mockUserClient.AssertExpectations(t)
+}
+
+func TestE2E_ChangeTripDateAndTime_TripNotFound(t *testing.T) {
+	ctx := context.Background()
+	conn, _, _, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+
+	_, err := client.ChangeTripDateAndTime(ctx, &trippb.ChangeTripDateAndTimeRequest{
+		DriverId:          "driver-x",
+		TripId:            "nonexistent-trip-id",
+		DepartureDatetime: time.Now().Add(2 * time.Hour).Format(time.RFC3339),
+	})
+
+	require.Error(t, err)
+	st, ok := status.FromError(err)
+	require.True(t, ok)
+	assert.Equal(t, codes.NotFound, st.Code())
+}
+
+// =============================================================================
+// ChangeTripVehicle
+// =============================================================================
+
+func TestE2E_ChangeTripVehicle_Success(t *testing.T) {
+	ctx := context.Background()
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+	driverID := "driver-change-vehicle"
+	vehicleID := "vehicle-old"
+	newVehicleID := "vehicle-new"
+
+	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
+	require.NoError(t, err)
+
+	// Nouveau véhicule avec assez de places (trip a 4 places)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, newVehicleID).
+		Return("Toyota", "AA-1234", 5, nil)
+
+	resp, err := client.ChangeTripVehicle(ctx, &trippb.ChangeTripVehicleRequest{
+		DriverId:  driverID,
+		TripId:    createResp.TripId,
+		VehicleId: newVehicleID,
+	})
+
+	require.NoError(t, err)
+	assert.True(t, resp.Success)
+	mockUserClient.AssertExpectations(t)
+	mockVehicleClient.AssertExpectations(t)
+}
+
+func TestE2E_ChangeTripVehicle_VehicleNotFound(t *testing.T) {
+	ctx := context.Background()
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+	driverID := "driver-change-veh-nf"
+	vehicleID := "vehicle-existing"
+	badVehicleID := "vehicle-ghost"
+
+	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
+	require.NoError(t, err)
+
+	// GetVehicleInfo retourne brand="" → véhicule introuvable
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, badVehicleID).
+		Return("", "", 0, nil)
+
+	_, err = client.ChangeTripVehicle(ctx, &trippb.ChangeTripVehicleRequest{
+		DriverId:  driverID,
+		TripId:    createResp.TripId,
+		VehicleId: badVehicleID,
+	})
+
+	require.Error(t, err)
+	st, ok := status.FromError(err)
+	require.True(t, ok)
+	assert.Equal(t, codes.NotFound, st.Code())
+	mockVehicleClient.AssertExpectations(t)
+}
+
+func TestE2E_ChangeTripVehicle_InsufficientSeats(t *testing.T) {
+	ctx := context.Background()
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+	driverID := "driver-insuf-seats"
+	vehicleID := "vehicle-enough"
+	smallVehicleID := "vehicle-too-small"
+
+	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	// Créer un trajet avec 4 places
+	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
+	require.NoError(t, err)
+
+	// Nouveau véhicule avec seulement 2 places — insuffisant
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, smallVehicleID).
+		Return("Renault", "BB-5678", 2, nil)
+
+	_, err = client.ChangeTripVehicle(ctx, &trippb.ChangeTripVehicleRequest{
+		DriverId:  driverID,
+		TripId:    createResp.TripId,
+		VehicleId: smallVehicleID,
+	})
+
+	require.Error(t, err)
+	st, ok := status.FromError(err)
+	require.True(t, ok)
+	assert.Equal(t, codes.FailedPrecondition, st.Code())
+	mockVehicleClient.AssertExpectations(t)
+}
+
+// =============================================================================
+// ChangeTripAllowances
+// =============================================================================
+
+func TestE2E_ChangeTripAllowances_Success(t *testing.T) {
+	ctx := context.Background()
+	conn, mockUserClient, _, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+	driverID := "driver-allowances"
+	vehicleID := "vehicle-allowances"
+
+	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+
+	// Le repo exige departure > NOW() + 24h
+	req := validCreateTripRequest(driverID, vehicleID)
+	req.DepartureDatetime = time.Now().Add(25 * time.Hour).Format(time.RFC3339)
+	req.EstimatedArrivalDatetime = time.Now().Add(27 * time.Hour).Format(time.RFC3339)
+
+	createResp, err := client.CreateTrip(ctx, req)
+	require.NoError(t, err)
+
+	resp, err := client.ChangeTripAllowances(ctx, &trippb.ChangeTripAllowancesRequest{
+		DriverId:     driverID,
+		TripId:       createResp.TripId,
+		AllowPets:    true,
+		AllowFood:    true,
+		AllowSmoking: false,
+		AllowLuggage: true,
+	})
+
+	require.NoError(t, err)
+	assert.True(t, resp.Success)
+	mockUserClient.AssertExpectations(t)
+}
+
+// =============================================================================
+// ChangeAutoApprove
+// =============================================================================
+
+func TestE2E_ChangeAutoApprove_Success(t *testing.T) {
+	ctx := context.Background()
+	conn, mockUserClient, _, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+	driverID := "driver-autoapprove"
+	vehicleID := "vehicle-autoapprove"
+
+	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
+	require.NoError(t, err)
+
+	resp, err := client.ChangeAutoApprove(ctx, &trippb.ChangeAutoApproveRequest{
+		DriverId:    driverID,
+		TripId:      createResp.TripId,
+		AutoApprove: true,
+	})
+
+	require.NoError(t, err)
+	assert.True(t, resp.Success)
+	mockUserClient.AssertExpectations(t)
+}
+
+// =============================================================================
+// EndTrip
+// =============================================================================
+
+func TestE2E_EndTrip_Success(t *testing.T) {
+	ctx := context.Background()
+	conn, mockUserClient, _, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+	driverID := "driver-end-trip"
+	vehicleID := "vehicle-end-trip"
+
+	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+
+	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
+	require.NoError(t, err)
+
+	_, err = client.StartTrip(ctx, &trippb.StartTripRequest{
+		DriverId: driverID,
+		TripId:   createResp.TripId,
+	})
+	require.NoError(t, err)
+
+	resp, err := client.EndTrip(ctx, &trippb.EndTripRequest{
+		DriverId: driverID,
+		TripId:   createResp.TripId,
+	})
+
+	require.NoError(t, err)
+	assert.True(t, resp.Success)
+	mockUserClient.AssertExpectations(t)
+}
+
+func TestE2E_EndTrip_NotStarted(t *testing.T) {
+	ctx := context.Background()
+	conn, mockUserClient, _, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+	driverID := "driver-end-scheduled"
+	vehicleID := "vehicle-end-scheduled"
+
+	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
+	require.NoError(t, err)
+
+	// Essayer de terminer un trajet encore planifié
+	_, err = client.EndTrip(ctx, &trippb.EndTripRequest{
+		DriverId: driverID,
+		TripId:   createResp.TripId,
+	})
+
+	require.Error(t, err)
+	st, ok := status.FromError(err)
+	require.True(t, ok)
+	assert.Equal(t, codes.FailedPrecondition, st.Code())
+	mockUserClient.AssertExpectations(t)
+}
+
+// =============================================================================
+// ConfirmWaypointArrival et ConfirmWaypointDeparture
+// =============================================================================
+
+func TestE2E_ConfirmWaypoint_StopFlow(t *testing.T) {
+	ctx := context.Background()
+	conn, mockUserClient, _, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+	driverID := "driver-waypoint-flow"
+	vehicleID := "vehicle-waypoint-flow"
+
+	// Créer un trajet avec 3 waypoints (départ, stop, arrivée)
+	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	req := validCreateTripRequest(driverID, vehicleID)
+	// Remplacer l'arrivée par ordre 3 et ajouter un stop en ordre 2
+	req.TripWaypoints = []*trippb.WaypointInput{
+		{
+			SequencerOrder: 1,
+			WaypointType:   "departure",
+			LocationName:   "Lomé Centre",
+			LocationLng:    1.2228,
+			LocationLat:    6.1375,
+			City:           "Lomé",
+			Country:        "TG",
+		},
+		{
+			SequencerOrder: 2,
+			WaypointType:   "stop",
+			LocationName:   "Notsé",
+			LocationLng:    1.1700,
+			LocationLat:    6.9700,
+			City:           "Notsé",
+			Country:        "TG",
+		},
+		{
+			SequencerOrder: 3,
+			WaypointType:   "arrival",
+			LocationName:   "Kpalimé Marché",
+			LocationLng:    0.6370,
+			LocationLat:    6.8999,
+			City:           "Kpalimé",
+			Country:        "TG",
+		},
+	}
+
+	createResp, err := client.CreateTrip(ctx, req)
+	require.NoError(t, err)
+	require.NotEmpty(t, createResp.TripId)
+
+	// Démarrer le trajet
+	_, err = client.StartTrip(ctx, &trippb.StartTripRequest{
+		DriverId: driverID,
+		TripId:   createResp.TripId,
+	})
+	require.NoError(t, err)
+
+	// Récupérer l'ID du stop waypoint directement depuis la base
+	var stopWaypointID string
+	err = testPool.QueryRow(ctx,
+		"SELECT waypoint_id FROM trips_waypoints WHERE trip_id = $1 AND waypoint_type = 'stop'",
+		createResp.TripId,
+	).Scan(&stopWaypointID)
+	require.NoError(t, err)
+	require.NotEmpty(t, stopWaypointID)
+
+	// Confirmer l'arrivée au stop
+	arrivalResp, err := client.ConfirmWaypointArrival(ctx, &trippb.ConfirmWaypointArrivalRequest{
+		DriverId:   driverID,
+		WaypointId: stopWaypointID,
+	})
+	require.NoError(t, err)
+	assert.True(t, arrivalResp.Success)
+
+	// Confirmer le départ du stop
+	departureResp, err := client.ConfirmWaypointDeparture(ctx, &trippb.ConfirmWaypointDepartureRequest{
+		DriverId:   driverID,
+		WaypointId: stopWaypointID,
+	})
+	require.NoError(t, err)
+	assert.True(t, departureResp.Success)
+
+	mockUserClient.AssertExpectations(t)
+}
