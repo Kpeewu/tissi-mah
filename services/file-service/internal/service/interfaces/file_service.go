@@ -181,6 +181,21 @@ type FileService interface {
 	// Crée une revue de document
 	CreateDocumentReview(ctx context.Context, input CreateReviewInput) (*domain.DocumentReview, error)
 
+	// Récupère une revue par son ID
+	GetDocumentReview(ctx context.Context, reviewID string) (*domain.DocumentReview, error)
+
 	// Récupère les revues d'un document (user ou vehicle)
 	GetDocumentReviews(ctx context.Context, userDocumentID string, vehicleDocumentID string) ([]*domain.DocumentReview, error)
+
+	// Récupère une revue par persona_inquiry_id
+	GetDocumentReviewByPersonaInquiryID(ctx context.Context, personaInquiryID string) (*domain.DocumentReview, error)
+
+	// Récupère toutes les revues liées aux documents d'un utilisateur
+	GetDocumentReviewsByUserID(ctx context.Context, userID string) ([]*domain.DocumentReview, error)
+
+	// Met à jour une revue existante
+	UpdateDocumentReview(ctx context.Context, review *domain.DocumentReview) (*domain.DocumentReview, error)
+
+	// Liste les revues avec filtres et pagination
+	ListDocumentReviews(ctx context.Context, userID string, status string, decision string, page int32, pageSize int32) ([]*domain.DocumentReview, error)
 }

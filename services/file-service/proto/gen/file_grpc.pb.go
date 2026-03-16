@@ -23,23 +23,28 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	FileService_UploadUserDocument_FullMethodName     = "/file.FileService/UploadUserDocument"
-	FileService_UploadVehicleDocument_FullMethodName  = "/file.FileService/UploadVehicleDocument"
-	FileService_UploadIdDocument_FullMethodName       = "/file.FileService/UploadIdDocument"
-	FileService_UploadVehicleDocuments_FullMethodName = "/file.FileService/UploadVehicleDocuments"
-	FileService_ChangeDocument_FullMethodName         = "/file.FileService/ChangeDocument"
-	FileService_GetDocument_FullMethodName            = "/file.FileService/GetDocument"
-	FileService_GetUserDocuments_FullMethodName       = "/file.FileService/GetUserDocuments"
-	FileService_GetUserDocument_FullMethodName        = "/file.FileService/GetUserDocument"
-	FileService_GetCurrentUserDocument_FullMethodName = "/file.FileService/GetCurrentUserDocument"
-	FileService_GetVehicleDocuments_FullMethodName    = "/file.FileService/GetVehicleDocuments"
-	FileService_GetVehicleDocument_FullMethodName     = "/file.FileService/GetVehicleDocument"
-	FileService_DeleteFile_FullMethodName             = "/file.FileService/DeleteFile"
-	FileService_DeleteUserDocument_FullMethodName     = "/file.FileService/DeleteUserDocument"
-	FileService_DeleteVehicleDocument_FullMethodName  = "/file.FileService/DeleteVehicleDocument"
-	FileService_CreateDocumentReview_FullMethodName   = "/file.FileService/CreateDocumentReview"
-	FileService_GetDocumentReviews_FullMethodName     = "/file.FileService/GetDocumentReviews"
-	FileService_Health_FullMethodName                 = "/file.FileService/Health"
+	FileService_UploadUserDocument_FullMethodName                  = "/file.FileService/UploadUserDocument"
+	FileService_UploadVehicleDocument_FullMethodName               = "/file.FileService/UploadVehicleDocument"
+	FileService_UploadIdDocument_FullMethodName                    = "/file.FileService/UploadIdDocument"
+	FileService_UploadVehicleDocuments_FullMethodName              = "/file.FileService/UploadVehicleDocuments"
+	FileService_ChangeDocument_FullMethodName                      = "/file.FileService/ChangeDocument"
+	FileService_GetDocument_FullMethodName                         = "/file.FileService/GetDocument"
+	FileService_GetUserDocuments_FullMethodName                    = "/file.FileService/GetUserDocuments"
+	FileService_GetUserDocument_FullMethodName                     = "/file.FileService/GetUserDocument"
+	FileService_GetCurrentUserDocument_FullMethodName              = "/file.FileService/GetCurrentUserDocument"
+	FileService_GetVehicleDocuments_FullMethodName                 = "/file.FileService/GetVehicleDocuments"
+	FileService_GetVehicleDocument_FullMethodName                  = "/file.FileService/GetVehicleDocument"
+	FileService_DeleteFile_FullMethodName                          = "/file.FileService/DeleteFile"
+	FileService_DeleteUserDocument_FullMethodName                  = "/file.FileService/DeleteUserDocument"
+	FileService_DeleteVehicleDocument_FullMethodName               = "/file.FileService/DeleteVehicleDocument"
+	FileService_CreateDocumentReview_FullMethodName                = "/file.FileService/CreateDocumentReview"
+	FileService_GetDocumentReview_FullMethodName                   = "/file.FileService/GetDocumentReview"
+	FileService_GetDocumentReviews_FullMethodName                  = "/file.FileService/GetDocumentReviews"
+	FileService_GetDocumentReviewByPersonaInquiryID_FullMethodName = "/file.FileService/GetDocumentReviewByPersonaInquiryID"
+	FileService_GetDocumentReviewsByUserID_FullMethodName          = "/file.FileService/GetDocumentReviewsByUserID"
+	FileService_UpdateDocumentReview_FullMethodName                = "/file.FileService/UpdateDocumentReview"
+	FileService_ListDocumentReviews_FullMethodName                 = "/file.FileService/ListDocumentReviews"
+	FileService_Health_FullMethodName                              = "/file.FileService/Health"
 )
 
 // FileServiceClient is the client API for FileService service.
@@ -79,7 +84,12 @@ type FileServiceClient interface {
 	DeleteVehicleDocument(ctx context.Context, in *DeleteDocumentRequest, opts ...grpc.CallOption) (*OperationResponse, error)
 	// --- Revues (inter-service) ---
 	CreateDocumentReview(ctx context.Context, in *CreateDocumentReviewRequest, opts ...grpc.CallOption) (*DocumentReviewResponse, error)
+	GetDocumentReview(ctx context.Context, in *GetDocumentReviewByIDRequest, opts ...grpc.CallOption) (*DocumentReviewResponse, error)
 	GetDocumentReviews(ctx context.Context, in *GetDocumentReviewsRequest, opts ...grpc.CallOption) (*GetDocumentReviewsResponse, error)
+	GetDocumentReviewByPersonaInquiryID(ctx context.Context, in *GetDocumentReviewByPersonaInquiryIDRequest, opts ...grpc.CallOption) (*DocumentReviewResponse, error)
+	GetDocumentReviewsByUserID(ctx context.Context, in *GetDocumentReviewsByUserIDRequest, opts ...grpc.CallOption) (*GetDocumentReviewsResponse, error)
+	UpdateDocumentReview(ctx context.Context, in *UpdateDocumentReviewRequest, opts ...grpc.CallOption) (*DocumentReviewResponse, error)
+	ListDocumentReviews(ctx context.Context, in *ListDocumentReviewsRequest, opts ...grpc.CallOption) (*GetDocumentReviewsResponse, error)
 	// --- Health ---
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -248,10 +258,60 @@ func (c *fileServiceClient) CreateDocumentReview(ctx context.Context, in *Create
 	return out, nil
 }
 
+func (c *fileServiceClient) GetDocumentReview(ctx context.Context, in *GetDocumentReviewByIDRequest, opts ...grpc.CallOption) (*DocumentReviewResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DocumentReviewResponse)
+	err := c.cc.Invoke(ctx, FileService_GetDocumentReview_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *fileServiceClient) GetDocumentReviews(ctx context.Context, in *GetDocumentReviewsRequest, opts ...grpc.CallOption) (*GetDocumentReviewsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetDocumentReviewsResponse)
 	err := c.cc.Invoke(ctx, FileService_GetDocumentReviews_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fileServiceClient) GetDocumentReviewByPersonaInquiryID(ctx context.Context, in *GetDocumentReviewByPersonaInquiryIDRequest, opts ...grpc.CallOption) (*DocumentReviewResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DocumentReviewResponse)
+	err := c.cc.Invoke(ctx, FileService_GetDocumentReviewByPersonaInquiryID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fileServiceClient) GetDocumentReviewsByUserID(ctx context.Context, in *GetDocumentReviewsByUserIDRequest, opts ...grpc.CallOption) (*GetDocumentReviewsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDocumentReviewsResponse)
+	err := c.cc.Invoke(ctx, FileService_GetDocumentReviewsByUserID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fileServiceClient) UpdateDocumentReview(ctx context.Context, in *UpdateDocumentReviewRequest, opts ...grpc.CallOption) (*DocumentReviewResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DocumentReviewResponse)
+	err := c.cc.Invoke(ctx, FileService_UpdateDocumentReview_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fileServiceClient) ListDocumentReviews(ctx context.Context, in *ListDocumentReviewsRequest, opts ...grpc.CallOption) (*GetDocumentReviewsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDocumentReviewsResponse)
+	err := c.cc.Invoke(ctx, FileService_ListDocumentReviews_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +365,12 @@ type FileServiceServer interface {
 	DeleteVehicleDocument(context.Context, *DeleteDocumentRequest) (*OperationResponse, error)
 	// --- Revues (inter-service) ---
 	CreateDocumentReview(context.Context, *CreateDocumentReviewRequest) (*DocumentReviewResponse, error)
+	GetDocumentReview(context.Context, *GetDocumentReviewByIDRequest) (*DocumentReviewResponse, error)
 	GetDocumentReviews(context.Context, *GetDocumentReviewsRequest) (*GetDocumentReviewsResponse, error)
+	GetDocumentReviewByPersonaInquiryID(context.Context, *GetDocumentReviewByPersonaInquiryIDRequest) (*DocumentReviewResponse, error)
+	GetDocumentReviewsByUserID(context.Context, *GetDocumentReviewsByUserIDRequest) (*GetDocumentReviewsResponse, error)
+	UpdateDocumentReview(context.Context, *UpdateDocumentReviewRequest) (*DocumentReviewResponse, error)
+	ListDocumentReviews(context.Context, *ListDocumentReviewsRequest) (*GetDocumentReviewsResponse, error)
 	// --- Health ---
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedFileServiceServer()
@@ -363,8 +428,23 @@ func (UnimplementedFileServiceServer) DeleteVehicleDocument(context.Context, *De
 func (UnimplementedFileServiceServer) CreateDocumentReview(context.Context, *CreateDocumentReviewRequest) (*DocumentReviewResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateDocumentReview not implemented")
 }
+func (UnimplementedFileServiceServer) GetDocumentReview(context.Context, *GetDocumentReviewByIDRequest) (*DocumentReviewResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDocumentReview not implemented")
+}
 func (UnimplementedFileServiceServer) GetDocumentReviews(context.Context, *GetDocumentReviewsRequest) (*GetDocumentReviewsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetDocumentReviews not implemented")
+}
+func (UnimplementedFileServiceServer) GetDocumentReviewByPersonaInquiryID(context.Context, *GetDocumentReviewByPersonaInquiryIDRequest) (*DocumentReviewResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDocumentReviewByPersonaInquiryID not implemented")
+}
+func (UnimplementedFileServiceServer) GetDocumentReviewsByUserID(context.Context, *GetDocumentReviewsByUserIDRequest) (*GetDocumentReviewsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDocumentReviewsByUserID not implemented")
+}
+func (UnimplementedFileServiceServer) UpdateDocumentReview(context.Context, *UpdateDocumentReviewRequest) (*DocumentReviewResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateDocumentReview not implemented")
+}
+func (UnimplementedFileServiceServer) ListDocumentReviews(context.Context, *ListDocumentReviewsRequest) (*GetDocumentReviewsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListDocumentReviews not implemented")
 }
 func (UnimplementedFileServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -638,6 +718,24 @@ func _FileService_CreateDocumentReview_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FileService_GetDocumentReview_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDocumentReviewByIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServiceServer).GetDocumentReview(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileService_GetDocumentReview_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServiceServer).GetDocumentReview(ctx, req.(*GetDocumentReviewByIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _FileService_GetDocumentReviews_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetDocumentReviewsRequest)
 	if err := dec(in); err != nil {
@@ -652,6 +750,78 @@ func _FileService_GetDocumentReviews_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(FileServiceServer).GetDocumentReviews(ctx, req.(*GetDocumentReviewsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FileService_GetDocumentReviewByPersonaInquiryID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDocumentReviewByPersonaInquiryIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServiceServer).GetDocumentReviewByPersonaInquiryID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileService_GetDocumentReviewByPersonaInquiryID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServiceServer).GetDocumentReviewByPersonaInquiryID(ctx, req.(*GetDocumentReviewByPersonaInquiryIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FileService_GetDocumentReviewsByUserID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDocumentReviewsByUserIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServiceServer).GetDocumentReviewsByUserID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileService_GetDocumentReviewsByUserID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServiceServer).GetDocumentReviewsByUserID(ctx, req.(*GetDocumentReviewsByUserIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FileService_UpdateDocumentReview_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateDocumentReviewRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServiceServer).UpdateDocumentReview(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileService_UpdateDocumentReview_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServiceServer).UpdateDocumentReview(ctx, req.(*UpdateDocumentReviewRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FileService_ListDocumentReviews_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListDocumentReviewsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServiceServer).ListDocumentReviews(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileService_ListDocumentReviews_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServiceServer).ListDocumentReviews(ctx, req.(*ListDocumentReviewsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -734,8 +904,28 @@ var FileService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _FileService_CreateDocumentReview_Handler,
 		},
 		{
+			MethodName: "GetDocumentReview",
+			Handler:    _FileService_GetDocumentReview_Handler,
+		},
+		{
 			MethodName: "GetDocumentReviews",
 			Handler:    _FileService_GetDocumentReviews_Handler,
+		},
+		{
+			MethodName: "GetDocumentReviewByPersonaInquiryID",
+			Handler:    _FileService_GetDocumentReviewByPersonaInquiryID_Handler,
+		},
+		{
+			MethodName: "GetDocumentReviewsByUserID",
+			Handler:    _FileService_GetDocumentReviewsByUserID_Handler,
+		},
+		{
+			MethodName: "UpdateDocumentReview",
+			Handler:    _FileService_UpdateDocumentReview_Handler,
+		},
+		{
+			MethodName: "ListDocumentReviews",
+			Handler:    _FileService_ListDocumentReviews_Handler,
 		},
 		{
 			MethodName: "Health",

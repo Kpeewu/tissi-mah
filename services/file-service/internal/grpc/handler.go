@@ -429,6 +429,17 @@ func (h *FileHandler) CreateDocumentReview(ctx context.Context, req *filepb.Crea
 	return toProtoDocumentReview(review), nil
 }
 
+func (h *FileHandler) GetDocumentReview(ctx context.Context, req *filepb.GetDocumentReviewByIDRequest) (*filepb.DocumentReviewResponse, error) {
+	h.logger.Debug("handler: GetDocumentReview", zap.String("reviewID", req.ReviewId))
+
+	review, err := h.service.GetDocumentReview(ctx, req.ReviewId)
+	if err != nil {
+		h.logger.Error("handler: GetDocumentReview failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+	return toProtoDocumentReview(review), nil
+}
+
 func (h *FileHandler) GetDocumentReviews(ctx context.Context, req *filepb.GetDocumentReviewsRequest) (*filepb.GetDocumentReviewsResponse, error) {
 	h.logger.Debug("handler: GetDocumentReviews",
 		zap.String("userDocID", req.UserDocumentId),
@@ -437,6 +448,125 @@ func (h *FileHandler) GetDocumentReviews(ctx context.Context, req *filepb.GetDoc
 	reviews, err := h.service.GetDocumentReviews(ctx, req.UserDocumentId, req.VehicleDocumentId)
 	if err != nil {
 		h.logger.Error("handler: GetDocumentReviews failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	var protoReviews []*filepb.DocumentReviewResponse
+	for _, review := range reviews {
+		protoReviews = append(protoReviews, toProtoDocumentReview(review))
+	}
+	return &filepb.GetDocumentReviewsResponse{Reviews: protoReviews}, nil
+}
+
+func (h *FileHandler) GetDocumentReviewByPersonaInquiryID(ctx context.Context, req *filepb.GetDocumentReviewByPersonaInquiryIDRequest) (*filepb.DocumentReviewResponse, error) {
+	h.logger.Debug("handler: GetDocumentReviewByPersonaInquiryID", zap.String("personaInquiryID", req.PersonaInquiryId))
+
+	review, err := h.service.GetDocumentReviewByPersonaInquiryID(ctx, req.PersonaInquiryId)
+	if err != nil {
+		h.logger.Error("handler: GetDocumentReviewByPersonaInquiryID failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+	return toProtoDocumentReview(review), nil
+}
+
+func (h *FileHandler) GetDocumentReviewsByUserID(ctx context.Context, req *filepb.GetDocumentReviewsByUserIDRequest) (*filepb.GetDocumentReviewsResponse, error) {
+	h.logger.Debug("handler: GetDocumentReviewsByUserID", zap.String("userID", req.UserId))
+
+	reviews, err := h.service.GetDocumentReviewsByUserID(ctx, req.UserId)
+	if err != nil {
+		h.logger.Error("handler: GetDocumentReviewsByUserID failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	var protoReviews []*filepb.DocumentReviewResponse
+	for _, review := range reviews {
+		protoReviews = append(protoReviews, toProtoDocumentReview(review))
+	}
+	return &filepb.GetDocumentReviewsResponse{Reviews: protoReviews}, nil
+}
+
+func (h *FileHandler) UpdateDocumentReview(ctx context.Context, req *filepb.UpdateDocumentReviewRequest) (*filepb.DocumentReviewResponse, error) {
+	h.logger.Debug("handler: UpdateDocumentReview", zap.String("reviewID", req.ReviewId))
+
+	// Récupérer la revue existante
+	existing, err := h.service.GetDocumentReview(ctx, req.ReviewId)
+	if err != nil {
+		h.logger.Error("handler: UpdateDocumentReview — review not found", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	// Appliquer les champs non vides du request sur la revue existante
+	if req.PersonaSessionToken != "" {
+		existing.PersonaSessionToken = req.PersonaSessionToken
+	}
+	if req.SessionExpiresAt != "" {
+		t, err := time.Parse(time.RFC3339, req.SessionExpiresAt)
+		if err == nil {
+			existing.SessionExpiresAt = &t
+		}
+	}
+	if req.WebhookEventType != "" {
+		existing.WebhookEventType = req.WebhookEventType
+	}
+	if req.WebhookReceivedAt != "" {
+		t, err := time.Parse(time.RFC3339, req.WebhookReceivedAt)
+		if err == nil {
+			existing.WebhookReceivedAt = &t
+		}
+	}
+	if len(req.PersonaRawPayload) > 0 {
+		existing.PersonaRawPayload = req.PersonaRawPayload
+	}
+	if req.Status != "" {
+		existing.Status = req.Status
+	}
+	if req.Decision != "" {
+		existing.Decision = req.Decision
+	}
+	if req.ReasonRejection != "" {
+		existing.ReasonRejection = req.ReasonRejection
+	}
+	if req.RejectionDetails != "" {
+		existing.RejectionDetails = req.RejectionDetails
+	}
+	if req.ReviewedBy != "" {
+		existing.ReviewedBy = req.ReviewedBy
+	}
+	if req.ReviewType != "" {
+		existing.ReviewType = req.ReviewType
+	}
+	if req.Notes != "" {
+		existing.Notes = req.Notes
+	}
+	if req.SubmittedAt != "" {
+		t, err := time.Parse(time.RFC3339, req.SubmittedAt)
+		if err == nil {
+			existing.SubmittedAt = &t
+		}
+	}
+	existing.UpdatedAt = time.Now().UTC()
+
+	updated, err := h.service.UpdateDocumentReview(ctx, existing)
+	if err != nil {
+		h.logger.Error("handler: UpdateDocumentReview failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+	h.logger.Info("handler: UpdateDocumentReview success", zap.String("reviewID", updated.ReviewID))
+	return toProtoDocumentReview(updated), nil
+}
+
+func (h *FileHandler) ListDocumentReviews(ctx context.Context, req *filepb.ListDocumentReviewsRequest) (*filepb.GetDocumentReviewsResponse, error) {
+	h.logger.Debug("handler: ListDocumentReviews",
+		zap.String("userID", req.UserId),
+		zap.String("status", req.Status),
+		zap.String("decision", req.Decision),
+		zap.Int32("page", req.Page),
+		zap.Int32("pageSize", req.PageSize),
+	)
+
+	reviews, err := h.service.ListDocumentReviews(ctx, req.UserId, req.Status, req.Decision, req.Page, req.PageSize)
+	if err != nil {
+		h.logger.Error("handler: ListDocumentReviews failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
 

@@ -1,0 +1,307 @@
+// KYC Service Proto Definition
+// This file defines the gRPC service contract for kyc-service
+//
+// HTTP/REST mapping is defined using google.api.http annotations
+// api-gateway uses these annotations for grpc-gateway transcoding
+
+syntax = "proto3";
+
+package kyc;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/kyc-service/proto/gen;kyc";
+
+import "google/api/annotations.proto";
+
+// =============================================================================
+// KYC Service
+// =============================================================================
+
+service KYCService {
+  // CreateInquiry - Démarre une nouvelle vérification d'identité
+  rpc CreateInquiry(CreateInquiryRequest) returns (CreateInquiryResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/kyc/inquiries/add"
+      body: "*"
+    };
+  }
+
+  // GetInquiry - Récupère le détail d'une inquiry
+  rpc GetInquiry(GetInquiryRequest) returns (GetInquiryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/kyc/inquiries/getInquiry"
+    };
+  }
+
+  // GetKYCStatus - Récupère le statut KYC global de l'utilisateur connecté
+  rpc GetKYCStatus(GetKYCStatusRequest) returns (GetKYCStatusResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/kyc/me/getStatus"
+    };
+  }
+
+  // ResumeInquiry - Reprend une session de vérification interrompue
+  rpc ResumeInquiry(ResumeInquiryRequest) returns (ResumeInquiryResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/kyc/inquiries/resume"
+      body: "*"
+    };
+  }
+
+  // ProcessWebhook - Reçoit et traite un webhook Persona
+  rpc ProcessWebhook(ProcessWebhookRequest) returns (ProcessWebhookResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/kyc/webhooks/persona"
+      body: "*"
+    };
+  }
+
+  // GetAdminReviews - Liste les revues pour l'admin (avec filtres et pagination)
+  rpc GetAdminReviews(GetAdminReviewsRequest) returns (GetAdminReviewsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/kyc/admin/reviews/getReviews"
+    };
+  }
+
+  // GetAdminReview - Récupère le détail complet d'une revue pour l'admin
+  rpc GetAdminReview(GetAdminReviewRequest) returns (GetAdminReviewResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/kyc/admin/reviews/getReview"
+    };
+  }
+
+  // OverrideReview - Override manuel d'une revue par un agent de support
+  rpc OverrideReview(OverrideReviewRequest) returns (OverrideReviewResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/kyc/admin/reviews/override"
+      body: "*"
+    };
+  }
+
+  // Health - Health check endpoint (no auth required)
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/kyc/health"
+    };
+  }
+}
+
+// =============================================================================
+// Request Messages
+// =============================================================================
+
+message CreateInquiryRequest {
+  string DocumentType = 1;
+  string VehicleId = 2; // Optionnel : si renseigné, document véhicule
+}
+
+message GetInquiryRequest {
+  string PersonaInquiryId = 1;
+}
+
+message GetKYCStatusRequest {
+  // No fields required - UserID is extracted from JWT
+}
+
+message ResumeInquiryRequest {
+  string PersonaInquiryId = 1;
+}
+
+message ProcessWebhookRequest {
+  string Signature = 1;
+  string PersonaInquiryId = 2;
+  string WebhookEventType = 3;
+  string OccurredAt = 4; // ISO 8601
+  bytes PersonaRawPayload = 5;
+}
+
+message GetAdminReviewsRequest {
+  string UserId = 1;    // Optionnel
+  string Status = 2;    // Optionnel
+  string Decision = 3;  // Optionnel
+  int32 Index = 4;      // Numéro de page
+}
+
+message GetAdminReviewRequest {
+  string ReviewId = 1;
+}
+
+message OverrideReviewRequest {
+  string ReviewId = 1;
+  string Decision = 2;
+  string ReasonRejection = 3;  // Requis si Decision = "rejected"
+  string RejectionDetails = 4; // Optionnel
+  string Notes = 5;            // Optionnel
+}
+
+message HealthRequest {
+  // No fields required
+}
+
+// =============================================================================
+// Response Messages
+// =============================================================================
+
+message CreateInquiryResponse {
+  string ErrorMessage = 1;
+  string ReviewId = 2;
+  string PersonaInquiryId = 3;
+  string PersonaTemplateId = 4;
+  string SessionToken = 5;
+  string SessionExpiresAt = 6; // ISO 8601
+  string Status = 7;
+  int32 AttemptNumber = 8;
+  string CreatedAt = 9; // ISO 8601
+}
+
+message GetInquiryResponse {
+  string ErrorMessage = 1;
+  InquiryDetail Inquiry = 2;
+}
+
+message GetKYCStatusResponse {
+  string ErrorMessage = 1;
+  bool IdentityVerified = 2;
+  bool DriverVerified = 3;
+  repeated PendingReviewItem PendingReviews = 4;
+  LatestRejectionItem LatestRejection = 5;
+}
+
+message ResumeInquiryResponse {
+  string ErrorMessage = 1;
+  string ReviewId = 2;
+  string PersonaInquiryId = 3;
+  string SessionToken = 4;
+  string SessionExpiresAt = 5; // ISO 8601
+  string Status = 6;
+  int32 AttemptNumber = 7;
+}
+
+message ProcessWebhookResponse {
+  string ErrorMessage = 1;
+  bool Success = 2;
+}
+
+message GetAdminReviewsResponse {
+  string ErrorMessage = 1;
+  repeated AdminReviewItem Reviews = 2;
+}
+
+message GetAdminReviewResponse {
+  string ErrorMessage = 1;
+  AdminReviewDetail Review = 2;
+}
+
+message OverrideReviewResponse {
+  string ErrorMessage = 1;
+  string ReviewId = 2;
+  string PersonaInquiryId = 3;
+  string Decision = 4;
+  string ReasonRejection = 5;
+  string RejectionDetails = 6;
+  string ReviewedBy = 7;
+  string ReviewType = 8;
+  string ReviewedAt = 9;  // ISO 8601
+  string Notes = 10;
+  string UpdatedAt = 11;  // ISO 8601
+}
+
+message HealthResponse {
+  string Status = 1;
+  string Version = 2;
+  int64 Timestamp = 3;
+}
+
+// =============================================================================
+// Domain Messages
+// =============================================================================
+
+message InquiryDetail {
+  string ReviewId = 1;
+  string PersonaInquiryId = 2;
+  string UserDocumentId = 3;
+  string PersonaTemplateId = 4;
+  string VehicleDocumentId = 5;
+  string Status = 6;
+  string Decision = 7;
+  string ReasonRejection = 8;
+  string RejectionDetails = 9;
+  int32 AttemptNumber = 10;
+  string PreviousReviewId = 11;
+  string ReviewType = 12;
+  string ReviewedAt = 13;  // ISO 8601
+  string CreatedAt = 14;   // ISO 8601
+  string UpdatedAt = 15;   // ISO 8601
+}
+
+message PendingReviewItem {
+  string ReviewId = 1;
+  string PersonaInquiryId = 2;
+  string Status = 3;
+  int32 AttemptNumber = 4;
+  string SessionExpiresAt = 5; // ISO 8601
+}
+
+message LatestRejectionItem {
+  string ReviewId = 1;
+  string ReasonRejection = 2;
+  string RejectionDetails = 3;
+  string ReviewType = 4;
+  string ReviewedAt = 5; // ISO 8601
+}
+
+message AdminReviewItem {
+  string ReviewId = 1;
+  string PersonaInquiryId = 2;
+  string UserDocumentId = 3;
+  string VehicleDocumentId = 4;
+  string Status = 5;
+  string Decision = 6;
+  string ReasonRejection = 7;
+  string RejectionDetails = 8;
+  string ReviewType = 9;
+  string ReviewedAt = 10;    // ISO 8601
+  int32 AttemptNumber = 11;
+  string PreviousReviewId = 12;
+  string WebhookEventType = 13;
+  string WebhookReceivedAt = 14; // ISO 8601
+  string CreatedAt = 15;         // ISO 8601
+  string UpdatedAt = 16;         // ISO 8601
+}
+
+message AdminReviewDetail {
+  string ReviewId = 1;
+  string PersonaInquiryId = 2;
+  string PersonaTemplateId = 3;
+  string UserDocumentId = 4;
+  string VehicleDocumentId = 5;
+  string Status = 6;
+  string Decision = 7;
+  string ReasonRejection = 8;
+  string RejectionDetails = 9;
+  string ReviewedBy = 10;
+  string ReviewType = 11;
+  string ReviewedAt = 12;        // ISO 8601
+  string Notes = 13;
+  bytes ExtractedData = 14;      // JSON
+  string WebhookEventType = 15;
+  string WebhookReceivedAt = 16; // ISO 8601
+  int32 AttemptNumber = 17;
+  string PreviousReviewId = 18;
+  string SessionExpiresAt = 19;  // ISO 8601
+  string CreatedAt = 20;         // ISO 8601
+  string UpdatedAt = 21;         // ISO 8601
+}
+
+// =============================================================================
+// Error Codes Reference (gRPC status codes)
+// =============================================================================
+//
+// 0  - OK                  : Success
+// 3  - INVALID_ARGUMENT    : Invalid request parameters (400)
+// 5  - NOT_FOUND           : Resource not found (404)
+// 6  - ALREADY_EXISTS      : Inquiry already active (409)
+// 7  - PERMISSION_DENIED   : Not authorized (403)
+// 9  - FAILED_PRECONDITION : Inquiry not resumable (410) / Review not overridable
+// 13 - INTERNAL            : Server error (500)
+// 14 - UNAVAILABLE         : File-service or Persona unavailable (503)
+// 16 - UNAUTHENTICATED     : Invalid webhook signature (401)
