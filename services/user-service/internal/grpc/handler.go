@@ -231,23 +231,12 @@ func toProtoUserProfile(u *domain.User) *userpb.UserProfileResponse {
 		IsPassenger:                u.IsPassenger,
 		IsDriverProfileVerified:    u.IsDriverProfileVerified,
 		IsPassengerProfileVerified: u.IsPassengerProfileVerified,
-		TripPreferences:            toProtoTripPreferences(u.TripPreferences),
-		IDCardExpirationDate:       u.IDCardExpirationDate,
-		DriveLicenceExpirationDate: u.DriveLicenceExpirationDate,
+		TripPreferences: toProtoTripPreferences(u.TripPreferences),
 	}
 }
 
 // toProtoFullProfile convertit FullProfile en message proto FullUserProfile (client-facing)
 func toProtoFullProfile(p *serviceInterfaces.FullProfile) *userpb.FullUserProfile {
-	userFiles := make([]*userpb.UserFile, len(p.UserFiles))
-	for i, f := range p.UserFiles {
-		userFiles[i] = &userpb.UserFile{
-			FileID:   f.FileID,
-			FileURL:  f.FileURL,
-			FileType: f.FileType,
-		}
-	}
-
 	return &userpb.FullUserProfile{
 		AuthID:                     p.AuthID,
 		UserID:                     p.UserID,
@@ -270,6 +259,5 @@ func toProtoFullProfile(p *serviceInterfaces.FullProfile) *userpb.FullUserProfil
 		TripPreferences:            toProtoTripPreferences(p.TripPreferences),
 		IDCardExpirationDate:       p.IDCardExpirationDate,
 		DriveLicenceExpirationDate: p.DriveLicenceExpirationDate,
-		UserFiles:                  userFiles,
 	}
 }

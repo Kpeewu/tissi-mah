@@ -360,6 +360,7 @@ message UserDocumentResponse {
   bool IsCurrent = 11;
   string UploadedAt = 12;
   string UpdatedAt = 13;
+  string ExpiredAt = 14; // ISO 8601 ou "" si non défini
 }
 
 message VehicleDocumentResponse {

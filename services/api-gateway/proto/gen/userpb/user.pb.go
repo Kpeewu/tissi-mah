@@ -755,7 +755,6 @@ type FullUserProfile struct {
 	TripPreferences            []*TripPreference      `protobuf:"bytes,19,rep,name=TripPreferences,proto3" json:"TripPreferences,omitempty"`
 	IDCardExpirationDate       string                 `protobuf:"bytes,20,opt,name=IDCardExpirationDate,proto3" json:"IDCardExpirationDate,omitempty"`
 	DriveLicenceExpirationDate string                 `protobuf:"bytes,21,opt,name=DriveLicenceExpirationDate,proto3" json:"DriveLicenceExpirationDate,omitempty"`
-	UserFiles                  []*UserFile            `protobuf:"bytes,22,rep,name=UserFiles,proto3" json:"UserFiles,omitempty"`
 	unknownFields              protoimpl.UnknownFields
 	sizeCache                  protoimpl.SizeCache
 }
@@ -935,13 +934,6 @@ func (x *FullUserProfile) GetDriveLicenceExpirationDate() string {
 		return x.DriveLicenceExpirationDate
 	}
 	return ""
-}
-
-func (x *FullUserProfile) GetUserFiles() []*UserFile {
-	if x != nil {
-		return x.UserFiles
-	}
-	return nil
 }
 
 type UserFile struct {
@@ -1235,7 +1227,7 @@ const file_user_proto_rawDesc = "" +
 	"\x1aDriveLicenceExpirationDate\x18\x10 \x01(\tR\x1aDriveLicenceExpirationDate\"e\n" +
 	"\x14GetMyProfileResponse\x12\"\n" +
 	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12)\n" +
-	"\x04User\x18\x02 \x01(\v2\x15.user.FullUserProfileR\x04User\"\xd1\x06\n" +
+	"\x04User\x18\x02 \x01(\v2\x15.user.FullUserProfileR\x04User\"\xa3\x06\n" +
 	"\x0fFullUserProfile\x12\x16\n" +
 	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\x12\x16\n" +
 	"\x06UserID\x18\x02 \x01(\tR\x06UserID\x12\x12\n" +
@@ -1258,8 +1250,7 @@ const file_user_proto_rawDesc = "" +
 	"\x11SuspensionEndDate\x18\x12 \x01(\tR\x11SuspensionEndDate\x12>\n" +
 	"\x0fTripPreferences\x18\x13 \x03(\v2\x14.user.TripPreferenceR\x0fTripPreferences\x122\n" +
 	"\x14IDCardExpirationDate\x18\x14 \x01(\tR\x14IDCardExpirationDate\x12>\n" +
-	"\x1aDriveLicenceExpirationDate\x18\x15 \x01(\tR\x1aDriveLicenceExpirationDate\x12,\n" +
-	"\tUserFiles\x18\x16 \x03(\v2\x0e.user.UserFileR\tUserFiles\"X\n" +
+	"\x1aDriveLicenceExpirationDate\x18\x15 \x01(\tR\x1aDriveLicenceExpirationDate\"X\n" +
 	"\bUserFile\x12\x16\n" +
 	"\x06FileID\x18\x01 \x01(\tR\x06FileID\x12\x18\n" +
 	"\aFileURL\x18\x02 \x01(\tR\aFileURL\x12\x1a\n" +
@@ -1321,29 +1312,28 @@ var file_user_proto_depIdxs = []int32{
 	8,  // 1: user.UserProfileResponse.TripPreferences:type_name -> user.TripPreference
 	11, // 2: user.GetMyProfileResponse.User:type_name -> user.FullUserProfile
 	8,  // 3: user.FullUserProfile.TripPreferences:type_name -> user.TripPreference
-	12, // 4: user.FullUserProfile.UserFiles:type_name -> user.UserFile
-	11, // 5: user.UpdateProfileResponse.User:type_name -> user.FullUserProfile
-	0,  // 6: user.UserService.CreateUser:input_type -> user.CreateUserRequest
-	1,  // 7: user.UserService.GetUserByAuthID:input_type -> user.GetUserByAuthIDRequest
-	2,  // 8: user.UserService.GetUserByUserID:input_type -> user.GetUserByUserIDRequest
-	3,  // 9: user.UserService.GetMyProfile:input_type -> user.GetMyProfileRequest
-	4,  // 10: user.UserService.CreateDriverAccount:input_type -> user.CreateDriverAccountRequest
-	5,  // 11: user.UserService.AddTripPreferences:input_type -> user.AddTripPreferencesRequest
-	6,  // 12: user.UserService.UpdateProfile:input_type -> user.UpdateProfileRequest
-	7,  // 13: user.UserService.Health:input_type -> user.HealthRequest
-	9,  // 14: user.UserService.CreateUser:output_type -> user.UserProfileResponse
-	9,  // 15: user.UserService.GetUserByAuthID:output_type -> user.UserProfileResponse
-	9,  // 16: user.UserService.GetUserByUserID:output_type -> user.UserProfileResponse
-	10, // 17: user.UserService.GetMyProfile:output_type -> user.GetMyProfileResponse
-	13, // 18: user.UserService.CreateDriverAccount:output_type -> user.OperationResponse
-	13, // 19: user.UserService.AddTripPreferences:output_type -> user.OperationResponse
-	14, // 20: user.UserService.UpdateProfile:output_type -> user.UpdateProfileResponse
-	15, // 21: user.UserService.Health:output_type -> user.HealthResponse
-	14, // [14:22] is the sub-list for method output_type
-	6,  // [6:14] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	11, // 4: user.UpdateProfileResponse.User:type_name -> user.FullUserProfile
+	0,  // 5: user.UserService.CreateUser:input_type -> user.CreateUserRequest
+	1,  // 6: user.UserService.GetUserByAuthID:input_type -> user.GetUserByAuthIDRequest
+	2,  // 7: user.UserService.GetUserByUserID:input_type -> user.GetUserByUserIDRequest
+	3,  // 8: user.UserService.GetMyProfile:input_type -> user.GetMyProfileRequest
+	4,  // 9: user.UserService.CreateDriverAccount:input_type -> user.CreateDriverAccountRequest
+	5,  // 10: user.UserService.AddTripPreferences:input_type -> user.AddTripPreferencesRequest
+	6,  // 11: user.UserService.UpdateProfile:input_type -> user.UpdateProfileRequest
+	7,  // 12: user.UserService.Health:input_type -> user.HealthRequest
+	9,  // 13: user.UserService.CreateUser:output_type -> user.UserProfileResponse
+	9,  // 14: user.UserService.GetUserByAuthID:output_type -> user.UserProfileResponse
+	9,  // 15: user.UserService.GetUserByUserID:output_type -> user.UserProfileResponse
+	10, // 16: user.UserService.GetMyProfile:output_type -> user.GetMyProfileResponse
+	13, // 17: user.UserService.CreateDriverAccount:output_type -> user.OperationResponse
+	13, // 18: user.UserService.AddTripPreferences:output_type -> user.OperationResponse
+	14, // 19: user.UserService.UpdateProfile:output_type -> user.UpdateProfileResponse
+	15, // 20: user.UserService.Health:output_type -> user.HealthResponse
+	13, // [13:21] is the sub-list for method output_type
+	5,  // [5:13] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_user_proto_init() }

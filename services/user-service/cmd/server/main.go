@@ -81,8 +81,17 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer authClient.Close() //nolint:errcheck
 	logger.Info("auth-service client ready", zap.String("address", authServiceAddr))
 
+	// --- File-service gRPC client ---
+	fileServiceAddr := fmt.Sprintf("%s:%s", cfg.FileService.Address, cfg.FileService.Port)
+	fileClient, err := client.NewFileServiceClient(fileServiceAddr, logger)
+	if err != nil {
+		return fmt.Errorf("file-service client: %w", err)
+	}
+	defer fileClient.Close() //nolint:errcheck
+	logger.Info("file-service client ready", zap.String("address", fileServiceAddr))
+
 	// --- User service ---
-	userService := service.NewUserService(readRepo, writeRepo, authClient, logger)
+	userService := service.NewUserService(readRepo, writeRepo, authClient, fileClient, logger)
 
 	// --- gRPC server ---
 	srv, err := grpcServer.NewUserServer(cfg, userService, logger)

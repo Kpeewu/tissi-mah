@@ -25,8 +25,6 @@ type User struct {
 	IsDriverProfileVerified    bool             `bson:"is_driver_profile_verified"`
 	IsPassengerProfileVerified bool             `bson:"is_passenger_profile_verified"`
 	TripPreferences            []TripPreference `bson:"trip_preferences,omitempty"`
-	IDCardExpirationDate       string           `bson:"id_card_expiration_date"`
-	DriveLicenceExpirationDate string           `bson:"drive_licence_expiration_date"`
 	CreatedAt                  time.Time        `bson:"created_at"`
 	UpdatedAt                  time.Time        `bson:"updated_at"`
 	DeletedAt                  *time.Time       `bson:"deleted_at,omitempty"`

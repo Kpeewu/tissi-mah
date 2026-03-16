@@ -591,6 +591,13 @@ func (h *FileHandler) Health(_ context.Context, _ *filepb.HealthRequest) (*filep
 // Mappers domain → proto
 // =============================================================================
 
+func formatTimeOrEmpty(t *time.Time) string {
+	if t == nil || t.IsZero() {
+		return ""
+	}
+	return t.Format(time.RFC3339)
+}
+
 func toProtoUserDocument(doc *domain.UserDocument) *filepb.UserDocumentResponse {
 	return &filepb.UserDocumentResponse{
 		DocumentId:     doc.DocumentID,
@@ -606,6 +613,7 @@ func toProtoUserDocument(doc *domain.UserDocument) *filepb.UserDocumentResponse 
 		IsCurrent:      doc.IsCurrent,
 		UploadedAt:     doc.UploadedAt.Format(time.RFC3339),
 		UpdatedAt:      doc.UpdatedAt.Format(time.RFC3339),
+		ExpiredAt:      formatTimeOrEmpty(doc.ExpireAt),
 	}
 }
 

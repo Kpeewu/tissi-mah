@@ -29,7 +29,6 @@ type FullProfile struct {
 	TripPreferences            []domain.TripPreference
 	IDCardExpirationDate       string
 	DriveLicenceExpirationDate string
-	UserFiles                  []domain.UserFile
 }
 
 // UpdateProfileRequest contient les champs à mettre à jour (optionnels)

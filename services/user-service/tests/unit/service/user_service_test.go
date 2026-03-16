@@ -22,13 +22,16 @@ import (
 
 // ---------- helpers ----------
 
-// newService crée un service avec les mocks injectés et retourne les trois mocks pour le setup.
-func newService() (*mocks.MockUserRepositoryRead, *mocks.MockUserRepositoryWrite, *mocks.MockAuthClient, serviceInterfaces.UserService) {
+// newService crée un service avec les mocks injectés et retourne les quatre mocks pour le setup.
+func newService() (*mocks.MockUserRepositoryRead, *mocks.MockUserRepositoryWrite, *mocks.MockAuthClient, *mocks.MockFileClient, serviceInterfaces.UserService) {
 	mockReadRepo := new(mocks.MockUserRepositoryRead)
 	mockWriteRepo := new(mocks.MockUserRepositoryWrite)
 	mockAuthClient := new(mocks.MockAuthClient)
-	svc := service.NewUserService(mockReadRepo, mockWriteRepo, mockAuthClient, zap.NewNop())
-	return mockReadRepo, mockWriteRepo, mockAuthClient, svc
+	mockFileClient := new(mocks.MockFileClient)
+	// Par défaut : file-service retourne "" (dégradation gracieuse)
+	mockFileClient.On("GetDocumentExpiry", mock.Anything, mock.Anything, mock.Anything).Return("").Maybe()
+	svc := service.NewUserService(mockReadRepo, mockWriteRepo, mockAuthClient, mockFileClient, zap.NewNop())
+	return mockReadRepo, mockWriteRepo, mockAuthClient, mockFileClient, svc
 }
 
 // ctxWithFirebaseID retourne un contexte contenant le Firebase UID.
@@ -57,7 +60,7 @@ func stringPtr(s string) *string {
 
 func TestCreateUser(t *testing.T) {
 	t.Run("succes - cree un utilisateur avec photo de profil", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, _, svc := newService()
+		mockReadRepo, mockWriteRepo, _, _, svc := newService()
 
 		mockWriteRepo.On("Create", mock.Anything, mock.AnythingOfType("*domain.User")).
 			Return("inserted-id", nil)
@@ -85,7 +88,7 @@ func TestCreateUser(t *testing.T) {
 	})
 
 	t.Run("succes - cree un utilisateur sans photo de profil", func(t *testing.T) {
-		_, mockWriteRepo, _, svc := newService()
+		_, mockWriteRepo, _, _, svc := newService()
 
 		mockWriteRepo.On("Create", mock.Anything, mock.AnythingOfType("*domain.User")).
 			Return("inserted-id", nil)
@@ -103,7 +106,7 @@ func TestCreateUser(t *testing.T) {
 	})
 
 	t.Run("erreur - writeRepo.Create echoue", func(t *testing.T) {
-		_, mockWriteRepo, _, svc := newService()
+		_, mockWriteRepo, _, _, svc := newService()
 
 		repoErr := errors.New("mongo write error")
 		mockWriteRepo.On("Create", mock.Anything, mock.AnythingOfType("*domain.User")).
@@ -123,7 +126,7 @@ func TestCreateUser(t *testing.T) {
 
 func TestGetUserByAuthID(t *testing.T) {
 	t.Run("succes - retourne l utilisateur par AuthID", func(t *testing.T) {
-		mockReadRepo, _, _, svc := newService()
+		mockReadRepo, _, _, _, svc := newService()
 
 		expectedUser := fixtures.NewTestUser(
 			fixtures.WithAuthID("auth-123"),
@@ -144,7 +147,7 @@ func TestGetUserByAuthID(t *testing.T) {
 	})
 
 	t.Run("erreur - authID vide retourne ErrorUserNotFound", func(t *testing.T) {
-		mockReadRepo, _, _, svc := newService()
+		mockReadRepo, _, _, _, svc := newService()
 
 		user, err := svc.GetUserByAuthID(context.Background(), "")
 
@@ -156,7 +159,7 @@ func TestGetUserByAuthID(t *testing.T) {
 	})
 
 	t.Run("erreur - repo retourne une erreur", func(t *testing.T) {
-		mockReadRepo, _, _, svc := newService()
+		mockReadRepo, _, _, _, svc := newService()
 
 		repoErr := userErrors.ErrorDataRetrievalFailed
 		mockReadRepo.On("GetByAuthID", mock.Anything, "auth-unknown").
@@ -176,7 +179,7 @@ func TestGetUserByAuthID(t *testing.T) {
 
 func TestGetMyProfile(t *testing.T) {
 	t.Run("succes - retourne le profil complet enrichi avec auth info", func(t *testing.T) {
-		mockReadRepo, _, mockAuthClient, svc := newService()
+		mockReadRepo, _, mockAuthClient, _, svc := newService()
 
 		testUser := fixtures.NewTestUser(
 			fixtures.WithUserID("user-001"),
@@ -209,23 +212,18 @@ func TestGetMyProfile(t *testing.T) {
 		assert.True(t, profile.HasProfileImage)
 		assert.Equal(t, "https://img.example.com/photo.jpg", profile.ProfileImageURL)
 		assert.True(t, profile.IsPassenger)
-
 		// Verification des champs provenant de AuthInfo
 		assert.Equal(t, "john@example.com", profile.Email)
 		assert.Equal(t, "+221770000000", profile.PhoneNumber)
 		assert.True(t, profile.IsActive)
 		assert.False(t, profile.IsSuspended)
 
-		// UserFiles doit etre un slice vide (pas nil)
-		assert.NotNil(t, profile.UserFiles)
-		assert.Empty(t, profile.UserFiles)
-
 		mockReadRepo.AssertExpectations(t)
 		mockAuthClient.AssertExpectations(t)
 	})
 
 	t.Run("erreur - firebaseID absent du contexte retourne ErrorInternalServer", func(t *testing.T) {
-		mockReadRepo, _, mockAuthClient, svc := newService()
+		mockReadRepo, _, mockAuthClient, _, svc := newService()
 
 		// Contexte sans FirebaseIDKey
 		profile, err := svc.GetMyProfile(context.Background())
@@ -239,7 +237,7 @@ func TestGetMyProfile(t *testing.T) {
 	})
 
 	t.Run("erreur - firebaseID vide dans le contexte retourne ErrorInternalServer", func(t *testing.T) {
-		mockReadRepo, _, mockAuthClient, svc := newService()
+		mockReadRepo, _, mockAuthClient, _, svc := newService()
 
 		ctx := ctxWithFirebaseID("")
 		profile, err := svc.GetMyProfile(ctx)
@@ -253,7 +251,7 @@ func TestGetMyProfile(t *testing.T) {
 	})
 
 	t.Run("erreur - utilisateur non trouve dans le repo", func(t *testing.T) {
-		mockReadRepo, _, mockAuthClient, svc := newService()
+		mockReadRepo, _, mockAuthClient, _, svc := newService()
 
 		repoErr := userErrors.ErrorUserNotFound
 		mockReadRepo.On("GetByFirebaseID", mock.Anything, "firebase-unknown").
@@ -271,7 +269,7 @@ func TestGetMyProfile(t *testing.T) {
 	})
 
 	t.Run("erreur - authClient.GetAuthInfo echoue retourne ErrorAuthServiceUnavailable", func(t *testing.T) {
-		mockReadRepo, _, mockAuthClient, svc := newService()
+		mockReadRepo, _, mockAuthClient, _, svc := newService()
 
 		testUser := fixtures.NewTestUser(
 			fixtures.WithAuthID("auth-002"),
@@ -299,7 +297,7 @@ func TestGetMyProfile(t *testing.T) {
 
 func TestCreateDriverAccount(t *testing.T) {
 	t.Run("succes - active le compte conducteur", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, _, svc := newService()
+		mockReadRepo, mockWriteRepo, _, _, svc := newService()
 
 		testUser := fixtures.NewTestUser(
 			fixtures.WithUserID("user-driver-01"),
@@ -323,7 +321,7 @@ func TestCreateDriverAccount(t *testing.T) {
 	})
 
 	t.Run("succes - desactive le compte conducteur", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, _, svc := newService()
+		mockReadRepo, mockWriteRepo, _, _, svc := newService()
 
 		testUser := fixtures.NewTestUser(
 			fixtures.WithUserID("user-driver-02"),
@@ -348,7 +346,7 @@ func TestCreateDriverAccount(t *testing.T) {
 	})
 
 	t.Run("erreur - profileID vide retourne ErrorInvalidUserID", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, _, svc := newService()
+		mockReadRepo, mockWriteRepo, _, _, svc := newService()
 
 		err := svc.CreateDriverAccount(context.Background(), "", true)
 
@@ -360,7 +358,7 @@ func TestCreateDriverAccount(t *testing.T) {
 	})
 
 	t.Run("erreur - utilisateur non trouve", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, _, svc := newService()
+		mockReadRepo, mockWriteRepo, _, _, svc := newService()
 
 		repoErr := userErrors.ErrorUserNotFound
 		mockReadRepo.On("GetByUserID", mock.Anything, "user-unknown").
@@ -376,7 +374,7 @@ func TestCreateDriverAccount(t *testing.T) {
 	})
 
 	t.Run("erreur - writeRepo.Update echoue", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, _, svc := newService()
+		mockReadRepo, mockWriteRepo, _, _, svc := newService()
 
 		testUser := fixtures.NewTestUser(
 			fixtures.WithUserID("user-driver-03"),
@@ -403,7 +401,7 @@ func TestCreateDriverAccount(t *testing.T) {
 
 func TestAddTripPreferences(t *testing.T) {
 	t.Run("succes - ajoute les preferences de trajet", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, _, svc := newService()
+		mockReadRepo, mockWriteRepo, _, _, svc := newService()
 
 		testUser := fixtures.NewTestUser(
 			fixtures.WithUserID("user-prefs-01"),
@@ -436,7 +434,7 @@ func TestAddTripPreferences(t *testing.T) {
 	})
 
 	t.Run("erreur - profileID vide retourne ErrorInvalidUserID", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, _, svc := newService()
+		mockReadRepo, mockWriteRepo, _, _, svc := newService()
 
 		preferences := []domain.TripPreference{
 			{Preference: "music", IsAllowed: true},
@@ -452,7 +450,7 @@ func TestAddTripPreferences(t *testing.T) {
 	})
 
 	t.Run("erreur - utilisateur non trouve", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, _, svc := newService()
+		mockReadRepo, mockWriteRepo, _, _, svc := newService()
 
 		repoErr := userErrors.ErrorUserNotFound
 		mockReadRepo.On("GetByUserID", mock.Anything, "user-unknown").
@@ -472,7 +470,7 @@ func TestAddTripPreferences(t *testing.T) {
 	})
 
 	t.Run("erreur - writeRepo.Update echoue", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, _, svc := newService()
+		mockReadRepo, mockWriteRepo, _, _, svc := newService()
 
 		testUser := fixtures.NewTestUser(
 			fixtures.WithUserID("user-prefs-02"),
@@ -503,7 +501,7 @@ func TestAddTripPreferences(t *testing.T) {
 
 func TestUpdateProfile(t *testing.T) {
 	t.Run("succes - mise a jour de tous les champs", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, mockAuthClient, svc := newService()
+		mockReadRepo, mockWriteRepo, mockAuthClient, _, svc := newService()
 
 		testUser := fixtures.NewTestUser(
 			fixtures.WithUserID("user-update-01"),
@@ -565,7 +563,7 @@ func TestUpdateProfile(t *testing.T) {
 	})
 
 	t.Run("succes - mise a jour partielle (seulement FirstName)", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, mockAuthClient, svc := newService()
+		mockReadRepo, mockWriteRepo, mockAuthClient, _, svc := newService()
 
 		testUser := fixtures.NewTestUser(
 			fixtures.WithUserID("user-update-02"),
@@ -615,7 +613,7 @@ func TestUpdateProfile(t *testing.T) {
 	})
 
 	t.Run("succes - ProfilePictureURL vide desactive HasProfileImage", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, mockAuthClient, svc := newService()
+		mockReadRepo, mockWriteRepo, mockAuthClient, _, svc := newService()
 
 		testUser := fixtures.NewTestUser(
 			fixtures.WithUserID("user-update-03"),
@@ -652,7 +650,7 @@ func TestUpdateProfile(t *testing.T) {
 	})
 
 	t.Run("erreur - profileID vide retourne ErrorInvalidUserID", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, mockAuthClient, svc := newService()
+		mockReadRepo, mockWriteRepo, mockAuthClient, _, svc := newService()
 
 		req := serviceInterfaces.UpdateProfileRequest{
 			UserID: "",
@@ -671,7 +669,7 @@ func TestUpdateProfile(t *testing.T) {
 	})
 
 	t.Run("erreur - utilisateur non trouve", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, mockAuthClient, svc := newService()
+		mockReadRepo, mockWriteRepo, mockAuthClient, _, svc := newService()
 
 		repoErr := userErrors.ErrorUserNotFound
 		mockReadRepo.On("GetByUserID", mock.Anything, "user-unknown").
@@ -694,7 +692,7 @@ func TestUpdateProfile(t *testing.T) {
 	})
 
 	t.Run("erreur - writeRepo.Update echoue", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, mockAuthClient, svc := newService()
+		mockReadRepo, mockWriteRepo, mockAuthClient, _, svc := newService()
 
 		testUser := fixtures.NewTestUser(
 			fixtures.WithUserID("user-update-04"),
@@ -725,7 +723,7 @@ func TestUpdateProfile(t *testing.T) {
 	})
 
 	t.Run("erreur - authClient.GetAuthInfo echoue retourne ErrorAuthServiceUnavailable", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, mockAuthClient, svc := newService()
+		mockReadRepo, mockWriteRepo, mockAuthClient, _, svc := newService()
 
 		testUser := fixtures.NewTestUser(
 			fixtures.WithUserID("user-update-05"),
@@ -753,5 +751,83 @@ func TestUpdateProfile(t *testing.T) {
 		mockReadRepo.AssertExpectations(t)
 		mockWriteRepo.AssertExpectations(t)
 		mockAuthClient.AssertExpectations(t)
+	})
+}
+
+// ========== GetMyProfile avec dates d'expiration depuis file-service ==========
+
+func TestGetMyProfile_WithDocumentExpiry(t *testing.T) {
+	t.Run("succes - dates d expiration renseignees depuis file-service", func(t *testing.T) {
+		mockReadRepo, _, mockAuthClient, mockFileClient, svc := newService()
+
+		testUser := fixtures.NewTestUser(
+			fixtures.WithUserID("user-expiry-01"),
+			fixtures.WithAuthID("auth-expiry-01"),
+			fixtures.WithFirebaseID("firebase-expiry-01"),
+		)
+
+		authInfo := defaultAuthInfo("auth-expiry-01")
+
+		mockReadRepo.On("GetByFirebaseID", mock.Anything, "firebase-expiry-01").
+			Return(testUser, nil)
+		mockAuthClient.On("GetAuthInfo", mock.Anything, "auth-expiry-01").
+			Return(authInfo, nil)
+
+		// Remplacer le comportement par défaut pour les types spécifiques
+		mockFileClient.ExpectedCalls = nil
+		mockFileClient.On("GetDocumentExpiry", mock.Anything, "user-expiry-01", "idCardFront").
+			Return("2030-12-31T00:00:00Z")
+		mockFileClient.On("GetDocumentExpiry", mock.Anything, "user-expiry-01", "driverLicenceFront").
+			Return("2028-06-15T00:00:00Z")
+
+		ctx := ctxWithFirebaseID("firebase-expiry-01")
+		profile, err := svc.GetMyProfile(ctx)
+
+		require.NoError(t, err)
+		require.NotNil(t, profile)
+
+		assert.Equal(t, "2030-12-31T00:00:00Z", profile.IDCardExpirationDate)
+		assert.Equal(t, "2028-06-15T00:00:00Z", profile.DriveLicenceExpirationDate)
+
+		mockReadRepo.AssertExpectations(t)
+		mockAuthClient.AssertExpectations(t)
+		mockFileClient.AssertExpectations(t)
+	})
+
+	t.Run("succes - fallback sur idCardBack si idCardFront est vide", func(t *testing.T) {
+		mockReadRepo, _, mockAuthClient, mockFileClient, svc := newService()
+
+		testUser := fixtures.NewTestUser(
+			fixtures.WithUserID("user-expiry-02"),
+			fixtures.WithAuthID("auth-expiry-02"),
+			fixtures.WithFirebaseID("firebase-expiry-02"),
+		)
+
+		authInfo := defaultAuthInfo("auth-expiry-02")
+
+		mockReadRepo.On("GetByFirebaseID", mock.Anything, "firebase-expiry-02").
+			Return(testUser, nil)
+		mockAuthClient.On("GetAuthInfo", mock.Anything, "auth-expiry-02").
+			Return(authInfo, nil)
+
+		// Pas de document idCardFront → fallback sur idCardBack
+		mockFileClient.ExpectedCalls = nil
+		mockFileClient.On("GetDocumentExpiry", mock.Anything, "user-expiry-02", "idCardFront").Return("")
+		mockFileClient.On("GetDocumentExpiry", mock.Anything, "user-expiry-02", "idCardBack").Return("2031-01-01T00:00:00Z")
+		mockFileClient.On("GetDocumentExpiry", mock.Anything, "user-expiry-02", "driverLicenceFront").Return("")
+		mockFileClient.On("GetDocumentExpiry", mock.Anything, "user-expiry-02", "driverLicenceBack").Return("")
+
+		ctx := ctxWithFirebaseID("firebase-expiry-02")
+		profile, err := svc.GetMyProfile(ctx)
+
+		require.NoError(t, err)
+		require.NotNil(t, profile)
+
+		assert.Equal(t, "2031-01-01T00:00:00Z", profile.IDCardExpirationDate)
+		assert.Equal(t, "", profile.DriveLicenceExpirationDate)
+
+		mockReadRepo.AssertExpectations(t)
+		mockAuthClient.AssertExpectations(t)
+		mockFileClient.AssertExpectations(t)
 	})
 }
