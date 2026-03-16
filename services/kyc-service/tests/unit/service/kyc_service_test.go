@@ -76,13 +76,13 @@ func TestCreateInquiry(t *testing.T) {
 				r.AttemptNumber == 1 &&
 				r.PreviousReviewID == ""
 		})).Return(&domain.Review{
-			ReviewID:         "review-001",
-			UserDocumentID:   "doc-passport-001",
-			PersonaInquiryID: "inq_abc123",
+			ReviewID:          "review-001",
+			UserDocumentID:    "doc-passport-001",
+			PersonaInquiryID:  "inq_abc123",
 			PersonaTemplateID: testTemplateID,
-			Status:           "pending",
-			AttemptNumber:    1,
-			CreatedAt:        now,
+			Status:            "pending",
+			AttemptNumber:     1,
+			CreatedAt:         now,
 		}, nil)
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{

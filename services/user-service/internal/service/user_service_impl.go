@@ -240,6 +240,44 @@ func (s *userServiceImpl) UpdateProfile(ctx context.Context, req serviceInterfac
 	return toFullProfile(updated, authInfo, idExpiry, drExpiry), nil
 }
 
+// ChangeProfilePicture uploade la nouvelle photo de profil via file-service et met à jour MongoDB.
+func (s *userServiceImpl) ChangeProfilePicture(ctx context.Context, userID string, imageBytes []byte) (*serviceInterfaces.FullProfile, error) {
+	s.logger.Debug("changement de photo de profil", zap.String("user_id", userID))
+
+	user, err := s.readRepo.GetByUserID(ctx, userID)
+	if err != nil {
+		s.logger.Error("utilisateur non trouvé pour changement de photo", zap.Error(err), zap.String("user_id", userID))
+		return nil, err
+	}
+
+	imageURL, err := s.fileClient.UploadProfilePicture(ctx, userID, imageBytes)
+	if err != nil {
+		s.logger.Error("échec de l'upload de la photo de profil", zap.Error(err), zap.String("user_id", userID))
+		return nil, userErrors.ErrorInternalServer
+	}
+
+	user.ProfileImageURL = imageURL
+	user.HasProfileImage = true
+
+	updated, err := s.writeRepo.Update(ctx, user)
+	if err != nil {
+		s.logger.Error("échec de la mise à jour après upload photo", zap.Error(err), zap.String("user_id", userID))
+		return nil, err
+	}
+
+	authInfo, err := s.authClient.GetAuthInfo(ctx, updated.AuthID)
+	if err != nil {
+		s.logger.Error("échec de la récupération des données auth après changement photo", zap.Error(err), zap.String("auth_id", updated.AuthID))
+		return nil, userErrors.ErrorAuthServiceUnavailable
+	}
+
+	idExpiry := s.getDocExpiry(ctx, updated.UserID, "idCardFront", "idCardBack")
+	drExpiry := s.getDocExpiry(ctx, updated.UserID, "driverLicenceFront", "driverLicenceBack")
+
+	s.logger.Info("photo de profil mise à jour avec succès", zap.String("user_id", userID))
+	return toFullProfile(updated, authInfo, idExpiry, drExpiry), nil
+}
+
 // getDocExpiry récupère expired_at du document courant, en essayant primary puis fallback.
 // Retourne "" si aucun document n'est trouvé ou si file-service est indisponible.
 func (s *userServiceImpl) getDocExpiry(ctx context.Context, userID, primary, fallback string) string {

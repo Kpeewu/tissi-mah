@@ -755,9 +755,9 @@ func TestE2E_GetDocumentReviews(t *testing.T) {
 		})
 		require.NoError(t, err)
 		_, err = grpcClient.CreateDocumentReview(ctx, &filepb.CreateDocumentReviewRequest{
-			UserDocumentId: doc.DocumentId,
-			Decision:       "rejected",
-			ReviewType:     "manual",
+			UserDocumentId:  doc.DocumentId,
+			Decision:        "rejected",
+			ReviewType:      "manual",
 			ReasonRejection: "document_illegible",
 		})
 		require.NoError(t, err)

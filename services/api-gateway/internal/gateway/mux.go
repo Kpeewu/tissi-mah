@@ -13,12 +13,12 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	authpb    "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/authpb"
-	filepb    "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/filepb"
-	kycpb     "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/kycpb"
-	ratingpb  "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb"
-	trippb    "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/trippb"
-	userpb    "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/userpb"
+	authpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/authpb"
+	filepb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/filepb"
+	kycpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/kycpb"
+	ratingpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb"
+	trippb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/trippb"
+	userpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/userpb"
 	vehiclepb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/vehiclepb"
 )
 

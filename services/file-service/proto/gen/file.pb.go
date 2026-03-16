@@ -2784,8 +2784,6 @@ const file_file_proto_rawDesc = "" +
 	"\vSubmittedAt\x18\x14 \x01(\tR\vSubmittedAt\"q\n" +
 	"\x19GetDocumentReviewsRequest\x12&\n" +
 	"\x0eUserDocumentId\x18\x01 \x01(\tR\x0eUserDocumentId\x12,\n" +
-	"\x11VehicleDocumentId\x18\x02 \x01(\tR\x11VehicleDocumentId\"\x0f\n" +
-	"\rHealthRequest\"\xdc\x03\n" +
 	"\x11VehicleDocumentId\x18\x02 \x01(\tR\x11VehicleDocumentId\":\n" +
 	"\x1cGetDocumentReviewByIDRequest\x12\x1a\n" +
 	"\bReviewId\x18\x01 \x01(\tR\bReviewId\"X\n" +
@@ -2819,7 +2817,7 @@ const file_file_proto_rawDesc = "" +
 	"\bDecision\x18\x03 \x01(\tR\bDecision\x12\x12\n" +
 	"\x04Page\x18\x04 \x01(\x05R\x04Page\x12\x1a\n" +
 	"\bPageSize\x18\x05 \x01(\x05R\bPageSize\"\x0f\n" +
-	"\rHealthRequest\"\xbe\x03\n" +
+	"\rHealthRequest\"\xdc\x03\n" +
 	"\x14UserDocumentResponse\x12\x1e\n" +
 	"\n" +
 	"DocumentId\x18\x01 \x01(\tR\n" +

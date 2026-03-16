@@ -15,14 +15,14 @@ type CreateInquiryInput struct {
 
 // CreateInquiryResult contient la réponse de création d'une inquiry
 type CreateInquiryResult struct {
-	ReviewID         string
-	PersonaInquiryID string
+	ReviewID          string
+	PersonaInquiryID  string
 	PersonaTemplateID string
-	SessionToken     string
-	SessionExpiresAt string // ISO 8601
-	Status           string
-	AttemptNumber    int32
-	CreatedAt        string // ISO 8601
+	SessionToken      string
+	SessionExpiresAt  string // ISO 8601
+	Status            string
+	AttemptNumber     int32
+	CreatedAt         string // ISO 8601
 }
 
 // InquiryDetail contient le détail d'une inquiry
@@ -64,10 +64,10 @@ type ResumeResult struct {
 
 // WebhookInput contient les données du webhook Persona
 type WebhookInput struct {
-	Signature       string
-	PersonaInquiryID string
-	WebhookEventType string
-	OccurredAt       string // ISO 8601
+	Signature         string
+	PersonaInquiryID  string
+	WebhookEventType  string
+	OccurredAt        string // ISO 8601
 	PersonaRawPayload []byte // JSON
 }
 

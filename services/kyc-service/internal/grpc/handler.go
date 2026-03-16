@@ -69,14 +69,14 @@ func (h *KYCHandler) CreateInquiry(ctx context.Context, req *kycpb.CreateInquiry
 
 	h.logger.Info("handler: CreateInquiry success", zap.String("reviewID", result.ReviewID))
 	return &kycpb.CreateInquiryResponse{
-		ReviewId:         result.ReviewID,
-		PersonaInquiryId: result.PersonaInquiryID,
+		ReviewId:          result.ReviewID,
+		PersonaInquiryId:  result.PersonaInquiryID,
 		PersonaTemplateId: result.PersonaTemplateID,
-		SessionToken:     result.SessionToken,
-		SessionExpiresAt: result.SessionExpiresAt,
-		Status:           result.Status,
-		AttemptNumber:    result.AttemptNumber,
-		CreatedAt:        result.CreatedAt,
+		SessionToken:      result.SessionToken,
+		SessionExpiresAt:  result.SessionExpiresAt,
+		Status:            result.Status,
+		AttemptNumber:     result.AttemptNumber,
+		CreatedAt:         result.CreatedAt,
 	}, nil
 }
 

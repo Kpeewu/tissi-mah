@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	FileService_GetCurrentUserDocument_FullMethodName = "/file.FileService/GetCurrentUserDocument"
+	FileService_UploadUserDocument_FullMethodName     = "/file.FileService/UploadUserDocument"
 )
 
 // FileServiceClient is the client API for FileService service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FileServiceClient interface {
 	GetCurrentUserDocument(ctx context.Context, in *GetCurrentUserDocumentRequest, opts ...grpc.CallOption) (*UserDocumentResponse, error)
+	UploadUserDocument(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadUserDocumentRequest, UserDocumentResponse], error)
 }
 
 type fileServiceClient struct {
@@ -47,11 +49,25 @@ func (c *fileServiceClient) GetCurrentUserDocument(ctx context.Context, in *GetC
 	return out, nil
 }
 
+func (c *fileServiceClient) UploadUserDocument(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadUserDocumentRequest, UserDocumentResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &FileService_ServiceDesc.Streams[0], FileService_UploadUserDocument_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[UploadUserDocumentRequest, UserDocumentResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type FileService_UploadUserDocumentClient = grpc.ClientStreamingClient[UploadUserDocumentRequest, UserDocumentResponse]
+
 // FileServiceServer is the server API for FileService service.
 // All implementations must embed UnimplementedFileServiceServer
 // for forward compatibility.
 type FileServiceServer interface {
 	GetCurrentUserDocument(context.Context, *GetCurrentUserDocumentRequest) (*UserDocumentResponse, error)
+	UploadUserDocument(grpc.ClientStreamingServer[UploadUserDocumentRequest, UserDocumentResponse]) error
 	mustEmbedUnimplementedFileServiceServer()
 }
 
@@ -64,6 +80,9 @@ type UnimplementedFileServiceServer struct{}
 
 func (UnimplementedFileServiceServer) GetCurrentUserDocument(context.Context, *GetCurrentUserDocumentRequest) (*UserDocumentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetCurrentUserDocument not implemented")
+}
+func (UnimplementedFileServiceServer) UploadUserDocument(grpc.ClientStreamingServer[UploadUserDocumentRequest, UserDocumentResponse]) error {
+	return status.Error(codes.Unimplemented, "method UploadUserDocument not implemented")
 }
 func (UnimplementedFileServiceServer) mustEmbedUnimplementedFileServiceServer() {}
 func (UnimplementedFileServiceServer) testEmbeddedByValue()                     {}
@@ -104,6 +123,13 @@ func _FileService_GetCurrentUserDocument_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FileService_UploadUserDocument_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(FileServiceServer).UploadUserDocument(&grpc.GenericServerStream[UploadUserDocumentRequest, UserDocumentResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type FileService_UploadUserDocumentServer = grpc.ClientStreamingServer[UploadUserDocumentRequest, UserDocumentResponse]
+
 // FileService_ServiceDesc is the grpc.ServiceDesc for FileService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -116,6 +142,12 @@ var FileService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _FileService_GetCurrentUserDocument_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "UploadUserDocument",
+			Handler:       _FileService_UploadUserDocument_Handler,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "file.proto",
 }

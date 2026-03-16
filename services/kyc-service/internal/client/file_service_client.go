@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Kpeewu/tissi-mah/services/kyc-service/internal/domain"
 	filepb "github.com/Kpeewu/tissi-mah/services/file-service/proto/gen"
+	"github.com/Kpeewu/tissi-mah/services/kyc-service/internal/domain"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

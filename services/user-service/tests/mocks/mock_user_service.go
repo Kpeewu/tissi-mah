@@ -61,3 +61,11 @@ func (m *MockUserService) UpdateProfile(ctx context.Context, req serviceInterfac
 	}
 	return args.Get(0).(*serviceInterfaces.FullProfile), args.Error(1)
 }
+
+func (m *MockUserService) ChangeProfilePicture(ctx context.Context, userID string, imageBytes []byte) (*serviceInterfaces.FullProfile, error) {
+	args := m.Called(ctx, userID, imageBytes)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.FullProfile), args.Error(1)
+}

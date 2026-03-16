@@ -8,10 +8,10 @@ import (
 )
 
 type Config struct {
-	Server      ServerConfig
-	Environment EnvironmentConfig
-	Redis       RedisConfig
-	Firebase    FirebaseConfig
+	Server         ServerConfig
+	Environment    EnvironmentConfig
+	Redis          RedisConfig
+	Firebase       FirebaseConfig
 	AuthService    ServiceEndpoint
 	UserService    ServiceEndpoint
 	RatingService  ServiceEndpoint
@@ -19,9 +19,9 @@ type Config struct {
 	VehicleService ServiceEndpoint
 	TripsService   ServiceEndpoint
 	KYCService     ServiceEndpoint
-	CORS          CORSConfig
-	RateLimit   RateLimitConfig
-	LogLevel    string
+	CORS           CORSConfig
+	RateLimit      RateLimitConfig
+	LogLevel       string
 }
 
 type ServerConfig struct {

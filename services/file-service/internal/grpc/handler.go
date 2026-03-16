@@ -185,7 +185,7 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 	)
 
 	err := h.service.UploadIdDocument(ctx, serviceInterfaces.UploadIdDocumentInput{
-		UserID:          req.UserID,
+		UserID:             req.UserID,
 		DocumentType:       req.DocumentType,
 		IDCardRecto:        req.IDCardRecto,
 		IDCardVerso:        req.IDCardVerso,
@@ -217,7 +217,7 @@ func (h *FileHandler) UploadVehicleDocuments(ctx context.Context, req *filepb.Up
 	)
 
 	err := h.service.UploadVehicleDocuments(ctx, serviceInterfaces.UploadVehicleDocumentsInput{
-		UserID:           req.UserID,
+		UserID:              req.UserID,
 		VehicleID:           req.VehicleID,
 		DriverLicenceImage:  req.DriverLicenceImage,
 		Assurance:           req.Assurance,

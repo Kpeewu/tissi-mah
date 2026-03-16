@@ -4,12 +4,13 @@ package file;
 
 option go_package = "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen/filepb;filepb";
 
-// Stub minimal — seul GetCurrentUserDocument est utilisé par user-service.
+// Stub minimal — seuls les RPCs utilisés par user-service sont déclarés.
 // Les numéros de champs correspondent exactement au fichier file.proto d'origine
 // pour la compatibilité wire format.
 
 service FileService {
   rpc GetCurrentUserDocument(GetCurrentUserDocumentRequest) returns (UserDocumentResponse);
+  rpc UploadUserDocument(stream UploadUserDocumentRequest) returns (UserDocumentResponse);
 }
 
 message GetCurrentUserDocumentRequest {
@@ -17,10 +18,26 @@ message GetCurrentUserDocumentRequest {
   string DocumentType = 2;
 }
 
+message UploadUserDocumentRequest {
+  oneof data {
+    UserDocumentMetadata metadata = 1;
+    bytes                chunk    = 2;
+  }
+}
+
+message UserDocumentMetadata {
+  string UserId        = 1;
+  string DocumentName  = 2;
+  string DocumentType  = 3;
+  string MimeType      = 4;
+  int64  FileSizeBytes = 5;
+}
+
 message UserDocumentResponse {
   string DocumentId   = 1;
   string DocumentType = 4;
+  string DocumentUrl  = 5;
   string Status       = 10;
   bool   IsCurrent    = 11;
-  string expired_at   = 14; // ISO 8601 ou "" si non défini
+  string ExpiredAt    = 14; // ISO 8601 ou "" si non défini
 }

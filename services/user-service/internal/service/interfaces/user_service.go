@@ -33,12 +33,12 @@ type FullProfile struct {
 
 // UpdateProfileRequest contient les champs à mettre à jour (optionnels)
 type UpdateProfileRequest struct {
-	UserID          string
-	FirstName       *string
-	LastName        *string
-	BirthDate       *string
-	Email           *string
-	PhoneNumber     *string
+	UserID            string
+	FirstName         *string
+	LastName          *string
+	BirthDate         *string
+	Email             *string
+	PhoneNumber       *string
 	ProfilePictureURL *string
 }
 
@@ -53,4 +53,5 @@ type UserService interface {
 	CreateDriverAccount(ctx context.Context, profileID string, createDriver bool) error
 	AddTripPreferences(ctx context.Context, profileID string, preferences []domain.TripPreference) error
 	UpdateProfile(ctx context.Context, req UpdateProfileRequest) (*FullProfile, error)
+	ChangeProfilePicture(ctx context.Context, userID string, imageBytes []byte) (*FullProfile, error)
 }
