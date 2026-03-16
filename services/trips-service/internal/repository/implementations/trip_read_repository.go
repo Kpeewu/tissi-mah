@@ -35,7 +35,6 @@ func NewTripReadRepository(pool *pgxpool.Pool, logger *zap.Logger) i.TripReposit
 	return &tripReadRepositoryImpl{pool: pool, logger: logger}
 }
 
-
 // GetDriverTripsPreviews retourne la liste paginée des trajets d'un conducteur
 // dont le statut est différent de "completed", avec les noms des points de départ et d'arrivée.
 func (r *tripReadRepositoryImpl) GetDriverTripsPreviews(ctx context.Context, driverID string, pageIndex int) ([]*domain.TripPreview, error) {

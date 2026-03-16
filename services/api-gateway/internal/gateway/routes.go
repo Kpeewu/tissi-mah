@@ -10,7 +10,7 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/auth/deleteAccount": true,
 
 	// user-service
-	"/api/v1/user/me":                        true,
+	"/api/v1/user/me":                         true,
 	"/api/v1/userProfile/createDriverAccount": true,
 	"/api/v1/userProfile/addTripPreferences":  true,
 	"/api/v1/userProfile/updateProfile":       true,
@@ -33,10 +33,10 @@ var ProtectedRoutes = map[string]bool{
 	"/vehicle/getUserVehicles": true,
 
 	// kyc-service (user-facing)
-	"/api/v1/kyc/inquiries/add":    true,
+	"/api/v1/kyc/inquiries/add":        true,
 	"/api/v1/kyc/inquiries/getInquiry": true,
-	"/api/v1/kyc/me/getStatus":    true,
-	"/api/v1/kyc/inquiries/resume": true,
+	"/api/v1/kyc/me/getStatus":         true,
+	"/api/v1/kyc/inquiries/resume":     true,
 	// kyc-service (admin)
 	"/api/v1/kyc/admin/reviews/getReviews": true,
 	"/api/v1/kyc/admin/reviews/getReview":  true,
@@ -45,17 +45,17 @@ var ProtectedRoutes = map[string]bool{
 
 	// trips-service
 	"/trip/driver/createTrip":                true,
-	"/trip/driver/createRecurringTrip":        true,
-	"/trip/driver/getTripsPreviews":           true,
-	"/trip/driver/getCompletedTripsPreviews":  true,
-	"/trip/driver/changeTripDateAndTime": true,
-	"/trip/driver/changeTripVehicle":     true,
-	"/trip/driver/changeTripAllowances":  true,
-	"/trip/driver/activeAutoApprouve":    true,
-	"/trip/driver/startTrip":                  true,
-	"/trip/driver/endTrip":                    true,
-	"/trip/driver/confirmWaypointArrival":     true,
-	"/trip/driver/confirmWaypointDeparture":   true,
+	"/trip/driver/createRecurringTrip":       true,
+	"/trip/driver/getTripsPreviews":          true,
+	"/trip/driver/getCompletedTripsPreviews": true,
+	"/trip/driver/changeTripDateAndTime":     true,
+	"/trip/driver/changeTripVehicle":         true,
+	"/trip/driver/changeTripAllowances":      true,
+	"/trip/driver/activeAutoApprouve":        true,
+	"/trip/driver/startTrip":                 true,
+	"/trip/driver/endTrip":                   true,
+	"/trip/driver/confirmWaypointArrival":    true,
+	"/trip/driver/confirmWaypointDeparture":  true,
 }
 
 // RateLimitTier identifie le niveau de rate limiting pour une route

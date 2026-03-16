@@ -9,10 +9,10 @@ use (
 	./services/api-gateway
 	./services/auth-service
 	./services/file-service
+	./services/kyc-service
 	./services/rating-service
+	./services/trips-service
 	./services/user-service
 	./services/vehicle-service
-	./services/trips-service
-	./services/kyc-service
 // ./services/payment-service   # TODO: Uncomment when implemented
 )

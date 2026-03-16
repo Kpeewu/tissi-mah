@@ -62,6 +62,14 @@ service UserService {
     };
   }
 
+  // ChangeProfilePicture - Change la photo de profil (upload vers S3 via file-service)
+  rpc ChangeProfilePicture(ChangeProfilePictureRequest) returns (ChangeProfilePictureResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/userProfile/changeProfilePicture"
+      body: "*"
+    };
+  }
+
   // Health - Health check endpoint (pas de JWT requis)
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -197,6 +205,16 @@ message OperationResponse {
 message UpdateProfileResponse {
   string ErrorMessage   = 1;
   FullUserProfile User  = 2;
+}
+
+message ChangeProfilePictureRequest {
+  string UserID            = 1;
+  bytes  NewProfilePicture = 2;
+}
+
+message ChangeProfilePictureResponse {
+  string          ErrorMessage = 1;
+  FullUserProfile User         = 2;
 }
 
 message HealthResponse {

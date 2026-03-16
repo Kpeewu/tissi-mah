@@ -631,9 +631,9 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 
 	// Détermine les fichiers requis selon le type de document
 	type fileUpload struct {
-		data     []byte
-		docType  string
-		docName  string
+		data    []byte
+		docType string
+		docName string
 	}
 
 	var uploads []fileUpload
@@ -712,9 +712,9 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 	}
 
 	type fileUpload struct {
-		data     []byte
-		docType  string
-		docName  string
+		data    []byte
+		docType string
+		docName string
 	}
 
 	uploads := []fileUpload{

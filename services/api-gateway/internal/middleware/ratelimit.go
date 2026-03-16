@@ -21,10 +21,10 @@ type RateLimitTierConfig struct {
 
 // RateLimitConfig contient la configuration complète du rate limiting
 type RateLimitConfig struct {
-	Tiers        map[string]RateLimitTierConfig
-	GetTier      func(path string) string // retourne le tier pour un path donné
-	RedisClient  *redis.Client
-	Logger       *zap.Logger
+	Tiers       map[string]RateLimitTierConfig
+	GetTier     func(path string) string // retourne le tier pour un path donné
+	RedisClient *redis.Client
+	Logger      *zap.Logger
 }
 
 // RateLimit retourne un middleware HTTP qui applique le rate limiting Redis distribué.

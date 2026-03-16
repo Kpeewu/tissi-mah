@@ -524,7 +524,7 @@ func TestUpdateProfile(t *testing.T) {
 			Return(authInfo, nil)
 
 		req := serviceInterfaces.UpdateProfileRequest{
-			UserID:         "user-update-01",
+			UserID:            "user-update-01",
 			FirstName:         stringPtr("Amadou"),
 			LastName:          stringPtr("Diallo"),
 			BirthDate:         stringPtr("1990-01-15"),
@@ -588,7 +588,7 @@ func TestUpdateProfile(t *testing.T) {
 			Return(authInfo, nil)
 
 		req := serviceInterfaces.UpdateProfileRequest{
-			UserID: "user-update-02",
+			UserID:    "user-update-02",
 			FirstName: stringPtr("Mamadou"),
 			// Pas de LastName, BirthDate, ProfilePictureURL
 		}
@@ -631,7 +631,7 @@ func TestUpdateProfile(t *testing.T) {
 			Return(authInfo, nil)
 
 		req := serviceInterfaces.UpdateProfileRequest{
-			UserID:         "user-update-03",
+			UserID:            "user-update-03",
 			ProfilePictureURL: stringPtr(""),
 		}
 
@@ -653,7 +653,7 @@ func TestUpdateProfile(t *testing.T) {
 		mockReadRepo, mockWriteRepo, mockAuthClient, _, svc := newService()
 
 		req := serviceInterfaces.UpdateProfileRequest{
-			UserID: "",
+			UserID:    "",
 			FirstName: stringPtr("Amadou"),
 		}
 
@@ -676,7 +676,7 @@ func TestUpdateProfile(t *testing.T) {
 			Return(nil, repoErr)
 
 		req := serviceInterfaces.UpdateProfileRequest{
-			UserID: "user-unknown",
+			UserID:    "user-unknown",
 			FirstName: stringPtr("Amadou"),
 		}
 
@@ -707,7 +707,7 @@ func TestUpdateProfile(t *testing.T) {
 			Return(nil, updateErr)
 
 		req := serviceInterfaces.UpdateProfileRequest{
-			UserID: "user-update-04",
+			UserID:    "user-update-04",
 			FirstName: stringPtr("Amadou"),
 		}
 
@@ -738,7 +738,7 @@ func TestUpdateProfile(t *testing.T) {
 			Return(nil, errors.New("grpc connection refused"))
 
 		req := serviceInterfaces.UpdateProfileRequest{
-			UserID: "user-update-05",
+			UserID:    "user-update-05",
 			FirstName: stringPtr("Amadou"),
 		}
 
@@ -828,6 +828,86 @@ func TestGetMyProfile_WithDocumentExpiry(t *testing.T) {
 
 		mockReadRepo.AssertExpectations(t)
 		mockAuthClient.AssertExpectations(t)
+		mockFileClient.AssertExpectations(t)
+	})
+}
+
+// ========== ChangeProfilePicture ==========
+
+func TestChangeProfilePicture(t *testing.T) {
+	t.Run("succes - photo uploadee et profil mis a jour", func(t *testing.T) {
+		mockReadRepo, mockWriteRepo, mockAuthClient, mockFileClient, svc := newService()
+
+		testUser := fixtures.NewTestUser(
+			fixtures.WithUserID("user-photo-01"),
+			fixtures.WithAuthID("auth-photo-01"),
+			fixtures.WithNoProfileImage(),
+		)
+		authInfo := defaultAuthInfo("auth-photo-01")
+		imageBytes := []byte{0xFF, 0xD8, 0xFF, 0xE0}
+		imageURL := "https://s3.amazonaws.com/profile-photo-01.jpg"
+
+		mockReadRepo.On("GetByUserID", mock.Anything, "user-photo-01").Return(testUser, nil)
+		mockFileClient.On("UploadProfilePicture", mock.Anything, "user-photo-01", imageBytes).Return(imageURL, nil)
+		mockWriteRepo.On("Update", mock.Anything, mock.Anything).Return(testUser, nil)
+		mockAuthClient.On("GetAuthInfo", mock.Anything, "auth-photo-01").Return(authInfo, nil)
+		mockFileClient.On("GetDocumentExpiry", mock.Anything, mock.Anything, mock.Anything).Return("").Maybe()
+
+		profile, err := svc.ChangeProfilePicture(context.Background(), "user-photo-01", imageBytes)
+
+		require.NoError(t, err)
+		require.NotNil(t, profile)
+
+		// Vérification que le user a été mis à jour en place
+		assert.Equal(t, imageURL, testUser.ProfileImageURL)
+		assert.True(t, testUser.HasProfileImage)
+
+		// Vérification du profil enrichi retourné
+		assert.Equal(t, "user-photo-01", profile.UserID)
+		assert.Equal(t, "auth-photo-01", profile.AuthID)
+		assert.Equal(t, imageURL, profile.ProfileImageURL)
+		assert.True(t, profile.HasProfileImage)
+		assert.Equal(t, "john@example.com", profile.Email)
+
+		mockReadRepo.AssertExpectations(t)
+		mockWriteRepo.AssertExpectations(t)
+		mockAuthClient.AssertExpectations(t)
+		mockFileClient.AssertExpectations(t)
+	})
+
+	t.Run("erreur - utilisateur non trouve", func(t *testing.T) {
+		mockReadRepo, _, _, _, svc := newService()
+
+		mockReadRepo.On("GetByUserID", mock.Anything, "user-inconnu").Return(nil, userErrors.ErrorUserNotFound)
+
+		profile, err := svc.ChangeProfilePicture(context.Background(), "user-inconnu", []byte{0xFF})
+
+		require.Error(t, err)
+		assert.Nil(t, profile)
+		assert.Equal(t, userErrors.ErrorUserNotFound, err)
+
+		mockReadRepo.AssertExpectations(t)
+	})
+
+	t.Run("erreur - upload echoue retourne ErrorInternalServer", func(t *testing.T) {
+		mockReadRepo, _, _, mockFileClient, svc := newService()
+
+		testUser := fixtures.NewTestUser(
+			fixtures.WithUserID("user-photo-02"),
+			fixtures.WithAuthID("auth-photo-02"),
+		)
+		imageBytes := []byte{0xFF, 0xD8}
+
+		mockReadRepo.On("GetByUserID", mock.Anything, "user-photo-02").Return(testUser, nil)
+		mockFileClient.On("UploadProfilePicture", mock.Anything, "user-photo-02", imageBytes).Return("", errors.New("S3 unavailable"))
+
+		profile, err := svc.ChangeProfilePicture(context.Background(), "user-photo-02", imageBytes)
+
+		require.Error(t, err)
+		assert.Nil(t, profile)
+		assert.Equal(t, userErrors.ErrorInternalServer, err)
+
+		mockReadRepo.AssertExpectations(t)
 		mockFileClient.AssertExpectations(t)
 	})
 }

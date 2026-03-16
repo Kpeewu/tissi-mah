@@ -56,17 +56,17 @@ func cleanTables(t *testing.T) {
 func newUserDoc(userID, docType string) *domain.UserDocument {
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	return &domain.UserDocument{
-		DocumentID:   uuid.New().String(),
-		UserID:       userID,
-		DocumentName: docType + "_doc",
-		DocumentType: docType,
-		DocumentURL:  "https://storage.example.com/" + docType + "/" + userID + "/doc.jpg",
+		DocumentID:    uuid.New().String(),
+		UserID:        userID,
+		DocumentName:  docType + "_doc",
+		DocumentType:  docType,
+		DocumentURL:   "https://storage.example.com/" + docType + "/" + userID + "/doc.jpg",
 		FileSizeBytes: 1024,
-		MimeType:     "image/jpeg",
-		Status:       "pending",
-		IsCurrent:    true,
-		UploadedAt:   now,
-		UpdatedAt:    now,
+		MimeType:      "image/jpeg",
+		Status:        "pending",
+		IsCurrent:     true,
+		UploadedAt:    now,
+		UpdatedAt:     now,
 	}
 }
 
@@ -82,17 +82,17 @@ func insertUserDoc(t *testing.T, doc *domain.UserDocument) {
 func newVehicleDoc(vehicleID, docType string) *domain.VehicleDocument {
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	return &domain.VehicleDocument{
-		DocumentID:   uuid.New().String(),
-		VehicleID:    vehicleID,
-		DocumentName: docType + "_doc",
-		DocumentType: docType,
-		DocumentURL:  "https://storage.example.com/" + docType + "/" + vehicleID + "/doc.jpg",
+		DocumentID:    uuid.New().String(),
+		VehicleID:     vehicleID,
+		DocumentName:  docType + "_doc",
+		DocumentType:  docType,
+		DocumentURL:   "https://storage.example.com/" + docType + "/" + vehicleID + "/doc.jpg",
 		FileSizeBytes: 2048,
-		MimeType:     "image/jpeg",
-		Status:       "pending",
-		IsCurrent:    true,
-		UploadedAt:   now,
-		UpdatedAt:    now,
+		MimeType:      "image/jpeg",
+		Status:        "pending",
+		IsCurrent:     true,
+		UploadedAt:    now,
+		UpdatedAt:     now,
 	}
 }
 

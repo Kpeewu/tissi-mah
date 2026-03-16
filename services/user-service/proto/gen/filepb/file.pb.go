@@ -73,20 +73,179 @@ func (x *GetCurrentUserDocumentRequest) GetDocumentType() string {
 	return ""
 }
 
+type UploadUserDocumentRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Data:
+	//
+	//	*UploadUserDocumentRequest_Metadata
+	//	*UploadUserDocumentRequest_Chunk
+	Data          isUploadUserDocumentRequest_Data `protobuf_oneof:"data"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadUserDocumentRequest) Reset() {
+	*x = UploadUserDocumentRequest{}
+	mi := &file_file_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadUserDocumentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadUserDocumentRequest) ProtoMessage() {}
+
+func (x *UploadUserDocumentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_file_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadUserDocumentRequest.ProtoReflect.Descriptor instead.
+func (*UploadUserDocumentRequest) Descriptor() ([]byte, []int) {
+	return file_file_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *UploadUserDocumentRequest) GetData() isUploadUserDocumentRequest_Data {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *UploadUserDocumentRequest) GetMetadata() *UserDocumentMetadata {
+	if x != nil {
+		if x, ok := x.Data.(*UploadUserDocumentRequest_Metadata); ok {
+			return x.Metadata
+		}
+	}
+	return nil
+}
+
+func (x *UploadUserDocumentRequest) GetChunk() []byte {
+	if x != nil {
+		if x, ok := x.Data.(*UploadUserDocumentRequest_Chunk); ok {
+			return x.Chunk
+		}
+	}
+	return nil
+}
+
+type isUploadUserDocumentRequest_Data interface {
+	isUploadUserDocumentRequest_Data()
+}
+
+type UploadUserDocumentRequest_Metadata struct {
+	Metadata *UserDocumentMetadata `protobuf:"bytes,1,opt,name=metadata,proto3,oneof"`
+}
+
+type UploadUserDocumentRequest_Chunk struct {
+	Chunk []byte `protobuf:"bytes,2,opt,name=chunk,proto3,oneof"`
+}
+
+func (*UploadUserDocumentRequest_Metadata) isUploadUserDocumentRequest_Data() {}
+
+func (*UploadUserDocumentRequest_Chunk) isUploadUserDocumentRequest_Data() {}
+
+type UserDocumentMetadata struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"`
+	DocumentName  string                 `protobuf:"bytes,2,opt,name=DocumentName,proto3" json:"DocumentName,omitempty"`
+	DocumentType  string                 `protobuf:"bytes,3,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"`
+	MimeType      string                 `protobuf:"bytes,4,opt,name=MimeType,proto3" json:"MimeType,omitempty"`
+	FileSizeBytes int64                  `protobuf:"varint,5,opt,name=FileSizeBytes,proto3" json:"FileSizeBytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserDocumentMetadata) Reset() {
+	*x = UserDocumentMetadata{}
+	mi := &file_file_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserDocumentMetadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserDocumentMetadata) ProtoMessage() {}
+
+func (x *UserDocumentMetadata) ProtoReflect() protoreflect.Message {
+	mi := &file_file_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserDocumentMetadata.ProtoReflect.Descriptor instead.
+func (*UserDocumentMetadata) Descriptor() ([]byte, []int) {
+	return file_file_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *UserDocumentMetadata) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UserDocumentMetadata) GetDocumentName() string {
+	if x != nil {
+		return x.DocumentName
+	}
+	return ""
+}
+
+func (x *UserDocumentMetadata) GetDocumentType() string {
+	if x != nil {
+		return x.DocumentType
+	}
+	return ""
+}
+
+func (x *UserDocumentMetadata) GetMimeType() string {
+	if x != nil {
+		return x.MimeType
+	}
+	return ""
+}
+
+func (x *UserDocumentMetadata) GetFileSizeBytes() int64 {
+	if x != nil {
+		return x.FileSizeBytes
+	}
+	return 0
+}
+
 type UserDocumentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DocumentId    string                 `protobuf:"bytes,1,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`
 	DocumentType  string                 `protobuf:"bytes,4,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"`
+	DocumentUrl   string                 `protobuf:"bytes,5,opt,name=DocumentUrl,proto3" json:"DocumentUrl,omitempty"`
 	Status        string                 `protobuf:"bytes,10,opt,name=Status,proto3" json:"Status,omitempty"`
 	IsCurrent     bool                   `protobuf:"varint,11,opt,name=IsCurrent,proto3" json:"IsCurrent,omitempty"`
-	ExpiredAt     string                 `protobuf:"bytes,14,opt,name=expired_at,json=expiredAt,proto3" json:"expired_at,omitempty"` // ISO 8601 ou "" si non défini
+	ExpiredAt     string                 `protobuf:"bytes,14,opt,name=ExpiredAt,proto3" json:"ExpiredAt,omitempty"` // ISO 8601 ou "" si non défini
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UserDocumentResponse) Reset() {
 	*x = UserDocumentResponse{}
-	mi := &file_file_proto_msgTypes[1]
+	mi := &file_file_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -98,7 +257,7 @@ func (x *UserDocumentResponse) String() string {
 func (*UserDocumentResponse) ProtoMessage() {}
 
 func (x *UserDocumentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_file_proto_msgTypes[1]
+	mi := &file_file_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -111,7 +270,7 @@ func (x *UserDocumentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserDocumentResponse.ProtoReflect.Descriptor instead.
 func (*UserDocumentResponse) Descriptor() ([]byte, []int) {
-	return file_file_proto_rawDescGZIP(), []int{1}
+	return file_file_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *UserDocumentResponse) GetDocumentId() string {
@@ -124,6 +283,13 @@ func (x *UserDocumentResponse) GetDocumentId() string {
 func (x *UserDocumentResponse) GetDocumentType() string {
 	if x != nil {
 		return x.DocumentType
+	}
+	return ""
+}
+
+func (x *UserDocumentResponse) GetDocumentUrl() string {
+	if x != nil {
+		return x.DocumentUrl
 	}
 	return ""
 }
@@ -157,19 +323,30 @@ const file_file_proto_rawDesc = "" +
 	"file.proto\x12\x04file\"[\n" +
 	"\x1dGetCurrentUserDocumentRequest\x12\x16\n" +
 	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x12\"\n" +
-	"\fDocumentType\x18\x02 \x01(\tR\fDocumentType\"\xaf\x01\n" +
+	"\fDocumentType\x18\x02 \x01(\tR\fDocumentType\"u\n" +
+	"\x19UploadUserDocumentRequest\x128\n" +
+	"\bmetadata\x18\x01 \x01(\v2\x1a.file.UserDocumentMetadataH\x00R\bmetadata\x12\x16\n" +
+	"\x05chunk\x18\x02 \x01(\fH\x00R\x05chunkB\x06\n" +
+	"\x04data\"\xb8\x01\n" +
+	"\x14UserDocumentMetadata\x12\x16\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x12\"\n" +
+	"\fDocumentName\x18\x02 \x01(\tR\fDocumentName\x12\"\n" +
+	"\fDocumentType\x18\x03 \x01(\tR\fDocumentType\x12\x1a\n" +
+	"\bMimeType\x18\x04 \x01(\tR\bMimeType\x12$\n" +
+	"\rFileSizeBytes\x18\x05 \x01(\x03R\rFileSizeBytes\"\xd0\x01\n" +
 	"\x14UserDocumentResponse\x12\x1e\n" +
 	"\n" +
 	"DocumentId\x18\x01 \x01(\tR\n" +
 	"DocumentId\x12\"\n" +
-	"\fDocumentType\x18\x04 \x01(\tR\fDocumentType\x12\x16\n" +
+	"\fDocumentType\x18\x04 \x01(\tR\fDocumentType\x12 \n" +
+	"\vDocumentUrl\x18\x05 \x01(\tR\vDocumentUrl\x12\x16\n" +
 	"\x06Status\x18\n" +
 	" \x01(\tR\x06Status\x12\x1c\n" +
-	"\tIsCurrent\x18\v \x01(\bR\tIsCurrent\x12\x1d\n" +
-	"\n" +
-	"expired_at\x18\x0e \x01(\tR\texpiredAt2h\n" +
+	"\tIsCurrent\x18\v \x01(\bR\tIsCurrent\x12\x1c\n" +
+	"\tExpiredAt\x18\x0e \x01(\tR\tExpiredAt2\xbd\x01\n" +
 	"\vFileService\x12Y\n" +
-	"\x16GetCurrentUserDocument\x12#.file.GetCurrentUserDocumentRequest\x1a\x1a.file.UserDocumentResponseBKZIgithub.com/Kpeewu/tissi-mah/services/user-service/proto/gen/filepb;filepbb\x06proto3"
+	"\x16GetCurrentUserDocument\x12#.file.GetCurrentUserDocumentRequest\x1a\x1a.file.UserDocumentResponse\x12S\n" +
+	"\x12UploadUserDocument\x12\x1f.file.UploadUserDocumentRequest\x1a\x1a.file.UserDocumentResponse(\x01BKZIgithub.com/Kpeewu/tissi-mah/services/user-service/proto/gen/filepb;filepbb\x06proto3"
 
 var (
 	file_file_proto_rawDescOnce sync.Once
@@ -183,19 +360,24 @@ func file_file_proto_rawDescGZIP() []byte {
 	return file_file_proto_rawDescData
 }
 
-var file_file_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_file_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_file_proto_goTypes = []any{
 	(*GetCurrentUserDocumentRequest)(nil), // 0: file.GetCurrentUserDocumentRequest
-	(*UserDocumentResponse)(nil),          // 1: file.UserDocumentResponse
+	(*UploadUserDocumentRequest)(nil),     // 1: file.UploadUserDocumentRequest
+	(*UserDocumentMetadata)(nil),          // 2: file.UserDocumentMetadata
+	(*UserDocumentResponse)(nil),          // 3: file.UserDocumentResponse
 }
 var file_file_proto_depIdxs = []int32{
-	0, // 0: file.FileService.GetCurrentUserDocument:input_type -> file.GetCurrentUserDocumentRequest
-	1, // 1: file.FileService.GetCurrentUserDocument:output_type -> file.UserDocumentResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	2, // 0: file.UploadUserDocumentRequest.metadata:type_name -> file.UserDocumentMetadata
+	0, // 1: file.FileService.GetCurrentUserDocument:input_type -> file.GetCurrentUserDocumentRequest
+	1, // 2: file.FileService.UploadUserDocument:input_type -> file.UploadUserDocumentRequest
+	3, // 3: file.FileService.GetCurrentUserDocument:output_type -> file.UserDocumentResponse
+	3, // 4: file.FileService.UploadUserDocument:output_type -> file.UserDocumentResponse
+	3, // [3:5] is the sub-list for method output_type
+	1, // [1:3] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_file_proto_init() }
@@ -203,13 +385,17 @@ func file_file_proto_init() {
 	if File_file_proto != nil {
 		return
 	}
+	file_file_proto_msgTypes[1].OneofWrappers = []any{
+		(*UploadUserDocumentRequest_Metadata)(nil),
+		(*UploadUserDocumentRequest_Chunk)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_file_proto_rawDesc), len(file_file_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

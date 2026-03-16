@@ -17,10 +17,11 @@ const FirebaseIDKey contextKey = "firebaseID"
 
 // Routes gRPC qui requièrent un Firebase UID (transmis par l'api-gateway)
 var protectedMethods = map[string]bool{
-	"/user.UserService/GetMyProfile":       true,
-	"/user.UserService/CreateDriverAccount": true,
-	"/user.UserService/AddTripPreferences":  true,
-	"/user.UserService/UpdateProfile":       true,
+	"/user.UserService/GetMyProfile":         true,
+	"/user.UserService/CreateDriverAccount":  true,
+	"/user.UserService/AddTripPreferences":   true,
+	"/user.UserService/UpdateProfile":        true,
+	"/user.UserService/ChangeProfilePicture": true,
 }
 
 // AuthInterceptor retourne un intercepteur gRPC unaire qui :

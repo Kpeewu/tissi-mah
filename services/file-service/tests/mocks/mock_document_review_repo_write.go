@@ -15,3 +15,7 @@ func (m *MockDocumentReviewRepositoryWrite) Create(ctx context.Context, review *
 	args := m.Called(ctx, review)
 	return args.String(0), args.Error(1)
 }
+
+func (m *MockDocumentReviewRepositoryWrite) Update(ctx context.Context, review *domain.DocumentReview) error {
+	return m.Called(ctx, review).Error(0)
+}

@@ -175,6 +175,29 @@ func (h *UserHandler) UpdateProfile(ctx context.Context, req *userpb.UpdateProfi
 	}, nil
 }
 
+// ChangeProfilePicture uploade la nouvelle photo de profil et met à jour le profil.
+func (h *UserHandler) ChangeProfilePicture(ctx context.Context, req *userpb.ChangeProfilePictureRequest) (*userpb.ChangeProfilePictureResponse, error) {
+	h.logger.Debug("ChangeProfilePicture appelé", zap.String("user_id", req.UserID))
+
+	if req.UserID == "" {
+		return nil, status.Error(codes.InvalidArgument, "user_id est requis")
+	}
+	if len(req.NewProfilePicture) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "new_profile_picture est requis")
+	}
+
+	profile, err := h.service.ChangeProfilePicture(ctx, req.UserID, req.NewProfilePicture)
+	if err != nil {
+		h.logger.Error("ChangeProfilePicture échoué", zap.Error(err), zap.String("user_id", req.UserID))
+		return nil, toGRPCError(err)
+	}
+
+	h.logger.Info("ChangeProfilePicture réussi", zap.String("user_id", req.UserID))
+	return &userpb.ChangeProfilePictureResponse{
+		User: toProtoFullProfile(profile),
+	}, nil
+}
+
 // Health retourne l'état de santé du service (route publique, sans auth).
 func (h *UserHandler) Health(_ context.Context, _ *userpb.HealthRequest) (*userpb.HealthResponse, error) {
 	return &userpb.HealthResponse{
@@ -231,7 +254,7 @@ func toProtoUserProfile(u *domain.User) *userpb.UserProfileResponse {
 		IsPassenger:                u.IsPassenger,
 		IsDriverProfileVerified:    u.IsDriverProfileVerified,
 		IsPassengerProfileVerified: u.IsPassengerProfileVerified,
-		TripPreferences: toProtoTripPreferences(u.TripPreferences),
+		TripPreferences:            toProtoTripPreferences(u.TripPreferences),
 	}
 }
 

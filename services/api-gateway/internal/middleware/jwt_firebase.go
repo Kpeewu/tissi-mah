@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/google/uuid"
 	firebaseValidator "github.com/Kpeewu/tissi-mah/services/api-gateway/pkg/firebase"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
