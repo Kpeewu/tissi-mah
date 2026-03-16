@@ -25,9 +25,15 @@ COPY services/api-gateway/go.mod services/api-gateway/go.sum* ./services/api-gat
 COPY services/auth-service/go.mod services/auth-service/go.sum* ./services/auth-service/
 COPY services/user-service/go.mod services/user-service/go.sum* ./services/user-service/
 
+# pkg-test est un module de test uniquement, mais user-service/go.mod a un replace directive qui
+# pointe vers lui. On crée un stub minimal pour satisfaire la résolution Go sans inclure
+# aucune dépendance de test dans l'image de production.
+RUN mkdir -p pkg-test && \
+    printf 'module github.com/Kpeewu/tissi-mah/pkg-test\n\ngo 1.25\n' > pkg-test/go.mod
+
 # Create a scoped go.work with only the modules present in this build context
 # (the repo go.work lists all services, but we only need the ones api-gateway depends on)
-RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./services/api-gateway\n\t./services/auth-service\n\t./services/user-service\n)\n' > go.work
+RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/api-gateway\n\t./services/auth-service\n\t./services/user-service\n)\n' > go.work
 
 # Download dependencies for all modules
 RUN go mod download -C ./pkg
