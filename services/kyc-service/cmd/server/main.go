@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	pkgLogger "github.com/Kpeewu/tissi-mah/pkg/logger"
+	"github.com/Kpeewu/tissi-mah/services/kyc-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/kyc-service/internal/config"
 	grpcServer "github.com/Kpeewu/tissi-mah/services/kyc-service/internal/grpc"
 	"github.com/Kpeewu/tissi-mah/services/kyc-service/internal/service"
@@ -43,31 +44,24 @@ func run(bootstrapLogger *zap.Logger) error {
 	// --- Context avec arrêt gracieux ---
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-	_ = ctx // Utilisé par srv.Serve(ctx) ci-dessous
 
 	// --- File-service gRPC client ---
-	// TODO: implémenter le client gRPC concret vers file-service
-	// fileServiceAddr := fmt.Sprintf("%s:%s", cfg.FileService.Address, cfg.FileService.Port)
-	// fileClient, err := client.NewFileServiceClient(fileServiceAddr, logger)
-	// if err != nil {
-	// 	return fmt.Errorf("file-service client: %w", err)
-	// }
-	// defer fileClient.Close()
-	// logger.Info("file-service client ready", zap.String("address", fileServiceAddr))
+	fileServiceAddr := fmt.Sprintf("%s:%s", cfg.FileService.Address, cfg.FileService.Port)
+	fileClient, err := client.NewFileServiceClient(fileServiceAddr, logger)
+	if err != nil {
+		return fmt.Errorf("file-service client: %w", err)
+	}
+	defer fileClient.Close()
+	logger.Info("file-service client ready", zap.String("address", fileServiceAddr))
 
 	// --- Persona HTTP client ---
-	// TODO: implémenter le client HTTP concret vers l'API Persona
-	// personaClient, err := client.NewPersonaClient(cfg.Persona.APIKey, logger)
-	// if err != nil {
-	// 	return fmt.Errorf("persona client: %w", err)
-	// }
-	// logger.Info("persona client ready")
+	personaClient := client.NewPersonaClient(cfg.Persona.APIKey, logger)
+	logger.Info("persona client ready")
 
 	// --- KYC Service ---
-	// TODO: remplacer nil par les clients concrets une fois implémentés
 	kycService := service.NewKYCService(
-		nil, // fileClient
-		nil, // personaClient
+		fileClient,
+		personaClient,
 		cfg.Persona.TemplateID,
 		cfg.Persona.WebhookSecret,
 		logger,
