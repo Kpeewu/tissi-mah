@@ -32,6 +32,17 @@ var ProtectedRoutes = map[string]bool{
 	"/vehicle/details":         true,
 	"/vehicle/getUserVehicles": true,
 
+	// kyc-service (user-facing)
+	"/api/v1/kyc/inquiries/add":    true,
+	"/api/v1/kyc/inquiries/getInquiry": true,
+	"/api/v1/kyc/me/getStatus":    true,
+	"/api/v1/kyc/inquiries/resume": true,
+	// kyc-service (admin)
+	"/api/v1/kyc/admin/reviews/getReviews": true,
+	"/api/v1/kyc/admin/reviews/getReview":  true,
+	"/api/v1/kyc/admin/reviews/override":   true,
+	// kyc-service — webhook et health sont publics (pas de JWT)
+
 	// trips-service
 	"/trip/driver/createTrip":                true,
 	"/trip/driver/createRecurringTrip":        true,
