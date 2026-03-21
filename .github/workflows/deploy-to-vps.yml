@@ -69,7 +69,7 @@ jobs:
           if [ -n "${{ github.event.inputs.service }}" ]; then
             echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
           else
-            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service"]' >> $GITHUB_OUTPUT
+            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service","kyc-service"]' >> $GITHUB_OUTPUT
           fi
 
   build-and-push:
@@ -166,6 +166,9 @@ jobs:
           # trips-service secrets
           TRIPS_DATABASE_URL: ${{ secrets.TRIPS_DATABASE_URL }}
           TRIPS_REDIS_URL: ${{ secrets.TRIPS_REDIS_URL }}
+          # kyc-service secrets
+          KYC_PERSONA_API_KEY: ${{ secrets.KYC_PERSONA_API_KEY }}
+          KYC_PERSONA_WEBHOOK_SECRET: ${{ secrets.KYC_PERSONA_WEBHOOK_SECRET }}
         run: |
           python3 - <<'PYEOF'
           import yaml, os, json, sys
@@ -241,6 +244,14 @@ jobs:
                   'secrets': {
                       'databaseUrl': os.environ.get('TRIPS_DATABASE_URL', ''),
                       'redisUrl': os.environ.get('TRIPS_REDIS_URL', ''),
+                  },
+              }
+
+          elif service == "kyc-service":
+              data = {
+                  'secrets': {
+                      'personaApiKey': os.environ.get('KYC_PERSONA_API_KEY', ''),
+                      'personaWebhookSecret': os.environ.get('KYC_PERSONA_WEBHOOK_SECRET', ''),
                   },
               }
 
@@ -415,6 +426,10 @@ jobs:
 #      - TRIPS_DATABASE_URL : postgresql://user:pass@host:5437/trips_db
 #      - TRIPS_REDIS_URL    : redis://host:6386/0
 #
+#  10. Secrets GitHub pour kyc-service:
+#      - KYC_PERSONA_API_KEY       : cle API Persona (sandbox ou production)
+#      - KYC_PERSONA_WEBHOOK_SECRET : secret HMAC pour valider les webhooks Persona
+#
 # Architecture:
 #   VPS K3s namespace "default":
 #     |- api-gateway (HTTP LoadBalancer, port 8080)
@@ -424,3 +439,4 @@ jobs:
 #     |- rating-service (gRPC ClusterIP, port 50054)
 #     |- vehicle-service (gRPC ClusterIP, port 50055)
 #     |- trips-service (gRPC ClusterIP, port 50056)
+#     |- kyc-service (gRPC ClusterIP, port 50057)
