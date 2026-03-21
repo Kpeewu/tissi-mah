@@ -58,6 +58,8 @@ jobs:
               - 'services/vehicle-service/**'
             trips-service:
               - 'services/trips-service/**'
+            kyc-service:
+              - 'services/kyc-service/**'
             pkg:
               - 'pkg/**'
 

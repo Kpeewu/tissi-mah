@@ -1,0 +1,81 @@
+# Local development values for kyc-service
+
+replicaCount: 1
+
+image:
+  repository: kyc-service
+  pullPolicy: Never
+  tag: "local"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 50057
+
+config:
+  environment: "local"
+  logLevel: "debug"
+  fileServiceHost: "file-service"
+  fileServicePort: "50053"
+  personaTemplateId: "itmpl_default"
+  extra: {}
+
+secrets:
+  personaApiKey: "persona_sandbox_xxx"
+  personaWebhookSecret: "whsec_xxx"
+  extra: {}
+
+probes:
+  enabled: false
+  liveness:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 1
+  targetCPUUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: false
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+imagePullSecrets: []
