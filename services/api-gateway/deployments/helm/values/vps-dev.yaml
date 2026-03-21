@@ -44,6 +44,8 @@ config:
   userServicePort: "50052"
   ratingServiceHost: "rating-service"
   ratingServicePort: "50054"
+  kycServiceHost: "kyc-service"
+  kycServicePort: "50057"
   corsAllowedOrigins: "*"
   extra: {}
 
