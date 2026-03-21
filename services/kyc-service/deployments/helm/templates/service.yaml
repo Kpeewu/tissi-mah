@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kyc-service.fullname" . }}
+  labels:
+    {{- include "kyc-service.labels" . | nindent 4 }}
+  annotations:
+    # KIC 3.x: protocol and timeouts via Service annotations (KongIngress.proxy removed)
+    konghq.com/protocol: grpc
+    konghq.com/connect-timeout: "10000"
+    konghq.com/read-timeout: "60000"
+    konghq.com/write-timeout: "60000"
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "kyc-service.selectorLabels" . | nindent 4 }}
