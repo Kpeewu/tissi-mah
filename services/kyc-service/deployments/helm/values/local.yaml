@@ -1,13 +1,11 @@
-# VPS Development values for api-gateway
-# Namespace: dev
+# Local development values for kyc-service
 
 replicaCount: 1
 
 image:
-  registry: ghcr.io
-  repository: kpeewu/tissi-mah/api-gateway
-  pullPolicy: Always
-  tag: "develop"
+  repository: kyc-service
+  pullPolicy: Never
+  tag: "local"
 
 nameOverride: ""
 fullnameOverride: ""
@@ -31,46 +29,38 @@ securityContext:
   readOnlyRootFilesystem: true
 
 service:
-  type: NodePort
-  port: 8080
-  nodePort: 30080
+  type: ClusterIP
+  port: 50057
 
 config:
-  environment: "development"
+  environment: "local"
   logLevel: "debug"
-  authServiceHost: "auth-service"
-  authServicePort: "50051"
-  userServiceHost: "user-service"
-  userServicePort: "50052"
-  ratingServiceHost: "rating-service"
-  ratingServicePort: "50054"
-  kycServiceHost: "kyc-service"
-  kycServicePort: "50057"
-  corsAllowedOrigins: "*"
+  fileServiceHost: "file-service"
+  fileServicePort: "50053"
+  personaTemplateId: "itmpl_default"
   extra: {}
 
 secrets:
-  redisUrl: ""
-  firebaseCredentials: ""
-  firebaseProjectId: ""
+  personaApiKey: "persona_sandbox_xxx"
+  personaWebhookSecret: "whsec_xxx"
   extra: {}
 
 probes:
-  enabled: true
+  enabled: false
   liveness:
     initialDelaySeconds: 10
-    periodSeconds: 20
+    periodSeconds: 10
     timeoutSeconds: 5
     failureThreshold: 3
   readiness:
     initialDelaySeconds: 5
-    periodSeconds: 10
-    timeoutSeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
     failureThreshold: 3
 
 resources:
   limits:
-    cpu: 300m
+    cpu: 200m
     memory: 256Mi
   requests:
     cpu: 100m
@@ -79,7 +69,7 @@ resources:
 autoscaling:
   enabled: false
   minReplicas: 1
-  maxReplicas: 2
+  maxReplicas: 1
   targetCPUUtilizationPercentage: 80
 
 podDisruptionBudget:
@@ -88,6 +78,4 @@ podDisruptionBudget:
 nodeSelector: {}
 tolerations: []
 affinity: {}
-
-imagePullSecrets:
-  - name: ghcr-secret
+imagePullSecrets: []

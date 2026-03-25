@@ -1,11 +1,11 @@
-# VPS Development values for api-gateway
+# VPS Development values for kyc-service
 # Namespace: dev
 
 replicaCount: 1
 
 image:
   registry: ghcr.io
-  repository: kpeewu/tissi-mah/api-gateway
+  repository: kpeewu/tissi-mah/kyc-service
   pullPolicy: Always
   tag: "develop"
 
@@ -17,7 +17,9 @@ serviceAccount:
   annotations: {}
   name: ""
 
-podAnnotations: {}
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
 
 podSecurityContext:
   runAsNonRoot: true
@@ -31,39 +33,32 @@ securityContext:
   readOnlyRootFilesystem: true
 
 service:
-  type: NodePort
-  port: 8080
-  nodePort: 30080
+  type: ClusterIP
+  port: 50057
 
 config:
   environment: "development"
   logLevel: "debug"
-  authServiceHost: "auth-service"
-  authServicePort: "50051"
-  userServiceHost: "user-service"
-  userServicePort: "50052"
-  ratingServiceHost: "rating-service"
-  ratingServicePort: "50054"
-  kycServiceHost: "kyc-service"
-  kycServicePort: "50057"
-  corsAllowedOrigins: "*"
+  fileServiceHost: "file-service"
+  fileServicePort: "50053"
+  personaTemplateId: "itmpl_default"
   extra: {}
 
+# Secrets should be provided via external secret management
 secrets:
-  redisUrl: ""
-  firebaseCredentials: ""
-  firebaseProjectId: ""
+  personaApiKey: ""
+  personaWebhookSecret: ""
   extra: {}
 
 probes:
   enabled: true
   liveness:
-    initialDelaySeconds: 10
+    initialDelaySeconds: 15
     periodSeconds: 20
     timeoutSeconds: 5
     failureThreshold: 3
   readiness:
-    initialDelaySeconds: 5
+    initialDelaySeconds: 10
     periodSeconds: 10
     timeoutSeconds: 5
     failureThreshold: 3

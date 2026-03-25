@@ -14,6 +14,8 @@ data:
   USER_SERVICE_PORT: {{ .Values.config.userServicePort | quote }}
   RATING_SERVICE_HOST: {{ .Values.config.ratingServiceHost | quote }}
   RATING_SERVICE_PORT: {{ .Values.config.ratingServicePort | quote }}
+  KYC_SERVICE_HOST: {{ .Values.config.kycServiceHost | quote }}
+  KYC_SERVICE_PORT: {{ .Values.config.kycServicePort | quote }}
   CORS_ALLOWED_ORIGINS: {{ .Values.config.corsAllowedOrigins | quote }}
   {{- range $key, $value := .Values.config.extra }}
   {{ $key }}: {{ $value | quote }}
