@@ -14,6 +14,7 @@ import (
 
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
 	grpcHandler "github.com/Kpeewu/tissi-mah/services/trips-service/internal/grpc"
+	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/trips-service/internal/service/interfaces"
 	tripErrors "github.com/Kpeewu/tissi-mah/services/trips-service/pkg/errors"
 	trippb "github.com/Kpeewu/tissi-mah/services/trips-service/proto/gen"
 	"github.com/Kpeewu/tissi-mah/services/trips-service/tests/mocks"
@@ -335,6 +336,110 @@ func TestConfirmWaypointDeparture_Handler(t *testing.T) {
 		})
 
 		assertGRPCCode(t, err, codes.FailedPrecondition)
+		mockSvc.AssertExpectations(t)
+	})
+}
+
+// =============================================================================
+// TestGetTripByID_Handler
+// =============================================================================
+
+func TestGetTripByID_Handler(t *testing.T) {
+	t.Run("succès - retourne TripID, DriverID et waypoints", func(t *testing.T) {
+		handler, mockSvc := newHandler()
+		ctx := context.Background()
+
+		now := time.Now().UTC()
+		result := &serviceInterfaces.TripDetailResult{
+			TripID:                   "trip-1",
+			DriverID:                 "driver-1",
+			Status:                   "scheduled",
+			TotalSeats:               4,
+			AvailableSeats:           3,
+			DepartureDatetime:        now.Add(time.Hour),
+			EstimatedArrivalDatetime: now.Add(3 * time.Hour),
+			Waypoints: []serviceInterfaces.WaypointDetailResult{
+				{WaypointID: "wp-1", WaypointType: "departure", SequencerOrder: 1, LocationName: "Lomé"},
+				{WaypointID: "wp-2", WaypointType: "arrival", SequencerOrder: 2, LocationName: "Kpalimé"},
+			},
+		}
+
+		mockSvc.On("GetTripByID", ctx, mock.AnythingOfType("*interfaces.GetTripByIDInput")).
+			Return(result, nil)
+
+		resp, err := handler.GetTripByID(ctx, &trippb.GetTripByIDRequest{TripId: "trip-1"})
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, "trip-1", resp.TripId)
+		assert.Equal(t, "driver-1", resp.DriverId)
+		assert.Len(t, resp.Waypoints, 2)
+		mockSvc.AssertExpectations(t)
+	})
+
+	t.Run("erreur - trajet non trouvé → NotFound", func(t *testing.T) {
+		handler, mockSvc := newHandler()
+		ctx := context.Background()
+
+		mockSvc.On("GetTripByID", ctx, mock.AnythingOfType("*interfaces.GetTripByIDInput")).
+			Return(nil, tripErrors.ErrorTripNotFound)
+
+		_, err := handler.GetTripByID(ctx, &trippb.GetTripByIDRequest{TripId: "trip-ghost"})
+
+		assertGRPCCode(t, err, codes.NotFound)
+		mockSvc.AssertExpectations(t)
+	})
+
+	t.Run("erreur - service interne → Internal", func(t *testing.T) {
+		handler, mockSvc := newHandler()
+		ctx := context.Background()
+
+		mockSvc.On("GetTripByID", ctx, mock.AnythingOfType("*interfaces.GetTripByIDInput")).
+			Return(nil, tripErrors.ErrorInternalServer)
+
+		_, err := handler.GetTripByID(ctx, &trippb.GetTripByIDRequest{TripId: "trip-1"})
+
+		assertGRPCCode(t, err, codes.Internal)
+		mockSvc.AssertExpectations(t)
+	})
+}
+
+// =============================================================================
+// TestUpdateAvailableSeats_Handler
+// =============================================================================
+
+func TestUpdateAvailableSeats_Handler(t *testing.T) {
+	t.Run("succès - retourne Success=true", func(t *testing.T) {
+		handler, mockSvc := newHandler()
+		ctx := context.Background()
+
+		mockSvc.On("UpdateAvailableSeats", ctx, mock.AnythingOfType("*interfaces.UpdateAvailableSeatsInput")).
+			Return(nil)
+
+		resp, err := handler.UpdateAvailableSeats(ctx, &trippb.UpdateAvailableSeatsRequest{
+			TripId:            "trip-1",
+			NewAvailableSeats: 2,
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.True(t, resp.Success)
+		mockSvc.AssertExpectations(t)
+	})
+
+	t.Run("erreur - trajet non trouvé → NotFound", func(t *testing.T) {
+		handler, mockSvc := newHandler()
+		ctx := context.Background()
+
+		mockSvc.On("UpdateAvailableSeats", ctx, mock.AnythingOfType("*interfaces.UpdateAvailableSeatsInput")).
+			Return(tripErrors.ErrorTripNotFound)
+
+		_, err := handler.UpdateAvailableSeats(ctx, &trippb.UpdateAvailableSeatsRequest{
+			TripId:            "trip-ghost",
+			NewAvailableSeats: 2,
+		})
+
+		assertGRPCCode(t, err, codes.NotFound)
 		mockSvc.AssertExpectations(t)
 	})
 }

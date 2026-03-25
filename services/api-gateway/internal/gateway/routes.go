@@ -43,6 +43,17 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/kyc/admin/reviews/override":   true,
 	// kyc-service — webhook et health sont publics (pas de JWT)
 
+	// booking-service (internal/* et health sont publics)
+	"/booking/createBooking":        true,
+	"/booking/getBookingDetails":    true,
+	"/booking/getPassengerBookings": true,
+	"/booking/getDriverTripBookings": true,
+	"/booking/approveBooking":       true,
+	"/booking/rejectBooking":        true,
+	"/booking/cancelBooking":        true,
+	"/booking/reportNoShow":         true,
+	"/booking/confirmPayment":       true,
+
 	// trips-service
 	"/trip/driver/createTrip":                true,
 	"/trip/driver/createRecurringTrip":       true,

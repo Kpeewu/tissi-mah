@@ -76,7 +76,7 @@ func setupServer(t *testing.T) (*grpc.ClientConn, *mocks.MockUserClient, *mocks.
 	mockUserClient := new(mocks.MockUserClient)
 	mockVehicleClient := new(mocks.MockVehicleClient)
 
-	svc := service.NewTripService(readRepo, writeRepo, mockUserClient, mockVehicleClient, nil, logger)
+	svc := service.NewTripService(readRepo, writeRepo, mockUserClient, mockVehicleClient, nil, nil, logger)
 	handler := grpcHandler.NewTripHandler(svc, logger)
 
 	lis = bufconn.Listen(bufSize)
@@ -826,5 +826,80 @@ func TestE2E_ConfirmWaypoint_StopFlow(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, departureResp.Success)
 
+	mockUserClient.AssertExpectations(t)
+}
+
+// =============================================================================
+// GetTripByID
+// =============================================================================
+
+func TestE2E_GetTripByID_Success(t *testing.T) {
+	ctx := context.Background()
+	conn, mockUserClient, _, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+	driverID := "driver-get-by-id"
+	vehicleID := "vehicle-get-by-id"
+
+	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
+	require.NoError(t, err)
+	require.NotEmpty(t, createResp.TripId)
+
+	resp, err := client.GetTripByID(ctx, &trippb.GetTripByIDRequest{TripId: createResp.TripId})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, createResp.TripId, resp.TripId)
+	assert.Equal(t, driverID, resp.DriverId)
+	assert.Len(t, resp.Waypoints, 2)
+	mockUserClient.AssertExpectations(t)
+}
+
+func TestE2E_GetTripByID_NotFound(t *testing.T) {
+	ctx := context.Background()
+	conn, _, _, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+
+	_, err := client.GetTripByID(ctx, &trippb.GetTripByIDRequest{TripId: "nonexistent-trip-id"})
+
+	require.Error(t, err)
+	st, ok := status.FromError(err)
+	require.True(t, ok)
+	assert.Equal(t, codes.NotFound, st.Code())
+}
+
+// =============================================================================
+// UpdateAvailableSeats
+// =============================================================================
+
+func TestE2E_UpdateAvailableSeats_Success(t *testing.T) {
+	ctx := context.Background()
+	conn, mockUserClient, _, cleanup := setupServer(t)
+	defer cleanup()
+	cleanupTripsE2E(t, ctx)
+
+	client := trippb.NewTripServiceClient(conn)
+	driverID := "driver-upd-seats"
+	vehicleID := "vehicle-upd-seats"
+
+	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
+	require.NoError(t, err)
+	require.NotEmpty(t, createResp.TripId)
+
+	resp, err := client.UpdateAvailableSeats(ctx, &trippb.UpdateAvailableSeatsRequest{
+		TripId:            createResp.TripId,
+		NewAvailableSeats: 2,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.Success)
 	mockUserClient.AssertExpectations(t)
 }

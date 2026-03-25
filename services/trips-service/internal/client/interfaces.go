@@ -17,3 +17,12 @@ type VehicleClient interface {
 	GetVehicleInfo(ctx context.Context, driverID, vehicleID string) (brand, plate string, numberOfSeats int, err error)
 	Close() error
 }
+
+// BookingClient définit le contrat pour appeler booking-service depuis trips-service.
+type BookingClient interface {
+	// StartBookingsForWaypoint démarre les réservations approved d'un waypoint (pickup).
+	StartBookingsForWaypoint(ctx context.Context, tripID, waypointID string) error
+	// CompleteBookingsForWaypoint complète les réservations inProgress d'un waypoint (dropoff).
+	CompleteBookingsForWaypoint(ctx context.Context, tripID, waypointID string) error
+	Close() error
+}

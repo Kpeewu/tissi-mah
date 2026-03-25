@@ -13,6 +13,7 @@ type Config struct {
 	Redis          RedisConfig
 	UserService    UserServiceConfig
 	VehicleService VehicleServiceConfig
+	BookingService BookingServiceConfig
 	LogLevel       string
 }
 
@@ -51,6 +52,15 @@ func (c VehicleServiceConfig) Addr() string {
 	return fmt.Sprintf("%s:%s", c.Address, c.Port)
 }
 
+type BookingServiceConfig struct {
+	Address string
+	Port    string
+}
+
+func (c BookingServiceConfig) Addr() string {
+	return fmt.Sprintf("%s:%s", c.Address, c.Port)
+}
+
 func Load() (*Config, error) {
 	values, err := sharedconfig.Load("")
 	if err != nil {
@@ -78,6 +88,10 @@ func Load() (*Config, error) {
 		VehicleService: VehicleServiceConfig{
 			Address: sharedconfig.GetStringOrDefault(values, "VEHICLE_SERVICE_HOST", "0.0.0.0"),
 			Port:    sharedconfig.GetStringOrDefault(values, "VEHICLE_SERVICE_PORT", "50055"),
+		},
+		BookingService: BookingServiceConfig{
+			Address: sharedconfig.GetStringOrDefault(values, "BOOKING_SERVICE_HOST", "0.0.0.0"),
+			Port:    sharedconfig.GetStringOrDefault(values, "BOOKING_SERVICE_PORT", "50058"),
 		},
 		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
 	}

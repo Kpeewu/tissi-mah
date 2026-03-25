@@ -70,4 +70,8 @@ type TripRepositoryWrite interface {
 	// Retourne ErrorWaypointNotFound, ErrorUnauthorized, ErrorTripNotInProgress,
 	// ErrorWaypointNotAStop, ErrorWaypointNotArrived, ErrorWaypointAlreadyDeparted selon le cas.
 	ConfirmWaypointDeparture(ctx context.Context, waypointID, driverID string) error
+
+	// UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
+	// Utilisé par le job de réconciliation du booking-service.
+	UpdateAvailableSeats(ctx context.Context, tripID string, newAvailableSeats int16) error
 }

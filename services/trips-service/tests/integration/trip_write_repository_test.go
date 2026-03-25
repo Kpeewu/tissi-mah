@@ -392,3 +392,133 @@ func TestTripWriteRepository_ConfirmWaypointDeparture(t *testing.T) {
 		assert.ErrorIs(t, err, tripErrors.ErrorWaypointNotArrived)
 	})
 }
+
+// =============================================================================
+// TestTripWriteRepository_UpdateVehicle
+// =============================================================================
+
+func TestTripWriteRepository_UpdateVehicle(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("succès - change le vehicleID", func(t *testing.T) {
+		cleanupTripsTable(t, ctx)
+		repo := newTestWriteRepository()
+
+		trip := fixtures.NewTestTrip()
+		dep := fixtures.NewTestDepartureWaypoint(trip.TripID)
+		arr := fixtures.NewTestArrivalWaypoint(trip.TripID)
+		_, err := repo.Create(ctx, trip, []*domain.Waypoint{dep, arr})
+		require.NoError(t, err)
+
+		newVehicleID := uuid.New().String()
+		err = repo.UpdateVehicle(ctx, trip.TripID, trip.DriverID, newVehicleID)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("erreur - trajet non trouvé → ErrorTripNotFound", func(t *testing.T) {
+		cleanupTripsTable(t, ctx)
+		repo := newTestWriteRepository()
+
+		err := repo.UpdateVehicle(ctx, uuid.New().String(), "driver-1", "vehicle-new")
+
+		assert.ErrorIs(t, err, tripErrors.ErrorTripNotFound)
+	})
+
+	t.Run("erreur - conducteur non autorisé → ErrorUnauthorized", func(t *testing.T) {
+		cleanupTripsTable(t, ctx)
+		repo := newTestWriteRepository()
+
+		trip := fixtures.NewTestTrip()
+		dep := fixtures.NewTestDepartureWaypoint(trip.TripID)
+		arr := fixtures.NewTestArrivalWaypoint(trip.TripID)
+		_, err := repo.Create(ctx, trip, []*domain.Waypoint{dep, arr})
+		require.NoError(t, err)
+
+		err = repo.UpdateVehicle(ctx, trip.TripID, "autre-driver", "vehicle-new")
+
+		assert.ErrorIs(t, err, tripErrors.ErrorUnauthorized)
+	})
+}
+
+// =============================================================================
+// TestTripWriteRepository_UpdateAllowances
+// =============================================================================
+
+func TestTripWriteRepository_UpdateAllowances(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("succès - départ > 24h, change les flags", func(t *testing.T) {
+		cleanupTripsTable(t, ctx)
+		repo := newTestWriteRepository()
+
+		// Créer un trajet avec départ dans 25h (> 24h requis)
+		trip := fixtures.NewTestTrip()
+		trip.DepartureDatetime = time.Now().UTC().Add(25 * time.Hour)
+		trip.EstimatedArrivalDatetime = time.Now().UTC().Add(27 * time.Hour)
+		require.NoError(t, fixtures.InsertTrip(ctx, testPool, trip))
+		dep := fixtures.NewTestDepartureWaypoint(trip.TripID)
+		arr := fixtures.NewTestArrivalWaypoint(trip.TripID)
+		require.NoError(t, fixtures.InsertWaypoint(ctx, testPool, dep))
+		require.NoError(t, fixtures.InsertWaypoint(ctx, testPool, arr))
+
+		err := repo.UpdateAllowances(ctx, trip.TripID, trip.DriverID, true, true, false, true)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("erreur - départ < 24h → ErrorTripDepartureTooSoon", func(t *testing.T) {
+		cleanupTripsTable(t, ctx)
+		repo := newTestWriteRepository()
+
+		// Créer un trajet avec départ dans 1h (< 24h)
+		trip := fixtures.NewTestTrip()
+		dep := fixtures.NewTestDepartureWaypoint(trip.TripID)
+		arr := fixtures.NewTestArrivalWaypoint(trip.TripID)
+		_, err := repo.Create(ctx, trip, []*domain.Waypoint{dep, arr})
+		require.NoError(t, err)
+
+		err = repo.UpdateAllowances(ctx, trip.TripID, trip.DriverID, true, false, false, false)
+
+		assert.ErrorIs(t, err, tripErrors.ErrorTripDepartureTooSoon)
+	})
+
+	t.Run("erreur - trajet non trouvé → ErrorTripNotFound", func(t *testing.T) {
+		cleanupTripsTable(t, ctx)
+		repo := newTestWriteRepository()
+
+		err := repo.UpdateAllowances(ctx, uuid.New().String(), "driver-1", false, false, false, false)
+
+		assert.ErrorIs(t, err, tripErrors.ErrorTripNotFound)
+	})
+}
+
+// =============================================================================
+// TestTripWriteRepository_UpdateAvailableSeats
+// =============================================================================
+
+func TestTripWriteRepository_UpdateAvailableSeats(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("succès - met à jour available_seats", func(t *testing.T) {
+		cleanupTripsTable(t, ctx)
+		repo := newTestWriteRepository()
+
+		trip := fixtures.NewTestTrip(fixtures.WithTotalSeats(4))
+		dep := fixtures.NewTestDepartureWaypoint(trip.TripID)
+		arr := fixtures.NewTestArrivalWaypoint(trip.TripID)
+		_, err := repo.Create(ctx, trip, []*domain.Waypoint{dep, arr})
+		require.NoError(t, err)
+
+		err = repo.UpdateAvailableSeats(ctx, trip.TripID, 3)
+
+		assert.NoError(t, err)
+
+		// Vérification directe en base
+		var seats int16
+		require.NoError(t, testPool.QueryRow(ctx,
+			"SELECT available_seats FROM trips WHERE trip_id = $1", trip.TripID,
+		).Scan(&seats))
+		assert.Equal(t, int16(3), seats)
+	})
+}

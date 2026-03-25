@@ -1,0 +1,382 @@
+syntax = "proto3";
+
+package booking;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/bookingpb;bookingpb";
+
+import "google/api/annotations.proto";
+
+// BookingService gère les réservations de covoiturage.
+service BookingService {
+  // CreateBooking crée une nouvelle réservation pour un passager.
+  rpc CreateBooking(CreateBookingRequest) returns (CreateBookingResponse) {
+    option (google.api.http) = {
+      post: "/booking/createBooking"
+      body: "*"
+    };
+  }
+
+  // GetBookingDetails retourne les détails complets d'une réservation.
+  rpc GetBookingDetails(GetBookingDetailsRequest) returns (GetBookingDetailsResponse) {
+    option (google.api.http) = {
+      get: "/booking/getBookingDetails"
+    };
+  }
+
+  // GetPassengerBookings retourne la liste paginée des réservations d'un passager.
+  rpc GetPassengerBookings(GetPassengerBookingsRequest) returns (GetPassengerBookingsResponse) {
+    option (google.api.http) = {
+      get: "/booking/getPassengerBookings"
+    };
+  }
+
+  // GetDriverTripBookings retourne la liste paginée des réservations pour un trajet du conducteur.
+  rpc GetDriverTripBookings(GetDriverTripBookingsRequest) returns (GetDriverTripBookingsResponse) {
+    option (google.api.http) = {
+      get: "/booking/getDriverTripBookings"
+    };
+  }
+
+  // ApproveBooking permet au conducteur d'approuver une réservation en attente.
+  rpc ApproveBooking(ApproveBookingRequest) returns (ApproveBookingResponse) {
+    option (google.api.http) = {
+      patch: "/booking/approveBooking"
+      body: "*"
+    };
+  }
+
+  // RejectBooking permet au conducteur de rejeter une réservation en attente.
+  rpc RejectBooking(RejectBookingRequest) returns (RejectBookingResponse) {
+    option (google.api.http) = {
+      patch: "/booking/rejectBooking"
+      body: "*"
+    };
+  }
+
+  // CancelBooking permet au passager ou au conducteur d'annuler une réservation.
+  rpc CancelBooking(CancelBookingRequest) returns (CancelBookingResponse) {
+    option (google.api.http) = {
+      patch: "/booking/cancelBooking"
+      body: "*"
+    };
+  }
+
+  // StartBookingsForWaypoint démarre les réservations approuvées d'un waypoint.
+  // Route interne appelée par trips-service lors de StartTrip ou ConfirmWaypointDeparture.
+  rpc StartBookingsForWaypoint(StartBookingsForWaypointRequest) returns (StartBookingsForWaypointResponse) {
+    option (google.api.http) = {
+      patch: "/booking/internal/startBookingsForWaypoint"
+      body: "*"
+    };
+  }
+
+  // CompleteBookingsForWaypoint complète les réservations en cours d'un waypoint.
+  // Route interne appelée par trips-service lors de EndTrip ou ConfirmWaypointArrival.
+  rpc CompleteBookingsForWaypoint(CompleteBookingsForWaypointRequest) returns (CompleteBookingsForWaypointResponse) {
+    option (google.api.http) = {
+      patch: "/booking/internal/completeBookingsForWaypoint"
+      body: "*"
+    };
+  }
+
+  // ReportNoShow signale l'absence d'un passager ou d'un conducteur.
+  rpc ReportNoShow(ReportNoShowRequest) returns (ReportNoShowResponse) {
+    option (google.api.http) = {
+      post: "/booking/reportNoShow"
+      body: "*"
+    };
+  }
+
+  // ConfirmPayment confirme le paiement d'une réservation (callback paiement).
+  rpc ConfirmPayment(ConfirmPaymentRequest) returns (ConfirmPaymentResponse) {
+    option (google.api.http) = {
+      post: "/booking/confirmPayment"
+      body: "*"
+    };
+  }
+
+  // Health retourne l'état de santé du service.
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/booking/health"
+    };
+  }
+}
+
+// =============================================================================
+// CreateBooking
+// =============================================================================
+
+message SegmentInput {
+  string PickupWaypointId       = 1;
+  string DropoffWaypointId      = 2;
+  string PickupLocationName     = 3;
+  string PickupCity             = 4;
+  double PickupLat              = 5;
+  double PickupLng              = 6;
+  string PickupScheduledAt      = 7;  // RFC3339
+  string DropoffLocationName    = 8;
+  string DropoffCity            = 9;
+  double DropoffLat             = 10;
+  double DropoffLng             = 11;
+  string DropoffScheduledAt     = 12; // RFC3339
+  int32  SegmentDistanceMeters  = 13;
+  int32  SegmentDurationMinutes = 14;
+  int32  SegmentPrice           = 15;
+}
+
+message CreateBookingRequest {
+  string PassengerId        = 1;
+  string TripId             = 2;
+  string PickupWaypointId   = 3;
+  string DropoffWaypointId  = 4;
+  int32  SeatsBooked        = 5;
+  string PaymentMethod      = 6; // mobileMoney | card | paypal | cash
+  repeated SegmentInput Segments = 7;
+}
+
+message CreateBookingResponse {
+  string BookingId        = 1;
+  string BookingReference = 2;
+  string Status           = 3;
+  int32  TotalAmount      = 4;
+  string ErrorMessage     = 5;
+}
+
+// =============================================================================
+// GetBookingDetails
+// =============================================================================
+
+message GetBookingDetailsRequest {
+  string BookingId = 1;
+  string UserId    = 2; // passager ou conducteur (vérification d'autorisation)
+}
+
+message SegmentDetail {
+  string SegmentId              = 1;
+  string PickupWaypointId       = 2;
+  string DropoffWaypointId      = 3;
+  string PickupLocationName     = 4;
+  string PickupCity             = 5;
+  double PickupLat              = 6;
+  double PickupLng              = 7;
+  string PickupScheduledAt      = 8;
+  string PickupActualAt         = 9;
+  string DropoffLocationName    = 10;
+  string DropoffCity            = 11;
+  double DropoffLat             = 12;
+  double DropoffLng             = 13;
+  string DropoffScheduledAt     = 14;
+  string DropoffActualAt        = 15;
+  int32  SegmentDistanceMeters  = 16;
+  int32  SegmentDurationMinutes = 17;
+  int32  SegmentPrice           = 18;
+}
+
+message StatusHistoryEntry {
+  string HistoryId     = 1;
+  string PreviousStatus = 2;
+  string NewStatus      = 3;
+  string ChangedBy      = 4;
+  string ChangedByType  = 5;
+  string ChangeReason   = 6;
+  string Metadata       = 7;
+  string CreatedAt      = 8; // RFC3339
+}
+
+message BookingDetail {
+  string BookingId          = 1;
+  string BookingReference   = 2;
+  string TripId             = 3;
+  string PassengerId        = 4;
+  string DriverId           = 5;
+  string PickupWaypointId   = 6;
+  string DropoffWaypointId  = 7;
+  int32  SeatsBooked        = 8;
+  int32  PricePerSeat       = 9;
+  int32  Subtotal           = 10;
+  int32  ServiceFee         = 11;
+  int32  TotalAmount        = 12;
+  string PaymentMethod      = 13;
+  string Status             = 14;
+  string PaymentCompletedAt = 15;
+  string ApprovedAt         = 16;
+  string RejectedAt         = 17;
+  string CancelledAt        = 18;
+  string CompletedAt        = 19;
+  string CancellerId        = 20;
+  string CancellationReason = 21;
+  string NoShowType         = 22;
+  string NoShowReportedBy   = 23;
+  string NoShowReportedAt   = 24;
+  string NoShowDescription  = 25;
+  string CreatedAt          = 26;
+  string UpdatedAt          = 27;
+  repeated SegmentDetail Segments       = 28;
+  repeated StatusHistoryEntry History   = 29;
+}
+
+message GetBookingDetailsResponse {
+  BookingDetail Booking  = 1;
+  string ErrorMessage    = 2;
+}
+
+// =============================================================================
+// GetPassengerBookings
+// =============================================================================
+
+message GetPassengerBookingsRequest {
+  string PassengerId  = 1;
+  int32  Index        = 2; // index de page (0-based, 10 items par page)
+  string StatusFilter = 3; // filtre optionnel par statut
+}
+
+message BookingPreview {
+  string BookingId           = 1;
+  string BookingReference    = 2;
+  string TripId              = 3;
+  string Status              = 4;
+  int32  SeatsBooked         = 5;
+  int32  TotalAmount         = 6;
+  string PickupLocationName  = 7;
+  string DropoffLocationName = 8;
+  string DepartureDate       = 9;  // YYYY-MM-DD
+  string DepartureTime       = 10; // HH:MM
+}
+
+message GetPassengerBookingsResponse {
+  repeated BookingPreview Bookings = 1;
+  string ErrorMessage              = 2;
+}
+
+// =============================================================================
+// GetDriverTripBookings
+// =============================================================================
+
+message GetDriverTripBookingsRequest {
+  string DriverId = 1;
+  string TripId   = 2;
+  int32  Index    = 3;
+}
+
+message GetDriverTripBookingsResponse {
+  repeated BookingPreview Bookings = 1;
+  string ErrorMessage              = 2;
+}
+
+// =============================================================================
+// ApproveBooking
+// =============================================================================
+
+message ApproveBookingRequest {
+  string DriverId  = 1;
+  string BookingId = 2;
+}
+
+message ApproveBookingResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// RejectBooking
+// =============================================================================
+
+message RejectBookingRequest {
+  string DriverId  = 1;
+  string BookingId = 2;
+  string Reason    = 3;
+}
+
+message RejectBookingResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// CancelBooking
+// =============================================================================
+
+message CancelBookingRequest {
+  string UserId    = 1;
+  string BookingId = 2;
+  string Reason    = 3;
+}
+
+message CancelBookingResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// StartBookingsForWaypoint (interne — appelé par trips-service)
+// =============================================================================
+
+message StartBookingsForWaypointRequest {
+  string TripId     = 1;
+  string WaypointId = 2;
+}
+
+message StartBookingsForWaypointResponse {
+  bool   Success       = 1;
+  int32  BookingsCount = 2; // nombre de bookings démarrés
+  string ErrorMessage  = 3;
+}
+
+// =============================================================================
+// CompleteBookingsForWaypoint (interne — appelé par trips-service)
+// =============================================================================
+
+message CompleteBookingsForWaypointRequest {
+  string TripId     = 1;
+  string WaypointId = 2;
+}
+
+message CompleteBookingsForWaypointResponse {
+  bool   Success       = 1;
+  int32  BookingsCount = 2; // nombre de bookings complétés
+  string ErrorMessage  = 3;
+}
+
+// =============================================================================
+// ReportNoShow
+// =============================================================================
+
+message ReportNoShowRequest {
+  string BookingId   = 1;
+  string ReporterId  = 2;
+  string NoShowType  = 3; // driver | passenger
+  string Description = 4;
+}
+
+message ReportNoShowResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// ConfirmPayment
+// =============================================================================
+
+message ConfirmPaymentRequest {
+  string BookingId     = 1;
+  string TransactionId = 2;
+}
+
+message ConfirmPaymentResponse {
+  bool   Success      = 1;
+  string Status       = 2; // nouveau statut après confirmation
+  string ErrorMessage = 3;
+}
+
+// =============================================================================
+// Health
+// =============================================================================
+
+message HealthRequest {}
+
+message HealthResponse {
+  string Status    = 1;
+  string Version   = 2;
+  int64  Timestamp = 3;
+}

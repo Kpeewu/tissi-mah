@@ -81,3 +81,16 @@ func (m *MockTripService) ConfirmWaypointDeparture(ctx context.Context, input *s
 	args := m.Called(ctx, input)
 	return args.Error(0)
 }
+
+func (m *MockTripService) GetTripByID(ctx context.Context, input *serviceInterfaces.GetTripByIDInput) (*serviceInterfaces.TripDetailResult, error) {
+	args := m.Called(ctx, input)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.TripDetailResult), args.Error(1)
+}
+
+func (m *MockTripService) UpdateAvailableSeats(ctx context.Context, input *serviceInterfaces.UpdateAvailableSeatsInput) error {
+	args := m.Called(ctx, input)
+	return args.Error(0)
+}

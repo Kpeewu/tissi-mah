@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	authpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/authpb"
+	bookingpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/bookingpb"
 	filepb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/filepb"
 	kycpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/kycpb"
 	ratingpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb"
@@ -31,6 +32,7 @@ type MuxConfig struct {
 	VehicleServiceAddr string
 	TripsServiceAddr   string
 	KYCServiceAddr     string
+	BookingServiceAddr string
 	Logger             *zap.Logger
 }
 
@@ -127,6 +129,12 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		return nil, err
 	}
 	cfg.Logger.Info("registered kyc-service handler", zap.String("endpoint", cfg.KYCServiceAddr))
+
+	// Enregistrer booking-service
+	if err := bookingpb.RegisterBookingServiceHandlerFromEndpoint(ctx, mux, cfg.BookingServiceAddr, dialOpts); err != nil {
+		return nil, err
+	}
+	cfg.Logger.Info("registered booking-service handler", zap.String("endpoint", cfg.BookingServiceAddr))
 
 	return mux, nil
 }

@@ -21,6 +21,7 @@ type tripServiceImpl struct {
 	writeRepo     repoInterfaces.TripRepositoryWrite
 	userClient    client.UserClient
 	vehicleClient client.VehicleClient
+	bookingClient client.BookingClient
 	cache         *cache.TripCache
 	logger        *zap.Logger
 }
@@ -30,6 +31,7 @@ func NewTripService(
 	writeRepo repoInterfaces.TripRepositoryWrite,
 	userClient client.UserClient,
 	vehicleClient client.VehicleClient,
+	bookingClient client.BookingClient,
 	tripCache *cache.TripCache,
 	logger *zap.Logger,
 ) serviceInterfaces.TripService {
@@ -38,6 +40,7 @@ func NewTripService(
 		writeRepo:     writeRepo,
 		userClient:    userClient,
 		vehicleClient: vehicleClient,
+		bookingClient: bookingClient,
 		cache:         tripCache,
 		logger:        logger,
 	}
@@ -244,6 +247,16 @@ func (s *tripServiceImpl) StartTrip(ctx context.Context, input *serviceInterface
 		s.cache.InvalidateDriverPreviews(ctx, input.DriverID)
 	}
 
+	// Démarrer les réservations du waypoint de départ (non-bloquant)
+	if s.bookingClient != nil {
+		departureWaypointID, err := s.readRepo.GetWaypointIDByType(ctx, input.TripID, "departure")
+		if err == nil {
+			if err := s.bookingClient.StartBookingsForWaypoint(ctx, input.TripID, departureWaypointID); err != nil {
+				s.logger.Warn("StartBookingsForWaypoint failed (non-blocking)", zap.Error(err))
+			}
+		}
+	}
+
 	s.logger.Info("trip started",
 		zap.String("tripID", input.TripID),
 		zap.String("driverID", input.DriverID),
@@ -271,6 +284,16 @@ func (s *tripServiceImpl) EndTrip(ctx context.Context, input *serviceInterfaces.
 		s.cache.InvalidateDriverPreviews(ctx, input.DriverID)
 	}
 
+	// Compléter les réservations du waypoint d'arrivée (non-bloquant)
+	if s.bookingClient != nil {
+		arrivalWaypointID, err := s.readRepo.GetWaypointIDByType(ctx, input.TripID, "arrival")
+		if err == nil {
+			if err := s.bookingClient.CompleteBookingsForWaypoint(ctx, input.TripID, arrivalWaypointID); err != nil {
+				s.logger.Warn("CompleteBookingsForWaypoint failed (non-blocking)", zap.Error(err))
+			}
+		}
+	}
+
 	s.logger.Info("trip ended",
 		zap.String("tripID", input.TripID),
 		zap.String("driverID", input.DriverID),
@@ -293,6 +316,16 @@ func (s *tripServiceImpl) ConfirmWaypointDeparture(ctx context.Context, input *s
 		return err
 	}
 
+	// Démarrer les réservations de ce waypoint stop (non-bloquant)
+	if s.bookingClient != nil {
+		tripID, err := s.readRepo.GetTripIDByWaypointID(ctx, input.WaypointID)
+		if err == nil {
+			if err := s.bookingClient.StartBookingsForWaypoint(ctx, tripID, input.WaypointID); err != nil {
+				s.logger.Warn("StartBookingsForWaypoint failed (non-blocking)", zap.Error(err))
+			}
+		}
+	}
+
 	s.logger.Info("waypoint departure confirmed",
 		zap.String("waypointID", input.WaypointID),
 		zap.String("driverID", input.DriverID),
@@ -313,6 +346,16 @@ func (s *tripServiceImpl) ConfirmWaypointArrival(ctx context.Context, input *ser
 
 	if err := s.writeRepo.ConfirmWaypointArrival(ctx, input.WaypointID, input.DriverID); err != nil {
 		return err
+	}
+
+	// Compléter les réservations de ce waypoint stop (non-bloquant)
+	if s.bookingClient != nil {
+		tripID, err := s.readRepo.GetTripIDByWaypointID(ctx, input.WaypointID)
+		if err == nil {
+			if err := s.bookingClient.CompleteBookingsForWaypoint(ctx, tripID, input.WaypointID); err != nil {
+				s.logger.Warn("CompleteBookingsForWaypoint failed (non-blocking)", zap.Error(err))
+			}
+		}
 	}
 
 	s.logger.Info("waypoint arrival confirmed",
@@ -480,4 +523,72 @@ func (s *tripServiceImpl) computeMinutesFromDeparture(scheduledStr string, depar
 		return 0
 	}
 	return int(diff.Minutes())
+}
+
+// GetTripByID retourne les détails complets d'un trajet avec ses waypoints.
+func (s *tripServiceImpl) GetTripByID(ctx context.Context, input *serviceInterfaces.GetTripByIDInput) (*serviceInterfaces.TripDetailResult, error) {
+	s.logger.Debug("service: GetTripByID called", zap.String("tripID", input.TripID))
+
+	if input.TripID == "" {
+		return nil, tripErrors.ErrorInvalidInput
+	}
+
+	trip, waypoints, err := s.readRepo.GetTripByID(ctx, input.TripID)
+	if err != nil {
+		return nil, err
+	}
+
+	waypointResults := make([]serviceInterfaces.WaypointDetailResult, 0, len(waypoints))
+	for _, wp := range waypoints {
+		waypointResults = append(waypointResults, serviceInterfaces.WaypointDetailResult{
+			WaypointID:              wp.WaypointID,
+			WaypointType:            string(wp.WaypointType),
+			SequencerOrder:          wp.SequencerOrder,
+			LocationName:            wp.LocationName,
+			City:                    wp.City,
+			ScheduledPickupDatetime: wp.ScheduledPickupDatetime,
+		})
+	}
+
+	return &serviceInterfaces.TripDetailResult{
+		TripID:                   trip.TripID,
+		DriverID:                 trip.DriverID,
+		Status:                   string(trip.Status),
+		TotalSeats:               trip.TotalSeats,
+		AvailableSeats:           trip.AvailableSeats,
+		PricePerSeat:             trip.PricePerSeat,
+		AutoApproveEnabled:       trip.AutoApproveEnabled,
+		DepartureDatetime:        trip.DepartureDatetime,
+		EstimatedArrivalDatetime: trip.EstimatedArrivalDatetime,
+		Waypoints:                waypointResults,
+	}, nil
+}
+
+// UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
+func (s *tripServiceImpl) UpdateAvailableSeats(ctx context.Context, input *serviceInterfaces.UpdateAvailableSeatsInput) error {
+	s.logger.Debug("service: UpdateAvailableSeats called",
+		zap.String("tripID", input.TripID),
+		zap.Int16("newAvailableSeats", input.NewAvailableSeats),
+	)
+
+	if input.TripID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	if input.NewAvailableSeats < 0 {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	if err := s.writeRepo.UpdateAvailableSeats(ctx, input.TripID, input.NewAvailableSeats); err != nil {
+		return err
+	}
+
+	// Invalider le cache des previews du trip
+	if s.cache != nil {
+		// On ne connaît pas le driverID ici, donc on ne peut pas invalider le cache des previews.
+		// Le cache expirera naturellement (TTL 2 min).
+		s.logger.Debug("service: UpdateAvailableSeats — cache will expire naturally")
+	}
+
+	return nil
 }

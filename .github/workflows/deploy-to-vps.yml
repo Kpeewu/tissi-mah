@@ -58,6 +58,8 @@ jobs:
               - 'services/vehicle-service/**'
             trips-service:
               - 'services/trips-service/**'
+            booking-service:
+              - 'services/booking-service/**'
             kyc-service:
               - 'services/kyc-service/**'
             pkg:
@@ -69,7 +71,7 @@ jobs:
           if [ -n "${{ github.event.inputs.service }}" ]; then
             echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
           else
-            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service","kyc-service"]' >> $GITHUB_OUTPUT
+            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service","booking-service"]' >> $GITHUB_OUTPUT
           fi
 
   build-and-push:
@@ -166,6 +168,9 @@ jobs:
           # trips-service secrets
           TRIPS_DATABASE_URL: ${{ secrets.TRIPS_DATABASE_URL }}
           TRIPS_REDIS_URL: ${{ secrets.TRIPS_REDIS_URL }}
+          # booking-service secrets
+          BOOKING_DATABASE_URL: ${{ secrets.BOOKING_DATABASE_URL }}
+          BOOKING_REDIS_URL: ${{ secrets.BOOKING_REDIS_URL }}
           # kyc-service secrets
           KYC_PERSONA_API_KEY: ${{ secrets.KYC_PERSONA_API_KEY }}
           KYC_PERSONA_WEBHOOK_SECRET: ${{ secrets.KYC_PERSONA_WEBHOOK_SECRET }}
@@ -247,6 +252,11 @@ jobs:
                   },
               }
 
+          elif service == "booking-service":
+              data = {
+                  'secrets': {
+                      'databaseUrl': os.environ.get('BOOKING_DATABASE_URL', ''),
+                      'redisUrl': os.environ.get('BOOKING_REDIS_URL', ''),
           elif service == "kyc-service":
               data = {
                   'secrets': {
@@ -426,6 +436,9 @@ jobs:
 #      - TRIPS_DATABASE_URL : postgresql://user:pass@host:5437/trips_db
 #      - TRIPS_REDIS_URL    : redis://host:6386/0
 #
+#  10. Secrets GitHub pour booking-service:
+#      - BOOKING_DATABASE_URL : postgresql://user:pass@host:5438/booking_db
+#      - BOOKING_REDIS_URL    : redis://host:6387/0
 #  10. Secrets GitHub pour kyc-service:
 #      - KYC_PERSONA_API_KEY       : cle API Persona (sandbox ou production)
 #      - KYC_PERSONA_WEBHOOK_SECRET : secret HMAC pour valider les webhooks Persona
@@ -439,4 +452,5 @@ jobs:
 #     |- rating-service (gRPC ClusterIP, port 50054)
 #     |- vehicle-service (gRPC ClusterIP, port 50055)
 #     |- trips-service (gRPC ClusterIP, port 50056)
+#     |- booking-service (gRPC ClusterIP, port 50058)
 #     |- kyc-service (gRPC ClusterIP, port 50057)
