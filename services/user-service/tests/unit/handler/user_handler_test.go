@@ -531,8 +531,7 @@ func TestUpdateProfile_SuccessAllFields(t *testing.T) {
 			req.LastName != nil && *req.LastName == "Dupont" &&
 			req.BirthDate != nil && *req.BirthDate == "1992-05-20" &&
 			req.Email != nil && *req.Email == "jean@example.com" &&
-			req.PhoneNumber != nil && *req.PhoneNumber == "+22891111111" &&
-			req.ProfilePictureURL != nil && *req.ProfilePictureURL == "https://example.com/new.jpg"
+			req.PhoneNumber != nil && *req.PhoneNumber == "+22891111111"
 	})).Return(profile, nil)
 
 	req := &userpb.UpdateProfileRequest{
@@ -542,7 +541,6 @@ func TestUpdateProfile_SuccessAllFields(t *testing.T) {
 		BirthDate:         stringPtr("1992-05-20"),
 		Email:             stringPtr("jean@example.com"),
 		PhoneNumber:       stringPtr("+22891111111"),
-		ProfilePictureURL: stringPtr("https://example.com/new.jpg"),
 	}
 
 	resp, err := handler.UpdateProfile(ctx, req)
@@ -571,8 +569,7 @@ func TestUpdateProfile_SuccessPartialFields(t *testing.T) {
 			req.LastName == nil &&
 			req.BirthDate == nil &&
 			req.Email == nil &&
-			req.PhoneNumber == nil &&
-			req.ProfilePictureURL == nil
+			req.PhoneNumber == nil
 	})).Return(profile, nil)
 
 	req := &userpb.UpdateProfileRequest{

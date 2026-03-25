@@ -215,11 +215,6 @@ func (s *userServiceImpl) UpdateProfile(ctx context.Context, req serviceInterfac
 	if req.BirthDate != nil {
 		user.DateOfBirth = *req.BirthDate
 	}
-	if req.ProfilePictureURL != nil {
-		user.ProfileImageURL = *req.ProfilePictureURL
-		user.HasProfileImage = *req.ProfilePictureURL != ""
-	}
-
 	updated, err := s.writeRepo.Update(ctx, user)
 	if err != nil {
 		s.logger.Error("échec de la mise à jour du profil", zap.Error(err), zap.String("profile_id", req.UserID))

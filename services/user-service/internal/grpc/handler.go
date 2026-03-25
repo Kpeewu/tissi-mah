@@ -158,11 +158,6 @@ func (h *UserHandler) UpdateProfile(ctx context.Context, req *userpb.UpdateProfi
 		v := *req.PhoneNumber
 		updateReq.PhoneNumber = &v
 	}
-	if req.ProfilePictureURL != nil {
-		v := *req.ProfilePictureURL
-		updateReq.ProfilePictureURL = &v
-	}
-
 	profile, err := h.service.UpdateProfile(ctx, updateReq)
 	if err != nil {
 		h.logger.Error("UpdateProfile échoué", zap.Error(err), zap.String("profile_id", req.UserID))

@@ -307,8 +307,7 @@ Content-Type: application/json
     "LastName": "Doe",
     "BirthDate": "1995-03-15",
     "Email": "new-email@example.com",
-    "PhoneNumber": "+22891234567",
-    "ProfilePictureURL": "https://example.com/new-photo.jpg"
+    "PhoneNumber": "+22891234567"
 }
 ```
 
@@ -322,7 +321,6 @@ Content-Type: application/json
 | `BirthDate` | string | No | Birth date (YYYY-MM-DD) |
 | `Email` | string | No | New email address |
 | `PhoneNumber` | string | No | New phone number (E.164) |
-| `ProfilePictureURL` | string | No | New profile picture URL |
 
 #### Response (Success)
 
