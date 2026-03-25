@@ -75,6 +75,7 @@ type TripWaypointDetail struct {
 	LocationName            string                 `protobuf:"bytes,4,opt,name=LocationName,proto3" json:"LocationName,omitempty"`
 	City                    string                 `protobuf:"bytes,5,opt,name=City,proto3" json:"City,omitempty"`
 	ScheduledPickupDatetime string                 `protobuf:"bytes,6,opt,name=ScheduledPickupDatetime,proto3" json:"ScheduledPickupDatetime,omitempty"` // RFC3339
+	PriceFromPrevious       int32                  `protobuf:"varint,7,opt,name=PriceFromPrevious,proto3" json:"PriceFromPrevious,omitempty"`            // prix depuis le waypoint précédent
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -149,6 +150,13 @@ func (x *TripWaypointDetail) GetScheduledPickupDatetime() string {
 		return x.ScheduledPickupDatetime
 	}
 	return ""
+}
+
+func (x *TripWaypointDetail) GetPriceFromPrevious() int32 {
+	if x != nil {
+		return x.PriceFromPrevious
+	}
+	return 0
 }
 
 type GetTripByIDResponse struct {
@@ -2555,7 +2563,7 @@ const file_trip_proto_rawDesc = "" +
 	"\n" +
 	"trip.proto\x12\x04trip\x1a\x1cgoogle/api/annotations.proto\",\n" +
 	"\x12GetTripByIDRequest\x12\x16\n" +
-	"\x06TripId\x18\x01 \x01(\tR\x06TripId\"\xf2\x01\n" +
+	"\x06TripId\x18\x01 \x01(\tR\x06TripId\"\xa0\x02\n" +
 	"\x12TripWaypointDetail\x12\x1e\n" +
 	"\n" +
 	"WaypointId\x18\x01 \x01(\tR\n" +
@@ -2564,7 +2572,8 @@ const file_trip_proto_rawDesc = "" +
 	"\x0eSequencerOrder\x18\x03 \x01(\x05R\x0eSequencerOrder\x12\"\n" +
 	"\fLocationName\x18\x04 \x01(\tR\fLocationName\x12\x12\n" +
 	"\x04City\x18\x05 \x01(\tR\x04City\x128\n" +
-	"\x17ScheduledPickupDatetime\x18\x06 \x01(\tR\x17ScheduledPickupDatetime\"\xc3\x03\n" +
+	"\x17ScheduledPickupDatetime\x18\x06 \x01(\tR\x17ScheduledPickupDatetime\x12,\n" +
+	"\x11PriceFromPrevious\x18\a \x01(\x05R\x11PriceFromPrevious\"\xc3\x03\n" +
 	"\x13GetTripByIDResponse\x12\x16\n" +
 	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12\x1a\n" +
 	"\bDriverId\x18\x02 \x01(\tR\bDriverId\x12\x16\n" +

@@ -128,7 +128,6 @@ type CreateTripInput struct {
 	EstimatedDurationMinutes int
 	EstimatedDistanceMeters  int
 	TotalSeats               int
-	PricePerSeat             int
 	PaymentMethodsAccepted   []string
 	AllowLuggages            bool
 	AllowPets                bool
@@ -211,7 +210,6 @@ type CreateRecurringTripInput struct {
 	StartDate             string // YYYY-MM-DD
 	EndDate               string // YYYY-MM-DD
 	TotalSeats            int
-	PricePerSeat          int
 	AllowLuggages         bool
 	AllowPets             bool
 	AllowFood             bool
@@ -249,6 +247,7 @@ type WaypointDetailResult struct {
 	LocationName            string
 	City                    string
 	ScheduledPickupDatetime *time.Time
+	PriceFromPrevious       int
 }
 
 // UpdateAvailableSeatsInput contient les données pour la mise à jour des places.

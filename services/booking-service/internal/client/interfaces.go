@@ -25,11 +25,13 @@ type TripDetails struct {
 
 // TripWaypoint contient les informations d'un waypoint.
 type TripWaypoint struct {
-	WaypointID            string
-	WaypointType          string
-	LocationName          string
-	City                  string
+	WaypointID              string
+	WaypointType            string
+	SequencerOrder          int
+	LocationName            string
+	City                    string
 	ScheduledPickupDatetime string
+	PriceFromPrevious       int
 }
 
 // UserClient définit le contrat pour appeler user-service depuis booking-service.

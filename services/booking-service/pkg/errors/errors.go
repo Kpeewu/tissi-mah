@@ -22,4 +22,5 @@ var (
 	ErrorPaymentAlreadyConfirmed = errors.New("ErrorPaymentAlreadyConfirmed")
 	ErrorDataRetrievalFailed     = errors.New("ErrorDataRetrievalFailed")
 	ErrorSeatReservationFailed   = errors.New("ErrorSeatReservationFailed")
+	ErrorInvalidWaypoints        = errors.New("ErrorInvalidWaypoints")
 )

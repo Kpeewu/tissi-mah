@@ -497,7 +497,7 @@ func (s *tripServiceImpl) buildTripAndWaypoints(
 		EstimatedDistanceMeters:  input.EstimatedDistanceMeters,
 		TotalSeats:               int16(input.TotalSeats),
 		AvailableSeats:           int16(input.TotalSeats),
-		PricePerSeat:             input.PricePerSeat,
+		PricePerSeat:             0, // calculé après la boucle waypoints
 		PaymentMethodsAccepted:   input.PaymentMethodsAccepted,
 		AllowLuggages:            input.AllowLuggages,
 		AllowPets:                input.AllowPets,
@@ -533,6 +533,13 @@ func (s *tripServiceImpl) buildTripAndWaypoints(
 
 		waypoints = append(waypoints, wp)
 	}
+
+	// Calculer price_per_seat comme la somme des price_from_previous
+	pricePerSeat := 0
+	for _, wp := range waypoints {
+		pricePerSeat += wp.PriceFromPrevious
+	}
+	trip.PricePerSeat = pricePerSeat
 
 	return trip, waypoints
 }
@@ -587,6 +594,7 @@ func (s *tripServiceImpl) GetTripByID(ctx context.Context, input *serviceInterfa
 			LocationName:            wp.LocationName,
 			City:                    wp.City,
 			ScheduledPickupDatetime: wp.ScheduledPickupDatetime,
+			PriceFromPrevious:       wp.PriceFromPrevious,
 		})
 	}
 
