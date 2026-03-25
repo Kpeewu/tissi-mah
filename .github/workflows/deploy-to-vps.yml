@@ -257,6 +257,9 @@ jobs:
                   'secrets': {
                       'databaseUrl': os.environ.get('BOOKING_DATABASE_URL', ''),
                       'redisUrl': os.environ.get('BOOKING_REDIS_URL', ''),
+                  },
+              }
+
           elif service == "kyc-service":
               data = {
                   'secrets': {
