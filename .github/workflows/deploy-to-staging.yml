@@ -35,7 +35,7 @@ jobs:
         with:
           fetch-depth: 2
 
-      - uses: dorny/paths-filter@v2
+      - uses: dorny/paths-filter@v3
         if: github.event.inputs.service == ''
         id: filter
         with:
@@ -134,7 +134,7 @@ jobs:
             type=raw,value=staging-latest
 
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: services/${{ matrix.service }}/deployments/Dockerfile
@@ -168,7 +168,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Helm
-        uses: azure/setup-helm@v3
+        uses: azure/setup-helm@v4
         with:
           version: "v3.13.0"
 
