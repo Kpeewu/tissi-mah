@@ -39,7 +39,6 @@ type UpdateProfileRequest struct {
 	BirthDate         *string
 	Email             *string
 	PhoneNumber       *string
-	ProfilePictureURL *string
 }
 
 type UserService interface {

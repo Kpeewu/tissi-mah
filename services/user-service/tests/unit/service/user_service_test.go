@@ -528,7 +528,6 @@ func TestUpdateProfile(t *testing.T) {
 			FirstName:         stringPtr("Amadou"),
 			LastName:          stringPtr("Diallo"),
 			BirthDate:         stringPtr("1990-01-15"),
-			ProfilePictureURL: stringPtr("https://img.example.com/new-photo.jpg"),
 		}
 
 		profile, err := svc.UpdateProfile(context.Background(), req)
@@ -540,8 +539,6 @@ func TestUpdateProfile(t *testing.T) {
 		assert.Equal(t, "Amadou", testUser.FirstName)
 		assert.Equal(t, "Diallo", testUser.Name)
 		assert.Equal(t, "1990-01-15", testUser.DateOfBirth)
-		assert.Equal(t, "https://img.example.com/new-photo.jpg", testUser.ProfileImageURL)
-		assert.True(t, testUser.HasProfileImage)
 
 		// Verification du FullProfile retourne
 		assert.Equal(t, "auth-update-01", profile.AuthID)
@@ -549,8 +546,6 @@ func TestUpdateProfile(t *testing.T) {
 		assert.Equal(t, "Amadou", profile.FirstName)
 		assert.Equal(t, "Diallo", profile.Name)
 		assert.Equal(t, "1990-01-15", profile.DateOfBirth)
-		assert.Equal(t, "https://img.example.com/new-photo.jpg", profile.ProfileImageURL)
-		assert.True(t, profile.HasProfileImage)
 
 		// Champs auth enrichis
 		assert.Equal(t, "john@example.com", profile.Email)
@@ -590,7 +585,7 @@ func TestUpdateProfile(t *testing.T) {
 		req := serviceInterfaces.UpdateProfileRequest{
 			UserID:    "user-update-02",
 			FirstName: stringPtr("Mamadou"),
-			// Pas de LastName, BirthDate, ProfilePictureURL
+			// Pas de LastName, BirthDate
 		}
 
 		profile, err := svc.UpdateProfile(context.Background(), req)
@@ -606,43 +601,6 @@ func TestUpdateProfile(t *testing.T) {
 		assert.Equal(t, originalName, testUser.Name)
 		assert.Equal(t, originalDOB, testUser.DateOfBirth)
 		assert.Equal(t, originalProfileURL, testUser.ProfileImageURL)
-
-		mockReadRepo.AssertExpectations(t)
-		mockWriteRepo.AssertExpectations(t)
-		mockAuthClient.AssertExpectations(t)
-	})
-
-	t.Run("succes - ProfilePictureURL vide desactive HasProfileImage", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, mockAuthClient, _, svc := newService()
-
-		testUser := fixtures.NewTestUser(
-			fixtures.WithUserID("user-update-03"),
-			fixtures.WithAuthID("auth-update-03"),
-			fixtures.WithProfileImage("https://img.example.com/photo.jpg"),
-		)
-
-		authInfo := defaultAuthInfo("auth-update-03")
-
-		mockReadRepo.On("GetByUserID", mock.Anything, "user-update-03").
-			Return(testUser, nil)
-		mockWriteRepo.On("Update", mock.Anything, mock.Anything).
-			Return(testUser, nil)
-		mockAuthClient.On("GetAuthInfo", mock.Anything, "auth-update-03").
-			Return(authInfo, nil)
-
-		req := serviceInterfaces.UpdateProfileRequest{
-			UserID:            "user-update-03",
-			ProfilePictureURL: stringPtr(""),
-		}
-
-		profile, err := svc.UpdateProfile(context.Background(), req)
-
-		require.NoError(t, err)
-		require.NotNil(t, profile)
-
-		assert.Equal(t, "", testUser.ProfileImageURL)
-		assert.False(t, testUser.HasProfileImage, "HasProfileImage doit etre false quand ProfilePictureURL est vide")
-		assert.False(t, profile.HasProfileImage)
 
 		mockReadRepo.AssertExpectations(t)
 		mockWriteRepo.AssertExpectations(t)

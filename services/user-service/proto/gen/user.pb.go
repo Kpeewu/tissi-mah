@@ -333,16 +333,15 @@ func (x *AddTripPreferencesRequest) GetPreferences() []*TripPreference {
 }
 
 type UpdateProfileRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	UserID            string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
-	FirstName         *string                `protobuf:"bytes,2,opt,name=FirstName,proto3,oneof" json:"FirstName,omitempty"`
-	LastName          *string                `protobuf:"bytes,3,opt,name=LastName,proto3,oneof" json:"LastName,omitempty"`
-	BirthDate         *string                `protobuf:"bytes,4,opt,name=BirthDate,proto3,oneof" json:"BirthDate,omitempty"`
-	Email             *string                `protobuf:"bytes,5,opt,name=Email,proto3,oneof" json:"Email,omitempty"`
-	PhoneNumber       *string                `protobuf:"bytes,6,opt,name=PhoneNumber,proto3,oneof" json:"PhoneNumber,omitempty"`
-	ProfilePictureURL *string                `protobuf:"bytes,7,opt,name=ProfilePictureURL,proto3,oneof" json:"ProfilePictureURL,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserID        string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
+	FirstName     *string                `protobuf:"bytes,2,opt,name=FirstName,proto3,oneof" json:"FirstName,omitempty"`
+	LastName      *string                `protobuf:"bytes,3,opt,name=LastName,proto3,oneof" json:"LastName,omitempty"`
+	BirthDate     *string                `protobuf:"bytes,4,opt,name=BirthDate,proto3,oneof" json:"BirthDate,omitempty"`
+	Email         *string                `protobuf:"bytes,5,opt,name=Email,proto3,oneof" json:"Email,omitempty"`
+	PhoneNumber   *string                `protobuf:"bytes,6,opt,name=PhoneNumber,proto3,oneof" json:"PhoneNumber,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateProfileRequest) Reset() {
@@ -413,13 +412,6 @@ func (x *UpdateProfileRequest) GetEmail() string {
 func (x *UpdateProfileRequest) GetPhoneNumber() string {
 	if x != nil && x.PhoneNumber != nil {
 		return *x.PhoneNumber
-	}
-	return ""
-}
-
-func (x *UpdateProfileRequest) GetProfilePictureURL() string {
-	if x != nil && x.ProfilePictureURL != nil {
-		return *x.ProfilePictureURL
 	}
 	return ""
 }
@@ -1288,23 +1280,21 @@ const file_user_proto_rawDesc = "" +
 	"\x13CreateDriverAccount\x18\x02 \x01(\bR\x13CreateDriverAccount\"k\n" +
 	"\x19AddTripPreferencesRequest\x12\x16\n" +
 	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x126\n" +
-	"\vPreferences\x18\x02 \x03(\v2\x14.user.TripPreferenceR\vPreferences\"\xe3\x02\n" +
+	"\vPreferences\x18\x02 \x03(\v2\x14.user.TripPreferenceR\vPreferences\"\xb3\x02\n" +
 	"\x14UpdateProfileRequest\x12\x16\n" +
 	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12!\n" +
 	"\tFirstName\x18\x02 \x01(\tH\x00R\tFirstName\x88\x01\x01\x12\x1f\n" +
 	"\bLastName\x18\x03 \x01(\tH\x01R\bLastName\x88\x01\x01\x12!\n" +
 	"\tBirthDate\x18\x04 \x01(\tH\x02R\tBirthDate\x88\x01\x01\x12\x19\n" +
 	"\x05Email\x18\x05 \x01(\tH\x03R\x05Email\x88\x01\x01\x12%\n" +
-	"\vPhoneNumber\x18\x06 \x01(\tH\x04R\vPhoneNumber\x88\x01\x01\x121\n" +
-	"\x11ProfilePictureURL\x18\a \x01(\tH\x05R\x11ProfilePictureURL\x88\x01\x01B\f\n" +
+	"\vPhoneNumber\x18\x06 \x01(\tH\x04R\vPhoneNumber\x88\x01\x01B\f\n" +
 	"\n" +
 	"_FirstNameB\v\n" +
 	"\t_LastNameB\f\n" +
 	"\n" +
 	"_BirthDateB\b\n" +
 	"\x06_EmailB\x0e\n" +
-	"\f_PhoneNumberB\x14\n" +
-	"\x12_ProfilePictureURL\"\x0f\n" +
+	"\f_PhoneNumberJ\x04\b\a\x10\bR\x11ProfilePictureURL\"\x0f\n" +
 	"\rHealthRequest\"N\n" +
 	"\x0eTripPreference\x12\x1e\n" +
 	"\n" +

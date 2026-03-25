@@ -283,7 +283,8 @@ message UpdateProfileRequest {
     optional string BirthDate = 4;
     optional string Email = 5;
     optional string PhoneNumber = 6;
-    optional string ProfilePictureURL = 7;
+    reserved 7;
+    reserved "ProfilePictureURL";
 }
 message UpdateProfileResponse {
     string ErrorMessage = 1;
