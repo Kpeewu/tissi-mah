@@ -729,3 +729,149 @@ func TestGetTripsPreviews(t *testing.T) {
 		assert.ErrorIs(t, err, tripErrors.ErrorInvalidInput)
 	})
 }
+
+// =============================================================================
+// TestCancelWaypoint
+// =============================================================================
+
+func TestCancelWaypoint(t *testing.T) {
+	t.Run("succès - annule le waypoint", func(t *testing.T) {
+		_, writeRepo, _, _, svc := newTestService()
+		ctx := context.Background()
+
+		writeRepo.On("CancelWaypoint", ctx, "waypoint-1", "driver-1", "route modifiée").Return(nil)
+
+		err := svc.CancelWaypoint(ctx, &serviceInterfaces.CancelWaypointInput{
+			DriverID:           "driver-1",
+			WaypointID:         "waypoint-1",
+			CancellationReason: "route modifiée",
+		})
+
+		require.NoError(t, err)
+		writeRepo.AssertExpectations(t)
+	})
+
+	t.Run("erreur - driverID vide → ErrorInvalidInput", func(t *testing.T) {
+		_, _, _, _, svc := newTestService()
+		ctx := context.Background()
+
+		err := svc.CancelWaypoint(ctx, &serviceInterfaces.CancelWaypointInput{
+			DriverID:           "",
+			WaypointID:         "waypoint-1",
+			CancellationReason: "route modifiée",
+		})
+
+		assert.ErrorIs(t, err, tripErrors.ErrorInvalidInput)
+	})
+
+	t.Run("erreur - waypointID vide → ErrorInvalidInput", func(t *testing.T) {
+		_, _, _, _, svc := newTestService()
+		ctx := context.Background()
+
+		err := svc.CancelWaypoint(ctx, &serviceInterfaces.CancelWaypointInput{
+			DriverID:           "driver-1",
+			WaypointID:         "",
+			CancellationReason: "route modifiée",
+		})
+
+		assert.ErrorIs(t, err, tripErrors.ErrorInvalidInput)
+	})
+
+	t.Run("erreur - cancellationReason vide → ErrorInvalidInput", func(t *testing.T) {
+		_, _, _, _, svc := newTestService()
+		ctx := context.Background()
+
+		err := svc.CancelWaypoint(ctx, &serviceInterfaces.CancelWaypointInput{
+			DriverID:           "driver-1",
+			WaypointID:         "waypoint-1",
+			CancellationReason: "",
+		})
+
+		assert.ErrorIs(t, err, tripErrors.ErrorInvalidInput)
+	})
+
+	t.Run("erreur - repo renvoie ErrorWaypointNotFound → propagé", func(t *testing.T) {
+		_, writeRepo, _, _, svc := newTestService()
+		ctx := context.Background()
+
+		writeRepo.On("CancelWaypoint", ctx, "waypoint-ghost", "driver-1", "raison").
+			Return(tripErrors.ErrorWaypointNotFound)
+
+		err := svc.CancelWaypoint(ctx, &serviceInterfaces.CancelWaypointInput{
+			DriverID:           "driver-1",
+			WaypointID:         "waypoint-ghost",
+			CancellationReason: "raison",
+		})
+
+		assert.ErrorIs(t, err, tripErrors.ErrorWaypointNotFound)
+		writeRepo.AssertExpectations(t)
+	})
+
+	t.Run("erreur - repo renvoie ErrorUnauthorized → propagé", func(t *testing.T) {
+		_, writeRepo, _, _, svc := newTestService()
+		ctx := context.Background()
+
+		writeRepo.On("CancelWaypoint", ctx, "waypoint-1", "wrong-driver", "raison").
+			Return(tripErrors.ErrorUnauthorized)
+
+		err := svc.CancelWaypoint(ctx, &serviceInterfaces.CancelWaypointInput{
+			DriverID:           "wrong-driver",
+			WaypointID:         "waypoint-1",
+			CancellationReason: "raison",
+		})
+
+		assert.ErrorIs(t, err, tripErrors.ErrorUnauthorized)
+		writeRepo.AssertExpectations(t)
+	})
+
+	t.Run("erreur - repo renvoie ErrorTripNotScheduled → propagé", func(t *testing.T) {
+		_, writeRepo, _, _, svc := newTestService()
+		ctx := context.Background()
+
+		writeRepo.On("CancelWaypoint", ctx, "waypoint-1", "driver-1", "raison").
+			Return(tripErrors.ErrorTripNotScheduled)
+
+		err := svc.CancelWaypoint(ctx, &serviceInterfaces.CancelWaypointInput{
+			DriverID:           "driver-1",
+			WaypointID:         "waypoint-1",
+			CancellationReason: "raison",
+		})
+
+		assert.ErrorIs(t, err, tripErrors.ErrorTripNotScheduled)
+		writeRepo.AssertExpectations(t)
+	})
+
+	t.Run("erreur - repo renvoie ErrorWaypointNotAStop → propagé", func(t *testing.T) {
+		_, writeRepo, _, _, svc := newTestService()
+		ctx := context.Background()
+
+		writeRepo.On("CancelWaypoint", ctx, "waypoint-dep", "driver-1", "raison").
+			Return(tripErrors.ErrorWaypointNotAStop)
+
+		err := svc.CancelWaypoint(ctx, &serviceInterfaces.CancelWaypointInput{
+			DriverID:           "driver-1",
+			WaypointID:         "waypoint-dep",
+			CancellationReason: "raison",
+		})
+
+		assert.ErrorIs(t, err, tripErrors.ErrorWaypointNotAStop)
+		writeRepo.AssertExpectations(t)
+	})
+
+	t.Run("erreur - repo renvoie ErrorWaypointAlreadyCancelled → propagé", func(t *testing.T) {
+		_, writeRepo, _, _, svc := newTestService()
+		ctx := context.Background()
+
+		writeRepo.On("CancelWaypoint", ctx, "waypoint-1", "driver-1", "raison").
+			Return(tripErrors.ErrorWaypointAlreadyCancelled)
+
+		err := svc.CancelWaypoint(ctx, &serviceInterfaces.CancelWaypointInput{
+			DriverID:           "driver-1",
+			WaypointID:         "waypoint-1",
+			CancellationReason: "raison",
+		})
+
+		assert.ErrorIs(t, err, tripErrors.ErrorWaypointAlreadyCancelled)
+		writeRepo.AssertExpectations(t)
+	})
+}

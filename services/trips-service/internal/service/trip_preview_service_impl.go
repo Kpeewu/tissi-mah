@@ -45,6 +45,20 @@ func (s *tripServiceImpl) GetTripsPreviews(ctx context.Context, input *serviceIn
 	results := make([]*serviceInterfaces.TripPreviewResult, 0, len(previews))
 	for _, p := range previews {
 		v := vehicleMap[p.VehicleID]
+
+		// Overlay available_seats depuis le cache Redis (temps réel post-réconciliation)
+		availableSeats := p.AvailableSeats
+		if s.cache != nil {
+			if seats, found, err := s.cache.GetSeatCounter(ctx, p.TripID); found && err == nil {
+				availableSeats = int16(seats)
+			} else if err != nil {
+				s.logger.Warn("GetTripsPreviews — seat cache read failed, using DB value",
+					zap.String("tripID", p.TripID),
+					zap.Error(err),
+				)
+			}
+		}
+
 		results = append(results, &serviceInterfaces.TripPreviewResult{
 			TripID:                p.TripID,
 			DriverID:              p.DriverID,
@@ -54,7 +68,7 @@ func (s *tripServiceImpl) GetTripsPreviews(ctx context.Context, input *serviceIn
 			VehiclePlate:          v.plate,
 			DepartureDatetime:     p.DepartureDatetime,
 			TotalSeats:            p.TotalSeats,
-			AvailableSeats:        p.AvailableSeats,
+			AvailableSeats:        availableSeats,
 			DepartureLocationName: p.DepartureLocationName,
 			ArrivalLocationName:   p.ArrivalLocationName,
 		})

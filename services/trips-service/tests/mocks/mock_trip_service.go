@@ -94,3 +94,8 @@ func (m *MockTripService) UpdateAvailableSeats(ctx context.Context, input *servi
 	args := m.Called(ctx, input)
 	return args.Error(0)
 }
+
+func (m *MockTripService) CancelWaypoint(ctx context.Context, input *serviceInterfaces.CancelWaypointInput) error {
+	args := m.Called(ctx, input)
+	return args.Error(0)
+}

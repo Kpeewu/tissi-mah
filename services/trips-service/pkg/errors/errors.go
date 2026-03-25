@@ -25,4 +25,5 @@ var (
 	ErrorAnotherStopAlreadyActive     = errors.New("ErrorAnotherStopAlreadyActive")
 	ErrorWaypointNotArrived           = errors.New("ErrorWaypointNotArrived")
 	ErrorWaypointAlreadyDeparted      = errors.New("ErrorWaypointAlreadyDeparted")
+	ErrorWaypointAlreadyCancelled     = errors.New("ErrorWaypointAlreadyCancelled")
 )

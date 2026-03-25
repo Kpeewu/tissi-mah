@@ -522,3 +522,127 @@ func TestTripWriteRepository_UpdateAvailableSeats(t *testing.T) {
 		assert.Equal(t, int16(3), seats)
 	})
 }
+
+// =============================================================================
+// TestTripWriteRepository_CancelWaypoint
+// =============================================================================
+
+func TestTripWriteRepository_CancelWaypoint(t *testing.T) {
+	ctx := context.Background()
+
+	// Helper pour créer un trip scheduled avec dep/stop/arr
+	createScheduledTripWithStop := func(t *testing.T, repo interface {
+		Create(context.Context, *domain.Trip, []*domain.Waypoint) (string, error)
+	}) (*domain.Trip, *domain.Waypoint) {
+		t.Helper()
+		trip := fixtures.NewTestTrip()
+		dep := fixtures.NewTestDepartureWaypoint(trip.TripID)
+		stop := fixtures.NewTestWaypoint(trip.TripID,
+			fixtures.WithWaypointType(domain.WaypointTypeStop),
+			fixtures.WithSequencerOrder(2),
+		)
+		arr := fixtures.NewTestWaypoint(trip.TripID,
+			fixtures.WithWaypointType(domain.WaypointTypeArrival),
+			fixtures.WithSequencerOrder(3),
+		)
+		_, err := repo.Create(ctx, trip, []*domain.Waypoint{dep, stop, arr})
+		require.NoError(t, err)
+		return trip, stop
+	}
+
+	t.Run("succès - annule le stop d'un trip scheduled", func(t *testing.T) {
+		cleanupTripsTable(t, ctx)
+		repo := newTestWriteRepository()
+
+		trip, stop := createScheduledTripWithStop(t, repo)
+
+		err := repo.CancelWaypoint(ctx, stop.WaypointID, trip.DriverID, "route modifiée")
+
+		require.NoError(t, err)
+
+		// Vérification : cancelled_at IS NOT NULL et cancellation_reason correct
+		var cancelledAt *time.Time
+		var reason *string
+		require.NoError(t, testPool.QueryRow(ctx,
+			"SELECT cancelled_at, cancellation_reason FROM trips_waypoints WHERE waypoint_id = $1",
+			stop.WaypointID,
+		).Scan(&cancelledAt, &reason))
+		assert.NotNil(t, cancelledAt)
+		require.NotNil(t, reason)
+		assert.Equal(t, "route modifiée", *reason)
+	})
+
+	t.Run("erreur - waypoint de type departure → ErrorWaypointNotAStop", func(t *testing.T) {
+		cleanupTripsTable(t, ctx)
+		repo := newTestWriteRepository()
+
+		trip := fixtures.NewTestTrip()
+		dep := fixtures.NewTestDepartureWaypoint(trip.TripID)
+		arr := fixtures.NewTestArrivalWaypoint(trip.TripID)
+		_, err := repo.Create(ctx, trip, []*domain.Waypoint{dep, arr})
+		require.NoError(t, err)
+
+		err = repo.CancelWaypoint(ctx, dep.WaypointID, trip.DriverID, "raison")
+
+		assert.ErrorIs(t, err, tripErrors.ErrorWaypointNotAStop)
+	})
+
+	t.Run("erreur - waypoint de type arrival → ErrorWaypointNotAStop", func(t *testing.T) {
+		cleanupTripsTable(t, ctx)
+		repo := newTestWriteRepository()
+
+		trip := fixtures.NewTestTrip()
+		dep := fixtures.NewTestDepartureWaypoint(trip.TripID)
+		arr := fixtures.NewTestArrivalWaypoint(trip.TripID)
+		_, err := repo.Create(ctx, trip, []*domain.Waypoint{dep, arr})
+		require.NoError(t, err)
+
+		err = repo.CancelWaypoint(ctx, arr.WaypointID, trip.DriverID, "raison")
+
+		assert.ErrorIs(t, err, tripErrors.ErrorWaypointNotAStop)
+	})
+
+	t.Run("erreur - trip inProgress (après StartTrip) → ErrorTripNotScheduled", func(t *testing.T) {
+		cleanupTripsTable(t, ctx)
+		repo := newTestWriteRepository()
+
+		trip, stop := createScheduledTripWithStop(t, repo)
+		require.NoError(t, repo.StartTrip(ctx, trip.TripID, trip.DriverID))
+
+		err := repo.CancelWaypoint(ctx, stop.WaypointID, trip.DriverID, "raison")
+
+		assert.ErrorIs(t, err, tripErrors.ErrorTripNotScheduled)
+	})
+
+	t.Run("erreur - driverID différent → ErrorUnauthorized", func(t *testing.T) {
+		cleanupTripsTable(t, ctx)
+		repo := newTestWriteRepository()
+
+		_, stop := createScheduledTripWithStop(t, repo)
+
+		err := repo.CancelWaypoint(ctx, stop.WaypointID, "wrong-driver", "raison")
+
+		assert.ErrorIs(t, err, tripErrors.ErrorUnauthorized)
+	})
+
+	t.Run("erreur - appel en double → ErrorWaypointAlreadyCancelled", func(t *testing.T) {
+		cleanupTripsTable(t, ctx)
+		repo := newTestWriteRepository()
+
+		trip, stop := createScheduledTripWithStop(t, repo)
+		require.NoError(t, repo.CancelWaypoint(ctx, stop.WaypointID, trip.DriverID, "raison"))
+
+		err := repo.CancelWaypoint(ctx, stop.WaypointID, trip.DriverID, "raison")
+
+		assert.ErrorIs(t, err, tripErrors.ErrorWaypointAlreadyCancelled)
+	})
+
+	t.Run("erreur - waypointID inexistant → ErrorWaypointNotFound", func(t *testing.T) {
+		cleanupTripsTable(t, ctx)
+		repo := newTestWriteRepository()
+
+		err := repo.CancelWaypoint(ctx, uuid.New().String(), "driver-1", "raison")
+
+		assert.ErrorIs(t, err, tripErrors.ErrorWaypointNotFound)
+	})
+}

@@ -422,6 +422,27 @@ func (h *TripHandler) UpdateAvailableSeats(ctx context.Context, req *trippb.Upda
 	return &trippb.UpdateAvailableSeatsResponse{Success: true}, nil
 }
 
+// CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
+func (h *TripHandler) CancelWaypoint(ctx context.Context, req *trippb.CancelWaypointRequest) (*trippb.CancelWaypointResponse, error) {
+	h.logger.Debug("handler: CancelWaypoint called",
+		zap.String("driverID", req.DriverId),
+		zap.String("waypointID", req.WaypointId),
+	)
+
+	err := h.service.CancelWaypoint(ctx, &serviceInterfaces.CancelWaypointInput{
+		DriverID:           req.DriverId,
+		WaypointID:         req.WaypointId,
+		CancellationReason: req.CancellationReason,
+	})
+	if err != nil {
+		h.logger.Error("handler: CancelWaypoint failed", zap.Error(err))
+		return &trippb.CancelWaypointResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: CancelWaypoint success", zap.String("waypointID", req.WaypointId))
+	return &trippb.CancelWaypointResponse{Success: true}, nil
+}
+
 // Health retourne l'état de santé du service.
 func (h *TripHandler) Health(_ context.Context, _ *trippb.HealthRequest) (*trippb.HealthResponse, error) {
 	return &trippb.HealthResponse{
@@ -484,7 +505,8 @@ func toGRPCError(err error) error {
 		errors.Is(err, tripErrors.ErrorAnotherStopAlreadyActive),
 		errors.Is(err, tripErrors.ErrorPreviousWaypointNotConfirmed),
 		errors.Is(err, tripErrors.ErrorWaypointNotArrived),
-		errors.Is(err, tripErrors.ErrorWaypointAlreadyDeparted):
+		errors.Is(err, tripErrors.ErrorWaypointAlreadyDeparted),
+		errors.Is(err, tripErrors.ErrorWaypointAlreadyCancelled):
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, tripErrors.ErrorDataRetrievalFailed),
 		errors.Is(err, tripErrors.ErrorInternalServer):

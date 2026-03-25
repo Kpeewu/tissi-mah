@@ -110,12 +110,84 @@ service TripService {
     };
   }
 
+  // GetTripByID retourne les détails complets d'un trajet par son ID.
+  // Utilisé par booking-service pour valider les réservations.
+  rpc GetTripByID(GetTripByIDRequest) returns (GetTripByIDResponse) {
+    option (google.api.http) = {
+      get: "/trip/getTripByID"
+    };
+  }
+
+  // UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
+  // Route interne utilisée par le job de réconciliation du booking-service.
+  rpc UpdateAvailableSeats(UpdateAvailableSeatsRequest) returns (UpdateAvailableSeatsResponse) {
+    option (google.api.http) = {
+      patch: "/trip/internal/updateAvailableSeats"
+      body: "*"
+    };
+  }
+
+  // CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
+  // Le trajet doit avoir le statut "scheduled". Seuls les waypoints "stop" peuvent être annulés.
+  rpc CancelWaypoint(CancelWaypointRequest) returns (CancelWaypointResponse) {
+    option (google.api.http) = {
+      delete: "/trip/driver/cancelWaypoint"
+      body: "*"
+    };
+  }
+
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
       get: "/trip/health"
     };
   }
+}
+
+// =============================================================================
+// GetTripByID
+// =============================================================================
+
+message GetTripByIDRequest {
+  string TripId = 1;
+}
+
+// TripWaypointDetail contient les informations d'un waypoint pour le booking-service.
+message TripWaypointDetail {
+  string WaypointId             = 1;
+  string WaypointType           = 2; // departure | stop | arrival
+  int32  SequencerOrder         = 3;
+  string LocationName           = 4;
+  string City                   = 5;
+  string ScheduledPickupDatetime = 6; // RFC3339
+}
+
+message GetTripByIDResponse {
+  string TripId                         = 1;
+  string DriverId                       = 2;
+  string Status                         = 3;
+  int32  TotalSeats                     = 4;
+  int32  AvailableSeats                 = 5;
+  int32  PricePerSeat                   = 6;
+  bool   AutoApproveEnabled             = 7;
+  string DepartureDatetime              = 8;  // RFC3339
+  string EstimatedArrivalDatetime       = 9;  // RFC3339
+  repeated TripWaypointDetail Waypoints = 10;
+  string ErrorMessage                   = 11;
+}
+
+// =============================================================================
+// UpdateAvailableSeats
+// =============================================================================
+
+message UpdateAvailableSeatsRequest {
+  string TripId            = 1;
+  int32  NewAvailableSeats = 2;
+}
+
+message UpdateAvailableSeatsResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
 }
 
 // =============================================================================
@@ -373,6 +445,21 @@ message ConfirmWaypointDepartureRequest {
 }
 
 message ConfirmWaypointDepartureResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// CancelWaypoint
+// =============================================================================
+
+message CancelWaypointRequest {
+  string DriverId           = 1;
+  string WaypointId         = 2;
+  string CancellationReason = 3;
+}
+
+message CancelWaypointResponse {
   bool   Success      = 1;
   string ErrorMessage = 2;
 }
