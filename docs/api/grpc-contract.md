@@ -9,6 +9,10 @@ This document describes the gRPC contracts used for inter-service communication 
 3. [User Service](#user-service)
 4. [Rating Service](#rating-service)
 5. [File Service](#file-service)
+6. [Vehicle Service](#vehicle-service)
+7. [Trips Service](#trips-service)
+8. [KYC Service](#kyc-service)
+9. [Booking Service](#booking-service)
 
 ---
 
@@ -42,6 +46,10 @@ Services discover each other via Kubernetes DNS:
 | user-service | 50052 | gRPC | Internal + api-gateway |
 | file-service | 50053 | gRPC | Internal only |
 | rating-service | 50054 | gRPC | Internal + api-gateway |
+| vehicle-service | 50055 | gRPC | Internal + api-gateway |
+| trips-service | 50056 | gRPC | Internal + api-gateway |
+| kyc-service | 50057 | gRPC | Internal + api-gateway |
+| booking-service | 50058 | gRPC | Internal + api-gateway |
 
 ### Authentication Flow
 
@@ -72,23 +80,17 @@ if st, ok := status.FromError(err); ok {
 
 ```
 services/
-├── auth-service/proto/
-│   ├── auth.proto
-│   └── gen/          (generated Go code)
-├── user-service/proto/
-│   ├── user.proto
-│   └── gen/
-├── rating-service/proto/
-│   ├── rating.proto
-│   └── gen/
-├── file-service/proto/
-│   ├── file.proto
-│   └── gen/
+├── auth-service/proto/       auth.proto      → port 50051
+├── user-service/proto/       user.proto      → port 50052
+├── file-service/proto/       file.proto      → port 50053
+├── rating-service/proto/     rating.proto    → port 50054
+├── vehicle-service/proto/    vehicle.proto   → port 50055
+├── trips-service/proto/      trip.proto      → port 50056
+├── kyc-service/proto/        kyc.proto       → port 50057
+├── booking-service/proto/    booking.proto   → port 50058
 └── api-gateway/proto/
-    ├── auth.proto    (synced from auth-service)
-    ├── user.proto    (synced from user-service)
-    ├── rating.proto  (synced from rating-service)
-    └── gen/          (includes grpc-gateway stubs)
+    ├── *.proto   (synced from each service via make proto-sync)
+    └── gen/      (grpc-gateway stubs — HTTP transcoding)
 ```
 
 ---
@@ -684,11 +686,119 @@ go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@lat
 ## Inter-Service Communication Map
 
 ```
-auth-service  ──gRPC──> user-service    (CreateUser, GetUserByAuthID)
-user-service  ──gRPC──> auth-service    (GetAuthInfo)
-user-service  ──gRPC──> file-service    (Upload/Get/Delete documents)
-api-gateway   ──gRPC──> auth-service    (HTTP transcoding via grpc-gateway)
-api-gateway   ──gRPC──> user-service    (HTTP transcoding via grpc-gateway)
-rating-service ──gRPC──> user-service    (GetUserByAuthID — validate user exists)
-api-gateway   ──gRPC──> rating-service  (HTTP transcoding via grpc-gateway)
+auth-service     ──gRPC──> user-service      (CreateUser, GetUserByAuthID)
+user-service     ──gRPC──> auth-service      (GetAuthInfo)
+user-service     ──gRPC──> file-service      (Upload/Get/Delete documents)
+rating-service   ──gRPC──> user-service      (GetUserByAuthID — validate user exists)
+vehicle-service  ──gRPC──> file-service      (Upload/Get vehicle documents)
+kyc-service      ──gRPC──> file-service      (GetDocument — get document for Persona inquiry)
+trips-service    ──gRPC──> user-service      (GetDriverName — enrichment)
+trips-service    ──gRPC──> vehicle-service   (GetVehicleInfo — enrichment + seat check)
+trips-service    ──gRPC──> booking-service   (StartBookingsForWaypoint, CompleteBookingsForWaypoint)
+booking-service  ──gRPC──> trips-service     (GetTripByID — validate trip, UpdateAvailableSeats)
+booking-service  ──gRPC──> user-service      (GetUserByAuthID — validate passenger)
+
+api-gateway      ──gRPC──> auth-service      (HTTP transcoding via grpc-gateway)
+api-gateway      ──gRPC──> user-service      (HTTP transcoding via grpc-gateway)
+api-gateway      ──gRPC──> rating-service    (HTTP transcoding via grpc-gateway)
+api-gateway      ──gRPC──> file-service      (HTTP transcoding via grpc-gateway)
+api-gateway      ──gRPC──> vehicle-service   (HTTP transcoding via grpc-gateway)
+api-gateway      ──gRPC──> trips-service     (HTTP transcoding via grpc-gateway)
+api-gateway      ──gRPC──> kyc-service       (HTTP transcoding via grpc-gateway)
+api-gateway      ──gRPC──> booking-service   (HTTP transcoding via grpc-gateway)
 ```
+
+---
+
+## Vehicle Service
+
+**Proto:** `services/vehicle-service/proto/vehicle.proto`
+**Package:** `vehicle`
+**Address:** `vehicle-service:50055`
+
+### RPCs
+
+| RPC | Type | HTTP Route | Auth | Description |
+|-----|------|------------|------|-------------|
+| `AddVehicle` | Unary | `POST /vehicle/add` | JWT | Register a new vehicle |
+| `UpdateVehicle` | Unary | `PATCH /vehicle/update` | JWT | Update vehicle info |
+| `DeleteVehicle` | Unary | `DELETE /vehicle/delete` | JWT | Soft-delete a vehicle |
+| `GetVehicleDetails` | Unary | `GET /vehicle/details` | JWT | Get vehicle by ID |
+| `GetUserVehicles` | Unary | `GET /vehicle/getUserVehicles` | JWT | List vehicles for a user |
+| `GetVehicleInfo` | Unary | N/A | Inter-service | Minimal info for trips enrichment |
+| `Health` | Unary | `GET /vehicle/health` | Public | Health check |
+
+---
+
+## Trips Service
+
+**Proto:** `services/trips-service/proto/trip.proto`
+**Package:** `trip`
+**Address:** `trips-service:50056`
+
+### RPCs
+
+| RPC | Type | HTTP Route | Auth | Description |
+|-----|------|------------|------|-------------|
+| `CreateTrip` | Unary | `POST /trip/driver/createTrip` | JWT | Create a new trip |
+| `CreateRecurringTrip` | Unary | `POST /trip/driver/createRecurringTrip` | JWT | Schedule a recurring trip |
+| `GetTripsPreviews` | Unary | `GET /trip/driver/getTripsPreviews` | JWT | List active trips (paginated) |
+| `GetCompletedTripsPreviews` | Unary | `GET /trip/driver/getCompletedTripsPreviews` | JWT | List completed trips (paginated) |
+| `ChangeTripDateAndTime` | Unary | `PATCH /trip/driver/changeTripDateAndTime` | JWT | Update departure datetime |
+| `ChangeTripVehicle` | Unary | `PATCH /trip/driver/changeTripVehicle` | JWT | Change vehicle |
+| `ChangeTripAllowances` | Unary | `PATCH /trip/driver/changeTripAllowances` | JWT | Update luggage/pet/food/smoking flags |
+| `ChangeAutoApprove` | Unary | `PATCH /trip/driver/activeAutoApprouve` | JWT | Toggle auto-approve |
+| `StartTrip` | Unary | `PATCH /trip/driver/startTrip` | JWT | Start a scheduled trip |
+| `EndTrip` | Unary | `PATCH /trip/driver/endTrip` | JWT | End an in-progress trip |
+| `ConfirmWaypointArrival` | Unary | `PATCH /trip/driver/confirmWaypointArrival` | JWT | Record arrival at a stop |
+| `ConfirmWaypointDeparture` | Unary | `PATCH /trip/driver/confirmWaypointDeparture` | JWT | Record departure from a stop |
+| `GetTripByID` | Unary | `GET /trip/getTripByID` | Public | Get trip details + waypoints |
+| `UpdateAvailableSeats` | Unary | `PATCH /trip/internal/updateAvailableSeats` | Internal | Update available seat count |
+| `Health` | Unary | `GET /trip/health` | Public | Health check |
+
+---
+
+## KYC Service
+
+**Proto:** `services/kyc-service/proto/kyc.proto`
+**Package:** `kyc`
+**Address:** `kyc-service:50057`
+
+### RPCs
+
+| RPC | Type | HTTP Route | Auth | Description |
+|-----|------|------------|------|-------------|
+| `CreateInquiry` | Unary | `POST /api/v1/kyc/inquiries/add` | JWT | Start a Persona identity verification |
+| `GetInquiry` | Unary | `GET /api/v1/kyc/inquiries/getInquiry` | JWT | Get inquiry detail |
+| `GetKYCStatus` | Unary | `GET /api/v1/kyc/me/getStatus` | JWT | Get user's KYC status |
+| `ResumeInquiry` | Unary | `POST /api/v1/kyc/inquiries/resume` | JWT | Resume an interrupted verification |
+| `ProcessWebhook` | Unary | `POST /api/v1/kyc/webhooks/persona` | Public | Receive Persona webhook |
+| `GetAdminReviews` | Unary | `GET /api/v1/kyc/admin/reviews/getReviews` | JWT (admin) | List reviews with filters |
+| `GetAdminReview` | Unary | `GET /api/v1/kyc/admin/reviews/getReview` | JWT (admin) | Get full review detail |
+| `OverrideReview` | Unary | `POST /api/v1/kyc/admin/reviews/override` | JWT (admin) | Manual review override |
+| `Health` | Unary | `GET /api/v1/kyc/health` | Public | Health check |
+
+---
+
+## Booking Service
+
+**Proto:** `services/booking-service/proto/booking.proto`
+**Package:** `booking`
+**Address:** `booking-service:50058`
+
+### RPCs
+
+| RPC | Type | HTTP Route | Auth | Description |
+|-----|------|------------|------|-------------|
+| `CreateBooking` | Unary | `POST /booking/createBooking` | JWT | Create a new reservation |
+| `GetBookingDetails` | Unary | `GET /booking/getBookingDetails` | JWT | Get full booking details |
+| `GetPassengerBookings` | Unary | `GET /booking/getPassengerBookings` | JWT | List passenger bookings (paginated) |
+| `GetDriverTripBookings` | Unary | `GET /booking/getDriverTripBookings` | JWT | List bookings for a driver's trip |
+| `ApproveBooking` | Unary | `PATCH /booking/approveBooking` | JWT | Driver approves a pending booking |
+| `RejectBooking` | Unary | `PATCH /booking/rejectBooking` | JWT | Driver rejects a pending booking |
+| `CancelBooking` | Unary | `PATCH /booking/cancelBooking` | JWT | Cancel a booking (passenger or driver) |
+| `ReportNoShow` | Unary | `POST /booking/reportNoShow` | JWT | Report passenger or driver no-show |
+| `ConfirmPayment` | Unary | `POST /booking/confirmPayment` | JWT | Confirm payment (payment callback) |
+| `StartBookingsForWaypoint` | Unary | `PATCH /booking/internal/startBookingsForWaypoint` | Internal | Start approved bookings for a waypoint |
+| `CompleteBookingsForWaypoint` | Unary | `PATCH /booking/internal/completeBookingsForWaypoint` | Internal | Complete active bookings for a waypoint |
+| `Health` | Unary | `GET /booking/health` | Public | Health check |

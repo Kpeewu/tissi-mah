@@ -19,4 +19,14 @@ type TripRepositoryRead interface {
 	// GetTripTotalSeats retourne le nombre total de places d'un trajet.
 	// Retourne ErrorTripNotFound si le trajet n'existe pas.
 	GetTripTotalSeats(ctx context.Context, tripID string) (int16, error)
+
+	// GetTripByID retourne les détails complets d'un trajet avec ses waypoints.
+	// Retourne ErrorTripNotFound si le trajet n'existe pas ou est supprimé.
+	GetTripByID(ctx context.Context, tripID string) (*domain.Trip, []*domain.Waypoint, error)
+
+	// GetWaypointIDByType retourne l'ID du waypoint d'un type donné (departure, arrival) pour un trajet.
+	GetWaypointIDByType(ctx context.Context, tripID, waypointType string) (string, error)
+
+	// GetTripIDByWaypointID retourne le tripID associé à un waypointID.
+	GetTripIDByWaypointID(ctx context.Context, waypointID string) (string, error)
 }

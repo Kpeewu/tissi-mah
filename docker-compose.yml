@@ -258,6 +258,47 @@ services:
     networks:
       - tissi-mah-network
 
+  # PostgreSQL pour Booking Service
+  booking-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-booking-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_BOOKING_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_BOOKING_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_BOOKING_DB:-booking_db}
+    ports:
+      - "5438:5432"
+    volumes:
+      - booking_postgres_data:/var/lib/postgresql/data
+      - ./services/booking-service/migrations/up:/docker-entrypoint-initdb.d
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_BOOKING_USER:-dev} -d ${POSTGRES_BOOKING_DB:-booking_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour Booking Service
+  booking-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-booking-redis
+    ports:
+      - "6387:6379"
+    volumes:
+      - booking_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
   # MinIO - Stockage S3 compatible (dev local)
   minio:
     image: minio/minio:latest
@@ -309,6 +350,8 @@ volumes:
   vehicle_redis_data:
   trips_postgres_data:
   trips_redis_data:
+  booking_postgres_data:
+  booking_redis_data:
   minio_data:
 
 networks:

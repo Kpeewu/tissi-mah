@@ -359,6 +359,69 @@ func (h *TripHandler) ConfirmWaypointArrival(ctx context.Context, req *trippb.Co
 	return &trippb.ConfirmWaypointArrivalResponse{Success: true}, nil
 }
 
+// GetTripByID retourne les détails complets d'un trajet par son ID.
+func (h *TripHandler) GetTripByID(ctx context.Context, req *trippb.GetTripByIDRequest) (*trippb.GetTripByIDResponse, error) {
+	h.logger.Debug("handler: GetTripByID called", zap.String("tripID", req.TripId))
+
+	result, err := h.service.GetTripByID(ctx, &serviceInterfaces.GetTripByIDInput{
+		TripID: req.TripId,
+	})
+	if err != nil {
+		h.logger.Error("handler: GetTripByID failed", zap.Error(err))
+		return &trippb.GetTripByIDResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	pbWaypoints := make([]*trippb.TripWaypointDetail, 0, len(result.Waypoints))
+	for _, wp := range result.Waypoints {
+		var scheduledStr string
+		if wp.ScheduledPickupDatetime != nil {
+			scheduledStr = wp.ScheduledPickupDatetime.Format(time.RFC3339)
+		}
+		pbWaypoints = append(pbWaypoints, &trippb.TripWaypointDetail{
+			WaypointId:              wp.WaypointID,
+			WaypointType:            wp.WaypointType,
+			SequencerOrder:          int32(wp.SequencerOrder),
+			LocationName:            wp.LocationName,
+			City:                    wp.City,
+			ScheduledPickupDatetime: scheduledStr,
+		})
+	}
+
+	h.logger.Info("handler: GetTripByID success", zap.String("tripID", req.TripId))
+	return &trippb.GetTripByIDResponse{
+		TripId:                  result.TripID,
+		DriverId:                result.DriverID,
+		Status:                  result.Status,
+		TotalSeats:              int32(result.TotalSeats),
+		AvailableSeats:          int32(result.AvailableSeats),
+		PricePerSeat:            int32(result.PricePerSeat),
+		AutoApproveEnabled:      result.AutoApproveEnabled,
+		DepartureDatetime:       result.DepartureDatetime.Format(time.RFC3339),
+		EstimatedArrivalDatetime: result.EstimatedArrivalDatetime.Format(time.RFC3339),
+		Waypoints:               pbWaypoints,
+	}, nil
+}
+
+// UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
+func (h *TripHandler) UpdateAvailableSeats(ctx context.Context, req *trippb.UpdateAvailableSeatsRequest) (*trippb.UpdateAvailableSeatsResponse, error) {
+	h.logger.Debug("handler: UpdateAvailableSeats called",
+		zap.String("tripID", req.TripId),
+		zap.Int32("newAvailableSeats", req.NewAvailableSeats),
+	)
+
+	err := h.service.UpdateAvailableSeats(ctx, &serviceInterfaces.UpdateAvailableSeatsInput{
+		TripID:            req.TripId,
+		NewAvailableSeats: int16(req.NewAvailableSeats),
+	})
+	if err != nil {
+		h.logger.Error("handler: UpdateAvailableSeats failed", zap.Error(err))
+		return &trippb.UpdateAvailableSeatsResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: UpdateAvailableSeats success", zap.String("tripID", req.TripId))
+	return &trippb.UpdateAvailableSeatsResponse{Success: true}, nil
+}
+
 // Health retourne l'état de santé du service.
 func (h *TripHandler) Health(_ context.Context, _ *trippb.HealthRequest) (*trippb.HealthResponse, error) {
 	return &trippb.HealthResponse{

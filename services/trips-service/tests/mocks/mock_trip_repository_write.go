@@ -62,3 +62,8 @@ func (m *MockTripRepositoryWrite) ConfirmWaypointDeparture(ctx context.Context, 
 	args := m.Called(ctx, waypointID, driverID)
 	return args.Error(0)
 }
+
+func (m *MockTripRepositoryWrite) UpdateAvailableSeats(ctx context.Context, tripID string, newAvailableSeats int16) error {
+	args := m.Called(ctx, tripID, newAvailableSeats)
+	return args.Error(0)
+}

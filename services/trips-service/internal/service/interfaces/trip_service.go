@@ -58,6 +58,12 @@ type TripService interface {
 
 	// ConfirmWaypointDeparture enregistre le départ du conducteur d'un waypoint de type "stop".
 	ConfirmWaypointDeparture(ctx context.Context, input *ConfirmWaypointDepartureInput) error
+
+	// GetTripByID retourne les détails complets d'un trajet avec ses waypoints.
+	GetTripByID(ctx context.Context, input *GetTripByIDInput) (*TripDetailResult, error)
+
+	// UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
+	UpdateAvailableSeats(ctx context.Context, input *UpdateAvailableSeatsInput) error
 }
 
 // GetTripsPreviewsInput contient les paramètres de la requête de liste.
@@ -210,4 +216,39 @@ type CreateRecurringTripInput struct {
 	Description           string
 	GenerationHorizonDays int
 	Waypoints             []WaypointInput
+}
+
+// GetTripByIDInput contient les données nécessaires à la récupération d'un trajet.
+type GetTripByIDInput struct {
+	TripID string
+}
+
+// TripDetailResult contient les détails complets d'un trajet avec ses waypoints.
+type TripDetailResult struct {
+	TripID                  string
+	DriverID                string
+	Status                  string
+	TotalSeats              int16
+	AvailableSeats          int16
+	PricePerSeat            int
+	AutoApproveEnabled      bool
+	DepartureDatetime       time.Time
+	EstimatedArrivalDatetime time.Time
+	Waypoints               []WaypointDetailResult
+}
+
+// WaypointDetailResult contient les informations d'un waypoint.
+type WaypointDetailResult struct {
+	WaypointID              string
+	WaypointType            string
+	SequencerOrder          int16
+	LocationName            string
+	City                    string
+	ScheduledPickupDatetime *time.Time
+}
+
+// UpdateAvailableSeatsInput contient les données pour la mise à jour des places.
+type UpdateAvailableSeatsInput struct {
+	TripID            string
+	NewAvailableSeats int16
 }

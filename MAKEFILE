@@ -1,6 +1,6 @@
 .PHONY: help deps-up deps-down deps-logs deps-clean
-.PHONY: run-auth run-user run-gateway run-client run-file
-.PHONY: proto proto-auth proto-user proto-file proto-trips proto-gateway proto-sync test test-all lint fmt
+.PHONY: run-auth run-user run-gateway run-client run-file run-booking
+.PHONY: proto proto-auth proto-user proto-file proto-trips proto-booking proto-gateway proto-sync test test-all lint fmt
 .PHONY: install-deps update-deps sync-deps
 .PHONY: workspace-init workspace-sync workspace-tidy
 .PHONY: migrate migrate-status migrate-down db-backup db-restore
@@ -20,6 +20,7 @@ help:
 	@echo "  make run-user        - Lancer user-service (avec deps)"
 	@echo "  make run-file        - Lancer file-service (avec deps)"
 	@echo "  make run-gateway     - Lancer api-gateway (avec deps)"
+	@echo "  make run-booking     - Lancer booking-service (avec deps)"
 	@echo "  make run-client      - Lancer client-service (avec deps)"
 	@echo ""
 	@echo "$(YELLOW)🔧 Développement :$(NC)"
@@ -63,6 +64,8 @@ deps-up:
 	@echo "   - Redis (user)      : localhost:6382"
 	@echo "   - Redis (gateway)   : localhost:6380"
 	@echo "   - Redis (file)      : localhost:6383"
+	@echo "   - Booking PostgreSQL: localhost:5438"
+	@echo "   - Redis (booking)   : localhost:6387"
 	@echo "   - MinIO (S3)        : localhost:9000 (API) / localhost:9001 (Console)"
 
 deps-down:
@@ -96,6 +99,10 @@ run-file: deps-up
 	@echo "🚀 Démarrage file-service..."
 	@cd services/file-service && $(MAKE) run
 
+run-booking: deps-up
+	@echo "🚀 Démarrage booking-service..."
+	@cd services/booking-service && $(MAKE) run
+
 run-client: deps-up
 	@echo "🚀 Démarrage client-service..."
 	@cd services/client-service && $(MAKE) run
@@ -123,6 +130,10 @@ proto-trips:
 	@echo "🔧 Génération proto trips-service..."
 	@cd services/trips-service && $(MAKE) proto
 
+proto-booking:
+	@echo "🔧 Génération proto booking-service..."
+	@cd services/booking-service && $(MAKE) proto
+
 proto-gateway:
 	@echo "🔧 Génération proto api-gateway (avec grpc-gateway)..."
 	@cd services/api-gateway && $(MAKE) proto
@@ -134,6 +145,8 @@ proto-sync:
 	@cp services/file-service/proto/file.proto services/api-gateway/proto/file.proto
 	@cp services/trips-service/proto/trip.proto services/api-gateway/proto/trip.proto
 	@sed -i '' 's|option go_package = "github.com/Kpeewu/tissi-mah/services/trips-service/proto/gen;trip"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/trippb;trippb"|' services/api-gateway/proto/trip.proto
+	@cp services/booking-service/proto/booking.proto services/api-gateway/proto/booking.proto
+	@sed -i '' 's|option go_package = "github.com/Kpeewu/tissi-mah/services/booking-service/proto/gen;booking"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/bookingpb;bookingpb"|' services/api-gateway/proto/booking.proto
 	@echo "✅ Protos synchronisés — pensez à lancer make proto-gateway"
 
 # === TESTS ===

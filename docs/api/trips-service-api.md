@@ -16,7 +16,8 @@ This document describes the HTTP/REST API exposed by the trips-service through t
 All `/trip/driver/*` endpoints require a valid **Firebase JWT** in the `Authorization` header.
 The `DriverId` is provided in the request body and corresponds to the user's **internal ID** in the `users` table (UUID), not the Firebase UID.
 
-The `/trip/health` endpoint is **public** (no token required).
+The `/trip/getTripByID`, `/trip/internal/*`, and `/trip/health` endpoints are **public** (no token required).
+The `/trip/internal/*` routes are intended for inter-service use (booking-service) and are not exposed to mobile clients.
 
 ```http
 Authorization: Bearer <firebase-id-token>
@@ -866,6 +867,118 @@ Content-Type: application/json
 | `ErrorWaypointNotAStop` | 422 | Waypoint is not of type `stop` |
 | `ErrorWaypointNotArrived` | 422 | Arrival has not been confirmed for this waypoint |
 | `ErrorWaypointAlreadyDeparted` | 422 | Departure already confirmed for this waypoint |
+| `ErrorInternalServer` | 500 | Internal server error |
+
+---
+
+### GET /trip/getTripByID
+
+Returns the complete details of a trip including its waypoints. Used by booking-service to validate reservations.
+
+**Authentication:** Not required (public — inter-service)
+
+#### Request
+
+```http
+GET /trip/getTripByID?TripId=t-550e8400-e29b-41d4-a716-446655440000 HTTP/1.1
+Host: api.tissi-mah.com
+```
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `TripId` | string | Yes | UUID of the trip |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "TripId": "t-550e8400-e29b-41d4-a716-446655440000",
+    "DriverId": "550e8400-e29b-41d4-a716-446655440001",
+    "Status": "scheduled",
+    "TotalSeats": 4,
+    "AvailableSeats": 3,
+    "PricePerSeat": 5000,
+    "AutoApproveEnabled": false,
+    "DepartureDatetime": "2026-04-15T08:00:00Z",
+    "EstimatedArrivalDatetime": "2026-04-15T12:00:00Z",
+    "Waypoints": [
+        {
+            "WaypointId": "w-dep-001",
+            "WaypointType": "departure",
+            "SequencerOrder": 1,
+            "LocationName": "Gare routière de Dakar",
+            "City": "Dakar",
+            "ScheduledPickupDatetime": "2026-04-15T08:00:00Z"
+        },
+        {
+            "WaypointId": "w-arr-002",
+            "WaypointType": "arrival",
+            "SequencerOrder": 2,
+            "LocationName": "Gare de Saint-Louis",
+            "City": "Saint-Louis",
+            "ScheduledPickupDatetime": "2026-04-15T12:00:00Z"
+        }
+    ],
+    "ErrorMessage": ""
+}
+```
+
+#### Errors
+
+| Error | HTTP Code | Description |
+|-------|-----------|-------------|
+| `ErrorTripNotFound` | 404 | Trip does not exist |
+| `ErrorDataRetrievalFailed` | 500 | Database query failed |
+| `ErrorInternalServer` | 500 | Internal server error |
+
+---
+
+### PATCH /trip/internal/updateAvailableSeats
+
+Updates the number of available seats for a trip. **Internal route** called by the booking-service reconciliation job. Not intended for mobile clients.
+
+**Authentication:** Not required (internal)
+
+#### Request
+
+```http
+PATCH /trip/internal/updateAvailableSeats HTTP/1.1
+Host: api.tissi-mah.com
+Content-Type: application/json
+
+{
+    "TripId": "t-550e8400-e29b-41d4-a716-446655440000",
+    "NewAvailableSeats": 2
+}
+```
+
+#### Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `TripId` | string | Yes | UUID of the trip |
+| `NewAvailableSeats` | integer | Yes | New available seat count (>= 0) |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{ "Success": true, "ErrorMessage": "" }
+```
+
+#### Errors
+
+| Error | HTTP Code | Description |
+|-------|-----------|-------------|
+| `ErrorTripNotFound` | 404 | Trip does not exist |
+| `ErrorInvalidInput` | 400 | Missing or invalid fields |
 | `ErrorInternalServer` | 500 | Internal server error |
 
 ---

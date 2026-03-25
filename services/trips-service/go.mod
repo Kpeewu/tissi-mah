@@ -14,9 +14,12 @@ replace github.com/Kpeewu/tissi-mah/services/user-service => ../user-service
 
 replace github.com/Kpeewu/tissi-mah/services/vehicle-service => ../vehicle-service
 
+replace github.com/Kpeewu/tissi-mah/services/booking-service => ../booking-service
+
 require (
 	github.com/Kpeewu/tissi-mah/pkg v0.0.0-00010101000000-000000000000
 	github.com/Kpeewu/tissi-mah/pkg-test v0.0.0-00010101000000-000000000000
+	github.com/Kpeewu/tissi-mah/services/booking-service v0.0.0-00010101000000-000000000000
 	github.com/Kpeewu/tissi-mah/services/user-service v0.0.0-00010101000000-000000000000
 	github.com/Kpeewu/tissi-mah/services/vehicle-service v0.0.0-00010101000000-000000000000
 	github.com/google/uuid v1.6.0

@@ -35,3 +35,26 @@ func (m *MockTripRepositoryRead) GetTripTotalSeats(ctx context.Context, tripID s
 	}
 	return args.Get(0).(int16), nil
 }
+
+func (m *MockTripRepositoryRead) GetTripByID(ctx context.Context, tripID string) (*domain.Trip, []*domain.Waypoint, error) {
+	args := m.Called(ctx, tripID)
+	var trip *domain.Trip
+	if args.Get(0) != nil {
+		trip = args.Get(0).(*domain.Trip)
+	}
+	var waypoints []*domain.Waypoint
+	if args.Get(1) != nil {
+		waypoints = args.Get(1).([]*domain.Waypoint)
+	}
+	return trip, waypoints, args.Error(2)
+}
+
+func (m *MockTripRepositoryRead) GetWaypointIDByType(ctx context.Context, tripID, waypointType string) (string, error) {
+	args := m.Called(ctx, tripID, waypointType)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockTripRepositoryRead) GetTripIDByWaypointID(ctx context.Context, waypointID string) (string, error) {
+	args := m.Called(ctx, waypointID)
+	return args.String(0), args.Error(1)
+}

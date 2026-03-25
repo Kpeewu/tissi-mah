@@ -646,3 +646,29 @@ func (r *tripWriteRepositoryImpl) diagnoseTripUpdateFailure(ctx context.Context,
 	}
 	return tripErrors.ErrorTripNotScheduled
 }
+
+// UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
+func (r *tripWriteRepositoryImpl) UpdateAvailableSeats(ctx context.Context, tripID string, newAvailableSeats int16) error {
+	r.logger.Debug("UpdateAvailableSeats",
+		zap.String("tripID", tripID),
+		zap.Int16("newAvailableSeats", newAvailableSeats),
+	)
+
+	query := `
+		UPDATE trips
+		SET available_seats = $2
+		WHERE trip_id = $1
+		  AND deleted_at IS NULL`
+
+	ct, err := r.pool.Exec(ctx, query, tripID, newAvailableSeats)
+	if err != nil {
+		r.logger.Error("UpdateAvailableSeats failed", zap.Error(err), zap.String("tripID", tripID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	if ct.RowsAffected() == 0 {
+		return tripErrors.ErrorTripNotFound
+	}
+
+	return nil
+}

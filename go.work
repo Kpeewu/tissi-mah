@@ -8,6 +8,7 @@ use (
 	// Services - each with their own specific dependencies
 	./services/api-gateway
 	./services/auth-service
+	./services/booking-service
 	./services/file-service
 	./services/kyc-service
 	./services/rating-service
