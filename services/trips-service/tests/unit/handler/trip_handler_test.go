@@ -75,6 +75,7 @@ func TestToGRPCError(t *testing.T) {
 		{"ErrorPreviousWaypointNotConfirmed → FailedPrecondition", tripErrors.ErrorPreviousWaypointNotConfirmed, codes.FailedPrecondition},
 		{"ErrorWaypointNotArrived → FailedPrecondition", tripErrors.ErrorWaypointNotArrived, codes.FailedPrecondition},
 		{"ErrorWaypointAlreadyDeparted → FailedPrecondition", tripErrors.ErrorWaypointAlreadyDeparted, codes.FailedPrecondition},
+		{"ErrorWaypointAlreadyCancelled → FailedPrecondition", tripErrors.ErrorWaypointAlreadyCancelled, codes.FailedPrecondition},
 		// Internal
 		{"ErrorDataRetrievalFailed → Internal", tripErrors.ErrorDataRetrievalFailed, codes.Internal},
 		{"ErrorInternalServer → Internal", tripErrors.ErrorInternalServer, codes.Internal},
@@ -440,6 +441,129 @@ func TestUpdateAvailableSeats_Handler(t *testing.T) {
 		})
 
 		assertGRPCCode(t, err, codes.NotFound)
+		mockSvc.AssertExpectations(t)
+	})
+}
+
+// =============================================================================
+// TestCancelWaypoint_Handler
+// =============================================================================
+
+func TestCancelWaypoint_Handler(t *testing.T) {
+	t.Run("succès - retourne Success=true", func(t *testing.T) {
+		handler, mockSvc := newHandler()
+		ctx := context.Background()
+
+		mockSvc.On("CancelWaypoint", ctx, mock.AnythingOfType("*interfaces.CancelWaypointInput")).
+			Return(nil)
+
+		resp, err := handler.CancelWaypoint(ctx, &trippb.CancelWaypointRequest{
+			DriverId:           "driver-1",
+			WaypointId:         "waypoint-1",
+			CancellationReason: "route modifiée",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.True(t, resp.Success)
+		mockSvc.AssertExpectations(t)
+	})
+
+	t.Run("erreur - input invalide → InvalidArgument", func(t *testing.T) {
+		handler, mockSvc := newHandler()
+		ctx := context.Background()
+
+		mockSvc.On("CancelWaypoint", ctx, mock.AnythingOfType("*interfaces.CancelWaypointInput")).
+			Return(tripErrors.ErrorInvalidInput)
+
+		_, err := handler.CancelWaypoint(ctx, &trippb.CancelWaypointRequest{})
+
+		assertGRPCCode(t, err, codes.InvalidArgument)
+		mockSvc.AssertExpectations(t)
+	})
+
+	t.Run("erreur - waypoint non trouvé → NotFound", func(t *testing.T) {
+		handler, mockSvc := newHandler()
+		ctx := context.Background()
+
+		mockSvc.On("CancelWaypoint", ctx, mock.AnythingOfType("*interfaces.CancelWaypointInput")).
+			Return(tripErrors.ErrorWaypointNotFound)
+
+		_, err := handler.CancelWaypoint(ctx, &trippb.CancelWaypointRequest{
+			DriverId:           "driver-1",
+			WaypointId:         "waypoint-ghost",
+			CancellationReason: "raison",
+		})
+
+		assertGRPCCode(t, err, codes.NotFound)
+		mockSvc.AssertExpectations(t)
+	})
+
+	t.Run("erreur - conducteur non autorisé → PermissionDenied", func(t *testing.T) {
+		handler, mockSvc := newHandler()
+		ctx := context.Background()
+
+		mockSvc.On("CancelWaypoint", ctx, mock.AnythingOfType("*interfaces.CancelWaypointInput")).
+			Return(tripErrors.ErrorUnauthorized)
+
+		_, err := handler.CancelWaypoint(ctx, &trippb.CancelWaypointRequest{
+			DriverId:           "wrong-driver",
+			WaypointId:         "waypoint-1",
+			CancellationReason: "raison",
+		})
+
+		assertGRPCCode(t, err, codes.PermissionDenied)
+		mockSvc.AssertExpectations(t)
+	})
+
+	t.Run("erreur - trip pas scheduled → FailedPrecondition", func(t *testing.T) {
+		handler, mockSvc := newHandler()
+		ctx := context.Background()
+
+		mockSvc.On("CancelWaypoint", ctx, mock.AnythingOfType("*interfaces.CancelWaypointInput")).
+			Return(tripErrors.ErrorTripNotScheduled)
+
+		_, err := handler.CancelWaypoint(ctx, &trippb.CancelWaypointRequest{
+			DriverId:           "driver-1",
+			WaypointId:         "waypoint-1",
+			CancellationReason: "raison",
+		})
+
+		assertGRPCCode(t, err, codes.FailedPrecondition)
+		mockSvc.AssertExpectations(t)
+	})
+
+	t.Run("erreur - waypoint pas un stop → FailedPrecondition", func(t *testing.T) {
+		handler, mockSvc := newHandler()
+		ctx := context.Background()
+
+		mockSvc.On("CancelWaypoint", ctx, mock.AnythingOfType("*interfaces.CancelWaypointInput")).
+			Return(tripErrors.ErrorWaypointNotAStop)
+
+		_, err := handler.CancelWaypoint(ctx, &trippb.CancelWaypointRequest{
+			DriverId:           "driver-1",
+			WaypointId:         "waypoint-dep",
+			CancellationReason: "raison",
+		})
+
+		assertGRPCCode(t, err, codes.FailedPrecondition)
+		mockSvc.AssertExpectations(t)
+	})
+
+	t.Run("erreur - waypoint déjà annulé → FailedPrecondition", func(t *testing.T) {
+		handler, mockSvc := newHandler()
+		ctx := context.Background()
+
+		mockSvc.On("CancelWaypoint", ctx, mock.AnythingOfType("*interfaces.CancelWaypointInput")).
+			Return(tripErrors.ErrorWaypointAlreadyCancelled)
+
+		_, err := handler.CancelWaypoint(ctx, &trippb.CancelWaypointRequest{
+			DriverId:           "driver-1",
+			WaypointId:         "waypoint-1",
+			CancellationReason: "raison",
+		})
+
+		assertGRPCCode(t, err, codes.FailedPrecondition)
 		mockSvc.AssertExpectations(t)
 	})
 }

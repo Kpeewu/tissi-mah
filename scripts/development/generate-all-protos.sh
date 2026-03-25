@@ -1,6 +1,6 @@
 #!/bin/bash
-# scripts/development/run-all-tests.sh
-# Run tests for all services
+# scripts/development/generate-all-protos.sh
+# Génère les fichiers proto pour tous les services, synchronise vers api-gateway et régénère les bindings gateway
 
 set -e
 
@@ -11,138 +11,108 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+# Se placer à la racine du monorepo (au cas où le script est appelé depuis un autre répertoire)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$ROOT_DIR"
+
 echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║            Running All Tests - Tissi-Mah               ║${NC}"
+echo -e "${BLUE}║         Génération des protos - Tissi-Mah              ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
-# Configuration
-TEST_TYPE=${1:-"all"}  # all, unit, integration
-PARALLEL=${PARALLEL:-false}
-COVERAGE=${COVERAGE:-true}
+# Services à traiter (dans l'ordre)
+SERVICES=(
+  "auth-service"
+  "user-service"
+  "file-service"
+  "kyc-service"
+  "booking-service"
+  "trips-service"
+  "rating-service"
+  "vehicle-service"
+)
 
-SERVICES=("auth-service" "user-service" "client-service")
-FAILED_SERVICES=()
-PASSED_SERVICES=()
+FAILED=()
+SKIPPED=()
 
-# Function to run tests for a service
-run_service_tests() {
-  local service=$1
-  
-  if [ ! -d "services/$service" ]; then
-    echo -e "${YELLOW}⚠️  Service not found: $service${NC}"
-    return 0
+# Génération des protos par service
+echo -e "${YELLOW}Étape 1/3 — Génération des protos par service${NC}"
+echo ""
+
+for service in "${SERVICES[@]}"; do
+  SERVICE_DIR="services/$service"
+
+  if [ ! -d "$SERVICE_DIR" ]; then
+    echo -e "${YELLOW}⚠  $service — répertoire introuvable, ignoré${NC}"
+    SKIPPED+=("$service")
+    continue
   fi
-  
-  echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  echo -e "${BLUE}Testing: $service${NC}"
-  echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  echo ""
-  
-  cd "services/$service"
-  
-  if [ -f "scripts/run_tests.sh" ]; then
-    export COVERAGE=$COVERAGE
-    if ./scripts/run_tests.sh $TEST_TYPE; then
-      PASSED_SERVICES+=("$service")
-      cd ../..
-      return 0
-    else
-      FAILED_SERVICES+=("$service")
-      cd ../..
-      return 1
-    fi
+
+  if [ ! -f "$SERVICE_DIR/Makefile" ]; then
+    echo -e "${YELLOW}⚠  $service — pas de Makefile, ignoré${NC}"
+    SKIPPED+=("$service")
+    continue
+  fi
+
+  # Vérifie que le service a bien un target proto dans son Makefile
+  if ! grep -q "^proto:" "$SERVICE_DIR/Makefile" 2>/dev/null; then
+    echo -e "${YELLOW}⚠  $service — pas de target 'proto' dans le Makefile, ignoré${NC}"
+    SKIPPED+=("$service")
+    continue
+  fi
+
+  echo -e "${BLUE}→ Génération : $service${NC}"
+  if (cd "$SERVICE_DIR" && make proto --no-print-directory 2>&1); then
+    echo -e "${GREEN}  ✓ $service${NC}"
   else
-    echo -e "${YELLOW}⚠️  No test script found for $service${NC}"
-    cd ../..
-    return 0
+    echo -e "${RED}  ✗ $service — échec de la génération${NC}"
+    FAILED+=("$service")
   fi
-}
-
-# Check if databases are running
-echo -e "${YELLOW}Checking databases...${NC}"
-if ! docker-compose ps | grep -q "Up"; then
-  echo -e "${RED}❌ Databases not running!${NC}"
-  echo "Start with: make deps-up"
-  exit 1
-fi
-echo -e "${GREEN}✓${NC} Databases are running"
-echo ""
-
-# Run tests
-START_TIME=$(date +%s)
-
-if [ "$PARALLEL" = true ]; then
-  echo -e "${YELLOW}Running tests in parallel...${NC}"
   echo ""
-  
-  for service in "${SERVICES[@]}"; do
-    run_service_tests "$service" &
-  done
-  
-  wait
+done
+
+# Synchronisation vers api-gateway
+echo -e "${YELLOW}Étape 2/3 — Synchronisation des protos vers api-gateway${NC}"
+if make proto-sync --no-print-directory; then
+  echo -e "${GREEN}✓ Synchronisation terminée${NC}"
 else
-  echo -e "${YELLOW}Running tests sequentially...${NC}"
-  echo ""
-  
-  for service in "${SERVICES[@]}"; do
-    run_service_tests "$service" || true
-    echo ""
-  done
+  echo -e "${RED}✗ Échec de la synchronisation${NC}"
+  FAILED+=("proto-sync")
 fi
-
-END_TIME=$(date +%s)
-DURATION=$((END_TIME - START_TIME))
-
-# Summary
 echo ""
+
+# Régénération des bindings grpc-gateway
+echo -e "${YELLOW}Étape 3/3 — Génération proto api-gateway (grpc-gateway)${NC}"
+if make proto-gateway --no-print-directory; then
+  echo -e "${GREEN}✓ Bindings gateway générés${NC}"
+else
+  echo -e "${RED}✗ Échec de la génération gateway${NC}"
+  FAILED+=("proto-gateway")
+fi
+echo ""
+
+# Résumé
 echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║                   Test Summary                         ║${NC}"
+echo -e "${BLUE}║                      Résumé                           ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
 echo ""
-echo "Duration: ${DURATION}s"
-echo ""
 
-if [ ${#PASSED_SERVICES[@]} -gt 0 ]; then
-  echo -e "${GREEN}✅ Passed (${#PASSED_SERVICES[@]}):${NC}"
-  for service in "${PASSED_SERVICES[@]}"; do
-    echo "  - $service"
+if [ ${#SKIPPED[@]} -gt 0 ]; then
+  echo -e "${YELLOW}Ignorés (${#SKIPPED[@]}) :${NC}"
+  for s in "${SKIPPED[@]}"; do
+    echo "  - $s"
   done
   echo ""
 fi
 
-if [ ${#FAILED_SERVICES[@]} -gt 0 ]; then
-  echo -e "${RED}❌ Failed (${#FAILED_SERVICES[@]}):${NC}"
-  for service in "${FAILED_SERVICES[@]}"; do
-    echo "  - $service"
+if [ ${#FAILED[@]} -gt 0 ]; then
+  echo -e "${RED}Échecs (${#FAILED[@]}) :${NC}"
+  for s in "${FAILED[@]}"; do
+    echo "  - $s"
   done
   echo ""
   exit 1
 fi
 
-# Generate combined coverage report
-if [ "$COVERAGE" = true ]; then
-  echo -e "${YELLOW}Generating combined coverage report...${NC}"
-  echo ""
-  
-  # Combine coverage files
-  COVERAGE_FILES=$(find services/*/coverage.out 2>/dev/null || true)
-  
-  if [ -n "$COVERAGE_FILES" ]; then
-    echo "mode: atomic" > coverage-all.out
-    for file in $COVERAGE_FILES; do
-      tail -n +2 $file >> coverage-all.out
-    done
-    
-    TOTAL_COVERAGE=$(go tool cover -func=coverage-all.out | tail -n 1 | awk '{print $3}')
-    echo -e "${GREEN}Total Coverage: $TOTAL_COVERAGE${NC}"
-    
-    # Generate HTML report
-    go tool cover -html=coverage-all.out -o coverage-all.html
-    echo ""
-    echo "Combined coverage report: coverage-all.html"
-  fi
-fi
-
-echo ""
-echo -e "${GREEN}✅ All tests completed successfully!${NC}"
+echo -e "${GREEN}✅ Tous les protos générés avec succès${NC}"

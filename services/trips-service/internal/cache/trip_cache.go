@@ -23,6 +23,9 @@ const (
 	// TTL du cache pour les infos véhicule (marque/plaque, changent rarement)
 	vehicleInfoTTL = 10 * time.Minute
 
+	// TTL du compteur de places disponibles — plus long que l'intervalle de réconciliation
+	seatCounterTTL = 24 * time.Hour
+
 	// Préfixe des clés Redis pour le trips-service
 	keyPrefix = "trip:"
 )
@@ -280,8 +283,45 @@ func (c *TripCache) SetVehicleInfo(ctx context.Context, vehicleID string, brand,
 }
 
 // =============================================================================
+// Seat Counter (places disponibles en temps réel)
+// =============================================================================
+
+// SetSeatCounter stocke le nombre de places disponibles d'un trajet en cache.
+// Appelé par UpdateAvailableSeats après chaque réconciliation.
+func (c *TripCache) SetSeatCounter(ctx context.Context, tripID string, seats int) error {
+	key := c.seatCounterKey(tripID)
+	if err := c.client.Set(ctx, key, seats, seatCounterTTL).Err(); err != nil {
+		c.logger.Error("cache set failed", zap.Error(err), zap.String("key", key))
+		return fmt.Errorf("cache set: %w", err)
+	}
+	c.logger.Debug("cache set: seat counter", zap.String("tripID", tripID), zap.Int("seats", seats))
+	return nil
+}
+
+// GetSeatCounter retourne (seats, found, error).
+// found=false si la clé n'existe pas (cache miss → fallback sur la valeur DB).
+func (c *TripCache) GetSeatCounter(ctx context.Context, tripID string) (int, bool, error) {
+	key := c.seatCounterKey(tripID)
+	val, err := c.client.Get(ctx, key).Int()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			c.logger.Debug("cache miss: seat counter", zap.String("tripID", tripID))
+			return 0, false, nil
+		}
+		c.logger.Error("cache get failed", zap.Error(err), zap.String("key", key))
+		return 0, false, fmt.Errorf("cache get: %w", err)
+	}
+	c.logger.Debug("cache hit: seat counter", zap.String("tripID", tripID), zap.Int("seats", val))
+	return val, true, nil
+}
+
+// =============================================================================
 // Key helpers
 // =============================================================================
+
+func (c *TripCache) seatCounterKey(tripID string) string {
+	return keyPrefix + tripID + ":available_seats"
+}
 
 func (c *TripCache) previewsKey(driverID string, pageIndex int) string {
 	return keyPrefix + "previews:" + driverID + ":page:" + strconv.Itoa(pageIndex)

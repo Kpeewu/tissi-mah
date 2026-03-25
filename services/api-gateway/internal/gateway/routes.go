@@ -67,6 +67,7 @@ var ProtectedRoutes = map[string]bool{
 	"/trip/driver/endTrip":                   true,
 	"/trip/driver/confirmWaypointArrival":    true,
 	"/trip/driver/confirmWaypointDeparture":  true,
+	"/trip/driver/cancelWaypoint":            true,
 }
 
 // RateLimitTier identifie le niveau de rate limiting pour une route

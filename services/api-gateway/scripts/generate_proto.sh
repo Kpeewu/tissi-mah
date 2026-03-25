@@ -126,6 +126,7 @@ protoc \
   file.proto
 
 # Generate trip.proto (stubs + grpc-gateway reverse proxy)
+# allow_delete_body=true : requis pour CancelWaypoint (DELETE avec body)
 echo "Generating Go code from trip.proto..."
 protoc \
   --proto_path=${PROTO_DIR} \
@@ -136,6 +137,7 @@ protoc \
   --grpc-gateway_out=${PROTO_OUT_TRIP} \
   --grpc-gateway_opt=paths=source_relative \
   --grpc-gateway_opt=generate_unbound_methods=false \
+  --grpc-gateway_opt=allow_delete_body=true \
   trip.proto
 
 # Generate kyc.proto (stubs + grpc-gateway reverse proxy)

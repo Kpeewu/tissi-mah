@@ -33,6 +33,7 @@ const (
 	TripService_ConfirmWaypointDeparture_FullMethodName  = "/trip.TripService/ConfirmWaypointDeparture"
 	TripService_GetTripByID_FullMethodName               = "/trip.TripService/GetTripByID"
 	TripService_UpdateAvailableSeats_FullMethodName      = "/trip.TripService/UpdateAvailableSeats"
+	TripService_CancelWaypoint_FullMethodName            = "/trip.TripService/CancelWaypoint"
 	TripService_Health_FullMethodName                    = "/trip.TripService/Health"
 )
 
@@ -80,6 +81,9 @@ type TripServiceClient interface {
 	// UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
 	// Route interne utilisée par le job de réconciliation du booking-service.
 	UpdateAvailableSeats(ctx context.Context, in *UpdateAvailableSeatsRequest, opts ...grpc.CallOption) (*UpdateAvailableSeatsResponse, error)
+	// CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
+	// Le trajet doit avoir le statut "scheduled". Seuls les waypoints "stop" peuvent être annulés.
+	CancelWaypoint(ctx context.Context, in *CancelWaypointRequest, opts ...grpc.CallOption) (*CancelWaypointResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -232,6 +236,16 @@ func (c *tripServiceClient) UpdateAvailableSeats(ctx context.Context, in *Update
 	return out, nil
 }
 
+func (c *tripServiceClient) CancelWaypoint(ctx context.Context, in *CancelWaypointRequest, opts ...grpc.CallOption) (*CancelWaypointResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CancelWaypointResponse)
+	err := c.cc.Invoke(ctx, TripService_CancelWaypoint_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *tripServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -286,6 +300,9 @@ type TripServiceServer interface {
 	// UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
 	// Route interne utilisée par le job de réconciliation du booking-service.
 	UpdateAvailableSeats(context.Context, *UpdateAvailableSeatsRequest) (*UpdateAvailableSeatsResponse, error)
+	// CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
+	// Le trajet doit avoir le statut "scheduled". Seuls les waypoints "stop" peuvent être annulés.
+	CancelWaypoint(context.Context, *CancelWaypointRequest) (*CancelWaypointResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedTripServiceServer()
@@ -339,6 +356,9 @@ func (UnimplementedTripServiceServer) GetTripByID(context.Context, *GetTripByIDR
 }
 func (UnimplementedTripServiceServer) UpdateAvailableSeats(context.Context, *UpdateAvailableSeatsRequest) (*UpdateAvailableSeatsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateAvailableSeats not implemented")
+}
+func (UnimplementedTripServiceServer) CancelWaypoint(context.Context, *CancelWaypointRequest) (*CancelWaypointResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CancelWaypoint not implemented")
 }
 func (UnimplementedTripServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -616,6 +636,24 @@ func _TripService_UpdateAvailableSeats_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TripService_CancelWaypoint_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CancelWaypointRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).CancelWaypoint(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_CancelWaypoint_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).CancelWaypoint(ctx, req.(*CancelWaypointRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _TripService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -696,6 +734,10 @@ var TripService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateAvailableSeats",
 			Handler:    _TripService_UpdateAvailableSeats_Handler,
+		},
+		{
+			MethodName: "CancelWaypoint",
+			Handler:    _TripService_CancelWaypoint_Handler,
 		},
 		{
 			MethodName: "Health",

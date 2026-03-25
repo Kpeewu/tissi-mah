@@ -27,6 +27,8 @@ type Waypoint struct {
 	ActualScheduledPickupDatetime *time.Time
 	MinutesFromDeparture          int
 	PriceFromPrevious             int
+	CancelledAt                   *time.Time
+	CancellationReason            *string
 	CreatedAt                     time.Time
 	UpdatedAt                     time.Time
 }

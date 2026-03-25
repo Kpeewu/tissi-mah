@@ -608,6 +608,73 @@ func (r *tripWriteRepositoryImpl) ConfirmWaypointDeparture(ctx context.Context, 
 	return nil
 }
 
+// CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié (soft-delete).
+func (r *tripWriteRepositoryImpl) CancelWaypoint(ctx context.Context, waypointID, driverID, reason string) error {
+	r.logger.Debug("cancelling waypoint",
+		zap.String("waypointID", waypointID),
+		zap.String("driverID", driverID),
+	)
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		r.logger.Error("begin transaction failed", zap.Error(err))
+		return tripErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var waypointType string
+	var cancelledAt *time.Time
+	var tripDriverID string
+	var tripStatus string
+	err = tx.QueryRow(ctx, `
+		SELECT w.waypoint_type, w.cancelled_at, t.driver_id, t.status
+		FROM trips_waypoints w
+		JOIN trips t ON t.trip_id = w.trip_id
+		WHERE w.waypoint_id = $1
+		FOR UPDATE`,
+		waypointID,
+	).Scan(&waypointType, &cancelledAt, &tripDriverID, &tripStatus)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return tripErrors.ErrorWaypointNotFound
+		}
+		r.logger.Error("select waypoint+trip failed", zap.Error(err), zap.String("waypointID", waypointID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	if tripDriverID != driverID {
+		return tripErrors.ErrorUnauthorized
+	}
+	if tripStatus != "scheduled" {
+		return tripErrors.ErrorTripNotScheduled
+	}
+	if waypointType != "stop" {
+		return tripErrors.ErrorWaypointNotAStop
+	}
+	if cancelledAt != nil {
+		return tripErrors.ErrorWaypointAlreadyCancelled
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE trips_waypoints
+		SET cancelled_at = NOW(), cancellation_reason = $2, updated_at = NOW()
+		WHERE waypoint_id = $1`,
+		waypointID, reason,
+	)
+	if err != nil {
+		r.logger.Error("cancel waypoint failed", zap.Error(err), zap.String("waypointID", waypointID))
+		return fmt.Errorf("%w: %s", tripErrors.ErrorInternalServer, err.Error())
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		r.logger.Error("commit transaction failed", zap.Error(err), zap.String("waypointID", waypointID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	r.logger.Info("waypoint cancelled", zap.String("waypointID", waypointID))
+	return nil
+}
+
 // diagnoseEndTripFailure effectue un SELECT pour déterminer pourquoi l'UPDATE endTrip a affecté 0 lignes.
 func (r *tripWriteRepositoryImpl) diagnoseEndTripFailure(ctx context.Context, tripID, driverID string) error {
 	var foundDriverID string

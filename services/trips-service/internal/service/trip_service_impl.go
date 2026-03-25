@@ -365,6 +365,34 @@ func (s *tripServiceImpl) ConfirmWaypointArrival(ctx context.Context, input *ser
 	return nil
 }
 
+// CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
+func (s *tripServiceImpl) CancelWaypoint(ctx context.Context, input *serviceInterfaces.CancelWaypointInput) error {
+	s.logger.Debug("service: CancelWaypoint called",
+		zap.String("driverID", input.DriverID),
+		zap.String("waypointID", input.WaypointID),
+	)
+
+	if input.DriverID == "" || input.WaypointID == "" || input.CancellationReason == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	if err := s.writeRepo.CancelWaypoint(ctx, input.WaypointID, input.DriverID, input.CancellationReason); err != nil {
+		return err
+	}
+
+	// TODO: notifier les passagers ayant une réservation sur ce waypoint
+	// (notification-service non disponible actuellement)
+	s.logger.Warn("service: CancelWaypoint — passenger notifications not implemented",
+		zap.String("waypointID", input.WaypointID),
+	)
+
+	s.logger.Info("waypoint cancelled",
+		zap.String("waypointID", input.WaypointID),
+		zap.String("driverID", input.DriverID),
+	)
+	return nil
+}
+
 // validateInput vérifie les champs obligatoires et la cohérence des waypoints.
 func (s *tripServiceImpl) validateInput(input *serviceInterfaces.CreateTripInput) error {
 	if input.DriverID == "" || input.VehicleID == "" {
@@ -538,6 +566,18 @@ func (s *tripServiceImpl) GetTripByID(ctx context.Context, input *serviceInterfa
 		return nil, err
 	}
 
+	// Overlay available_seats depuis le cache Redis (temps réel post-réconciliation)
+	if s.cache != nil {
+		if seats, found, cacheErr := s.cache.GetSeatCounter(ctx, input.TripID); found && cacheErr == nil {
+			trip.AvailableSeats = int16(seats)
+		} else if cacheErr != nil {
+			s.logger.Warn("service: GetTripByID — seat cache read failed, using DB value",
+				zap.String("tripID", input.TripID),
+				zap.Error(cacheErr),
+			)
+		}
+	}
+
 	waypointResults := make([]serviceInterfaces.WaypointDetailResult, 0, len(waypoints))
 	for _, wp := range waypoints {
 		waypointResults = append(waypointResults, serviceInterfaces.WaypointDetailResult{
@@ -583,12 +623,17 @@ func (s *tripServiceImpl) UpdateAvailableSeats(ctx context.Context, input *servi
 		return err
 	}
 
-	// Invalider le cache des previews du trip
+	// Mettre à jour le compteur de places en cache pour que les lectures soient temps réel
 	if s.cache != nil {
-		// On ne connaît pas le driverID ici, donc on ne peut pas invalider le cache des previews.
-		// Le cache expirera naturellement (TTL 2 min).
-		s.logger.Debug("service: UpdateAvailableSeats — cache will expire naturally")
+		if cacheErr := s.cache.SetSeatCounter(ctx, input.TripID, int(input.NewAvailableSeats)); cacheErr != nil {
+			s.logger.Warn("service: UpdateAvailableSeats — seat cache update failed",
+				zap.String("tripID", input.TripID),
+				zap.Error(cacheErr),
+			)
+			// Dégradation gracieuse : l'erreur cache ne fait pas échouer l'opération
+		}
 	}
 
 	return nil
 }
+
