@@ -1,0 +1,14 @@
+apiVersion: v2
+name: booking-service
+description: A Helm chart for tissiMah Booking Service
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+maintainers:
+  - name: tissi-mah Team
+    email: kpeewu@gmail.com
+keywords:
+  - booking
+  - grpc
+  - golang
+  - microservice

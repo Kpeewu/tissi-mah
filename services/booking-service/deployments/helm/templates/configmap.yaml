@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "booking-service.fullname" . }}
+  labels:
+    {{- include "booking-service.labels" . | nindent 4 }}
+data:
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  GRPC_PORT: {{ .Values.service.port | quote }}
+  USER_SERVICE_HOST: {{ .Values.config.userServiceHost | quote }}
+  USER_SERVICE_PORT: {{ .Values.config.userServicePort | quote }}
+  TRIPS_SERVICE_HOST: {{ .Values.config.tripsServiceHost | quote }}
+  TRIPS_SERVICE_PORT: {{ .Values.config.tripsServicePort | quote }}
+  SERVICE_FEE_PERCENT: {{ .Values.config.serviceFeePercent | quote }}
+  RECONCILIATION_INTERVAL_SECONDS: {{ .Values.config.reconciliationIntervalSeconds | quote }}
+  {{- range $key, $value := .Values.config.extra }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
