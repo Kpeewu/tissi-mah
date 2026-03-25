@@ -71,7 +71,7 @@ jobs:
           if [ -n "${{ github.event.inputs.service }}" ]; then
             echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
           else
-            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service","booking-service"]' >> $GITHUB_OUTPUT
+            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service","booking-service","kyc-service"]' >> $GITHUB_OUTPUT
           fi
 
   build-and-push:
