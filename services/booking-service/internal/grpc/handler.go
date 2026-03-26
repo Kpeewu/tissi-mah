@@ -336,7 +336,8 @@ func toProtoBookingPreviews(results []*serviceInterfaces.BookingPreviewResult) [
 // toGRPCError traduit les erreurs domaine en codes de statut gRPC.
 func toGRPCError(err error) error {
 	switch {
-	case errors.Is(err, bookingErrors.ErrorInvalidInput):
+	case errors.Is(err, bookingErrors.ErrorInvalidInput),
+		errors.Is(err, bookingErrors.ErrorInvalidWaypoints):
 		return status.Error(codes.InvalidArgument, err.Error())
 	case errors.Is(err, bookingErrors.ErrorBookingNotFound):
 		return status.Error(codes.NotFound, err.Error())

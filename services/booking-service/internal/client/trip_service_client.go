@@ -73,9 +73,11 @@ func (c *TripServiceClient) GetTripDetails(ctx context.Context, tripID string) (
 		details.Waypoints = append(details.Waypoints, TripWaypoint{
 			WaypointID:              wp.WaypointId,
 			WaypointType:            wp.WaypointType,
+			SequencerOrder:          int(wp.SequencerOrder),
 			LocationName:            wp.LocationName,
 			City:                    wp.City,
 			ScheduledPickupDatetime: wp.ScheduledPickupDatetime,
+			PriceFromPrevious:       int(wp.PriceFromPrevious),
 		})
 	}
 

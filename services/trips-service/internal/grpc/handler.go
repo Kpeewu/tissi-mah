@@ -44,7 +44,6 @@ func (h *TripHandler) CreateTrip(ctx context.Context, req *trippb.CreateTripRequ
 		EstimatedDurationMinutes: int(req.EstimatedDurationMinutes),
 		EstimatedDistanceMeters:  int(req.EstimatedDistanceMeters),
 		TotalSeats:               int(req.TotalSeats),
-		PricePerSeat:             int(req.PricePerSeat),
 		PaymentMethodsAccepted:   req.PaymentMethodsAccepted,
 		AllowLuggages:            req.AllowLuggages,
 		AllowPets:                req.AllowPets,
@@ -87,7 +86,6 @@ func (h *TripHandler) CreateRecurringTrip(ctx context.Context, req *trippb.Creat
 		StartDate:             req.StartDate,
 		EndDate:               req.EndDate,
 		TotalSeats:            int(req.TotalSeats),
-		PricePerSeat:          int(req.PricePerSeat),
 		AllowLuggages:         req.AllowLuggages,
 		AllowPets:             req.AllowPets,
 		AllowFood:             req.AllowFood,
@@ -384,6 +382,7 @@ func (h *TripHandler) GetTripByID(ctx context.Context, req *trippb.GetTripByIDRe
 			LocationName:            wp.LocationName,
 			City:                    wp.City,
 			ScheduledPickupDatetime: scheduledStr,
+			PriceFromPrevious:       int32(wp.PriceFromPrevious),
 		})
 	}
 

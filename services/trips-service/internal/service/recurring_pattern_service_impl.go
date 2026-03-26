@@ -163,7 +163,7 @@ func (s *tripServiceImpl) buildRecurringPattern(
 		StartDate:             startDate,
 		EndDate:               endDate,
 		TotalSeats:            input.TotalSeats,
-		PricePerSeat:          input.PricePerSeat,
+		PricePerSeat:          0, // calculé après la boucle waypoints
 		AllowLuggages:         input.AllowLuggages,
 		AllowPets:             input.AllowPets,
 		AllowFood:             input.AllowFood,
@@ -191,6 +191,13 @@ func (s *tripServiceImpl) buildRecurringPattern(
 			MinutesFromDeparture: minutesFromDeparture,
 		})
 	}
+
+	// Calculer price_per_seat comme la somme des price_from_previous
+	pricePerSeat := 0
+	for _, wp := range patternWaypoints {
+		pricePerSeat += wp.PriceFromPrevious
+	}
+	pattern.PricePerSeat = pricePerSeat
 
 	return pattern, patternWaypoints
 }

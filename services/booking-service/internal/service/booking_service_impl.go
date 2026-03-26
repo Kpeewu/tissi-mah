@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
 	"math/big"
 	"strings"
 	"time"
@@ -118,8 +117,12 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 		return nil, bookingErrors.ErrorNoSeatsAvailable
 	}
 
-	// 7. Calculer les prix
-	pricePerSeat := tripDetails.PricePerSeat
+	// 7. Calculer les prix depuis les waypoints (server-side)
+	pricePerSeat, err := s.calculatePriceFromWaypoints(tripDetails.Waypoints, input.PickupWaypointID, input.DropoffWaypointID)
+	if err != nil {
+		s.logger.Error("service: calculatePriceFromWaypoints failed", zap.Error(err))
+		return nil, err
+	}
 	subtotal := input.SeatsBooked * pricePerSeat
 	serviceFee := subtotal * s.serviceFee / 100
 	totalAmount := subtotal + serviceFee
@@ -164,14 +167,24 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 		ApprovedAt:        approvedAt,
 	}
 
-	// Construire les segments
+	// Construire les segments avec prix calculé côté serveur
 	segments := make([]*domain.Segment, 0, len(input.Segments))
 	for _, seg := range input.Segments {
 		pickupTime := parseTimeOptional(seg.PickupScheduledAt)
 		dropoffTime := parseTimeOptional(seg.DropoffScheduledAt)
 		distMeters := seg.SegmentDistanceMeters
 		durMinutes := seg.SegmentDurationMinutes
-		segPrice := seg.SegmentPrice
+
+		// Calculer le prix du segment depuis les waypoints
+		segPrice, err := s.calculatePriceFromWaypoints(tripDetails.Waypoints, seg.PickupWaypointID, seg.DropoffWaypointID)
+		if err != nil {
+			s.logger.Error("service: calculatePriceFromWaypoints failed for segment",
+				zap.String("pickupWP", seg.PickupWaypointID),
+				zap.String("dropoffWP", seg.DropoffWaypointID),
+				zap.Error(err),
+			)
+			return nil, err
+		}
 
 		segments = append(segments, &domain.Segment{
 			SegmentID:              uuid.New().String(),
@@ -456,6 +469,38 @@ func (s *bookingServiceImpl) ConfirmPayment(ctx context.Context, input *serviceI
 // Helpers
 // =============================================================================
 
+// calculatePriceFromWaypoints calcule le prix entre deux waypoints comme la somme
+// des price_from_previous des waypoints dont sequencer_order > pickup et <= dropoff.
+func (s *bookingServiceImpl) calculatePriceFromWaypoints(waypoints []client.TripWaypoint, pickupWaypointID, dropoffWaypointID string) (int, error) {
+	pickupOrder := -1
+	dropoffOrder := -1
+
+	for _, wp := range waypoints {
+		if wp.WaypointID == pickupWaypointID {
+			pickupOrder = wp.SequencerOrder
+		}
+		if wp.WaypointID == dropoffWaypointID {
+			dropoffOrder = wp.SequencerOrder
+		}
+	}
+
+	if pickupOrder == -1 || dropoffOrder == -1 {
+		return 0, bookingErrors.ErrorInvalidWaypoints
+	}
+	if pickupOrder >= dropoffOrder {
+		return 0, bookingErrors.ErrorInvalidWaypoints
+	}
+
+	price := 0
+	for _, wp := range waypoints {
+		if wp.SequencerOrder > pickupOrder && wp.SequencerOrder <= dropoffOrder {
+			price += wp.PriceFromPrevious
+		}
+	}
+
+	return price, nil
+}
+
 func (s *bookingServiceImpl) validateCreateInput(input *serviceInterfaces.CreateBookingInput) error {
 	if input.PassengerID == "" {
 		return bookingErrors.ErrorInvalidInput
@@ -733,6 +778,3 @@ func GetServiceFeePercent(svc serviceInterfaces.BookingService) int {
 	}
 	return impl.serviceFee
 }
-
-// Unused suppresses "unused" linter warnings for the fmt import.
-var _ = fmt.Sprintf

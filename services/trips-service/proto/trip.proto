@@ -160,6 +160,7 @@ message TripWaypointDetail {
   string LocationName           = 4;
   string City                   = 5;
   string ScheduledPickupDatetime = 6; // RFC3339
+  int32  PriceFromPrevious       = 7; // prix depuis le waypoint précédent
 }
 
 message GetTripByIDResponse {
