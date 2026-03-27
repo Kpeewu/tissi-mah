@@ -56,6 +56,8 @@ jobs:
               - 'services/trips-service/**'
             booking-service:
               - 'services/booking-service/**'
+            payment-service:
+              - 'services/payment-service/**'
             pkg:
               - 'pkg/**'
 
@@ -67,7 +69,7 @@ jobs:
           else
             services=()
             if [ "${{ steps.filter.outputs.pkg }}" == "true" ]; then
-              services+=("api-gateway" "auth-service" "user-service" "file-service" "rating-service" "vehicle-service" "trips-service" "booking-service")
+              services+=("api-gateway" "auth-service" "user-service" "file-service" "rating-service" "vehicle-service" "trips-service" "booking-service" "payment-service")
             else
               if [ "${{ steps.filter.outputs.api-gateway }}" == "true" ]; then
                 services+=("api-gateway")
@@ -92,6 +94,9 @@ jobs:
               fi
               if [ "${{ steps.filter.outputs.booking-service }}" == "true" ]; then
                 services+=("booking-service")
+              fi
+              if [ "${{ steps.filter.outputs.payment-service }}" == "true" ]; then
+                services+=("payment-service")
               fi
             fi
 

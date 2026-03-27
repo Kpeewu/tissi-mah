@@ -62,6 +62,8 @@ jobs:
               - 'services/booking-service/**'
             kyc-service:
               - 'services/kyc-service/**'
+            payment-service:
+              - 'services/payment-service/**'
             pkg:
               - 'pkg/**'
 
@@ -71,7 +73,7 @@ jobs:
           if [ -n "${{ github.event.inputs.service }}" ]; then
             echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
           else
-            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service","booking-service","kyc-service"]' >> $GITHUB_OUTPUT
+            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service","booking-service","kyc-service","payment-service"]' >> $GITHUB_OUTPUT
           fi
 
   build-and-push:
@@ -171,6 +173,12 @@ jobs:
           # booking-service secrets
           BOOKING_DATABASE_URL: ${{ secrets.BOOKING_DATABASE_URL }}
           BOOKING_REDIS_URL: ${{ secrets.BOOKING_REDIS_URL }}
+          # payment-service secrets
+          PAYMENT_DATABASE_URL: ${{ secrets.PAYMENT_DATABASE_URL }}
+          PAYMENT_REDIS_URL: ${{ secrets.PAYMENT_REDIS_URL }}
+          PAYMENT_FEDAPAY_API_URL: ${{ secrets.PAYMENT_FEDAPAY_API_URL }}
+          PAYMENT_FEDAPAY_API_KEY: ${{ secrets.PAYMENT_FEDAPAY_API_KEY }}
+          PAYMENT_FEDAPAY_WEBHOOK_SECRET: ${{ secrets.PAYMENT_FEDAPAY_WEBHOOK_SECRET }}
           # kyc-service secrets
           KYC_PERSONA_API_KEY: ${{ secrets.KYC_PERSONA_API_KEY }}
           KYC_PERSONA_WEBHOOK_SECRET: ${{ secrets.KYC_PERSONA_WEBHOOK_SECRET }}
@@ -257,6 +265,17 @@ jobs:
                   'secrets': {
                       'databaseUrl': os.environ.get('BOOKING_DATABASE_URL', ''),
                       'redisUrl': os.environ.get('BOOKING_REDIS_URL', ''),
+                  },
+              }
+
+          elif service == "payment-service":
+              data = {
+                  'secrets': {
+                      'databaseUrl': os.environ.get('PAYMENT_DATABASE_URL', ''),
+                      'redisUrl': os.environ.get('PAYMENT_REDIS_URL', ''),
+                      'fedapayApiUrl': os.environ.get('PAYMENT_FEDAPAY_API_URL', ''),
+                      'fedapayApiKey': os.environ.get('PAYMENT_FEDAPAY_API_KEY', ''),
+                      'fedapayWebhookSecret': os.environ.get('PAYMENT_FEDAPAY_WEBHOOK_SECRET', ''),
                   },
               }
 
@@ -442,7 +461,15 @@ jobs:
 #  10. Secrets GitHub pour booking-service:
 #      - BOOKING_DATABASE_URL : postgresql://user:pass@host:5438/booking_db
 #      - BOOKING_REDIS_URL    : redis://host:6387/0
-#  10. Secrets GitHub pour kyc-service:
+#
+#  11. Secrets GitHub pour payment-service:
+#      - PAYMENT_DATABASE_URL        : postgresql://user:pass@host:5439/payment_db
+#      - PAYMENT_REDIS_URL           : redis://host:6388/0
+#      - PAYMENT_FEDAPAY_API_URL     : https://sandbox-api.fedapay.com (ou production)
+#      - PAYMENT_FEDAPAY_API_KEY     : cle API FedaPay
+#      - PAYMENT_FEDAPAY_WEBHOOK_SECRET : secret HMAC pour valider les webhooks FedaPay
+#
+#  12. Secrets GitHub pour kyc-service:
 #      - KYC_PERSONA_API_KEY       : cle API Persona (sandbox ou production)
 #      - KYC_PERSONA_WEBHOOK_SECRET : secret HMAC pour valider les webhooks Persona
 #
@@ -456,4 +483,5 @@ jobs:
 #     |- vehicle-service (gRPC ClusterIP, port 50055)
 #     |- trips-service (gRPC ClusterIP, port 50056)
 #     |- booking-service (gRPC ClusterIP, port 50058)
+#     |- payment-service (gRPC ClusterIP, port 50059)
 #     |- kyc-service (gRPC ClusterIP, port 50057)

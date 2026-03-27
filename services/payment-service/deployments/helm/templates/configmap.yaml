@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "payment-service.fullname" . }}
+  labels:
+    {{- include "payment-service.labels" . | nindent 4 }}
+data:
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  GRPC_PORT: {{ .Values.service.port | quote }}
+  BOOKING_SERVICE_HOST: {{ .Values.config.bookingServiceHost | quote }}
+  BOOKING_SERVICE_PORT: {{ .Values.config.bookingServicePort | quote }}
+  USER_SERVICE_HOST: {{ .Values.config.userServiceHost | quote }}
+  USER_SERVICE_PORT: {{ .Values.config.userServicePort | quote }}
+  PAYOUT_INTERVAL_SECONDS: {{ .Values.config.payoutIntervalSeconds | quote }}
+  CONTESTATION_DELAY_HOURS: {{ .Values.config.contestationDelayHours | quote }}
+  PLATFORM_FEE_PERCENT: {{ .Values.config.platformFeePercent | quote }}
+  CANCELLATION_FULL_REFUND_HOURS: {{ .Values.config.cancellationFullRefundHours | quote }}
+  CANCELLATION_GRACE_PERIOD_MINUTES: {{ .Values.config.cancellationGracePeriodMinutes | quote }}
+  NOSHOW_DRIVER_DELAY_MINUTES: {{ .Values.config.noshowDriverDelayMinutes | quote }}
+  NOSHOW_PASSENGER_DELAY_MINUTES: {{ .Values.config.noshowPassengerDelayMinutes | quote }}
+  {{- range $key, $value := .Values.config.extra }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
