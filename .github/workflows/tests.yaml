@@ -21,6 +21,7 @@ jobs:
     outputs:
       auth-service: ${{ steps.filter.outputs.auth-service }}
       file-service: ${{ steps.filter.outputs.file-service }}
+      rating-service: ${{ steps.filter.outputs.rating-service }}
     steps:
       - uses: actions/checkout@v4
 
@@ -32,6 +33,8 @@ jobs:
               - 'services/auth-service/**'
             file-service:
               - 'services/file-service/**'
+            rating-service:
+              - 'services/rating-service/**'
 
   # Test Auth Service
   test-auth-service:
@@ -149,6 +152,71 @@ jobs:
           flags: file-service
           name: file-service-coverage
 
+  # Test Rating Service
+  test-rating-service:
+    name: Test Rating Service
+    needs: detect-changes
+    if: needs.detect-changes.outputs.rating-service == 'true'
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: ${{ secrets.TEST_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.TEST_POSTGRES_DB }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache: true
+          cache-dependency-path: services/rating-service/go.sum
+
+      - name: Download dependencies
+        working-directory: services/rating-service
+        run: go mod download
+
+      - name: Run unit tests
+        working-directory: services/rating-service
+        env:
+          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
+
+      - name: Run integration tests
+        working-directory: services/rating-service
+        env:
+          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+        run: |
+          go test -v -race ./tests/integration/...
+
+      - name: Run e2e tests
+        working-directory: services/rating-service
+        env:
+          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+        run: |
+          go test -v -race ./tests/e2e/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: services/rating-service/coverage.out
+          flags: rating-service
+          name: rating-service-coverage
+
   # Summary job
   test-summary:
     name: Test Summary
@@ -157,6 +225,7 @@ jobs:
         detect-changes,
         test-auth-service,
         test-file-service,
+        test-rating-service,
       ]
     if: always()
     runs-on: ubuntu-latest
@@ -177,6 +246,13 @@ jobs:
             echo "✅ File Service: PASSED"
           else
             echo "❌ File Service: FAILED"
+            exit 1
+          fi
+
+          if [ "${{ needs.test-rating-service.result }}" == "success" ] || [ "${{ needs.detect-changes.outputs.rating-service }}" != "true" ]; then
+            echo "✅ Rating Service: PASSED"
+          else
+            echo "❌ Rating Service: FAILED"
             exit 1
           fi
 
