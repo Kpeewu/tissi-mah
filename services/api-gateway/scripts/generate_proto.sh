@@ -55,7 +55,8 @@ PROTO_OUT_FILE="${PROTO_DIR}/gen/filepb"
 PROTO_OUT_TRIP="${PROTO_DIR}/gen/trippb"
 PROTO_OUT_KYC="${PROTO_DIR}/gen/kycpb"
 PROTO_OUT_BOOKING="${PROTO_DIR}/gen/bookingpb"
-mkdir -p ${PROTO_OUT_AUTH} ${PROTO_OUT_USER} ${PROTO_OUT_RATING} ${PROTO_OUT_FILE} ${PROTO_OUT_TRIP} ${PROTO_OUT_KYC} ${PROTO_OUT_BOOKING}
+PROTO_OUT_PAYMENT="${PROTO_DIR}/gen/paymentpb"
+mkdir -p ${PROTO_OUT_AUTH} ${PROTO_OUT_USER} ${PROTO_OUT_RATING} ${PROTO_OUT_FILE} ${PROTO_OUT_TRIP} ${PROTO_OUT_KYC} ${PROTO_OUT_BOOKING} ${PROTO_OUT_PAYMENT}
 
 # Download google/api proto files if they don't exist
 if [ ! -f "${GOOGLE_API_DIR}/annotations.proto" ]; then
@@ -165,6 +166,19 @@ protoc \
   --grpc-gateway_opt=paths=source_relative \
   --grpc-gateway_opt=generate_unbound_methods=false \
   booking.proto
+
+# Generate payment.proto (stubs + grpc-gateway reverse proxy)
+echo "Generating Go code from payment.proto..."
+protoc \
+  --proto_path=${PROTO_DIR} \
+  --go_out=${PROTO_OUT_PAYMENT} \
+  --go_opt=paths=source_relative \
+  --go-grpc_out=${PROTO_OUT_PAYMENT} \
+  --go-grpc_opt=paths=source_relative \
+  --grpc-gateway_out=${PROTO_OUT_PAYMENT} \
+  --grpc-gateway_opt=paths=source_relative \
+  --grpc-gateway_opt=generate_unbound_methods=false \
+  payment.proto
 
 # Check result
 if [ $? -eq 0 ]; then

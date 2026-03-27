@@ -29,6 +29,7 @@ type FullProfile struct {
 	TripPreferences            []domain.TripPreference
 	IDCardExpirationDate       string
 	DriveLicenceExpirationDate string
+	WithdrawNumber             string
 }
 
 // UpdateProfileRequest contient les champs à mettre à jour (optionnels)
@@ -39,6 +40,7 @@ type UpdateProfileRequest struct {
 	BirthDate         *string
 	Email             *string
 	PhoneNumber       *string
+	WithdrawNumber    *string
 }
 
 type UserService interface {

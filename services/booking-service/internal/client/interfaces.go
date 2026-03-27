@@ -40,3 +40,23 @@ type UserClient interface {
 	UserExists(ctx context.Context, userID string) (bool, error)
 	Close() error
 }
+
+// PaymentClient définit le contrat pour appeler payment-service depuis booking-service.
+type PaymentClient interface {
+	// RequestRefund demande un remboursement au payment-service.
+	RequestRefund(ctx context.Context, input *RefundInput) error
+	// ReleasePayment libère un paiement held → released après le délai de contestation.
+	ReleasePayment(ctx context.Context, bookingID string) error
+	Close() error
+}
+
+// RefundInput contient les données nécessaires pour demander un remboursement.
+type RefundInput struct {
+	BookingID         string
+	RefundReason      string // cancelledByDriver | cancelledByPassenger | noShowDriver | noShowPassenger | bookingRejected
+	OriginalAmount    int    // Subtotal (hors frais de service)
+	ServiceFee        int
+	DepartureDatetime string // RFC3339
+	ApprovedAt        string // RFC3339, optionnel
+	CancelledAt       string // RFC3339
+}

@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/domain"
 )
@@ -29,4 +30,8 @@ type BookingRepositoryRead interface {
 
 	// GetActiveTripsWithBookings retourne la liste des tripIDs ayant des bookings actifs.
 	GetActiveTripsWithBookings(ctx context.Context) ([]string, error)
+
+	// GetCompletedBookingsPendingRelease retourne les bookings complétés non-cash
+	// dont le paiement n'a pas encore été libéré et dont la complétion est antérieure à completedBefore.
+	GetCompletedBookingsPendingRelease(ctx context.Context, completedBefore time.Time) ([]*domain.Booking, error)
 }

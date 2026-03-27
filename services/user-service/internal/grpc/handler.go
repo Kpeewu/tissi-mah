@@ -158,6 +158,10 @@ func (h *UserHandler) UpdateProfile(ctx context.Context, req *userpb.UpdateProfi
 		v := *req.PhoneNumber
 		updateReq.PhoneNumber = &v
 	}
+	if req.WithdrawNumber != nil {
+		v := *req.WithdrawNumber
+		updateReq.WithdrawNumber = &v
+	}
 	profile, err := h.service.UpdateProfile(ctx, updateReq)
 	if err != nil {
 		h.logger.Error("UpdateProfile échoué", zap.Error(err), zap.String("profile_id", req.UserID))
@@ -250,6 +254,7 @@ func toProtoUserProfile(u *domain.User) *userpb.UserProfileResponse {
 		IsDriverProfileVerified:    u.IsDriverProfileVerified,
 		IsPassengerProfileVerified: u.IsPassengerProfileVerified,
 		TripPreferences:            toProtoTripPreferences(u.TripPreferences),
+		WithdrawNumber:             u.WithdrawNumber,
 	}
 }
 
@@ -277,5 +282,6 @@ func toProtoFullProfile(p *serviceInterfaces.FullProfile) *userpb.FullUserProfil
 		TripPreferences:            toProtoTripPreferences(p.TripPreferences),
 		IDCardExpirationDate:       p.IDCardExpirationDate,
 		DriveLicenceExpirationDate: p.DriveLicenceExpirationDate,
+		WithdrawNumber:             p.WithdrawNumber,
 	}
 }

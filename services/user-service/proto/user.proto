@@ -125,6 +125,7 @@ message UpdateProfileRequest {
   optional string PhoneNumber     = 6;
   reserved 7;
   reserved "ProfilePictureURL";
+  optional string WithdrawNumber  = 8;
 }
 
 message HealthRequest {
@@ -159,6 +160,7 @@ message UserProfileResponse {
   repeated TripPreference TripPreferences    = 14;
   string IDCardExpirationDate                = 15;
   string DriveLicenceExpirationDate          = 16;
+  string WithdrawNumber                      = 17;
 }
 
 // GetMyProfileResponse — réponse client enrichie avec données auth
@@ -190,6 +192,7 @@ message FullUserProfile {
   repeated TripPreference TripPreferences        = 19;
   string IDCardExpirationDate                    = 20;
   string DriveLicenceExpirationDate              = 21;
+  string WithdrawNumber                          = 22;
 }
 
 message UserFile {

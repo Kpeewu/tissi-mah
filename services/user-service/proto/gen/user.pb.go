@@ -333,15 +333,16 @@ func (x *AddTripPreferencesRequest) GetPreferences() []*TripPreference {
 }
 
 type UpdateProfileRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserID        string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
-	FirstName     *string                `protobuf:"bytes,2,opt,name=FirstName,proto3,oneof" json:"FirstName,omitempty"`
-	LastName      *string                `protobuf:"bytes,3,opt,name=LastName,proto3,oneof" json:"LastName,omitempty"`
-	BirthDate     *string                `protobuf:"bytes,4,opt,name=BirthDate,proto3,oneof" json:"BirthDate,omitempty"`
-	Email         *string                `protobuf:"bytes,5,opt,name=Email,proto3,oneof" json:"Email,omitempty"`
-	PhoneNumber   *string                `protobuf:"bytes,6,opt,name=PhoneNumber,proto3,oneof" json:"PhoneNumber,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	UserID         string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
+	FirstName      *string                `protobuf:"bytes,2,opt,name=FirstName,proto3,oneof" json:"FirstName,omitempty"`
+	LastName       *string                `protobuf:"bytes,3,opt,name=LastName,proto3,oneof" json:"LastName,omitempty"`
+	BirthDate      *string                `protobuf:"bytes,4,opt,name=BirthDate,proto3,oneof" json:"BirthDate,omitempty"`
+	Email          *string                `protobuf:"bytes,5,opt,name=Email,proto3,oneof" json:"Email,omitempty"`
+	PhoneNumber    *string                `protobuf:"bytes,6,opt,name=PhoneNumber,proto3,oneof" json:"PhoneNumber,omitempty"`
+	WithdrawNumber *string                `protobuf:"bytes,8,opt,name=WithdrawNumber,proto3,oneof" json:"WithdrawNumber,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *UpdateProfileRequest) Reset() {
@@ -412,6 +413,13 @@ func (x *UpdateProfileRequest) GetEmail() string {
 func (x *UpdateProfileRequest) GetPhoneNumber() string {
 	if x != nil && x.PhoneNumber != nil {
 		return *x.PhoneNumber
+	}
+	return ""
+}
+
+func (x *UpdateProfileRequest) GetWithdrawNumber() string {
+	if x != nil && x.WithdrawNumber != nil {
+		return *x.WithdrawNumber
 	}
 	return ""
 }
@@ -524,6 +532,7 @@ type UserProfileResponse struct {
 	TripPreferences            []*TripPreference      `protobuf:"bytes,14,rep,name=TripPreferences,proto3" json:"TripPreferences,omitempty"`
 	IDCardExpirationDate       string                 `protobuf:"bytes,15,opt,name=IDCardExpirationDate,proto3" json:"IDCardExpirationDate,omitempty"`
 	DriveLicenceExpirationDate string                 `protobuf:"bytes,16,opt,name=DriveLicenceExpirationDate,proto3" json:"DriveLicenceExpirationDate,omitempty"`
+	WithdrawNumber             string                 `protobuf:"bytes,17,opt,name=WithdrawNumber,proto3" json:"WithdrawNumber,omitempty"`
 	unknownFields              protoimpl.UnknownFields
 	sizeCache                  protoimpl.SizeCache
 }
@@ -670,6 +679,13 @@ func (x *UserProfileResponse) GetDriveLicenceExpirationDate() string {
 	return ""
 }
 
+func (x *UserProfileResponse) GetWithdrawNumber() string {
+	if x != nil {
+		return x.WithdrawNumber
+	}
+	return ""
+}
+
 // GetMyProfileResponse — réponse client enrichie avec données auth
 type GetMyProfileResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -747,6 +763,7 @@ type FullUserProfile struct {
 	TripPreferences            []*TripPreference      `protobuf:"bytes,19,rep,name=TripPreferences,proto3" json:"TripPreferences,omitempty"`
 	IDCardExpirationDate       string                 `protobuf:"bytes,20,opt,name=IDCardExpirationDate,proto3" json:"IDCardExpirationDate,omitempty"`
 	DriveLicenceExpirationDate string                 `protobuf:"bytes,21,opt,name=DriveLicenceExpirationDate,proto3" json:"DriveLicenceExpirationDate,omitempty"`
+	WithdrawNumber             string                 `protobuf:"bytes,22,opt,name=WithdrawNumber,proto3" json:"WithdrawNumber,omitempty"`
 	unknownFields              protoimpl.UnknownFields
 	sizeCache                  protoimpl.SizeCache
 }
@@ -924,6 +941,13 @@ func (x *FullUserProfile) GetIDCardExpirationDate() string {
 func (x *FullUserProfile) GetDriveLicenceExpirationDate() string {
 	if x != nil {
 		return x.DriveLicenceExpirationDate
+	}
+	return ""
+}
+
+func (x *FullUserProfile) GetWithdrawNumber() string {
+	if x != nil {
+		return x.WithdrawNumber
 	}
 	return ""
 }
@@ -1280,27 +1304,29 @@ const file_user_proto_rawDesc = "" +
 	"\x13CreateDriverAccount\x18\x02 \x01(\bR\x13CreateDriverAccount\"k\n" +
 	"\x19AddTripPreferencesRequest\x12\x16\n" +
 	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x126\n" +
-	"\vPreferences\x18\x02 \x03(\v2\x14.user.TripPreferenceR\vPreferences\"\xb3\x02\n" +
+	"\vPreferences\x18\x02 \x03(\v2\x14.user.TripPreferenceR\vPreferences\"\xf3\x02\n" +
 	"\x14UpdateProfileRequest\x12\x16\n" +
 	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12!\n" +
 	"\tFirstName\x18\x02 \x01(\tH\x00R\tFirstName\x88\x01\x01\x12\x1f\n" +
 	"\bLastName\x18\x03 \x01(\tH\x01R\bLastName\x88\x01\x01\x12!\n" +
 	"\tBirthDate\x18\x04 \x01(\tH\x02R\tBirthDate\x88\x01\x01\x12\x19\n" +
 	"\x05Email\x18\x05 \x01(\tH\x03R\x05Email\x88\x01\x01\x12%\n" +
-	"\vPhoneNumber\x18\x06 \x01(\tH\x04R\vPhoneNumber\x88\x01\x01B\f\n" +
+	"\vPhoneNumber\x18\x06 \x01(\tH\x04R\vPhoneNumber\x88\x01\x01\x12+\n" +
+	"\x0eWithdrawNumber\x18\b \x01(\tH\x05R\x0eWithdrawNumber\x88\x01\x01B\f\n" +
 	"\n" +
 	"_FirstNameB\v\n" +
 	"\t_LastNameB\f\n" +
 	"\n" +
 	"_BirthDateB\b\n" +
 	"\x06_EmailB\x0e\n" +
-	"\f_PhoneNumberJ\x04\b\a\x10\bR\x11ProfilePictureURL\"\x0f\n" +
+	"\f_PhoneNumberB\x11\n" +
+	"\x0f_WithdrawNumberJ\x04\b\a\x10\bR\x11ProfilePictureURL\"\x0f\n" +
 	"\rHealthRequest\"N\n" +
 	"\x0eTripPreference\x12\x1e\n" +
 	"\n" +
 	"Preference\x18\x01 \x01(\tR\n" +
 	"Preference\x12\x1c\n" +
-	"\tIsAllowed\x18\x02 \x01(\bR\tIsAllowed\"\x83\x05\n" +
+	"\tIsAllowed\x18\x02 \x01(\bR\tIsAllowed\"\xab\x05\n" +
 	"\x13UserProfileResponse\x12\x16\n" +
 	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12\x16\n" +
 	"\x06AuthID\x18\x02 \x01(\tR\x06AuthID\x12\x12\n" +
@@ -1318,10 +1344,11 @@ const file_user_proto_rawDesc = "" +
 	"\x1aIsPassengerProfileVerified\x18\r \x01(\bR\x1aIsPassengerProfileVerified\x12>\n" +
 	"\x0fTripPreferences\x18\x0e \x03(\v2\x14.user.TripPreferenceR\x0fTripPreferences\x122\n" +
 	"\x14IDCardExpirationDate\x18\x0f \x01(\tR\x14IDCardExpirationDate\x12>\n" +
-	"\x1aDriveLicenceExpirationDate\x18\x10 \x01(\tR\x1aDriveLicenceExpirationDate\"e\n" +
+	"\x1aDriveLicenceExpirationDate\x18\x10 \x01(\tR\x1aDriveLicenceExpirationDate\x12&\n" +
+	"\x0eWithdrawNumber\x18\x11 \x01(\tR\x0eWithdrawNumber\"e\n" +
 	"\x14GetMyProfileResponse\x12\"\n" +
 	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12)\n" +
-	"\x04User\x18\x02 \x01(\v2\x15.user.FullUserProfileR\x04User\"\xa3\x06\n" +
+	"\x04User\x18\x02 \x01(\v2\x15.user.FullUserProfileR\x04User\"\xcb\x06\n" +
 	"\x0fFullUserProfile\x12\x16\n" +
 	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\x12\x16\n" +
 	"\x06UserID\x18\x02 \x01(\tR\x06UserID\x12\x12\n" +
@@ -1344,7 +1371,8 @@ const file_user_proto_rawDesc = "" +
 	"\x11SuspensionEndDate\x18\x12 \x01(\tR\x11SuspensionEndDate\x12>\n" +
 	"\x0fTripPreferences\x18\x13 \x03(\v2\x14.user.TripPreferenceR\x0fTripPreferences\x122\n" +
 	"\x14IDCardExpirationDate\x18\x14 \x01(\tR\x14IDCardExpirationDate\x12>\n" +
-	"\x1aDriveLicenceExpirationDate\x18\x15 \x01(\tR\x1aDriveLicenceExpirationDate\"X\n" +
+	"\x1aDriveLicenceExpirationDate\x18\x15 \x01(\tR\x1aDriveLicenceExpirationDate\x12&\n" +
+	"\x0eWithdrawNumber\x18\x16 \x01(\tR\x0eWithdrawNumber\"X\n" +
 	"\bUserFile\x12\x16\n" +
 	"\x06FileID\x18\x01 \x01(\tR\x06FileID\x12\x18\n" +
 	"\aFileURL\x18\x02 \x01(\tR\aFileURL\x12\x1a\n" +

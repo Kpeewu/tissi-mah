@@ -72,6 +72,14 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer userClient.Close()
 	logger.Info("user-service client ready", zap.String("address", cfg.UserService.Addr()))
 
+	// --- Payment-service client ---
+	paymentClient, err := client.NewPaymentServiceClient(cfg.PaymentService.Addr(), logger)
+	if err != nil {
+		return fmt.Errorf("payment-service client: %w", err)
+	}
+	defer paymentClient.Close()
+	logger.Info("payment-service client ready", zap.String("address", cfg.PaymentService.Addr()))
+
 	// --- Redis (cache, graceful degradation) ---
 	var bookingCache *cache.BookingCache
 	redisClient, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.Redis.URL)
@@ -90,7 +98,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	// --- Booking service ---
 	bookingService := service.NewBookingService(
 		readRepo, writeRepo,
-		tripClient, userClient,
+		tripClient, userClient, paymentClient,
 		bookingCache,
 		cfg.ServiceFee.Percent,
 		logger,
@@ -99,6 +107,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	// --- Job de réconciliation (background) ---
 	if impl := service.AsImpl(bookingService); impl != nil {
 		go service.StartReconciliationJob(ctx, impl, cfg.Reconciliation.IntervalSeconds, logger)
+		go service.StartPaymentReleaseJob(ctx, impl, cfg.Payment.ReleaseWorkerIntervalSeconds, cfg.Payment.ContestationDelaySeconds, logger)
 	}
 
 	// --- gRPC server ---
