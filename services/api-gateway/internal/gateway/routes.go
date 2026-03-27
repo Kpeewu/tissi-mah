@@ -54,6 +54,15 @@ var ProtectedRoutes = map[string]bool{
 	"/booking/reportNoShow":         true,
 	"/booking/confirmPayment":       true,
 
+	// payment-service (protégé)
+	"/payment/createPayment":       true,
+	"/payment/getPaymentStatus":    true,
+	"/payment/getPaymentByBooking": true,
+	"/payment/getRefundStatus":     true,
+	"/payment/getPayoutStatus":     true,
+	"/payment/getDriverPayouts":    true,
+	// payment-service — webhooks, internal et health sont publics
+
 	// trips-service
 	"/trip/driver/createTrip":                true,
 	"/trip/driver/createRecurringTrip":       true,

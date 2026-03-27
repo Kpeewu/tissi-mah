@@ -18,13 +18,14 @@ import (
 )
 
 type bookingServiceImpl struct {
-	readRepo      repoInterfaces.BookingRepositoryRead
-	writeRepo     repoInterfaces.BookingRepositoryWrite
-	tripClient    client.TripClient
-	userClient    client.UserClient
-	cache         *cache.BookingCache
-	serviceFee    int // pourcentage
-	logger        *zap.Logger
+	readRepo       repoInterfaces.BookingRepositoryRead
+	writeRepo      repoInterfaces.BookingRepositoryWrite
+	tripClient     client.TripClient
+	userClient     client.UserClient
+	paymentClient  client.PaymentClient
+	cache          *cache.BookingCache
+	serviceFee     int // pourcentage
+	logger         *zap.Logger
 }
 
 func NewBookingService(
@@ -32,18 +33,20 @@ func NewBookingService(
 	writeRepo repoInterfaces.BookingRepositoryWrite,
 	tripClient client.TripClient,
 	userClient client.UserClient,
+	paymentClient client.PaymentClient,
 	bookingCache *cache.BookingCache,
 	serviceFeePercent int,
 	logger *zap.Logger,
 ) serviceInterfaces.BookingService {
 	return &bookingServiceImpl{
-		readRepo:   readRepo,
-		writeRepo:  writeRepo,
-		tripClient: tripClient,
-		userClient: userClient,
-		cache:      bookingCache,
-		serviceFee: serviceFeePercent,
-		logger:     logger,
+		readRepo:      readRepo,
+		writeRepo:     writeRepo,
+		tripClient:    tripClient,
+		userClient:    userClient,
+		paymentClient: paymentClient,
+		cache:         bookingCache,
+		serviceFee:    serviceFeePercent,
+		logger:        logger,
 	}
 }
 
@@ -351,6 +354,12 @@ func (s *bookingServiceImpl) RejectBooking(ctx context.Context, input *serviceIn
 	}
 
 	s.invalidateBookingCaches(ctx, input.BookingID)
+
+	// Demander le remboursement au payment-service (fire-and-forget)
+	if s.shouldRequestRefund(booking) {
+		go s.requestRefundAsync(booking, "bookingRejected", time.Now().UTC())
+	}
+
 	return nil
 }
 
@@ -379,6 +388,16 @@ func (s *bookingServiceImpl) CancelBooking(ctx context.Context, input *serviceIn
 	}
 
 	s.invalidateBookingCaches(ctx, input.BookingID)
+
+	// Demander le remboursement au payment-service (fire-and-forget)
+	if s.shouldRequestRefund(booking) {
+		reason := "cancelledByPassenger"
+		if input.UserID == booking.DriverID {
+			reason = "cancelledByDriver"
+		}
+		go s.requestRefundAsync(booking, reason, time.Now().UTC())
+	}
+
 	return nil
 }
 
@@ -445,6 +464,16 @@ func (s *bookingServiceImpl) ReportNoShow(ctx context.Context, input *serviceInt
 	}
 
 	s.invalidateBookingCaches(ctx, input.BookingID)
+
+	// Demander le remboursement au payment-service (fire-and-forget)
+	if s.shouldRequestRefund(booking) {
+		reason := "noShowPassenger"
+		if input.NoShowType == "driver" {
+			reason = "noShowDriver"
+		}
+		go s.requestRefundAsync(booking, reason, time.Now().UTC())
+	}
+
 	return nil
 }
 
@@ -678,6 +707,72 @@ func derefInt(i *int) int {
 		return 0
 	}
 	return *i
+}
+
+// =============================================================================
+// Payment integration helpers
+// =============================================================================
+
+// shouldRequestRefund vérifie si le booking nécessite un remboursement via payment-service.
+func (s *bookingServiceImpl) shouldRequestRefund(booking *domain.Booking) bool {
+	return s.paymentClient != nil &&
+		booking.PaymentMethod != domain.PaymentCash &&
+		booking.PaymentCompletedAt != nil
+}
+
+// requestRefundAsync appelle payment-service en fire-and-forget (goroutine).
+func (s *bookingServiceImpl) requestRefundAsync(booking *domain.Booking, reason string, cancelledAt time.Time) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Récupérer la date de départ depuis trips-service
+	departureDatetime := s.getDepartureDatetime(ctx, booking)
+
+	input := &client.RefundInput{
+		BookingID:         booking.BookingID,
+		RefundReason:      reason,
+		OriginalAmount:    booking.Subtotal,
+		ServiceFee:        booking.ServiceFee,
+		DepartureDatetime: departureDatetime,
+		ApprovedAt:        formatTimeOptional(booking.ApprovedAt),
+		CancelledAt:       cancelledAt.Format(time.RFC3339),
+	}
+
+	if err := s.paymentClient.RequestRefund(ctx, input); err != nil {
+		s.logger.Error("requestRefundAsync: payment-service call failed",
+			zap.String("bookingID", booking.BookingID),
+			zap.String("reason", reason),
+			zap.Error(err),
+		)
+	} else {
+		s.logger.Info("refund requested successfully",
+			zap.String("bookingID", booking.BookingID),
+			zap.String("reason", reason),
+		)
+	}
+}
+
+// getDepartureDatetime récupère la date de départ du waypoint de pickup.
+func (s *bookingServiceImpl) getDepartureDatetime(ctx context.Context, booking *domain.Booking) string {
+	tripDetails, err := s.tripClient.GetTripDetails(ctx, booking.TripID)
+	if err != nil || tripDetails == nil {
+		s.logger.Warn("getDepartureDatetime: cannot fetch trip details",
+			zap.String("tripID", booking.TripID), zap.Error(err),
+		)
+		return ""
+	}
+
+	for _, wp := range tripDetails.Waypoints {
+		if wp.WaypointID == booking.PickupWaypointID {
+			return wp.ScheduledPickupDatetime
+		}
+	}
+
+	s.logger.Warn("getDepartureDatetime: pickup waypoint not found",
+		zap.String("tripID", booking.TripID),
+		zap.String("pickupWaypointID", booking.PickupWaypointID),
+	)
+	return ""
 }
 
 // =============================================================================

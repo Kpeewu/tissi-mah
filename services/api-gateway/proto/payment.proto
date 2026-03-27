@@ -1,0 +1,248 @@
+syntax = "proto3";
+
+package payment;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/paymentpb;paymentpb";
+
+import "google/api/annotations.proto";
+
+// =============================================================================
+// PaymentService — gère les paiements, remboursements et payouts
+// =============================================================================
+
+service PaymentService {
+
+  // CreatePayment crée un paiement pour une réservation et initie la transaction FedaPay
+  rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse) {
+    option (google.api.http) = {
+      post: "/payment/createPayment"
+      body: "*"
+    };
+  }
+
+  // GetPaymentStatus retourne le statut d'un paiement
+  rpc GetPaymentStatus(GetPaymentStatusRequest) returns (GetPaymentStatusResponse) {
+    option (google.api.http) = {
+      get: "/payment/getPaymentStatus"
+    };
+  }
+
+  // GetPaymentByBooking retourne le paiement associé à une réservation
+  rpc GetPaymentByBooking(GetPaymentByBookingRequest) returns (GetPaymentByBookingResponse) {
+    option (google.api.http) = {
+      get: "/payment/getPaymentByBooking"
+    };
+  }
+
+  // ProcessWebhook traite les webhooks FedaPay (public, vérifié par HMAC)
+  rpc ProcessWebhook(ProcessWebhookRequest) returns (ProcessWebhookResponse) {
+    option (google.api.http) = {
+      post: "/payment/webhooks/fedapay"
+      body: "*"
+    };
+  }
+
+  // RequestRefund crée un remboursement (interne — appelé par booking-service)
+  rpc RequestRefund(RequestRefundRequest) returns (RequestRefundResponse) {
+    option (google.api.http) = {
+      post: "/payment/internal/requestRefund"
+      body: "*"
+    };
+  }
+
+  // GetRefundStatus retourne le statut d'un remboursement
+  rpc GetRefundStatus(GetRefundStatusRequest) returns (GetRefundStatusResponse) {
+    option (google.api.http) = {
+      get: "/payment/getRefundStatus"
+    };
+  }
+
+  // ReleasePayment libère un paiement held après le délai de contestation (interne)
+  rpc ReleasePayment(ReleasePaymentRequest) returns (ReleasePaymentResponse) {
+    option (google.api.http) = {
+      post: "/payment/internal/releasePayment"
+      body: "*"
+    };
+  }
+
+  // GetPayoutStatus retourne le statut d'un payout chauffeur
+  rpc GetPayoutStatus(GetPayoutStatusRequest) returns (GetPayoutStatusResponse) {
+    option (google.api.http) = {
+      get: "/payment/getPayoutStatus"
+    };
+  }
+
+  // GetDriverPayouts retourne les payouts d'un chauffeur
+  rpc GetDriverPayouts(GetDriverPayoutsRequest) returns (GetDriverPayoutsResponse) {
+    option (google.api.http) = {
+      get: "/payment/getDriverPayouts"
+    };
+  }
+
+  // Health vérifie l'état du service
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/payment/health"
+    };
+  }
+}
+
+// =============================================================================
+// Request Messages
+// =============================================================================
+
+message CreatePaymentRequest {
+  string BookingId           = 1;
+  string TripId              = 2;
+  string PaymentMethod       = 3; // mobileMoney | card | paypal
+  int32  Amount              = 4;
+  string PassengerPhoneNumber = 5;
+  string MobileMoneyMode     = 6; // moov_tg | togocel
+}
+
+message GetPaymentStatusRequest {
+  string PaymentId = 1;
+}
+
+message GetPaymentByBookingRequest {
+  string BookingId = 1;
+}
+
+message ProcessWebhookRequest {
+  string Signature  = 1;
+  bytes  RawPayload = 2;
+}
+
+message RequestRefundRequest {
+  string BookingId         = 1;
+  string RefundReason      = 2; // cancelledByDriver | cancelledByPassenger | noShowDriver | etc.
+  int32  OriginalAmount    = 3;
+  int32  ServiceFee        = 4;
+  string DepartureDatetime = 5; // RFC3339
+  string ApprovedAt        = 6; // RFC3339, optionnel
+  string CancelledAt       = 7; // RFC3339
+}
+
+message GetRefundStatusRequest {
+  string RefundId = 1;
+}
+
+message ReleasePaymentRequest {
+  string BookingId = 1;
+}
+
+message GetPayoutStatusRequest {
+  string PayoutId = 1;
+}
+
+message GetDriverPayoutsRequest {
+  string DriverId  = 1;
+  int32  PageIndex = 2;
+}
+
+message HealthRequest {}
+
+// =============================================================================
+// Response Messages
+// =============================================================================
+
+message CreatePaymentResponse {
+  string PaymentId        = 1;
+  string PaymentReference = 2;
+  string Status           = 3;
+  string ErrorMessage     = 4;
+}
+
+message GetPaymentStatusResponse {
+  string PaymentId        = 1;
+  string BookingId        = 2;
+  int32  Amount           = 3;
+  string PaymentMethod    = 4;
+  string Status           = 5;
+  string PaymentReference = 6;
+  string CreatedAt        = 7;
+  string CompletedAt      = 8;
+  string ErrorMessage     = 9;
+}
+
+message GetPaymentByBookingResponse {
+  string PaymentId        = 1;
+  string BookingId        = 2;
+  int32  Amount           = 3;
+  string PaymentMethod    = 4;
+  string Status           = 5;
+  string PaymentReference = 6;
+  string CreatedAt        = 7;
+  string ErrorMessage     = 8;
+}
+
+message ProcessWebhookResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+message RequestRefundResponse {
+  string RefundId        = 1;
+  string RefundReference = 2;
+  string Status          = 3;
+  int32  RefundAmount    = 4;
+  string ErrorMessage    = 5;
+}
+
+message GetRefundStatusResponse {
+  string RefundId         = 1;
+  string BookingId        = 2;
+  string RefundReason     = 3;
+  string RefundRule       = 4;
+  int32  OriginalAmount   = 5;
+  int32  RefundPercentage = 6;
+  int32  RefundAmount     = 7;
+  int32  AmountToPassenger = 8;
+  int32  AmountToDriver   = 9;
+  int32  AmountToPlatform = 10;
+  string Status           = 11;
+  string ProcessedAt      = 12;
+  string CompletedAt      = 13;
+  string ErrorMessage     = 14;
+}
+
+message ReleasePaymentResponse {
+  bool   Success      = 1;
+  string Status       = 2;
+  string ErrorMessage = 3;
+}
+
+message GetPayoutStatusResponse {
+  string PayoutId        = 1;
+  string DriverId        = 2;
+  string TripId          = 3;
+  int32  GrossAmount     = 4;
+  int32  PlatformFee     = 5;
+  int32  NetAmount       = 6;
+  string Status          = 7;
+  string ScheduledAt     = 8;
+  string CompletedAt     = 9;
+  string FailureReason   = 10;
+  string ErrorMessage    = 11;
+}
+
+message GetDriverPayoutsResponse {
+  repeated PayoutPreview Payouts = 1;
+  string ErrorMessage            = 2;
+}
+
+message PayoutPreview {
+  string PayoutId        = 1;
+  string PayoutReference = 2;
+  string TripId          = 3;
+  int32  NetAmount       = 4;
+  string Status          = 5;
+  string CompletedAt     = 6;
+  string CreatedAt       = 7;
+}
+
+message HealthResponse {
+  string Status    = 1;
+  string Version   = 2;
+  int64  Timestamp = 3;
+}

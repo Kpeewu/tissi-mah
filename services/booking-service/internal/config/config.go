@@ -9,15 +9,17 @@ import (
 
 // Config contient toute la configuration du booking-service.
 type Config struct {
-	Server        ServerConfig
-	Environment   EnvironmentConfig
-	Database      DatabaseConfig
-	Redis         RedisConfig
-	TripService   ServiceEndpoint
-	UserService   ServiceEndpoint
-	ServiceFee    ServiceFeeConfig
+	Server         ServerConfig
+	Environment    EnvironmentConfig
+	Database       DatabaseConfig
+	Redis          RedisConfig
+	TripService    ServiceEndpoint
+	UserService    ServiceEndpoint
+	PaymentService ServiceEndpoint
+	ServiceFee     ServiceFeeConfig
 	Reconciliation ReconciliationConfig
-	LogLevel      string
+	Payment        PaymentConfig
+	LogLevel       string
 }
 
 // ServerConfig contient la configuration du serveur gRPC.
@@ -62,6 +64,12 @@ type ReconciliationConfig struct {
 	IntervalSeconds int
 }
 
+// PaymentConfig contient la configuration liée au paiement.
+type PaymentConfig struct {
+	ContestationDelaySeconds     int
+	ReleaseWorkerIntervalSeconds int
+}
+
 // Load charge la configuration depuis les variables d'environnement.
 func Load() (*Config, error) {
 	values, err := sharedconfig.Load("")
@@ -94,8 +102,16 @@ func Load() (*Config, error) {
 		ServiceFee: ServiceFeeConfig{
 			Percent: getIntOrDefault(values, "SERVICE_FEE_PERCENT", 10),
 		},
+		PaymentService: ServiceEndpoint{
+			Host: sharedconfig.GetStringOrDefault(values, "PAYMENT_SERVICE_HOST", "0.0.0.0"),
+			Port: sharedconfig.GetStringOrDefault(values, "PAYMENT_SERVICE_PORT", "50059"),
+		},
 		Reconciliation: ReconciliationConfig{
 			IntervalSeconds: getIntOrDefault(values, "RECONCILIATION_INTERVAL_SECONDS", 300),
+		},
+		Payment: PaymentConfig{
+			ContestationDelaySeconds:     getIntOrDefault(values, "CONTESTATION_DELAY_SECONDS", 7200),
+			ReleaseWorkerIntervalSeconds: getIntOrDefault(values, "RELEASE_WORKER_INTERVAL_SECONDS", 60),
 		},
 		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
 	}

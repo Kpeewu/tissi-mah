@@ -15,6 +15,7 @@ import (
 
 	authpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/authpb"
 	bookingpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/bookingpb"
+	paymentpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/paymentpb"
 	filepb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/filepb"
 	kycpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/kycpb"
 	ratingpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb"
@@ -33,6 +34,7 @@ type MuxConfig struct {
 	TripsServiceAddr   string
 	KYCServiceAddr     string
 	BookingServiceAddr string
+	PaymentServiceAddr string
 	Logger             *zap.Logger
 }
 
@@ -135,6 +137,12 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		return nil, err
 	}
 	cfg.Logger.Info("registered booking-service handler", zap.String("endpoint", cfg.BookingServiceAddr))
+
+	// Enregistrer payment-service
+	if err := paymentpb.RegisterPaymentServiceHandlerFromEndpoint(ctx, mux, cfg.PaymentServiceAddr, dialOpts); err != nil {
+		return nil, err
+	}
+	cfg.Logger.Info("registered payment-service handler", zap.String("endpoint", cfg.PaymentServiceAddr))
 
 	return mux, nil
 }

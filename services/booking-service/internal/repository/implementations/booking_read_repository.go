@@ -3,6 +3,7 @@ package implementations
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/domain"
 	i "github.com/Kpeewu/tissi-mah/services/booking-service/internal/repository/interfaces"
@@ -33,7 +34,7 @@ func (r *bookingReadRepositoryImpl) GetByID(ctx context.Context, bookingID strin
 		       payment_completed_at, approved_at, rejected_at, cancelled_at, completed_at,
 		       canceller_id, cancellation_reason,
 		       no_show_type, no_show_reported_by, no_show_reported_at, no_show_description,
-		       created_at, updated_at
+		       payment_released_at, created_at, updated_at
 		FROM bookings
 		WHERE booking_id = $1`
 
@@ -46,7 +47,7 @@ func (r *bookingReadRepositoryImpl) GetByID(ctx context.Context, bookingID strin
 		&b.PaymentCompletedAt, &b.ApprovedAt, &b.RejectedAt, &b.CancelledAt, &b.CompletedAt,
 		&b.CancellerID, &b.CancellationReason,
 		&b.NoShowType, &b.NoShowReportedBy, &b.NoShowReportedAt, &b.NoShowDescription,
-		&b.CreatedAt, &b.UpdatedAt,
+		&b.PaymentReleasedAt, &b.CreatedAt, &b.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -327,4 +328,52 @@ func (r *bookingReadRepositoryImpl) GetActiveTripsWithBookings(ctx context.Conte
 	}
 
 	return tripIDs, nil
+}
+
+// GetCompletedBookingsPendingRelease retourne les bookings complétés non-cash
+// dont le paiement n'a pas encore été libéré et dont la complétion est antérieure à completedBefore.
+func (r *bookingReadRepositoryImpl) GetCompletedBookingsPendingRelease(ctx context.Context, completedBefore time.Time) ([]*domain.Booking, error) {
+	query := `
+		SELECT booking_id, booking_reference, trip_id, passenger_id, driver_id,
+		       pickup_waypoint_id, dropoff_waypoint_id, seats_booked,
+		       price_per_seat, subtotal, service_fee, total_amount,
+		       payment_method, status,
+		       payment_completed_at, approved_at, rejected_at, cancelled_at, completed_at,
+		       canceller_id, cancellation_reason,
+		       no_show_type, no_show_reported_by, no_show_reported_at, no_show_description,
+		       payment_released_at, created_at, updated_at
+		FROM bookings
+		WHERE status = 'completed'
+		  AND payment_method != 'cash'
+		  AND payment_completed_at IS NOT NULL
+		  AND completed_at <= $1
+		  AND payment_released_at IS NULL`
+
+	rows, err := r.pool.Query(ctx, query, completedBefore)
+	if err != nil {
+		r.logger.Error("GetCompletedBookingsPendingRelease failed", zap.Error(err))
+		return nil, bookingErrors.ErrorDataRetrievalFailed
+	}
+	defer rows.Close()
+
+	var bookings []*domain.Booking
+	for rows.Next() {
+		b := &domain.Booking{}
+		if err := rows.Scan(
+			&b.BookingID, &b.BookingReference, &b.TripID, &b.PassengerID, &b.DriverID,
+			&b.PickupWaypointID, &b.DropoffWaypointID, &b.SeatsBooked,
+			&b.PricePerSeat, &b.Subtotal, &b.ServiceFee, &b.TotalAmount,
+			&b.PaymentMethod, &b.Status,
+			&b.PaymentCompletedAt, &b.ApprovedAt, &b.RejectedAt, &b.CancelledAt, &b.CompletedAt,
+			&b.CancellerID, &b.CancellationReason,
+			&b.NoShowType, &b.NoShowReportedBy, &b.NoShowReportedAt, &b.NoShowDescription,
+			&b.PaymentReleasedAt, &b.CreatedAt, &b.UpdatedAt,
+		); err != nil {
+			r.logger.Error("GetCompletedBookingsPendingRelease scan failed", zap.Error(err))
+			return nil, bookingErrors.ErrorDataRetrievalFailed
+		}
+		bookings = append(bookings, b)
+	}
+
+	return bookings, nil
 }

@@ -34,4 +34,7 @@ type BookingRepositoryWrite interface {
 	// ConfirmPayment confirme le paiement d'une réservation.
 	// Retourne le nouveau statut et autoApprove du trajet associé.
 	ConfirmPayment(ctx context.Context, bookingID, transactionID string) error
+
+	// MarkPaymentReleased marque le paiement d'un booking comme libéré.
+	MarkPaymentReleased(ctx context.Context, bookingID string) error
 }

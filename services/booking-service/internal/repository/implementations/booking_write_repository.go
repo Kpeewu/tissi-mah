@@ -519,3 +519,19 @@ func (r *bookingWriteRepositoryImpl) insertHistoryInTx(ctx context.Context, tx p
 
 	return nil
 }
+
+// MarkPaymentReleased marque le paiement d'un booking comme libéré.
+func (r *bookingWriteRepositoryImpl) MarkPaymentReleased(ctx context.Context, bookingID string) error {
+	query := `UPDATE bookings SET payment_released_at = NOW() WHERE booking_id = $1`
+
+	tag, err := r.pool.Exec(ctx, query, bookingID)
+	if err != nil {
+		r.logger.Error("MarkPaymentReleased failed", zap.Error(err), zap.String("bookingID", bookingID))
+		return bookingErrors.ErrorInternalServer
+	}
+	if tag.RowsAffected() == 0 {
+		return bookingErrors.ErrorBookingNotFound
+	}
+
+	return nil
+}

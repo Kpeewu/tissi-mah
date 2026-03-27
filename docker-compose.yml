@@ -299,6 +299,47 @@ services:
     networks:
       - tissi-mah-network
 
+  # PostgreSQL pour Payment Service
+  payment-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-payment-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_PAYMENT_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PAYMENT_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_PAYMENT_DB:-payment_db}
+    ports:
+      - "5439:5432"
+    volumes:
+      - payment_postgres_data:/var/lib/postgresql/data
+      - ./services/payment-service/migrations/up:/docker-entrypoint-initdb.d
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_PAYMENT_USER:-dev} -d ${POSTGRES_PAYMENT_DB:-payment_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour Payment Service
+  payment-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-payment-redis
+    ports:
+      - "6388:6379"
+    volumes:
+      - payment_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
   # MinIO - Stockage S3 compatible (dev local)
   minio:
     image: minio/minio:latest
@@ -352,6 +393,8 @@ volumes:
   trips_redis_data:
   booking_postgres_data:
   booking_redis_data:
+  payment_postgres_data:
+  payment_redis_data:
   minio_data:
 
 networks:
