@@ -6,6 +6,7 @@ import (
 
 	firebase "firebase.google.com/go/v4"
 	firebaseAuth "firebase.google.com/go/v4/auth"
+	"google.golang.org/api/option"
 )
 
 // JWTValidator valide les tokens Firebase JWT et extrait le Firebase UID
@@ -19,7 +20,7 @@ type JWTValidator struct {
 func NewJWTValidator(ctx context.Context, projectID string) (*JWTValidator, error) {
 	cfg := &firebase.Config{ProjectID: projectID}
 
-	app, err := firebase.NewApp(ctx, cfg)
+	app, err := firebase.NewApp(ctx, cfg, option.WithoutAuthentication())
 	if err != nil {
 		return nil, fmt.Errorf("firebase: failed to initialize app: %w", err)
 	}
