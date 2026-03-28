@@ -145,9 +145,8 @@ jobs:
 
       - name: Create secrets override file
         env:
-          # api-gateway secrets (Firebase credentials shared with auth)
+          # api-gateway secrets
           GW_REDIS_URL: ${{ secrets.GW_REDIS_URL }}
-          FIREBASE_CREDENTIALS: ${{ secrets.AUTH_FIREBASE_CREDENTIALS }}
           FIREBASE_PROJECT_ID: ${{ secrets.AUTH_FIREBASE_PROJECT_ID }}
           # auth-service secrets
           AUTH_DATABASE_URL: ${{ secrets.AUTH_DATABASE_URL }}
@@ -189,20 +188,9 @@ jobs:
           service = "${{ matrix.service }}"
 
           if service == "api-gateway":
-              firebase_creds = os.environ.get('FIREBASE_CREDENTIALS', '').strip()
-              if firebase_creds:
-                  try:
-                      firebase_creds = json.dumps(json.loads(firebase_creds))
-                  except json.JSONDecodeError as e:
-                      print(f"ERROR: FIREBASE_CREDENTIALS is not valid JSON: {e}", file=sys.stderr)
-                      sys.exit(1)
-              else:
-                  print("WARNING: FIREBASE_CREDENTIALS is empty", file=sys.stderr)
-
               data = {
                   'secrets': {
                       'redisUrl': os.environ.get('GW_REDIS_URL', ''),
-                      'firebaseCredentials': firebase_creds,
                       'firebaseProjectId': os.environ.get('FIREBASE_PROJECT_ID', ''),
                   },
               }
@@ -424,9 +412,8 @@ jobs:
 # Prerequis:
 #   1. Secret GitHub: VPS_KUBECONFIG (kubeconfig VPS encode en base64)
 #
-#   2. Secrets Firebase (partages entre api-gateway et auth-service):
-#      - AUTH_FIREBASE_CREDENTIALS : contenu JSON du service account Firebase
-#      - AUTH_FIREBASE_PROJECT_ID  : ID du projet Firebase
+#   2. Secret Firebase:
+#      - AUTH_FIREBASE_PROJECT_ID  : ID du projet Firebase (seul requis, pas de credentials)
 #
 #   3. Secrets GitHub pour api-gateway:
 #      - GW_REDIS_URL : redis://host:6379

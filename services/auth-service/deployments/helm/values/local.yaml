@@ -41,7 +41,6 @@ secrets:
   databaseUrl: "postgresql://postgres:postgres@auth-postgres:5432/auth_db?sslmode=disable"
   redisUrl: "redis://redis:6379/0"
   jwtSecret: "local-dev-secret-change-in-production"
-  firebaseCredentials: ""
   extra: {}
 
 probes:
