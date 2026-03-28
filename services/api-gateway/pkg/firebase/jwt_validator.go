@@ -6,6 +6,7 @@ import (
 
 	firebase "firebase.google.com/go/v4"
 	firebaseAuth "firebase.google.com/go/v4/auth"
+	"google.golang.org/api/option"
 )
 
 // JWTValidator valide les tokens Firebase JWT et extrait le Firebase UID
