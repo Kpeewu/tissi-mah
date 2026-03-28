@@ -51,7 +51,6 @@ config:
 
 secrets:
   redisUrl: ""
-  firebaseCredentials: ""
   firebaseProjectId: ""
   extra: {}
 

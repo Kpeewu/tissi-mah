@@ -51,7 +51,6 @@ config:
 # Secrets MUST be provided via AWS Secrets Manager or external secret management
 secrets:
   redisUrl: ""
-  firebaseCredentials: ""
   firebaseProjectId: ""
   extra: {}
 
