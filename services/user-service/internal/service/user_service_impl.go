@@ -104,6 +104,31 @@ func (s *userServiceImpl) GetUserByUserID(ctx context.Context, userID string) (*
 	return user, nil
 }
 
+// SoftDeleteUser anonymise et soft-delete le profil utilisateur (appelé par auth-service)
+func (s *userServiceImpl) SoftDeleteUser(ctx context.Context, authID string) error {
+	s.logger.Debug("suppression profil utilisateur", zap.String("auth_id", authID))
+
+	if authID == "" {
+		return userErrors.ErrorInvalidUserID
+	}
+
+	user, err := s.readRepo.GetByAuthID(ctx, authID)
+	if err != nil {
+		s.logger.Error("échec de la récupération du profil pour suppression", zap.Error(err), zap.String("auth_id", authID))
+		return err
+	}
+
+	user.AnonymizeAndDelete()
+
+	if err := s.writeRepo.AnonymizeAndDelete(ctx, user); err != nil {
+		s.logger.Error("échec de l'anonymisation du profil", zap.Error(err), zap.String("auth_id", authID))
+		return err
+	}
+
+	s.logger.Info("profil utilisateur anonymisé et supprimé", zap.String("user_id", user.UserID), zap.String("auth_id", authID))
+	return nil
+}
+
 // GetMyProfile récupère le profil complet de l'utilisateur connecté avec enrichissement auth
 func (s *userServiceImpl) GetMyProfile(ctx context.Context) (*serviceInterfaces.FullProfile, error) {
 	s.logger.Debug("récupération du profil de l'utilisateur connecté")

@@ -28,6 +28,9 @@ service UserService {
   // GetUserByUserID - Récupère le profil utilisateur par son UserID interne
   rpc GetUserByUserID(GetUserByUserIDRequest) returns (UserProfileResponse);
 
+  // SoftDeleteUser - Anonymise et soft-delete le profil utilisateur
+  rpc SoftDeleteUser(SoftDeleteUserRequest) returns (OperationResponse);
+
   // Client-facing RPCs (JWT Firebase requis)
 
   // GetMyProfile - Récupère le profil complet de l'utilisateur connecté
@@ -96,6 +99,10 @@ message GetUserByAuthIDRequest {
 
 message GetUserByUserIDRequest {
   string UserID = 1;
+}
+
+message SoftDeleteUserRequest {
+  string AuthID = 1;
 }
 
 // =============================================================================

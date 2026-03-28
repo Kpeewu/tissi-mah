@@ -49,6 +49,8 @@ type UserService interface {
 	GetUserByAuthID(ctx context.Context, authID string) (*domain.User, error)
 	GetUserByUserID(ctx context.Context, userID string) (*domain.User, error)
 
+	SoftDeleteUser(ctx context.Context, authID string) error
+
 	// Client-facing
 	GetMyProfile(ctx context.Context) (*FullProfile, error)
 	CreateDriverAccount(ctx context.Context, profileID string, createDriver bool) error

@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // TripPreference représente une préférence de trajet individuelle
 type TripPreference struct {
@@ -52,4 +55,26 @@ func (u *User) SetTripPreferences(preferences []TripPreference) {
 // IsDeleted vérifie si le profil a été soft-deleted
 func (u *User) IsDeleted() bool {
 	return u.DeletedAt != nil
+}
+
+// AnonymizeAndDelete anonymise les données personnelles et marque le profil comme supprimé
+func (u *User) AnonymizeAndDelete() {
+	u.FirebaseID = ""
+	u.Name = fmt.Sprintf("deleted_%s", u.UserID[:8])
+	u.FirstName = ""
+	u.Gender = ""
+	u.DateOfBirth = ""
+	u.Bio = ""
+	u.ProfileImageURL = ""
+	u.HasProfileImage = false
+	u.WithdrawNumber = ""
+	u.TripPreferences = nil
+	u.IsDriver = false
+	u.IsPassenger = false
+	u.IsDriverProfileVerified = false
+	u.IsPassengerProfileVerified = false
+
+	now := time.Now().UTC()
+	u.DeletedAt = &now
+	u.UpdatedAt = now
 }

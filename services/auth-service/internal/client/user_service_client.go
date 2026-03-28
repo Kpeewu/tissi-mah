@@ -85,6 +85,21 @@ func (c *UserServiceClient) GetUserByAuthID(ctx context.Context, authID string) 
 	return toUserPreview(resp), nil
 }
 
+// SoftDeleteUser anonymise et soft-delete le profil utilisateur dans user-service.
+func (c *UserServiceClient) SoftDeleteUser(ctx context.Context, authID string) error {
+	c.logger.Debug("client: SoftDeleteUser called", zap.String("authID", authID))
+	_, err := c.grpcClient.SoftDeleteUser(ctx, &userpb.SoftDeleteUserRequest{
+		AuthID: authID,
+	})
+	if err != nil {
+		c.logger.Error("client: SoftDeleteUser failed", zap.Error(err), zap.String("authID", authID))
+		return fmt.Errorf("user-service: SoftDeleteUser failed: %w", err)
+	}
+
+	c.logger.Debug("client: SoftDeleteUser success", zap.String("authID", authID))
+	return nil
+}
+
 // toUserPreview convertit la réponse user-service en domaine UserPreview.
 // Email et PhoneNumber ne sont pas dans la réponse user-service — ils seront
 // enrichis par auth-service à partir de son propre repository.

@@ -76,6 +76,20 @@ func (h *UserHandler) GetUserByUserID(ctx context.Context, req *userpb.GetUserBy
 	return toProtoUserProfile(user), nil
 }
 
+// SoftDeleteUser anonymise et soft-delete le profil utilisateur (appelé par auth-service)
+func (h *UserHandler) SoftDeleteUser(ctx context.Context, req *userpb.SoftDeleteUserRequest) (*userpb.OperationResponse, error) {
+	h.logger.Debug("SoftDeleteUser appelé", zap.String("auth_id", req.AuthID))
+
+	err := h.service.SoftDeleteUser(ctx, req.AuthID)
+	if err != nil {
+		h.logger.Error("SoftDeleteUser échoué", zap.Error(err), zap.String("auth_id", req.AuthID))
+		return nil, toGRPCError(err)
+	}
+
+	h.logger.Info("SoftDeleteUser réussi", zap.String("auth_id", req.AuthID))
+	return &userpb.OperationResponse{Success: true}, nil
+}
+
 // --- Client-facing RPCs ---
 
 // GetMyProfile récupère le profil complet de l'utilisateur connecté
