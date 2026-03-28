@@ -13,6 +13,7 @@ import (
 
 	postgresHelper "github.com/Kpeewu/tissi-mah/pkg-test/postgres"
 	grpcHandler "github.com/Kpeewu/tissi-mah/services/rating-service/internal/grpc"
+	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/middleware"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/repository/implementations"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/service"
 	ratingpb "github.com/Kpeewu/tissi-mah/services/rating-service/proto/gen"
@@ -74,7 +75,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	srv := grpc.NewServer()
+	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.RatingInterceptor()))
 	handler := grpcHandler.NewRatingHandler(ratingService, logger)
 	ratingpb.RegisterRatingServiceServer(srv, handler)
 
