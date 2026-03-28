@@ -15,8 +15,11 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/userProfile/addTripPreferences":  true,
 	"/api/v1/userProfile/updateProfile":       true,
 
-	// rating-service — tous les endpoints publics (rater_id dans le body)
-	// TODO: re-enable JWT protection once Firebase JWT is fully integrated
+	// rating-service
+	"/api/v1/ratings/rateUser":                    true,
+	"/api/v1/ratings/user/getUserRatings":         true,
+	"/api/v1/ratings/user/getUserRatingsAverage":  true,
+	"/api/v1/ratings/updateRating":                true,
 
 	// file-service
 	"/file/uploadIdDocument":       true,
