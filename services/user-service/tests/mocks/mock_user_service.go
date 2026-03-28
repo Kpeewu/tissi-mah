@@ -69,3 +69,8 @@ func (m *MockUserService) ChangeProfilePicture(ctx context.Context, userID strin
 	}
 	return args.Get(0).(*serviceInterfaces.FullProfile), args.Error(1)
 }
+
+func (m *MockUserService) SoftDeleteUser(ctx context.Context, authID string) error {
+	args := m.Called(ctx, authID)
+	return args.Error(0)
+}

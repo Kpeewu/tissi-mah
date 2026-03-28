@@ -66,26 +66,22 @@ func (r *userWriteRepository) Update(ctx context.Context, user *domain.User) (*d
 	return &updated, nil
 }
 
-// Delete effectue un soft-delete sur le document utilisateur
-func (r *userWriteRepository) Delete(ctx context.Context, userID string) error {
-	r.logger.Debug("suppression utilisateur (soft-delete)", zap.String("user_id", userID))
+// AnonymizeAndDelete anonymise les données personnelles et effectue un soft-delete
+func (r *userWriteRepository) AnonymizeAndDelete(ctx context.Context, user *domain.User) error {
+	r.logger.Debug("anonymisation et suppression utilisateur", zap.String("user_id", user.UserID))
 
-	now := time.Now().UTC()
-	filter := bson.M{"user_id": userID, "deleted_at": nil}
-	update := bson.M{"$set": bson.M{
-		"deleted_at": now,
-		"updated_at": now,
-	}}
+	filter := bson.M{"user_id": user.UserID, "deleted_at": nil}
+	update := bson.M{"$set": user}
 
 	result, err := r.collection.UpdateOne(ctx, filter, update)
 	if err != nil {
-		r.logger.Error("erreur lors du soft-delete MongoDB", zap.Error(err), zap.String("user_id", userID))
+		r.logger.Error("erreur lors de l'anonymisation MongoDB", zap.Error(err), zap.String("user_id", user.UserID))
 		return userErrors.ErrorInternalServer
 	}
 	if result.MatchedCount == 0 {
 		return userErrors.ErrorUserNotFound
 	}
 
-	r.logger.Info("utilisateur supprimé avec succès (soft-delete)", zap.String("user_id", userID))
+	r.logger.Info("utilisateur anonymisé et supprimé avec succès", zap.String("user_id", user.UserID))
 	return nil
 }
