@@ -17,7 +17,9 @@ const FirebaseIDKey contextKey = "firebaseID"
 
 // Routes gRPC publiques (pas de JWT requis)
 var publicMethods = map[string]bool{
-	"/rating.RatingService/Health": true,
+	"/rating.RatingService/Health":  true,
+	"/grpc.health.v1.Health/Check":  true, // Readiness probe Kubernetes
+	"/grpc.health.v1.Health/Watch":  true, // Liveness probe Kubernetes
 }
 
 // RatingInterceptor retourne un intercepteur gRPC unaire qui :

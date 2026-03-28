@@ -21,6 +21,8 @@ var publicMethods = map[string]bool{
 	"/payment.PaymentService/ProcessWebhook": true, // Webhook FedaPay (vérifié par HMAC)
 	"/payment.PaymentService/RequestRefund":  true, // Route interne (booking-service)
 	"/payment.PaymentService/ReleasePayment": true, // Route interne (booking-service)
+	"/grpc.health.v1.Health/Check":           true, // Readiness probe Kubernetes
+	"/grpc.health.v1.Health/Watch":           true, // Liveness probe Kubernetes
 }
 
 // PaymentInterceptor retourne un intercepteur gRPC unaire qui :
