@@ -18,10 +18,10 @@ import (
 // =============================================================================
 
 func TestE2E_RateUser(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 
 	t.Run("succès - créer une note via gRPC", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		resp, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
 			RaterId:       "e2e-rater-001",
@@ -47,7 +47,7 @@ func TestE2E_RateUser(t *testing.T) {
 	})
 
 	t.Run("erreur - auto-notation", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
 			RaterId:       "same-user",
@@ -63,7 +63,7 @@ func TestE2E_RateUser(t *testing.T) {
 	})
 
 	t.Run("erreur - étoiles invalides (0)", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
 			RaterId:       "e2e-rater",
@@ -77,7 +77,7 @@ func TestE2E_RateUser(t *testing.T) {
 	})
 
 	t.Run("erreur - étoiles invalides (6)", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
 			RaterId:       "e2e-rater",
@@ -91,7 +91,7 @@ func TestE2E_RateUser(t *testing.T) {
 	})
 
 	t.Run("erreur - rater_id vide", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
 			UserRatedId:   "e2e-rated",
@@ -105,7 +105,7 @@ func TestE2E_RateUser(t *testing.T) {
 	})
 
 	t.Run("erreur - user_rated_id vide", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
 			RaterId:       "e2e-rater",
@@ -119,7 +119,7 @@ func TestE2E_RateUser(t *testing.T) {
 	})
 
 	t.Run("erreur - note déjà existante pour ce couple", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		// Première note : OK
 		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
@@ -147,10 +147,10 @@ func TestE2E_RateUser(t *testing.T) {
 // =============================================================================
 
 func TestE2E_GetUserRatings(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 
 	t.Run("succès - récupère toutes les notes d'un utilisateur", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		// Créer 2 notes
 		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
@@ -171,7 +171,7 @@ func TestE2E_GetUserRatings(t *testing.T) {
 	})
 
 	t.Run("succès - liste vide quand aucune note", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		resp, err := grpcClient.GetUserRatings(ctx, &ratingpb.GetUserRatingsRequest{UserRatedId: "user-no-ratings"})
 
@@ -193,10 +193,10 @@ func TestE2E_GetUserRatings(t *testing.T) {
 // =============================================================================
 
 func TestE2E_GetUserRatingsAverage(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 
 	t.Run("succès - calcule la moyenne correctement", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		// 5 + 3 + 4 = 12 / 3 = 4.0
 		userRatedID := "user-avg-e2e"
@@ -215,7 +215,7 @@ func TestE2E_GetUserRatingsAverage(t *testing.T) {
 	})
 
 	t.Run("succès - arrondi à 1 décimale (4.333 → 4.3)", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		// 5 + 4 + 4 = 13 / 3 = 4.333...
 		userRatedID := "user-avg-round"
@@ -233,7 +233,7 @@ func TestE2E_GetUserRatingsAverage(t *testing.T) {
 	})
 
 	t.Run("succès - 0 quand aucune note", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		resp, err := grpcClient.GetUserRatingsAverage(ctx, &ratingpb.GetUserRatingsAverageRequest{UserRatedId: "user-no-avg"})
 
@@ -248,10 +248,10 @@ func TestE2E_GetUserRatingsAverage(t *testing.T) {
 // =============================================================================
 
 func TestE2E_UpdateRating(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 
 	t.Run("succès - modifier sa propre note", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		// Créer une note
 		createResp, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
@@ -277,7 +277,7 @@ func TestE2E_UpdateRating(t *testing.T) {
 	})
 
 	t.Run("erreur - modifier la note d'un autre utilisateur", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		// Créer une note
 		createResp, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
@@ -300,7 +300,7 @@ func TestE2E_UpdateRating(t *testing.T) {
 	})
 
 	t.Run("erreur - note inexistante", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		_, err := grpcClient.UpdateRating(ctx, &ratingpb.UpdateRatingRequest{
 			RatingId:      "nonexistent-id",
@@ -315,7 +315,7 @@ func TestE2E_UpdateRating(t *testing.T) {
 	})
 
 	t.Run("la moyenne est mise à jour après modification", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		userRatedID := "rated-avg-update"
 
@@ -370,8 +370,8 @@ func TestE2E_Health(t *testing.T) {
 // =============================================================================
 
 func TestE2E_FullScenario(t *testing.T) {
-	ctx := context.Background()
-	cleanupRatingsTable(t, ctx)
+	ctx := ctxWithUID("e2e-test-user")
+	cleanupRatingsTable(t, context.Background())
 
 	userRatedID := "driver-full-scenario"
 
@@ -467,10 +467,10 @@ func TestE2E_FullScenario(t *testing.T) {
 // =============================================================================
 
 func TestE2E_DBConstraints(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 
 	t.Run("contrainte unique rater/rated empêche le doublon", func(t *testing.T) {
-		cleanupRatingsTable(t, ctx)
+		cleanupRatingsTable(t, context.Background())
 
 		// Insérer directement en base pour bypass la validation service
 		rating := fixtures.NewTestRating(

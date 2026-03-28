@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -19,7 +18,7 @@ import (
 // =============================================================================
 
 func TestE2E_Health(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 
 	resp, err := grpcClient.Health(ctx, &bookingpb.HealthRequest{})
 
@@ -35,7 +34,7 @@ func TestE2E_Health(t *testing.T) {
 // =============================================================================
 
 func TestE2E_GetBookingDetails(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 
 	t.Run("succes - retourne les details d un booking existant", func(t *testing.T) {
 		cleanupBookingTables(t, ctx)
@@ -84,7 +83,7 @@ func TestE2E_GetBookingDetails(t *testing.T) {
 // =============================================================================
 
 func TestE2E_ApproveBooking(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 
 	t.Run("succes - approuve un booking pendingApproval", func(t *testing.T) {
 		cleanupBookingTables(t, ctx)
@@ -132,7 +131,7 @@ func TestE2E_ApproveBooking(t *testing.T) {
 // =============================================================================
 
 func TestE2E_RejectBooking(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 
 	t.Run("succes - rejette un booking pendingApproval", func(t *testing.T) {
 		cleanupBookingTables(t, ctx)
@@ -170,7 +169,7 @@ func TestE2E_RejectBooking(t *testing.T) {
 // =============================================================================
 
 func TestE2E_CancelBooking(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 
 	t.Run("succes - annule un booking approved", func(t *testing.T) {
 		cleanupBookingTables(t, ctx)
@@ -223,7 +222,7 @@ func TestE2E_CancelBooking(t *testing.T) {
 // =============================================================================
 
 func TestE2E_ConfirmPayment(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 
 	t.Run("succes - confirme le paiement d un booking", func(t *testing.T) {
 		cleanupBookingTables(t, ctx)
@@ -271,7 +270,7 @@ func TestE2E_ConfirmPayment(t *testing.T) {
 // =============================================================================
 
 func TestE2E_ReportNoShow(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 
 	t.Run("succes - signale un no-show passager", func(t *testing.T) {
 		cleanupBookingTables(t, ctx)
@@ -324,7 +323,7 @@ func TestE2E_ReportNoShow(t *testing.T) {
 // =============================================================================
 
 func TestE2E_BookingLifecycle(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	cleanupBookingTables(t, ctx)
 
 	// 1. Inserer un booking paymentPending (simule un booking cree avec paiement mobile)
@@ -413,7 +412,7 @@ func TestE2E_BookingLifecycle(t *testing.T) {
 // =============================================================================
 
 func TestE2E_StartBookingsForWaypoint(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 
 	t.Run("succes - demarre les bookings d un waypoint", func(t *testing.T) {
 		cleanupBookingTables(t, ctx)
@@ -464,7 +463,7 @@ func TestE2E_StartBookingsForWaypoint(t *testing.T) {
 // =============================================================================
 
 func TestE2E_CompleteBookingsForWaypoint(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 
 	t.Run("succes - complete les bookings d un waypoint", func(t *testing.T) {
 		cleanupBookingTables(t, ctx)
