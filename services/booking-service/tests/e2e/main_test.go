@@ -13,6 +13,7 @@ import (
 
 	postgresHelper "github.com/Kpeewu/tissi-mah/pkg-test/postgres"
 	grpcHandler "github.com/Kpeewu/tissi-mah/services/booking-service/internal/grpc"
+	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/middleware"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/repository/implementations"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/service"
 	bookingpb "github.com/Kpeewu/tissi-mah/services/booking-service/proto/gen"
@@ -87,7 +88,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	srv := grpc.NewServer()
+	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.BookingInterceptor()))
 	handler := grpcHandler.NewBookingHandler(bookingService, logger)
 	bookingpb.RegisterBookingServiceServer(srv, handler)
 
