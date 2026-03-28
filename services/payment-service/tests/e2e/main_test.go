@@ -13,6 +13,7 @@ import (
 
 	postgresHelper "github.com/Kpeewu/tissi-mah/pkg-test/postgres"
 	grpcHandler "github.com/Kpeewu/tissi-mah/services/payment-service/internal/grpc"
+	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/middleware"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/repository/implementations"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/service"
 	paymentpb "github.com/Kpeewu/tissi-mah/services/payment-service/proto/gen"
@@ -105,7 +106,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	srv := grpc.NewServer()
+	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.PaymentInterceptor()))
 	handler := grpcHandler.NewPaymentHandler(paymentService, logger)
 	paymentpb.RegisterPaymentServiceServer(srv, handler)
 
