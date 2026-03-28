@@ -10,6 +10,7 @@ import (
 
 	postgresHelper "github.com/Kpeewu/tissi-mah/pkg-test/postgres"
 	grpcHandler "github.com/Kpeewu/tissi-mah/services/trips-service/internal/grpc"
+	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/middleware"
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/repository/implementations"
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/service"
 	trippb "github.com/Kpeewu/tissi-mah/services/trips-service/proto/gen"
@@ -22,6 +23,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -38,7 +40,7 @@ var (
 // =============================================================================
 
 func TestMain(m *testing.M) {
-	ctx := context.Background()
+	ctx := context.Background() //nolint:testmain
 
 	// Setup : démarrer PostgreSQL avec les migrations du trips-service
 	testPostgres, err := postgresHelper.SetupTestPostgres(ctx, "../../migrations/up",
@@ -80,7 +82,7 @@ func setupServer(t *testing.T) (*grpc.ClientConn, *mocks.MockUserClient, *mocks.
 	handler := grpcHandler.NewTripHandler(svc, logger)
 
 	lis = bufconn.Listen(bufSize)
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(middleware.TripInterceptor()))
 	trippb.RegisterTripServiceServer(grpcServer, handler)
 
 	go func() {
@@ -105,6 +107,12 @@ func setupServer(t *testing.T) (*grpc.ClientConn, *mocks.MockUserClient, *mocks.
 	}
 
 	return conn, mockUserClient, mockVehicleClient, cleanup
+}
+
+// ctxWithUID retourne un contexte avec le Firebase UID dans les metadata gRPC
+func ctxWithUID(uid string) context.Context {
+	md := metadata.Pairs("x-firebase-uid", uid)
+	return metadata.NewOutgoingContext(context.Background(), md)
 }
 
 // cleanupTripsE2E vide la table trips pour isoler les tests.
@@ -155,7 +163,7 @@ func validCreateTripRequest(driverID, vehicleID string) *trippb.CreateTripReques
 // =============================================================================
 
 func TestE2E_CreateTrip_Success(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -176,7 +184,7 @@ func TestE2E_CreateTrip_Success(t *testing.T) {
 }
 
 func TestE2E_StartTrip_Success(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -204,7 +212,7 @@ func TestE2E_StartTrip_Success(t *testing.T) {
 }
 
 func TestE2E_StartTrip_AlreadyActive(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -246,7 +254,7 @@ func TestE2E_StartTrip_AlreadyActive(t *testing.T) {
 }
 
 func TestE2E_ConfirmWaypointArrival_InvalidWaypointID(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, _, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -287,7 +295,7 @@ func TestE2E_Health(t *testing.T) {
 // =============================================================================
 
 func TestE2E_CreateTrip_UnverifiedDriver(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -309,7 +317,7 @@ func TestE2E_CreateTrip_UnverifiedDriver(t *testing.T) {
 }
 
 func TestE2E_CreateTrip_InvalidWaypoints(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -332,7 +340,7 @@ func TestE2E_CreateTrip_InvalidWaypoints(t *testing.T) {
 }
 
 func TestE2E_CreateTrip_MissingDriverID(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, _, _, cleanup := setupServer(t)
 	defer cleanup()
 
@@ -352,7 +360,7 @@ func TestE2E_CreateTrip_MissingDriverID(t *testing.T) {
 // =============================================================================
 
 func TestE2E_GetTripsPreviews_EmptyList(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, _, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -369,7 +377,7 @@ func TestE2E_GetTripsPreviews_EmptyList(t *testing.T) {
 }
 
 func TestE2E_GetTripsPreviews_WithTrips(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -412,7 +420,7 @@ func TestE2E_GetTripsPreviews_WithTrips(t *testing.T) {
 // =============================================================================
 
 func TestE2E_GetCompletedTripsPreviews(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -466,7 +474,7 @@ func TestE2E_GetCompletedTripsPreviews(t *testing.T) {
 // =============================================================================
 
 func TestE2E_ChangeTripDateAndTime_Success(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -494,7 +502,7 @@ func TestE2E_ChangeTripDateAndTime_Success(t *testing.T) {
 }
 
 func TestE2E_ChangeTripDateAndTime_TripNotFound(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, _, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -518,7 +526,7 @@ func TestE2E_ChangeTripDateAndTime_TripNotFound(t *testing.T) {
 // =============================================================================
 
 func TestE2E_ChangeTripVehicle_Success(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -549,7 +557,7 @@ func TestE2E_ChangeTripVehicle_Success(t *testing.T) {
 }
 
 func TestE2E_ChangeTripVehicle_VehicleNotFound(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -581,7 +589,7 @@ func TestE2E_ChangeTripVehicle_VehicleNotFound(t *testing.T) {
 }
 
 func TestE2E_ChangeTripVehicle_InsufficientSeats(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -618,7 +626,7 @@ func TestE2E_ChangeTripVehicle_InsufficientSeats(t *testing.T) {
 // =============================================================================
 
 func TestE2E_ChangeTripAllowances_Success(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -656,7 +664,7 @@ func TestE2E_ChangeTripAllowances_Success(t *testing.T) {
 // =============================================================================
 
 func TestE2E_ChangeAutoApprove_Success(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -685,7 +693,7 @@ func TestE2E_ChangeAutoApprove_Success(t *testing.T) {
 // =============================================================================
 
 func TestE2E_EndTrip_Success(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -716,7 +724,7 @@ func TestE2E_EndTrip_Success(t *testing.T) {
 }
 
 func TestE2E_EndTrip_NotStarted(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -747,7 +755,7 @@ func TestE2E_EndTrip_NotStarted(t *testing.T) {
 // =============================================================================
 
 func TestE2E_ConfirmWaypoint_StopFlow(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -834,7 +842,7 @@ func TestE2E_ConfirmWaypoint_StopFlow(t *testing.T) {
 // =============================================================================
 
 func TestE2E_GetTripByID_Success(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -859,7 +867,7 @@ func TestE2E_GetTripByID_Success(t *testing.T) {
 }
 
 func TestE2E_GetTripByID_NotFound(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, _, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
@@ -879,7 +887,7 @@ func TestE2E_GetTripByID_NotFound(t *testing.T) {
 // =============================================================================
 
 func TestE2E_UpdateAvailableSeats_Success(t *testing.T) {
-	ctx := context.Background()
+	ctx := ctxWithUID("e2e-test-user")
 	conn, mockUserClient, _, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
