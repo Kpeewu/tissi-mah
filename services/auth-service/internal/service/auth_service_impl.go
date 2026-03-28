@@ -196,7 +196,7 @@ func (s *authServiceImpl) GetAuthInfo(ctx context.Context, authID string) (*doma
 	return auth, nil
 }
 
-// DeleteUserAccount anonymise et supprime le compte d'authentification d'un utilisateur
+// DeleteUserAccount anonymise et supprime le compte d'authentification et le profil utilisateur
 func (s *authServiceImpl) DeleteUserAccount(ctx context.Context, firebaseID string) error {
 	if firebaseID == "" {
 		return authErrors.ErrorUserNotFound
@@ -207,5 +207,12 @@ func (s *authServiceImpl) DeleteUserAccount(ctx context.Context, firebaseID stri
 		return authErrors.ErrorUserNotFound
 	}
 
+	// Anonymiser et soft-delete le profil dans user-service
+	if err := s.userClient.SoftDeleteUser(ctx, auth.AuthID); err != nil {
+		s.logger.Error("failed to soft-delete user profile", zap.Error(err), zap.String("authID", auth.AuthID))
+		return authErrors.ErrorInternalServer
+	}
+
+	// Anonymiser et soft-delete l'entrée auth
 	return s.writeRepo.Delete(ctx, auth)
 }

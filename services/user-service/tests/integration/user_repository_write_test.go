@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/user-service/fixtures"
+	"github.com/Kpeewu/tissi-mah/services/user-service/internal/domain"
 	userErrors "github.com/Kpeewu/tissi-mah/services/user-service/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -109,7 +110,7 @@ func TestUserRepositoryWrite_Delete(t *testing.T) {
 		user := fixtures.NewTestUser()
 		insertUser(t, user)
 
-		err := repo.Delete(context.Background(), user.UserID)
+		err := repo.AnonymizeAndDelete(context.Background(), user)
 
 		require.NoError(t, err)
 
@@ -123,7 +124,8 @@ func TestUserRepositoryWrite_Delete(t *testing.T) {
 	t.Run("should return ErrorUserNotFound when user does not exist", func(t *testing.T) {
 		cleanCollection(t)
 
-		err := repo.Delete(context.Background(), "nonexistent-id")
+		nonexistent := &domain.User{UserID: "nonexistent-id"}
+		err := repo.AnonymizeAndDelete(context.Background(), nonexistent)
 
 		assert.ErrorIs(t, err, userErrors.ErrorUserNotFound)
 	})
@@ -133,7 +135,7 @@ func TestUserRepositoryWrite_Delete(t *testing.T) {
 		user := fixtures.NewTestUser(fixtures.WithDeleted())
 		insertUser(t, user)
 
-		err := repo.Delete(context.Background(), user.UserID)
+		err := repo.AnonymizeAndDelete(context.Background(), user)
 
 		assert.ErrorIs(t, err, userErrors.ErrorUserNotFound)
 	})

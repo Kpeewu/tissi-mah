@@ -18,6 +18,9 @@ service UserService {
 
   // Récupère le profil utilisateur lié à un AuthID
   rpc GetUserByAuthID(GetUserByAuthIDRequest) returns (UserProfileResponse);
+
+  // Anonymise et soft-delete le profil utilisateur
+  rpc SoftDeleteUser(SoftDeleteUserRequest) returns (OperationResponse);
 }
 
 // =============================================================================
@@ -33,6 +36,10 @@ message CreateUserRequest {
 }
 
 message GetUserByAuthIDRequest {
+  string AuthID = 1;
+}
+
+message SoftDeleteUserRequest {
   string AuthID = 1;
 }
 
@@ -63,4 +70,9 @@ message UserProfileResponse {
   repeated TripPreference TripPreferences    = 14;
   string IDCardExpirationDate                = 15;
   string DriveLicenceExpirationDate          = 16;
+}
+
+message OperationResponse {
+  string ErrorMessage = 1;
+  bool   Success      = 2;
 }

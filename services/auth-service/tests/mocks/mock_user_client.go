@@ -27,6 +27,11 @@ func (m *MockUserClient) GetUserByAuthID(ctx context.Context, authID string) (*d
 	return args.Get(0).(*domain.UserPreview), args.Error(1)
 }
 
+func (m *MockUserClient) SoftDeleteUser(ctx context.Context, authID string) error {
+	args := m.Called(ctx, authID)
+	return args.Error(0)
+}
+
 func (m *MockUserClient) Close() error {
 	args := m.Called()
 	return args.Error(0)

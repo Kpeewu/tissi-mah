@@ -24,7 +24,7 @@ func (m *MockUserRepositoryWrite) Update(ctx context.Context, user *domain.User)
 	return args.Get(0).(*domain.User), args.Error(1)
 }
 
-func (m *MockUserRepositoryWrite) Delete(ctx context.Context, userID string) error {
-	args := m.Called(ctx, userID)
+func (m *MockUserRepositoryWrite) AnonymizeAndDelete(ctx context.Context, user *domain.User) error {
+	args := m.Called(ctx, user)
 	return args.Error(0)
 }
