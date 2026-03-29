@@ -117,7 +117,7 @@ func (a *Auth) Deactivate() {
 // Delete user account
 func (a *Auth) AnonymizeAndDelete() {
 
-	a.FirebaseID = ""
+	a.FirebaseID = fmt.Sprintf("deleted_%s", a.AuthID)
 
 	email := fmt.Sprintf("deleted_user_%s@anonymized.local", a.AuthID)
 	a.Email = &email
