@@ -10,6 +10,7 @@ import (
 	i "github.com/Kpeewu/tissi-mah/services/trips-service/internal/repository/interfaces"
 	tripErrors "github.com/Kpeewu/tissi-mah/services/trips-service/pkg/errors"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
@@ -164,8 +165,12 @@ func (r *tripWriteRepositoryImpl) UpdateDepartureDatetime(ctx context.Context, t
 
 	tag, err := r.pool.Exec(ctx, query, tripID, driverID, newDatetime)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23514" && pgErr.ConstraintName == "ck_trips_arrival_after_departure" {
+			return tripErrors.ErrorDepartureAfterArrival
+		}
 		r.logger.Error("update departure datetime failed", zap.Error(err), zap.String("tripID", tripID))
-		return fmt.Errorf("%w: %s", tripErrors.ErrorInternalServer, err.Error())
+		return tripErrors.ErrorInternalServer
 	}
 
 	if tag.RowsAffected() == 1 {
