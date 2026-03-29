@@ -41,6 +41,8 @@ config:
   logLevel: "debug"
   authServiceHost: "auth-service"
   authServicePort: "50051"
+  fileServiceHost: "file-service"
+  fileServicePort: "50053"
   mongodbDatabase: "user_db"
   extra: {}
 

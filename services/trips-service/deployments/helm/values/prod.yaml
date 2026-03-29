@@ -45,6 +45,8 @@ config:
   userServicePort: "50052"
   vehicleServiceHost: "vehicle-service"
   vehicleServicePort: "50055"
+  bookingServiceHost: "booking-service"
+  bookingServicePort: "50058"
   extra: {}
 
 # Secrets MUST be provided via AWS Secrets Manager or external secret management
