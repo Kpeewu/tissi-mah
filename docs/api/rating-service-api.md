@@ -65,7 +65,7 @@ Host: api.tissi-mah.com
 Content-Type: application/json
 
 {
-    "RaterId": "firebase-uid-abc123",
+    "RaterId": "u-abc123-user-id",
     "UserRatedId": "u-550e8400-e29b-41d4-a716-446655440000",
     "NumberOfStars": 4,
     "Comment": "Excellent trajet, conducteur ponctuel et agréable"
@@ -76,8 +76,8 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `RaterId` | string | Yes | AuthID of the rater (validated against user-service) |
-| `UserRatedId` | string | Yes | AuthID of the user being rated (validated against user-service) |
+| `RaterId` | string | Yes | UserID of the rater (validated against user-service) |
+| `UserRatedId` | string | Yes | UserID of the user being rated (validated against user-service) |
 | `NumberOfStars` | integer | Yes | Rating from 1 to 5 |
 | `Comment` | string | No | Optional text comment |
 
@@ -91,7 +91,7 @@ Content-Type: application/json
     "ErrorMessage": "",
     "Rating": {
         "RatingId": "r-550e8400-e29b-41d4-a716-446655440000",
-        "RaterId": "firebase-uid-abc123",
+        "RaterId": "u-abc123-user-id",
         "UserRatedId": "u-550e8400-e29b-41d4-a716-446655440000",
         "NumberOfStars": 4,
         "Comment": "Excellent trajet, conducteur ponctuel et agréable",
@@ -108,8 +108,8 @@ Content-Type: application/json
 | `ErrorMessage` | string | Error message if failed, empty if success |
 | `Rating` | object | Created rating details |
 | `Rating.RatingId` | string | Unique rating ID |
-| `Rating.RaterId` | string | AuthID of the rater |
-| `Rating.UserRatedId` | string | AuthID of the user being rated |
+| `Rating.RaterId` | string | UserID of the rater |
+| `Rating.UserRatedId` | string | UserID of the user being rated |
 | `Rating.NumberOfStars` | integer | Rating (1-5) |
 | `Rating.Comment` | string | Optional comment |
 | `Rating.CreatedAt` | string | ISO 8601 timestamp (TIMESTAMPTZ) |
@@ -132,7 +132,7 @@ Content-Type: application/json
 curl -X POST https://api.tissi-mah.com/api/v1/ratings/rateUser \
   -H "Content-Type: application/json" \
   -d '{
-    "RaterId": "firebase-uid-abc123",
+    "RaterId": "u-abc123-user-id",
     "UserRatedId": "u-550e8400",
     "NumberOfStars": 4,
     "Comment": "Excellent trajet"
@@ -158,7 +158,7 @@ Host: api.tissi-mah.com
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `UserRatedId` | string | Yes | AuthID of the user whose ratings to retrieve |
+| `UserRatedId` | string | Yes | UserID of the user whose ratings to retrieve |
 
 #### Response (Success)
 
@@ -171,7 +171,7 @@ Content-Type: application/json
     "Ratings": [
         {
             "RatingId": "r-550e8400",
-            "RaterId": "firebase-uid-abc123",
+            "RaterId": "u-abc123-user-id",
             "UserRatedId": "u-550e8400",
             "NumberOfStars": 5,
             "Comment": "Parfait",
@@ -180,7 +180,7 @@ Content-Type: application/json
         },
         {
             "RatingId": "r-660f9511",
-            "RaterId": "firebase-uid-def456",
+            "RaterId": "u-def456-user-id",
             "UserRatedId": "u-550e8400",
             "NumberOfStars": 4,
             "Comment": "",
@@ -229,7 +229,7 @@ Host: api.tissi-mah.com
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `UserRatedId` | string | Yes | AuthID of the user whose average to retrieve |
+| `UserRatedId` | string | Yes | UserID of the user whose average to retrieve |
 
 #### Response (Success)
 
@@ -281,7 +281,7 @@ Content-Type: application/json
 
 {
     "RatingId": "r-550e8400-e29b-41d4-a716-446655440000",
-    "RaterId": "firebase-uid-abc123",
+    "RaterId": "u-abc123-user-id",
     "UserRatedId": "u-550e8400-e29b-41d4-a716-446655440000",
     "NumberOfStars": 5,
     "Comment": "Finalement c'était le meilleur trajet !"
@@ -293,8 +293,8 @@ Content-Type: application/json
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `RatingId` | string | Yes | Rating ID to update |
-| `RaterId` | string | Yes | AuthID of the rater (must match original rater) |
-| `UserRatedId` | string | Yes | AuthID of the user being rated |
+| `RaterId` | string | Yes | UserID of the rater (must match original rater) |
+| `UserRatedId` | string | Yes | UserID of the user being rated |
 | `NumberOfStars` | integer | Yes | New rating from 1 to 5 |
 | `Comment` | string | No | Updated comment |
 
@@ -308,7 +308,7 @@ Content-Type: application/json
     "ErrorMessage": "",
     "Rating": {
         "RatingId": "r-550e8400-e29b-41d4-a716-446655440000",
-        "RaterId": "firebase-uid-abc123",
+        "RaterId": "u-abc123-user-id",
         "UserRatedId": "u-550e8400-e29b-41d4-a716-446655440000",
         "NumberOfStars": 5,
         "Comment": "Finalement c'était le meilleur trajet !",
@@ -334,7 +334,7 @@ curl -X PATCH https://api.tissi-mah.com/api/v1/ratings/updateRating \
   -H "Content-Type: application/json" \
   -d '{
     "RatingId": "r-550e8400",
-    "RaterId": "firebase-uid-abc123",
+    "RaterId": "u-abc123-user-id",
     "UserRatedId": "u-550e8400",
     "NumberOfStars": 5,
     "Comment": "Finalement c était le meilleur trajet !"
