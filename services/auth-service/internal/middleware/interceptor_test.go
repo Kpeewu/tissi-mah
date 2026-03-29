@@ -28,7 +28,7 @@ func setupProtectedMethods(t *testing.T, methods map[string]bool) {
 
 func TestAuthInterceptor_PublicRoute(t *testing.T) {
 	setupProtectedMethods(t, map[string]bool{
-		"/auth.AuthService/Login": true,
+		"/auth.AuthService/CreateAccount": true,
 	})
 
 	interceptor := AuthInterceptor()
@@ -42,11 +42,11 @@ func TestAuthInterceptor_PublicRoute(t *testing.T) {
 
 func TestAuthInterceptor_ProtectedRoute_Success(t *testing.T) {
 	setupProtectedMethods(t, map[string]bool{
-		"/auth.AuthService/Login": true,
+		"/auth.AuthService/CreateAccount": true,
 	})
 
 	interceptor := AuthInterceptor()
-	info := &grpc.UnaryServerInfo{FullMethod: "/auth.AuthService/Login"}
+	info := &grpc.UnaryServerInfo{FullMethod: "/auth.AuthService/CreateAccount"}
 
 	// Créer un contexte avec la metadata x-firebase-uid
 	md := metadata.Pairs("x-firebase-uid", "test-uid-123")
@@ -66,11 +66,11 @@ func TestAuthInterceptor_ProtectedRoute_Success(t *testing.T) {
 
 func TestAuthInterceptor_ProtectedRoute_MissingMetadata(t *testing.T) {
 	setupProtectedMethods(t, map[string]bool{
-		"/auth.AuthService/Login": true,
+		"/auth.AuthService/CreateAccount": true,
 	})
 
 	interceptor := AuthInterceptor()
-	info := &grpc.UnaryServerInfo{FullMethod: "/auth.AuthService/Login"}
+	info := &grpc.UnaryServerInfo{FullMethod: "/auth.AuthService/CreateAccount"}
 
 	// Contexte sans metadata
 	resp, err := interceptor(context.Background(), nil, info, dummyHandler)
@@ -85,11 +85,11 @@ func TestAuthInterceptor_ProtectedRoute_MissingMetadata(t *testing.T) {
 
 func TestAuthInterceptor_ProtectedRoute_MissingUID(t *testing.T) {
 	setupProtectedMethods(t, map[string]bool{
-		"/auth.AuthService/Login": true,
+		"/auth.AuthService/CreateAccount": true,
 	})
 
 	interceptor := AuthInterceptor()
-	info := &grpc.UnaryServerInfo{FullMethod: "/auth.AuthService/Login"}
+	info := &grpc.UnaryServerInfo{FullMethod: "/auth.AuthService/CreateAccount"}
 
 	// Metadata présente mais sans x-firebase-uid
 	md := metadata.Pairs("other-header", "value")
@@ -107,11 +107,11 @@ func TestAuthInterceptor_ProtectedRoute_MissingUID(t *testing.T) {
 
 func TestAuthInterceptor_ProtectedRoute_EmptyUID(t *testing.T) {
 	setupProtectedMethods(t, map[string]bool{
-		"/auth.AuthService/Login": true,
+		"/auth.AuthService/CreateAccount": true,
 	})
 
 	interceptor := AuthInterceptor()
-	info := &grpc.UnaryServerInfo{FullMethod: "/auth.AuthService/Login"}
+	info := &grpc.UnaryServerInfo{FullMethod: "/auth.AuthService/CreateAccount"}
 
 	// Metadata avec x-firebase-uid vide
 	md := metadata.Pairs("x-firebase-uid", "")

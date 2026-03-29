@@ -49,117 +49,6 @@ func assertGRPCCode(t *testing.T, err error, expected codes.Code) {
 }
 
 // --------------------------------------------------------------------------
-// Login
-// --------------------------------------------------------------------------
-
-func TestLogin_UserFound(t *testing.T) {
-	// Arrange : l'utilisateur existe, le service retourne un UserPreview.
-	handler, mockService := newHandler()
-	ctx := context.Background()
-
-	email := "user@example.com"
-	phone := "+221770000000"
-	photo := "https://img.example.com/photo.jpg"
-
-	preview := &domain.UserPreview{
-		AuthID:          "auth-123",
-		UserID:          "user-456",
-		Name:            "Diallo",
-		FirstName:       "Amadou",
-		Email:           &email,
-		PhoneNumber:     &phone,
-		ProfilePhotoURL: &photo,
-	}
-
-	mockService.On("LoginUser", ctx).Return(preview, nil)
-
-	// Act
-	resp, err := handler.Login(ctx, &authpb.LoginRequest{})
-
-	// Assert
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.True(t, resp.Exists)
-	require.NotNil(t, resp.User)
-	assert.Equal(t, "auth-123", resp.User.AuthID)
-	assert.Equal(t, "user-456", resp.User.UserID)
-	assert.Equal(t, "Diallo", resp.User.Name)
-	assert.Equal(t, "Amadou", resp.User.FirstName)
-	assert.Equal(t, email, resp.User.Email)
-	assert.Equal(t, phone, resp.User.PhoneNumber)
-	assert.Equal(t, photo, resp.User.ProfileImageURL)
-
-	mockService.AssertExpectations(t)
-}
-
-func TestLogin_UserNotFound(t *testing.T) {
-	// Arrange : aucun compte associe, le service retourne ErrorUserNotFound.
-	// Le handler doit retourner Exists=false SANS erreur gRPC.
-	handler, mockService := newHandler()
-	ctx := context.Background()
-
-	mockService.On("LoginUser", ctx).Return(nil, authErrors.ErrorUserNotFound)
-
-	// Act
-	resp, err := handler.Login(ctx, &authpb.LoginRequest{})
-
-	// Assert
-	require.NoError(t, err, "Login ne doit PAS retourner d'erreur gRPC quand l'utilisateur n'existe pas")
-	require.NotNil(t, resp)
-	assert.False(t, resp.Exists)
-	assert.Nil(t, resp.User)
-
-	mockService.AssertExpectations(t)
-}
-
-func TestLogin_InternalError(t *testing.T) {
-	// Arrange : erreur interne du service.
-	handler, mockService := newHandler()
-	ctx := context.Background()
-
-	mockService.On("LoginUser", ctx).Return(nil, authErrors.ErrorInternalServer)
-
-	// Act
-	resp, err := handler.Login(ctx, &authpb.LoginRequest{})
-
-	// Assert
-	assert.Nil(t, resp)
-	assertGRPCCode(t, err, codes.Internal)
-
-	mockService.AssertExpectations(t)
-}
-
-func TestLogin_UserFoundWithNilOptionalFields(t *testing.T) {
-	// Arrange : l'utilisateur existe mais n'a ni email, ni telephone, ni photo.
-	handler, mockService := newHandler()
-	ctx := context.Background()
-
-	preview := &domain.UserPreview{
-		AuthID:    "auth-789",
-		UserID:    "user-012",
-		Name:      "Keita",
-		FirstName: "Fatou",
-	}
-
-	mockService.On("LoginUser", ctx).Return(preview, nil)
-
-	// Act
-	resp, err := handler.Login(ctx, &authpb.LoginRequest{})
-
-	// Assert
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.True(t, resp.Exists)
-	require.NotNil(t, resp.User)
-	assert.Equal(t, "auth-789", resp.User.AuthID)
-	assert.Equal(t, "", resp.User.Email, "champ optionnel nil doit donner une chaine vide dans le proto")
-	assert.Equal(t, "", resp.User.PhoneNumber)
-	assert.Equal(t, "", resp.User.ProfileImageURL)
-
-	mockService.AssertExpectations(t)
-}
-
-// --------------------------------------------------------------------------
 // CreateAccount
 // --------------------------------------------------------------------------
 
@@ -697,10 +586,10 @@ func TestToGRPCError_Mapping(t *testing.T) {
 		{
 			name: "ErrorInternalServer → Internal",
 			setupMock: func(ms *mocks.MockAuthService) {
-				ms.On("LoginUser", mock.Anything).Return(nil, authErrors.ErrorInternalServer)
+				ms.On("GetAuthInfo", mock.Anything, "id").Return(nil, authErrors.ErrorInternalServer)
 			},
 			call: func(h *grpcHandler.AuthHandler) error {
-				_, err := h.Login(context.Background(), &authpb.LoginRequest{})
+				_, err := h.GetAuthInfo(context.Background(), &authpb.GetAuthInfoRequest{AuthID: "id"})
 				return err
 			},
 			expectedCode: codes.Internal,
@@ -708,10 +597,10 @@ func TestToGRPCError_Mapping(t *testing.T) {
 		{
 			name: "Erreur inconnue → Internal",
 			setupMock: func(ms *mocks.MockAuthService) {
-				ms.On("LoginUser", mock.Anything).Return(nil, errors.New("erreur inattendue"))
+				ms.On("GetAuthInfo", mock.Anything, "id").Return(nil, errors.New("erreur inattendue"))
 			},
 			call: func(h *grpcHandler.AuthHandler) error {
-				_, err := h.Login(context.Background(), &authpb.LoginRequest{})
+				_, err := h.GetAuthInfo(context.Background(), &authpb.GetAuthInfoRequest{AuthID: "id"})
 				return err
 			},
 			expectedCode: codes.Internal,
@@ -739,10 +628,10 @@ func TestToGRPCError_UnknownErrorMessage(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("LoginUser", ctx).Return(nil, errors.New("secret database details"))
+	mockService.On("GetAuthInfo", ctx, "id").Return(nil, errors.New("secret database details"))
 
 	// Act
-	_, err := handler.Login(ctx, &authpb.LoginRequest{})
+	_, err := handler.GetAuthInfo(ctx, &authpb.GetAuthInfoRequest{AuthID: "id"})
 
 	// Assert
 	require.Error(t, err)

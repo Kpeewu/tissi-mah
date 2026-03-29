@@ -125,35 +125,6 @@ func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstNa
 	return userPreview, nil
 }
 
-// LoginUser vérifie que l'utilisateur authentifié possède un compte et peut se connecter
-func (s *authServiceImpl) LoginUser(ctx context.Context) (*domain.UserPreview, error) {
-	firebaseID, ok := ctx.Value(middleware.FirebaseIDKey).(string)
-	if !ok || firebaseID == "" {
-		return nil, authErrors.ErrorInternalServer
-	}
-
-	auth, err := s.readRepo.GetByFirebaseID(ctx, firebaseID)
-	if err != nil {
-		return nil, authErrors.ErrorUserNotFound
-	}
-
-	if !auth.CanLogin() {
-		return nil, authErrors.ErrorInternalServer
-	}
-
-	// Récupération du profil depuis le user-service
-	userPreview, err := s.userClient.GetUserByAuthID(ctx, auth.AuthID)
-	if err != nil {
-		return nil, authErrors.ErrorDataRetrievalFailed
-	}
-
-	// Enrichissement avec les données auth (email/phone appartiennent à auth-service)
-	userPreview.Email = auth.Email
-	userPreview.PhoneNumber = auth.PhoneNumber
-
-	return userPreview, nil
-}
-
 // CheckEmail vérifie si un email est disponible (non utilisé)
 func (s *authServiceImpl) CheckEmail(ctx context.Context, email string) (bool, error) {
 	if email == "" {
