@@ -45,6 +45,18 @@ config:
   userServicePort: "50052"
   ratingServiceHost: "rating-service"
   ratingServicePort: "50054"
+  fileServiceHost: "file-service"
+  fileServicePort: "50053"
+  vehicleServiceHost: "vehicle-service"
+  vehicleServicePort: "50055"
+  tripsServiceHost: "trips-service"
+  tripsServicePort: "50056"
+  kycServiceHost: "kyc-service"
+  kycServicePort: "50057"
+  bookingServiceHost: "booking-service"
+  bookingServicePort: "50058"
+  paymentServiceHost: "payment-service"
+  paymentServicePort: "50059"
   corsAllowedOrigins: "https://staging.tissi-mah.com"
   extra: {}
 
