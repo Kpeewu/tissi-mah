@@ -89,7 +89,7 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 	if input.PaymentMethod != string(domain.PaymentMobileMoney) {
 		return nil, paymentErrors.ErrorInvalidInput
 	}
-	if input.MobileMoneyMode != "moov_tg" && input.MobileMoneyMode != "togocel" {
+	if input.MobileMoneyMode != "moov_tg" && input.MobileMoneyMode != "togocel" && input.MobileMoneyMode != "momo_test" {
 		return nil, paymentErrors.ErrorInvalidInput
 	}
 
