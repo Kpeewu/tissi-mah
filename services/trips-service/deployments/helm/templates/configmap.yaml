@@ -12,6 +12,8 @@ data:
   USER_SERVICE_PORT: {{ .Values.config.userServicePort | quote }}
   VEHICLE_SERVICE_HOST: {{ .Values.config.vehicleServiceHost | quote }}
   VEHICLE_SERVICE_PORT: {{ .Values.config.vehicleServicePort | quote }}
+  BOOKING_SERVICE_HOST: {{ .Values.config.bookingServiceHost | quote }}
+  BOOKING_SERVICE_PORT: {{ .Values.config.bookingServicePort | quote }}
   {{- range $key, $value := .Values.config.extra }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}

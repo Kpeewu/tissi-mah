@@ -12,6 +12,8 @@ data:
   USER_SERVICE_PORT: {{ .Values.config.userServicePort | quote }}
   TRIPS_SERVICE_HOST: {{ .Values.config.tripsServiceHost | quote }}
   TRIPS_SERVICE_PORT: {{ .Values.config.tripsServicePort | quote }}
+  PAYMENT_SERVICE_HOST: {{ .Values.config.paymentServiceHost | quote }}
+  PAYMENT_SERVICE_PORT: {{ .Values.config.paymentServicePort | quote }}
   SERVICE_FEE_PERCENT: {{ .Values.config.serviceFeePercent | quote }}
   RECONCILIATION_INTERVAL_SECONDS: {{ .Values.config.reconciliationIntervalSeconds | quote }}
   {{- range $key, $value := .Values.config.extra }}

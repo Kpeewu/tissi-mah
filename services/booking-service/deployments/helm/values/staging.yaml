@@ -45,6 +45,8 @@ config:
   userServicePort: "50052"
   tripsServiceHost: "trips-service"
   tripsServicePort: "50056"
+  paymentServiceHost: "payment-service"
+  paymentServicePort: "50059"
   serviceFeePercent: "10"
   reconciliationIntervalSeconds: "300"
   extra: {}
