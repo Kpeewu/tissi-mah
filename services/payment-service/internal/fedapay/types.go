@@ -81,21 +81,21 @@ type BalanceResponse struct {
 
 // WebhookPayload est le corps brut du webhook FedaPay.
 type WebhookPayload struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Entity      WebhookEntity   `json:"entity"`
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	Entity      WebhookEntity `json:"entity"`
 }
 
 // WebhookEntity est l'entité contenue dans un webhook.
 type WebhookEntity struct {
-	ID          int    `json:"id"`
-	Klass       string `json:"klass"`
-	Reference   string `json:"reference"`
-	Amount      int    `json:"amount"`
-	Status      string `json:"status"`
-	Mode        string `json:"mode"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID        int    `json:"id"`
+	Klass     string `json:"klass"`
+	Reference string `json:"reference"`
+	Amount    int    `json:"amount"`
+	Status    string `json:"status"`
+	Mode      string `json:"mode"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 // TokenResponse est la réponse de génération d'un token de transaction.
@@ -106,7 +106,7 @@ type TokenResponse struct {
 
 // APIError représente une erreur de l'API FedaPay.
 type APIError struct {
-	Message string `json:"message"`
+	Message string              `json:"message"`
 	Errors  map[string][]string `json:"errors"`
 }
 
