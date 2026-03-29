@@ -13,16 +13,16 @@ option go_package = "github.com/Kpeewu/tissi-mah/services/rating-service/proto/g
 // =============================================================================
 
 service UserService {
-  // Récupère le profil utilisateur lié à un AuthID
-  rpc GetUserByAuthID(GetUserByAuthIDRequest) returns (UserProfileResponse);
+  // Récupère le profil utilisateur lié à un UserID
+  rpc GetUserByUserID(GetUserByUserIDRequest) returns (UserProfileResponse);
 }
 
 // =============================================================================
 // Request Messages
 // =============================================================================
 
-message GetUserByAuthIDRequest {
-  string AuthID = 1;
+message GetUserByUserIDRequest {
+  string UserID = 1;
 }
 
 // =============================================================================

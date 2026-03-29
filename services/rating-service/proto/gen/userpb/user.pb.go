@@ -25,27 +25,27 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type GetUserByAuthIDRequest struct {
+type GetUserByUserIDRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AuthID        string                 `protobuf:"bytes,1,opt,name=AuthID,proto3" json:"AuthID,omitempty"`
+	UserID        string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetUserByAuthIDRequest) Reset() {
-	*x = GetUserByAuthIDRequest{}
+func (x *GetUserByUserIDRequest) Reset() {
+	*x = GetUserByUserIDRequest{}
 	mi := &file_user_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetUserByAuthIDRequest) String() string {
+func (x *GetUserByUserIDRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetUserByAuthIDRequest) ProtoMessage() {}
+func (*GetUserByUserIDRequest) ProtoMessage() {}
 
-func (x *GetUserByAuthIDRequest) ProtoReflect() protoreflect.Message {
+func (x *GetUserByUserIDRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_user_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -57,14 +57,14 @@ func (x *GetUserByAuthIDRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetUserByAuthIDRequest.ProtoReflect.Descriptor instead.
-func (*GetUserByAuthIDRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetUserByUserIDRequest.ProtoReflect.Descriptor instead.
+func (*GetUserByUserIDRequest) Descriptor() ([]byte, []int) {
 	return file_user_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GetUserByAuthIDRequest) GetAuthID() string {
+func (x *GetUserByUserIDRequest) GetUserID() string {
 	if x != nil {
-		return x.AuthID
+		return x.UserID
 	}
 	return ""
 }
@@ -291,8 +291,8 @@ const file_user_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
 	"user.proto\x12\x04user\"0\n" +
-	"\x16GetUserByAuthIDRequest\x12\x16\n" +
-	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\"N\n" +
+	"\x16GetUserByUserIDRequest\x12\x16\n" +
+	"\x06UserID\x18\x01 \x01(\tR\x06UserID\"N\n" +
 	"\x0eTripPreference\x12\x1e\n" +
 	"\n" +
 	"Preference\x18\x01 \x01(\tR\n" +
@@ -317,7 +317,7 @@ const file_user_proto_rawDesc = "" +
 	"\x14IDCardExpirationDate\x18\x0f \x01(\tR\x14IDCardExpirationDate\x12>\n" +
 	"\x1aDriveLicenceExpirationDate\x18\x10 \x01(\tR\x1aDriveLicenceExpirationDate2Y\n" +
 	"\vUserService\x12J\n" +
-	"\x0fGetUserByAuthID\x12\x1c.user.GetUserByAuthIDRequest\x1a\x19.user.UserProfileResponseBMZKgithub.com/Kpeewu/tissi-mah/services/rating-service/proto/gen/userpb;userpbb\x06proto3"
+	"\x0fGetUserByUserID\x12\x1c.user.GetUserByUserIDRequest\x1a\x19.user.UserProfileResponseBMZKgithub.com/Kpeewu/tissi-mah/services/rating-service/proto/gen/userpb;userpbb\x06proto3"
 
 var (
 	file_user_proto_rawDescOnce sync.Once
@@ -333,14 +333,14 @@ func file_user_proto_rawDescGZIP() []byte {
 
 var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_user_proto_goTypes = []any{
-	(*GetUserByAuthIDRequest)(nil), // 0: user.GetUserByAuthIDRequest
+	(*GetUserByUserIDRequest)(nil), // 0: user.GetUserByUserIDRequest
 	(*TripPreference)(nil),         // 1: user.TripPreference
 	(*UserProfileResponse)(nil),    // 2: user.UserProfileResponse
 }
 var file_user_proto_depIdxs = []int32{
 	1, // 0: user.UserProfileResponse.TripPreferences:type_name -> user.TripPreference
-	0, // 1: user.UserService.GetUserByAuthID:input_type -> user.GetUserByAuthIDRequest
-	2, // 2: user.UserService.GetUserByAuthID:output_type -> user.UserProfileResponse
+	0, // 1: user.UserService.GetUserByUserID:input_type -> user.GetUserByUserIDRequest
+	2, // 2: user.UserService.GetUserByUserID:output_type -> user.UserProfileResponse
 	2, // [2:3] is the sub-list for method output_type
 	1, // [1:2] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
