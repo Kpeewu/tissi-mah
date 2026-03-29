@@ -14,8 +14,18 @@ data:
   USER_SERVICE_PORT: {{ .Values.config.userServicePort | quote }}
   RATING_SERVICE_HOST: {{ .Values.config.ratingServiceHost | quote }}
   RATING_SERVICE_PORT: {{ .Values.config.ratingServicePort | quote }}
+  FILE_SERVICE_HOST: {{ .Values.config.fileServiceHost | quote }}
+  FILE_SERVICE_PORT: {{ .Values.config.fileServicePort | quote }}
+  VEHICLE_SERVICE_HOST: {{ .Values.config.vehicleServiceHost | quote }}
+  VEHICLE_SERVICE_PORT: {{ .Values.config.vehicleServicePort | quote }}
+  TRIPS_SERVICE_HOST: {{ .Values.config.tripsServiceHost | quote }}
+  TRIPS_SERVICE_PORT: {{ .Values.config.tripsServicePort | quote }}
   KYC_SERVICE_HOST: {{ .Values.config.kycServiceHost | quote }}
   KYC_SERVICE_PORT: {{ .Values.config.kycServicePort | quote }}
+  BOOKING_SERVICE_HOST: {{ .Values.config.bookingServiceHost | quote }}
+  BOOKING_SERVICE_PORT: {{ .Values.config.bookingServicePort | quote }}
+  PAYMENT_SERVICE_HOST: {{ .Values.config.paymentServiceHost | quote }}
+  PAYMENT_SERVICE_PORT: {{ .Values.config.paymentServicePort | quote }}
   CORS_ALLOWED_ORIGINS: {{ .Values.config.corsAllowedOrigins | quote }}
   {{- range $key, $value := .Values.config.extra }}
   {{ $key }}: {{ $value | quote }}

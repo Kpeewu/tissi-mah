@@ -30,27 +30,6 @@ func NewAuthHandler(service serviceInterfaces.AuthService, logger *zap.Logger) *
 	return &AuthHandler{service: service, logger: logger}
 }
 
-// Login vérifie si l'utilisateur authentifié possède déjà un compte.
-// Retourne {Exists: false} (sans erreur gRPC) si aucun compte n'est trouvé,
-// afin que le client redirige vers l'inscription.
-func (h *AuthHandler) Login(ctx context.Context, _ *authpb.LoginRequest) (*authpb.LoginResponse, error) {
-	h.logger.Debug("handler: Login called")
-	user, err := h.service.LoginUser(ctx)
-	if err != nil {
-		if errors.Is(err, authErrors.ErrorUserNotFound) {
-			h.logger.Debug("handler: Login - user not found, returning exists=false")
-			return &authpb.LoginResponse{Exists: false}, nil
-		}
-		h.logger.Error("handler: Login failed", zap.Error(err))
-		return nil, toGRPCError(err)
-	}
-	h.logger.Info("handler: Login success", zap.String("authID", user.AuthID))
-	return &authpb.LoginResponse{
-		Exists: true,
-		User:   toProtoUserPreview(user),
-	}, nil
-}
-
 // CreateAccount crée un nouveau compte utilisateur.
 func (h *AuthHandler) CreateAccount(ctx context.Context, req *authpb.CreateAccountRequest) (*authpb.CreateAccountResponse, error) {
 	h.logger.Debug("handler: CreateAccount called",

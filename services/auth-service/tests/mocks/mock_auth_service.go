@@ -27,14 +27,6 @@ func (m *MockAuthService) RegisterUser(ctx context.Context, name string, firstNa
 	return args.Get(0).(*domain.UserPreview), args.Error(1)
 }
 
-func (m *MockAuthService) LoginUser(ctx context.Context) (*domain.UserPreview, error) {
-	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*domain.UserPreview), args.Error(1)
-}
-
 func (m *MockAuthService) CheckEmail(ctx context.Context, email string) (bool, error) {
 	args := m.Called(ctx, email)
 	return args.Bool(0), args.Error(1)

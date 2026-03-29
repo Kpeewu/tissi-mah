@@ -5,7 +5,6 @@ package gateway
 // Les clés correspondent aux paths définis dans les annotations google.api.http des protos.
 var ProtectedRoutes = map[string]bool{
 	// auth-service
-	"/api/v1/auth/login":         true,
 	"/api/v1/auth/createAccount": true,
 	"/api/v1/auth/deleteAccount": true,
 
@@ -96,7 +95,6 @@ const (
 // Les routes absentes utilisent le tier global par défaut.
 var RouteRateLimitConfig = map[string]RateLimitTier{
 	// Auth endpoints — brute force protection
-	"/api/v1/auth/login":            TierAuth,
 	"/api/v1/auth/checkPhoneNumber": TierAuth,
 	"/api/v1/auth/checkEmail":       TierAuth,
 

@@ -17,7 +17,6 @@ const FirebaseIDKey contextKey = "firebaseID"
 
 // Routes gRPC qui requièrent un Firebase UID (transmis par l'api-gateway)
 var protectedMethods = map[string]bool{
-	"/auth.AuthService/Login":         true,
 	"/auth.AuthService/CreateAccount": true,
 	"/auth.AuthService/DeleteAccount": true,
 }
