@@ -10,9 +10,10 @@ var ProtectedRoutes = map[string]bool{
 
 	// user-service
 	"/api/v1/user/me":                         true,
-	"/api/v1/userProfile/createDriverAccount": true,
-	"/api/v1/userProfile/addTripPreferences":  true,
-	"/api/v1/userProfile/updateProfile":       true,
+	"/api/v1/userProfile/createDriverAccount":  true,
+	"/api/v1/userProfile/addTripPreferences":   true,
+	"/api/v1/userProfile/updateProfile":        true,
+	"/api/v1/userProfile/changeProfilePicture": true,
 
 	// rating-service
 	"/api/v1/ratings/rateUser":                    true,
