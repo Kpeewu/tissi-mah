@@ -46,45 +46,25 @@ func (c *Client) CreateTransaction(amount int, description string, customer Cust
 	return resp.V1, nil
 }
 
-// GetTransactionToken génère un token pour une transaction existante.
-func (c *Client) GetTransactionToken(transactionID int) (*TokenResponse, error) {
-	path := fmt.Sprintf("/v1/transactions/%d/token", transactionID)
-
-	body, statusCode, err := c.doRequest("POST", path, nil)
-	if err != nil {
-		return nil, fmt.Errorf("get transaction token: %w", err)
-	}
-
-	if statusCode < 200 || statusCode >= 300 {
-		return nil, parseError(body)
-	}
-
-	var resp TokenResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("unmarshal token response: %w", err)
-	}
-
-	return &resp, nil
-}
-
 // SendTransaction envoie une transaction directement en USSD (moov_tg ou togocel).
-func (c *Client) SendTransaction(transactionID int, mode string, phoneNumber string) (*Transaction, error) {
-	path := fmt.Sprintf("/v1/transactions/%d/%s", transactionID, mode)
+// Le paymentToken est le JWT retourné par CreateTransaction dans le champ payment_token.
+func (c *Client) SendTransaction(paymentToken string, mode string, phoneNumber string) (*Transaction, error) {
+	path := fmt.Sprintf("/v1/transactions/%s", mode)
 	payload := map[string]interface{}{
+		"token": paymentToken,
 		"phone_number": map[string]string{
-			"number":       phoneNumber,
-			"country_code": "TG",
+			"number":  phoneNumber,
+			"country": "tg",
 		},
 	}
 
-	body, statusCode, err := c.doRequest("PUT", path, payload)
+	body, statusCode, err := c.doRequest("POST", path, payload)
 	if err != nil {
 		return nil, fmt.Errorf("send transaction: %w", err)
 	}
 
 	if statusCode < 200 || statusCode >= 300 {
 		c.logger.Error("fedapay: send transaction failed",
-			zap.Int("transactionID", transactionID),
 			zap.String("mode", mode),
 			zap.Int("statusCode", statusCode),
 			zap.String("body", string(body)),

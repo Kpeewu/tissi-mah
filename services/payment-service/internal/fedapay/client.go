@@ -36,15 +36,23 @@ func NewClient(apiURL, apiKey, webhookSecret string, logger *zap.Logger) *Client
 // doRequest exécute une requête HTTP avec les headers FedaPay.
 func (c *Client) doRequest(method, path string, body interface{}) ([]byte, int, error) {
 	var reqBody io.Reader
+	var reqBodyStr string
 	if body != nil {
 		jsonBody, err := json.Marshal(body)
 		if err != nil {
 			return nil, 0, fmt.Errorf("marshal request body: %w", err)
 		}
+		reqBodyStr = string(jsonBody)
 		reqBody = bytes.NewReader(jsonBody)
 	}
 
 	url := c.apiURL + path
+	c.logger.Debug("fedapay: request",
+		zap.String("method", method),
+		zap.String("url", url),
+		zap.String("body", reqBodyStr),
+	)
+
 	req, err := http.NewRequest(method, url, reqBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("create request: %w", err)
@@ -64,6 +72,13 @@ func (c *Client) doRequest(method, path string, body interface{}) ([]byte, int, 
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("read response body: %w", err)
 	}
+
+	c.logger.Debug("fedapay: response",
+		zap.String("method", method),
+		zap.String("url", url),
+		zap.Int("statusCode", resp.StatusCode),
+		zap.String("body", string(respBody)),
+	)
 
 	return respBody, resp.StatusCode, nil
 }

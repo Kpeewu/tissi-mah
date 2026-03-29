@@ -95,9 +95,12 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 
 	// Créer la transaction FedaPay
 	customer := fedapay.CustomerPayload{
-		FirstName:   "Passager",
-		LastName:    "TissiMah",
-		PhoneNumber: input.PassengerPhoneNumber,
+		FirstName: "Passager",
+		LastName:  "TissiMah",
+		PhoneNumber: &fedapay.PhoneNumberPayload{
+			Number:  input.PassengerPhoneNumber,
+			Country: "tg",
+		},
 	}
 
 	transaction, err := s.fedapayClient.CreateTransaction(input.Amount, fmt.Sprintf("Paiement réservation %s", input.BookingID), customer)
@@ -107,7 +110,7 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 	}
 
 	// Envoyer en USSD direct
-	_, err = s.fedapayClient.SendTransaction(transaction.ID, input.MobileMoneyMode, input.PassengerPhoneNumber)
+	_, err = s.fedapayClient.SendTransaction(transaction.PaymentToken, input.MobileMoneyMode, input.PassengerPhoneNumber)
 	if err != nil {
 		s.logger.Error("fedapay send transaction failed", zap.Error(err))
 		return nil, paymentErrors.ErrorFedaPayAPIError

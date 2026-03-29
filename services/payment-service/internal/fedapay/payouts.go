@@ -17,8 +17,8 @@ func (c *Client) CreatePayout(amount int, mode string, phoneNumber string, first
 			"firstname": firstName,
 			"lastname":  lastName,
 			"phone_number": map[string]string{
-				"number":       phoneNumber,
-				"country_code": "TG",
+				"number":  phoneNumber,
+				"country": "tg",
 			},
 		},
 	}
@@ -55,8 +55,13 @@ func (c *Client) CreatePayout(amount int, mode string, phoneNumber string, first
 
 // StartPayouts démarre un batch de payouts (PUT /v1/payouts/start).
 func (c *Client) StartPayouts(payoutIDs []int) ([]PayoutItem, error) {
+	// FedaPay attend un tableau d'objets : [{"id": 1}, {"id": 2}]
+	payoutObjects := make([]map[string]int, len(payoutIDs))
+	for i, id := range payoutIDs {
+		payoutObjects[i] = map[string]int{"id": id}
+	}
 	payload := map[string]interface{}{
-		"payouts": payoutIDs,
+		"payouts": payoutObjects,
 	}
 
 	body, statusCode, err := c.doRequest("PUT", "/v1/payouts/start", payload)

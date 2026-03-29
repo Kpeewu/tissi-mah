@@ -6,31 +6,27 @@ package fedapay
 
 // Transaction représente une transaction FedaPay.
 type Transaction struct {
-	ID          int    `json:"id"`
-	Klass       string `json:"klass"`
-	Reference   string `json:"reference"`
-	Amount      int    `json:"amount"`
-	Description string `json:"description"`
-	Status      string `json:"status"` // pending, approved, declined, transferred, refunded, canceled
-	Mode        string `json:"mode"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID           int    `json:"id"`
+	Klass        string `json:"klass"`
+	Reference    string `json:"reference"`
+	Amount       int    `json:"amount"`
+	Description  string `json:"description"`
+	Status       string `json:"status"` // pending, approved, declined, transferred, refunded, canceled
+	Mode         string `json:"mode"`
+	PaymentToken string `json:"payment_token"`
+	PaymentURL   string `json:"payment_url"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
 }
 
 // TransactionResponse est la réponse de création d'une transaction.
 type TransactionResponse struct {
-	V1 *Transaction `json:"v1"`
-}
-
-// TokenResponse est la réponse de génération de token pour une transaction.
-type TokenResponse struct {
-	Token string `json:"token"`
-	URL   string `json:"url"`
+	V1 *Transaction `json:"v1/transaction"`
 }
 
 // SendTransactionResponse est la réponse d'envoi direct USSD.
 type SendTransactionResponse struct {
-	V1 *Transaction `json:"v1"`
+	V1 *Transaction `json:"v1/transaction"`
 }
 
 // PayoutItem représente un payout FedaPay.
@@ -51,12 +47,12 @@ type PayoutItem struct {
 
 // PayoutResponse est la réponse de création d'un payout.
 type PayoutResponse struct {
-	V1 *PayoutItem `json:"v1"`
+	V1 *PayoutItem `json:"v1/payout"`
 }
 
 // BatchPayoutResponse est la réponse du démarrage batch de payouts.
 type BatchPayoutResponse struct {
-	V1 []PayoutItem `json:"v1"`
+	V1 []PayoutItem `json:"v1/payout"`
 }
 
 // BalanceItem représente un solde FedaPay.
@@ -100,10 +96,16 @@ func (e *APIError) Error() string {
 	return e.Message
 }
 
+// PhoneNumberPayload représente un numéro de téléphone avec code pays.
+type PhoneNumberPayload struct {
+	Number  string `json:"number"`
+	Country string `json:"country"`
+}
+
 // CustomerPayload représente les données client pour une transaction.
 type CustomerPayload struct {
-	FirstName   string `json:"firstname"`
-	LastName    string `json:"lastname"`
-	Email       string `json:"email,omitempty"`
-	PhoneNumber string `json:"phone_number"`
+	FirstName   string              `json:"firstname"`
+	LastName    string              `json:"lastname"`
+	Email       string              `json:"email,omitempty"`
+	PhoneNumber *PhoneNumberPayload `json:"phone_number,omitempty"`
 }
