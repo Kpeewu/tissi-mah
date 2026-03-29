@@ -10,6 +10,8 @@ data:
   GRPC_PORT: {{ .Values.service.port | quote }}
   AUTH_SERVICE_HOST: {{ .Values.config.authServiceHost | quote }}
   AUTH_SERVICE_PORT: {{ .Values.config.authServicePort | quote }}
+  FILE_SERVICE_HOST: {{ .Values.config.fileServiceHost | quote }}
+  FILE_SERVICE_PORT: {{ .Values.config.fileServicePort | quote }}
   MONGODB_DATABASE: {{ .Values.config.mongodbDatabase | quote }}
   {{- range $key, $value := .Values.config.extra }}
   {{ $key }}: {{ $value | quote }}
