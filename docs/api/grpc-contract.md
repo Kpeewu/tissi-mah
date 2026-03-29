@@ -449,7 +449,7 @@ Redis est non-bloquant : si Redis est indisponible, le service fonctionne sans c
 ### Notes
 
 - Les utilisateurs ne peuvent **pas supprimer** leurs avis
-- Le `RaterId` est validé contre le user-service (doit exister)
+- Le `RaterId` et `UserRatedId` sont des UserIDs validés contre le user-service (doivent exister)
 - Tous les endpoints sont publics (pas de JWT Firebase requis pour l'instant)
 
 ---
@@ -690,14 +690,14 @@ go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@lat
 auth-service     ──gRPC──> user-service      (CreateUser, GetUserByAuthID)
 user-service     ──gRPC──> auth-service      (GetAuthInfo)
 user-service     ──gRPC──> file-service      (Upload/Get/Delete documents)
-rating-service   ──gRPC──> user-service      (GetUserByAuthID — validate user exists)
+rating-service   ──gRPC──> user-service      (GetUserByUserID — validate user exists)
 vehicle-service  ──gRPC──> file-service      (Upload/Get vehicle documents)
 kyc-service      ──gRPC──> file-service      (GetDocument — get document for Persona inquiry)
 trips-service    ──gRPC──> user-service      (GetDriverName — enrichment)
 trips-service    ──gRPC──> vehicle-service   (GetVehicleInfo — enrichment + seat check)
 trips-service    ──gRPC──> booking-service   (StartBookingsForWaypoint, CompleteBookingsForWaypoint)
 booking-service  ──gRPC──> trips-service     (GetTripByID — validate trip, UpdateAvailableSeats)
-booking-service  ──gRPC──> user-service      (GetUserByAuthID — validate passenger)
+booking-service  ──gRPC──> user-service      (GetUserByUserID — validate passenger)
 
 api-gateway      ──gRPC──> auth-service      (HTTP transcoding via grpc-gateway)
 api-gateway      ──gRPC──> user-service      (HTTP transcoding via grpc-gateway)
