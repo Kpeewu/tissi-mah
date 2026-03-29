@@ -10,8 +10,8 @@ type MockUserClient struct {
 	mock.Mock
 }
 
-func (m *MockUserClient) UserExists(ctx context.Context, authID string) (bool, error) {
-	args := m.Called(ctx, authID)
+func (m *MockUserClient) UserExists(ctx context.Context, userID string) (bool, error) {
+	args := m.Called(ctx, userID)
 	return args.Bool(0), args.Error(1)
 }
 
