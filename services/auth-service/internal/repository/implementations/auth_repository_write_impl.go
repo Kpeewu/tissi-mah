@@ -98,7 +98,8 @@ func (r *authWriteRepositoryImpl) Delete(ctx context.Context, auth *domain.Auth)
 	query := `UPDATE auth SET
 					firebase_id = $1, phone_number = $2, email = $3, is_active = $4, deleted_at = $5 WHERE auth_id = $6`
 
-	_, err := r.pool.Exec(ctx, query, auth.FirebaseID, auth.PhoneNumber, auth.Email, auth.IsActive, auth.DeletedAt, auth.AuthID)
+	// firebase_id doit être NULL (pas string vide) pour ne pas violer la contrainte UNIQUE
+	_, err := r.pool.Exec(ctx, query, nil, auth.PhoneNumber, auth.Email, auth.IsActive, auth.DeletedAt, auth.AuthID)
 
 	if err != nil {
 		r.logger.Error("delete auth failed", zap.Error(err), zap.String("authID", auth.AuthID))
