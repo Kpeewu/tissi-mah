@@ -45,21 +45,21 @@ func (c *UserServiceClient) Close() error {
 	return c.conn.Close()
 }
 
-// UserExists vérifie qu'un utilisateur existe dans user-service via son AuthID.
+// UserExists vérifie qu'un utilisateur existe dans user-service via son UserID.
 // Retourne true si l'utilisateur existe, false si NOT_FOUND.
-func (c *UserServiceClient) UserExists(ctx context.Context, authID string) (bool, error) {
-	c.logger.Debug("client: UserExists called", zap.String("authID", authID))
+func (c *UserServiceClient) UserExists(ctx context.Context, userID string) (bool, error) {
+	c.logger.Debug("client: UserExists called", zap.String("userID", userID))
 
-	_, err := c.grpcClient.GetUserByAuthID(ctx, &userpb.GetUserByAuthIDRequest{
-		AuthID: authID,
+	_, err := c.grpcClient.GetUserByUserID(ctx, &userpb.GetUserByUserIDRequest{
+		UserID: userID,
 	})
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-			c.logger.Debug("client: user not found", zap.String("authID", authID))
+			c.logger.Debug("client: user not found", zap.String("userID", userID))
 			return false, nil
 		}
-		c.logger.Error("client: UserExists failed", zap.Error(err), zap.String("authID", authID))
-		return false, fmt.Errorf("user-service: GetUserByAuthID failed: %w", err)
+		c.logger.Error("client: UserExists failed", zap.Error(err), zap.String("userID", userID))
+		return false, fmt.Errorf("user-service: GetUserByUserID failed: %w", err)
 	}
 
 	return true, nil
