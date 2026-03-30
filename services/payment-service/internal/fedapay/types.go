@@ -86,6 +86,12 @@ type WebhookEntity struct {
 	UpdatedAt   string `json:"updated_at"`
 }
 
+// TokenResponse est la réponse de génération d'un token de transaction.
+type TokenResponse struct {
+	Token string `json:"token"`
+	URL   string `json:"url"`
+}
+
 // APIError représente une erreur de l'API FedaPay.
 type APIError struct {
 	Message string `json:"message"`

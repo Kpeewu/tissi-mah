@@ -109,8 +109,15 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 		return nil, paymentErrors.ErrorFedaPayAPIError
 	}
 
-	// Envoyer en USSD direct
-	_, err = s.fedapayClient.SendTransaction(transaction.PaymentToken, input.MobileMoneyMode, input.PassengerPhoneNumber)
+	// Obtenir le token d'envoi
+	tokenResp, err := s.fedapayClient.GetTransactionToken(transaction.ID)
+	if err != nil {
+		s.logger.Error("fedapay get transaction token failed", zap.Error(err))
+		return nil, paymentErrors.ErrorFedaPayAPIError
+	}
+
+	// Envoyer en USSD avec le token
+	_, err = s.fedapayClient.SendTransaction(tokenResp.Token, input.MobileMoneyMode, input.PassengerPhoneNumber)
 	if err != nil {
 		s.logger.Error("fedapay send transaction failed", zap.Error(err))
 		return nil, paymentErrors.ErrorFedaPayAPIError
