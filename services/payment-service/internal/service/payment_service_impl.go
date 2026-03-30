@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -75,6 +78,18 @@ func AsImpl(s serviceInterfaces.PaymentService) *paymentServiceImpl {
 	return impl
 }
 
+// generateAlphanumeric génère une chaîne aléatoire de lettres majuscules et chiffres.
+func generateAlphanumeric(length int) string {
+	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	var sb strings.Builder
+	sb.Grow(length)
+	for i := 0; i < length; i++ {
+		idx, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		sb.WriteByte(charset[idx.Int64()])
+	}
+	return sb.String()
+}
+
 // =============================================================================
 // CreatePayment
 // =============================================================================
@@ -116,7 +131,7 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 		},
 	}
 
-	transaction, err := s.fedapayClient.CreateTransaction(input.Amount, fmt.Sprintf("Paiement réservation %s", input.BookingID), customer)
+	transaction, err := s.fedapayClient.CreateTransaction(input.Amount, fmt.Sprintf("Paiement réservation %s", booking.BookingReference), customer)
 	if err != nil {
 		s.logger.Error("fedapay create transaction failed", zap.Error(err))
 		return nil, paymentErrors.ErrorFedaPayAPIError
@@ -138,7 +153,7 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 
 	// Sauvegarder en DB
 	paymentID := uuid.New().String()
-	paymentRef := fmt.Sprintf("PAY-%s", paymentID[:8])
+	paymentRef := fmt.Sprintf("PAY-%s-%s", time.Now().UTC().Format("20060102"), generateAlphanumeric(6))
 
 	payment := &domain.Payment{
 		PaymentID:             paymentID,

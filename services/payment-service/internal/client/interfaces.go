@@ -15,13 +15,14 @@ type UserClient interface {
 
 // BookingDetails contient les détails d'une réservation nécessaires au payment-service.
 type BookingDetails struct {
-	BookingID   string
-	TripID      string
-	PassengerID string
-	DriverID    string
-	Status      string
-	TotalAmount int
-	ServiceFee  int
+	BookingID        string
+	BookingReference string
+	TripID           string
+	PassengerID      string
+	DriverID         string
+	Status           string
+	TotalAmount      int
+	ServiceFee       int
 }
 
 // UserInfo contient les informations utilisateur nécessaires au payout.
