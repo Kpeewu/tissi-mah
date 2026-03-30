@@ -248,7 +248,7 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 // =============================================================================
 
 func (s *bookingServiceImpl) GetBookingDetails(ctx context.Context, input *serviceInterfaces.GetBookingDetailsInput) (*serviceInterfaces.BookingDetailResult, error) {
-	if input.BookingID == "" || input.UserID == "" {
+	if input.BookingID == "" {
 		return nil, bookingErrors.ErrorInvalidInput
 	}
 
@@ -258,7 +258,8 @@ func (s *bookingServiceImpl) GetBookingDetails(ctx context.Context, input *servi
 	}
 
 	// Vérification d'autorisation : l'utilisateur doit être le passager ou le conducteur
-	if booking.PassengerID != input.UserID && booking.DriverID != input.UserID {
+	// Skippée pour les appels inter-services (UserID vide)
+	if input.UserID != "" && booking.PassengerID != input.UserID && booking.DriverID != input.UserID {
 		return nil, bookingErrors.ErrorUnauthorized
 	}
 
