@@ -140,10 +140,17 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 	}
 	cfg.Logger.Info("registered booking-service handler", zap.String("endpoint", cfg.BookingServiceAddr))
 
+	// Enregistrer payment-service (grpc-gateway transcoding)
+	if err := paymentpb.RegisterPaymentServiceHandlerFromEndpoint(ctx, mux, cfg.PaymentServiceAddr, dialOpts); err != nil {
+		return nil, err
+	}
+	cfg.Logger.Info("registered payment-service handler", zap.String("endpoint", cfg.PaymentServiceAddr))
+
 	// Handler brut pour le webhook FedaPay : bypass le transcoding grpc-gateway afin de
 	// conserver les bytes raw du body (nécessaires pour la vérification HMAC-SHA256) et
 	// de lire le header X-FEDAPAY-SIGNATURE (que grpc-gateway n'injecte pas dans le proto).
-	// HandlePath a priorité sur les routes générées par RegisterPaymentServiceHandlerFromEndpoint.
+	// Enregistré APRÈS RegisterPaymentServiceHandlerFromEndpoint pour que HandlePath
+	// prenne la priorité sur la route grpc-gateway générée.
 	paymentConn, err := grpc.NewClient(cfg.PaymentServiceAddr, dialOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("dial payment-service for webhook handler: %w", err)
@@ -182,12 +189,6 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		return nil, fmt.Errorf("register fedapay webhook handler: %w", err)
 	}
 	cfg.Logger.Info("registered fedapay webhook raw handler", zap.String("endpoint", cfg.PaymentServiceAddr))
-
-	// Enregistrer payment-service
-	if err := paymentpb.RegisterPaymentServiceHandlerFromEndpoint(ctx, mux, cfg.PaymentServiceAddr, dialOpts); err != nil {
-		return nil, err
-	}
-	cfg.Logger.Info("registered payment-service handler", zap.String("endpoint", cfg.PaymentServiceAddr))
 
 	return mux, nil
 }
