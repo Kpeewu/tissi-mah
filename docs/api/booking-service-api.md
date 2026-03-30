@@ -94,6 +94,8 @@ Content-Type: application/json
 | `PaymentMethod` | string | Yes | `mobileMoney` \| `card` \| `paypal` \| `cash` |
 | `Segments` | array | Yes | Journey segments (one per leg of the trip) |
 
+> **Note on `SegmentPrice`:** The price sent in each segment is informational only. The actual price is recalculated server-side from the trip's waypoint prices.
+
 #### Response (Success)
 
 ```http
@@ -103,18 +105,23 @@ Content-Type: application/json
 {
     "BookingId": "bk-550e8400-e29b-41d4-a716-446655440020",
     "BookingReference": "TM-2026-0001",
-    "Status": "pendingApproval",
+    "Status": "paymentPending",
     "TotalAmount": 20000,
     "ErrorMessage": ""
 }
 ```
 
+> `Status` will be `paymentPending` for non-cash payments, or `pendingApproval` / `approved` for cash payments.
+
 #### Booking Status After Creation
 
-| Condition | Initial Status |
-|-----------|----------------|
-| `AutoApprove = true` on trip | `approved` |
-| `AutoApprove = false` on trip | `pendingApproval` |
+| Payment Method | AutoApprove | Initial Status |
+|---------------|-------------|----------------|
+| `cash` | `true` | `approved` |
+| `cash` | `false` | `pendingApproval` |
+| non-cash (`mobileMoney`, `card`, `paypal`) | — | `paymentPending` |
+
+> For non-cash bookings, the client must initiate payment via `POST /payment/createPayment`. Once payment is confirmed (via FedaPay webhook → payment-service → `confirmPayment`), the booking transitions to `pendingApproval` (or `approved` if `AutoApprove = true`).
 
 #### Errors
 
@@ -155,6 +162,8 @@ Content-Type: application/json
         "TripId": "t-550e8400-e29b-41d4-a716-446655440000",
         "PassengerId": "550e8400-e29b-41d4-a716-446655440010",
         "DriverId": "550e8400-e29b-41d4-a716-446655440001",
+        "PickupWaypointId": "w-dep-001",
+        "DropoffWaypointId": "w-arr-002",
         "SeatsBooked": 2,
         "PricePerSeat": 5000,
         "Subtotal": 10000,
@@ -162,7 +171,17 @@ Content-Type: application/json
         "TotalAmount": 11000,
         "PaymentMethod": "mobileMoney",
         "Status": "approved",
+        "PaymentCompletedAt": "2026-04-15T08:02:00Z",
         "ApprovedAt": "2026-04-15T08:05:00Z",
+        "RejectedAt": "",
+        "CancelledAt": "",
+        "CompletedAt": "",
+        "CancellerId": "",
+        "CancellationReason": "",
+        "NoShowType": "",
+        "NoShowReportedBy": "",
+        "NoShowReportedAt": "",
+        "NoShowDescription": "",
         "CreatedAt": "2026-04-15T08:00:00Z",
         "UpdatedAt": "2026-04-15T08:05:00Z",
         "Segments": [...],
@@ -376,7 +395,7 @@ Content-Type: application/json
 
 ### POST /booking/confirmPayment
 
-Confirms payment for a booking. Called as a payment callback.
+Confirms payment for a booking. **Called internally by payment-service** after a successful payment (FedaPay webhook → payment-service → this endpoint). Mobile clients do not call this directly.
 
 **Authentication:** Firebase JWT required
 
@@ -403,6 +422,8 @@ Content-Type: application/json
     "ErrorMessage": ""
 }
 ```
+
+> `Status` will be `pendingApproval` if the driver has not enabled auto-approve, or `approved` if auto-approve is enabled on the trip.
 
 ---
 
@@ -473,18 +494,28 @@ Health check endpoint.
 ## Booking Lifecycle
 
 ```
+                              ┌─── (cash, autoApprove=true) ──────────────────────────┐
+                              │                                                         ▼
+created → paymentPending ─────┤        pendingApproval → approved → inProgress → completed
+          (non-cash)          │               ↓               ↓           ↓
+                              └─── (cash) ──► ↑           rejected    cancelled      noShow
+                                                           cancelled    noShow
+```
+
+**Simplified:**
+```
 created → paymentPending → pendingApproval → approved → inProgress → completed
-                                   ↓               ↓
-                               rejected         cancelled
-                                                 noShow
+                ↓                  ↓             ↓
+            cancelled          rejected       cancelled
+                                              noShow
 ```
 
 | Status | Description |
 |--------|-------------|
-| `created` | Booking created, payment not yet initiated |
-| `paymentPending` | Payment initiated, waiting for confirmation |
-| `pendingApproval` | Payment confirmed, waiting for driver approval |
-| `approved` | Driver approved the booking |
+| `created` | Booking created (cash only — intermediate state before persistence) |
+| `paymentPending` | Non-cash booking awaiting payment confirmation |
+| `pendingApproval` | Payment confirmed (or cash booking) — awaiting driver approval |
+| `approved` | Driver approved the booking (or auto-approved) |
 | `rejected` | Driver rejected the booking |
 | `cancelled` | Cancelled by passenger or driver |
 | `inProgress` | Trip started, passenger on board |
