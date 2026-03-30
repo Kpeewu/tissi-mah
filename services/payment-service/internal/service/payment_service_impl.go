@@ -187,8 +187,15 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 	s.logger.Debug("processing webhook")
 
 	// Vérifier la signature HMAC
+	s.logger.Debug("webhook debug",
+		zap.String("receivedSignature", input.Signature),
+		zap.Int("rawPayloadLen", len(input.RawPayload)),
+		zap.String("rawPayloadPreview", string(input.RawPayload[:min(len(input.RawPayload), 200)])),
+	)
 	if !s.fedapayClient.VerifyWebhookSignature(input.Signature, input.RawPayload) {
-		s.logger.Warn("webhook signature verification failed")
+		s.logger.Warn("webhook signature verification failed",
+			zap.String("receivedSignature", input.Signature),
+		)
 		return paymentErrors.ErrorWebhookVerificationFailed
 	}
 
