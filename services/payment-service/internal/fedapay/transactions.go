@@ -79,8 +79,8 @@ func (c *Client) GetTransactionToken(transactionID int) (*TokenResponse, error) 
 
 // SendTransaction envoie une transaction directement en USSD (moov_tg, togocel ou momo_test).
 // Le token doit être obtenu via GetTransactionToken avant cet appel.
-func (c *Client) SendTransaction(paymentToken string, mode string, phoneNumber string) (*Transaction, error) {
-	path := fmt.Sprintf("/v1/transactions/%s", mode)
+func (c *Client) SendTransaction(paymentToken string, mode string, phoneNumber string) (*PaymentIntent, error) {
+	path := fmt.Sprintf("/v1/%s", mode)
 	payload := map[string]interface{}{
 		"token": paymentToken,
 		"phone_number": map[string]string{
@@ -113,7 +113,7 @@ func (c *Client) SendTransaction(paymentToken string, mode string, phoneNumber s
 	}
 
 	c.logger.Info("fedapay: transaction sent via USSD",
-		zap.Int("transactionID", resp.V1.ID),
+		zap.Int("paymentIntentID", resp.V1.ID),
 		zap.String("mode", mode),
 		zap.String("status", resp.V1.Status),
 	)

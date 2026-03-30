@@ -24,9 +24,21 @@ type TransactionResponse struct {
 	V1 *Transaction `json:"v1/transaction"`
 }
 
-// SendTransactionResponse est la réponse d'envoi direct USSD.
+// PaymentIntent représente un payment_intent FedaPay retourné par l'envoi USSD.
+type PaymentIntent struct {
+	ID        int    `json:"id"`
+	Klass     string `json:"klass"`
+	Reference string `json:"reference"`
+	Amount    int    `json:"amount"`
+	Status    string `json:"status"` // approved, canceled, declined
+	Mode      string `json:"mode"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+// SendTransactionResponse est la réponse d'envoi direct USSD (wrappée dans v1/payment_intent).
 type SendTransactionResponse struct {
-	V1 *Transaction `json:"v1/transaction"`
+	V1 *PaymentIntent `json:"v1/payment_intent"`
 }
 
 // PayoutItem représente un payout FedaPay.

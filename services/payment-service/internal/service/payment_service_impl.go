@@ -93,10 +93,23 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 		return nil, paymentErrors.ErrorInvalidInput
 	}
 
-	// Créer la transaction FedaPay
+	// Récupérer les infos du passager via booking → user
+	booking, err := s.bookingClient.GetBookingDetails(ctx, input.BookingID)
+	if err != nil {
+		s.logger.Error("get booking details failed", zap.Error(err))
+		return nil, paymentErrors.ErrorInternalServer
+	}
+
+	userInfo, err := s.userClient.GetUserByUserID(ctx, booking.PassengerID)
+	if err != nil {
+		s.logger.Error("get user info failed", zap.Error(err), zap.String("passengerID", booking.PassengerID))
+		return nil, paymentErrors.ErrorInternalServer
+	}
+
+	// Créer la transaction FedaPay avec les vraies infos du passager
 	customer := fedapay.CustomerPayload{
-		FirstName: "Passager",
-		LastName:  "TissiMah",
+		FirstName: userInfo.FirstName,
+		LastName:  userInfo.Name,
 		PhoneNumber: &fedapay.PhoneNumberPayload{
 			Number:  input.PassengerPhoneNumber,
 			Country: "tg",
