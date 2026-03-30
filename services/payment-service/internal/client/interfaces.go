@@ -17,6 +17,7 @@ type UserClient interface {
 type BookingDetails struct {
 	BookingID   string
 	TripID      string
+	PassengerID string
 	DriverID    string
 	Status      string
 	TotalAmount int
