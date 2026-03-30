@@ -413,7 +413,7 @@ func (s *paymentServiceImpl) RequestRefund(ctx context.Context, input *serviceIn
 
 	// Créer le refund
 	refundID := uuid.New().String()
-	refundRef := fmt.Sprintf("REF-%s", refundID[:8])
+	refundRef := fmt.Sprintf("RMB-%s-%s", time.Now().UTC().Format("20060102"), generateAlphanumeric(6))
 	now := time.Now().UTC()
 
 	refund := &domain.Refund{

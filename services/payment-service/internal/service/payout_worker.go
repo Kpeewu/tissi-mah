@@ -162,7 +162,7 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 
 	// Sauvegarder le payout en DB
 	payoutID := uuid.New().String()
-	payoutRef := fmt.Sprintf("PO-%s", payoutID[:8])
+	payoutRef := fmt.Sprintf("PYO-%s-%s", time.Now().UTC().Format("20060102"), generateAlphanumeric(6))
 	scheduledAt := time.Now().UTC()
 
 	payout := &domain.Payout{

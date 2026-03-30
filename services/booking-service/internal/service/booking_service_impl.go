@@ -665,11 +665,13 @@ func (s *bookingServiceImpl) mapPreviewsToResults(previews []*domain.BookingPrev
 	return results
 }
 
-// generateBookingReference génère une référence unique BK-XXXXXX.
+// generateBookingReference génère une référence unique RES-YYYYMMDD-XXXXXX.
 func generateBookingReference() string {
 	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	var b strings.Builder
-	b.WriteString("BK-")
+	b.WriteString("RES-")
+	b.WriteString(time.Now().UTC().Format("20060102"))
+	b.WriteByte('-')
 	for range 6 {
 		n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
 		b.WriteByte(chars[n.Int64()])
