@@ -3,6 +3,8 @@ package gateway
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -137,6 +139,49 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		return nil, err
 	}
 	cfg.Logger.Info("registered booking-service handler", zap.String("endpoint", cfg.BookingServiceAddr))
+
+	// Handler brut pour le webhook FedaPay : bypass le transcoding grpc-gateway afin de
+	// conserver les bytes raw du body (nécessaires pour la vérification HMAC-SHA256) et
+	// de lire le header X-FEDAPAY-SIGNATURE (que grpc-gateway n'injecte pas dans le proto).
+	// HandlePath a priorité sur les routes générées par RegisterPaymentServiceHandlerFromEndpoint.
+	paymentConn, err := grpc.NewClient(cfg.PaymentServiceAddr, dialOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("dial payment-service for webhook handler: %w", err)
+	}
+	paymentClient := paymentpb.NewPaymentServiceClient(paymentConn)
+
+	if err := mux.HandlePath("POST", "/payment/webhooks/fedapay", func(w http.ResponseWriter, r *http.Request, _ map[string]string) {
+		rawBody, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"ErrorMessage": "failed to read request body"}) //nolint:errcheck
+			return
+		}
+
+		signature := r.Header.Get("X-FEDAPAY-SIGNATURE")
+
+		resp, err := paymentClient.ProcessWebhook(r.Context(), &paymentpb.ProcessWebhookRequest{
+			Signature:  signature,
+			RawPayload: rawBody,
+		})
+		if err != nil {
+			s, _ := status.FromError(err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(runtime.HTTPStatusFromCode(s.Code()))
+			json.NewEncoder(w).Encode(map[string]string{"ErrorMessage": s.Message()}) //nolint:errcheck
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if !resp.Success {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+		}
+		json.NewEncoder(w).Encode(resp) //nolint:errcheck
+	}); err != nil {
+		return nil, fmt.Errorf("register fedapay webhook handler: %w", err)
+	}
+	cfg.Logger.Info("registered fedapay webhook raw handler", zap.String("endpoint", cfg.PaymentServiceAddr))
 
 	// Enregistrer payment-service
 	if err := paymentpb.RegisterPaymentServiceHandlerFromEndpoint(ctx, mux, cfg.PaymentServiceAddr, dialOpts); err != nil {
