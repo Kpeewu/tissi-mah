@@ -65,12 +65,13 @@ func (c *BookingServiceClient) GetBookingDetails(ctx context.Context, bookingID 
 
 	b := resp.Booking
 	return &BookingDetails{
-		BookingID:   b.BookingId,
-		TripID:      b.TripId,
-		PassengerID: b.PassengerId,
-		DriverID:    b.DriverId,
-		Status:      b.Status,
-		TotalAmount: int(b.TotalAmount),
-		ServiceFee:  int(b.ServiceFee),
+		BookingID:        b.BookingId,
+		BookingReference: b.BookingReference,
+		TripID:           b.TripId,
+		PassengerID:      b.PassengerId,
+		DriverID:         b.DriverId,
+		Status:           b.Status,
+		TotalAmount:      int(b.TotalAmount),
+		ServiceFee:       int(b.ServiceFee),
 	}, nil
 }
