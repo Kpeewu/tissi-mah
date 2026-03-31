@@ -496,6 +496,34 @@ func (s *bookingServiceImpl) ConfirmPayment(ctx context.Context, input *serviceI
 }
 
 // =============================================================================
+// FailPayment
+// =============================================================================
+
+func (s *bookingServiceImpl) FailPayment(ctx context.Context, input *serviceInterfaces.FailPaymentInput) error {
+	if input.BookingID == "" {
+		return bookingErrors.ErrorInvalidInput
+	}
+
+	// Récupérer le booking pour connaître le tripID et les places
+	booking, err := s.readRepo.GetByID(ctx, input.BookingID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.FailPayment(ctx, input.BookingID, input.Reason); err != nil {
+		return err
+	}
+
+	// Restaurer les places Redis
+	if s.cache != nil {
+		_ = s.cache.RestoreSeats(ctx, booking.TripID, int(booking.SeatsBooked))
+	}
+
+	s.invalidateBookingCaches(ctx, input.BookingID)
+	return nil
+}
+
+// =============================================================================
 // Helpers
 // =============================================================================
 

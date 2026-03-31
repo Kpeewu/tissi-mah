@@ -36,6 +36,9 @@ type BookingService interface {
 
 	// ConfirmPayment confirme le paiement d'une réservation.
 	ConfirmPayment(ctx context.Context, input *ConfirmPaymentInput) error
+
+	// FailPayment signale l'échec du paiement et restaure les places.
+	FailPayment(ctx context.Context, input *FailPaymentInput) error
 }
 
 // =============================================================================
@@ -124,6 +127,11 @@ type ReportNoShowInput struct {
 type ConfirmPaymentInput struct {
 	BookingID     string
 	TransactionID string
+}
+
+type FailPaymentInput struct {
+	BookingID string
+	Reason    string
 }
 
 // =============================================================================

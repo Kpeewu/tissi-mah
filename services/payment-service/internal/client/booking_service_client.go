@@ -54,6 +54,22 @@ func (c *BookingServiceClient) ConfirmPayment(ctx context.Context, bookingID str
 	return nil
 }
 
+func (c *BookingServiceClient) FailPayment(ctx context.Context, bookingID string, reason string) error {
+	resp, err := c.grpcClient.FailPayment(ctx, &bookingpb.FailPaymentRequest{
+		BookingId: bookingID,
+		Reason:    reason,
+	})
+	if err != nil {
+		c.logger.Error("fail payment failed", zap.Error(err), zap.String("bookingID", bookingID))
+		return fmt.Errorf("booking-service: FailPayment failed: %w", err)
+	}
+	if !resp.Success {
+		return fmt.Errorf("booking-service: FailPayment rejected: %s", resp.ErrorMessage)
+	}
+
+	return nil
+}
+
 func (c *BookingServiceClient) GetBookingDetails(ctx context.Context, bookingID string) (*BookingDetails, error) {
 	resp, err := c.grpcClient.GetBookingDetails(ctx, &bookingpb.GetBookingDetailsRequest{
 		BookingId: bookingID,

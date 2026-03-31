@@ -5,6 +5,7 @@ import "context"
 // BookingClient est l'interface pour les appels vers booking-service.
 type BookingClient interface {
 	ConfirmPayment(ctx context.Context, bookingID string, transactionID string) error
+	FailPayment(ctx context.Context, bookingID string, reason string) error
 	GetBookingDetails(ctx context.Context, bookingID string) (*BookingDetails, error)
 }
 

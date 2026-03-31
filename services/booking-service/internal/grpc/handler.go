@@ -301,6 +301,19 @@ func (h *BookingHandler) ConfirmPayment(ctx context.Context, req *bookingpb.Conf
 	}, nil
 }
 
+// FailPayment signale l'échec du paiement d'une réservation.
+func (h *BookingHandler) FailPayment(ctx context.Context, req *bookingpb.FailPaymentRequest) (*bookingpb.FailPaymentResponse, error) {
+	err := h.service.FailPayment(ctx, &serviceInterfaces.FailPaymentInput{
+		BookingID: req.BookingId,
+		Reason:    req.Reason,
+	})
+	if err != nil {
+		return &bookingpb.FailPaymentResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return &bookingpb.FailPaymentResponse{Success: true}, nil
+}
+
 // Health retourne l'état de santé du service.
 func (h *BookingHandler) Health(ctx context.Context, req *bookingpb.HealthRequest) (*bookingpb.HealthResponse, error) {
 	return &bookingpb.HealthResponse{

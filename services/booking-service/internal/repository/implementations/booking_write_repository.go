@@ -520,6 +520,48 @@ func (r *bookingWriteRepositoryImpl) insertHistoryInTx(ctx context.Context, tx p
 	return nil
 }
 
+// FailPayment marque le paiement d'une réservation comme échoué.
+func (r *bookingWriteRepositoryImpl) FailPayment(ctx context.Context, bookingID, reason string) error {
+	r.logger.Debug("failing payment", zap.String("bookingID", bookingID))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var currentStatus string
+	err = tx.QueryRow(ctx, `
+		SELECT status FROM bookings WHERE booking_id = $1 FOR UPDATE`, bookingID,
+	).Scan(&currentStatus)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return bookingErrors.ErrorBookingNotFound
+		}
+		return bookingErrors.ErrorDataRetrievalFailed
+	}
+
+	if currentStatus != string(domain.BookingStatusPaymentPending) {
+		return bookingErrors.ErrorInvalidStatusTransition
+	}
+
+	newStatus := string(domain.BookingStatusPaymentFailed)
+
+	_, err = tx.Exec(ctx, `
+		UPDATE bookings SET status = $2::booking_status, cancellation_reason = $3
+		WHERE booking_id = $1`, bookingID, newStatus, reason)
+	if err != nil {
+		r.logger.Error("fail payment update failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	if err := r.insertHistoryInTx(ctx, tx, bookingID, currentStatus, newStatus, "system", "system"); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
 // MarkPaymentReleased marque le paiement d'un booking comme libéré.
 func (r *bookingWriteRepositoryImpl) MarkPaymentReleased(ctx context.Context, bookingID string) error {
 	query := `UPDATE bookings SET payment_released_at = NOW() WHERE booking_id = $1`
