@@ -17,6 +17,7 @@ type Config struct {
 	UserService    ServiceEndpoint
 	Payout         PayoutConfig
 	Refund         RefundConfig
+	Expiration     ExpirationConfig
 	LogLevel       string
 }
 
@@ -56,6 +57,11 @@ type PayoutConfig struct {
 	IntervalSeconds        int
 	ContestationDelayHours int
 	PlatformFeePercent     int
+}
+
+type ExpirationConfig struct {
+	IntervalSeconds       int
+	PaymentTimeoutMinutes int
 }
 
 type RefundConfig struct {
@@ -98,6 +104,10 @@ func Load() (*Config, error) {
 			IntervalSeconds:        getIntOrDefault(values, "PAYOUT_INTERVAL_SECONDS", 1800),
 			ContestationDelayHours: getIntOrDefault(values, "CONTESTATION_DELAY_HOURS", 2),
 			PlatformFeePercent:     getIntOrDefault(values, "PLATFORM_FEE_PERCENT", 10),
+		},
+		Expiration: ExpirationConfig{
+			IntervalSeconds:       getIntOrDefault(values, "EXPIRATION_INTERVAL_SECONDS", 60),
+			PaymentTimeoutMinutes: getIntOrDefault(values, "PAYMENT_TIMEOUT_MINUTES", 5),
 		},
 		Refund: RefundConfig{
 			CancellationFullRefundHours:    getIntOrDefault(values, "CANCELLATION_FULL_REFUND_HOURS", 24),

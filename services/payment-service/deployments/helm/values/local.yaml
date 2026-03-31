@@ -46,6 +46,8 @@ config:
   cancellationGracePeriodMinutes: "15"
   noshowDriverDelayMinutes: "15"
   noshowPassengerDelayMinutes: "15"
+  expirationIntervalSeconds: "60"
+  paymentTimeoutMinutes: "5"
   extra: {}
 
 secrets:

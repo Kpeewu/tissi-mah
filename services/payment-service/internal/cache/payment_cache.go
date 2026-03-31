@@ -15,6 +15,7 @@ import (
 const (
 	paymentByBookingTTL = 2 * time.Minute
 	payoutLockTTL       = 10 * time.Minute
+	expirationLockTTL   = 5 * time.Minute
 	keyPrefix           = "payment:"
 )
 
@@ -79,5 +80,17 @@ func (c *PaymentCache) AcquirePayoutLock(ctx context.Context) (bool, error) {
 // ReleasePayoutLock libère le verrou du payout worker.
 func (c *PaymentCache) ReleasePayoutLock(ctx context.Context) {
 	key := keyPrefix + "payout:lock"
+	c.client.Del(ctx, key) //nolint:errcheck
+}
+
+// AcquireExpirationLock tente d'acquérir un verrou distribué pour l'expiration worker.
+func (c *PaymentCache) AcquireExpirationLock(ctx context.Context) (bool, error) {
+	key := keyPrefix + "expiration:lock"
+	return c.client.SetNX(ctx, key, "locked", expirationLockTTL).Result()
+}
+
+// ReleaseExpirationLock libère le verrou de l'expiration worker.
+func (c *PaymentCache) ReleaseExpirationLock(ctx context.Context) {
+	key := keyPrefix + "expiration:lock"
 	c.client.Del(ctx, key) //nolint:errcheck
 }

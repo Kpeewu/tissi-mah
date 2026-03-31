@@ -3,6 +3,7 @@ package implementations
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -67,6 +68,40 @@ func (r *paymentReadRepository) GetWebhookEvent(ctx context.Context, fedapayEven
 	}
 
 	return &event, nil
+}
+
+func (r *paymentReadRepository) GetExpiredPendingPayments(ctx context.Context, olderThan time.Duration) ([]*domain.Payment, error) {
+	query := `SELECT payment_id, booking_id, trip_id, amount, payment_method, payment_provider,
+		status, external_transaction_id, payment_reference,
+		created_at, completed_at, failed_at, failure_reason, metadata, updated_at
+		FROM payments WHERE status = 'pending' AND created_at < $1
+		ORDER BY created_at ASC LIMIT 100`
+
+	cutoff := time.Now().UTC().Add(-olderThan)
+	rows, err := r.pool.Query(ctx, query, cutoff)
+	if err != nil {
+		r.logger.Error("get expired pending payments failed", zap.Error(err))
+		return nil, paymentErrors.ErrorDataRetrievalFailed
+	}
+	defer rows.Close()
+
+	var payments []*domain.Payment
+	for rows.Next() {
+		var p domain.Payment
+		if err := rows.Scan(
+			&p.PaymentID, &p.BookingID, &p.TripID, &p.Amount,
+			&p.PaymentMethod, &p.PaymentProvider,
+			&p.Status, &p.ExternalTransactionID, &p.PaymentReference,
+			&p.CreatedAt, &p.CompletedAt, &p.FailedAt, &p.FailureReason,
+			&p.Metadata, &p.UpdatedAt,
+		); err != nil {
+			r.logger.Error("scan expired payment failed", zap.Error(err))
+			return nil, paymentErrors.ErrorDataRetrievalFailed
+		}
+		payments = append(payments, &p)
+	}
+
+	return payments, nil
 }
 
 func (r *paymentReadRepository) scanPayment(ctx context.Context, query string, arg interface{}) (*domain.Payment, error) {
