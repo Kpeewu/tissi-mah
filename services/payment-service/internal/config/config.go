@@ -65,10 +65,10 @@ type ExpirationConfig struct {
 }
 
 type RefundConfig struct {
-	CancellationFullRefundHours      int
-	CancellationGracePeriodMinutes   int
-	NoShowDriverDelayMinutes         int
-	NoShowPassengerDelayMinutes      int
+	CancellationFullRefundHours    int
+	CancellationGracePeriodMinutes int
+	NoShowDriverDelayMinutes       int
+	NoShowPassengerDelayMinutes    int
 }
 
 func Load() (*Config, error) {
@@ -129,7 +129,7 @@ func loadFedaPayConfig(v *viper.Viper, environment string) FedaPayConfig {
 			APIKey:        sharedconfig.MustGetString(v, "FEDAPAY_LIVE_API_KEY"),
 			WebhookSecret: sharedconfig.MustGetString(v, "FEDAPAY_LIVE_WEBHOOK_SECRET"),
 		}
-	default: // local, vps-dev
+	default: // local
 		return FedaPayConfig{
 			APIURL:        sharedconfig.MustGetString(v, "FEDAPAY_SANDBOX_API_URL"),
 			APIKey:        sharedconfig.MustGetString(v, "FEDAPAY_SANDBOX_API_KEY"),

@@ -175,9 +175,12 @@ jobs:
           # payment-service secrets
           PAYMENT_DATABASE_URL: ${{ secrets.PAYMENT_DATABASE_URL }}
           PAYMENT_REDIS_URL: ${{ secrets.PAYMENT_REDIS_URL }}
-          PAYMENT_FEDAPAY_API_URL: ${{ secrets.PAYMENT_FEDAPAY_API_URL }}
-          PAYMENT_FEDAPAY_API_KEY: ${{ secrets.PAYMENT_FEDAPAY_API_KEY }}
-          PAYMENT_FEDAPAY_WEBHOOK_SECRET: ${{ secrets.PAYMENT_FEDAPAY_WEBHOOK_SECRET }}
+          PAYMENT_FEDAPAY_SANDBOX_API_URL: ${{ secrets.PAYMENT_FEDAPAY_SANDBOX_API_URL }}
+          PAYMENT_FEDAPAY_SANDBOX_API_KEY: ${{ secrets.PAYMENT_FEDAPAY_SANDBOX_API_KEY }}
+          PAYMENT_FEDAPAY_SANDBOX_WEBHOOK_SECRET: ${{ secrets.PAYMENT_FEDAPAY_SANDBOX_WEBHOOK_SECRET }}
+          PAYMENT_FEDAPAY_LIVE_API_URL: ${{ secrets.PAYMENT_FEDAPAY_LIVE_API_URL }}
+          PAYMENT_FEDAPAY_LIVE_API_KEY: ${{ secrets.PAYMENT_FEDAPAY_LIVE_API_KEY }}
+          PAYMENT_FEDAPAY_LIVE_WEBHOOK_SECRET: ${{ secrets.PAYMENT_FEDAPAY_LIVE_WEBHOOK_SECRET }}
           # kyc-service secrets
           KYC_PERSONA_API_KEY: ${{ secrets.KYC_PERSONA_API_KEY }}
           KYC_PERSONA_WEBHOOK_SECRET: ${{ secrets.KYC_PERSONA_WEBHOOK_SECRET }}
@@ -261,9 +264,12 @@ jobs:
                   'secrets': {
                       'databaseUrl': os.environ.get('PAYMENT_DATABASE_URL', ''),
                       'redisUrl': os.environ.get('PAYMENT_REDIS_URL', ''),
-                      'fedapayApiUrl': os.environ.get('PAYMENT_FEDAPAY_API_URL', ''),
-                      'fedapayApiKey': os.environ.get('PAYMENT_FEDAPAY_API_KEY', ''),
-                      'fedapayWebhookSecret': os.environ.get('PAYMENT_FEDAPAY_WEBHOOK_SECRET', ''),
+                      'fedapaySandboxApiUrl': os.environ.get('PAYMENT_FEDAPAY_SANDBOX_API_URL', ''),
+                      'fedapaySandboxApiKey': os.environ.get('PAYMENT_FEDAPAY_SANDBOX_API_KEY', ''),
+                      'fedapaySandboxWebhookSecret': os.environ.get('PAYMENT_FEDAPAY_SANDBOX_WEBHOOK_SECRET', ''),
+                      'fedapayLiveApiUrl': os.environ.get('PAYMENT_FEDAPAY_LIVE_API_URL', ''),
+                      'fedapayLiveApiKey': os.environ.get('PAYMENT_FEDAPAY_LIVE_API_KEY', ''),
+                      'fedapayLiveWebhookSecret': os.environ.get('PAYMENT_FEDAPAY_LIVE_WEBHOOK_SECRET', ''),
                   },
               }
 
@@ -450,11 +456,14 @@ jobs:
 #      - BOOKING_REDIS_URL    : redis://host:6387/0
 #
 #  11. Secrets GitHub pour payment-service:
-#      - PAYMENT_DATABASE_URL        : postgresql://user:pass@host:5439/payment_db
-#      - PAYMENT_REDIS_URL           : redis://host:6388/0
-#      - PAYMENT_FEDAPAY_API_URL     : https://sandbox-api.fedapay.com (ou production)
-#      - PAYMENT_FEDAPAY_API_KEY     : cle API FedaPay
-#      - PAYMENT_FEDAPAY_WEBHOOK_SECRET : secret HMAC pour valider les webhooks FedaPay
+#      - PAYMENT_DATABASE_URL                   : postgresql://user:pass@host:5439/payment_db
+#      - PAYMENT_REDIS_URL                      : redis://host:6388/0
+#      - PAYMENT_FEDAPAY_SANDBOX_API_URL        : https://sandbox-api.fedapay.com
+#      - PAYMENT_FEDAPAY_SANDBOX_API_KEY        : cle API FedaPay sandbox
+#      - PAYMENT_FEDAPAY_SANDBOX_WEBHOOK_SECRET : secret HMAC webhook FedaPay sandbox
+#      - PAYMENT_FEDAPAY_LIVE_API_URL           : https://api.fedapay.com
+#      - PAYMENT_FEDAPAY_LIVE_API_KEY           : cle API FedaPay live (utilise sur vps-dev, staging, prod)
+#      - PAYMENT_FEDAPAY_LIVE_WEBHOOK_SECRET    : secret HMAC webhook FedaPay live
 #
 #  12. Secrets GitHub pour kyc-service:
 #      - KYC_PERSONA_API_KEY       : cle API Persona (sandbox ou production)
