@@ -123,7 +123,7 @@ func Load() (*Config, error) {
 
 func loadFedaPayConfig(v *viper.Viper, environment string) FedaPayConfig {
 	switch environment {
-	case "prod", "staging":
+	case "prod", "staging", "development", "vps-dev":
 		return FedaPayConfig{
 			APIURL:        sharedconfig.MustGetString(v, "FEDAPAY_LIVE_API_URL"),
 			APIKey:        sharedconfig.MustGetString(v, "FEDAPAY_LIVE_API_KEY"),

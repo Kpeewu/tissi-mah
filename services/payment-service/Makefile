@@ -5,7 +5,11 @@ MAIN_PATH := ./cmd/server/main.go
 PROTO_PATH := ./proto
 PROTO_OUT := $(PROTO_PATH)/gen
 
-# Variables d'environnement (override avec .env)
+# Charger le .env s'il existe
+-include .env
+export
+
+# Valeurs par défaut (écrasées par le .env)
 DATABASE_URL ?= postgresql://dev:dev123@localhost:5439/payment_db?sslmode=disable
 REDIS_URL ?= redis://localhost:6388
 LOG_LEVEL ?= debug
@@ -15,9 +19,12 @@ BOOKING_SERVICE_HOST ?= 0.0.0.0
 BOOKING_SERVICE_PORT ?= 50058
 USER_SERVICE_HOST ?= 0.0.0.0
 USER_SERVICE_PORT ?= 50052
-FEDAPAY_API_URL ?= https://sandbox-api.fedapay.com
-FEDAPAY_API_KEY ?= sk_sandbox_xxxxx
-FEDAPAY_WEBHOOK_SECRET ?= whsec_xxxxx
+FEDAPAY_SANDBOX_API_URL ?= https://sandbox-api.fedapay.com
+FEDAPAY_SANDBOX_API_KEY ?= sk_sandbox_xxxxx
+FEDAPAY_SANDBOX_WEBHOOK_SECRET ?= whsec_sandbox_xxxxx
+FEDAPAY_LIVE_API_URL ?= https://api.fedapay.com
+FEDAPAY_LIVE_API_KEY ?= sk_live_xxxxx
+FEDAPAY_LIVE_WEBHOOK_SECRET ?= whsec_live_xxxxx
 
 help:
 	@echo "Payment Service - Commandes disponibles"
@@ -30,19 +37,7 @@ help:
 
 run:
 	@echo "🚀 Démarrage de payment-service..."
-	@export DATABASE_URL=$(DATABASE_URL) && \
-	 export REDIS_URL=$(REDIS_URL) && \
-	 export LOG_LEVEL=$(LOG_LEVEL) && \
-	 export GRPC_PORT=$(GRPC_PORT) && \
-	 export ENVIRONMENT=$(ENVIRONMENT) && \
-	 export BOOKING_SERVICE_HOST=$(BOOKING_SERVICE_HOST) && \
-	 export BOOKING_SERVICE_PORT=$(BOOKING_SERVICE_PORT) && \
-	 export USER_SERVICE_HOST=$(USER_SERVICE_HOST) && \
-	 export USER_SERVICE_PORT=$(USER_SERVICE_PORT) && \
-	 export FEDAPAY_API_URL=$(FEDAPAY_API_URL) && \
-	 export FEDAPAY_API_KEY=$(FEDAPAY_API_KEY) && \
-	 export FEDAPAY_WEBHOOK_SECRET=$(FEDAPAY_WEBHOOK_SECRET) && \
-	 go run $(MAIN_PATH)
+	@go run $(MAIN_PATH)
 
 build:
 	@echo "🔨 Compilation de payment-service..."
