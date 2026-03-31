@@ -88,6 +88,15 @@ service BookingService {
     };
   }
 
+  // CancelBookingsForTrip annule toutes les réservations actives d'un trajet annulé.
+  // Route interne appelée par trips-service lors de CancelTrip.
+  rpc CancelBookingsForTrip(CancelBookingsForTripRequest) returns (CancelBookingsForTripResponse) {
+    option (google.api.http) = {
+      patch: "/booking/internal/cancelBookingsForTrip"
+      body: "*"
+    };
+  }
+
   // ReportNoShow signale l'absence d'un passager ou d'un conducteur.
   rpc ReportNoShow(ReportNoShowRequest) returns (ReportNoShowResponse) {
     option (google.api.http) = {
@@ -366,6 +375,20 @@ message CancelBookingsForWaypointRequest {
 }
 
 message CancelBookingsForWaypointResponse {
+  bool   Success       = 1;
+  int32  BookingsCount = 2; // nombre de bookings annulés
+  string ErrorMessage  = 3;
+}
+
+// =============================================================================
+// CancelBookingsForTrip (interne — appelé par trips-service)
+// =============================================================================
+
+message CancelBookingsForTripRequest {
+  string TripId = 1;
+}
+
+message CancelBookingsForTripResponse {
   bool   Success       = 1;
   int32  BookingsCount = 2; // nombre de bookings annulés
   string ErrorMessage  = 3;

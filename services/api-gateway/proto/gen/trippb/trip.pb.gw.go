@@ -437,6 +437,33 @@ func local_request_TripService_UpdateAvailableSeats_0(ctx context.Context, marsh
 	return msg, metadata, err
 }
 
+func request_TripService_CancelTrip_0(ctx context.Context, marshaler runtime.Marshaler, client TripServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq CancelTripRequest
+		metadata runtime.ServerMetadata
+	)
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if req.Body != nil {
+		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	msg, err := client.CancelTrip(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+}
+
+func local_request_TripService_CancelTrip_0(ctx context.Context, marshaler runtime.Marshaler, server TripServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq CancelTripRequest
+		metadata runtime.ServerMetadata
+	)
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	msg, err := server.CancelTrip(ctx, &protoReq)
+	return msg, metadata, err
+}
+
 func request_TripService_CancelWaypoint_0(ctx context.Context, marshaler runtime.Marshaler, client TripServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
 		protoReq CancelWaypointRequest
@@ -771,6 +798,26 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		}
 		forward_TripService_UpdateAvailableSeats_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodDelete, pattern_TripService_CancelTrip_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/CancelTrip", runtime.WithHTTPPathPattern("/trip/driver/cancelTrip"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_TripService_CancelTrip_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_TripService_CancelTrip_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodDelete, pattern_TripService_CancelWaypoint_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -1089,6 +1136,23 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		}
 		forward_TripService_UpdateAvailableSeats_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodDelete, pattern_TripService_CancelTrip_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/CancelTrip", runtime.WithHTTPPathPattern("/trip/driver/cancelTrip"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_TripService_CancelTrip_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_TripService_CancelTrip_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodDelete, pattern_TripService_CancelWaypoint_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -1141,6 +1205,7 @@ var (
 	pattern_TripService_ConfirmWaypointDeparture_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "confirmWaypointDeparture"}, ""))
 	pattern_TripService_GetTripByID_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"trip", "getTripByID"}, ""))
 	pattern_TripService_UpdateAvailableSeats_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "internal", "updateAvailableSeats"}, ""))
+	pattern_TripService_CancelTrip_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "cancelTrip"}, ""))
 	pattern_TripService_CancelWaypoint_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "cancelWaypoint"}, ""))
 	pattern_TripService_Health_0                    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"trip", "health"}, ""))
 )
@@ -1160,6 +1225,7 @@ var (
 	forward_TripService_ConfirmWaypointDeparture_0  = runtime.ForwardResponseMessage
 	forward_TripService_GetTripByID_0               = runtime.ForwardResponseMessage
 	forward_TripService_UpdateAvailableSeats_0      = runtime.ForwardResponseMessage
+	forward_TripService_CancelTrip_0                = runtime.ForwardResponseMessage
 	forward_TripService_CancelWaypoint_0            = runtime.ForwardResponseMessage
 	forward_TripService_Health_0                    = runtime.ForwardResponseMessage
 )

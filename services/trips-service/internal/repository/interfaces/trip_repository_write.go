@@ -75,6 +75,12 @@ type TripRepositoryWrite interface {
 	// Utilisé par le job de réconciliation du booking-service.
 	UpdateAvailableSeats(ctx context.Context, tripID string, newAvailableSeats int16) error
 
+	// CancelTrip annule un trajet planifié (scheduled → cancelled).
+	// Définit canceller_id, cancellation_reason et le statut à "cancelled".
+	// Retourne ErrorTripNotFound si le trajet n'existe pas, ErrorUnauthorized si le conducteur
+	// n'est pas propriétaire du trajet, ErrorTripNotScheduled si le statut n'est pas "scheduled".
+	CancelTrip(ctx context.Context, tripID, driverID, reason string) error
+
 	// CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié (soft-delete).
 	// Définit cancelled_at = NOW() et cancellation_reason sur le waypoint.
 	// Retourne ErrorWaypointNotFound si le waypoint n'existe pas, ErrorUnauthorized si le conducteur

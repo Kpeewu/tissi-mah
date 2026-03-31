@@ -2002,6 +2002,110 @@ func (x *CancelBookingsForWaypointResponse) GetErrorMessage() string {
 	return ""
 }
 
+type CancelBookingsForTripRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TripId        string                 `protobuf:"bytes,1,opt,name=TripId,proto3" json:"TripId,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelBookingsForTripRequest) Reset() {
+	*x = CancelBookingsForTripRequest{}
+	mi := &file_booking_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelBookingsForTripRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelBookingsForTripRequest) ProtoMessage() {}
+
+func (x *CancelBookingsForTripRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_booking_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelBookingsForTripRequest.ProtoReflect.Descriptor instead.
+func (*CancelBookingsForTripRequest) Descriptor() ([]byte, []int) {
+	return file_booking_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *CancelBookingsForTripRequest) GetTripId() string {
+	if x != nil {
+		return x.TripId
+	}
+	return ""
+}
+
+type CancelBookingsForTripResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
+	BookingsCount int32                  `protobuf:"varint,2,opt,name=BookingsCount,proto3" json:"BookingsCount,omitempty"` // nombre de bookings annulés
+	ErrorMessage  string                 `protobuf:"bytes,3,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelBookingsForTripResponse) Reset() {
+	*x = CancelBookingsForTripResponse{}
+	mi := &file_booking_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelBookingsForTripResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelBookingsForTripResponse) ProtoMessage() {}
+
+func (x *CancelBookingsForTripResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_booking_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelBookingsForTripResponse.ProtoReflect.Descriptor instead.
+func (*CancelBookingsForTripResponse) Descriptor() ([]byte, []int) {
+	return file_booking_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *CancelBookingsForTripResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *CancelBookingsForTripResponse) GetBookingsCount() int32 {
+	if x != nil {
+		return x.BookingsCount
+	}
+	return 0
+}
+
+func (x *CancelBookingsForTripResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
 type ReportNoShowRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BookingId     string                 `protobuf:"bytes,1,opt,name=BookingId,proto3" json:"BookingId,omitempty"`
@@ -2014,7 +2118,7 @@ type ReportNoShowRequest struct {
 
 func (x *ReportNoShowRequest) Reset() {
 	*x = ReportNoShowRequest{}
-	mi := &file_booking_proto_msgTypes[25]
+	mi := &file_booking_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2026,7 +2130,7 @@ func (x *ReportNoShowRequest) String() string {
 func (*ReportNoShowRequest) ProtoMessage() {}
 
 func (x *ReportNoShowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[25]
+	mi := &file_booking_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2039,7 +2143,7 @@ func (x *ReportNoShowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportNoShowRequest.ProtoReflect.Descriptor instead.
 func (*ReportNoShowRequest) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{25}
+	return file_booking_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ReportNoShowRequest) GetBookingId() string {
@@ -2080,7 +2184,7 @@ type ReportNoShowResponse struct {
 
 func (x *ReportNoShowResponse) Reset() {
 	*x = ReportNoShowResponse{}
-	mi := &file_booking_proto_msgTypes[26]
+	mi := &file_booking_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2092,7 +2196,7 @@ func (x *ReportNoShowResponse) String() string {
 func (*ReportNoShowResponse) ProtoMessage() {}
 
 func (x *ReportNoShowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[26]
+	mi := &file_booking_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2105,7 +2209,7 @@ func (x *ReportNoShowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportNoShowResponse.ProtoReflect.Descriptor instead.
 func (*ReportNoShowResponse) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{26}
+	return file_booking_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ReportNoShowResponse) GetSuccess() bool {
@@ -2132,7 +2236,7 @@ type ConfirmPaymentRequest struct {
 
 func (x *ConfirmPaymentRequest) Reset() {
 	*x = ConfirmPaymentRequest{}
-	mi := &file_booking_proto_msgTypes[27]
+	mi := &file_booking_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2144,7 +2248,7 @@ func (x *ConfirmPaymentRequest) String() string {
 func (*ConfirmPaymentRequest) ProtoMessage() {}
 
 func (x *ConfirmPaymentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[27]
+	mi := &file_booking_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2157,7 +2261,7 @@ func (x *ConfirmPaymentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfirmPaymentRequest.ProtoReflect.Descriptor instead.
 func (*ConfirmPaymentRequest) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{27}
+	return file_booking_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ConfirmPaymentRequest) GetBookingId() string {
@@ -2185,7 +2289,7 @@ type ConfirmPaymentResponse struct {
 
 func (x *ConfirmPaymentResponse) Reset() {
 	*x = ConfirmPaymentResponse{}
-	mi := &file_booking_proto_msgTypes[28]
+	mi := &file_booking_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2197,7 +2301,7 @@ func (x *ConfirmPaymentResponse) String() string {
 func (*ConfirmPaymentResponse) ProtoMessage() {}
 
 func (x *ConfirmPaymentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[28]
+	mi := &file_booking_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2210,7 +2314,7 @@ func (x *ConfirmPaymentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfirmPaymentResponse.ProtoReflect.Descriptor instead.
 func (*ConfirmPaymentResponse) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{28}
+	return file_booking_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ConfirmPaymentResponse) GetSuccess() bool {
@@ -2244,7 +2348,7 @@ type FailPaymentRequest struct {
 
 func (x *FailPaymentRequest) Reset() {
 	*x = FailPaymentRequest{}
-	mi := &file_booking_proto_msgTypes[29]
+	mi := &file_booking_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2256,7 +2360,7 @@ func (x *FailPaymentRequest) String() string {
 func (*FailPaymentRequest) ProtoMessage() {}
 
 func (x *FailPaymentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[29]
+	mi := &file_booking_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2269,7 +2373,7 @@ func (x *FailPaymentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FailPaymentRequest.ProtoReflect.Descriptor instead.
 func (*FailPaymentRequest) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{29}
+	return file_booking_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *FailPaymentRequest) GetBookingId() string {
@@ -2296,7 +2400,7 @@ type FailPaymentResponse struct {
 
 func (x *FailPaymentResponse) Reset() {
 	*x = FailPaymentResponse{}
-	mi := &file_booking_proto_msgTypes[30]
+	mi := &file_booking_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2308,7 +2412,7 @@ func (x *FailPaymentResponse) String() string {
 func (*FailPaymentResponse) ProtoMessage() {}
 
 func (x *FailPaymentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[30]
+	mi := &file_booking_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2321,7 +2425,7 @@ func (x *FailPaymentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FailPaymentResponse.ProtoReflect.Descriptor instead.
 func (*FailPaymentResponse) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{30}
+	return file_booking_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *FailPaymentResponse) GetSuccess() bool {
@@ -2346,7 +2450,7 @@ type HealthRequest struct {
 
 func (x *HealthRequest) Reset() {
 	*x = HealthRequest{}
-	mi := &file_booking_proto_msgTypes[31]
+	mi := &file_booking_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2358,7 +2462,7 @@ func (x *HealthRequest) String() string {
 func (*HealthRequest) ProtoMessage() {}
 
 func (x *HealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[31]
+	mi := &file_booking_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2371,7 +2475,7 @@ func (x *HealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthRequest.ProtoReflect.Descriptor instead.
 func (*HealthRequest) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{31}
+	return file_booking_proto_rawDescGZIP(), []int{33}
 }
 
 type HealthResponse struct {
@@ -2385,7 +2489,7 @@ type HealthResponse struct {
 
 func (x *HealthResponse) Reset() {
 	*x = HealthResponse{}
-	mi := &file_booking_proto_msgTypes[32]
+	mi := &file_booking_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2397,7 +2501,7 @@ func (x *HealthResponse) String() string {
 func (*HealthResponse) ProtoMessage() {}
 
 func (x *HealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[32]
+	mi := &file_booking_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2410,7 +2514,7 @@ func (x *HealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
 func (*HealthResponse) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{32}
+	return file_booking_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *HealthResponse) GetStatus() string {
@@ -2628,6 +2732,12 @@ const file_booking_proto_rawDesc = "" +
 	"!CancelBookingsForWaypointResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12$\n" +
 	"\rBookingsCount\x18\x02 \x01(\x05R\rBookingsCount\x12\"\n" +
+	"\fErrorMessage\x18\x03 \x01(\tR\fErrorMessage\"6\n" +
+	"\x1cCancelBookingsForTripRequest\x12\x16\n" +
+	"\x06TripId\x18\x01 \x01(\tR\x06TripId\"\x83\x01\n" +
+	"\x1dCancelBookingsForTripResponse\x12\x18\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12$\n" +
+	"\rBookingsCount\x18\x02 \x01(\x05R\rBookingsCount\x12\"\n" +
 	"\fErrorMessage\x18\x03 \x01(\tR\fErrorMessage\"\x95\x01\n" +
 	"\x13ReportNoShowRequest\x12\x1c\n" +
 	"\tBookingId\x18\x01 \x01(\tR\tBookingId\x12\x1e\n" +
@@ -2658,7 +2768,7 @@ const file_booking_proto_rawDesc = "" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
 	"\aVersion\x18\x02 \x01(\tR\aVersion\x12\x1c\n" +
-	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp2\xb7\x0e\n" +
+	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp2\xd4\x0f\n" +
 	"\x0eBookingService\x12q\n" +
 	"\rCreateBooking\x12\x1d.booking.CreateBookingRequest\x1a\x1e.booking.CreateBookingResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/booking/createBooking\x12~\n" +
 	"\x11GetBookingDetails\x12!.booking.GetBookingDetailsRequest\x1a\".booking.GetBookingDetailsResponse\"\"\x82\xd3\xe4\x93\x02\x1c\x12\x1a/booking/getBookingDetails\x12\x8a\x01\n" +
@@ -2669,7 +2779,8 @@ const file_booking_proto_rawDesc = "" +
 	"\rCancelBooking\x12\x1d.booking.CancelBookingRequest\x1a\x1e.booking.CancelBookingResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*2\x16/booking/cancelBooking\x12\xa6\x01\n" +
 	"\x18StartBookingsForWaypoint\x12(.booking.StartBookingsForWaypointRequest\x1a).booking.StartBookingsForWaypointResponse\"5\x82\xd3\xe4\x93\x02/:\x01*2*/booking/internal/startBookingsForWaypoint\x12\xb2\x01\n" +
 	"\x1bCompleteBookingsForWaypoint\x12+.booking.CompleteBookingsForWaypointRequest\x1a,.booking.CompleteBookingsForWaypointResponse\"8\x82\xd3\xe4\x93\x022:\x01*2-/booking/internal/completeBookingsForWaypoint\x12\xaa\x01\n" +
-	"\x19CancelBookingsForWaypoint\x12).booking.CancelBookingsForWaypointRequest\x1a*.booking.CancelBookingsForWaypointResponse\"6\x82\xd3\xe4\x93\x020:\x01*2+/booking/internal/cancelBookingsForWaypoint\x12m\n" +
+	"\x19CancelBookingsForWaypoint\x12).booking.CancelBookingsForWaypointRequest\x1a*.booking.CancelBookingsForWaypointResponse\"6\x82\xd3\xe4\x93\x020:\x01*2+/booking/internal/cancelBookingsForWaypoint\x12\x9a\x01\n" +
+	"\x15CancelBookingsForTrip\x12%.booking.CancelBookingsForTripRequest\x1a&.booking.CancelBookingsForTripResponse\"2\x82\xd3\xe4\x93\x02,:\x01*2'/booking/internal/cancelBookingsForTrip\x12m\n" +
 	"\fReportNoShow\x12\x1c.booking.ReportNoShowRequest\x1a\x1d.booking.ReportNoShowResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/booking/reportNoShow\x12u\n" +
 	"\x0eConfirmPayment\x12\x1e.booking.ConfirmPaymentRequest\x1a\x1f.booking.ConfirmPaymentResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/booking/confirmPayment\x12r\n" +
 	"\vFailPayment\x12\x1b.booking.FailPaymentRequest\x1a\x1c.booking.FailPaymentResponse\"(\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/booking/internal/failPayment\x12R\n" +
@@ -2687,7 +2798,7 @@ func file_booking_proto_rawDescGZIP() []byte {
 	return file_booking_proto_rawDescData
 }
 
-var file_booking_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
+var file_booking_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
 var file_booking_proto_goTypes = []any{
 	(*SegmentInput)(nil),                        // 0: booking.SegmentInput
 	(*CreateBookingRequest)(nil),                // 1: booking.CreateBookingRequest
@@ -2714,14 +2825,16 @@ var file_booking_proto_goTypes = []any{
 	(*CompleteBookingsForWaypointResponse)(nil), // 22: booking.CompleteBookingsForWaypointResponse
 	(*CancelBookingsForWaypointRequest)(nil),    // 23: booking.CancelBookingsForWaypointRequest
 	(*CancelBookingsForWaypointResponse)(nil),   // 24: booking.CancelBookingsForWaypointResponse
-	(*ReportNoShowRequest)(nil),                 // 25: booking.ReportNoShowRequest
-	(*ReportNoShowResponse)(nil),                // 26: booking.ReportNoShowResponse
-	(*ConfirmPaymentRequest)(nil),               // 27: booking.ConfirmPaymentRequest
-	(*ConfirmPaymentResponse)(nil),              // 28: booking.ConfirmPaymentResponse
-	(*FailPaymentRequest)(nil),                  // 29: booking.FailPaymentRequest
-	(*FailPaymentResponse)(nil),                 // 30: booking.FailPaymentResponse
-	(*HealthRequest)(nil),                       // 31: booking.HealthRequest
-	(*HealthResponse)(nil),                      // 32: booking.HealthResponse
+	(*CancelBookingsForTripRequest)(nil),        // 25: booking.CancelBookingsForTripRequest
+	(*CancelBookingsForTripResponse)(nil),       // 26: booking.CancelBookingsForTripResponse
+	(*ReportNoShowRequest)(nil),                 // 27: booking.ReportNoShowRequest
+	(*ReportNoShowResponse)(nil),                // 28: booking.ReportNoShowResponse
+	(*ConfirmPaymentRequest)(nil),               // 29: booking.ConfirmPaymentRequest
+	(*ConfirmPaymentResponse)(nil),              // 30: booking.ConfirmPaymentResponse
+	(*FailPaymentRequest)(nil),                  // 31: booking.FailPaymentRequest
+	(*FailPaymentResponse)(nil),                 // 32: booking.FailPaymentResponse
+	(*HealthRequest)(nil),                       // 33: booking.HealthRequest
+	(*HealthResponse)(nil),                      // 34: booking.HealthResponse
 }
 var file_booking_proto_depIdxs = []int32{
 	0,  // 0: booking.CreateBookingRequest.Segments:type_name -> booking.SegmentInput
@@ -2740,26 +2853,28 @@ var file_booking_proto_depIdxs = []int32{
 	19, // 13: booking.BookingService.StartBookingsForWaypoint:input_type -> booking.StartBookingsForWaypointRequest
 	21, // 14: booking.BookingService.CompleteBookingsForWaypoint:input_type -> booking.CompleteBookingsForWaypointRequest
 	23, // 15: booking.BookingService.CancelBookingsForWaypoint:input_type -> booking.CancelBookingsForWaypointRequest
-	25, // 16: booking.BookingService.ReportNoShow:input_type -> booking.ReportNoShowRequest
-	27, // 17: booking.BookingService.ConfirmPayment:input_type -> booking.ConfirmPaymentRequest
-	29, // 18: booking.BookingService.FailPayment:input_type -> booking.FailPaymentRequest
-	31, // 19: booking.BookingService.Health:input_type -> booking.HealthRequest
-	2,  // 20: booking.BookingService.CreateBooking:output_type -> booking.CreateBookingResponse
-	7,  // 21: booking.BookingService.GetBookingDetails:output_type -> booking.GetBookingDetailsResponse
-	10, // 22: booking.BookingService.GetPassengerBookings:output_type -> booking.GetPassengerBookingsResponse
-	12, // 23: booking.BookingService.GetDriverTripBookings:output_type -> booking.GetDriverTripBookingsResponse
-	14, // 24: booking.BookingService.ApproveBooking:output_type -> booking.ApproveBookingResponse
-	16, // 25: booking.BookingService.RejectBooking:output_type -> booking.RejectBookingResponse
-	18, // 26: booking.BookingService.CancelBooking:output_type -> booking.CancelBookingResponse
-	20, // 27: booking.BookingService.StartBookingsForWaypoint:output_type -> booking.StartBookingsForWaypointResponse
-	22, // 28: booking.BookingService.CompleteBookingsForWaypoint:output_type -> booking.CompleteBookingsForWaypointResponse
-	24, // 29: booking.BookingService.CancelBookingsForWaypoint:output_type -> booking.CancelBookingsForWaypointResponse
-	26, // 30: booking.BookingService.ReportNoShow:output_type -> booking.ReportNoShowResponse
-	28, // 31: booking.BookingService.ConfirmPayment:output_type -> booking.ConfirmPaymentResponse
-	30, // 32: booking.BookingService.FailPayment:output_type -> booking.FailPaymentResponse
-	32, // 33: booking.BookingService.Health:output_type -> booking.HealthResponse
-	20, // [20:34] is the sub-list for method output_type
-	6,  // [6:20] is the sub-list for method input_type
+	25, // 16: booking.BookingService.CancelBookingsForTrip:input_type -> booking.CancelBookingsForTripRequest
+	27, // 17: booking.BookingService.ReportNoShow:input_type -> booking.ReportNoShowRequest
+	29, // 18: booking.BookingService.ConfirmPayment:input_type -> booking.ConfirmPaymentRequest
+	31, // 19: booking.BookingService.FailPayment:input_type -> booking.FailPaymentRequest
+	33, // 20: booking.BookingService.Health:input_type -> booking.HealthRequest
+	2,  // 21: booking.BookingService.CreateBooking:output_type -> booking.CreateBookingResponse
+	7,  // 22: booking.BookingService.GetBookingDetails:output_type -> booking.GetBookingDetailsResponse
+	10, // 23: booking.BookingService.GetPassengerBookings:output_type -> booking.GetPassengerBookingsResponse
+	12, // 24: booking.BookingService.GetDriverTripBookings:output_type -> booking.GetDriverTripBookingsResponse
+	14, // 25: booking.BookingService.ApproveBooking:output_type -> booking.ApproveBookingResponse
+	16, // 26: booking.BookingService.RejectBooking:output_type -> booking.RejectBookingResponse
+	18, // 27: booking.BookingService.CancelBooking:output_type -> booking.CancelBookingResponse
+	20, // 28: booking.BookingService.StartBookingsForWaypoint:output_type -> booking.StartBookingsForWaypointResponse
+	22, // 29: booking.BookingService.CompleteBookingsForWaypoint:output_type -> booking.CompleteBookingsForWaypointResponse
+	24, // 30: booking.BookingService.CancelBookingsForWaypoint:output_type -> booking.CancelBookingsForWaypointResponse
+	26, // 31: booking.BookingService.CancelBookingsForTrip:output_type -> booking.CancelBookingsForTripResponse
+	28, // 32: booking.BookingService.ReportNoShow:output_type -> booking.ReportNoShowResponse
+	30, // 33: booking.BookingService.ConfirmPayment:output_type -> booking.ConfirmPaymentResponse
+	32, // 34: booking.BookingService.FailPayment:output_type -> booking.FailPaymentResponse
+	34, // 35: booking.BookingService.Health:output_type -> booking.HealthResponse
+	21, // [21:36] is the sub-list for method output_type
+	6,  // [6:21] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
 	6,  // [6:6] is the sub-list for extension extendee
 	0,  // [0:6] is the sub-list for field type_name
@@ -2776,7 +2891,7 @@ func file_booking_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_booking_proto_rawDesc), len(file_booking_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   33,
+			NumMessages:   35,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

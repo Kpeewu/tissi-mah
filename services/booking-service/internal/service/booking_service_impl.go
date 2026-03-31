@@ -564,6 +564,38 @@ func (s *bookingServiceImpl) CancelBookingsForWaypoint(ctx context.Context, inpu
 }
 
 // =============================================================================
+// CancelBookingsForTrip
+// =============================================================================
+
+func (s *bookingServiceImpl) CancelBookingsForTrip(ctx context.Context, input *serviceInterfaces.CancelBookingsForTripInput) (int, error) {
+	if input.TripID == "" {
+		return 0, bookingErrors.ErrorInvalidInput
+	}
+
+	cancelledBookings, err := s.writeRepo.CancelBookingsForTrip(ctx, input.TripID)
+	if err != nil {
+		return 0, err
+	}
+
+	now := time.Now().UTC()
+	for _, booking := range cancelledBookings {
+		// Restaurer les places Redis par segment
+		if s.cache != nil {
+			_ = s.cache.RestoreSegmentSeats(ctx, booking.TripID, int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder), int(booking.SeatsBooked))
+		}
+
+		s.invalidateBookingCaches(ctx, booking.BookingID)
+
+		// Demander le remboursement au payment-service (fire-and-forget)
+		if s.shouldRequestRefund(booking) {
+			go s.requestRefundAsync(booking, "tripCancelled", now)
+		}
+	}
+
+	return len(cancelledBookings), nil
+}
+
+// =============================================================================
 // Helpers
 // =============================================================================
 

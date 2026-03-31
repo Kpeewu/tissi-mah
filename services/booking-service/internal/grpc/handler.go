@@ -286,6 +286,21 @@ func (h *BookingHandler) CancelBookingsForWaypoint(ctx context.Context, req *boo
 	}, nil
 }
 
+// CancelBookingsForTrip annule toutes les réservations actives d'un trajet annulé.
+func (h *BookingHandler) CancelBookingsForTrip(ctx context.Context, req *bookingpb.CancelBookingsForTripRequest) (*bookingpb.CancelBookingsForTripResponse, error) {
+	count, err := h.service.CancelBookingsForTrip(ctx, &serviceInterfaces.CancelBookingsForTripInput{
+		TripID: req.TripId,
+	})
+	if err != nil {
+		return &bookingpb.CancelBookingsForTripResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return &bookingpb.CancelBookingsForTripResponse{
+		Success:       true,
+		BookingsCount: int32(count),
+	}, nil
+}
+
 // ReportNoShow signale un no-show.
 func (h *BookingHandler) ReportNoShow(ctx context.Context, req *bookingpb.ReportNoShowRequest) (*bookingpb.ReportNoShowResponse, error) {
 	err := h.service.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{

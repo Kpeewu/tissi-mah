@@ -42,6 +42,9 @@ type BookingService interface {
 
 	// CancelBookingsForWaypoint annule les réservations actives d'un waypoint supprimé.
 	CancelBookingsForWaypoint(ctx context.Context, input *CancelBookingsForWaypointInput) (int, error)
+
+	// CancelBookingsForTrip annule toutes les réservations actives d'un trajet annulé.
+	CancelBookingsForTrip(ctx context.Context, input *CancelBookingsForTripInput) (int, error)
 }
 
 // =============================================================================
@@ -140,6 +143,10 @@ type FailPaymentInput struct {
 type CancelBookingsForWaypointInput struct {
 	TripID     string
 	WaypointID string
+}
+
+type CancelBookingsForTripInput struct {
+	TripID string
 }
 
 // =============================================================================

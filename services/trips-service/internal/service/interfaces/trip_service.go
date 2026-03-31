@@ -65,6 +65,10 @@ type TripService interface {
 	// UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
 	UpdateAvailableSeats(ctx context.Context, input *UpdateAvailableSeatsInput) error
 
+	// CancelTrip annule un trajet planifié et toutes ses réservations associées.
+	// Le trajet doit avoir le statut "scheduled".
+	CancelTrip(ctx context.Context, input *CancelTripInput) error
+
 	// CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
 	// Le trajet doit avoir le statut "scheduled".
 	CancelWaypoint(ctx context.Context, input *CancelWaypointInput) error
@@ -254,6 +258,13 @@ type WaypointDetailResult struct {
 type UpdateAvailableSeatsInput struct {
 	TripID            string
 	NewAvailableSeats int16
+}
+
+// CancelTripInput contient les données nécessaires à l'annulation d'un trajet.
+type CancelTripInput struct {
+	DriverID           string
+	TripID             string
+	CancellationReason string
 }
 
 // CancelWaypointInput contient les données nécessaires à l'annulation d'un waypoint.

@@ -26,5 +26,7 @@ type BookingClient interface {
 	CompleteBookingsForWaypoint(ctx context.Context, tripID, waypointID string) error
 	// CancelBookingsForWaypoint annule les réservations actives d'un waypoint supprimé.
 	CancelBookingsForWaypoint(ctx context.Context, tripID, waypointID string) error
+	// CancelBookingsForTrip annule toutes les réservations actives d'un trajet annulé.
+	CancelBookingsForTrip(ctx context.Context, tripID string) error
 	Close() error
 }

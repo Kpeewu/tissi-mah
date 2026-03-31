@@ -366,6 +366,37 @@ func (s *tripServiceImpl) ConfirmWaypointArrival(ctx context.Context, input *ser
 }
 
 // CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
+func (s *tripServiceImpl) CancelTrip(ctx context.Context, input *serviceInterfaces.CancelTripInput) error {
+	s.logger.Debug("service: CancelTrip called",
+		zap.String("driverID", input.DriverID),
+		zap.String("tripID", input.TripID),
+	)
+
+	if input.DriverID == "" || input.TripID == "" || input.CancellationReason == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	if err := s.writeRepo.CancelTrip(ctx, input.TripID, input.DriverID, input.CancellationReason); err != nil {
+		return err
+	}
+
+	// Annuler toutes les réservations du trajet (remboursement automatique côté booking-service)
+	if s.bookingClient != nil {
+		if err := s.bookingClient.CancelBookingsForTrip(ctx, input.TripID); err != nil {
+			s.logger.Warn("CancelBookingsForTrip failed (non-blocking)", zap.Error(err),
+				zap.String("tripID", input.TripID))
+		}
+	}
+
+	// TODO: notifier les passagers de l'annulation du trajet
+
+	s.logger.Info("trip cancelled",
+		zap.String("tripID", input.TripID),
+		zap.String("driverID", input.DriverID),
+	)
+	return nil
+}
+
 func (s *tripServiceImpl) CancelWaypoint(ctx context.Context, input *serviceInterfaces.CancelWaypointInput) error {
 	s.logger.Debug("service: CancelWaypoint called",
 		zap.String("driverID", input.DriverID),

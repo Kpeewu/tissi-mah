@@ -422,6 +422,26 @@ func (h *TripHandler) UpdateAvailableSeats(ctx context.Context, req *trippb.Upda
 }
 
 // CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
+func (h *TripHandler) CancelTrip(ctx context.Context, req *trippb.CancelTripRequest) (*trippb.CancelTripResponse, error) {
+	h.logger.Debug("handler: CancelTrip called",
+		zap.String("driverID", req.DriverId),
+		zap.String("tripID", req.TripId),
+	)
+
+	err := h.service.CancelTrip(ctx, &serviceInterfaces.CancelTripInput{
+		DriverID:           req.DriverId,
+		TripID:             req.TripId,
+		CancellationReason: req.CancellationReason,
+	})
+	if err != nil {
+		h.logger.Error("handler: CancelTrip failed", zap.Error(err))
+		return &trippb.CancelTripResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: CancelTrip success", zap.String("tripID", req.TripId))
+	return &trippb.CancelTripResponse{Success: true}, nil
+}
+
 func (h *TripHandler) CancelWaypoint(ctx context.Context, req *trippb.CancelWaypointRequest) (*trippb.CancelWaypointResponse, error) {
 	h.logger.Debug("handler: CancelWaypoint called",
 		zap.String("driverID", req.DriverId),

@@ -26,6 +26,11 @@ func (m *MockBookingClient) CancelBookingsForWaypoint(ctx context.Context, tripI
 	return args.Error(0)
 }
 
+func (m *MockBookingClient) CancelBookingsForTrip(ctx context.Context, tripID string) error {
+	args := m.Called(ctx, tripID)
+	return args.Error(0)
+}
+
 func (m *MockBookingClient) Close() error {
 	args := m.Called()
 	return args.Error(0)
