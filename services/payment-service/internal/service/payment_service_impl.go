@@ -144,14 +144,9 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 		return nil, paymentErrors.ErrorFedaPayAPIError
 	}
 
-	// Envoyer en USSD avec le token
-	_, err = s.fedapayClient.SendTransaction(tokenResp.Token, input.MobileMoneyMode, input.PassengerPhoneNumber)
-	if err != nil {
-		s.logger.Error("fedapay send transaction failed", zap.Error(err))
-		return nil, paymentErrors.ErrorFedaPayAPIError
-	}
-
-	// Sauvegarder en DB
+	// Sauvegarder en DB AVANT l'envoi USSD pour éviter la race condition :
+	// FedaPay envoie le webhook quasi-instantanément après SendTransaction,
+	// le paiement doit déjà exister en DB pour que ProcessWebhook le trouve.
 	paymentID := uuid.New().String()
 	paymentRef := fmt.Sprintf("PAY-%s-%s", time.Now().UTC().Format("20060102"), generateAlphanumeric(6))
 
@@ -172,6 +167,13 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 		return nil, paymentErrors.ErrorInternalServer
 	}
 
+	// Envoyer en USSD avec le token
+	_, err = s.fedapayClient.SendTransaction(tokenResp.Token, input.MobileMoneyMode, input.PassengerPhoneNumber)
+	if err != nil {
+		s.logger.Error("fedapay send transaction failed", zap.Error(err))
+		return nil, paymentErrors.ErrorFedaPayAPIError
+	}
+
 	return &serviceInterfaces.CreatePaymentResult{
 		PaymentID:        paymentID,
 		PaymentReference: paymentRef,
@@ -187,11 +189,6 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 	s.logger.Debug("processing webhook")
 
 	// Vérifier la signature HMAC
-	s.logger.Debug("webhook debug",
-		zap.String("receivedSignature", input.Signature),
-		zap.Int("rawPayloadLen", len(input.RawPayload)),
-		zap.String("rawPayloadPreview", string(input.RawPayload[:min(len(input.RawPayload), 200)])),
-	)
 	if !s.fedapayClient.VerifyWebhookSignature(input.Signature, input.RawPayload) {
 		s.logger.Warn("webhook signature verification failed",
 			zap.String("receivedSignature", input.Signature),
@@ -237,6 +234,10 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 
 	// Traiter selon le type d'événement
 	switch payload.Name {
+	case "transaction.created":
+		// Transaction créée côté FedaPay — rien à faire, le paiement est déjà en DB
+		s.logger.Info("transaction created", zap.String("paymentID", payment.PaymentID))
+
 	case "transaction.approved":
 		if payment.Status != domain.PaymentStatusPending {
 			s.logger.Info("payment already processed", zap.String("paymentID", payment.PaymentID), zap.String("status", string(payment.Status)))
@@ -261,18 +262,26 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 
 		s.logger.Info("payment held", zap.String("paymentID", payment.PaymentID))
 
-	case "transaction.declined", "transaction.canceled":
+	case "transaction.declined", "transaction.canceled", "transaction.expired", "transaction.deleted":
 		if payment.Status != domain.PaymentStatusPending {
+			s.logger.Info("payment already processed, skipping", zap.String("paymentID", payment.PaymentID), zap.String("status", string(payment.Status)))
 			return nil
 		}
 
 		reason := fmt.Sprintf("FedaPay: %s", payload.Name)
+
+		// Marquer le paiement comme échoué
 		if err := s.paymentWriteRepo.MarkPaymentFailed(ctx, payment.PaymentID, reason); err != nil {
 			return err
 		}
 
 		if s.cache != nil {
 			s.cache.InvalidatePaymentByBookingID(ctx, payment.BookingID)
+		}
+
+		// Notifier booking-service pour restaurer les places et changer le statut
+		if err := s.bookingClient.FailPayment(ctx, payment.BookingID, reason); err != nil {
+			s.logger.Error("fail payment to booking-service failed", zap.Error(err))
 		}
 
 		s.logger.Info("payment failed", zap.String("paymentID", payment.PaymentID), zap.String("reason", reason))

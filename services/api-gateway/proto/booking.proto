@@ -95,6 +95,15 @@ service BookingService {
     };
   }
 
+  // FailPayment signale l'échec du paiement d'une réservation.
+  // Route interne appelée par payment-service lors d'un webhook d'échec FedaPay.
+  rpc FailPayment(FailPaymentRequest) returns (FailPaymentResponse) {
+    option (google.api.http) = {
+      post: "/booking/internal/failPayment"
+      body: "*"
+    };
+  }
+
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -367,6 +376,20 @@ message ConfirmPaymentResponse {
   bool   Success      = 1;
   string Status       = 2; // nouveau statut après confirmation
   string ErrorMessage = 3;
+}
+
+// =============================================================================
+// FailPayment
+// =============================================================================
+
+message FailPaymentRequest {
+  string BookingId = 1;
+  string Reason    = 2; // ex: "transaction.declined", "transaction.expired"
+}
+
+message FailPaymentResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
 }
 
 // =============================================================================

@@ -18,14 +18,14 @@ import (
 )
 
 type bookingServiceImpl struct {
-	readRepo       repoInterfaces.BookingRepositoryRead
-	writeRepo      repoInterfaces.BookingRepositoryWrite
-	tripClient     client.TripClient
-	userClient     client.UserClient
-	paymentClient  client.PaymentClient
-	cache          *cache.BookingCache
-	serviceFee     int // pourcentage
-	logger         *zap.Logger
+	readRepo      repoInterfaces.BookingRepositoryRead
+	writeRepo     repoInterfaces.BookingRepositoryWrite
+	tripClient    client.TripClient
+	userClient    client.UserClient
+	paymentClient client.PaymentClient
+	cache         *cache.BookingCache
+	serviceFee    int // pourcentage
+	logger        *zap.Logger
 }
 
 func NewBookingService(
@@ -212,8 +212,8 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 
 	// Entrée d'historique
 	history := &domain.StatusHistoryEntry{
-		HistoryID:     uuid.New().String(),
-		BookingID:     bookingID,
+		HistoryID:      uuid.New().String(),
+		BookingID:      bookingID,
 		PreviousStatus: string(domain.BookingStatusCreated),
 		NewStatus:      string(initialStatus),
 		ChangedBy:      input.PassengerID,
@@ -489,6 +489,34 @@ func (s *bookingServiceImpl) ConfirmPayment(ctx context.Context, input *serviceI
 
 	if err := s.writeRepo.ConfirmPayment(ctx, input.BookingID, input.TransactionID); err != nil {
 		return err
+	}
+
+	s.invalidateBookingCaches(ctx, input.BookingID)
+	return nil
+}
+
+// =============================================================================
+// FailPayment
+// =============================================================================
+
+func (s *bookingServiceImpl) FailPayment(ctx context.Context, input *serviceInterfaces.FailPaymentInput) error {
+	if input.BookingID == "" {
+		return bookingErrors.ErrorInvalidInput
+	}
+
+	// Récupérer le booking pour connaître le tripID et les places
+	booking, err := s.readRepo.GetByID(ctx, input.BookingID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.FailPayment(ctx, input.BookingID, input.Reason); err != nil {
+		return err
+	}
+
+	// Restaurer les places Redis
+	if s.cache != nil {
+		_ = s.cache.RestoreSeats(ctx, booking.TripID, int(booking.SeatsBooked))
 	}
 
 	s.invalidateBookingCaches(ctx, input.BookingID)

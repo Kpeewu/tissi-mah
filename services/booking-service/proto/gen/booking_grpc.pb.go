@@ -30,6 +30,7 @@ const (
 	BookingService_CompleteBookingsForWaypoint_FullMethodName = "/booking.BookingService/CompleteBookingsForWaypoint"
 	BookingService_ReportNoShow_FullMethodName                = "/booking.BookingService/ReportNoShow"
 	BookingService_ConfirmPayment_FullMethodName              = "/booking.BookingService/ConfirmPayment"
+	BookingService_FailPayment_FullMethodName                 = "/booking.BookingService/FailPayment"
 	BookingService_Health_FullMethodName                      = "/booking.BookingService/Health"
 )
 
@@ -63,6 +64,9 @@ type BookingServiceClient interface {
 	ReportNoShow(ctx context.Context, in *ReportNoShowRequest, opts ...grpc.CallOption) (*ReportNoShowResponse, error)
 	// ConfirmPayment confirme le paiement d'une réservation (callback paiement).
 	ConfirmPayment(ctx context.Context, in *ConfirmPaymentRequest, opts ...grpc.CallOption) (*ConfirmPaymentResponse, error)
+	// FailPayment signale l'échec du paiement d'une réservation.
+	// Route interne appelée par payment-service lors d'un webhook d'échec FedaPay.
+	FailPayment(ctx context.Context, in *FailPaymentRequest, opts ...grpc.CallOption) (*FailPaymentResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -185,6 +189,16 @@ func (c *bookingServiceClient) ConfirmPayment(ctx context.Context, in *ConfirmPa
 	return out, nil
 }
 
+func (c *bookingServiceClient) FailPayment(ctx context.Context, in *FailPaymentRequest, opts ...grpc.CallOption) (*FailPaymentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FailPaymentResponse)
+	err := c.cc.Invoke(ctx, BookingService_FailPayment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *bookingServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -225,6 +239,9 @@ type BookingServiceServer interface {
 	ReportNoShow(context.Context, *ReportNoShowRequest) (*ReportNoShowResponse, error)
 	// ConfirmPayment confirme le paiement d'une réservation (callback paiement).
 	ConfirmPayment(context.Context, *ConfirmPaymentRequest) (*ConfirmPaymentResponse, error)
+	// FailPayment signale l'échec du paiement d'une réservation.
+	// Route interne appelée par payment-service lors d'un webhook d'échec FedaPay.
+	FailPayment(context.Context, *FailPaymentRequest) (*FailPaymentResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedBookingServiceServer()
@@ -269,6 +286,9 @@ func (UnimplementedBookingServiceServer) ReportNoShow(context.Context, *ReportNo
 }
 func (UnimplementedBookingServiceServer) ConfirmPayment(context.Context, *ConfirmPaymentRequest) (*ConfirmPaymentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ConfirmPayment not implemented")
+}
+func (UnimplementedBookingServiceServer) FailPayment(context.Context, *FailPaymentRequest) (*FailPaymentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method FailPayment not implemented")
 }
 func (UnimplementedBookingServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -492,6 +512,24 @@ func _BookingService_ConfirmPayment_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BookingService_FailPayment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FailPaymentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).FailPayment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_FailPayment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).FailPayment(ctx, req.(*FailPaymentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BookingService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -560,6 +598,10 @@ var BookingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ConfirmPayment",
 			Handler:    _BookingService_ConfirmPayment_Handler,
+		},
+		{
+			MethodName: "FailPayment",
+			Handler:    _BookingService_FailPayment_Handler,
 		},
 		{
 			MethodName: "Health",

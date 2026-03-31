@@ -8,6 +8,7 @@ type BookingStatus string
 const (
 	BookingStatusCreated         BookingStatus = "created"
 	BookingStatusPaymentPending  BookingStatus = "paymentPending"
+	BookingStatusPaymentFailed   BookingStatus = "paymentFailed"
 	BookingStatusPendingApproval BookingStatus = "pendingApproval"
 	BookingStatusApproved        BookingStatus = "approved"
 	BookingStatusRejected        BookingStatus = "rejected"

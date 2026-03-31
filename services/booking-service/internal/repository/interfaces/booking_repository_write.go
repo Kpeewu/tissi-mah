@@ -35,6 +35,9 @@ type BookingRepositoryWrite interface {
 	// Retourne le nouveau statut et autoApprove du trajet associé.
 	ConfirmPayment(ctx context.Context, bookingID, transactionID string) error
 
+	// FailPayment marque le paiement d'une réservation comme échoué (paymentPending → paymentFailed).
+	FailPayment(ctx context.Context, bookingID, reason string) error
+
 	// MarkPaymentReleased marque le paiement d'un booking comme libéré.
 	MarkPaymentReleased(ctx context.Context, bookingID string) error
 }
