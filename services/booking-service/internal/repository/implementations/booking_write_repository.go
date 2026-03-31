@@ -8,6 +8,7 @@ import (
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/domain"
 	i "github.com/Kpeewu/tissi-mah/services/booking-service/internal/repository/interfaces"
 	bookingErrors "github.com/Kpeewu/tissi-mah/services/booking-service/pkg/errors"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
@@ -496,7 +497,16 @@ func (r *bookingWriteRepositoryImpl) ConfirmPayment(ctx context.Context, booking
 		return bookingErrors.ErrorInternalServer
 	}
 
-	if err := r.insertHistoryInTx(ctx, tx, bookingID, currentStatus, newStatus, "system", "system"); err != nil {
+	confirmReason := "Paiement confirmé"
+	if err := r.insertHistory(ctx, tx, &domain.StatusHistoryEntry{
+		HistoryID:      uuid.New().String(),
+		BookingID:      bookingID,
+		PreviousStatus: currentStatus,
+		NewStatus:      newStatus,
+		ChangedBy:      "system",
+		ChangedByType:  "system",
+		ChangeReason:   &confirmReason,
+	}); err != nil {
 		return err
 	}
 
@@ -555,7 +565,15 @@ func (r *bookingWriteRepositoryImpl) FailPayment(ctx context.Context, bookingID,
 		return bookingErrors.ErrorInternalServer
 	}
 
-	if err := r.insertHistoryInTx(ctx, tx, bookingID, currentStatus, newStatus, "system", "system"); err != nil {
+	if err := r.insertHistory(ctx, tx, &domain.StatusHistoryEntry{
+		HistoryID:      uuid.New().String(),
+		BookingID:      bookingID,
+		PreviousStatus: currentStatus,
+		NewStatus:      newStatus,
+		ChangedBy:      "system",
+		ChangedByType:  "system",
+		ChangeReason:   &reason,
+	}); err != nil {
 		return err
 	}
 

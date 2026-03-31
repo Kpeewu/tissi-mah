@@ -18,14 +18,14 @@ import (
 )
 
 type bookingServiceImpl struct {
-	readRepo       repoInterfaces.BookingRepositoryRead
-	writeRepo      repoInterfaces.BookingRepositoryWrite
-	tripClient     client.TripClient
-	userClient     client.UserClient
-	paymentClient  client.PaymentClient
-	cache          *cache.BookingCache
-	serviceFee     int // pourcentage
-	logger         *zap.Logger
+	readRepo      repoInterfaces.BookingRepositoryRead
+	writeRepo     repoInterfaces.BookingRepositoryWrite
+	tripClient    client.TripClient
+	userClient    client.UserClient
+	paymentClient client.PaymentClient
+	cache         *cache.BookingCache
+	serviceFee    int // pourcentage
+	logger        *zap.Logger
 }
 
 func NewBookingService(
@@ -212,8 +212,8 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 
 	// Entrée d'historique
 	history := &domain.StatusHistoryEntry{
-		HistoryID:     uuid.New().String(),
-		BookingID:     bookingID,
+		HistoryID:      uuid.New().String(),
+		BookingID:      bookingID,
 		PreviousStatus: string(domain.BookingStatusCreated),
 		NewStatus:      string(initialStatus),
 		ChangedBy:      input.PassengerID,
