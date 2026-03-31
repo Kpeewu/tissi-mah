@@ -39,6 +39,9 @@ type BookingService interface {
 
 	// FailPayment signale l'échec du paiement et restaure les places.
 	FailPayment(ctx context.Context, input *FailPaymentInput) error
+
+	// CancelBookingsForWaypoint annule les réservations actives d'un waypoint supprimé.
+	CancelBookingsForWaypoint(ctx context.Context, input *CancelBookingsForWaypointInput) (int, error)
 }
 
 // =============================================================================
@@ -132,6 +135,11 @@ type ConfirmPaymentInput struct {
 type FailPaymentInput struct {
 	BookingID string
 	Reason    string
+}
+
+type CancelBookingsForWaypointInput struct {
+	TripID     string
+	WaypointID string
 }
 
 // =============================================================================

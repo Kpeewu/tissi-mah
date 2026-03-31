@@ -376,15 +376,23 @@ func (s *tripServiceImpl) CancelWaypoint(ctx context.Context, input *serviceInte
 		return tripErrors.ErrorInvalidInput
 	}
 
+	// Récupérer le tripID avant l'annulation
+	tripID, err := s.readRepo.GetTripIDByWaypointID(ctx, input.WaypointID)
+	if err != nil {
+		return err
+	}
+
 	if err := s.writeRepo.CancelWaypoint(ctx, input.WaypointID, input.DriverID, input.CancellationReason); err != nil {
 		return err
 	}
 
-	// TODO: notifier les passagers ayant une réservation sur ce waypoint
-	// (notification-service non disponible actuellement)
-	s.logger.Warn("service: CancelWaypoint — passenger notifications not implemented",
-		zap.String("waypointID", input.WaypointID),
-	)
+	// Annuler les réservations liées à ce waypoint (remboursement automatique côté booking-service)
+	if s.bookingClient != nil {
+		if err := s.bookingClient.CancelBookingsForWaypoint(ctx, tripID, input.WaypointID); err != nil {
+			s.logger.Warn("CancelBookingsForWaypoint failed (non-blocking)", zap.Error(err),
+				zap.String("tripID", tripID), zap.String("waypointID", input.WaypointID))
+		}
+	}
 
 	s.logger.Info("waypoint cancelled",
 		zap.String("waypointID", input.WaypointID),

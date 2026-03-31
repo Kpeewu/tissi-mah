@@ -68,21 +68,27 @@ func (r *bookingWriteRepositoryImpl) insertBooking(ctx context.Context, tx pgx.T
 	query := `
 		INSERT INTO bookings (
 			booking_id, booking_reference, trip_id, passenger_id, driver_id,
-			pickup_waypoint_id, dropoff_waypoint_id, seats_booked,
+			pickup_waypoint_id, dropoff_waypoint_id,
+			pickup_sequencer_order, dropoff_sequencer_order,
+			seats_booked,
 			price_per_seat, subtotal, service_fee, total_amount,
 			payment_method, status,
 			payment_completed_at, approved_at
 		) VALUES (
 			$1, $2, $3, $4, $5,
-			$6, $7, $8,
-			$9, $10, $11, $12,
-			$13::booking_payment_method, $14::booking_status,
-			$15, $16
+			$6, $7,
+			$8, $9,
+			$10,
+			$11, $12, $13, $14,
+			$15::booking_payment_method, $16::booking_status,
+			$17, $18
 		)`
 
 	_, err := tx.Exec(ctx, query,
 		b.BookingID, b.BookingReference, b.TripID, b.PassengerID, b.DriverID,
-		b.PickupWaypointID, b.DropoffWaypointID, b.SeatsBooked,
+		b.PickupWaypointID, b.DropoffWaypointID,
+		b.PickupSequencerOrder, b.DropoffSequencerOrder,
+		b.SeatsBooked,
 		b.PricePerSeat, b.Subtotal, b.ServiceFee, b.TotalAmount,
 		string(b.PaymentMethod), string(b.Status),
 		b.PaymentCompletedAt, b.ApprovedAt,
@@ -578,6 +584,86 @@ func (r *bookingWriteRepositoryImpl) FailPayment(ctx context.Context, bookingID,
 	}
 
 	return tx.Commit(ctx)
+}
+
+// CancelBookingsForWaypoint annule les réservations actives d'un waypoint supprimé.
+func (r *bookingWriteRepositoryImpl) CancelBookingsForWaypoint(ctx context.Context, tripID, waypointID string) ([]*domain.Booking, error) {
+	r.logger.Debug("cancelling bookings for waypoint",
+		zap.String("tripID", tripID), zap.String("waypointID", waypointID))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// Récupérer les bookings actifs ayant ce waypoint comme pickup ou dropoff
+	rows, err := tx.Query(ctx, `
+		SELECT booking_id, trip_id, passenger_id, driver_id,
+		       pickup_waypoint_id, dropoff_waypoint_id,
+		       pickup_sequencer_order, dropoff_sequencer_order,
+		       seats_booked, total_amount, payment_method, status
+		FROM bookings
+		WHERE trip_id = $1
+		  AND (pickup_waypoint_id = $2 OR dropoff_waypoint_id = $2)
+		  AND status IN ('paymentPending', 'pendingApproval', 'approved')
+		FOR UPDATE`, tripID, waypointID)
+	if err != nil {
+		r.logger.Error("cancel bookings for waypoint query failed", zap.Error(err))
+		return nil, bookingErrors.ErrorInternalServer
+	}
+
+	var bookings []*domain.Booking
+	for rows.Next() {
+		b := &domain.Booking{}
+		if err := rows.Scan(
+			&b.BookingID, &b.TripID, &b.PassengerID, &b.DriverID,
+			&b.PickupWaypointID, &b.DropoffWaypointID,
+			&b.PickupSequencerOrder, &b.DropoffSequencerOrder,
+			&b.SeatsBooked, &b.TotalAmount, &b.PaymentMethod, &b.Status,
+		); err != nil {
+			rows.Close()
+			return nil, bookingErrors.ErrorInternalServer
+		}
+		bookings = append(bookings, b)
+	}
+	rows.Close()
+
+	if len(bookings) == 0 {
+		return nil, tx.Commit(ctx)
+	}
+
+	cancelReason := "Arrêt supprimé par le chauffeur"
+	for _, b := range bookings {
+		_, err = tx.Exec(ctx, `
+			UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
+			       canceller_id = 'system', cancellation_reason = $2
+			WHERE booking_id = $1`, b.BookingID, cancelReason)
+		if err != nil {
+			r.logger.Error("cancel booking for waypoint update failed", zap.Error(err), zap.String("bookingID", b.BookingID))
+			return nil, bookingErrors.ErrorInternalServer
+		}
+
+		if err := r.insertHistory(ctx, tx, &domain.StatusHistoryEntry{
+			HistoryID:      uuid.New().String(),
+			BookingID:      b.BookingID,
+			PreviousStatus: string(b.Status),
+			NewStatus:      string(domain.BookingStatusCancelled),
+			ChangedBy:      "system",
+			ChangedByType:  "system",
+			ChangeReason:   &cancelReason,
+		}); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, bookingErrors.ErrorInternalServer
+	}
+
+	r.logger.Info("bookings cancelled for waypoint",
+		zap.String("tripID", tripID), zap.String("waypointID", waypointID), zap.Int("count", len(bookings)))
+	return bookings, nil
 }
 
 // MarkPaymentReleased marque le paiement d'un booking comme libéré.

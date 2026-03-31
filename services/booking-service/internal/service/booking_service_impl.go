@@ -105,14 +105,20 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 		return nil, bookingErrors.ErrorDuplicateBooking
 	}
 
-	// 6. Réservation atomique Redis des places
+	// 6. Déterminer les sequencer orders des waypoints pickup et dropoff
+	pickupOrder, dropoffOrder := resolveWaypointOrders(tripDetails.Waypoints, input.PickupWaypointID, input.DropoffWaypointID)
+	if pickupOrder == -1 || dropoffOrder == -1 {
+		return nil, bookingErrors.ErrorInvalidWaypoints
+	}
+	maxOrder := getMaxWaypointOrder(tripDetails.Waypoints)
+
+	// 7. Réservation atomique Redis des places par segment
 	if s.cache != nil {
-		// Initialiser le compteur si absent
-		_, err = s.cache.InitSeatCounter(ctx, input.TripID, tripDetails.AvailableSeats)
-		if err != nil {
-			s.logger.Warn("service: InitSeatCounter failed, continuing without cache", zap.Error(err))
+		// Initialiser les compteurs par segment si absents
+		if err := s.cache.InitSegmentSeatCounters(ctx, input.TripID, tripDetails.TotalSeats, maxOrder); err != nil {
+			s.logger.Warn("service: InitSegmentSeatCounters failed, continuing without cache", zap.Error(err))
 		} else {
-			if err := s.cache.ReserveSeats(ctx, input.TripID, input.SeatsBooked); err != nil {
+			if err := s.cache.ReserveSegmentSeats(ctx, input.TripID, pickupOrder, dropoffOrder, input.SeatsBooked); err != nil {
 				return nil, bookingErrors.ErrorNoSeatsAvailable
 			}
 		}
@@ -120,7 +126,7 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 		return nil, bookingErrors.ErrorNoSeatsAvailable
 	}
 
-	// 7. Calculer les prix depuis les waypoints (server-side)
+	// 8. Calculer les prix depuis les waypoints (server-side)
 	pricePerSeat, err := s.calculatePriceFromWaypoints(tripDetails.Waypoints, input.PickupWaypointID, input.DropoffWaypointID)
 	if err != nil {
 		s.logger.Error("service: calculatePriceFromWaypoints failed", zap.Error(err))
@@ -158,8 +164,10 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 		TripID:            input.TripID,
 		PassengerID:       input.PassengerID,
 		DriverID:          tripDetails.DriverID,
-		PickupWaypointID:  input.PickupWaypointID,
-		DropoffWaypointID: input.DropoffWaypointID,
+		PickupWaypointID:      input.PickupWaypointID,
+		DropoffWaypointID:     input.DropoffWaypointID,
+		PickupSequencerOrder:  int16(pickupOrder),
+		DropoffSequencerOrder: int16(dropoffOrder),
 		SeatsBooked:       int16(input.SeatsBooked),
 		PricePerSeat:      pricePerSeat,
 		Subtotal:          subtotal,
@@ -224,7 +232,7 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 	if err := s.writeRepo.Create(ctx, booking, segments, history); err != nil {
 		// Compensation Redis en cas d'échec DB
 		if s.cache != nil {
-			_ = s.cache.RestoreSeats(ctx, input.TripID, input.SeatsBooked)
+			_ = s.cache.RestoreSegmentSeats(ctx, input.TripID, pickupOrder, dropoffOrder, input.SeatsBooked)
 		}
 		return nil, err
 	}
@@ -351,7 +359,7 @@ func (s *bookingServiceImpl) RejectBooking(ctx context.Context, input *serviceIn
 
 	// Restaurer les places Redis
 	if s.cache != nil {
-		_ = s.cache.RestoreSeats(ctx, booking.TripID, int(booking.SeatsBooked))
+		_ = s.cache.RestoreSegmentSeats(ctx, booking.TripID, int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder), int(booking.SeatsBooked))
 	}
 
 	s.invalidateBookingCaches(ctx, input.BookingID)
@@ -385,7 +393,7 @@ func (s *bookingServiceImpl) CancelBooking(ctx context.Context, input *serviceIn
 
 	// Restaurer les places Redis
 	if s.cache != nil {
-		_ = s.cache.RestoreSeats(ctx, booking.TripID, int(booking.SeatsBooked))
+		_ = s.cache.RestoreSegmentSeats(ctx, booking.TripID, int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder), int(booking.SeatsBooked))
 	}
 
 	s.invalidateBookingCaches(ctx, input.BookingID)
@@ -461,7 +469,7 @@ func (s *bookingServiceImpl) ReportNoShow(ctx context.Context, input *serviceInt
 
 	// Restaurer les places Redis
 	if s.cache != nil {
-		_ = s.cache.RestoreSeats(ctx, booking.TripID, int(booking.SeatsBooked))
+		_ = s.cache.RestoreSegmentSeats(ctx, booking.TripID, int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder), int(booking.SeatsBooked))
 	}
 
 	s.invalidateBookingCaches(ctx, input.BookingID)
@@ -516,11 +524,43 @@ func (s *bookingServiceImpl) FailPayment(ctx context.Context, input *serviceInte
 
 	// Restaurer les places Redis
 	if s.cache != nil {
-		_ = s.cache.RestoreSeats(ctx, booking.TripID, int(booking.SeatsBooked))
+		_ = s.cache.RestoreSegmentSeats(ctx, booking.TripID, int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder), int(booking.SeatsBooked))
 	}
 
 	s.invalidateBookingCaches(ctx, input.BookingID)
 	return nil
+}
+
+// =============================================================================
+// CancelBookingsForWaypoint
+// =============================================================================
+
+func (s *bookingServiceImpl) CancelBookingsForWaypoint(ctx context.Context, input *serviceInterfaces.CancelBookingsForWaypointInput) (int, error) {
+	if input.TripID == "" || input.WaypointID == "" {
+		return 0, bookingErrors.ErrorInvalidInput
+	}
+
+	cancelledBookings, err := s.writeRepo.CancelBookingsForWaypoint(ctx, input.TripID, input.WaypointID)
+	if err != nil {
+		return 0, err
+	}
+
+	now := time.Now().UTC()
+	for _, booking := range cancelledBookings {
+		// Restaurer les places Redis par segment
+		if s.cache != nil {
+			_ = s.cache.RestoreSegmentSeats(ctx, booking.TripID, int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder), int(booking.SeatsBooked))
+		}
+
+		s.invalidateBookingCaches(ctx, booking.BookingID)
+
+		// Demander le remboursement au payment-service (fire-and-forget)
+		if s.shouldRequestRefund(booking) {
+			go s.requestRefundAsync(booking, "waypointCancelled", now)
+		}
+	}
+
+	return len(cancelledBookings), nil
 }
 
 // =============================================================================
@@ -588,6 +628,33 @@ func (s *bookingServiceImpl) validateCreateInput(input *serviceInterfaces.Create
 	}
 
 	return nil
+}
+
+// resolveWaypointOrders retourne les sequencer orders des waypoints pickup et dropoff.
+// Retourne -1, -1 si un waypoint n'est pas trouvé.
+func resolveWaypointOrders(waypoints []client.TripWaypoint, pickupWaypointID, dropoffWaypointID string) (int, int) {
+	pickupOrder := -1
+	dropoffOrder := -1
+	for _, wp := range waypoints {
+		if wp.WaypointID == pickupWaypointID {
+			pickupOrder = wp.SequencerOrder
+		}
+		if wp.WaypointID == dropoffWaypointID {
+			dropoffOrder = wp.SequencerOrder
+		}
+	}
+	return pickupOrder, dropoffOrder
+}
+
+// getMaxWaypointOrder retourne le plus grand sequencer order parmi les waypoints.
+func getMaxWaypointOrder(waypoints []client.TripWaypoint) int {
+	max := 0
+	for _, wp := range waypoints {
+		if wp.SequencerOrder > max {
+			max = wp.SequencerOrder
+		}
+	}
+	return max
 }
 
 func (s *bookingServiceImpl) invalidateBookingCaches(ctx context.Context, bookingID string) {
@@ -835,36 +902,39 @@ func (s *bookingServiceImpl) reconcileTrip(ctx context.Context, tripID string) {
 		return
 	}
 
-	// Recalculer les places réservées depuis la DB
-	bookedSeats, err := s.readRepo.GetActiveBookingsSeatsForTrip(ctx, tripID)
-	if err != nil {
-		s.logger.Warn("reconciliation: skip trip (cannot count seats)", zap.String("tripID", tripID), zap.Error(err))
+	maxOrder := getMaxWaypointOrder(tripDetails.Waypoints)
+	if maxOrder <= 1 {
 		return
 	}
 
-	expectedAvailable := tripDetails.TotalSeats - bookedSeats
+	// Réconcilier chaque segment (leg)
+	minAvailable := tripDetails.TotalSeats
+	for order := 1; order < maxOrder; order++ {
+		occupancy, err := s.readRepo.GetSegmentOccupancy(ctx, tripID, order)
+		if err != nil {
+			s.logger.Warn("reconciliation: skip segment", zap.String("tripID", tripID), zap.Int("order", order), zap.Error(err))
+			continue
+		}
 
-	// Mettre à jour le compteur Redis
-	if s.cache != nil {
-		currentRedis, err := s.cache.GetSeatCounter(ctx, tripID)
-		if err == nil && currentRedis != expectedAvailable {
-			s.logger.Warn("reconciliation: Redis deviation detected",
-				zap.String("tripID", tripID),
-				zap.Int("redis", currentRedis),
-				zap.Int("expected", expectedAvailable),
-			)
-			_ = s.cache.SetSeatCounter(ctx, tripID, expectedAvailable)
+		expectedAvailable := tripDetails.TotalSeats - occupancy
+		if expectedAvailable < minAvailable {
+			minAvailable = expectedAvailable
+		}
+
+		// Mettre à jour le compteur Redis par segment
+		if s.cache != nil {
+			_ = s.cache.SetSegmentSeatCounter(ctx, tripID, order, expectedAvailable)
 		}
 	}
 
-	// Mettre à jour la DB trips via gRPC
-	if tripDetails.AvailableSeats != expectedAvailable {
+	// Mettre à jour la DB trips avec le minimum (pour affichage global)
+	if tripDetails.AvailableSeats != minAvailable {
 		s.logger.Info("reconciliation: updating trips DB",
 			zap.String("tripID", tripID),
 			zap.Int("dbCurrent", tripDetails.AvailableSeats),
-			zap.Int("expected", expectedAvailable),
+			zap.Int("expected", minAvailable),
 		)
-		if err := s.tripClient.UpdateAvailableSeats(ctx, tripID, expectedAvailable); err != nil {
+		if err := s.tripClient.UpdateAvailableSeats(ctx, tripID, minAvailable); err != nil {
 			s.logger.Error("reconciliation: UpdateAvailableSeats failed",
 				zap.String("tripID", tripID), zap.Error(err))
 		}

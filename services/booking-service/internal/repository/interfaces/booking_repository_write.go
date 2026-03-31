@@ -38,6 +38,10 @@ type BookingRepositoryWrite interface {
 	// FailPayment marque le paiement d'une réservation comme échoué (paymentPending → paymentFailed).
 	FailPayment(ctx context.Context, bookingID, reason string) error
 
+	// CancelBookingsForWaypoint annule les réservations actives d'un waypoint supprimé.
+	// Retourne la liste des bookings annulés pour restaurer les places et évaluer les remboursements.
+	CancelBookingsForWaypoint(ctx context.Context, tripID, waypointID string) ([]*domain.Booking, error)
+
 	// MarkPaymentReleased marque le paiement d'un booking comme libéré.
 	MarkPaymentReleased(ctx context.Context, bookingID string) error
 }
