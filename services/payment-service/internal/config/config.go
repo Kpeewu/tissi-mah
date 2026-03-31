@@ -85,11 +85,7 @@ func Load() (*Config, error) {
 		Redis: RedisConfig{
 			URL: sharedconfig.MustGetString(values, "REDIS_URL"),
 		},
-		FedaPay: FedaPayConfig{
-			APIURL:        sharedconfig.MustGetString(values, "FEDAPAY_API_URL"),
-			APIKey:        sharedconfig.MustGetString(values, "FEDAPAY_API_KEY"),
-			WebhookSecret: sharedconfig.MustGetString(values, "FEDAPAY_WEBHOOK_SECRET"),
-		},
+		FedaPay: loadFedaPayConfig(values, sharedconfig.MustGetString(values, "ENVIRONMENT")),
 		BookingService: ServiceEndpoint{
 			Host: sharedconfig.GetStringOrDefault(values, "BOOKING_SERVICE_HOST", "0.0.0.0"),
 			Port: sharedconfig.GetStringOrDefault(values, "BOOKING_SERVICE_PORT", "50058"),
@@ -113,6 +109,23 @@ func Load() (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func loadFedaPayConfig(v *viper.Viper, environment string) FedaPayConfig {
+	switch environment {
+	case "prod", "staging":
+		return FedaPayConfig{
+			APIURL:        sharedconfig.MustGetString(v, "FEDAPAY_LIVE_API_URL"),
+			APIKey:        sharedconfig.MustGetString(v, "FEDAPAY_LIVE_API_KEY"),
+			WebhookSecret: sharedconfig.MustGetString(v, "FEDAPAY_LIVE_WEBHOOK_SECRET"),
+		}
+	default: // local, vps-dev
+		return FedaPayConfig{
+			APIURL:        sharedconfig.MustGetString(v, "FEDAPAY_SANDBOX_API_URL"),
+			APIKey:        sharedconfig.MustGetString(v, "FEDAPAY_SANDBOX_API_KEY"),
+			WebhookSecret: sharedconfig.MustGetString(v, "FEDAPAY_SANDBOX_WEBHOOK_SECRET"),
+		}
+	}
 }
 
 func getIntOrDefault(v *viper.Viper, key string, defaultVal int) int {

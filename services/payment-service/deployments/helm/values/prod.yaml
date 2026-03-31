@@ -58,9 +58,9 @@ config:
 secrets:
   databaseUrl: ""
   redisUrl: ""
-  fedapayApiUrl: ""
-  fedapayApiKey: ""
-  fedapayWebhookSecret: ""
+  fedapayLiveApiUrl: ""
+  fedapayLiveApiKey: ""
+  fedapayLiveWebhookSecret: ""
   extra: {}
 
 probes:

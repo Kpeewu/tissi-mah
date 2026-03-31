@@ -51,9 +51,9 @@ config:
 secrets:
   databaseUrl: "postgresql://postgres:postgres@payment-postgres:5432/payment_db?sslmode=disable"
   redisUrl: "redis://payment-redis:6379/0"
-  fedapayApiUrl: "https://sandbox-api.fedapay.com"
-  fedapayApiKey: ""
-  fedapayWebhookSecret: ""
+  fedapaySandboxApiUrl: "https://sandbox-api.fedapay.com"
+  fedapaySandboxApiKey: ""
+  fedapaySandboxWebhookSecret: ""
   extra: {}
 
 probes:
