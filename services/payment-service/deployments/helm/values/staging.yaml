@@ -52,15 +52,17 @@ config:
   cancellationGracePeriodMinutes: "15"
   noshowDriverDelayMinutes: "15"
   noshowPassengerDelayMinutes: "15"
+  expirationIntervalSeconds: "60"
+  paymentTimeoutMinutes: "5"
   extra: {}
 
 # Secrets should be provided via AWS Secrets Manager or external secret management
 secrets:
   databaseUrl: ""
   redisUrl: ""
-  fedapayApiUrl: ""
-  fedapayApiKey: ""
-  fedapayWebhookSecret: ""
+  fedapayLiveApiUrl: ""
+  fedapayLiveApiKey: ""
+  fedapayLiveWebhookSecret: ""
   extra: {}
 
 probes:

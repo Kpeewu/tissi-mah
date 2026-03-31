@@ -121,6 +121,29 @@ func (c *Client) SendTransaction(paymentToken string, mode string, phoneNumber s
 	return resp.V1, nil
 }
 
+// CancelTransaction annule une transaction en attente sur FedaPay.
+// Doit être appelé uniquement après avoir vérifié que le statut est "pending" via GetTransaction.
+func (c *Client) CancelTransaction(transactionID int) error {
+	path := fmt.Sprintf("/v1/transactions/%d", transactionID)
+
+	body, statusCode, err := c.doRequest("DELETE", path, nil)
+	if err != nil {
+		return fmt.Errorf("cancel transaction: %w", err)
+	}
+
+	if statusCode < 200 || statusCode >= 300 {
+		c.logger.Error("fedapay: cancel transaction failed",
+			zap.Int("transactionID", transactionID),
+			zap.Int("statusCode", statusCode),
+			zap.String("body", string(body)),
+		)
+		return parseError(body)
+	}
+
+	c.logger.Info("fedapay: transaction cancelled", zap.Int("transactionID", transactionID))
+	return nil
+}
+
 // GetTransaction récupère les détails d'une transaction.
 func (c *Client) GetTransaction(transactionID int) (*Transaction, error) {
 	path := fmt.Sprintf("/v1/transactions/%d", transactionID)

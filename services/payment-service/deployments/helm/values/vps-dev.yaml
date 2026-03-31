@@ -50,15 +50,17 @@ config:
   cancellationGracePeriodMinutes: "15"
   noshowDriverDelayMinutes: "15"
   noshowPassengerDelayMinutes: "15"
+  expirationIntervalSeconds: "60"
+  paymentTimeoutMinutes: "5"
   extra: {}
 
 # Secrets should be provided via external secret management
 secrets:
   databaseUrl: ""
   redisUrl: ""
-  fedapayApiUrl: ""
-  fedapayApiKey: ""
-  fedapayWebhookSecret: ""
+  fedapaySandboxApiUrl: ""
+  fedapaySandboxApiKey: ""
+  fedapaySandboxWebhookSecret: ""
   extra: {}
 
 probes:

@@ -17,6 +17,7 @@ type Config struct {
 	UserService    ServiceEndpoint
 	Payout         PayoutConfig
 	Refund         RefundConfig
+	Expiration     ExpirationConfig
 	LogLevel       string
 }
 
@@ -58,6 +59,11 @@ type PayoutConfig struct {
 	PlatformFeePercent     int
 }
 
+type ExpirationConfig struct {
+	IntervalSeconds       int
+	PaymentTimeoutMinutes int
+}
+
 type RefundConfig struct {
 	CancellationFullRefundHours      int
 	CancellationGracePeriodMinutes   int
@@ -85,11 +91,7 @@ func Load() (*Config, error) {
 		Redis: RedisConfig{
 			URL: sharedconfig.MustGetString(values, "REDIS_URL"),
 		},
-		FedaPay: FedaPayConfig{
-			APIURL:        sharedconfig.MustGetString(values, "FEDAPAY_API_URL"),
-			APIKey:        sharedconfig.MustGetString(values, "FEDAPAY_API_KEY"),
-			WebhookSecret: sharedconfig.MustGetString(values, "FEDAPAY_WEBHOOK_SECRET"),
-		},
+		FedaPay: loadFedaPayConfig(values, sharedconfig.MustGetString(values, "ENVIRONMENT")),
 		BookingService: ServiceEndpoint{
 			Host: sharedconfig.GetStringOrDefault(values, "BOOKING_SERVICE_HOST", "0.0.0.0"),
 			Port: sharedconfig.GetStringOrDefault(values, "BOOKING_SERVICE_PORT", "50058"),
@@ -103,6 +105,10 @@ func Load() (*Config, error) {
 			ContestationDelayHours: getIntOrDefault(values, "CONTESTATION_DELAY_HOURS", 2),
 			PlatformFeePercent:     getIntOrDefault(values, "PLATFORM_FEE_PERCENT", 10),
 		},
+		Expiration: ExpirationConfig{
+			IntervalSeconds:       getIntOrDefault(values, "EXPIRATION_INTERVAL_SECONDS", 60),
+			PaymentTimeoutMinutes: getIntOrDefault(values, "PAYMENT_TIMEOUT_MINUTES", 5),
+		},
 		Refund: RefundConfig{
 			CancellationFullRefundHours:    getIntOrDefault(values, "CANCELLATION_FULL_REFUND_HOURS", 24),
 			CancellationGracePeriodMinutes: getIntOrDefault(values, "CANCELLATION_GRACE_PERIOD_MINUTES", 30),
@@ -113,6 +119,23 @@ func Load() (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func loadFedaPayConfig(v *viper.Viper, environment string) FedaPayConfig {
+	switch environment {
+	case "prod", "staging":
+		return FedaPayConfig{
+			APIURL:        sharedconfig.MustGetString(v, "FEDAPAY_LIVE_API_URL"),
+			APIKey:        sharedconfig.MustGetString(v, "FEDAPAY_LIVE_API_KEY"),
+			WebhookSecret: sharedconfig.MustGetString(v, "FEDAPAY_LIVE_WEBHOOK_SECRET"),
+		}
+	default: // local, vps-dev
+		return FedaPayConfig{
+			APIURL:        sharedconfig.MustGetString(v, "FEDAPAY_SANDBOX_API_URL"),
+			APIKey:        sharedconfig.MustGetString(v, "FEDAPAY_SANDBOX_API_KEY"),
+			WebhookSecret: sharedconfig.MustGetString(v, "FEDAPAY_SANDBOX_WEBHOOK_SECRET"),
+		}
+	}
 }
 
 func getIntOrDefault(v *viper.Viper, key string, defaultVal int) int {

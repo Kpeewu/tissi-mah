@@ -19,6 +19,8 @@ data:
   CANCELLATION_GRACE_PERIOD_MINUTES: {{ .Values.config.cancellationGracePeriodMinutes | quote }}
   NOSHOW_DRIVER_DELAY_MINUTES: {{ .Values.config.noshowDriverDelayMinutes | quote }}
   NOSHOW_PASSENGER_DELAY_MINUTES: {{ .Values.config.noshowPassengerDelayMinutes | quote }}
+  EXPIRATION_INTERVAL_SECONDS: {{ .Values.config.expirationIntervalSeconds | quote }}
+  PAYMENT_TIMEOUT_MINUTES: {{ .Values.config.paymentTimeoutMinutes | quote }}
   {{- range $key, $value := .Values.config.extra }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}

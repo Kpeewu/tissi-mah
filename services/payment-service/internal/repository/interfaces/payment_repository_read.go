@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/domain"
 )
@@ -12,4 +13,5 @@ type PaymentRepositoryRead interface {
 	GetByBookingID(ctx context.Context, bookingID string) (*domain.Payment, error)
 	GetByExternalTransactionID(ctx context.Context, externalID string) (*domain.Payment, error)
 	GetWebhookEvent(ctx context.Context, fedapayEventID string) (*domain.WebhookEvent, error)
+	GetExpiredPendingPayments(ctx context.Context, olderThan time.Duration) ([]*domain.Payment, error)
 }
