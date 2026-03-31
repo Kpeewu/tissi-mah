@@ -184,6 +184,9 @@ message GetTripByIDResponse {
   string EstimatedArrivalDatetime       = 9; // RFC3339
   repeated TripWaypointDetail Waypoints = 10;
   string ErrorMessage                   = 11;
+  string VehicleId                      = 12;
+  string VehicleBrand                   = 13;
+  string VehiclePlate                   = 14;
 }
 
 // =============================================================================

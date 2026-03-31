@@ -172,6 +172,9 @@ type GetTripByIDResponse struct {
 	EstimatedArrivalDatetime string                 `protobuf:"bytes,9,opt,name=EstimatedArrivalDatetime,proto3" json:"EstimatedArrivalDatetime,omitempty"` // RFC3339
 	Waypoints                []*TripWaypointDetail  `protobuf:"bytes,10,rep,name=Waypoints,proto3" json:"Waypoints,omitempty"`
 	ErrorMessage             string                 `protobuf:"bytes,11,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	VehicleId                string                 `protobuf:"bytes,12,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"`
+	VehicleBrand             string                 `protobuf:"bytes,13,opt,name=VehicleBrand,proto3" json:"VehicleBrand,omitempty"`
+	VehiclePlate             string                 `protobuf:"bytes,14,opt,name=VehiclePlate,proto3" json:"VehiclePlate,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -279,6 +282,27 @@ func (x *GetTripByIDResponse) GetWaypoints() []*TripWaypointDetail {
 func (x *GetTripByIDResponse) GetErrorMessage() string {
 	if x != nil {
 		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *GetTripByIDResponse) GetVehicleId() string {
+	if x != nil {
+		return x.VehicleId
+	}
+	return ""
+}
+
+func (x *GetTripByIDResponse) GetVehicleBrand() string {
+	if x != nil {
+		return x.VehicleBrand
+	}
+	return ""
+}
+
+func (x *GetTripByIDResponse) GetVehiclePlate() string {
+	if x != nil {
+		return x.VehiclePlate
 	}
 	return ""
 }
@@ -2685,7 +2709,7 @@ const file_trip_proto_rawDesc = "" +
 	"\fLocationName\x18\x04 \x01(\tR\fLocationName\x12\x12\n" +
 	"\x04City\x18\x05 \x01(\tR\x04City\x128\n" +
 	"\x17ScheduledPickupDatetime\x18\x06 \x01(\tR\x17ScheduledPickupDatetime\x12,\n" +
-	"\x11PriceFromPrevious\x18\a \x01(\x05R\x11PriceFromPrevious\"\xc3\x03\n" +
+	"\x11PriceFromPrevious\x18\a \x01(\x05R\x11PriceFromPrevious\"\xa9\x04\n" +
 	"\x13GetTripByIDResponse\x12\x16\n" +
 	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12\x1a\n" +
 	"\bDriverId\x18\x02 \x01(\tR\bDriverId\x12\x16\n" +
@@ -2700,7 +2724,10 @@ const file_trip_proto_rawDesc = "" +
 	"\x18EstimatedArrivalDatetime\x18\t \x01(\tR\x18EstimatedArrivalDatetime\x126\n" +
 	"\tWaypoints\x18\n" +
 	" \x03(\v2\x18.trip.TripWaypointDetailR\tWaypoints\x12\"\n" +
-	"\fErrorMessage\x18\v \x01(\tR\fErrorMessage\"c\n" +
+	"\fErrorMessage\x18\v \x01(\tR\fErrorMessage\x12\x1c\n" +
+	"\tVehicleId\x18\f \x01(\tR\tVehicleId\x12\"\n" +
+	"\fVehicleBrand\x18\r \x01(\tR\fVehicleBrand\x12\"\n" +
+	"\fVehiclePlate\x18\x0e \x01(\tR\fVehiclePlate\"c\n" +
 	"\x1bUpdateAvailableSeatsRequest\x12\x16\n" +
 	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12,\n" +
 	"\x11NewAvailableSeats\x18\x02 \x01(\x05R\x11NewAvailableSeats\"\\\n" +

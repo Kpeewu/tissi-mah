@@ -231,16 +231,19 @@ type GetTripByIDInput struct {
 
 // TripDetailResult contient les détails complets d'un trajet avec ses waypoints.
 type TripDetailResult struct {
-	TripID                  string
-	DriverID                string
-	Status                  string
-	TotalSeats              int16
-	AvailableSeats          int16
-	PricePerSeat            int
-	AutoApproveEnabled      bool
-	DepartureDatetime       time.Time
+	TripID                   string
+	DriverID                 string
+	Status                   string
+	TotalSeats               int16
+	AvailableSeats           int16
+	PricePerSeat             int
+	AutoApproveEnabled       bool
+	DepartureDatetime        time.Time
 	EstimatedArrivalDatetime time.Time
-	Waypoints               []WaypointDetailResult
+	VehicleID                string
+	VehicleBrand             string
+	VehiclePlate             string
+	Waypoints                []WaypointDetailResult
 }
 
 // WaypointDetailResult contient les informations d'un waypoint.

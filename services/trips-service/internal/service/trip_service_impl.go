@@ -624,6 +624,9 @@ func (s *tripServiceImpl) GetTripByID(ctx context.Context, input *serviceInterfa
 		}
 	}
 
+	// Enrichir avec les infos véhicule
+	vehicleBrand, vehiclePlate := s.getCachedOrFetchVehicleInfo(ctx, trip.DriverID, trip.VehicleID)
+
 	waypointResults := make([]serviceInterfaces.WaypointDetailResult, 0, len(waypoints))
 	for _, wp := range waypoints {
 		waypointResults = append(waypointResults, serviceInterfaces.WaypointDetailResult{
@@ -647,6 +650,9 @@ func (s *tripServiceImpl) GetTripByID(ctx context.Context, input *serviceInterfa
 		AutoApproveEnabled:       trip.AutoApproveEnabled,
 		DepartureDatetime:        trip.DepartureDatetime,
 		EstimatedArrivalDatetime: trip.EstimatedArrivalDatetime,
+		VehicleID:                trip.VehicleID,
+		VehicleBrand:             vehicleBrand,
+		VehiclePlate:             vehiclePlate,
 		Waypoints:                waypointResults,
 	}, nil
 }

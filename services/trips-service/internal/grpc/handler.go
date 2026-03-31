@@ -388,16 +388,19 @@ func (h *TripHandler) GetTripByID(ctx context.Context, req *trippb.GetTripByIDRe
 
 	h.logger.Info("handler: GetTripByID success", zap.String("tripID", req.TripId))
 	return &trippb.GetTripByIDResponse{
-		TripId:                  result.TripID,
-		DriverId:                result.DriverID,
-		Status:                  result.Status,
-		TotalSeats:              int32(result.TotalSeats),
-		AvailableSeats:          int32(result.AvailableSeats),
-		PricePerSeat:            int32(result.PricePerSeat),
-		AutoApproveEnabled:      result.AutoApproveEnabled,
-		DepartureDatetime:       result.DepartureDatetime.Format(time.RFC3339),
+		TripId:                   result.TripID,
+		DriverId:                 result.DriverID,
+		Status:                   result.Status,
+		TotalSeats:               int32(result.TotalSeats),
+		AvailableSeats:           int32(result.AvailableSeats),
+		PricePerSeat:             int32(result.PricePerSeat),
+		AutoApproveEnabled:       result.AutoApproveEnabled,
+		DepartureDatetime:        result.DepartureDatetime.Format(time.RFC3339),
 		EstimatedArrivalDatetime: result.EstimatedArrivalDatetime.Format(time.RFC3339),
-		Waypoints:               pbWaypoints,
+		Waypoints:                pbWaypoints,
+		VehicleId:                result.VehicleID,
+		VehicleBrand:             result.VehicleBrand,
+		VehiclePlate:             result.VehiclePlate,
 	}, nil
 }
 
