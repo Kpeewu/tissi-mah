@@ -270,6 +270,37 @@ func (h *BookingHandler) CompleteBookingsForWaypoint(ctx context.Context, req *b
 	}, nil
 }
 
+// CancelBookingsForWaypoint annule les réservations actives d'un waypoint supprimé.
+func (h *BookingHandler) CancelBookingsForWaypoint(ctx context.Context, req *bookingpb.CancelBookingsForWaypointRequest) (*bookingpb.CancelBookingsForWaypointResponse, error) {
+	count, err := h.service.CancelBookingsForWaypoint(ctx, &serviceInterfaces.CancelBookingsForWaypointInput{
+		TripID:     req.TripId,
+		WaypointID: req.WaypointId,
+	})
+	if err != nil {
+		return &bookingpb.CancelBookingsForWaypointResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return &bookingpb.CancelBookingsForWaypointResponse{
+		Success:       true,
+		BookingsCount: int32(count),
+	}, nil
+}
+
+// CancelBookingsForTrip annule toutes les réservations actives d'un trajet annulé.
+func (h *BookingHandler) CancelBookingsForTrip(ctx context.Context, req *bookingpb.CancelBookingsForTripRequest) (*bookingpb.CancelBookingsForTripResponse, error) {
+	count, err := h.service.CancelBookingsForTrip(ctx, &serviceInterfaces.CancelBookingsForTripInput{
+		TripID: req.TripId,
+	})
+	if err != nil {
+		return &bookingpb.CancelBookingsForTripResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return &bookingpb.CancelBookingsForTripResponse{
+		Success:       true,
+		BookingsCount: int32(count),
+	}, nil
+}
+
 // ReportNoShow signale un no-show.
 func (h *BookingHandler) ReportNoShow(ctx context.Context, req *bookingpb.ReportNoShowRequest) (*bookingpb.ReportNoShowResponse, error) {
 	err := h.service.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{

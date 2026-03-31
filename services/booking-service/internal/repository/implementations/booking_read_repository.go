@@ -28,7 +28,9 @@ func NewBookingReadRepository(pool *pgxpool.Pool, logger *zap.Logger) i.BookingR
 func (r *bookingReadRepositoryImpl) GetByID(ctx context.Context, bookingID string) (*domain.Booking, error) {
 	query := `
 		SELECT booking_id, booking_reference, trip_id, passenger_id, driver_id,
-		       pickup_waypoint_id, dropoff_waypoint_id, seats_booked,
+		       pickup_waypoint_id, dropoff_waypoint_id,
+		       pickup_sequencer_order, dropoff_sequencer_order,
+		       seats_booked,
 		       price_per_seat, subtotal, service_fee, total_amount,
 		       payment_method, status,
 		       payment_completed_at, approved_at, rejected_at, cancelled_at, completed_at,
@@ -41,7 +43,9 @@ func (r *bookingReadRepositoryImpl) GetByID(ctx context.Context, bookingID strin
 	b := &domain.Booking{}
 	err := r.pool.QueryRow(ctx, query, bookingID).Scan(
 		&b.BookingID, &b.BookingReference, &b.TripID, &b.PassengerID, &b.DriverID,
-		&b.PickupWaypointID, &b.DropoffWaypointID, &b.SeatsBooked,
+		&b.PickupWaypointID, &b.DropoffWaypointID,
+		&b.PickupSequencerOrder, &b.DropoffSequencerOrder,
+		&b.SeatsBooked,
 		&b.PricePerSeat, &b.Subtotal, &b.ServiceFee, &b.TotalAmount,
 		&b.PaymentMethod, &b.Status,
 		&b.PaymentCompletedAt, &b.ApprovedAt, &b.RejectedAt, &b.CancelledAt, &b.CompletedAt,
@@ -297,6 +301,25 @@ func (r *bookingReadRepositoryImpl) GetActiveBookingsSeatsForTrip(ctx context.Co
 	var total int
 	if err := r.pool.QueryRow(ctx, query, tripID).Scan(&total); err != nil {
 		r.logger.Error("GetActiveBookingsSeatsForTrip failed", zap.Error(err), zap.String("tripID", tripID))
+		return 0, bookingErrors.ErrorDataRetrievalFailed
+	}
+
+	return total, nil
+}
+
+// GetSegmentOccupancy retourne le nombre de places occupées pour un segment donné.
+func (r *bookingReadRepositoryImpl) GetSegmentOccupancy(ctx context.Context, tripID string, segmentOrder int) (int, error) {
+	query := `
+		SELECT COALESCE(SUM(seats_booked), 0)
+		FROM bookings
+		WHERE trip_id = $1
+		AND pickup_sequencer_order <= $2
+		AND dropoff_sequencer_order > $2
+		AND status IN ('created', 'paymentPending', 'pendingApproval', 'approved', 'inProgress')`
+
+	var total int
+	if err := r.pool.QueryRow(ctx, query, tripID, segmentOrder).Scan(&total); err != nil {
+		r.logger.Error("GetSegmentOccupancy failed", zap.Error(err), zap.String("tripID", tripID))
 		return 0, bookingErrors.ErrorDataRetrievalFailed
 	}
 

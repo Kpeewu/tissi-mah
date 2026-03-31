@@ -77,3 +77,37 @@ func (c *BookingServiceClient) CompleteBookingsForWaypoint(ctx context.Context, 
 
 	return nil
 }
+
+// CancelBookingsForWaypoint annule les réservations actives d'un waypoint supprimé.
+func (c *BookingServiceClient) CancelBookingsForWaypoint(ctx context.Context, tripID, waypointID string) error {
+	c.logger.Debug("client: CancelBookingsForWaypoint called",
+		zap.String("tripID", tripID), zap.String("waypointID", waypointID))
+
+	_, err := c.grpcClient.CancelBookingsForWaypoint(ctx, &bookingpb.CancelBookingsForWaypointRequest{
+		TripId:     tripID,
+		WaypointId: waypointID,
+	})
+	if err != nil {
+		c.logger.Warn("client: CancelBookingsForWaypoint failed (non-blocking)",
+			zap.Error(err), zap.String("tripID", tripID), zap.String("waypointID", waypointID))
+		return err
+	}
+
+	return nil
+}
+
+// CancelBookingsForTrip annule toutes les réservations actives d'un trajet annulé.
+func (c *BookingServiceClient) CancelBookingsForTrip(ctx context.Context, tripID string) error {
+	c.logger.Debug("client: CancelBookingsForTrip called", zap.String("tripID", tripID))
+
+	_, err := c.grpcClient.CancelBookingsForTrip(ctx, &bookingpb.CancelBookingsForTripRequest{
+		TripId: tripID,
+	})
+	if err != nil {
+		c.logger.Warn("client: CancelBookingsForTrip failed (non-blocking)",
+			zap.Error(err), zap.String("tripID", tripID))
+		return err
+	}
+
+	return nil
+}

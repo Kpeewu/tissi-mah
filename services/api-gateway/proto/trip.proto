@@ -127,6 +127,15 @@ service TripService {
     };
   }
 
+  // CancelTrip annule un trajet planifié et toutes ses réservations associées.
+  // Le trajet doit avoir le statut "scheduled".
+  rpc CancelTrip(CancelTripRequest) returns (CancelTripResponse) {
+    option (google.api.http) = {
+      delete: "/trip/driver/cancelTrip"
+      body: "*"
+    };
+  }
+
   // CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
   // Le trajet doit avoir le statut "scheduled". Seuls les waypoints "stop" peuvent être annulés.
   rpc CancelWaypoint(CancelWaypointRequest) returns (CancelWaypointResponse) {
@@ -171,10 +180,13 @@ message GetTripByIDResponse {
   int32  AvailableSeats                 = 5;
   int32  PricePerSeat                   = 6;
   bool   AutoApproveEnabled             = 7;
-  string DepartureDatetime              = 8;  // RFC3339
-  string EstimatedArrivalDatetime       = 9;  // RFC3339
+  string DepartureDatetime              = 8; // RFC3339
+  string EstimatedArrivalDatetime       = 9; // RFC3339
   repeated TripWaypointDetail Waypoints = 10;
   string ErrorMessage                   = 11;
+  string VehicleId                      = 12;
+  string VehicleBrand                   = 13;
+  string VehiclePlate                   = 14;
 }
 
 // =============================================================================
@@ -212,8 +224,8 @@ message WaypointInput {
 message CreateTripRequest {
   string DriverId                    = 1;
   string VehicleId                   = 2;
-  string DepartureDatetime           = 3;  // RFC3339
-  string EstimatedArrivalDatetime    = 4;  // RFC3339
+  string DepartureDatetime           = 3; // RFC3339
+  string EstimatedArrivalDatetime    = 4; // RFC3339
   int32  EstimatedDurationMinutes    = 5;
   int32  EstimatedDistanceMeters     = 6;
   int32  TotalSeats                  = 7;
@@ -248,11 +260,11 @@ message DaysOfWeekInput {
 message CreateRecurringTripRequest {
   string          DriverId              = 1;
   string          VehicleId             = 2;
-  string          DepartureTime         = 3;  // RFC3339 — seule la partie heure est utilisée
-  string          RecurrenceType        = 4;  // daily | weekly | custom
-  DaysOfWeekInput DaysOfWeek            = 5;  // 1=Lundi … 7=Dimanche
-  string          StartDate             = 6;  // YYYY-MM-DD
-  string          EndDate               = 7;  // YYYY-MM-DD
+  string          DepartureTime         = 3; // RFC3339 — seule la partie heure est utilisée
+  string          RecurrenceType        = 4; // daily | weekly | custom
+  DaysOfWeekInput DaysOfWeek            = 5; // 1=Lundi … 7=Dimanche
+  string          StartDate             = 6; // YYYY-MM-DD
+  string          EndDate               = 7; // YYYY-MM-DD
   int32           TotalSeats            = 8;
   int32           PricePerSeat          = 9;
   bool            AllowLuggages         = 10;
@@ -288,8 +300,8 @@ message TripPreview {
   string VehicleId              = 4;
   string VehicleBrand           = 5;
   string VehiclePlate           = 6;
-  string DepartureDate          = 7;  // YYYY-MM-DD
-  string DepartureTime          = 8;  // HH:MM
+  string DepartureDate          = 7; // YYYY-MM-DD
+  string DepartureTime          = 8; // HH:MM
   int32  TotalSeats             = 9;
   int32  AvailableSeats         = 10;
   string DepartureLocationName  = 11;
@@ -318,8 +330,8 @@ message CompletedTripPreview {
   string VehicleId              = 4;
   string VehicleBrand           = 5;
   string VehiclePlateNumber     = 6;
-  string DepartureDate          = 7;  // YYYY-MM-DD
-  string DepartureTime          = 8;  // HH:MM
+  string DepartureDate          = 7; // YYYY-MM-DD
+  string DepartureTime          = 8; // HH:MM
   int32  TotalSeats             = 9;
   int32  AvailableSeats         = 10;
   string DepartureLocationName  = 11;
@@ -338,7 +350,7 @@ message GetCompletedTripsPreviewsResponse {
 message ChangeTripDateAndTimeRequest {
   string DriverId            = 1;
   string TripId              = 2;
-  string DepartureDatetime   = 3;  // RFC3339
+  string DepartureDatetime   = 3; // RFC3339
 }
 
 message ChangeTripDateAndTimeResponse {
@@ -446,6 +458,21 @@ message ConfirmWaypointDepartureRequest {
 }
 
 message ConfirmWaypointDepartureResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// CancelTrip
+// =============================================================================
+
+message CancelTripRequest {
+  string DriverId           = 1;
+  string TripId             = 2;
+  string CancellationReason = 3;
+}
+
+message CancelTripResponse {
   bool   Success      = 1;
   string ErrorMessage = 2;
 }

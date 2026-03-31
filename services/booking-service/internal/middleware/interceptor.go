@@ -23,6 +23,8 @@ var publicMethods = map[string]bool{
 	"/booking.BookingService/ConfirmPayment":              true, // Route interne (payment-service)
 	"/booking.BookingService/FailPayment":                 true, // Route interne (payment-service)
 	"/booking.BookingService/GetBookingDetails":           true, // Route interne (payment-service)
+	"/booking.BookingService/CancelBookingsForWaypoint": true, // Route interne (trips-service)
+	"/booking.BookingService/CancelBookingsForTrip":     true, // Route interne (trips-service)
 	"/grpc.health.v1.Health/Check":                       true, // Readiness probe Kubernetes
 	"/grpc.health.v1.Health/Watch":                       true, // Liveness probe Kubernetes
 }

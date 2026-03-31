@@ -31,6 +31,10 @@ type BookingRepositoryRead interface {
 	// GetActiveTripsWithBookings retourne la liste des tripIDs ayant des bookings actifs.
 	GetActiveTripsWithBookings(ctx context.Context) ([]string, error)
 
+	// GetSegmentOccupancy retourne le nombre de places occupées pour un segment (leg) donné.
+	// Un booking occupe le segment si pickup_sequencer_order <= segmentOrder AND dropoff_sequencer_order > segmentOrder.
+	GetSegmentOccupancy(ctx context.Context, tripID string, segmentOrder int) (int, error)
+
 	// GetCompletedBookingsPendingRelease retourne les bookings complétés non-cash
 	// dont le paiement n'a pas encore été libéré et dont la complétion est antérieure à completedBefore.
 	GetCompletedBookingsPendingRelease(ctx context.Context, completedBefore time.Time) ([]*domain.Booking, error)

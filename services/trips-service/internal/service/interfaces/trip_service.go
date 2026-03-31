@@ -65,6 +65,10 @@ type TripService interface {
 	// UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
 	UpdateAvailableSeats(ctx context.Context, input *UpdateAvailableSeatsInput) error
 
+	// CancelTrip annule un trajet planifié et toutes ses réservations associées.
+	// Le trajet doit avoir le statut "scheduled".
+	CancelTrip(ctx context.Context, input *CancelTripInput) error
+
 	// CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
 	// Le trajet doit avoir le statut "scheduled".
 	CancelWaypoint(ctx context.Context, input *CancelWaypointInput) error
@@ -227,16 +231,19 @@ type GetTripByIDInput struct {
 
 // TripDetailResult contient les détails complets d'un trajet avec ses waypoints.
 type TripDetailResult struct {
-	TripID                  string
-	DriverID                string
-	Status                  string
-	TotalSeats              int16
-	AvailableSeats          int16
-	PricePerSeat            int
-	AutoApproveEnabled      bool
-	DepartureDatetime       time.Time
+	TripID                   string
+	DriverID                 string
+	Status                   string
+	TotalSeats               int16
+	AvailableSeats           int16
+	PricePerSeat             int
+	AutoApproveEnabled       bool
+	DepartureDatetime        time.Time
 	EstimatedArrivalDatetime time.Time
-	Waypoints               []WaypointDetailResult
+	VehicleID                string
+	VehicleBrand             string
+	VehiclePlate             string
+	Waypoints                []WaypointDetailResult
 }
 
 // WaypointDetailResult contient les informations d'un waypoint.
@@ -254,6 +261,13 @@ type WaypointDetailResult struct {
 type UpdateAvailableSeatsInput struct {
 	TripID            string
 	NewAvailableSeats int16
+}
+
+// CancelTripInput contient les données nécessaires à l'annulation d'un trajet.
+type CancelTripInput struct {
+	DriverID           string
+	TripID             string
+	CancellationReason string
 }
 
 // CancelWaypointInput contient les données nécessaires à l'annulation d'un waypoint.

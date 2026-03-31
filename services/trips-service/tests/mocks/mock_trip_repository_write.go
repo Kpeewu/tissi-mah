@@ -68,6 +68,11 @@ func (m *MockTripRepositoryWrite) UpdateAvailableSeats(ctx context.Context, trip
 	return args.Error(0)
 }
 
+func (m *MockTripRepositoryWrite) CancelTrip(ctx context.Context, tripID, driverID, reason string) error {
+	args := m.Called(ctx, tripID, driverID, reason)
+	return args.Error(0)
+}
+
 func (m *MockTripRepositoryWrite) CancelWaypoint(ctx context.Context, waypointID, driverID, reason string) error {
 	args := m.Called(ctx, waypointID, driverID, reason)
 	return args.Error(0)

@@ -79,6 +79,24 @@ service BookingService {
     };
   }
 
+  // CancelBookingsForWaypoint annule les réservations actives d'un waypoint supprimé.
+  // Route interne appelée par trips-service lors de CancelWaypoint.
+  rpc CancelBookingsForWaypoint(CancelBookingsForWaypointRequest) returns (CancelBookingsForWaypointResponse) {
+    option (google.api.http) = {
+      patch: "/booking/internal/cancelBookingsForWaypoint"
+      body: "*"
+    };
+  }
+
+  // CancelBookingsForTrip annule toutes les réservations actives d'un trajet annulé.
+  // Route interne appelée par trips-service lors de CancelTrip.
+  rpc CancelBookingsForTrip(CancelBookingsForTripRequest) returns (CancelBookingsForTripResponse) {
+    option (google.api.http) = {
+      patch: "/booking/internal/cancelBookingsForTrip"
+      body: "*"
+    };
+  }
+
   // ReportNoShow signale l'absence d'un passager ou d'un conducteur.
   rpc ReportNoShow(ReportNoShowRequest) returns (ReportNoShowResponse) {
     option (google.api.http) = {
@@ -344,6 +362,35 @@ message CompleteBookingsForWaypointRequest {
 message CompleteBookingsForWaypointResponse {
   bool   Success       = 1;
   int32  BookingsCount = 2; // nombre de bookings complétés
+  string ErrorMessage  = 3;
+}
+
+// =============================================================================
+// CancelBookingsForWaypoint (interne — appelé par trips-service)
+// =============================================================================
+
+message CancelBookingsForWaypointRequest {
+  string TripId     = 1;
+  string WaypointId = 2;
+}
+
+message CancelBookingsForWaypointResponse {
+  bool   Success       = 1;
+  int32  BookingsCount = 2; // nombre de bookings annulés
+  string ErrorMessage  = 3;
+}
+
+// =============================================================================
+// CancelBookingsForTrip (interne — appelé par trips-service)
+// =============================================================================
+
+message CancelBookingsForTripRequest {
+  string TripId = 1;
+}
+
+message CancelBookingsForTripResponse {
+  bool   Success       = 1;
+  int32  BookingsCount = 2; // nombre de bookings annulés
   string ErrorMessage  = 3;
 }
 

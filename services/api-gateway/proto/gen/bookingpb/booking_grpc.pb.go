@@ -28,6 +28,8 @@ const (
 	BookingService_CancelBooking_FullMethodName               = "/booking.BookingService/CancelBooking"
 	BookingService_StartBookingsForWaypoint_FullMethodName    = "/booking.BookingService/StartBookingsForWaypoint"
 	BookingService_CompleteBookingsForWaypoint_FullMethodName = "/booking.BookingService/CompleteBookingsForWaypoint"
+	BookingService_CancelBookingsForWaypoint_FullMethodName   = "/booking.BookingService/CancelBookingsForWaypoint"
+	BookingService_CancelBookingsForTrip_FullMethodName       = "/booking.BookingService/CancelBookingsForTrip"
 	BookingService_ReportNoShow_FullMethodName                = "/booking.BookingService/ReportNoShow"
 	BookingService_ConfirmPayment_FullMethodName              = "/booking.BookingService/ConfirmPayment"
 	BookingService_FailPayment_FullMethodName                 = "/booking.BookingService/FailPayment"
@@ -60,6 +62,12 @@ type BookingServiceClient interface {
 	// CompleteBookingsForWaypoint complète les réservations en cours d'un waypoint.
 	// Route interne appelée par trips-service lors de EndTrip ou ConfirmWaypointArrival.
 	CompleteBookingsForWaypoint(ctx context.Context, in *CompleteBookingsForWaypointRequest, opts ...grpc.CallOption) (*CompleteBookingsForWaypointResponse, error)
+	// CancelBookingsForWaypoint annule les réservations actives d'un waypoint supprimé.
+	// Route interne appelée par trips-service lors de CancelWaypoint.
+	CancelBookingsForWaypoint(ctx context.Context, in *CancelBookingsForWaypointRequest, opts ...grpc.CallOption) (*CancelBookingsForWaypointResponse, error)
+	// CancelBookingsForTrip annule toutes les réservations actives d'un trajet annulé.
+	// Route interne appelée par trips-service lors de CancelTrip.
+	CancelBookingsForTrip(ctx context.Context, in *CancelBookingsForTripRequest, opts ...grpc.CallOption) (*CancelBookingsForTripResponse, error)
 	// ReportNoShow signale l'absence d'un passager ou d'un conducteur.
 	ReportNoShow(ctx context.Context, in *ReportNoShowRequest, opts ...grpc.CallOption) (*ReportNoShowResponse, error)
 	// ConfirmPayment confirme le paiement d'une réservation (callback paiement).
@@ -169,6 +177,26 @@ func (c *bookingServiceClient) CompleteBookingsForWaypoint(ctx context.Context, 
 	return out, nil
 }
 
+func (c *bookingServiceClient) CancelBookingsForWaypoint(ctx context.Context, in *CancelBookingsForWaypointRequest, opts ...grpc.CallOption) (*CancelBookingsForWaypointResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CancelBookingsForWaypointResponse)
+	err := c.cc.Invoke(ctx, BookingService_CancelBookingsForWaypoint_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bookingServiceClient) CancelBookingsForTrip(ctx context.Context, in *CancelBookingsForTripRequest, opts ...grpc.CallOption) (*CancelBookingsForTripResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CancelBookingsForTripResponse)
+	err := c.cc.Invoke(ctx, BookingService_CancelBookingsForTrip_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *bookingServiceClient) ReportNoShow(ctx context.Context, in *ReportNoShowRequest, opts ...grpc.CallOption) (*ReportNoShowResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ReportNoShowResponse)
@@ -235,6 +263,12 @@ type BookingServiceServer interface {
 	// CompleteBookingsForWaypoint complète les réservations en cours d'un waypoint.
 	// Route interne appelée par trips-service lors de EndTrip ou ConfirmWaypointArrival.
 	CompleteBookingsForWaypoint(context.Context, *CompleteBookingsForWaypointRequest) (*CompleteBookingsForWaypointResponse, error)
+	// CancelBookingsForWaypoint annule les réservations actives d'un waypoint supprimé.
+	// Route interne appelée par trips-service lors de CancelWaypoint.
+	CancelBookingsForWaypoint(context.Context, *CancelBookingsForWaypointRequest) (*CancelBookingsForWaypointResponse, error)
+	// CancelBookingsForTrip annule toutes les réservations actives d'un trajet annulé.
+	// Route interne appelée par trips-service lors de CancelTrip.
+	CancelBookingsForTrip(context.Context, *CancelBookingsForTripRequest) (*CancelBookingsForTripResponse, error)
 	// ReportNoShow signale l'absence d'un passager ou d'un conducteur.
 	ReportNoShow(context.Context, *ReportNoShowRequest) (*ReportNoShowResponse, error)
 	// ConfirmPayment confirme le paiement d'une réservation (callback paiement).
@@ -280,6 +314,12 @@ func (UnimplementedBookingServiceServer) StartBookingsForWaypoint(context.Contex
 }
 func (UnimplementedBookingServiceServer) CompleteBookingsForWaypoint(context.Context, *CompleteBookingsForWaypointRequest) (*CompleteBookingsForWaypointResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CompleteBookingsForWaypoint not implemented")
+}
+func (UnimplementedBookingServiceServer) CancelBookingsForWaypoint(context.Context, *CancelBookingsForWaypointRequest) (*CancelBookingsForWaypointResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CancelBookingsForWaypoint not implemented")
+}
+func (UnimplementedBookingServiceServer) CancelBookingsForTrip(context.Context, *CancelBookingsForTripRequest) (*CancelBookingsForTripResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CancelBookingsForTrip not implemented")
 }
 func (UnimplementedBookingServiceServer) ReportNoShow(context.Context, *ReportNoShowRequest) (*ReportNoShowResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ReportNoShow not implemented")
@@ -476,6 +516,42 @@ func _BookingService_CompleteBookingsForWaypoint_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BookingService_CancelBookingsForWaypoint_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CancelBookingsForWaypointRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).CancelBookingsForWaypoint(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_CancelBookingsForWaypoint_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).CancelBookingsForWaypoint(ctx, req.(*CancelBookingsForWaypointRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BookingService_CancelBookingsForTrip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CancelBookingsForTripRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).CancelBookingsForTrip(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_CancelBookingsForTrip_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).CancelBookingsForTrip(ctx, req.(*CancelBookingsForTripRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BookingService_ReportNoShow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ReportNoShowRequest)
 	if err := dec(in); err != nil {
@@ -590,6 +666,14 @@ var BookingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CompleteBookingsForWaypoint",
 			Handler:    _BookingService_CompleteBookingsForWaypoint_Handler,
+		},
+		{
+			MethodName: "CancelBookingsForWaypoint",
+			Handler:    _BookingService_CancelBookingsForWaypoint_Handler,
+		},
+		{
+			MethodName: "CancelBookingsForTrip",
+			Handler:    _BookingService_CancelBookingsForTrip_Handler,
 		},
 		{
 			MethodName: "ReportNoShow",

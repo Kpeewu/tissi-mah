@@ -36,8 +36,10 @@ type Booking struct {
 	TripID             string
 	PassengerID        string
 	DriverID           string
-	PickupWaypointID   string
-	DropoffWaypointID  string
+	PickupWaypointID      string
+	DropoffWaypointID     string
+	PickupSequencerOrder  int16
+	DropoffSequencerOrder int16
 	SeatsBooked        int16
 	PricePerSeat       int
 	Subtotal           int

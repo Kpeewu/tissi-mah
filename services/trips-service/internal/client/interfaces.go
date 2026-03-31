@@ -24,5 +24,9 @@ type BookingClient interface {
 	StartBookingsForWaypoint(ctx context.Context, tripID, waypointID string) error
 	// CompleteBookingsForWaypoint complète les réservations inProgress d'un waypoint (dropoff).
 	CompleteBookingsForWaypoint(ctx context.Context, tripID, waypointID string) error
+	// CancelBookingsForWaypoint annule les réservations actives d'un waypoint supprimé.
+	CancelBookingsForWaypoint(ctx context.Context, tripID, waypointID string) error
+	// CancelBookingsForTrip annule toutes les réservations actives d'un trajet annulé.
+	CancelBookingsForTrip(ctx context.Context, tripID string) error
 	Close() error
 }

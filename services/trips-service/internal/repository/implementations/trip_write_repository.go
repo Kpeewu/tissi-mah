@@ -613,6 +613,59 @@ func (r *tripWriteRepositoryImpl) ConfirmWaypointDeparture(ctx context.Context, 
 	return nil
 }
 
+// CancelTrip annule un trajet planifié (scheduled → cancelled).
+func (r *tripWriteRepositoryImpl) CancelTrip(ctx context.Context, tripID, driverID, reason string) error {
+	r.logger.Debug("cancelling trip",
+		zap.String("tripID", tripID),
+		zap.String("driverID", driverID),
+	)
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		r.logger.Error("begin transaction failed", zap.Error(err))
+		return tripErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var currentStatus string
+	var currentDriverID string
+	err = tx.QueryRow(ctx, `
+		SELECT status, driver_id FROM trips WHERE trip_id = $1 FOR UPDATE`, tripID,
+	).Scan(&currentStatus, &currentDriverID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return tripErrors.ErrorTripNotFound
+		}
+		r.logger.Error("select trip failed", zap.Error(err), zap.String("tripID", tripID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	if currentDriverID != driverID {
+		return tripErrors.ErrorUnauthorized
+	}
+	if currentStatus != "scheduled" {
+		return tripErrors.ErrorTripNotScheduled
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE trips SET status = 'cancelled', canceller_id = $2, cancellation_reason = $3, updated_at = NOW()
+		WHERE trip_id = $1`,
+		tripID, driverID, reason,
+	)
+	if err != nil {
+		r.logger.Error("cancel trip failed", zap.Error(err), zap.String("tripID", tripID))
+		return fmt.Errorf("%w: %s", tripErrors.ErrorInternalServer, err.Error())
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		r.logger.Error("commit transaction failed", zap.Error(err), zap.String("tripID", tripID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	r.logger.Info("trip cancelled", zap.String("tripID", tripID))
+	return nil
+}
+
 // CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié (soft-delete).
 func (r *tripWriteRepositoryImpl) CancelWaypoint(ctx context.Context, waypointID, driverID, reason string) error {
 	r.logger.Debug("cancelling waypoint",
