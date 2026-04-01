@@ -2596,6 +2596,182 @@ func (x *CancelWaypointResponse) GetErrorMessage() string {
 	return ""
 }
 
+type GetScheduledTripsPreviewsRequest struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	PassengerPositionLng  float64                `protobuf:"fixed64,1,opt,name=passenger_position_lng,json=passengerPositionLng,proto3" json:"passenger_position_lng,omitempty"`  // 0 = non renseigné
+	PassengerPositionLat  float64                `protobuf:"fixed64,2,opt,name=passenger_position_lat,json=passengerPositionLat,proto3" json:"passenger_position_lat,omitempty"`  // 0 = non renseigné
+	DistanceRange         int32                  `protobuf:"varint,3,opt,name=distance_range,json=distanceRange,proto3" json:"distance_range,omitempty"`                          // km, défaut 5 si 0
+	DepartureLocationName string                 `protobuf:"bytes,4,opt,name=departure_location_name,json=departureLocationName,proto3" json:"departure_location_name,omitempty"` // recherche floue (obligatoire)
+	ArrivalLocationName   string                 `protobuf:"bytes,5,opt,name=arrival_location_name,json=arrivalLocationName,proto3" json:"arrival_location_name,omitempty"`       // recherche floue (obligatoire)
+	TripStartDate         string                 `protobuf:"bytes,6,opt,name=trip_start_date,json=tripStartDate,proto3" json:"trip_start_date,omitempty"`                         // "YYYY-MM-DD" (UTC)
+	TripStartHour         string                 `protobuf:"bytes,7,opt,name=trip_start_hour,json=tripStartHour,proto3" json:"trip_start_hour,omitempty"`                         // "HH:MM" (UTC)
+	TripArrivalHour       string                 `protobuf:"bytes,8,opt,name=trip_arrival_hour,json=tripArrivalHour,proto3" json:"trip_arrival_hour,omitempty"`                   // "HH:MM" (UTC)
+	Index                 int32                  `protobuf:"varint,9,opt,name=index,proto3" json:"index,omitempty"`                                                               // pagination 0-based
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *GetScheduledTripsPreviewsRequest) Reset() {
+	*x = GetScheduledTripsPreviewsRequest{}
+	mi := &file_trip_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetScheduledTripsPreviewsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetScheduledTripsPreviewsRequest) ProtoMessage() {}
+
+func (x *GetScheduledTripsPreviewsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetScheduledTripsPreviewsRequest.ProtoReflect.Descriptor instead.
+func (*GetScheduledTripsPreviewsRequest) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetPassengerPositionLng() float64 {
+	if x != nil {
+		return x.PassengerPositionLng
+	}
+	return 0
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetPassengerPositionLat() float64 {
+	if x != nil {
+		return x.PassengerPositionLat
+	}
+	return 0
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetDistanceRange() int32 {
+	if x != nil {
+		return x.DistanceRange
+	}
+	return 0
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetDepartureLocationName() string {
+	if x != nil {
+		return x.DepartureLocationName
+	}
+	return ""
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetArrivalLocationName() string {
+	if x != nil {
+		return x.ArrivalLocationName
+	}
+	return ""
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetTripStartDate() string {
+	if x != nil {
+		return x.TripStartDate
+	}
+	return ""
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetTripStartHour() string {
+	if x != nil {
+		return x.TripStartHour
+	}
+	return ""
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetTripArrivalHour() string {
+	if x != nil {
+		return x.TripArrivalHour
+	}
+	return ""
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetIndex() int32 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
+}
+
+type GetScheduledTripsPreviewsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TripsPreviews []*TripPreview         `protobuf:"bytes,1,rep,name=trips_previews,json=tripsPreviews,proto3" json:"trips_previews,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	NextIndex     int32                  `protobuf:"varint,3,opt,name=next_index,json=nextIndex,proto3" json:"next_index,omitempty"`    // -1 si plus de résultats
+	TotalCount    int32                  `protobuf:"varint,4,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"` // nombre total de résultats matchant
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetScheduledTripsPreviewsResponse) Reset() {
+	*x = GetScheduledTripsPreviewsResponse{}
+	mi := &file_trip_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetScheduledTripsPreviewsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetScheduledTripsPreviewsResponse) ProtoMessage() {}
+
+func (x *GetScheduledTripsPreviewsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetScheduledTripsPreviewsResponse.ProtoReflect.Descriptor instead.
+func (*GetScheduledTripsPreviewsResponse) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *GetScheduledTripsPreviewsResponse) GetTripsPreviews() []*TripPreview {
+	if x != nil {
+		return x.TripsPreviews
+	}
+	return nil
+}
+
+func (x *GetScheduledTripsPreviewsResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *GetScheduledTripsPreviewsResponse) GetNextIndex() int32 {
+	if x != nil {
+		return x.NextIndex
+	}
+	return 0
+}
+
+func (x *GetScheduledTripsPreviewsResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
 type HealthRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -2604,7 +2780,7 @@ type HealthRequest struct {
 
 func (x *HealthRequest) Reset() {
 	*x = HealthRequest{}
-	mi := &file_trip_proto_msgTypes[37]
+	mi := &file_trip_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2616,7 +2792,7 @@ func (x *HealthRequest) String() string {
 func (*HealthRequest) ProtoMessage() {}
 
 func (x *HealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_trip_proto_msgTypes[37]
+	mi := &file_trip_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2629,7 +2805,7 @@ func (x *HealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthRequest.ProtoReflect.Descriptor instead.
 func (*HealthRequest) Descriptor() ([]byte, []int) {
-	return file_trip_proto_rawDescGZIP(), []int{37}
+	return file_trip_proto_rawDescGZIP(), []int{39}
 }
 
 type HealthResponse struct {
@@ -2643,7 +2819,7 @@ type HealthResponse struct {
 
 func (x *HealthResponse) Reset() {
 	*x = HealthResponse{}
-	mi := &file_trip_proto_msgTypes[38]
+	mi := &file_trip_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2655,7 +2831,7 @@ func (x *HealthResponse) String() string {
 func (*HealthResponse) ProtoMessage() {}
 
 func (x *HealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_trip_proto_msgTypes[38]
+	mi := &file_trip_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2668,7 +2844,7 @@ func (x *HealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
 func (*HealthResponse) Descriptor() ([]byte, []int) {
-	return file_trip_proto_rawDescGZIP(), []int{38}
+	return file_trip_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *HealthResponse) GetStatus() string {
@@ -2917,12 +3093,29 @@ const file_trip_proto_rawDesc = "" +
 	"\x12CancellationReason\x18\x03 \x01(\tR\x12CancellationReason\"V\n" +
 	"\x16CancelWaypointResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\x0f\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\xb3\x03\n" +
+	" GetScheduledTripsPreviewsRequest\x124\n" +
+	"\x16passenger_position_lng\x18\x01 \x01(\x01R\x14passengerPositionLng\x124\n" +
+	"\x16passenger_position_lat\x18\x02 \x01(\x01R\x14passengerPositionLat\x12%\n" +
+	"\x0edistance_range\x18\x03 \x01(\x05R\rdistanceRange\x126\n" +
+	"\x17departure_location_name\x18\x04 \x01(\tR\x15departureLocationName\x122\n" +
+	"\x15arrival_location_name\x18\x05 \x01(\tR\x13arrivalLocationName\x12&\n" +
+	"\x0ftrip_start_date\x18\x06 \x01(\tR\rtripStartDate\x12&\n" +
+	"\x0ftrip_start_hour\x18\a \x01(\tR\rtripStartHour\x12*\n" +
+	"\x11trip_arrival_hour\x18\b \x01(\tR\x0ftripArrivalHour\x12\x14\n" +
+	"\x05index\x18\t \x01(\x05R\x05index\"\xc2\x01\n" +
+	"!GetScheduledTripsPreviewsResponse\x128\n" +
+	"\x0etrips_previews\x18\x01 \x03(\v2\x11.trip.TripPreviewR\rtripsPreviews\x12#\n" +
+	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage\x12\x1d\n" +
+	"\n" +
+	"next_index\x18\x03 \x01(\x05R\tnextIndex\x12\x1f\n" +
+	"\vtotal_count\x18\x04 \x01(\x05R\n" +
+	"totalCount\"\x0f\n" +
 	"\rHealthRequest\"`\n" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
 	"\aVersion\x18\x02 \x01(\tR\aVersion\x12\x1c\n" +
-	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp2\xbb\x10\n" +
+	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp2\xdd\x11\n" +
 	"\vTripService\x12c\n" +
 	"\n" +
 	"CreateTrip\x12\x17.trip.CreateTripRequest\x1a\x18.trip.CreateTripResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/trip/driver/createTrip\x12\x87\x01\n" +
@@ -2941,7 +3134,8 @@ const file_trip_proto_rawDesc = "" +
 	"\x14UpdateAvailableSeats\x12!.trip.UpdateAvailableSeatsRequest\x1a\".trip.UpdateAvailableSeatsResponse\".\x82\xd3\xe4\x93\x02(:\x01*2#/trip/internal/updateAvailableSeats\x12c\n" +
 	"\n" +
 	"CancelTrip\x12\x17.trip.CancelTripRequest\x1a\x18.trip.CancelTripResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01**\x17/trip/driver/cancelTrip\x12s\n" +
-	"\x0eCancelWaypoint\x12\x1b.trip.CancelWaypointRequest\x1a\x1c.trip.CancelWaypointResponse\"&\x82\xd3\xe4\x93\x02 :\x01**\x1b/trip/driver/cancelWaypoint\x12I\n" +
+	"\x0eCancelWaypoint\x12\x1b.trip.CancelWaypointRequest\x1a\x1c.trip.CancelWaypointResponse\"&\x82\xd3\xe4\x93\x02 :\x01**\x1b/trip/driver/cancelWaypoint\x12\x9f\x01\n" +
+	"\x19GetScheduledTripsPreviews\x12&.trip.GetScheduledTripsPreviewsRequest\x1a'.trip.GetScheduledTripsPreviewsResponse\"1\x82\xd3\xe4\x93\x02+\x12)/trip/passenger/getScheduledTripsPreviews\x12I\n" +
 	"\x06Health\x12\x13.trip.HealthRequest\x1a\x14.trip.HealthResponse\"\x14\x82\xd3\xe4\x93\x02\x0e\x12\f/trip/healthBCZAgithub.com/Kpeewu/tissi-mah/services/trips-service/proto/gen;tripb\x06proto3"
 
 var (
@@ -2956,7 +3150,7 @@ func file_trip_proto_rawDescGZIP() []byte {
 	return file_trip_proto_rawDescData
 }
 
-var file_trip_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
+var file_trip_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
 var file_trip_proto_goTypes = []any{
 	(*GetTripByIDRequest)(nil),                // 0: trip.GetTripByIDRequest
 	(*TripWaypointDetail)(nil),                // 1: trip.TripWaypointDetail
@@ -2995,8 +3189,10 @@ var file_trip_proto_goTypes = []any{
 	(*CancelTripResponse)(nil),                // 34: trip.CancelTripResponse
 	(*CancelWaypointRequest)(nil),             // 35: trip.CancelWaypointRequest
 	(*CancelWaypointResponse)(nil),            // 36: trip.CancelWaypointResponse
-	(*HealthRequest)(nil),                     // 37: trip.HealthRequest
-	(*HealthResponse)(nil),                    // 38: trip.HealthResponse
+	(*GetScheduledTripsPreviewsRequest)(nil),  // 37: trip.GetScheduledTripsPreviewsRequest
+	(*GetScheduledTripsPreviewsResponse)(nil), // 38: trip.GetScheduledTripsPreviewsResponse
+	(*HealthRequest)(nil),                     // 39: trip.HealthRequest
+	(*HealthResponse)(nil),                    // 40: trip.HealthResponse
 }
 var file_trip_proto_depIdxs = []int32{
 	1,  // 0: trip.GetTripByIDResponse.Waypoints:type_name -> trip.TripWaypointDetail
@@ -3005,45 +3201,48 @@ var file_trip_proto_depIdxs = []int32{
 	5,  // 3: trip.CreateRecurringTripRequest.TripWaypoints:type_name -> trip.WaypointInput
 	12, // 4: trip.GetTripsPreviewsResponse.TripsPreviews:type_name -> trip.TripPreview
 	15, // 5: trip.GetCompletedTripsPreviewsResponse.TripsPreviews:type_name -> trip.CompletedTripPreview
-	6,  // 6: trip.TripService.CreateTrip:input_type -> trip.CreateTripRequest
-	9,  // 7: trip.TripService.CreateRecurringTrip:input_type -> trip.CreateRecurringTripRequest
-	11, // 8: trip.TripService.GetTripsPreviews:input_type -> trip.GetTripsPreviewsRequest
-	14, // 9: trip.TripService.GetCompletedTripsPreviews:input_type -> trip.GetCompletedTripsPreviewsRequest
-	17, // 10: trip.TripService.ChangeTripDateAndTime:input_type -> trip.ChangeTripDateAndTimeRequest
-	19, // 11: trip.TripService.ChangeTripVehicle:input_type -> trip.ChangeTripVehicleRequest
-	21, // 12: trip.TripService.ChangeTripAllowances:input_type -> trip.ChangeTripAllowancesRequest
-	23, // 13: trip.TripService.ChangeAutoApprove:input_type -> trip.ChangeAutoApproveRequest
-	25, // 14: trip.TripService.StartTrip:input_type -> trip.StartTripRequest
-	27, // 15: trip.TripService.EndTrip:input_type -> trip.EndTripRequest
-	29, // 16: trip.TripService.ConfirmWaypointArrival:input_type -> trip.ConfirmWaypointArrivalRequest
-	31, // 17: trip.TripService.ConfirmWaypointDeparture:input_type -> trip.ConfirmWaypointDepartureRequest
-	0,  // 18: trip.TripService.GetTripByID:input_type -> trip.GetTripByIDRequest
-	3,  // 19: trip.TripService.UpdateAvailableSeats:input_type -> trip.UpdateAvailableSeatsRequest
-	33, // 20: trip.TripService.CancelTrip:input_type -> trip.CancelTripRequest
-	35, // 21: trip.TripService.CancelWaypoint:input_type -> trip.CancelWaypointRequest
-	37, // 22: trip.TripService.Health:input_type -> trip.HealthRequest
-	7,  // 23: trip.TripService.CreateTrip:output_type -> trip.CreateTripResponse
-	10, // 24: trip.TripService.CreateRecurringTrip:output_type -> trip.CreateRecurringTripResponse
-	13, // 25: trip.TripService.GetTripsPreviews:output_type -> trip.GetTripsPreviewsResponse
-	16, // 26: trip.TripService.GetCompletedTripsPreviews:output_type -> trip.GetCompletedTripsPreviewsResponse
-	18, // 27: trip.TripService.ChangeTripDateAndTime:output_type -> trip.ChangeTripDateAndTimeResponse
-	20, // 28: trip.TripService.ChangeTripVehicle:output_type -> trip.ChangeTripVehicleResponse
-	22, // 29: trip.TripService.ChangeTripAllowances:output_type -> trip.ChangeTripAllowancesResponse
-	24, // 30: trip.TripService.ChangeAutoApprove:output_type -> trip.ChangeAutoApproveResponse
-	26, // 31: trip.TripService.StartTrip:output_type -> trip.StartTripResponse
-	28, // 32: trip.TripService.EndTrip:output_type -> trip.EndTripResponse
-	30, // 33: trip.TripService.ConfirmWaypointArrival:output_type -> trip.ConfirmWaypointArrivalResponse
-	32, // 34: trip.TripService.ConfirmWaypointDeparture:output_type -> trip.ConfirmWaypointDepartureResponse
-	2,  // 35: trip.TripService.GetTripByID:output_type -> trip.GetTripByIDResponse
-	4,  // 36: trip.TripService.UpdateAvailableSeats:output_type -> trip.UpdateAvailableSeatsResponse
-	34, // 37: trip.TripService.CancelTrip:output_type -> trip.CancelTripResponse
-	36, // 38: trip.TripService.CancelWaypoint:output_type -> trip.CancelWaypointResponse
-	38, // 39: trip.TripService.Health:output_type -> trip.HealthResponse
-	23, // [23:40] is the sub-list for method output_type
-	6,  // [6:23] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	12, // 6: trip.GetScheduledTripsPreviewsResponse.trips_previews:type_name -> trip.TripPreview
+	6,  // 7: trip.TripService.CreateTrip:input_type -> trip.CreateTripRequest
+	9,  // 8: trip.TripService.CreateRecurringTrip:input_type -> trip.CreateRecurringTripRequest
+	11, // 9: trip.TripService.GetTripsPreviews:input_type -> trip.GetTripsPreviewsRequest
+	14, // 10: trip.TripService.GetCompletedTripsPreviews:input_type -> trip.GetCompletedTripsPreviewsRequest
+	17, // 11: trip.TripService.ChangeTripDateAndTime:input_type -> trip.ChangeTripDateAndTimeRequest
+	19, // 12: trip.TripService.ChangeTripVehicle:input_type -> trip.ChangeTripVehicleRequest
+	21, // 13: trip.TripService.ChangeTripAllowances:input_type -> trip.ChangeTripAllowancesRequest
+	23, // 14: trip.TripService.ChangeAutoApprove:input_type -> trip.ChangeAutoApproveRequest
+	25, // 15: trip.TripService.StartTrip:input_type -> trip.StartTripRequest
+	27, // 16: trip.TripService.EndTrip:input_type -> trip.EndTripRequest
+	29, // 17: trip.TripService.ConfirmWaypointArrival:input_type -> trip.ConfirmWaypointArrivalRequest
+	31, // 18: trip.TripService.ConfirmWaypointDeparture:input_type -> trip.ConfirmWaypointDepartureRequest
+	0,  // 19: trip.TripService.GetTripByID:input_type -> trip.GetTripByIDRequest
+	3,  // 20: trip.TripService.UpdateAvailableSeats:input_type -> trip.UpdateAvailableSeatsRequest
+	33, // 21: trip.TripService.CancelTrip:input_type -> trip.CancelTripRequest
+	35, // 22: trip.TripService.CancelWaypoint:input_type -> trip.CancelWaypointRequest
+	37, // 23: trip.TripService.GetScheduledTripsPreviews:input_type -> trip.GetScheduledTripsPreviewsRequest
+	39, // 24: trip.TripService.Health:input_type -> trip.HealthRequest
+	7,  // 25: trip.TripService.CreateTrip:output_type -> trip.CreateTripResponse
+	10, // 26: trip.TripService.CreateRecurringTrip:output_type -> trip.CreateRecurringTripResponse
+	13, // 27: trip.TripService.GetTripsPreviews:output_type -> trip.GetTripsPreviewsResponse
+	16, // 28: trip.TripService.GetCompletedTripsPreviews:output_type -> trip.GetCompletedTripsPreviewsResponse
+	18, // 29: trip.TripService.ChangeTripDateAndTime:output_type -> trip.ChangeTripDateAndTimeResponse
+	20, // 30: trip.TripService.ChangeTripVehicle:output_type -> trip.ChangeTripVehicleResponse
+	22, // 31: trip.TripService.ChangeTripAllowances:output_type -> trip.ChangeTripAllowancesResponse
+	24, // 32: trip.TripService.ChangeAutoApprove:output_type -> trip.ChangeAutoApproveResponse
+	26, // 33: trip.TripService.StartTrip:output_type -> trip.StartTripResponse
+	28, // 34: trip.TripService.EndTrip:output_type -> trip.EndTripResponse
+	30, // 35: trip.TripService.ConfirmWaypointArrival:output_type -> trip.ConfirmWaypointArrivalResponse
+	32, // 36: trip.TripService.ConfirmWaypointDeparture:output_type -> trip.ConfirmWaypointDepartureResponse
+	2,  // 37: trip.TripService.GetTripByID:output_type -> trip.GetTripByIDResponse
+	4,  // 38: trip.TripService.UpdateAvailableSeats:output_type -> trip.UpdateAvailableSeatsResponse
+	34, // 39: trip.TripService.CancelTrip:output_type -> trip.CancelTripResponse
+	36, // 40: trip.TripService.CancelWaypoint:output_type -> trip.CancelWaypointResponse
+	38, // 41: trip.TripService.GetScheduledTripsPreviews:output_type -> trip.GetScheduledTripsPreviewsResponse
+	40, // 42: trip.TripService.Health:output_type -> trip.HealthResponse
+	25, // [25:43] is the sub-list for method output_type
+	7,  // [7:25] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_trip_proto_init() }
@@ -3057,7 +3256,7 @@ func file_trip_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_trip_proto_rawDesc), len(file_trip_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   39,
+			NumMessages:   41,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

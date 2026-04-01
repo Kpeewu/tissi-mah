@@ -72,6 +72,10 @@ type TripService interface {
 	// CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
 	// Le trajet doit avoir le statut "scheduled".
 	CancelWaypoint(ctx context.Context, input *CancelWaypointInput) error
+
+	// GetScheduledTripsPreviews recherche les trajets/segments disponibles pour un passager.
+	// Les filtres textuels (départ + arrivée) sont obligatoires.
+	GetScheduledTripsPreviews(ctx context.Context, input *GetScheduledTripsPreviewsInput) (*ScheduledTripsPreviewsResult, error)
 }
 
 // GetTripsPreviewsInput contient les paramètres de la requête de liste.
@@ -275,4 +279,24 @@ type CancelWaypointInput struct {
 	DriverID           string
 	WaypointID         string
 	CancellationReason string
+}
+
+// GetScheduledTripsPreviewsInput contient les paramètres de recherche passager.
+type GetScheduledTripsPreviewsInput struct {
+	PassengerPositionLng  *float64
+	PassengerPositionLat  *float64
+	DistanceRange         *int    // km, défaut 5
+	DepartureLocationName string  // obligatoire
+	ArrivalLocationName   string  // obligatoire
+	TripStartDate         *string // "YYYY-MM-DD" (UTC)
+	TripStartHour         *string // "HH:MM" (UTC)
+	TripArrivalHour       *string // "HH:MM" (UTC)
+	PageIndex             int
+}
+
+// ScheduledTripsPreviewsResult contient les résultats paginés de la recherche passager.
+type ScheduledTripsPreviewsResult struct {
+	Previews   []*TripPreviewResult
+	NextIndex  int // -1 si plus de résultats
+	TotalCount int
 }

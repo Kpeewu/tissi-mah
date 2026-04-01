@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 
+	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/cache"
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
+	repoInterfaces "github.com/Kpeewu/tissi-mah/services/trips-service/internal/repository/interfaces"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/trips-service/internal/service/interfaces"
 	tripErrors "github.com/Kpeewu/tissi-mah/services/trips-service/pkg/errors"
 	"go.uber.org/zap"
@@ -128,6 +130,140 @@ func (s *tripServiceImpl) GetCompletedTripsPreviews(ctx context.Context, input *
 	}
 
 	return results, nil
+}
+
+// GetScheduledTripsPreviews recherche les trajets/segments disponibles pour un passager.
+// Utilise le cache Redis pour les résultats de recherche (TTL 60s) et l'enrichissement standard.
+func (s *tripServiceImpl) GetScheduledTripsPreviews(ctx context.Context, input *serviceInterfaces.GetScheduledTripsPreviewsInput) (*serviceInterfaces.ScheduledTripsPreviewsResult, error) {
+	if input.DepartureLocationName == "" || input.ArrivalLocationName == "" {
+		return nil, tripErrors.ErrorInvalidInput
+	}
+
+	pageSize := 10
+
+	// Construire les paramètres de recherche
+	distanceMeters := 5000
+	if input.DistanceRange != nil && *input.DistanceRange > 0 {
+		distanceMeters = *input.DistanceRange * 1000
+	}
+
+	params := &repoInterfaces.SearchTripsParams{
+		PassengerLng:          input.PassengerPositionLng,
+		PassengerLat:          input.PassengerPositionLat,
+		DistanceRangeMeters:   distanceMeters,
+		DepartureLocationName: input.DepartureLocationName,
+		ArrivalLocationName:   input.ArrivalLocationName,
+		TripStartDate:         input.TripStartDate,
+		TripStartHour:         input.TripStartHour,
+		TripArrivalHour:       input.TripArrivalHour,
+		PageIndex:             input.PageIndex,
+		PageSize:              pageSize,
+	}
+
+	// Générer la clé de cache normalisée
+	cacheKey := cache.BuildSearchCacheKey(
+		params.PassengerLng, params.PassengerLat,
+		params.DistanceRangeMeters,
+		params.DepartureLocationName, params.ArrivalLocationName,
+		params.TripStartDate, params.TripStartHour, params.TripArrivalHour,
+		params.PageIndex,
+	)
+
+	// Essayer le cache Redis
+	var previews []*domain.TripPreview
+	var totalCount int
+
+	if s.cache != nil {
+		cached, count, err := s.cache.GetSearchResults(ctx, cacheKey)
+		if err == nil && cached != nil {
+			previews = cached
+			totalCount = count
+		}
+	}
+
+	// Cache miss : requête DB
+	if previews == nil {
+		result, err := s.readRepo.SearchScheduledTripSegments(ctx, params)
+		if err != nil {
+			s.logger.Error("SearchScheduledTripSegments failed", zap.Error(err))
+			return nil, err
+		}
+		previews = result.Previews
+		totalCount = result.TotalCount
+
+		// Stocker en cache
+		if s.cache != nil {
+			_ = s.cache.SetSearchResults(ctx, cacheKey, previews, totalCount)
+		}
+	}
+
+	if len(previews) == 0 {
+		return &serviceInterfaces.ScheduledTripsPreviewsResult{
+			Previews:   []*serviceInterfaces.TripPreviewResult{},
+			NextIndex:  -1,
+			TotalCount: totalCount,
+		}, nil
+	}
+
+	// Enrichissement multi-driver : collecter les driverIDs et vehicleIDs uniques
+	type vehicleInfo struct{ brand, plate string }
+	driverNames := make(map[string]string)
+	vehicleMap := make(map[string]vehicleInfo)
+
+	for _, p := range previews {
+		if _, ok := driverNames[p.DriverID]; !ok {
+			driverNames[p.DriverID] = s.getCachedOrFetchDriverName(ctx, p.DriverID)
+		}
+		if _, ok := vehicleMap[p.VehicleID]; !ok {
+			brand, plate := s.getCachedOrFetchVehicleInfo(ctx, p.DriverID, p.VehicleID)
+			vehicleMap[p.VehicleID] = vehicleInfo{brand: brand, plate: plate}
+		}
+	}
+
+	// Assemblage du résultat enrichi
+	results := make([]*serviceInterfaces.TripPreviewResult, 0, len(previews))
+	for _, p := range previews {
+		v := vehicleMap[p.VehicleID]
+
+		// Overlay available_seats depuis le cache Redis
+		availableSeats := p.AvailableSeats
+		if s.cache != nil {
+			if seats, found, err := s.cache.GetSeatCounter(ctx, p.TripID); found && err == nil {
+				availableSeats = int16(seats)
+			} else if err != nil {
+				s.logger.Warn("GetScheduledTripsPreviews — seat cache read failed, using DB value",
+					zap.String("tripID", p.TripID),
+					zap.Error(err),
+				)
+			}
+		}
+
+		results = append(results, &serviceInterfaces.TripPreviewResult{
+			TripID:                p.TripID,
+			DriverID:              p.DriverID,
+			DriverName:            driverNames[p.DriverID],
+			VehicleID:             p.VehicleID,
+			VehicleBrand:          v.brand,
+			VehiclePlate:          v.plate,
+			DepartureDatetime:     p.DepartureDatetime,
+			TotalSeats:            p.TotalSeats,
+			AvailableSeats:        availableSeats,
+			DepartureLocationName: p.DepartureLocationName,
+			ArrivalLocationName:   p.ArrivalLocationName,
+		})
+	}
+
+	// Calculer NextIndex
+	nextIndex := -1
+	if input.PageIndex*pageSize+len(results) < totalCount {
+		nextIndex = input.PageIndex + 1
+	}
+
+	return &serviceInterfaces.ScheduledTripsPreviewsResult{
+		Previews:   results,
+		NextIndex:  nextIndex,
+		TotalCount: totalCount,
+	}, nil
 }
 
 // getCachedOrFetchCompletedPreviews tente le cache Redis, puis fallback sur la DB.

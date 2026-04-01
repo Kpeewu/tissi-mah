@@ -145,6 +145,14 @@ service TripService {
     };
   }
 
+  // GetScheduledTripsPreviews recherche les trajets disponibles pour un passager.
+  // Endpoint public — pas d'authentification requise.
+  rpc GetScheduledTripsPreviews(GetScheduledTripsPreviewsRequest) returns (GetScheduledTripsPreviewsResponse) {
+    option (google.api.http) = {
+      get: "/trip/passenger/getScheduledTripsPreviews"
+    };
+  }
+
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -490,6 +498,33 @@ message CancelWaypointRequest {
 message CancelWaypointResponse {
   bool   Success      = 1;
   string ErrorMessage = 2;
+}
+
+// =============================================================================
+// Health
+// =============================================================================
+
+// =============================================================================
+// GetScheduledTripsPreviews (recherche passager)
+// =============================================================================
+
+message GetScheduledTripsPreviewsRequest {
+  double passenger_position_lng  = 1;  // 0 = non renseigné
+  double passenger_position_lat  = 2;  // 0 = non renseigné
+  int32  distance_range          = 3;  // km, défaut 5 si 0
+  string departure_location_name = 4;  // recherche floue (obligatoire)
+  string arrival_location_name   = 5;  // recherche floue (obligatoire)
+  string trip_start_date         = 6;  // "YYYY-MM-DD" (UTC)
+  string trip_start_hour         = 7;  // "HH:MM" (UTC)
+  string trip_arrival_hour       = 8;  // "HH:MM" (UTC)
+  int32  index                   = 9;  // pagination 0-based
+}
+
+message GetScheduledTripsPreviewsResponse {
+  repeated TripPreview trips_previews = 1;
+  string error_message                = 2;
+  int32  next_index                   = 3;  // -1 si plus de résultats
+  int32  total_count                  = 4;  // nombre total de résultats matchant
 }
 
 // =============================================================================

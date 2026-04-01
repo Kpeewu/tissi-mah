@@ -3,6 +3,8 @@ package implementations
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
 	i "github.com/Kpeewu/tissi-mah/services/trips-service/internal/repository/interfaces"
@@ -10,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 // GetTripTotalSeats retourne le nombre total de places d'un trajet.
@@ -206,6 +209,159 @@ func (r *tripReadRepositoryImpl) scanTripPreviews(ctx context.Context, query str
 	}
 
 	return previews, nil
+}
+
+// SearchScheduledTripSegments recherche les trajets/segments disponibles avec pagination.
+// Construit une requête SQL dynamique avec self-join pour générer les segments pertinents.
+func (r *tripReadRepositoryImpl) SearchScheduledTripSegments(ctx context.Context, params *i.SearchTripsParams) (*i.SearchTripsResult, error) {
+	r.logger.Debug("SearchScheduledTripSegments",
+		zap.String("departure", params.DepartureLocationName),
+		zap.String("arrival", params.ArrivalLocationName),
+		zap.Int("pageIndex", params.PageIndex),
+	)
+
+	pageSize := params.PageSize
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+
+	// Construction de la requête dynamique
+	var conditions []string
+	args := make([]any, 0, 10)
+	argIdx := 1
+
+	// Clause FROM commune avec self-join pour les segments
+	fromClause := `
+		FROM trips t
+		JOIN trips_waypoints dep_wp
+			ON dep_wp.trip_id = t.trip_id
+			AND dep_wp.cancelled_at IS NULL
+			AND dep_wp.deleted_at IS NULL
+		JOIN trips_waypoints arr_wp
+			ON arr_wp.trip_id = t.trip_id
+			AND arr_wp.cancelled_at IS NULL
+			AND arr_wp.deleted_at IS NULL
+			AND arr_wp.sequencer_order > dep_wp.sequencer_order`
+
+	// Conditions de base
+	conditions = append(conditions, "t.status = 'scheduled'::trip_status")
+	conditions = append(conditions, "t.available_seats > 0")
+	conditions = append(conditions, "t.deleted_at IS NULL")
+
+	// Filtre textuel obligatoire sur le départ (fuzzy, accent-insensitive)
+	conditions = append(conditions, fmt.Sprintf(
+		"similarity(f_unaccent(dep_wp.location_name), f_unaccent($%d)) > 0.3", argIdx))
+	args = append(args, params.DepartureLocationName)
+	argIdx++
+
+	// Filtre textuel obligatoire sur l'arrivée (fuzzy, accent-insensitive)
+	conditions = append(conditions, fmt.Sprintf(
+		"similarity(f_unaccent(arr_wp.location_name), f_unaccent($%d)) > 0.3", argIdx))
+	args = append(args, params.ArrivalLocationName)
+	argIdx++
+
+	// Filtre spatial optionnel sur le waypoint de départ
+	if params.PassengerLng != nil && params.PassengerLat != nil {
+		distanceMeters := params.DistanceRangeMeters
+		if distanceMeters <= 0 {
+			distanceMeters = 5000
+		}
+		conditions = append(conditions, fmt.Sprintf(
+			"ST_DWithin(dep_wp.position, ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography, $%d)",
+			argIdx, argIdx+1, argIdx+2))
+		args = append(args, *params.PassengerLng, *params.PassengerLat, distanceMeters)
+		argIdx += 3
+	}
+
+	// Filtre date de départ (UTC)
+	if params.TripStartDate != nil && *params.TripStartDate != "" {
+		conditions = append(conditions, fmt.Sprintf(
+			"(t.departure_datetime AT TIME ZONE 'UTC')::DATE = $%d::DATE", argIdx))
+		args = append(args, *params.TripStartDate)
+		argIdx++
+	}
+
+	// Filtre heure de départ (UTC)
+	if params.TripStartHour != nil && *params.TripStartHour != "" {
+		conditions = append(conditions, fmt.Sprintf(
+			"(t.departure_datetime AT TIME ZONE 'UTC')::TIME >= $%d::TIME", argIdx))
+		args = append(args, *params.TripStartHour)
+		argIdx++
+	}
+
+	// Filtre heure d'arrivée (UTC)
+	if params.TripArrivalHour != nil && *params.TripArrivalHour != "" {
+		conditions = append(conditions, fmt.Sprintf(
+			"(t.estimated_arrival_datetime AT TIME ZONE 'UTC')::TIME <= $%d::TIME", argIdx))
+		args = append(args, *params.TripArrivalHour)
+		argIdx++
+	}
+
+	whereClause := "WHERE " + strings.Join(conditions, "\n  AND ")
+
+	// Exécuter le count et la requête de données en parallèle
+	selectClause := `
+		SELECT
+			t.trip_id,
+			t.driver_id,
+			t.vehicle_id,
+			t.departure_datetime,
+			t.total_seats,
+			t.available_seats,
+			dep_wp.location_name AS departure_location_name,
+			arr_wp.location_name AS arrival_location_name`
+
+	orderClause := "\nORDER BY t.departure_datetime ASC"
+	paginationClause := fmt.Sprintf("\nLIMIT $%d OFFSET $%d", argIdx, argIdx+1)
+	dataArgs := append(append([]any{}, args...), pageSize, params.PageIndex*pageSize)
+
+	countQuery := "SELECT COUNT(*)" + fromClause + "\n" + whereClause
+	dataQuery := selectClause + fromClause + "\n" + whereClause + orderClause + paginationClause
+
+	var totalCount int
+	var previews []*domain.TripPreview
+
+	g, gCtx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		return r.pool.QueryRow(gCtx, countQuery, args...).Scan(&totalCount)
+	})
+
+	g.Go(func() error {
+		rows, err := r.pool.Query(gCtx, dataQuery, dataArgs...)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			p := &domain.TripPreview{}
+			if err := rows.Scan(
+				&p.TripID,
+				&p.DriverID,
+				&p.VehicleID,
+				&p.DepartureDatetime,
+				&p.TotalSeats,
+				&p.AvailableSeats,
+				&p.DepartureLocationName,
+				&p.ArrivalLocationName,
+			); err != nil {
+				return err
+			}
+			previews = append(previews, p)
+		}
+		return rows.Err()
+	})
+
+	if err := g.Wait(); err != nil {
+		r.logger.Error("SearchScheduledTripSegments failed", zap.Error(err))
+		return nil, tripErrors.ErrorDataRetrievalFailed
+	}
+
+	return &i.SearchTripsResult{
+		Previews:   previews,
+		TotalCount: totalCount,
+	}, nil
 }
 
 // GetWaypointIDByType retourne l'ID du waypoint d'un type donné pour un trajet.

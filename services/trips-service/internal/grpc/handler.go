@@ -493,6 +493,89 @@ func toServiceWaypoints(pbWaypoints []*trippb.WaypointInput) []serviceInterfaces
 	return result
 }
 
+// GetScheduledTripsPreviews recherche les trajets/segments disponibles pour un passager.
+func (h *TripHandler) GetScheduledTripsPreviews(ctx context.Context, req *trippb.GetScheduledTripsPreviewsRequest) (*trippb.GetScheduledTripsPreviewsResponse, error) {
+	h.logger.Debug("handler: GetScheduledTripsPreviews called",
+		zap.String("departure", req.DepartureLocationName),
+		zap.String("arrival", req.ArrivalLocationName),
+		zap.Int32("index", req.Index),
+	)
+
+	// Validation : départ et arrivée obligatoires
+	if req.DepartureLocationName == "" || req.ArrivalLocationName == "" {
+		return &trippb.GetScheduledTripsPreviewsResponse{
+			ErrorMessage: tripErrors.ErrorInvalidInput.Error(),
+		}, toGRPCError(tripErrors.ErrorInvalidInput)
+	}
+
+	// Mapper le proto request → service input
+	input := &serviceInterfaces.GetScheduledTripsPreviewsInput{
+		DepartureLocationName: req.DepartureLocationName,
+		ArrivalLocationName:   req.ArrivalLocationName,
+		PageIndex:             int(req.Index),
+	}
+
+	// Position optionnelle (0,0 = non renseigné)
+	if req.PassengerPositionLng != 0 || req.PassengerPositionLat != 0 {
+		lng := req.PassengerPositionLng
+		lat := req.PassengerPositionLat
+		input.PassengerPositionLng = &lng
+		input.PassengerPositionLat = &lat
+	}
+
+	// Distance optionnelle
+	if req.DistanceRange > 0 {
+		dist := int(req.DistanceRange)
+		input.DistanceRange = &dist
+	}
+
+	// Filtres temporels optionnels
+	if req.TripStartDate != "" {
+		input.TripStartDate = &req.TripStartDate
+	}
+	if req.TripStartHour != "" {
+		input.TripStartHour = &req.TripStartHour
+	}
+	if req.TripArrivalHour != "" {
+		input.TripArrivalHour = &req.TripArrivalHour
+	}
+
+	result, err := h.service.GetScheduledTripsPreviews(ctx, input)
+	if err != nil {
+		h.logger.Error("handler: GetScheduledTripsPreviews failed", zap.Error(err))
+		return &trippb.GetScheduledTripsPreviewsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	// Mapper les résultats en proto (dates/heures en UTC)
+	pbPreviews := make([]*trippb.TripPreview, 0, len(result.Previews))
+	for _, r := range result.Previews {
+		pbPreviews = append(pbPreviews, &trippb.TripPreview{
+			TripId:                r.TripID,
+			DriverId:              r.DriverID,
+			DriverName:            r.DriverName,
+			VehicleId:             r.VehicleID,
+			VehicleBrand:          r.VehicleBrand,
+			VehiclePlate:          r.VehiclePlate,
+			DepartureDate:         r.DepartureDatetime.UTC().Format("2006-01-02"),
+			DepartureTime:         r.DepartureDatetime.UTC().Format("15:04"),
+			TotalSeats:            int32(r.TotalSeats),
+			AvailableSeats:        int32(r.AvailableSeats),
+			DepartureLocationName: r.DepartureLocationName,
+			ArrivalLocationName:   r.ArrivalLocationName,
+		})
+	}
+
+	h.logger.Info("handler: GetScheduledTripsPreviews success",
+		zap.Int("count", len(pbPreviews)),
+		zap.Int("totalCount", result.TotalCount),
+	)
+	return &trippb.GetScheduledTripsPreviewsResponse{
+		TripsPreviews: pbPreviews,
+		NextIndex:     int32(result.NextIndex),
+		TotalCount:    int32(result.TotalCount),
+	}, nil
+}
+
 // toGRPCError traduit les erreurs domaine en codes de statut gRPC.
 func toGRPCError(err error) error {
 	switch {
