@@ -254,8 +254,12 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 			return nil
 		}
 
-		// MAJ status → held
+		// MAJ status → held (verrouillage optimiste : AND status = 'pending')
 		if err := s.paymentWriteRepo.UpdatePaymentStatus(ctx, payment.PaymentID, domain.PaymentStatusHeld, externalID); err != nil {
+			if err == paymentErrors.ErrorPaymentAlreadyProcessed {
+				s.logger.Info("payment already processed by another webhook, skipping", zap.String("paymentID", payment.PaymentID))
+				return nil
+			}
 			return err
 		}
 
@@ -280,8 +284,12 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 
 		reason := fmt.Sprintf("FedaPay: %s", payload.Name)
 
-		// Marquer le paiement comme échoué
+		// Marquer le paiement comme échoué (verrouillage optimiste : AND status = 'pending')
 		if err := s.paymentWriteRepo.MarkPaymentFailed(ctx, payment.PaymentID, reason); err != nil {
+			if err == paymentErrors.ErrorPaymentAlreadyProcessed {
+				s.logger.Info("payment already processed by another webhook, skipping", zap.String("paymentID", payment.PaymentID))
+				return nil
+			}
 			return err
 		}
 

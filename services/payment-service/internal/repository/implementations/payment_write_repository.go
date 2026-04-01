@@ -54,11 +54,11 @@ func isDuplicateKeyError(err error) bool {
 
 func (r *paymentWriteRepository) UpdatePaymentStatus(ctx context.Context, paymentID string, status domain.PaymentStatus, externalTransactionID string) error {
 	query := `UPDATE payments SET status = $2, external_transaction_id = COALESCE(NULLIF($3, ''), external_transaction_id)
-		WHERE payment_id = $1`
+		WHERE payment_id = $1 AND status = 'pending'`
 
 	if status == domain.PaymentStatusHeld {
 		query = `UPDATE payments SET status = $2, external_transaction_id = COALESCE(NULLIF($3, ''), external_transaction_id), completed_at = $4
-			WHERE payment_id = $1`
+			WHERE payment_id = $1 AND status = 'pending'`
 		now := time.Now().UTC()
 		tag, err := r.pool.Exec(ctx, query, paymentID, status, externalTransactionID, now)
 		if err != nil {
@@ -66,7 +66,7 @@ func (r *paymentWriteRepository) UpdatePaymentStatus(ctx context.Context, paymen
 			return paymentErrors.ErrorInternalServer
 		}
 		if tag.RowsAffected() == 0 {
-			return paymentErrors.ErrorPaymentNotFound
+			return paymentErrors.ErrorPaymentAlreadyProcessed
 		}
 		return nil
 	}
@@ -77,7 +77,7 @@ func (r *paymentWriteRepository) UpdatePaymentStatus(ctx context.Context, paymen
 		return paymentErrors.ErrorInternalServer
 	}
 	if tag.RowsAffected() == 0 {
-		return paymentErrors.ErrorPaymentNotFound
+		return paymentErrors.ErrorPaymentAlreadyProcessed
 	}
 
 	return nil
@@ -85,7 +85,7 @@ func (r *paymentWriteRepository) UpdatePaymentStatus(ctx context.Context, paymen
 
 func (r *paymentWriteRepository) MarkPaymentFailed(ctx context.Context, paymentID string, reason string) error {
 	query := `UPDATE payments SET status = 'failed', failed_at = $2, failure_reason = $3
-		WHERE payment_id = $1`
+		WHERE payment_id = $1 AND status = 'pending'`
 
 	now := time.Now().UTC()
 	tag, err := r.pool.Exec(ctx, query, paymentID, now, reason)
@@ -94,7 +94,7 @@ func (r *paymentWriteRepository) MarkPaymentFailed(ctx context.Context, paymentI
 		return paymentErrors.ErrorInternalServer
 	}
 	if tag.RowsAffected() == 0 {
-		return paymentErrors.ErrorPaymentNotFound
+		return paymentErrors.ErrorPaymentAlreadyProcessed
 	}
 
 	return nil
