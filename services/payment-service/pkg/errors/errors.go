@@ -20,6 +20,7 @@ var (
 	ErrorFedaPayAPIError          = errors.New("ErrorFedaPayAPIError")
 	ErrorWebhookVerificationFailed = errors.New("ErrorWebhookVerificationFailed")
 	ErrorDuplicateWebhookEvent    = errors.New("ErrorDuplicateWebhookEvent")
+	ErrorDuplicatePayment         = errors.New("ErrorDuplicatePayment")
 	ErrorBookingNotFound          = errors.New("ErrorBookingNotFound")
 	ErrorUserNotFound             = errors.New("ErrorUserNotFound")
 )

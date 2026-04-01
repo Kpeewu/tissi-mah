@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_unique_active_payment_per_booking;

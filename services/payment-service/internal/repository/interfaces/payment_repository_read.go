@@ -14,4 +14,7 @@ type PaymentRepositoryRead interface {
 	GetByExternalTransactionID(ctx context.Context, externalID string) (*domain.Payment, error)
 	GetWebhookEvent(ctx context.Context, fedapayEventID string) (*domain.WebhookEvent, error)
 	GetExpiredPendingPayments(ctx context.Context, olderThan time.Duration) ([]*domain.Payment, error)
+
+	// HasActivePayment vérifie s'il existe un paiement actif (pending ou held) pour un booking.
+	HasActivePayment(ctx context.Context, bookingID string) (bool, error)
 }

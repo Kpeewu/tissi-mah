@@ -2,8 +2,10 @@ package implementations
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
@@ -34,11 +36,20 @@ func (r *paymentWriteRepository) CreatePayment(ctx context.Context, payment *dom
 		payment.Metadata,
 	)
 	if err != nil {
+		if isDuplicateKeyError(err) {
+			return paymentErrors.ErrorDuplicatePayment
+		}
 		r.logger.Error("create payment failed", zap.Error(err), zap.String("paymentID", payment.PaymentID))
 		return paymentErrors.ErrorInternalServer
 	}
 
 	return nil
+}
+
+// isDuplicateKeyError vérifie si l'erreur PostgreSQL est une violation de contrainte unique (23505).
+func isDuplicateKeyError(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
 func (r *paymentWriteRepository) UpdatePaymentStatus(ctx context.Context, paymentID string, status domain.PaymentStatus, externalTransactionID string) error {

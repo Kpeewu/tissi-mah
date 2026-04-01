@@ -108,6 +108,16 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 		return nil, paymentErrors.ErrorInvalidInput
 	}
 
+	// Vérifier qu'il n'existe pas déjà un paiement actif pour ce booking
+	hasActive, err := s.paymentReadRepo.HasActivePayment(ctx, input.BookingID)
+	if err != nil {
+		s.logger.Error("check active payment failed", zap.Error(err))
+		return nil, paymentErrors.ErrorInternalServer
+	}
+	if hasActive {
+		return nil, paymentErrors.ErrorDuplicatePayment
+	}
+
 	// Récupérer les infos du passager via booking → user
 	booking, err := s.bookingClient.GetBookingDetails(ctx, input.BookingID)
 	if err != nil {
