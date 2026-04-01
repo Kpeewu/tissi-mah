@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"math/big"
 	"strings"
 	"time"
@@ -519,6 +520,11 @@ func (s *bookingServiceImpl) FailPayment(ctx context.Context, input *serviceInte
 	}
 
 	if err := s.writeRepo.FailPayment(ctx, input.BookingID, input.Reason); err != nil {
+		if errors.Is(err, bookingErrors.ErrorPaymentAlreadyFailed) {
+			s.logger.Info("payment already failed, skipping",
+				zap.String("bookingID", input.BookingID))
+			return nil
+		}
 		return err
 	}
 

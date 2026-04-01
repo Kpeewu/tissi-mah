@@ -558,6 +558,9 @@ func (r *bookingWriteRepositoryImpl) FailPayment(ctx context.Context, bookingID,
 	}
 
 	if currentStatus != string(domain.BookingStatusPaymentPending) {
+		if currentStatus == string(domain.BookingStatusPaymentFailed) {
+			return bookingErrors.ErrorPaymentAlreadyFailed
+		}
 		return bookingErrors.ErrorInvalidStatusTransition
 	}
 

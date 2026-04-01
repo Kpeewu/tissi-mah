@@ -51,6 +51,27 @@ func (m *MockBookingRepositoryWrite) ConfirmPayment(ctx context.Context, booking
 	return args.Error(0)
 }
 
+func (m *MockBookingRepositoryWrite) FailPayment(ctx context.Context, bookingID, reason string) error {
+	args := m.Called(ctx, bookingID, reason)
+	return args.Error(0)
+}
+
+func (m *MockBookingRepositoryWrite) CancelBookingsForTrip(ctx context.Context, tripID string) ([]*domain.Booking, error) {
+	args := m.Called(ctx, tripID)
+	if b, ok := args.Get(0).([]*domain.Booking); ok {
+		return b, args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *MockBookingRepositoryWrite) CancelBookingsForWaypoint(ctx context.Context, tripID, waypointID string) ([]*domain.Booking, error) {
+	args := m.Called(ctx, tripID, waypointID)
+	if b, ok := args.Get(0).([]*domain.Booking); ok {
+		return b, args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
 func (m *MockBookingRepositoryWrite) MarkPaymentReleased(ctx context.Context, bookingID string) error {
 	args := m.Called(ctx, bookingID)
 	return args.Error(0)
