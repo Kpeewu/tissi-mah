@@ -76,6 +76,14 @@ type TripService interface {
 	// GetScheduledTripsPreviews recherche les trajets/segments disponibles pour un passager.
 	// Les filtres textuels (départ + arrivée) sont obligatoires.
 	GetScheduledTripsPreviews(ctx context.Context, input *GetScheduledTripsPreviewsInput) (*ScheduledTripsPreviewsResult, error)
+
+	// IncrementLegBookedSeats incrémente/décrémente booked_seats sur les legs d'un segment.
+	// Appelé par booking-service à chaque réservation (+delta) ou annulation (-delta).
+	IncrementLegBookedSeats(ctx context.Context, input *IncrementLegBookedSeatsInput) error
+
+	// SyncLegBookedSeats force la valeur de booked_seats pour chaque leg (réconciliation).
+	// Appelé par le job de réconciliation du booking-service.
+	SyncLegBookedSeats(ctx context.Context, input *SyncLegBookedSeatsInput) error
 }
 
 // GetTripsPreviewsInput contient les paramètres de la requête de liste.
@@ -86,17 +94,23 @@ type GetTripsPreviewsInput struct {
 
 // TripPreviewResult contient les données enrichies d'un trajet pour l'affichage en liste.
 type TripPreviewResult struct {
-	TripID                string
-	DriverID              string
-	DriverName            string
-	VehicleID             string
-	VehicleBrand          string
-	VehiclePlate          string
-	DepartureDatetime     time.Time
-	TotalSeats            int16
-	AvailableSeats        int16
-	DepartureLocationName string
-	ArrivalLocationName   string
+	TripID                 string
+	DriverID               string
+	DriverName             string
+	VehicleID              string
+	VehicleBrand           string
+	VehiclePlate           string
+	DepartureDatetime      time.Time
+	TotalSeats             int16
+	AvailableSeats         int16
+	DepartureLocationName  string
+	ArrivalLocationName    string
+	DepartureWaypointID    string
+	ArrivalWaypointID      string
+	SegmentPrice           int
+	SegmentDurationMinutes int
+	DriverProfileImageURL  string
+	DriverRatingAverage    float64
 }
 
 // CompletedTripPreviewResult contient les données enrichies d'un trajet complété.
@@ -299,4 +313,24 @@ type ScheduledTripsPreviewsResult struct {
 	Previews   []*TripPreviewResult
 	NextIndex  int // -1 si plus de résultats
 	TotalCount int
+}
+
+// IncrementLegBookedSeatsInput contient les données pour incrémenter/décrémenter booked_seats.
+type IncrementLegBookedSeatsInput struct {
+	TripID    string
+	FromOrder int // sequencer_order du waypoint de départ (inclusif)
+	ToOrder   int // sequencer_order du waypoint d'arrivée (exclusif)
+	Delta     int // +N pour réservation, -N pour annulation
+}
+
+// LegBookedSeats contient le nombre de places réservées pour un leg donné.
+type LegBookedSeats struct {
+	SequencerOrder int
+	BookedSeats    int
+}
+
+// SyncLegBookedSeatsInput contient les données pour la réconciliation des booked_seats.
+type SyncLegBookedSeatsInput struct {
+	TripID string
+	Legs   []LegBookedSeats
 }

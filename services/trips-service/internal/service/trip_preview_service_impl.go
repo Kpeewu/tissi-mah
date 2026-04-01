@@ -207,12 +207,18 @@ func (s *tripServiceImpl) GetScheduledTripsPreviews(ctx context.Context, input *
 
 	// Enrichissement multi-driver : collecter les driverIDs et vehicleIDs uniques
 	type vehicleInfo struct{ brand, plate string }
-	driverNames := make(map[string]string)
+	type driverEnrichment struct {
+		name, profileImageURL string
+		ratingAverage         float64
+	}
+	driverMap := make(map[string]driverEnrichment)
 	vehicleMap := make(map[string]vehicleInfo)
 
 	for _, p := range previews {
-		if _, ok := driverNames[p.DriverID]; !ok {
-			driverNames[p.DriverID] = s.getCachedOrFetchDriverName(ctx, p.DriverID)
+		if _, ok := driverMap[p.DriverID]; !ok {
+			name, photo := s.getCachedOrFetchDriverInfo(ctx, p.DriverID)
+			rating := s.getCachedOrFetchDriverRating(ctx, p.DriverID)
+			driverMap[p.DriverID] = driverEnrichment{name: name, profileImageURL: photo, ratingAverage: rating}
 		}
 		if _, ok := vehicleMap[p.VehicleID]; !ok {
 			brand, plate := s.getCachedOrFetchVehicleInfo(ctx, p.DriverID, p.VehicleID)
@@ -224,32 +230,26 @@ func (s *tripServiceImpl) GetScheduledTripsPreviews(ctx context.Context, input *
 	results := make([]*serviceInterfaces.TripPreviewResult, 0, len(previews))
 	for _, p := range previews {
 		v := vehicleMap[p.VehicleID]
-
-		// Overlay available_seats depuis le cache Redis
-		availableSeats := p.AvailableSeats
-		if s.cache != nil {
-			if seats, found, err := s.cache.GetSeatCounter(ctx, p.TripID); found && err == nil {
-				availableSeats = int16(seats)
-			} else if err != nil {
-				s.logger.Warn("GetScheduledTripsPreviews — seat cache read failed, using DB value",
-					zap.String("tripID", p.TripID),
-					zap.Error(err),
-				)
-			}
-		}
+		d := driverMap[p.DriverID]
 
 		results = append(results, &serviceInterfaces.TripPreviewResult{
-			TripID:                p.TripID,
-			DriverID:              p.DriverID,
-			DriverName:            driverNames[p.DriverID],
-			VehicleID:             p.VehicleID,
-			VehicleBrand:          v.brand,
-			VehiclePlate:          v.plate,
-			DepartureDatetime:     p.DepartureDatetime,
-			TotalSeats:            p.TotalSeats,
-			AvailableSeats:        availableSeats,
-			DepartureLocationName: p.DepartureLocationName,
-			ArrivalLocationName:   p.ArrivalLocationName,
+			TripID:                 p.TripID,
+			DriverID:               p.DriverID,
+			DriverName:             d.name,
+			VehicleID:              p.VehicleID,
+			VehicleBrand:           v.brand,
+			VehiclePlate:           v.plate,
+			DepartureDatetime:      p.DepartureDatetime,
+			TotalSeats:             p.TotalSeats,
+			AvailableSeats:         p.AvailableSeats,
+			DepartureLocationName:  p.DepartureLocationName,
+			ArrivalLocationName:    p.ArrivalLocationName,
+			DepartureWaypointID:    p.DepartureWaypointID,
+			ArrivalWaypointID:      p.ArrivalWaypointID,
+			SegmentPrice:           p.SegmentPrice,
+			SegmentDurationMinutes: p.SegmentDurationMinutes,
+			DriverProfileImageURL:  d.profileImageURL,
+			DriverRatingAverage:    d.ratingAverage,
 		})
 	}
 
@@ -367,4 +367,58 @@ func (s *tripServiceImpl) getCachedOrFetchVehicleInfo(ctx context.Context, drive
 	}
 
 	return brand, plate
+}
+
+// getCachedOrFetchDriverInfo tente le cache Redis, puis fallback sur user-service.
+// Retourne (name, profileImageURL).
+func (s *tripServiceImpl) getCachedOrFetchDriverInfo(ctx context.Context, driverID string) (string, string) {
+	// Essai cache
+	if s.cache != nil {
+		name, photo, found, err := s.cache.GetDriverInfo(ctx, driverID)
+		if err == nil && found {
+			return name, photo
+		}
+	}
+
+	// Fallback gRPC
+	name, photo, err := s.userClient.GetDriverInfo(ctx, driverID)
+	if err != nil {
+		s.logger.Warn("GetDriverInfo failed, using empty values", zap.Error(err), zap.String("driverID", driverID))
+		return "", ""
+	}
+
+	// Populate cache
+	if s.cache != nil {
+		_ = s.cache.SetDriverInfo(ctx, driverID, name, photo)
+	}
+
+	return name, photo
+}
+
+// getCachedOrFetchDriverRating tente le cache Redis, puis fallback sur rating-service.
+func (s *tripServiceImpl) getCachedOrFetchDriverRating(ctx context.Context, driverID string) float64 {
+	// Essai cache
+	if s.cache != nil {
+		rating, found, err := s.cache.GetDriverRating(ctx, driverID)
+		if err == nil && found {
+			return rating
+		}
+	}
+
+	// Fallback gRPC
+	if s.ratingClient == nil {
+		return 0
+	}
+	rating, err := s.ratingClient.GetDriverRatingAverage(ctx, driverID)
+	if err != nil {
+		s.logger.Warn("GetDriverRatingAverage failed, using 0", zap.Error(err), zap.String("driverID", driverID))
+		return 0
+	}
+
+	// Populate cache
+	if s.cache != nil {
+		_ = s.cache.SetDriverRating(ctx, driverID, rating)
+	}
+
+	return rating
 }

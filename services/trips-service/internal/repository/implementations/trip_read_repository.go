@@ -307,9 +307,32 @@ func (r *tripReadRepositoryImpl) SearchScheduledTripSegments(ctx context.Context
 			t.vehicle_id,
 			t.departure_datetime,
 			t.total_seats,
-			t.available_seats,
+			-- Places disponibles par segment : total - MAX(booked_seats) sur les legs couverts
+			t.total_seats - COALESCE((
+				SELECT MAX(leg.booked_seats)
+				FROM trips_waypoints leg
+				WHERE leg.trip_id = t.trip_id
+				  AND leg.sequencer_order >= dep_wp.sequencer_order
+				  AND leg.sequencer_order < arr_wp.sequencer_order
+				  AND leg.cancelled_at IS NULL
+				  AND leg.deleted_at IS NULL
+			), 0) AS available_seats,
 			dep_wp.location_name AS departure_location_name,
-			arr_wp.location_name AS arrival_location_name`
+			arr_wp.location_name AS arrival_location_name,
+			dep_wp.waypoint_id AS departure_waypoint_id,
+			arr_wp.waypoint_id AS arrival_waypoint_id,
+			-- Prix du segment : somme des price_from_previous entre dep+1 et arr
+			COALESCE((
+				SELECT SUM(seg.price_from_previous)
+				FROM trips_waypoints seg
+				WHERE seg.trip_id = t.trip_id
+				  AND seg.sequencer_order > dep_wp.sequencer_order
+				  AND seg.sequencer_order <= arr_wp.sequencer_order
+				  AND seg.cancelled_at IS NULL
+				  AND seg.deleted_at IS NULL
+			), 0) AS segment_price,
+			-- Durée du segment en minutes
+			arr_wp.minutes_from_departure - dep_wp.minutes_from_departure AS segment_duration_minutes`
 
 	orderClause := "\nORDER BY t.departure_datetime ASC"
 	paginationClause := fmt.Sprintf("\nLIMIT $%d OFFSET $%d", argIdx, argIdx+1)
@@ -345,6 +368,10 @@ func (r *tripReadRepositoryImpl) SearchScheduledTripSegments(ctx context.Context
 				&p.AvailableSeats,
 				&p.DepartureLocationName,
 				&p.ArrivalLocationName,
+				&p.DepartureWaypointID,
+				&p.ArrivalWaypointID,
+				&p.SegmentPrice,
+				&p.SegmentDurationMinutes,
 			); err != nil {
 				return err
 			}

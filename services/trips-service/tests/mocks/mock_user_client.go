@@ -21,6 +21,11 @@ func (m *MockUserClient) GetDriverName(ctx context.Context, userID string) (stri
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockUserClient) GetDriverInfo(ctx context.Context, userID string) (string, string, error) {
+	args := m.Called(ctx, userID)
+	return args.String(0), args.String(1), args.Error(2)
+}
+
 func (m *MockUserClient) Close() error {
 	args := m.Called()
 	return args.Error(0)

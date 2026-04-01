@@ -550,18 +550,24 @@ func (h *TripHandler) GetScheduledTripsPreviews(ctx context.Context, req *trippb
 	pbPreviews := make([]*trippb.TripPreview, 0, len(result.Previews))
 	for _, r := range result.Previews {
 		pbPreviews = append(pbPreviews, &trippb.TripPreview{
-			TripId:                r.TripID,
-			DriverId:              r.DriverID,
-			DriverName:            r.DriverName,
-			VehicleId:             r.VehicleID,
-			VehicleBrand:          r.VehicleBrand,
-			VehiclePlate:          r.VehiclePlate,
-			DepartureDate:         r.DepartureDatetime.UTC().Format("2006-01-02"),
-			DepartureTime:         r.DepartureDatetime.UTC().Format("15:04"),
-			TotalSeats:            int32(r.TotalSeats),
-			AvailableSeats:        int32(r.AvailableSeats),
-			DepartureLocationName: r.DepartureLocationName,
-			ArrivalLocationName:   r.ArrivalLocationName,
+			TripId:                 r.TripID,
+			DriverId:               r.DriverID,
+			DriverName:             r.DriverName,
+			VehicleId:              r.VehicleID,
+			VehicleBrand:           r.VehicleBrand,
+			VehiclePlate:           r.VehiclePlate,
+			DepartureDate:          r.DepartureDatetime.UTC().Format("2006-01-02"),
+			DepartureTime:          r.DepartureDatetime.UTC().Format("15:04"),
+			TotalSeats:             int32(r.TotalSeats),
+			AvailableSeats:         int32(r.AvailableSeats),
+			DepartureLocationName:  r.DepartureLocationName,
+			ArrivalLocationName:    r.ArrivalLocationName,
+			DepartureWaypointId:    r.DepartureWaypointID,
+			ArrivalWaypointId:      r.ArrivalWaypointID,
+			SegmentPrice:           int32(r.SegmentPrice),
+			SegmentDurationMinutes: int32(r.SegmentDurationMinutes),
+			DriverProfileImageURL:  r.DriverProfileImageURL,
+			DriverRatingAverage:    r.DriverRatingAverage,
 		})
 	}
 
@@ -574,6 +580,62 @@ func (h *TripHandler) GetScheduledTripsPreviews(ctx context.Context, req *trippb
 		NextIndex:     int32(result.NextIndex),
 		TotalCount:    int32(result.TotalCount),
 	}, nil
+}
+
+func (h *TripHandler) IncrementLegBookedSeats(ctx context.Context, req *trippb.IncrementLegBookedSeatsRequest) (*trippb.IncrementLegBookedSeatsResponse, error) {
+	h.logger.Debug("handler: IncrementLegBookedSeats called",
+		zap.String("tripID", req.TripId),
+		zap.Int32("fromOrder", req.FromOrder),
+		zap.Int32("toOrder", req.ToOrder),
+		zap.Int32("delta", req.Delta),
+	)
+
+	if req.TripId == "" {
+		return &trippb.IncrementLegBookedSeatsResponse{ErrorMessage: tripErrors.ErrorInvalidInput.Error()}, toGRPCError(tripErrors.ErrorInvalidInput)
+	}
+
+	err := h.service.IncrementLegBookedSeats(ctx, &serviceInterfaces.IncrementLegBookedSeatsInput{
+		TripID:    req.TripId,
+		FromOrder: int(req.FromOrder),
+		ToOrder:   int(req.ToOrder),
+		Delta:     int(req.Delta),
+	})
+	if err != nil {
+		h.logger.Error("handler: IncrementLegBookedSeats failed", zap.Error(err))
+		return &trippb.IncrementLegBookedSeatsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return &trippb.IncrementLegBookedSeatsResponse{Success: true}, nil
+}
+
+func (h *TripHandler) SyncLegBookedSeats(ctx context.Context, req *trippb.SyncLegBookedSeatsRequest) (*trippb.SyncLegBookedSeatsResponse, error) {
+	h.logger.Debug("handler: SyncLegBookedSeats called",
+		zap.String("tripID", req.TripId),
+		zap.Int("legsCount", len(req.Legs)),
+	)
+
+	if req.TripId == "" || len(req.Legs) == 0 {
+		return &trippb.SyncLegBookedSeatsResponse{ErrorMessage: tripErrors.ErrorInvalidInput.Error()}, toGRPCError(tripErrors.ErrorInvalidInput)
+	}
+
+	legs := make([]serviceInterfaces.LegBookedSeats, len(req.Legs))
+	for i, l := range req.Legs {
+		legs[i] = serviceInterfaces.LegBookedSeats{
+			SequencerOrder: int(l.SequencerOrder),
+			BookedSeats:    int(l.BookedSeats),
+		}
+	}
+
+	err := h.service.SyncLegBookedSeats(ctx, &serviceInterfaces.SyncLegBookedSeatsInput{
+		TripID: req.TripId,
+		Legs:   legs,
+	})
+	if err != nil {
+		h.logger.Error("handler: SyncLegBookedSeats failed", zap.Error(err))
+		return &trippb.SyncLegBookedSeatsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return &trippb.SyncLegBookedSeatsResponse{Success: true}, nil
 }
 
 // toGRPCError traduit les erreurs domaine en codes de statut gRPC.

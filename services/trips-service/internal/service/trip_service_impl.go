@@ -22,6 +22,7 @@ type tripServiceImpl struct {
 	userClient    client.UserClient
 	vehicleClient client.VehicleClient
 	bookingClient client.BookingClient
+	ratingClient  client.RatingClient
 	cache         *cache.TripCache
 	logger        *zap.Logger
 }
@@ -32,6 +33,7 @@ func NewTripService(
 	userClient client.UserClient,
 	vehicleClient client.VehicleClient,
 	bookingClient client.BookingClient,
+	ratingClient client.RatingClient,
 	tripCache *cache.TripCache,
 	logger *zap.Logger,
 ) serviceInterfaces.TripService {
@@ -41,6 +43,7 @@ func NewTripService(
 		userClient:    userClient,
 		vehicleClient: vehicleClient,
 		bookingClient: bookingClient,
+		ratingClient:  ratingClient,
 		cache:         tripCache,
 		logger:        logger,
 	}
@@ -688,5 +691,43 @@ func (s *tripServiceImpl) UpdateAvailableSeats(ctx context.Context, input *servi
 	}
 
 	return nil
+}
+
+// IncrementLegBookedSeats incrémente/décrémente booked_seats sur les legs d'un segment.
+func (s *tripServiceImpl) IncrementLegBookedSeats(ctx context.Context, input *serviceInterfaces.IncrementLegBookedSeatsInput) error {
+	s.logger.Debug("service: IncrementLegBookedSeats called",
+		zap.String("tripID", input.TripID),
+		zap.Int("fromOrder", input.FromOrder),
+		zap.Int("toOrder", input.ToOrder),
+		zap.Int("delta", input.Delta),
+	)
+
+	if input.TripID == "" || input.FromOrder < 0 || input.ToOrder <= input.FromOrder || input.Delta == 0 {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	return s.writeRepo.IncrementLegBookedSeats(ctx, input.TripID, input.FromOrder, input.ToOrder, input.Delta)
+}
+
+// SyncLegBookedSeats force la valeur de booked_seats pour chaque leg (réconciliation).
+func (s *tripServiceImpl) SyncLegBookedSeats(ctx context.Context, input *serviceInterfaces.SyncLegBookedSeatsInput) error {
+	s.logger.Debug("service: SyncLegBookedSeats called",
+		zap.String("tripID", input.TripID),
+		zap.Int("legsCount", len(input.Legs)),
+	)
+
+	if input.TripID == "" || len(input.Legs) == 0 {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	repoLegs := make([]repoInterfaces.LegBookedSeats, len(input.Legs))
+	for i, l := range input.Legs {
+		repoLegs[i] = repoInterfaces.LegBookedSeats{
+			SequencerOrder: l.SequencerOrder,
+			BookedSeats:    l.BookedSeats,
+		}
+	}
+
+	return s.writeRepo.SyncLegBookedSeats(ctx, input.TripID, repoLegs)
 }
 

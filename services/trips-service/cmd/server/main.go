@@ -83,6 +83,17 @@ func run(bootstrapLogger *zap.Logger) error {
 		logger.Info("booking-service client ready", zap.String("address", cfg.BookingService.Addr()))
 	}
 
+	// --- Rating-service client (graceful degradation) ---
+	var ratingClient client.RatingClient
+	rc, err := client.NewRatingServiceClient(cfg.RatingService.Addr(), logger)
+	if err != nil {
+		logger.Warn("rating-service client unavailable, running without rating enrichment", zap.Error(err))
+	} else {
+		defer rc.Close()
+		ratingClient = rc
+		logger.Info("rating-service client ready", zap.String("address", cfg.RatingService.Addr()))
+	}
+
 	// --- Redis (cache, graceful degradation) ---
 	var tripCache *cache.TripCache
 	redisClient, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.Redis.URL)
@@ -99,7 +110,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	writeRepo := implementations.NewTripWriteRepository(pool, logger)
 
 	// --- Trip service ---
-	tripService := service.NewTripService(readRepo, writeRepo, userClient, vehicleClient, bookingClient, tripCache, logger)
+	tripService := service.NewTripService(readRepo, writeRepo, userClient, vehicleClient, bookingClient, ratingClient, tripCache, logger)
 
 	// --- gRPC server ---
 	srv, err := grpcServer.NewTripServer(cfg, tripService, logger)

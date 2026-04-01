@@ -32,7 +32,7 @@ func newTestService() (
 	writeRepo := new(mocks.MockTripRepositoryWrite)
 	userClient := new(mocks.MockUserClient)
 	vehicleClient := new(mocks.MockVehicleClient)
-	svc := service.NewTripService(readRepo, writeRepo, userClient, vehicleClient, nil, nil, zap.NewNop())
+	svc := service.NewTripService(readRepo, writeRepo, userClient, vehicleClient, nil, nil, nil, zap.NewNop())
 	return readRepo, writeRepo, userClient, vehicleClient, svc
 }
 

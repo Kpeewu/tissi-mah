@@ -78,7 +78,7 @@ func setupServer(t *testing.T) (*grpc.ClientConn, *mocks.MockUserClient, *mocks.
 	mockUserClient := new(mocks.MockUserClient)
 	mockVehicleClient := new(mocks.MockVehicleClient)
 
-	svc := service.NewTripService(readRepo, writeRepo, mockUserClient, mockVehicleClient, nil, nil, logger)
+	svc := service.NewTripService(readRepo, writeRepo, mockUserClient, mockVehicleClient, nil, nil, nil, logger)
 	handler := grpcHandler.NewTripHandler(svc, logger)
 
 	lis = bufconn.Listen(bufSize)

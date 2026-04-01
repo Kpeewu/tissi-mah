@@ -238,6 +238,12 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 		return nil, err
 	}
 
+	// 11b. Sync DB trips : incrémenter booked_seats sur les legs
+	if err := s.tripClient.IncrementLegBookedSeats(ctx, input.TripID, pickupOrder, dropoffOrder, input.SeatsBooked); err != nil {
+		s.logger.Warn("IncrementLegBookedSeats failed, reconciliation will fix",
+			zap.String("tripID", input.TripID), zap.Error(err))
+	}
+
 	// 12. Invalider le cache
 	if s.cache != nil {
 		s.cache.InvalidatePassengerBookings(ctx, input.PassengerID)
@@ -363,6 +369,12 @@ func (s *bookingServiceImpl) RejectBooking(ctx context.Context, input *serviceIn
 		_ = s.cache.RestoreSegmentSeats(ctx, booking.TripID, int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder), int(booking.SeatsBooked))
 	}
 
+	// Sync DB trips : décrémenter booked_seats sur les legs
+	if err := s.tripClient.IncrementLegBookedSeats(ctx, booking.TripID, int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder), -int(booking.SeatsBooked)); err != nil {
+		s.logger.Warn("IncrementLegBookedSeats (reject) failed, reconciliation will fix",
+			zap.String("tripID", booking.TripID), zap.Error(err))
+	}
+
 	s.invalidateBookingCaches(ctx, input.BookingID)
 
 	// Demander le remboursement au payment-service (fire-and-forget)
@@ -395,6 +407,12 @@ func (s *bookingServiceImpl) CancelBooking(ctx context.Context, input *serviceIn
 	// Restaurer les places Redis
 	if s.cache != nil {
 		_ = s.cache.RestoreSegmentSeats(ctx, booking.TripID, int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder), int(booking.SeatsBooked))
+	}
+
+	// Sync DB trips : décrémenter booked_seats sur les legs
+	if err := s.tripClient.IncrementLegBookedSeats(ctx, booking.TripID, int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder), -int(booking.SeatsBooked)); err != nil {
+		s.logger.Warn("IncrementLegBookedSeats (cancel) failed, reconciliation will fix",
+			zap.String("tripID", booking.TripID), zap.Error(err))
 	}
 
 	s.invalidateBookingCaches(ctx, input.BookingID)
@@ -473,6 +491,12 @@ func (s *bookingServiceImpl) ReportNoShow(ctx context.Context, input *serviceInt
 		_ = s.cache.RestoreSegmentSeats(ctx, booking.TripID, int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder), int(booking.SeatsBooked))
 	}
 
+	// Sync DB trips : décrémenter booked_seats sur les legs
+	if err := s.tripClient.IncrementLegBookedSeats(ctx, booking.TripID, int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder), -int(booking.SeatsBooked)); err != nil {
+		s.logger.Warn("IncrementLegBookedSeats (noshow) failed, reconciliation will fix",
+			zap.String("tripID", booking.TripID), zap.Error(err))
+	}
+
 	s.invalidateBookingCaches(ctx, input.BookingID)
 
 	// Demander le remboursement au payment-service (fire-and-forget)
@@ -531,6 +555,12 @@ func (s *bookingServiceImpl) FailPayment(ctx context.Context, input *serviceInte
 	// Restaurer les places Redis
 	if s.cache != nil {
 		_ = s.cache.RestoreSegmentSeats(ctx, booking.TripID, int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder), int(booking.SeatsBooked))
+	}
+
+	// Sync DB trips : décrémenter booked_seats sur les legs
+	if err := s.tripClient.IncrementLegBookedSeats(ctx, booking.TripID, int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder), -int(booking.SeatsBooked)); err != nil {
+		s.logger.Warn("IncrementLegBookedSeats (failPayment) failed, reconciliation will fix",
+			zap.String("tripID", booking.TripID), zap.Error(err))
 	}
 
 	s.invalidateBookingCaches(ctx, input.BookingID)
@@ -946,7 +976,7 @@ func (s *bookingServiceImpl) reconcileTrip(ctx context.Context, tripID string) {
 	}
 
 	// Réconcilier chaque segment (leg)
-	minAvailable := tripDetails.TotalSeats
+	legs := make([]client.LegBookedSeats, 0, maxOrder-1)
 	for order := 1; order < maxOrder; order++ {
 		occupancy, err := s.readRepo.GetSegmentOccupancy(ctx, tripID, order)
 		if err != nil {
@@ -955,25 +985,23 @@ func (s *bookingServiceImpl) reconcileTrip(ctx context.Context, tripID string) {
 		}
 
 		expectedAvailable := tripDetails.TotalSeats - occupancy
-		if expectedAvailable < minAvailable {
-			minAvailable = expectedAvailable
-		}
 
 		// Mettre à jour le compteur Redis par segment
 		if s.cache != nil {
 			_ = s.cache.SetSegmentSeatCounter(ctx, tripID, order, expectedAvailable)
 		}
+
+		// Collecter pour sync DB trips
+		legs = append(legs, client.LegBookedSeats{
+			SequencerOrder: order,
+			BookedSeats:    occupancy,
+		})
 	}
 
-	// Mettre à jour la DB trips avec le minimum (pour affichage global)
-	if tripDetails.AvailableSeats != minAvailable {
-		s.logger.Info("reconciliation: updating trips DB",
-			zap.String("tripID", tripID),
-			zap.Int("dbCurrent", tripDetails.AvailableSeats),
-			zap.Int("expected", minAvailable),
-		)
-		if err := s.tripClient.UpdateAvailableSeats(ctx, tripID, minAvailable); err != nil {
-			s.logger.Error("reconciliation: UpdateAvailableSeats failed",
+	// Sync booked_seats sur trips_waypoints + available_seats sur trips
+	if len(legs) > 0 {
+		if err := s.tripClient.SyncLegBookedSeats(ctx, tripID, legs); err != nil {
+			s.logger.Error("reconciliation: SyncLegBookedSeats failed",
 				zap.String("tripID", tripID), zap.Error(err))
 		}
 	}

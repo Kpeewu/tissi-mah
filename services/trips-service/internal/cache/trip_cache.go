@@ -40,6 +40,12 @@ const (
 	// TTL du compteur de places disponibles — plus long que l'intervalle de réconciliation
 	seatCounterTTL = 24 * time.Hour
 
+	// TTL du cache pour les infos enrichies du conducteur (nom + photo)
+	driverInfoTTL = 15 * time.Minute
+
+	// TTL du cache pour la note moyenne du conducteur
+	driverRatingTTL = 5 * time.Minute
+
 	// Préfixe des clés Redis pour le trips-service
 	keyPrefix = "trip:"
 )
@@ -48,6 +54,12 @@ const (
 type cachedVehicleInfo struct {
 	Brand string `json:"brand"`
 	Plate string `json:"plate"`
+}
+
+// cachedDriverInfo est la structure JSON stockée pour les infos enrichies du conducteur.
+type cachedDriverInfo struct {
+	Name            string `json:"name"`
+	ProfileImageURL string `json:"profile_image_url"`
 }
 
 // TripCache gère le cache Redis pour le trips-service.
@@ -351,6 +363,82 @@ func (c *TripCache) vehicleInfoKey(vehicleID string) string {
 
 func (c *TripCache) completedPreviewsKey(driverID string, pageIndex int) string {
 	return keyPrefix + "completed-previews:" + driverID + ":page:" + strconv.Itoa(pageIndex)
+}
+
+func (c *TripCache) driverInfoKey(driverID string) string {
+	return keyPrefix + "driver-info:" + driverID
+}
+
+func (c *TripCache) driverRatingKey(driverID string) string {
+	return keyPrefix + "driver-rating:" + driverID
+}
+
+// =============================================================================
+// Driver Info (nom + photo, enrichissement pour la recherche)
+// =============================================================================
+
+// GetDriverInfo récupère les infos enrichies du conducteur depuis le cache.
+func (c *TripCache) GetDriverInfo(ctx context.Context, driverID string) (string, string, bool, error) {
+	key := c.driverInfoKey(driverID)
+
+	data, err := c.client.Get(ctx, key).Bytes()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return "", "", false, nil
+		}
+		return "", "", false, fmt.Errorf("cache get: %w", err)
+	}
+
+	var info cachedDriverInfo
+	if err := json.Unmarshal(data, &info); err != nil {
+		c.client.Del(ctx, key) //nolint:errcheck
+		return "", "", false, nil
+	}
+
+	return info.Name, info.ProfileImageURL, true, nil
+}
+
+// SetDriverInfo stocke les infos enrichies du conducteur dans le cache.
+func (c *TripCache) SetDriverInfo(ctx context.Context, driverID, name, profileImageURL string) error {
+	key := c.driverInfoKey(driverID)
+
+	data, err := json.Marshal(cachedDriverInfo{Name: name, ProfileImageURL: profileImageURL})
+	if err != nil {
+		return fmt.Errorf("cache marshal: %w", err)
+	}
+
+	return c.client.Set(ctx, key, data, driverInfoTTL).Err()
+}
+
+// =============================================================================
+// Driver Rating (note moyenne, enrichissement pour la recherche)
+// =============================================================================
+
+// GetDriverRating récupère la note moyenne du conducteur depuis le cache.
+func (c *TripCache) GetDriverRating(ctx context.Context, driverID string) (float64, bool, error) {
+	key := c.driverRatingKey(driverID)
+
+	val, err := c.client.Get(ctx, key).Result()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return 0, false, nil
+		}
+		return 0, false, fmt.Errorf("cache get: %w", err)
+	}
+
+	rating, err := strconv.ParseFloat(val, 64)
+	if err != nil {
+		c.client.Del(ctx, key) //nolint:errcheck
+		return 0, false, nil
+	}
+
+	return rating, true, nil
+}
+
+// SetDriverRating stocke la note moyenne du conducteur dans le cache.
+func (c *TripCache) SetDriverRating(ctx context.Context, driverID string, average float64) error {
+	key := c.driverRatingKey(driverID)
+	return c.client.Set(ctx, key, fmt.Sprintf("%.1f", average), driverRatingTTL).Err()
 }
 
 // =============================================================================

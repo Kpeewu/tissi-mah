@@ -36,6 +36,8 @@ const (
 	TripService_CancelTrip_FullMethodName                = "/trip.TripService/CancelTrip"
 	TripService_CancelWaypoint_FullMethodName            = "/trip.TripService/CancelWaypoint"
 	TripService_GetScheduledTripsPreviews_FullMethodName = "/trip.TripService/GetScheduledTripsPreviews"
+	TripService_IncrementLegBookedSeats_FullMethodName   = "/trip.TripService/IncrementLegBookedSeats"
+	TripService_SyncLegBookedSeats_FullMethodName        = "/trip.TripService/SyncLegBookedSeats"
 	TripService_Health_FullMethodName                    = "/trip.TripService/Health"
 )
 
@@ -92,6 +94,12 @@ type TripServiceClient interface {
 	// GetScheduledTripsPreviews recherche les trajets disponibles pour un passager.
 	// Endpoint public — pas d'authentification requise.
 	GetScheduledTripsPreviews(ctx context.Context, in *GetScheduledTripsPreviewsRequest, opts ...grpc.CallOption) (*GetScheduledTripsPreviewsResponse, error)
+	// IncrementLegBookedSeats incrémente/décrémente booked_seats sur les legs d'un segment.
+	// Appelé par booking-service à chaque réservation (+delta) ou annulation (-delta).
+	IncrementLegBookedSeats(ctx context.Context, in *IncrementLegBookedSeatsRequest, opts ...grpc.CallOption) (*IncrementLegBookedSeatsResponse, error)
+	// SyncLegBookedSeats force la valeur de booked_seats pour chaque leg (réconciliation).
+	// Appelé par le job de réconciliation du booking-service.
+	SyncLegBookedSeats(ctx context.Context, in *SyncLegBookedSeatsRequest, opts ...grpc.CallOption) (*SyncLegBookedSeatsResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -274,6 +282,26 @@ func (c *tripServiceClient) GetScheduledTripsPreviews(ctx context.Context, in *G
 	return out, nil
 }
 
+func (c *tripServiceClient) IncrementLegBookedSeats(ctx context.Context, in *IncrementLegBookedSeatsRequest, opts ...grpc.CallOption) (*IncrementLegBookedSeatsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IncrementLegBookedSeatsResponse)
+	err := c.cc.Invoke(ctx, TripService_IncrementLegBookedSeats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tripServiceClient) SyncLegBookedSeats(ctx context.Context, in *SyncLegBookedSeatsRequest, opts ...grpc.CallOption) (*SyncLegBookedSeatsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SyncLegBookedSeatsResponse)
+	err := c.cc.Invoke(ctx, TripService_SyncLegBookedSeats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *tripServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -337,6 +365,12 @@ type TripServiceServer interface {
 	// GetScheduledTripsPreviews recherche les trajets disponibles pour un passager.
 	// Endpoint public — pas d'authentification requise.
 	GetScheduledTripsPreviews(context.Context, *GetScheduledTripsPreviewsRequest) (*GetScheduledTripsPreviewsResponse, error)
+	// IncrementLegBookedSeats incrémente/décrémente booked_seats sur les legs d'un segment.
+	// Appelé par booking-service à chaque réservation (+delta) ou annulation (-delta).
+	IncrementLegBookedSeats(context.Context, *IncrementLegBookedSeatsRequest) (*IncrementLegBookedSeatsResponse, error)
+	// SyncLegBookedSeats force la valeur de booked_seats pour chaque leg (réconciliation).
+	// Appelé par le job de réconciliation du booking-service.
+	SyncLegBookedSeats(context.Context, *SyncLegBookedSeatsRequest) (*SyncLegBookedSeatsResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedTripServiceServer()
@@ -399,6 +433,12 @@ func (UnimplementedTripServiceServer) CancelWaypoint(context.Context, *CancelWay
 }
 func (UnimplementedTripServiceServer) GetScheduledTripsPreviews(context.Context, *GetScheduledTripsPreviewsRequest) (*GetScheduledTripsPreviewsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetScheduledTripsPreviews not implemented")
+}
+func (UnimplementedTripServiceServer) IncrementLegBookedSeats(context.Context, *IncrementLegBookedSeatsRequest) (*IncrementLegBookedSeatsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method IncrementLegBookedSeats not implemented")
+}
+func (UnimplementedTripServiceServer) SyncLegBookedSeats(context.Context, *SyncLegBookedSeatsRequest) (*SyncLegBookedSeatsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SyncLegBookedSeats not implemented")
 }
 func (UnimplementedTripServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -730,6 +770,42 @@ func _TripService_GetScheduledTripsPreviews_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TripService_IncrementLegBookedSeats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IncrementLegBookedSeatsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).IncrementLegBookedSeats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_IncrementLegBookedSeats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).IncrementLegBookedSeats(ctx, req.(*IncrementLegBookedSeatsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TripService_SyncLegBookedSeats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SyncLegBookedSeatsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).SyncLegBookedSeats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_SyncLegBookedSeats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).SyncLegBookedSeats(ctx, req.(*SyncLegBookedSeatsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _TripService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -822,6 +898,14 @@ var TripService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetScheduledTripsPreviews",
 			Handler:    _TripService_GetScheduledTripsPreviews_Handler,
+		},
+		{
+			MethodName: "IncrementLegBookedSeats",
+			Handler:    _TripService_IncrementLegBookedSeats_Handler,
+		},
+		{
+			MethodName: "SyncLegBookedSeats",
+			Handler:    _TripService_SyncLegBookedSeats_Handler,
 		},
 		{
 			MethodName: "Health",

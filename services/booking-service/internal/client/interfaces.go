@@ -8,7 +8,17 @@ type TripClient interface {
 	GetTripDetails(ctx context.Context, tripID string) (*TripDetails, error)
 	// UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet (réconciliation).
 	UpdateAvailableSeats(ctx context.Context, tripID string, newAvailableSeats int) error
+	// IncrementLegBookedSeats incrémente/décrémente booked_seats sur les legs [fromOrder, toOrder).
+	IncrementLegBookedSeats(ctx context.Context, tripID string, fromOrder, toOrder, delta int) error
+	// SyncLegBookedSeats force booked_seats par leg (réconciliation).
+	SyncLegBookedSeats(ctx context.Context, tripID string, legs []LegBookedSeats) error
 	Close() error
+}
+
+// LegBookedSeats contient le nombre de places réservées pour un leg donné.
+type LegBookedSeats struct {
+	SequencerOrder int
+	BookedSeats    int
 }
 
 // TripDetails contient les informations d'un trajet nécessaires au booking-service.

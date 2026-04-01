@@ -113,5 +113,15 @@ func (m *MockTripService) GetScheduledTripsPreviews(ctx context.Context, input *
 	return args.Get(0).(*serviceInterfaces.ScheduledTripsPreviewsResult), args.Error(1)
 }
 
+func (m *MockTripService) IncrementLegBookedSeats(ctx context.Context, input *serviceInterfaces.IncrementLegBookedSeatsInput) error {
+	args := m.Called(ctx, input)
+	return args.Error(0)
+}
+
+func (m *MockTripService) SyncLegBookedSeats(ctx context.Context, input *serviceInterfaces.SyncLegBookedSeatsInput) error {
+	args := m.Called(ctx, input)
+	return args.Error(0)
+}
+
 // compile-time check
 var _ serviceInterfaces.TripService = (*MockTripService)(nil)

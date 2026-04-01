@@ -153,6 +153,14 @@ service TripService {
     };
   }
 
+  // IncrementLegBookedSeats incrémente/décrémente booked_seats sur les legs d'un segment.
+  // Appelé par booking-service à chaque réservation (+delta) ou annulation (-delta).
+  rpc IncrementLegBookedSeats(IncrementLegBookedSeatsRequest) returns (IncrementLegBookedSeatsResponse);
+
+  // SyncLegBookedSeats force la valeur de booked_seats pour chaque leg (réconciliation).
+  // Appelé par le job de réconciliation du booking-service.
+  rpc SyncLegBookedSeats(SyncLegBookedSeatsRequest) returns (SyncLegBookedSeatsResponse);
+
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -308,12 +316,19 @@ message TripPreview {
   string VehicleId              = 4;
   string VehicleBrand           = 5;
   string VehiclePlate           = 6;
-  string DepartureDate          = 7; // YYYY-MM-DD
-  string DepartureTime          = 8; // HH:MM
+  string DepartureDate          = 7; // YYYY-MM-DD (UTC)
+  string DepartureTime          = 8; // HH:MM (UTC)
   int32  TotalSeats             = 9;
   int32  AvailableSeats         = 10;
   string DepartureLocationName  = 11;
   string ArrivalLocationName    = 12;
+  // Champs segment (recherche passager)
+  string DepartureWaypointId    = 13; // ID du waypoint de départ du segment
+  string ArrivalWaypointId      = 14; // ID du waypoint d'arrivée du segment
+  int32  SegmentPrice           = 15; // Prix du segment en FCFA
+  int32  SegmentDurationMinutes = 16; // Durée estimée du segment en minutes
+  string DriverProfileImageURL  = 17; // URL photo de profil du conducteur
+  double DriverRatingAverage    = 18; // Note moyenne du conducteur (0 si aucune note)
 }
 
 message GetTripsPreviewsResponse {
@@ -537,4 +552,39 @@ message HealthResponse {
   string Status    = 1;
   string Version   = 2;
   int64  Timestamp = 3;
+}
+
+// =============================================================================
+// IncrementLegBookedSeats (interne — appelé par booking-service)
+// =============================================================================
+
+message IncrementLegBookedSeatsRequest {
+  string TripId    = 1;
+  int32  FromOrder = 2; // sequencer_order du waypoint de départ (inclusif)
+  int32  ToOrder   = 3; // sequencer_order du waypoint d'arrivée (exclusif)
+  int32  Delta     = 4; // +N pour réservation, -N pour annulation
+}
+
+message IncrementLegBookedSeatsResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// SyncLegBookedSeats (interne — appelé par le job de réconciliation)
+// =============================================================================
+
+message LegBookedSeatsEntry {
+  int32 SequencerOrder = 1;
+  int32 BookedSeats    = 2;
+}
+
+message SyncLegBookedSeatsRequest {
+  string TripId                      = 1;
+  repeated LegBookedSeatsEntry Legs  = 2;
+}
+
+message SyncLegBookedSeatsResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
 }
