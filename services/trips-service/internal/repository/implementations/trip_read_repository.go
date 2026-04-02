@@ -76,6 +76,7 @@ func (r *tripReadRepositoryImpl) GetTripByID(ctx context.Context, tripID string)
 		       scheduled_pickup_datetime, actual_arrival_datetime,
 		       actual_scheduled_pickup_datetime,
 		       minutes_from_departure, price_from_previous,
+		       cancelled_at, cancellation_reason,
 		       created_at, updated_at
 		FROM trips_waypoints
 		WHERE trip_id = $1 AND deleted_at IS NULL
@@ -97,6 +98,7 @@ func (r *tripReadRepositoryImpl) GetTripByID(ctx context.Context, tripID string)
 			&wp.ScheduledPickupDatetime, &wp.ActualArrivalDatetime,
 			&wp.ActualScheduledPickupDatetime,
 			&wp.MinutesFromDeparture, &wp.PriceFromPrevious,
+			&wp.CancelledAt, &wp.CancellationReason,
 			&wp.CreatedAt, &wp.UpdatedAt,
 		); err != nil {
 			r.logger.Error("GetTripByID waypoint scan failed", zap.Error(err))

@@ -62,6 +62,12 @@ type TripService interface {
 	// GetTripByID retourne les détails complets d'un trajet avec ses waypoints.
 	GetTripByID(ctx context.Context, input *GetTripByIDInput) (*TripDetailResult, error)
 
+	// GetDriverTripDetails retourne les détails complets d'un trajet pour le conducteur.
+	GetDriverTripDetails(ctx context.Context, input *GetDriverTripDetailsInput) (*DriverTripDetailResult, error)
+
+	// GetPassengerTripDetails retourne les détails d'un trajet pour un passager.
+	GetPassengerTripDetails(ctx context.Context, input *GetPassengerTripDetailsInput) (*PassengerTripDetailResult, error)
+
 	// UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
 	UpdateAvailableSeats(ctx context.Context, input *UpdateAvailableSeatsInput) error
 
@@ -333,4 +339,104 @@ type LegBookedSeats struct {
 type SyncLegBookedSeatsInput struct {
 	TripID string
 	Legs   []LegBookedSeats
+}
+
+// =============================================================================
+// GetDriverTripDetails / GetPassengerTripDetails
+// =============================================================================
+
+// GetDriverTripDetailsInput contient les données nécessaires à la récupération d'un trajet pour le conducteur.
+type GetDriverTripDetailsInput struct {
+	TripID   string
+	DriverID string // depuis x-firebase-uid, pour vérifier la propriété
+}
+
+// GetPassengerTripDetailsInput contient les données nécessaires à la récupération d'un trajet pour un passager.
+type GetPassengerTripDetailsInput struct {
+	TripID string
+}
+
+// DriverTripDetailResult contient les détails complets d'un trajet pour le conducteur.
+type DriverTripDetailResult struct {
+	TripID                   string
+	DriverID                 string
+	Status                   string
+	TotalSeats               int16
+	AvailableSeats           int16
+	PricePerSeat             int
+	AutoApproveEnabled       bool
+	DepartureDatetime        time.Time
+	EstimatedArrivalDatetime time.Time
+	ActualDepartureDatetime  *time.Time
+	ActualArrivalDatetime    *time.Time
+	EstimatedDurationMinutes int
+	EstimatedDistanceMeters  int
+	VehicleID                string
+	VehicleBrand             string
+	VehiclePlate             string
+	PaymentMethodsAccepted   []string
+	AllowLuggages            bool
+	AllowPets                bool
+	AllowFood                bool
+	AllowSmoking             bool
+	Description              string
+	Waypoints                []DriverWaypointDetailResult
+}
+
+// DriverWaypointDetailResult contient les informations complètes d'un waypoint pour le conducteur.
+type DriverWaypointDetailResult struct {
+	WaypointID                    string
+	WaypointType                  string
+	SequencerOrder                int16
+	LocationName                  string
+	LocationLng                   float64
+	LocationLat                   float64
+	City                          string
+	Country                       string
+	ScheduledPickupDatetime       *time.Time
+	ActualArrivalDatetime         *time.Time
+	ActualScheduledPickupDatetime *time.Time
+	MinutesFromDeparture          int
+	PriceFromPrevious             int
+	IsCancelled                   bool
+	CancellationReason            *string
+}
+
+// PassengerTripDetailResult contient les détails d'un trajet pour un passager.
+type PassengerTripDetailResult struct {
+	TripID                   string
+	DriverID                 string
+	DriverName               string
+	DriverProfileImageURL    string
+	DriverRatingAverage      float64
+	Status                   string
+	TotalSeats               int16
+	AvailableSeats           int16
+	PricePerSeat             int
+	DepartureDatetime        time.Time
+	EstimatedArrivalDatetime time.Time
+	EstimatedDurationMinutes int
+	VehicleID                string
+	VehicleBrand             string
+	VehiclePlate             string
+	PaymentMethodsAccepted   []string
+	AllowLuggages            bool
+	AllowPets                bool
+	AllowFood                bool
+	AllowSmoking             bool
+	Description              string
+	Waypoints                []PassengerWaypointDetailResult
+}
+
+// PassengerWaypointDetailResult contient les informations d'un waypoint pour un passager.
+type PassengerWaypointDetailResult struct {
+	WaypointID              string
+	WaypointType            string
+	SequencerOrder          int16
+	LocationName            string
+	City                    string
+	ScheduledPickupDatetime *time.Time
+	PriceFromPrevious       int
+	MinutesFromDeparture    int
+	IsCancelled             bool
 }

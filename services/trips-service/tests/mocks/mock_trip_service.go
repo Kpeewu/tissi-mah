@@ -123,5 +123,21 @@ func (m *MockTripService) SyncLegBookedSeats(ctx context.Context, input *service
 	return args.Error(0)
 }
 
+func (m *MockTripService) GetDriverTripDetails(ctx context.Context, input *serviceInterfaces.GetDriverTripDetailsInput) (*serviceInterfaces.DriverTripDetailResult, error) {
+	args := m.Called(ctx, input)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.DriverTripDetailResult), args.Error(1)
+}
+
+func (m *MockTripService) GetPassengerTripDetails(ctx context.Context, input *serviceInterfaces.GetPassengerTripDetailsInput) (*serviceInterfaces.PassengerTripDetailResult, error) {
+	args := m.Called(ctx, input)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.PassengerTripDetailResult), args.Error(1)
+}
+
 // compile-time check
 var _ serviceInterfaces.TripService = (*MockTripService)(nil)

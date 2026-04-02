@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/middleware"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/trips-service/internal/service/interfaces"
 	tripErrors "github.com/Kpeewu/tissi-mah/services/trips-service/pkg/errors"
 	trippb "github.com/Kpeewu/tissi-mah/services/trips-service/proto/gen"
@@ -401,6 +402,146 @@ func (h *TripHandler) GetTripByID(ctx context.Context, req *trippb.GetTripByIDRe
 		VehicleId:                result.VehicleID,
 		VehicleBrand:             result.VehicleBrand,
 		VehiclePlate:             result.VehiclePlate,
+	}, nil
+}
+
+// GetDriverTripDetails retourne les détails complets d'un trajet pour le conducteur.
+func (h *TripHandler) GetDriverTripDetails(ctx context.Context, req *trippb.GetDriverTripDetailsRequest) (*trippb.GetDriverTripDetailsResponse, error) {
+	h.logger.Debug("handler: GetDriverTripDetails called", zap.String("tripID", req.TripId))
+
+	// Extraire le DriverID depuis le contexte JWT (injecté par le middleware)
+	driverID, ok := ctx.Value(middleware.FirebaseIDKey).(string)
+	if !ok || driverID == "" {
+		return &trippb.GetDriverTripDetailsResponse{ErrorMessage: "missing firebase uid"}, toGRPCError(tripErrors.ErrorUnauthorized)
+	}
+
+	result, err := h.service.GetDriverTripDetails(ctx, &serviceInterfaces.GetDriverTripDetailsInput{
+		TripID:   req.TripId,
+		DriverID: driverID,
+	})
+	if err != nil {
+		h.logger.Error("handler: GetDriverTripDetails failed", zap.Error(err))
+		return &trippb.GetDriverTripDetailsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	pbWaypoints := make([]*trippb.DriverWaypointDetail, 0, len(result.Waypoints))
+	for _, wp := range result.Waypoints {
+		pbWP := &trippb.DriverWaypointDetail{
+			WaypointId:       wp.WaypointID,
+			WaypointType:     wp.WaypointType,
+			SequencerOrder:   int32(wp.SequencerOrder),
+			LocationName:     wp.LocationName,
+			LocationLng:      wp.LocationLng,
+			LocationLat:      wp.LocationLat,
+			City:             wp.City,
+			Country:          wp.Country,
+			MinutesFromDeparture: int32(wp.MinutesFromDeparture),
+			PriceFromPrevious:    int32(wp.PriceFromPrevious),
+			IsCancelled:          wp.IsCancelled,
+		}
+		if wp.ScheduledPickupDatetime != nil {
+			pbWP.ScheduledPickupDatetime = wp.ScheduledPickupDatetime.Format(time.RFC3339)
+		}
+		if wp.ActualArrivalDatetime != nil {
+			pbWP.ActualArrivalDatetime = wp.ActualArrivalDatetime.Format(time.RFC3339)
+		}
+		if wp.ActualScheduledPickupDatetime != nil {
+			pbWP.ActualScheduledPickupDatetime = wp.ActualScheduledPickupDatetime.Format(time.RFC3339)
+		}
+		if wp.CancellationReason != nil {
+			pbWP.CancellationReason = *wp.CancellationReason
+		}
+		pbWaypoints = append(pbWaypoints, pbWP)
+	}
+
+	resp := &trippb.GetDriverTripDetailsResponse{
+		TripId:                   result.TripID,
+		DriverId:                 result.DriverID,
+		Status:                   result.Status,
+		TotalSeats:               int32(result.TotalSeats),
+		AvailableSeats:           int32(result.AvailableSeats),
+		PricePerSeat:             int32(result.PricePerSeat),
+		AutoApproveEnabled:       result.AutoApproveEnabled,
+		DepartureDatetime:        result.DepartureDatetime.Format(time.RFC3339),
+		EstimatedArrivalDatetime: result.EstimatedArrivalDatetime.Format(time.RFC3339),
+		EstimatedDurationMinutes: int32(result.EstimatedDurationMinutes),
+		EstimatedDistanceMeters:  int32(result.EstimatedDistanceMeters),
+		VehicleId:                result.VehicleID,
+		VehicleBrand:             result.VehicleBrand,
+		VehiclePlate:             result.VehiclePlate,
+		PaymentMethodsAccepted:   result.PaymentMethodsAccepted,
+		AllowLuggages:            result.AllowLuggages,
+		AllowPets:                result.AllowPets,
+		AllowFood:                result.AllowFood,
+		AllowSmoking:             result.AllowSmoking,
+		Description:              result.Description,
+		Waypoints:                pbWaypoints,
+	}
+	if result.ActualDepartureDatetime != nil {
+		resp.ActualDepartureDatetime = result.ActualDepartureDatetime.Format(time.RFC3339)
+	}
+	if result.ActualArrivalDatetime != nil {
+		resp.ActualArrivalDatetime = result.ActualArrivalDatetime.Format(time.RFC3339)
+	}
+
+	h.logger.Info("handler: GetDriverTripDetails success", zap.String("tripID", req.TripId))
+	return resp, nil
+}
+
+// GetPassengerTripDetails retourne les détails d'un trajet pour un passager.
+func (h *TripHandler) GetPassengerTripDetails(ctx context.Context, req *trippb.GetPassengerTripDetailsRequest) (*trippb.GetPassengerTripDetailsResponse, error) {
+	h.logger.Debug("handler: GetPassengerTripDetails called", zap.String("tripID", req.TripId))
+
+	result, err := h.service.GetPassengerTripDetails(ctx, &serviceInterfaces.GetPassengerTripDetailsInput{
+		TripID: req.TripId,
+	})
+	if err != nil {
+		h.logger.Error("handler: GetPassengerTripDetails failed", zap.Error(err))
+		return &trippb.GetPassengerTripDetailsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	pbWaypoints := make([]*trippb.PassengerWaypointDetail, 0, len(result.Waypoints))
+	for _, wp := range result.Waypoints {
+		pbWP := &trippb.PassengerWaypointDetail{
+			WaypointId:           wp.WaypointID,
+			WaypointType:         wp.WaypointType,
+			SequencerOrder:       int32(wp.SequencerOrder),
+			LocationName:         wp.LocationName,
+			City:                 wp.City,
+			PriceFromPrevious:    int32(wp.PriceFromPrevious),
+			MinutesFromDeparture: int32(wp.MinutesFromDeparture),
+			IsCancelled:          wp.IsCancelled,
+		}
+		if wp.ScheduledPickupDatetime != nil {
+			pbWP.ScheduledPickupDatetime = wp.ScheduledPickupDatetime.Format(time.RFC3339)
+		}
+		pbWaypoints = append(pbWaypoints, pbWP)
+	}
+
+	h.logger.Info("handler: GetPassengerTripDetails success", zap.String("tripID", req.TripId))
+	return &trippb.GetPassengerTripDetailsResponse{
+		TripId:                   result.TripID,
+		DriverId:                 result.DriverID,
+		DriverName:               result.DriverName,
+		DriverProfileImageURL:    result.DriverProfileImageURL,
+		DriverRatingAverage:      result.DriverRatingAverage,
+		Status:                   result.Status,
+		TotalSeats:               int32(result.TotalSeats),
+		AvailableSeats:           int32(result.AvailableSeats),
+		PricePerSeat:             int32(result.PricePerSeat),
+		DepartureDatetime:        result.DepartureDatetime.Format(time.RFC3339),
+		EstimatedArrivalDatetime: result.EstimatedArrivalDatetime.Format(time.RFC3339),
+		EstimatedDurationMinutes: int32(result.EstimatedDurationMinutes),
+		VehicleId:                result.VehicleID,
+		VehicleBrand:             result.VehicleBrand,
+		VehiclePlate:             result.VehiclePlate,
+		PaymentMethodsAccepted:   result.PaymentMethodsAccepted,
+		AllowLuggages:            result.AllowLuggages,
+		AllowPets:                result.AllowPets,
+		AllowFood:                result.AllowFood,
+		AllowSmoking:             result.AllowSmoking,
+		Description:              result.Description,
+		Waypoints:                pbWaypoints,
 	}, nil
 }
 

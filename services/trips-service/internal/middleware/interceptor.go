@@ -17,11 +17,15 @@ const FirebaseIDKey contextKey = "firebaseID"
 
 // Routes gRPC publiques ou internes (pas de JWT requis)
 var publicMethods = map[string]bool{
-	"/trip.TripService/Health":               true,
-	"/trip.TripService/GetTripByID":          true, // Route interne (booking-service)
-	"/trip.TripService/UpdateAvailableSeats": true, // Route interne (booking-service)
-	"/grpc.health.v1.Health/Check":           true, // Readiness probe Kubernetes
-	"/grpc.health.v1.Health/Watch":           true, // Liveness probe Kubernetes
+	"/trip.TripService/Health":                    true,
+	"/trip.TripService/GetTripByID":               true, // Route interne (booking-service)
+	"/trip.TripService/UpdateAvailableSeats":      true, // Route interne (booking-service)
+	"/trip.TripService/IncrementLegBookedSeats":   true, // Route interne (booking-service)
+	"/trip.TripService/SyncLegBookedSeats":        true, // Route interne (booking-service)
+	"/trip.TripService/GetScheduledTripsPreviews": true, // Route publique passager
+	"/trip.TripService/GetPassengerTripDetails":   true, // Route publique passager
+	"/grpc.health.v1.Health/Check":                true, // Readiness probe Kubernetes
+	"/grpc.health.v1.Health/Watch":                true, // Liveness probe Kubernetes
 }
 
 // TripInterceptor retourne un intercepteur gRPC unaire qui :

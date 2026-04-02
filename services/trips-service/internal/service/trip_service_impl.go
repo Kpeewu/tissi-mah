@@ -660,6 +660,160 @@ func (s *tripServiceImpl) GetTripByID(ctx context.Context, input *serviceInterfa
 	}, nil
 }
 
+// GetDriverTripDetails retourne les détails complets d'un trajet pour le conducteur.
+func (s *tripServiceImpl) GetDriverTripDetails(ctx context.Context, input *serviceInterfaces.GetDriverTripDetailsInput) (*serviceInterfaces.DriverTripDetailResult, error) {
+	s.logger.Debug("service: GetDriverTripDetails called", zap.String("tripID", input.TripID))
+
+	if input.TripID == "" || input.DriverID == "" {
+		return nil, tripErrors.ErrorInvalidInput
+	}
+
+	trip, waypoints, err := s.readRepo.GetTripByID(ctx, input.TripID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Vérifier que le conducteur est propriétaire du trajet
+	if trip.DriverID != input.DriverID {
+		return nil, tripErrors.ErrorUnauthorized
+	}
+
+	// Overlay available_seats depuis le cache Redis
+	if s.cache != nil {
+		if seats, found, cacheErr := s.cache.GetSeatCounter(ctx, input.TripID); found && cacheErr == nil {
+			trip.AvailableSeats = int16(seats)
+		} else if cacheErr != nil {
+			s.logger.Warn("service: GetDriverTripDetails — seat cache read failed, using DB value",
+				zap.String("tripID", input.TripID), zap.Error(cacheErr))
+		}
+	}
+
+	// Enrichir véhicule
+	vehicleBrand, vehiclePlate := s.getCachedOrFetchVehicleInfo(ctx, trip.DriverID, trip.VehicleID)
+
+	// Mapper les waypoints complets (avec cancelled, coords, actual datetimes)
+	wpResults := make([]serviceInterfaces.DriverWaypointDetailResult, 0, len(waypoints))
+	for _, wp := range waypoints {
+		wpResults = append(wpResults, serviceInterfaces.DriverWaypointDetailResult{
+			WaypointID:                    wp.WaypointID,
+			WaypointType:                  string(wp.WaypointType),
+			SequencerOrder:                wp.SequencerOrder,
+			LocationName:                  wp.LocationName,
+			LocationLng:                   wp.LocationLng,
+			LocationLat:                   wp.LocationLat,
+			City:                          wp.City,
+			Country:                       wp.Country,
+			ScheduledPickupDatetime:       wp.ScheduledPickupDatetime,
+			ActualArrivalDatetime:         wp.ActualArrivalDatetime,
+			ActualScheduledPickupDatetime: wp.ActualScheduledPickupDatetime,
+			MinutesFromDeparture:          wp.MinutesFromDeparture,
+			PriceFromPrevious:             wp.PriceFromPrevious,
+			IsCancelled:                   wp.CancelledAt != nil,
+			CancellationReason:            wp.CancellationReason,
+		})
+	}
+
+	return &serviceInterfaces.DriverTripDetailResult{
+		TripID:                   trip.TripID,
+		DriverID:                 trip.DriverID,
+		Status:                   string(trip.Status),
+		TotalSeats:               trip.TotalSeats,
+		AvailableSeats:           trip.AvailableSeats,
+		PricePerSeat:             trip.PricePerSeat,
+		AutoApproveEnabled:       trip.AutoApproveEnabled,
+		DepartureDatetime:        trip.DepartureDatetime,
+		EstimatedArrivalDatetime: trip.EstimatedArrivalDatetime,
+		ActualDepartureDatetime:  trip.ActualDepartureDatetime,
+		ActualArrivalDatetime:    trip.ActualArrivalDatetime,
+		EstimatedDurationMinutes: trip.EstimatedDurationMinutes,
+		EstimatedDistanceMeters:  trip.EstimatedDistanceMeters,
+		VehicleID:                trip.VehicleID,
+		VehicleBrand:             vehicleBrand,
+		VehiclePlate:             vehiclePlate,
+		PaymentMethodsAccepted:   trip.PaymentMethodsAccepted,
+		AllowLuggages:            trip.AllowLuggages,
+		AllowPets:                trip.AllowPets,
+		AllowFood:                trip.AllowFood,
+		AllowSmoking:             trip.AllowSmoking,
+		Description:              trip.Description,
+		Waypoints:                wpResults,
+	}, nil
+}
+
+// GetPassengerTripDetails retourne les détails d'un trajet pour un passager.
+func (s *tripServiceImpl) GetPassengerTripDetails(ctx context.Context, input *serviceInterfaces.GetPassengerTripDetailsInput) (*serviceInterfaces.PassengerTripDetailResult, error) {
+	s.logger.Debug("service: GetPassengerTripDetails called", zap.String("tripID", input.TripID))
+
+	if input.TripID == "" {
+		return nil, tripErrors.ErrorInvalidInput
+	}
+
+	trip, waypoints, err := s.readRepo.GetTripByID(ctx, input.TripID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Overlay available_seats depuis le cache Redis
+	if s.cache != nil {
+		if seats, found, cacheErr := s.cache.GetSeatCounter(ctx, input.TripID); found && cacheErr == nil {
+			trip.AvailableSeats = int16(seats)
+		} else if cacheErr != nil {
+			s.logger.Warn("service: GetPassengerTripDetails — seat cache read failed, using DB value",
+				zap.String("tripID", input.TripID), zap.Error(cacheErr))
+		}
+	}
+
+	// Enrichir véhicule
+	vehicleBrand, vehiclePlate := s.getCachedOrFetchVehicleInfo(ctx, trip.DriverID, trip.VehicleID)
+
+	// Enrichir conducteur (nom + photo)
+	driverName, driverPhoto := s.getCachedOrFetchDriverInfo(ctx, trip.DriverID)
+
+	// Enrichir note conducteur
+	driverRating := s.getCachedOrFetchDriverRating(ctx, trip.DriverID)
+
+	// Mapper les waypoints (sans coords, avec IsCancelled)
+	wpResults := make([]serviceInterfaces.PassengerWaypointDetailResult, 0, len(waypoints))
+	for _, wp := range waypoints {
+		wpResults = append(wpResults, serviceInterfaces.PassengerWaypointDetailResult{
+			WaypointID:              wp.WaypointID,
+			WaypointType:            string(wp.WaypointType),
+			SequencerOrder:          wp.SequencerOrder,
+			LocationName:            wp.LocationName,
+			City:                    wp.City,
+			ScheduledPickupDatetime: wp.ScheduledPickupDatetime,
+			PriceFromPrevious:       wp.PriceFromPrevious,
+			MinutesFromDeparture:    wp.MinutesFromDeparture,
+			IsCancelled:             wp.CancelledAt != nil,
+		})
+	}
+
+	return &serviceInterfaces.PassengerTripDetailResult{
+		TripID:                   trip.TripID,
+		DriverID:                 trip.DriverID,
+		DriverName:               driverName,
+		DriverProfileImageURL:    driverPhoto,
+		DriverRatingAverage:      driverRating,
+		Status:                   string(trip.Status),
+		TotalSeats:               trip.TotalSeats,
+		AvailableSeats:           trip.AvailableSeats,
+		PricePerSeat:             trip.PricePerSeat,
+		DepartureDatetime:        trip.DepartureDatetime,
+		EstimatedArrivalDatetime: trip.EstimatedArrivalDatetime,
+		EstimatedDurationMinutes: trip.EstimatedDurationMinutes,
+		VehicleID:                trip.VehicleID,
+		VehicleBrand:             vehicleBrand,
+		VehiclePlate:             vehiclePlate,
+		PaymentMethodsAccepted:   trip.PaymentMethodsAccepted,
+		AllowLuggages:            trip.AllowLuggages,
+		AllowPets:                trip.AllowPets,
+		AllowFood:                trip.AllowFood,
+		AllowSmoking:             trip.AllowSmoking,
+		Description:              trip.Description,
+		Waypoints:                wpResults,
+	}, nil
+}
+
 // UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
 func (s *tripServiceImpl) UpdateAvailableSeats(ctx context.Context, input *serviceInterfaces.UpdateAvailableSeatsInput) error {
 	s.logger.Debug("service: UpdateAvailableSeats called",
