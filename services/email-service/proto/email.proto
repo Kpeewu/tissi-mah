@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package email;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/email-service/proto/gen";
+
+import "google/api/annotations.proto";
+
+service EmailService {
+  rpc SendEmail(SendEmailRequest) returns (SendEmailResponse);
+
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/email/health"
+    };
+  }
+}
+
+message SendEmailRequest {
+  string to = 1;
+  string subject = 2;
+  string body_text = 3;
+  string body_html = 4;
+}
+
+message SendEmailResponse {
+  bool success = 1;
+  string provider_message_id = 2;
+  string error_message = 3;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+  string version = 2;
+  string service = 3;
+}
