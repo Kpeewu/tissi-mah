@@ -17,4 +17,5 @@ use (
 	./services/user-service
 	./services/vehicle-service
 	./services/email-service
+	./services/push-service
 )
