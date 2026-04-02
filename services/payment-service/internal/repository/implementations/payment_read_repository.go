@@ -104,6 +104,16 @@ func (r *paymentReadRepository) GetExpiredPendingPayments(ctx context.Context, o
 	return payments, nil
 }
 
+func (r *paymentReadRepository) HasActivePayment(ctx context.Context, bookingID string) (bool, error) {
+	query := `SELECT EXISTS (SELECT 1 FROM payments WHERE booking_id = $1 AND status IN ('pending', 'held'))`
+	var exists bool
+	if err := r.pool.QueryRow(ctx, query, bookingID).Scan(&exists); err != nil {
+		r.logger.Error("has active payment check failed", zap.Error(err), zap.String("bookingID", bookingID))
+		return false, paymentErrors.ErrorDataRetrievalFailed
+	}
+	return exists, nil
+}
+
 func (r *paymentReadRepository) scanPayment(ctx context.Context, query string, arg interface{}) (*domain.Payment, error) {
 	var p domain.Payment
 	err := r.pool.QueryRow(ctx, query, arg).Scan(

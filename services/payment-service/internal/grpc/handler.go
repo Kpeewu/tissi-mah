@@ -228,7 +228,10 @@ func toGRPCError(err error) error {
 		return status.Error(codes.NotFound, err.Error())
 	case errors.Is(err, paymentErrors.ErrorUnauthorized):
 		return status.Error(codes.PermissionDenied, err.Error())
-	case errors.Is(err, paymentErrors.ErrorPaymentAlreadyHeld),
+	case errors.Is(err, paymentErrors.ErrorDuplicatePayment):
+		return status.Error(codes.AlreadyExists, err.Error())
+	case errors.Is(err, paymentErrors.ErrorPaymentAlreadyProcessed),
+		errors.Is(err, paymentErrors.ErrorPaymentAlreadyHeld),
 		errors.Is(err, paymentErrors.ErrorPaymentAlreadyFailed),
 		errors.Is(err, paymentErrors.ErrorInvalidPaymentStatus),
 		errors.Is(err, paymentErrors.ErrorRefundAlreadyProcessed),

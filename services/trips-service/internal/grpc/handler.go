@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/middleware"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/trips-service/internal/service/interfaces"
 	tripErrors "github.com/Kpeewu/tissi-mah/services/trips-service/pkg/errors"
 	trippb "github.com/Kpeewu/tissi-mah/services/trips-service/proto/gen"
@@ -404,6 +405,146 @@ func (h *TripHandler) GetTripByID(ctx context.Context, req *trippb.GetTripByIDRe
 	}, nil
 }
 
+// GetDriverTripDetails retourne les détails complets d'un trajet pour le conducteur.
+func (h *TripHandler) GetDriverTripDetails(ctx context.Context, req *trippb.GetDriverTripDetailsRequest) (*trippb.GetDriverTripDetailsResponse, error) {
+	h.logger.Debug("handler: GetDriverTripDetails called", zap.String("tripID", req.TripId))
+
+	// Extraire le DriverID depuis le contexte JWT (injecté par le middleware)
+	driverID, ok := ctx.Value(middleware.FirebaseIDKey).(string)
+	if !ok || driverID == "" {
+		return &trippb.GetDriverTripDetailsResponse{ErrorMessage: "missing firebase uid"}, toGRPCError(tripErrors.ErrorUnauthorized)
+	}
+
+	result, err := h.service.GetDriverTripDetails(ctx, &serviceInterfaces.GetDriverTripDetailsInput{
+		TripID:   req.TripId,
+		DriverID: driverID,
+	})
+	if err != nil {
+		h.logger.Error("handler: GetDriverTripDetails failed", zap.Error(err))
+		return &trippb.GetDriverTripDetailsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	pbWaypoints := make([]*trippb.DriverWaypointDetail, 0, len(result.Waypoints))
+	for _, wp := range result.Waypoints {
+		pbWP := &trippb.DriverWaypointDetail{
+			WaypointId:       wp.WaypointID,
+			WaypointType:     wp.WaypointType,
+			SequencerOrder:   int32(wp.SequencerOrder),
+			LocationName:     wp.LocationName,
+			LocationLng:      wp.LocationLng,
+			LocationLat:      wp.LocationLat,
+			City:             wp.City,
+			Country:          wp.Country,
+			MinutesFromDeparture: int32(wp.MinutesFromDeparture),
+			PriceFromPrevious:    int32(wp.PriceFromPrevious),
+			IsCancelled:          wp.IsCancelled,
+		}
+		if wp.ScheduledPickupDatetime != nil {
+			pbWP.ScheduledPickupDatetime = wp.ScheduledPickupDatetime.Format(time.RFC3339)
+		}
+		if wp.ActualArrivalDatetime != nil {
+			pbWP.ActualArrivalDatetime = wp.ActualArrivalDatetime.Format(time.RFC3339)
+		}
+		if wp.ActualScheduledPickupDatetime != nil {
+			pbWP.ActualScheduledPickupDatetime = wp.ActualScheduledPickupDatetime.Format(time.RFC3339)
+		}
+		if wp.CancellationReason != nil {
+			pbWP.CancellationReason = *wp.CancellationReason
+		}
+		pbWaypoints = append(pbWaypoints, pbWP)
+	}
+
+	resp := &trippb.GetDriverTripDetailsResponse{
+		TripId:                   result.TripID,
+		DriverId:                 result.DriverID,
+		Status:                   result.Status,
+		TotalSeats:               int32(result.TotalSeats),
+		AvailableSeats:           int32(result.AvailableSeats),
+		PricePerSeat:             int32(result.PricePerSeat),
+		AutoApproveEnabled:       result.AutoApproveEnabled,
+		DepartureDatetime:        result.DepartureDatetime.Format(time.RFC3339),
+		EstimatedArrivalDatetime: result.EstimatedArrivalDatetime.Format(time.RFC3339),
+		EstimatedDurationMinutes: int32(result.EstimatedDurationMinutes),
+		EstimatedDistanceMeters:  int32(result.EstimatedDistanceMeters),
+		VehicleId:                result.VehicleID,
+		VehicleBrand:             result.VehicleBrand,
+		VehiclePlate:             result.VehiclePlate,
+		PaymentMethodsAccepted:   result.PaymentMethodsAccepted,
+		AllowLuggages:            result.AllowLuggages,
+		AllowPets:                result.AllowPets,
+		AllowFood:                result.AllowFood,
+		AllowSmoking:             result.AllowSmoking,
+		Description:              result.Description,
+		Waypoints:                pbWaypoints,
+	}
+	if result.ActualDepartureDatetime != nil {
+		resp.ActualDepartureDatetime = result.ActualDepartureDatetime.Format(time.RFC3339)
+	}
+	if result.ActualArrivalDatetime != nil {
+		resp.ActualArrivalDatetime = result.ActualArrivalDatetime.Format(time.RFC3339)
+	}
+
+	h.logger.Info("handler: GetDriverTripDetails success", zap.String("tripID", req.TripId))
+	return resp, nil
+}
+
+// GetPassengerTripDetails retourne les détails d'un trajet pour un passager.
+func (h *TripHandler) GetPassengerTripDetails(ctx context.Context, req *trippb.GetPassengerTripDetailsRequest) (*trippb.GetPassengerTripDetailsResponse, error) {
+	h.logger.Debug("handler: GetPassengerTripDetails called", zap.String("tripID", req.TripId))
+
+	result, err := h.service.GetPassengerTripDetails(ctx, &serviceInterfaces.GetPassengerTripDetailsInput{
+		TripID: req.TripId,
+	})
+	if err != nil {
+		h.logger.Error("handler: GetPassengerTripDetails failed", zap.Error(err))
+		return &trippb.GetPassengerTripDetailsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	pbWaypoints := make([]*trippb.PassengerWaypointDetail, 0, len(result.Waypoints))
+	for _, wp := range result.Waypoints {
+		pbWP := &trippb.PassengerWaypointDetail{
+			WaypointId:           wp.WaypointID,
+			WaypointType:         wp.WaypointType,
+			SequencerOrder:       int32(wp.SequencerOrder),
+			LocationName:         wp.LocationName,
+			City:                 wp.City,
+			PriceFromPrevious:    int32(wp.PriceFromPrevious),
+			MinutesFromDeparture: int32(wp.MinutesFromDeparture),
+			IsCancelled:          wp.IsCancelled,
+		}
+		if wp.ScheduledPickupDatetime != nil {
+			pbWP.ScheduledPickupDatetime = wp.ScheduledPickupDatetime.Format(time.RFC3339)
+		}
+		pbWaypoints = append(pbWaypoints, pbWP)
+	}
+
+	h.logger.Info("handler: GetPassengerTripDetails success", zap.String("tripID", req.TripId))
+	return &trippb.GetPassengerTripDetailsResponse{
+		TripId:                   result.TripID,
+		DriverId:                 result.DriverID,
+		DriverName:               result.DriverName,
+		DriverProfileImageURL:    result.DriverProfileImageURL,
+		DriverRatingAverage:      result.DriverRatingAverage,
+		Status:                   result.Status,
+		TotalSeats:               int32(result.TotalSeats),
+		AvailableSeats:           int32(result.AvailableSeats),
+		PricePerSeat:             int32(result.PricePerSeat),
+		DepartureDatetime:        result.DepartureDatetime.Format(time.RFC3339),
+		EstimatedArrivalDatetime: result.EstimatedArrivalDatetime.Format(time.RFC3339),
+		EstimatedDurationMinutes: int32(result.EstimatedDurationMinutes),
+		VehicleId:                result.VehicleID,
+		VehicleBrand:             result.VehicleBrand,
+		VehiclePlate:             result.VehiclePlate,
+		PaymentMethodsAccepted:   result.PaymentMethodsAccepted,
+		AllowLuggages:            result.AllowLuggages,
+		AllowPets:                result.AllowPets,
+		AllowFood:                result.AllowFood,
+		AllowSmoking:             result.AllowSmoking,
+		Description:              result.Description,
+		Waypoints:                pbWaypoints,
+	}, nil
+}
+
 // UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
 func (h *TripHandler) UpdateAvailableSeats(ctx context.Context, req *trippb.UpdateAvailableSeatsRequest) (*trippb.UpdateAvailableSeatsResponse, error) {
 	h.logger.Debug("handler: UpdateAvailableSeats called",
@@ -491,6 +632,151 @@ func toServiceWaypoints(pbWaypoints []*trippb.WaypointInput) []serviceInterfaces
 		})
 	}
 	return result
+}
+
+// GetScheduledTripsPreviews recherche les trajets/segments disponibles pour un passager.
+func (h *TripHandler) GetScheduledTripsPreviews(ctx context.Context, req *trippb.GetScheduledTripsPreviewsRequest) (*trippb.GetScheduledTripsPreviewsResponse, error) {
+	h.logger.Debug("handler: GetScheduledTripsPreviews called",
+		zap.String("departure", req.DepartureLocationName),
+		zap.String("arrival", req.ArrivalLocationName),
+		zap.Int32("index", req.Index),
+	)
+
+	// Validation : départ et arrivée obligatoires
+	if req.DepartureLocationName == "" || req.ArrivalLocationName == "" {
+		return &trippb.GetScheduledTripsPreviewsResponse{
+			ErrorMessage: tripErrors.ErrorInvalidInput.Error(),
+		}, toGRPCError(tripErrors.ErrorInvalidInput)
+	}
+
+	// Mapper le proto request → service input
+	input := &serviceInterfaces.GetScheduledTripsPreviewsInput{
+		DepartureLocationName: req.DepartureLocationName,
+		ArrivalLocationName:   req.ArrivalLocationName,
+		PageIndex:             int(req.Index),
+	}
+
+	// Position optionnelle (0,0 = non renseigné)
+	if req.PassengerPositionLng != 0 || req.PassengerPositionLat != 0 {
+		lng := req.PassengerPositionLng
+		lat := req.PassengerPositionLat
+		input.PassengerPositionLng = &lng
+		input.PassengerPositionLat = &lat
+	}
+
+	// Distance optionnelle
+	if req.DistanceRange > 0 {
+		dist := int(req.DistanceRange)
+		input.DistanceRange = &dist
+	}
+
+	// Filtres temporels optionnels
+	if req.TripStartDate != "" {
+		input.TripStartDate = &req.TripStartDate
+	}
+	if req.TripStartHour != "" {
+		input.TripStartHour = &req.TripStartHour
+	}
+	if req.TripArrivalHour != "" {
+		input.TripArrivalHour = &req.TripArrivalHour
+	}
+
+	result, err := h.service.GetScheduledTripsPreviews(ctx, input)
+	if err != nil {
+		h.logger.Error("handler: GetScheduledTripsPreviews failed", zap.Error(err))
+		return &trippb.GetScheduledTripsPreviewsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	// Mapper les résultats en proto (dates/heures en UTC)
+	pbPreviews := make([]*trippb.TripPreview, 0, len(result.Previews))
+	for _, r := range result.Previews {
+		pbPreviews = append(pbPreviews, &trippb.TripPreview{
+			TripId:                 r.TripID,
+			DriverId:               r.DriverID,
+			DriverName:             r.DriverName,
+			VehicleId:              r.VehicleID,
+			VehicleBrand:           r.VehicleBrand,
+			VehiclePlate:           r.VehiclePlate,
+			DepartureDate:          r.DepartureDatetime.UTC().Format("2006-01-02"),
+			DepartureTime:          r.DepartureDatetime.UTC().Format("15:04"),
+			TotalSeats:             int32(r.TotalSeats),
+			AvailableSeats:         int32(r.AvailableSeats),
+			DepartureLocationName:  r.DepartureLocationName,
+			ArrivalLocationName:    r.ArrivalLocationName,
+			DepartureWaypointId:    r.DepartureWaypointID,
+			ArrivalWaypointId:      r.ArrivalWaypointID,
+			SegmentPrice:           int32(r.SegmentPrice),
+			SegmentDurationMinutes: int32(r.SegmentDurationMinutes),
+			DriverProfileImageURL:  r.DriverProfileImageURL,
+			DriverRatingAverage:    r.DriverRatingAverage,
+		})
+	}
+
+	h.logger.Info("handler: GetScheduledTripsPreviews success",
+		zap.Int("count", len(pbPreviews)),
+		zap.Int("totalCount", result.TotalCount),
+	)
+	return &trippb.GetScheduledTripsPreviewsResponse{
+		TripsPreviews: pbPreviews,
+		NextIndex:     int32(result.NextIndex),
+		TotalCount:    int32(result.TotalCount),
+	}, nil
+}
+
+func (h *TripHandler) IncrementLegBookedSeats(ctx context.Context, req *trippb.IncrementLegBookedSeatsRequest) (*trippb.IncrementLegBookedSeatsResponse, error) {
+	h.logger.Debug("handler: IncrementLegBookedSeats called",
+		zap.String("tripID", req.TripId),
+		zap.Int32("fromOrder", req.FromOrder),
+		zap.Int32("toOrder", req.ToOrder),
+		zap.Int32("delta", req.Delta),
+	)
+
+	if req.TripId == "" {
+		return &trippb.IncrementLegBookedSeatsResponse{ErrorMessage: tripErrors.ErrorInvalidInput.Error()}, toGRPCError(tripErrors.ErrorInvalidInput)
+	}
+
+	err := h.service.IncrementLegBookedSeats(ctx, &serviceInterfaces.IncrementLegBookedSeatsInput{
+		TripID:    req.TripId,
+		FromOrder: int(req.FromOrder),
+		ToOrder:   int(req.ToOrder),
+		Delta:     int(req.Delta),
+	})
+	if err != nil {
+		h.logger.Error("handler: IncrementLegBookedSeats failed", zap.Error(err))
+		return &trippb.IncrementLegBookedSeatsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return &trippb.IncrementLegBookedSeatsResponse{Success: true}, nil
+}
+
+func (h *TripHandler) SyncLegBookedSeats(ctx context.Context, req *trippb.SyncLegBookedSeatsRequest) (*trippb.SyncLegBookedSeatsResponse, error) {
+	h.logger.Debug("handler: SyncLegBookedSeats called",
+		zap.String("tripID", req.TripId),
+		zap.Int("legsCount", len(req.Legs)),
+	)
+
+	if req.TripId == "" || len(req.Legs) == 0 {
+		return &trippb.SyncLegBookedSeatsResponse{ErrorMessage: tripErrors.ErrorInvalidInput.Error()}, toGRPCError(tripErrors.ErrorInvalidInput)
+	}
+
+	legs := make([]serviceInterfaces.LegBookedSeats, len(req.Legs))
+	for i, l := range req.Legs {
+		legs[i] = serviceInterfaces.LegBookedSeats{
+			SequencerOrder: int(l.SequencerOrder),
+			BookedSeats:    int(l.BookedSeats),
+		}
+	}
+
+	err := h.service.SyncLegBookedSeats(ctx, &serviceInterfaces.SyncLegBookedSeatsInput{
+		TripID: req.TripId,
+		Legs:   legs,
+	})
+	if err != nil {
+		h.logger.Error("handler: SyncLegBookedSeats failed", zap.Error(err))
+		return &trippb.SyncLegBookedSeatsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return &trippb.SyncLegBookedSeatsResponse{Success: true}, nil
 }
 
 // toGRPCError traduit les erreurs domaine en codes de statut gRPC.

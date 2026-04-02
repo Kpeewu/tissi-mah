@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	paymentErrors "github.com/Kpeewu/tissi-mah/services/payment-service/pkg/errors"
 )
 
 // StartExpirationWorker lance le worker de nettoyage des paiements expirés.
@@ -106,9 +108,16 @@ func (s *paymentServiceImpl) ProcessExpiredPayments(ctx context.Context, timeout
 			continue
 		}
 
-		// Marquer le paiement comme échoué
+		// Marquer le paiement comme échoué (verrouillage optimiste : AND status = 'pending')
 		reason := fmt.Sprintf("Paiement expiré après %d minutes sans réponse", timeoutMinutes)
 		if err := s.paymentWriteRepo.MarkPaymentFailed(ctx, payment.PaymentID, reason); err != nil {
+			if err == paymentErrors.ErrorPaymentAlreadyProcessed {
+				s.logger.Info("payment already processed by webhook, skipping",
+					zap.String("paymentID", payment.PaymentID),
+				)
+				skippedCount++
+				continue
+			}
 			s.logger.Error("mark payment failed failed",
 				zap.String("paymentID", payment.PaymentID),
 				zap.Error(err),

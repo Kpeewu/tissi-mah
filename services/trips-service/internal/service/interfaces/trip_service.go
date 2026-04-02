@@ -62,6 +62,12 @@ type TripService interface {
 	// GetTripByID retourne les détails complets d'un trajet avec ses waypoints.
 	GetTripByID(ctx context.Context, input *GetTripByIDInput) (*TripDetailResult, error)
 
+	// GetDriverTripDetails retourne les détails complets d'un trajet pour le conducteur.
+	GetDriverTripDetails(ctx context.Context, input *GetDriverTripDetailsInput) (*DriverTripDetailResult, error)
+
+	// GetPassengerTripDetails retourne les détails d'un trajet pour un passager.
+	GetPassengerTripDetails(ctx context.Context, input *GetPassengerTripDetailsInput) (*PassengerTripDetailResult, error)
+
 	// UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
 	UpdateAvailableSeats(ctx context.Context, input *UpdateAvailableSeatsInput) error
 
@@ -72,6 +78,18 @@ type TripService interface {
 	// CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
 	// Le trajet doit avoir le statut "scheduled".
 	CancelWaypoint(ctx context.Context, input *CancelWaypointInput) error
+
+	// GetScheduledTripsPreviews recherche les trajets/segments disponibles pour un passager.
+	// Les filtres textuels (départ + arrivée) sont obligatoires.
+	GetScheduledTripsPreviews(ctx context.Context, input *GetScheduledTripsPreviewsInput) (*ScheduledTripsPreviewsResult, error)
+
+	// IncrementLegBookedSeats incrémente/décrémente booked_seats sur les legs d'un segment.
+	// Appelé par booking-service à chaque réservation (+delta) ou annulation (-delta).
+	IncrementLegBookedSeats(ctx context.Context, input *IncrementLegBookedSeatsInput) error
+
+	// SyncLegBookedSeats force la valeur de booked_seats pour chaque leg (réconciliation).
+	// Appelé par le job de réconciliation du booking-service.
+	SyncLegBookedSeats(ctx context.Context, input *SyncLegBookedSeatsInput) error
 }
 
 // GetTripsPreviewsInput contient les paramètres de la requête de liste.
@@ -82,17 +100,23 @@ type GetTripsPreviewsInput struct {
 
 // TripPreviewResult contient les données enrichies d'un trajet pour l'affichage en liste.
 type TripPreviewResult struct {
-	TripID                string
-	DriverID              string
-	DriverName            string
-	VehicleID             string
-	VehicleBrand          string
-	VehiclePlate          string
-	DepartureDatetime     time.Time
-	TotalSeats            int16
-	AvailableSeats        int16
-	DepartureLocationName string
-	ArrivalLocationName   string
+	TripID                 string
+	DriverID               string
+	DriverName             string
+	VehicleID              string
+	VehicleBrand           string
+	VehiclePlate           string
+	DepartureDatetime      time.Time
+	TotalSeats             int16
+	AvailableSeats         int16
+	DepartureLocationName  string
+	ArrivalLocationName    string
+	DepartureWaypointID    string
+	ArrivalWaypointID      string
+	SegmentPrice           int
+	SegmentDurationMinutes int
+	DriverProfileImageURL  string
+	DriverRatingAverage    float64
 }
 
 // CompletedTripPreviewResult contient les données enrichies d'un trajet complété.
@@ -275,4 +299,144 @@ type CancelWaypointInput struct {
 	DriverID           string
 	WaypointID         string
 	CancellationReason string
+}
+
+// GetScheduledTripsPreviewsInput contient les paramètres de recherche passager.
+type GetScheduledTripsPreviewsInput struct {
+	PassengerPositionLng  *float64
+	PassengerPositionLat  *float64
+	DistanceRange         *int    // km, défaut 5
+	DepartureLocationName string  // obligatoire
+	ArrivalLocationName   string  // obligatoire
+	TripStartDate         *string // "YYYY-MM-DD" (UTC)
+	TripStartHour         *string // "HH:MM" (UTC)
+	TripArrivalHour       *string // "HH:MM" (UTC)
+	PageIndex             int
+}
+
+// ScheduledTripsPreviewsResult contient les résultats paginés de la recherche passager.
+type ScheduledTripsPreviewsResult struct {
+	Previews   []*TripPreviewResult
+	NextIndex  int // -1 si plus de résultats
+	TotalCount int
+}
+
+// IncrementLegBookedSeatsInput contient les données pour incrémenter/décrémenter booked_seats.
+type IncrementLegBookedSeatsInput struct {
+	TripID    string
+	FromOrder int // sequencer_order du waypoint de départ (inclusif)
+	ToOrder   int // sequencer_order du waypoint d'arrivée (exclusif)
+	Delta     int // +N pour réservation, -N pour annulation
+}
+
+// LegBookedSeats contient le nombre de places réservées pour un leg donné.
+type LegBookedSeats struct {
+	SequencerOrder int
+	BookedSeats    int
+}
+
+// SyncLegBookedSeatsInput contient les données pour la réconciliation des booked_seats.
+type SyncLegBookedSeatsInput struct {
+	TripID string
+	Legs   []LegBookedSeats
+}
+
+// =============================================================================
+// GetDriverTripDetails / GetPassengerTripDetails
+// =============================================================================
+
+// GetDriverTripDetailsInput contient les données nécessaires à la récupération d'un trajet pour le conducteur.
+type GetDriverTripDetailsInput struct {
+	TripID   string
+	DriverID string // depuis x-firebase-uid, pour vérifier la propriété
+}
+
+// GetPassengerTripDetailsInput contient les données nécessaires à la récupération d'un trajet pour un passager.
+type GetPassengerTripDetailsInput struct {
+	TripID string
+}
+
+// DriverTripDetailResult contient les détails complets d'un trajet pour le conducteur.
+type DriverTripDetailResult struct {
+	TripID                   string
+	DriverID                 string
+	Status                   string
+	TotalSeats               int16
+	AvailableSeats           int16
+	PricePerSeat             int
+	AutoApproveEnabled       bool
+	DepartureDatetime        time.Time
+	EstimatedArrivalDatetime time.Time
+	ActualDepartureDatetime  *time.Time
+	ActualArrivalDatetime    *time.Time
+	EstimatedDurationMinutes int
+	EstimatedDistanceMeters  int
+	VehicleID                string
+	VehicleBrand             string
+	VehiclePlate             string
+	PaymentMethodsAccepted   []string
+	AllowLuggages            bool
+	AllowPets                bool
+	AllowFood                bool
+	AllowSmoking             bool
+	Description              string
+	Waypoints                []DriverWaypointDetailResult
+}
+
+// DriverWaypointDetailResult contient les informations complètes d'un waypoint pour le conducteur.
+type DriverWaypointDetailResult struct {
+	WaypointID                    string
+	WaypointType                  string
+	SequencerOrder                int16
+	LocationName                  string
+	LocationLng                   float64
+	LocationLat                   float64
+	City                          string
+	Country                       string
+	ScheduledPickupDatetime       *time.Time
+	ActualArrivalDatetime         *time.Time
+	ActualScheduledPickupDatetime *time.Time
+	MinutesFromDeparture          int
+	PriceFromPrevious             int
+	IsCancelled                   bool
+	CancellationReason            *string
+}
+
+// PassengerTripDetailResult contient les détails d'un trajet pour un passager.
+type PassengerTripDetailResult struct {
+	TripID                   string
+	DriverID                 string
+	DriverName               string
+	DriverProfileImageURL    string
+	DriverRatingAverage      float64
+	Status                   string
+	TotalSeats               int16
+	AvailableSeats           int16
+	PricePerSeat             int
+	DepartureDatetime        time.Time
+	EstimatedArrivalDatetime time.Time
+	EstimatedDurationMinutes int
+	VehicleID                string
+	VehicleBrand             string
+	VehiclePlate             string
+	PaymentMethodsAccepted   []string
+	AllowLuggages            bool
+	AllowPets                bool
+	AllowFood                bool
+	AllowSmoking             bool
+	Description              string
+	Waypoints                []PassengerWaypointDetailResult
+}
+
+// PassengerWaypointDetailResult contient les informations d'un waypoint pour un passager.
+type PassengerWaypointDetailResult struct {
+	WaypointID              string
+	WaypointType            string
+	SequencerOrder          int16
+	LocationName            string
+	City                    string
+	ScheduledPickupDatetime *time.Time
+	PriceFromPrevious       int
+	MinutesFromDeparture    int
+	IsCancelled             bool
 }

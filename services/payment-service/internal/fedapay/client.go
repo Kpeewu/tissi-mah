@@ -25,6 +25,12 @@ func NewClient(apiURL, apiKey, webhookSecret string, logger *zap.Logger) *Client
 	return &Client{
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				MaxIdleConns:        100,
+				MaxIdleConnsPerHost: 20,
+				MaxConnsPerHost:     50,
+				IdleConnTimeout:     90 * time.Second,
+			},
 		},
 		apiURL:        apiURL,
 		apiKey:        apiKey,

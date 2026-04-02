@@ -99,3 +99,50 @@ func (c *TripServiceClient) UpdateAvailableSeats(ctx context.Context, tripID str
 
 	return nil
 }
+
+// IncrementLegBookedSeats incrémente/décrémente booked_seats sur les legs [fromOrder, toOrder).
+func (c *TripServiceClient) IncrementLegBookedSeats(ctx context.Context, tripID string, fromOrder, toOrder, delta int) error {
+	c.logger.Debug("client: IncrementLegBookedSeats called",
+		zap.String("tripID", tripID),
+		zap.Int("fromOrder", fromOrder),
+		zap.Int("toOrder", toOrder),
+		zap.Int("delta", delta),
+	)
+
+	_, err := c.grpcClient.IncrementLegBookedSeats(ctx, &trippb.IncrementLegBookedSeatsRequest{
+		TripId:    tripID,
+		FromOrder: int32(fromOrder),
+		ToOrder:   int32(toOrder),
+		Delta:     int32(delta),
+	})
+	if err != nil {
+		c.logger.Error("client: IncrementLegBookedSeats failed", zap.Error(err), zap.String("tripID", tripID))
+		return fmt.Errorf("trips-service: IncrementLegBookedSeats failed: %w", err)
+	}
+
+	return nil
+}
+
+// SyncLegBookedSeats force la valeur de booked_seats pour chaque leg (réconciliation).
+func (c *TripServiceClient) SyncLegBookedSeats(ctx context.Context, tripID string, legs []LegBookedSeats) error {
+	c.logger.Debug("client: SyncLegBookedSeats called", zap.String("tripID", tripID), zap.Int("legsCount", len(legs)))
+
+	pbLegs := make([]*trippb.LegBookedSeatsEntry, len(legs))
+	for i, l := range legs {
+		pbLegs[i] = &trippb.LegBookedSeatsEntry{
+			SequencerOrder: int32(l.SequencerOrder),
+			BookedSeats:    int32(l.BookedSeats),
+		}
+	}
+
+	_, err := c.grpcClient.SyncLegBookedSeats(ctx, &trippb.SyncLegBookedSeatsRequest{
+		TripId: tripID,
+		Legs:   pbLegs,
+	})
+	if err != nil {
+		c.logger.Error("client: SyncLegBookedSeats failed", zap.Error(err), zap.String("tripID", tripID))
+		return fmt.Errorf("trips-service: SyncLegBookedSeats failed: %w", err)
+	}
+
+	return nil
+}

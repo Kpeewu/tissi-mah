@@ -88,4 +88,18 @@ type TripRepositoryWrite interface {
 	// ErrorWaypointNotAStop si le waypoint n'est pas de type "stop",
 	// ErrorWaypointAlreadyCancelled si le waypoint est déjà annulé.
 	CancelWaypoint(ctx context.Context, waypointID, driverID, reason string) error
+
+	// IncrementLegBookedSeats incrémente booked_seats sur les waypoints du segment [fromOrder, toOrder).
+	// delta peut être positif (réservation) ou négatif (annulation).
+	IncrementLegBookedSeats(ctx context.Context, tripID string, fromOrder, toOrder int, delta int) error
+
+	// SyncLegBookedSeats force la valeur de booked_seats pour chaque leg et met à jour
+	// t.available_seats (cache dénormalisé) dans une transaction unique.
+	SyncLegBookedSeats(ctx context.Context, tripID string, legs []LegBookedSeats) error
+}
+
+// LegBookedSeats contient le nombre de places réservées pour un leg donné.
+type LegBookedSeats struct {
+	SequencerOrder int
+	BookedSeats    int
 }

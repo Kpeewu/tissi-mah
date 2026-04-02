@@ -8,6 +8,8 @@ type UserClient interface {
 	IsVerifiedDriver(ctx context.Context, userID string) (bool, error)
 	// GetDriverName retourne le prénom et nom de l'utilisateur ("FirstName Name").
 	GetDriverName(ctx context.Context, userID string) (string, error)
+	// GetDriverInfo retourne le nom et l'URL de la photo de profil du conducteur.
+	GetDriverInfo(ctx context.Context, userID string) (name, profileImageURL string, err error)
 	Close() error
 }
 
@@ -15,6 +17,13 @@ type UserClient interface {
 type VehicleClient interface {
 	// GetVehicleInfo retourne la marque, la plaque d'immatriculation et le nombre de places d'un véhicule.
 	GetVehicleInfo(ctx context.Context, driverID, vehicleID string) (brand, plate string, numberOfSeats int, err error)
+	Close() error
+}
+
+// RatingClient définit le contrat pour appeler rating-service depuis trips-service.
+type RatingClient interface {
+	// GetDriverRatingAverage retourne la note moyenne du conducteur.
+	GetDriverRatingAverage(ctx context.Context, driverID string) (float64, error)
 	Close() error
 }
 
