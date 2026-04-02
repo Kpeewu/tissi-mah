@@ -23,7 +23,10 @@ require (
 	google.golang.org/grpc v1.79.2
 )
 
-require go.mongodb.org/mongo-driver/v2 v2.5.0
+require (
+	github.com/google/uuid v1.6.0
+	go.mongodb.org/mongo-driver/v2 v2.5.0
+)
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
