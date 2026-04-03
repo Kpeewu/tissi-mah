@@ -85,8 +85,9 @@ func run(bootstrapLogger *zap.Logger) error {
 		TripsServiceAddr:   cfg.TripsService.Address(),
 		KYCServiceAddr:     cfg.KYCService.Address(),
 		BookingServiceAddr: cfg.BookingService.Address(),
-		PaymentServiceAddr: cfg.PaymentService.Address(),
-		Logger:             logger,
+		PaymentServiceAddr:      cfg.PaymentService.Address(),
+		NotificationServiceAddr: cfg.NotificationService.Address(),
+		Logger:                  logger,
 	})
 	if err != nil {
 		return fmt.Errorf("gateway mux: %w", err)

@@ -23,6 +23,7 @@ import (
 	ratingpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb"
 	trippb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/trippb"
 	userpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/userpb"
+	notificationpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/notificationpb"
 	vehiclepb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/vehiclepb"
 )
 
@@ -36,8 +37,9 @@ type MuxConfig struct {
 	TripsServiceAddr   string
 	KYCServiceAddr     string
 	BookingServiceAddr string
-	PaymentServiceAddr string
-	Logger             *zap.Logger
+	PaymentServiceAddr      string
+	NotificationServiceAddr string
+	Logger                  *zap.Logger
 }
 
 // NewGatewayMux crée un runtime.ServeMux configuré avec les handlers
@@ -145,6 +147,12 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		return nil, err
 	}
 	cfg.Logger.Info("registered payment-service handler", zap.String("endpoint", cfg.PaymentServiceAddr))
+
+	// Enregistrer notification-service
+	if err := notificationpb.RegisterNotificationServiceHandlerFromEndpoint(ctx, mux, cfg.NotificationServiceAddr, dialOpts); err != nil {
+		return nil, err
+	}
+	cfg.Logger.Info("registered notification-service handler", zap.String("endpoint", cfg.NotificationServiceAddr))
 
 	// Handler brut pour le webhook FedaPay : bypass le transcoding grpc-gateway afin de
 	// conserver les bytes raw du body (nécessaires pour la vérification HMAC-SHA256) et

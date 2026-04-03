@@ -1,0 +1,157 @@
+syntax = "proto3";
+
+package notification;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/notificationpb;notificationpb";
+
+import "google/api/annotations.proto";
+
+service NotificationService {
+  // === Inbox (app mobile) ===
+  rpc GetInbox(GetInboxRequest) returns (GetInboxResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/notifications/inbox"
+    };
+  }
+  rpc MarkAsRead(MarkAsReadRequest) returns (MarkAsReadResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/notifications/inbox/{inbox_id}/read"
+    };
+  }
+  rpc MarkAllAsRead(MarkAllAsReadRequest) returns (MarkAllAsReadResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/notifications/inbox/readAll"
+      body: "*"
+    };
+  }
+  rpc GetUnreadCount(GetUnreadCountRequest) returns (GetUnreadCountResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/notifications/inbox/unreadCount"
+    };
+  }
+
+  // === Preferences ===
+  rpc GetPreferences(GetPreferencesRequest) returns (GetPreferencesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/notifications/preferences"
+    };
+  }
+  rpc UpdatePreferences(UpdatePreferencesRequest) returns (UpdatePreferencesResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/notifications/preferences"
+      body: "*"
+    };
+  }
+
+  // === Device Tokens ===
+  rpc RegisterDeviceToken(RegisterDeviceTokenRequest) returns (RegisterDeviceTokenResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/notifications/deviceToken"
+      body: "*"
+    };
+  }
+  rpc UnregisterDeviceToken(UnregisterDeviceTokenRequest) returns (UnregisterDeviceTokenResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/notifications/deviceToken"
+    };
+  }
+
+  // === Health ===
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/notifications/health"
+    };
+  }
+}
+
+// === Inbox ===
+
+message GetInboxRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message GetInboxResponse {
+  repeated InboxEntry entries = 1;
+  int32 total_count = 2;
+}
+
+message InboxEntry {
+  string inbox_id = 1;
+  string event_type = 2;
+  string title = 3;
+  string body = 4;
+  string action_type = 5;
+  string action_id = 6;
+  bool is_read = 7;
+  string created_at = 8;
+}
+
+message MarkAsReadRequest {
+  string inbox_id = 1;
+}
+
+message MarkAsReadResponse {
+  bool success = 1;
+}
+
+message MarkAllAsReadRequest {}
+
+message MarkAllAsReadResponse {
+  int32 updated_count = 1;
+}
+
+message GetUnreadCountRequest {}
+
+message GetUnreadCountResponse {
+  int32 count = 1;
+}
+
+// === Preferences ===
+
+message GetPreferencesRequest {}
+
+message GetPreferencesResponse {
+  bool push_enabled = 1;
+  bool email_enabled = 2;
+}
+
+message UpdatePreferencesRequest {
+  bool push_enabled = 1;
+  bool email_enabled = 2;
+}
+
+message UpdatePreferencesResponse {
+  bool success = 1;
+}
+
+// === Device Tokens ===
+
+message RegisterDeviceTokenRequest {
+  string fcm_token = 1;
+  string platform = 2;
+  string device_name = 3;
+}
+
+message RegisterDeviceTokenResponse {
+  bool success = 1;
+  string token_id = 2;
+}
+
+message UnregisterDeviceTokenRequest {
+  string fcm_token = 1;
+}
+
+message UnregisterDeviceTokenResponse {
+  bool success = 1;
+}
+
+// === Health ===
+
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+  string version = 2;
+  string service = 3;
+}
