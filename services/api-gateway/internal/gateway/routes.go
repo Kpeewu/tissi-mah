@@ -80,6 +80,15 @@ var ProtectedRoutes = map[string]bool{
 	"/trip/driver/confirmWaypointArrival":    true,
 	"/trip/driver/confirmWaypointDeparture":  true,
 	"/trip/driver/cancelWaypoint":            true,
+
+	// notification-service
+	"/api/v1/notifications/inbox":                 true,
+	"/api/v1/notifications/inbox/{inbox_id}/read": true,
+	"/api/v1/notifications/inbox/readAll":         true,
+	"/api/v1/notifications/inbox/unreadCount":     true,
+	"/api/v1/notifications/preferences":           true,
+	"/api/v1/notifications/deviceToken":            true,
+	// notification-service — health est public (pas de JWT)
 }
 
 // RateLimitTier identifie le niveau de rate limiting pour une route
