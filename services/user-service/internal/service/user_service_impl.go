@@ -104,6 +104,24 @@ func (s *userServiceImpl) GetUserByUserID(ctx context.Context, userID string) (*
 	return user, nil
 }
 
+// GetUserProfileByUserID récupère le profil utilisateur enrichi avec email/phone depuis auth-service.
+// Utilisé par notification-service pour résoudre les templates et router les notifications.
+func (s *userServiceImpl) GetUserProfileByUserID(ctx context.Context, userID string) (*domain.User, string, string, error) {
+	user, err := s.GetUserByUserID(ctx, userID)
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	authInfo, err := s.authClient.GetAuthInfo(ctx, user.AuthID)
+	if err != nil {
+		s.logger.Warn("échec récupération auth info pour enrichissement", zap.Error(err), zap.String("auth_id", user.AuthID))
+		// Retourner le user sans email/phone plutôt que de faire échouer
+		return user, "", "", nil
+	}
+
+	return user, authInfo.Email, authInfo.PhoneNumber, nil
+}
+
 // SoftDeleteUser anonymise et soft-delete le profil utilisateur (appelé par auth-service)
 func (s *userServiceImpl) SoftDeleteUser(ctx context.Context, authID string) error {
 	s.logger.Debug("suppression profil utilisateur", zap.String("auth_id", authID))

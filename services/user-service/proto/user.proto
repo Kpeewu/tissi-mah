@@ -168,6 +168,9 @@ message UserProfileResponse {
   string IDCardExpirationDate                = 15;
   string DriveLicenceExpirationDate          = 16;
   string WithdrawNumber                      = 17;
+  string LanguageCode                       = 18;
+  string Email                              = 19;
+  string PhoneNumber                        = 20;
 }
 
 // GetMyProfileResponse — réponse client enrichie avec données auth

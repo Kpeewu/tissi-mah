@@ -48,6 +48,7 @@ type UserService interface {
 	CreateUser(ctx context.Context, authID string, firebaseID string, name string, firstName string, profilePhotoURL string) (*domain.User, error)
 	GetUserByAuthID(ctx context.Context, authID string) (*domain.User, error)
 	GetUserByUserID(ctx context.Context, userID string) (*domain.User, error)
+	GetUserProfileByUserID(ctx context.Context, userID string) (*domain.User, string, string, error) // user, email, phoneNumber, error
 
 	SoftDeleteUser(ctx context.Context, authID string) error
 

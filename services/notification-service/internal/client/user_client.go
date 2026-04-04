@@ -37,10 +37,12 @@ func (c *UserServiceClient) GetUserByUserID(ctx context.Context, userID string) 
 	}
 
 	return &UserInfo{
-		UserID:    resp.UserID,
-		Name:      resp.Name,
-		FirstName: resp.FirstName,
-		// TODO: email, phone_number et language_code à ajouter dans UserProfileResponse du user-service
+		UserID:       resp.UserID,
+		Name:         resp.Name,
+		FirstName:    resp.FirstName,
+		Email:        resp.Email,
+		PhoneNumber:  resp.PhoneNumber,
+		LanguageCode: resp.LanguageCode,
 	}, nil
 }
 
