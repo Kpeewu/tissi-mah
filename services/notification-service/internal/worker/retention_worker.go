@@ -40,7 +40,7 @@ func NewRetentionWorker(
 // Start lance la boucle de rétention. Bloquant, s'arrête quand ctx est annulé.
 func (w *RetentionWorker) Start(ctx context.Context) {
 	// Exécuter une première fois au démarrage
-	w.purge(ctx)
+	w.Purge(ctx)
 
 	ticker := time.NewTicker(retentionInterval)
 	defer ticker.Stop()
@@ -53,12 +53,13 @@ func (w *RetentionWorker) Start(ctx context.Context) {
 			w.logger.Info("retention worker stopping")
 			return
 		case <-ticker.C:
-			w.purge(ctx)
+			w.Purge(ctx)
 		}
 	}
 }
 
-func (w *RetentionWorker) purge(ctx context.Context) {
+// Purge exécute un cycle de rétention (exporté pour les tests).
+func (w *RetentionWorker) Purge(ctx context.Context) {
 	// Purge des notifications (envoyées/annulées de +14j)
 	deletedNotifs, err := w.notifRepo.PurgeOldSent(ctx, notificationRetentionDays)
 	if err != nil {

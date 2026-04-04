@@ -51,12 +51,13 @@ func (w *RetryWorker) Start(ctx context.Context) {
 			w.logger.Info("retry worker stopping")
 			return
 		case <-ticker.C:
-			w.processRetries(ctx)
+			w.ProcessRetries(ctx)
 		}
 	}
 }
 
-func (w *RetryWorker) processRetries(ctx context.Context) {
+// ProcessRetries exécute un cycle de retry (exporté pour les tests).
+func (w *RetryWorker) ProcessRetries(ctx context.Context) {
 	pending, err := w.notifRepo.GetPendingForRetry(ctx, retryBatch)
 	if err != nil {
 		w.logger.Error("failed to get pending retries", zap.Error(err))
@@ -121,7 +122,7 @@ func (w *RetryWorker) retryNotification(ctx context.Context, n *domain.Notificat
 	} else {
 		n.Status = "failed"
 		n.FailureReason = errMsg
-		next := time.Now().Add(backoffDuration(n.AttemptCount))
+		next := time.Now().Add(BackoffDuration(n.AttemptCount))
 		n.NextAttemptAt = &next
 	}
 
@@ -130,8 +131,9 @@ func (w *RetryWorker) retryNotification(ctx context.Context, n *domain.Notificat
 	}
 }
 
-// backoffDuration retourne un délai exponentiel : 30s, 2min, 8min, 30min...
-func backoffDuration(attempt int16) time.Duration {
+// BackoffDuration retourne un délai exponentiel : 30s, 2min, 8min, 30min...
+// Exporté pour permettre les tests unitaires.
+func BackoffDuration(attempt int16) time.Duration {
 	base := 30 * time.Second
 	for i := int16(1); i < attempt; i++ {
 		base *= 4
