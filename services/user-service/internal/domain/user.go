@@ -28,6 +28,7 @@ type User struct {
 	IsDriverProfileVerified    bool             `bson:"is_driver_profile_verified"`
 	IsPassengerProfileVerified bool             `bson:"is_passenger_profile_verified"`
 	WithdrawNumber             string           `bson:"withdraw_number,omitempty"`
+	LanguageCode               string           `bson:"language_code,omitempty"`
 	TripPreferences            []TripPreference `bson:"trip_preferences,omitempty"`
 	CreatedAt                  time.Time        `bson:"created_at"`
 	UpdatedAt                  time.Time        `bson:"updated_at"`

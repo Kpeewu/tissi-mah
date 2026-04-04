@@ -62,18 +62,22 @@ func (h *UserHandler) GetUserByAuthID(ctx context.Context, req *userpb.GetUserBy
 	return toProtoUserProfile(user), nil
 }
 
-// GetUserByUserID récupère le profil utilisateur par son UserID interne (appelé par trips-service)
+// GetUserByUserID récupère le profil utilisateur par son UserID interne (appelé par trips-service, notification-service)
+// Enrichit la réponse avec email/phone depuis auth-service.
 func (h *UserHandler) GetUserByUserID(ctx context.Context, req *userpb.GetUserByUserIDRequest) (*userpb.UserProfileResponse, error) {
 	h.logger.Debug("GetUserByUserID appelé", zap.String("user_id", req.UserID))
 
-	user, err := h.service.GetUserByUserID(ctx, req.UserID)
+	user, email, phoneNumber, err := h.service.GetUserProfileByUserID(ctx, req.UserID)
 	if err != nil {
 		h.logger.Error("GetUserByUserID échoué", zap.Error(err), zap.String("user_id", req.UserID))
 		return nil, toGRPCError(err)
 	}
 
 	h.logger.Debug("GetUserByUserID réussi", zap.String("user_id", req.UserID))
-	return toProtoUserProfile(user), nil
+	resp := toProtoUserProfile(user)
+	resp.Email = email
+	resp.PhoneNumber = phoneNumber
+	return resp, nil
 }
 
 // SoftDeleteUser anonymise et soft-delete le profil utilisateur (appelé par auth-service)
@@ -269,6 +273,7 @@ func toProtoUserProfile(u *domain.User) *userpb.UserProfileResponse {
 		IsPassengerProfileVerified: u.IsPassengerProfileVerified,
 		TripPreferences:            toProtoTripPreferences(u.TripPreferences),
 		WithdrawNumber:             u.WithdrawNumber,
+		LanguageCode:               u.LanguageCode,
 	}
 }
 

@@ -340,6 +340,47 @@ services:
     networks:
       - tissi-mah-network
 
+  # PostgreSQL pour Notification Service
+  notification-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-notification-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_NOTIFICATION_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_NOTIFICATION_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_NOTIFICATION_DB:-notification_db}
+    ports:
+      - "5440:5432"
+    volumes:
+      - notification_postgres_data:/var/lib/postgresql/data
+      - ./services/notification-service/migrations/up:/docker-entrypoint-initdb.d
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_NOTIFICATION_USER:-dev} -d ${POSTGRES_NOTIFICATION_DB:-notification_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour Notification Service (stream + cache)
+  notification-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-notification-redis
+    ports:
+      - "6389:6379"
+    volumes:
+      - notification_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
   # MinIO - Stockage S3 compatible (dev local)
   minio:
     image: minio/minio:latest
@@ -395,6 +436,8 @@ volumes:
   booking_redis_data:
   payment_postgres_data:
   payment_redis_data:
+  notification_postgres_data:
+  notification_redis_data:
   minio_data:
 
 networks:

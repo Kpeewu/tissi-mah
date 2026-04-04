@@ -16,4 +16,7 @@ use (
 	./services/trips-service
 	./services/user-service
 	./services/vehicle-service
+	./services/email-service
+	./services/push-service
+	./services/notification-service
 )
