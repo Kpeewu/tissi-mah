@@ -32,9 +32,14 @@ const (
 	TripService_ConfirmWaypointArrival_FullMethodName    = "/trip.TripService/ConfirmWaypointArrival"
 	TripService_ConfirmWaypointDeparture_FullMethodName  = "/trip.TripService/ConfirmWaypointDeparture"
 	TripService_GetTripByID_FullMethodName               = "/trip.TripService/GetTripByID"
+	TripService_GetDriverTripDetails_FullMethodName      = "/trip.TripService/GetDriverTripDetails"
+	TripService_GetPassengerTripDetails_FullMethodName   = "/trip.TripService/GetPassengerTripDetails"
 	TripService_UpdateAvailableSeats_FullMethodName      = "/trip.TripService/UpdateAvailableSeats"
 	TripService_CancelTrip_FullMethodName                = "/trip.TripService/CancelTrip"
 	TripService_CancelWaypoint_FullMethodName            = "/trip.TripService/CancelWaypoint"
+	TripService_GetScheduledTripsPreviews_FullMethodName = "/trip.TripService/GetScheduledTripsPreviews"
+	TripService_IncrementLegBookedSeats_FullMethodName   = "/trip.TripService/IncrementLegBookedSeats"
+	TripService_SyncLegBookedSeats_FullMethodName        = "/trip.TripService/SyncLegBookedSeats"
 	TripService_Health_FullMethodName                    = "/trip.TripService/Health"
 )
 
@@ -76,9 +81,12 @@ type TripServiceClient interface {
 	ConfirmWaypointArrival(ctx context.Context, in *ConfirmWaypointArrivalRequest, opts ...grpc.CallOption) (*ConfirmWaypointArrivalResponse, error)
 	// ConfirmWaypointDeparture enregistre le départ du conducteur d'un waypoint de type "stop".
 	ConfirmWaypointDeparture(ctx context.Context, in *ConfirmWaypointDepartureRequest, opts ...grpc.CallOption) (*ConfirmWaypointDepartureResponse, error)
-	// GetTripByID retourne les détails complets d'un trajet par son ID.
-	// Utilisé par booking-service pour valider les réservations.
+	// GetTripByID — RPC interne uniquement (booking-service).
 	GetTripByID(ctx context.Context, in *GetTripByIDRequest, opts ...grpc.CallOption) (*GetTripByIDResponse, error)
+	// GetDriverTripDetails retourne les détails complets d'un trajet pour le conducteur.
+	GetDriverTripDetails(ctx context.Context, in *GetDriverTripDetailsRequest, opts ...grpc.CallOption) (*GetDriverTripDetailsResponse, error)
+	// GetPassengerTripDetails retourne les détails d'un trajet pour un passager.
+	GetPassengerTripDetails(ctx context.Context, in *GetPassengerTripDetailsRequest, opts ...grpc.CallOption) (*GetPassengerTripDetailsResponse, error)
 	// UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
 	// Route interne utilisée par le job de réconciliation du booking-service.
 	UpdateAvailableSeats(ctx context.Context, in *UpdateAvailableSeatsRequest, opts ...grpc.CallOption) (*UpdateAvailableSeatsResponse, error)
@@ -88,6 +96,15 @@ type TripServiceClient interface {
 	// CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
 	// Le trajet doit avoir le statut "scheduled". Seuls les waypoints "stop" peuvent être annulés.
 	CancelWaypoint(ctx context.Context, in *CancelWaypointRequest, opts ...grpc.CallOption) (*CancelWaypointResponse, error)
+	// GetScheduledTripsPreviews recherche les trajets disponibles pour un passager.
+	// Endpoint public — pas d'authentification requise.
+	GetScheduledTripsPreviews(ctx context.Context, in *GetScheduledTripsPreviewsRequest, opts ...grpc.CallOption) (*GetScheduledTripsPreviewsResponse, error)
+	// IncrementLegBookedSeats incrémente/décrémente booked_seats sur les legs d'un segment.
+	// Appelé par booking-service à chaque réservation (+delta) ou annulation (-delta).
+	IncrementLegBookedSeats(ctx context.Context, in *IncrementLegBookedSeatsRequest, opts ...grpc.CallOption) (*IncrementLegBookedSeatsResponse, error)
+	// SyncLegBookedSeats force la valeur de booked_seats pour chaque leg (réconciliation).
+	// Appelé par le job de réconciliation du booking-service.
+	SyncLegBookedSeats(ctx context.Context, in *SyncLegBookedSeatsRequest, opts ...grpc.CallOption) (*SyncLegBookedSeatsResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -230,6 +247,26 @@ func (c *tripServiceClient) GetTripByID(ctx context.Context, in *GetTripByIDRequ
 	return out, nil
 }
 
+func (c *tripServiceClient) GetDriverTripDetails(ctx context.Context, in *GetDriverTripDetailsRequest, opts ...grpc.CallOption) (*GetDriverTripDetailsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDriverTripDetailsResponse)
+	err := c.cc.Invoke(ctx, TripService_GetDriverTripDetails_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tripServiceClient) GetPassengerTripDetails(ctx context.Context, in *GetPassengerTripDetailsRequest, opts ...grpc.CallOption) (*GetPassengerTripDetailsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPassengerTripDetailsResponse)
+	err := c.cc.Invoke(ctx, TripService_GetPassengerTripDetails_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *tripServiceClient) UpdateAvailableSeats(ctx context.Context, in *UpdateAvailableSeatsRequest, opts ...grpc.CallOption) (*UpdateAvailableSeatsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(UpdateAvailableSeatsResponse)
@@ -254,6 +291,36 @@ func (c *tripServiceClient) CancelWaypoint(ctx context.Context, in *CancelWaypoi
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CancelWaypointResponse)
 	err := c.cc.Invoke(ctx, TripService_CancelWaypoint_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tripServiceClient) GetScheduledTripsPreviews(ctx context.Context, in *GetScheduledTripsPreviewsRequest, opts ...grpc.CallOption) (*GetScheduledTripsPreviewsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetScheduledTripsPreviewsResponse)
+	err := c.cc.Invoke(ctx, TripService_GetScheduledTripsPreviews_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tripServiceClient) IncrementLegBookedSeats(ctx context.Context, in *IncrementLegBookedSeatsRequest, opts ...grpc.CallOption) (*IncrementLegBookedSeatsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IncrementLegBookedSeatsResponse)
+	err := c.cc.Invoke(ctx, TripService_IncrementLegBookedSeats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tripServiceClient) SyncLegBookedSeats(ctx context.Context, in *SyncLegBookedSeatsRequest, opts ...grpc.CallOption) (*SyncLegBookedSeatsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SyncLegBookedSeatsResponse)
+	err := c.cc.Invoke(ctx, TripService_SyncLegBookedSeats_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -308,9 +375,12 @@ type TripServiceServer interface {
 	ConfirmWaypointArrival(context.Context, *ConfirmWaypointArrivalRequest) (*ConfirmWaypointArrivalResponse, error)
 	// ConfirmWaypointDeparture enregistre le départ du conducteur d'un waypoint de type "stop".
 	ConfirmWaypointDeparture(context.Context, *ConfirmWaypointDepartureRequest) (*ConfirmWaypointDepartureResponse, error)
-	// GetTripByID retourne les détails complets d'un trajet par son ID.
-	// Utilisé par booking-service pour valider les réservations.
+	// GetTripByID — RPC interne uniquement (booking-service).
 	GetTripByID(context.Context, *GetTripByIDRequest) (*GetTripByIDResponse, error)
+	// GetDriverTripDetails retourne les détails complets d'un trajet pour le conducteur.
+	GetDriverTripDetails(context.Context, *GetDriverTripDetailsRequest) (*GetDriverTripDetailsResponse, error)
+	// GetPassengerTripDetails retourne les détails d'un trajet pour un passager.
+	GetPassengerTripDetails(context.Context, *GetPassengerTripDetailsRequest) (*GetPassengerTripDetailsResponse, error)
 	// UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
 	// Route interne utilisée par le job de réconciliation du booking-service.
 	UpdateAvailableSeats(context.Context, *UpdateAvailableSeatsRequest) (*UpdateAvailableSeatsResponse, error)
@@ -320,6 +390,15 @@ type TripServiceServer interface {
 	// CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
 	// Le trajet doit avoir le statut "scheduled". Seuls les waypoints "stop" peuvent être annulés.
 	CancelWaypoint(context.Context, *CancelWaypointRequest) (*CancelWaypointResponse, error)
+	// GetScheduledTripsPreviews recherche les trajets disponibles pour un passager.
+	// Endpoint public — pas d'authentification requise.
+	GetScheduledTripsPreviews(context.Context, *GetScheduledTripsPreviewsRequest) (*GetScheduledTripsPreviewsResponse, error)
+	// IncrementLegBookedSeats incrémente/décrémente booked_seats sur les legs d'un segment.
+	// Appelé par booking-service à chaque réservation (+delta) ou annulation (-delta).
+	IncrementLegBookedSeats(context.Context, *IncrementLegBookedSeatsRequest) (*IncrementLegBookedSeatsResponse, error)
+	// SyncLegBookedSeats force la valeur de booked_seats pour chaque leg (réconciliation).
+	// Appelé par le job de réconciliation du booking-service.
+	SyncLegBookedSeats(context.Context, *SyncLegBookedSeatsRequest) (*SyncLegBookedSeatsResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedTripServiceServer()
@@ -371,6 +450,12 @@ func (UnimplementedTripServiceServer) ConfirmWaypointDeparture(context.Context, 
 func (UnimplementedTripServiceServer) GetTripByID(context.Context, *GetTripByIDRequest) (*GetTripByIDResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetTripByID not implemented")
 }
+func (UnimplementedTripServiceServer) GetDriverTripDetails(context.Context, *GetDriverTripDetailsRequest) (*GetDriverTripDetailsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDriverTripDetails not implemented")
+}
+func (UnimplementedTripServiceServer) GetPassengerTripDetails(context.Context, *GetPassengerTripDetailsRequest) (*GetPassengerTripDetailsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPassengerTripDetails not implemented")
+}
 func (UnimplementedTripServiceServer) UpdateAvailableSeats(context.Context, *UpdateAvailableSeatsRequest) (*UpdateAvailableSeatsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateAvailableSeats not implemented")
 }
@@ -379,6 +464,15 @@ func (UnimplementedTripServiceServer) CancelTrip(context.Context, *CancelTripReq
 }
 func (UnimplementedTripServiceServer) CancelWaypoint(context.Context, *CancelWaypointRequest) (*CancelWaypointResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CancelWaypoint not implemented")
+}
+func (UnimplementedTripServiceServer) GetScheduledTripsPreviews(context.Context, *GetScheduledTripsPreviewsRequest) (*GetScheduledTripsPreviewsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetScheduledTripsPreviews not implemented")
+}
+func (UnimplementedTripServiceServer) IncrementLegBookedSeats(context.Context, *IncrementLegBookedSeatsRequest) (*IncrementLegBookedSeatsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method IncrementLegBookedSeats not implemented")
+}
+func (UnimplementedTripServiceServer) SyncLegBookedSeats(context.Context, *SyncLegBookedSeatsRequest) (*SyncLegBookedSeatsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SyncLegBookedSeats not implemented")
 }
 func (UnimplementedTripServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -638,6 +732,42 @@ func _TripService_GetTripByID_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TripService_GetDriverTripDetails_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDriverTripDetailsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).GetDriverTripDetails(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_GetDriverTripDetails_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).GetDriverTripDetails(ctx, req.(*GetDriverTripDetailsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TripService_GetPassengerTripDetails_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPassengerTripDetailsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).GetPassengerTripDetails(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_GetPassengerTripDetails_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).GetPassengerTripDetails(ctx, req.(*GetPassengerTripDetailsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _TripService_UpdateAvailableSeats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpdateAvailableSeatsRequest)
 	if err := dec(in); err != nil {
@@ -688,6 +818,60 @@ func _TripService_CancelWaypoint_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TripServiceServer).CancelWaypoint(ctx, req.(*CancelWaypointRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TripService_GetScheduledTripsPreviews_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetScheduledTripsPreviewsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).GetScheduledTripsPreviews(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_GetScheduledTripsPreviews_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).GetScheduledTripsPreviews(ctx, req.(*GetScheduledTripsPreviewsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TripService_IncrementLegBookedSeats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IncrementLegBookedSeatsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).IncrementLegBookedSeats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_IncrementLegBookedSeats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).IncrementLegBookedSeats(ctx, req.(*IncrementLegBookedSeatsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TripService_SyncLegBookedSeats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SyncLegBookedSeatsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).SyncLegBookedSeats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_SyncLegBookedSeats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).SyncLegBookedSeats(ctx, req.(*SyncLegBookedSeatsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -770,6 +954,14 @@ var TripService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _TripService_GetTripByID_Handler,
 		},
 		{
+			MethodName: "GetDriverTripDetails",
+			Handler:    _TripService_GetDriverTripDetails_Handler,
+		},
+		{
+			MethodName: "GetPassengerTripDetails",
+			Handler:    _TripService_GetPassengerTripDetails_Handler,
+		},
+		{
 			MethodName: "UpdateAvailableSeats",
 			Handler:    _TripService_UpdateAvailableSeats_Handler,
 		},
@@ -780,6 +972,18 @@ var TripService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CancelWaypoint",
 			Handler:    _TripService_CancelWaypoint_Handler,
+		},
+		{
+			MethodName: "GetScheduledTripsPreviews",
+			Handler:    _TripService_GetScheduledTripsPreviews_Handler,
+		},
+		{
+			MethodName: "IncrementLegBookedSeats",
+			Handler:    _TripService_IncrementLegBookedSeats_Handler,
+		},
+		{
+			MethodName: "SyncLegBookedSeats",
+			Handler:    _TripService_SyncLegBookedSeats_Handler,
 		},
 		{
 			MethodName: "Health",

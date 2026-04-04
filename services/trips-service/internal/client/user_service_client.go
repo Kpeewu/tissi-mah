@@ -85,3 +85,22 @@ func (c *UserServiceClient) GetDriverName(ctx context.Context, userID string) (s
 
 	return strings.TrimSpace(resp.FirstName + " " + resp.Name), nil
 }
+
+// GetDriverInfo retourne le nom complet et l'URL de la photo de profil du conducteur.
+func (c *UserServiceClient) GetDriverInfo(ctx context.Context, userID string) (string, string, error) {
+	c.logger.Debug("client: GetDriverInfo called", zap.String("userID", userID))
+
+	resp, err := c.grpcClient.GetUserByUserID(ctx, &userpb.GetUserByUserIDRequest{
+		UserID: userID,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return "", "", nil
+		}
+		c.logger.Error("client: GetDriverInfo failed", zap.Error(err), zap.String("userID", userID))
+		return "", "", fmt.Errorf("user-service: GetUserByUserID failed: %w", err)
+	}
+
+	name := strings.TrimSpace(resp.FirstName + " " + resp.Name)
+	return name, resp.ProfileImageURL, nil
+}

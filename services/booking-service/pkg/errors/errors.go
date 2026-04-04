@@ -20,6 +20,7 @@ var (
 	ErrorPassengerIsDriver       = errors.New("ErrorPassengerIsDriver")
 	ErrorDuplicateBooking        = errors.New("ErrorDuplicateBooking")
 	ErrorPaymentAlreadyConfirmed = errors.New("ErrorPaymentAlreadyConfirmed")
+	ErrorPaymentAlreadyFailed    = errors.New("ErrorPaymentAlreadyFailed")
 	ErrorDataRetrievalFailed     = errors.New("ErrorDataRetrievalFailed")
 	ErrorSeatReservationFailed   = errors.New("ErrorSeatReservationFailed")
 	ErrorInvalidWaypoints        = errors.New("ErrorInvalidWaypoints")

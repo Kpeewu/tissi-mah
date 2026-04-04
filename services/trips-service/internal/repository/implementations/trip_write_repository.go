@@ -797,3 +797,78 @@ func (r *tripWriteRepositoryImpl) UpdateAvailableSeats(ctx context.Context, trip
 
 	return nil
 }
+
+// IncrementLegBookedSeats incrémente booked_seats sur les waypoints du segment [fromOrder, toOrder).
+func (r *tripWriteRepositoryImpl) IncrementLegBookedSeats(ctx context.Context, tripID string, fromOrder, toOrder int, delta int) error {
+	ct, err := r.pool.Exec(ctx,
+		`UPDATE trips_waypoints
+		 SET booked_seats = booked_seats + $1
+		 WHERE trip_id = $2
+		   AND sequencer_order >= $3
+		   AND sequencer_order < $4
+		   AND cancelled_at IS NULL
+		   AND deleted_at IS NULL`,
+		delta, tripID, fromOrder, toOrder)
+	if err != nil {
+		r.logger.Error("IncrementLegBookedSeats failed",
+			zap.Error(err), zap.String("tripID", tripID),
+			zap.Int("fromOrder", fromOrder), zap.Int("toOrder", toOrder), zap.Int("delta", delta))
+		return tripErrors.ErrorInternalServer
+	}
+
+	if ct.RowsAffected() == 0 {
+		return tripErrors.ErrorTripNotFound
+	}
+
+	return nil
+}
+
+// SyncLegBookedSeats force booked_seats par leg et met à jour t.available_seats dans une transaction.
+func (r *tripWriteRepositoryImpl) SyncLegBookedSeats(ctx context.Context, tripID string, legs []i.LegBookedSeats) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		r.logger.Error("SyncLegBookedSeats: begin tx failed", zap.Error(err))
+		return tripErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	for _, leg := range legs {
+		_, err := tx.Exec(ctx,
+			`UPDATE trips_waypoints
+			 SET booked_seats = $1
+			 WHERE trip_id = $2
+			   AND sequencer_order = $3
+			   AND cancelled_at IS NULL
+			   AND deleted_at IS NULL`,
+			leg.BookedSeats, tripID, leg.SequencerOrder)
+		if err != nil {
+			r.logger.Error("SyncLegBookedSeats: update waypoint failed",
+				zap.Error(err), zap.String("tripID", tripID), zap.Int("order", leg.SequencerOrder))
+			return tripErrors.ErrorInternalServer
+		}
+	}
+
+	// Mettre à jour t.available_seats = total_seats - MAX(booked_seats) global
+	_, err = tx.Exec(ctx,
+		`UPDATE trips t
+		 SET available_seats = t.total_seats - COALESCE((
+		     SELECT MAX(w.booked_seats)
+		     FROM trips_waypoints w
+		     WHERE w.trip_id = t.trip_id
+		       AND w.cancelled_at IS NULL AND w.deleted_at IS NULL
+		 ), 0)
+		 WHERE t.trip_id = $1`,
+		tripID)
+	if err != nil {
+		r.logger.Error("SyncLegBookedSeats: update available_seats failed",
+			zap.Error(err), zap.String("tripID", tripID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		r.logger.Error("SyncLegBookedSeats: commit failed", zap.Error(err))
+		return tripErrors.ErrorInternalServer
+	}
+
+	return nil
+}

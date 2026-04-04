@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
+	repoInterfaces "github.com/Kpeewu/tissi-mah/services/trips-service/internal/repository/interfaces"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -75,5 +76,15 @@ func (m *MockTripRepositoryWrite) CancelTrip(ctx context.Context, tripID, driver
 
 func (m *MockTripRepositoryWrite) CancelWaypoint(ctx context.Context, waypointID, driverID, reason string) error {
 	args := m.Called(ctx, waypointID, driverID, reason)
+	return args.Error(0)
+}
+
+func (m *MockTripRepositoryWrite) IncrementLegBookedSeats(ctx context.Context, tripID string, fromOrder, toOrder int, delta int) error {
+	args := m.Called(ctx, tripID, fromOrder, toOrder, delta)
+	return args.Error(0)
+}
+
+func (m *MockTripRepositoryWrite) SyncLegBookedSeats(ctx context.Context, tripID string, legs []repoInterfaces.LegBookedSeats) error {
+	args := m.Called(ctx, tripID, legs)
 	return args.Error(0)
 }

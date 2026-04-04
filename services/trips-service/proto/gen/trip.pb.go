@@ -1071,14 +1071,21 @@ type TripPreview struct {
 	VehicleId             string                 `protobuf:"bytes,4,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"`
 	VehicleBrand          string                 `protobuf:"bytes,5,opt,name=VehicleBrand,proto3" json:"VehicleBrand,omitempty"`
 	VehiclePlate          string                 `protobuf:"bytes,6,opt,name=VehiclePlate,proto3" json:"VehiclePlate,omitempty"`
-	DepartureDate         string                 `protobuf:"bytes,7,opt,name=DepartureDate,proto3" json:"DepartureDate,omitempty"` // YYYY-MM-DD
-	DepartureTime         string                 `protobuf:"bytes,8,opt,name=DepartureTime,proto3" json:"DepartureTime,omitempty"` // HH:MM
+	DepartureDate         string                 `protobuf:"bytes,7,opt,name=DepartureDate,proto3" json:"DepartureDate,omitempty"` // YYYY-MM-DD (UTC)
+	DepartureTime         string                 `protobuf:"bytes,8,opt,name=DepartureTime,proto3" json:"DepartureTime,omitempty"` // HH:MM (UTC)
 	TotalSeats            int32                  `protobuf:"varint,9,opt,name=TotalSeats,proto3" json:"TotalSeats,omitempty"`
 	AvailableSeats        int32                  `protobuf:"varint,10,opt,name=AvailableSeats,proto3" json:"AvailableSeats,omitempty"`
 	DepartureLocationName string                 `protobuf:"bytes,11,opt,name=DepartureLocationName,proto3" json:"DepartureLocationName,omitempty"`
 	ArrivalLocationName   string                 `protobuf:"bytes,12,opt,name=ArrivalLocationName,proto3" json:"ArrivalLocationName,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Champs segment (recherche passager)
+	DepartureWaypointId    string  `protobuf:"bytes,13,opt,name=DepartureWaypointId,proto3" json:"DepartureWaypointId,omitempty"`        // ID du waypoint de départ du segment
+	ArrivalWaypointId      string  `protobuf:"bytes,14,opt,name=ArrivalWaypointId,proto3" json:"ArrivalWaypointId,omitempty"`            // ID du waypoint d'arrivée du segment
+	SegmentPrice           int32   `protobuf:"varint,15,opt,name=SegmentPrice,proto3" json:"SegmentPrice,omitempty"`                     // Prix du segment en FCFA
+	SegmentDurationMinutes int32   `protobuf:"varint,16,opt,name=SegmentDurationMinutes,proto3" json:"SegmentDurationMinutes,omitempty"` // Durée estimée du segment en minutes
+	DriverProfileImageURL  string  `protobuf:"bytes,17,opt,name=DriverProfileImageURL,proto3" json:"DriverProfileImageURL,omitempty"`    // URL photo de profil du conducteur
+	DriverRatingAverage    float64 `protobuf:"fixed64,18,opt,name=DriverRatingAverage,proto3" json:"DriverRatingAverage,omitempty"`      // Note moyenne du conducteur (0 si aucune note)
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *TripPreview) Reset() {
@@ -1193,6 +1200,48 @@ func (x *TripPreview) GetArrivalLocationName() string {
 		return x.ArrivalLocationName
 	}
 	return ""
+}
+
+func (x *TripPreview) GetDepartureWaypointId() string {
+	if x != nil {
+		return x.DepartureWaypointId
+	}
+	return ""
+}
+
+func (x *TripPreview) GetArrivalWaypointId() string {
+	if x != nil {
+		return x.ArrivalWaypointId
+	}
+	return ""
+}
+
+func (x *TripPreview) GetSegmentPrice() int32 {
+	if x != nil {
+		return x.SegmentPrice
+	}
+	return 0
+}
+
+func (x *TripPreview) GetSegmentDurationMinutes() int32 {
+	if x != nil {
+		return x.SegmentDurationMinutes
+	}
+	return 0
+}
+
+func (x *TripPreview) GetDriverProfileImageURL() string {
+	if x != nil {
+		return x.DriverProfileImageURL
+	}
+	return ""
+}
+
+func (x *TripPreview) GetDriverRatingAverage() float64 {
+	if x != nil {
+		return x.DriverRatingAverage
+	}
+	return 0
 }
 
 type GetTripsPreviewsResponse struct {
@@ -2596,6 +2645,182 @@ func (x *CancelWaypointResponse) GetErrorMessage() string {
 	return ""
 }
 
+type GetScheduledTripsPreviewsRequest struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	PassengerPositionLng  float64                `protobuf:"fixed64,1,opt,name=passenger_position_lng,json=passengerPositionLng,proto3" json:"passenger_position_lng,omitempty"`  // 0 = non renseigné
+	PassengerPositionLat  float64                `protobuf:"fixed64,2,opt,name=passenger_position_lat,json=passengerPositionLat,proto3" json:"passenger_position_lat,omitempty"`  // 0 = non renseigné
+	DistanceRange         int32                  `protobuf:"varint,3,opt,name=distance_range,json=distanceRange,proto3" json:"distance_range,omitempty"`                          // km, défaut 5 si 0
+	DepartureLocationName string                 `protobuf:"bytes,4,opt,name=departure_location_name,json=departureLocationName,proto3" json:"departure_location_name,omitempty"` // recherche floue (obligatoire)
+	ArrivalLocationName   string                 `protobuf:"bytes,5,opt,name=arrival_location_name,json=arrivalLocationName,proto3" json:"arrival_location_name,omitempty"`       // recherche floue (obligatoire)
+	TripStartDate         string                 `protobuf:"bytes,6,opt,name=trip_start_date,json=tripStartDate,proto3" json:"trip_start_date,omitempty"`                         // "YYYY-MM-DD" (UTC)
+	TripStartHour         string                 `protobuf:"bytes,7,opt,name=trip_start_hour,json=tripStartHour,proto3" json:"trip_start_hour,omitempty"`                         // "HH:MM" (UTC)
+	TripArrivalHour       string                 `protobuf:"bytes,8,opt,name=trip_arrival_hour,json=tripArrivalHour,proto3" json:"trip_arrival_hour,omitempty"`                   // "HH:MM" (UTC)
+	Index                 int32                  `protobuf:"varint,9,opt,name=index,proto3" json:"index,omitempty"`                                                               // pagination 0-based
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *GetScheduledTripsPreviewsRequest) Reset() {
+	*x = GetScheduledTripsPreviewsRequest{}
+	mi := &file_trip_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetScheduledTripsPreviewsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetScheduledTripsPreviewsRequest) ProtoMessage() {}
+
+func (x *GetScheduledTripsPreviewsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetScheduledTripsPreviewsRequest.ProtoReflect.Descriptor instead.
+func (*GetScheduledTripsPreviewsRequest) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetPassengerPositionLng() float64 {
+	if x != nil {
+		return x.PassengerPositionLng
+	}
+	return 0
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetPassengerPositionLat() float64 {
+	if x != nil {
+		return x.PassengerPositionLat
+	}
+	return 0
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetDistanceRange() int32 {
+	if x != nil {
+		return x.DistanceRange
+	}
+	return 0
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetDepartureLocationName() string {
+	if x != nil {
+		return x.DepartureLocationName
+	}
+	return ""
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetArrivalLocationName() string {
+	if x != nil {
+		return x.ArrivalLocationName
+	}
+	return ""
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetTripStartDate() string {
+	if x != nil {
+		return x.TripStartDate
+	}
+	return ""
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetTripStartHour() string {
+	if x != nil {
+		return x.TripStartHour
+	}
+	return ""
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetTripArrivalHour() string {
+	if x != nil {
+		return x.TripArrivalHour
+	}
+	return ""
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetIndex() int32 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
+}
+
+type GetScheduledTripsPreviewsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TripsPreviews []*TripPreview         `protobuf:"bytes,1,rep,name=trips_previews,json=tripsPreviews,proto3" json:"trips_previews,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	NextIndex     int32                  `protobuf:"varint,3,opt,name=next_index,json=nextIndex,proto3" json:"next_index,omitempty"`    // -1 si plus de résultats
+	TotalCount    int32                  `protobuf:"varint,4,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"` // nombre total de résultats matchant
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetScheduledTripsPreviewsResponse) Reset() {
+	*x = GetScheduledTripsPreviewsResponse{}
+	mi := &file_trip_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetScheduledTripsPreviewsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetScheduledTripsPreviewsResponse) ProtoMessage() {}
+
+func (x *GetScheduledTripsPreviewsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetScheduledTripsPreviewsResponse.ProtoReflect.Descriptor instead.
+func (*GetScheduledTripsPreviewsResponse) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *GetScheduledTripsPreviewsResponse) GetTripsPreviews() []*TripPreview {
+	if x != nil {
+		return x.TripsPreviews
+	}
+	return nil
+}
+
+func (x *GetScheduledTripsPreviewsResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *GetScheduledTripsPreviewsResponse) GetNextIndex() int32 {
+	if x != nil {
+		return x.NextIndex
+	}
+	return 0
+}
+
+func (x *GetScheduledTripsPreviewsResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
 type HealthRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -2604,7 +2829,7 @@ type HealthRequest struct {
 
 func (x *HealthRequest) Reset() {
 	*x = HealthRequest{}
-	mi := &file_trip_proto_msgTypes[37]
+	mi := &file_trip_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2616,7 +2841,7 @@ func (x *HealthRequest) String() string {
 func (*HealthRequest) ProtoMessage() {}
 
 func (x *HealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_trip_proto_msgTypes[37]
+	mi := &file_trip_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2629,7 +2854,7 @@ func (x *HealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthRequest.ProtoReflect.Descriptor instead.
 func (*HealthRequest) Descriptor() ([]byte, []int) {
-	return file_trip_proto_rawDescGZIP(), []int{37}
+	return file_trip_proto_rawDescGZIP(), []int{39}
 }
 
 type HealthResponse struct {
@@ -2643,7 +2868,7 @@ type HealthResponse struct {
 
 func (x *HealthResponse) Reset() {
 	*x = HealthResponse{}
-	mi := &file_trip_proto_msgTypes[38]
+	mi := &file_trip_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2655,7 +2880,7 @@ func (x *HealthResponse) String() string {
 func (*HealthResponse) ProtoMessage() {}
 
 func (x *HealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_trip_proto_msgTypes[38]
+	mi := &file_trip_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2668,7 +2893,7 @@ func (x *HealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
 func (*HealthResponse) Descriptor() ([]byte, []int) {
-	return file_trip_proto_rawDescGZIP(), []int{38}
+	return file_trip_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *HealthResponse) GetStatus() string {
@@ -2690,6 +2915,1082 @@ func (x *HealthResponse) GetTimestamp() int64 {
 		return x.Timestamp
 	}
 	return 0
+}
+
+type IncrementLegBookedSeatsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TripId        string                 `protobuf:"bytes,1,opt,name=TripId,proto3" json:"TripId,omitempty"`
+	FromOrder     int32                  `protobuf:"varint,2,opt,name=FromOrder,proto3" json:"FromOrder,omitempty"` // sequencer_order du waypoint de départ (inclusif)
+	ToOrder       int32                  `protobuf:"varint,3,opt,name=ToOrder,proto3" json:"ToOrder,omitempty"`     // sequencer_order du waypoint d'arrivée (exclusif)
+	Delta         int32                  `protobuf:"varint,4,opt,name=Delta,proto3" json:"Delta,omitempty"`         // +N pour réservation, -N pour annulation
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IncrementLegBookedSeatsRequest) Reset() {
+	*x = IncrementLegBookedSeatsRequest{}
+	mi := &file_trip_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IncrementLegBookedSeatsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IncrementLegBookedSeatsRequest) ProtoMessage() {}
+
+func (x *IncrementLegBookedSeatsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IncrementLegBookedSeatsRequest.ProtoReflect.Descriptor instead.
+func (*IncrementLegBookedSeatsRequest) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *IncrementLegBookedSeatsRequest) GetTripId() string {
+	if x != nil {
+		return x.TripId
+	}
+	return ""
+}
+
+func (x *IncrementLegBookedSeatsRequest) GetFromOrder() int32 {
+	if x != nil {
+		return x.FromOrder
+	}
+	return 0
+}
+
+func (x *IncrementLegBookedSeatsRequest) GetToOrder() int32 {
+	if x != nil {
+		return x.ToOrder
+	}
+	return 0
+}
+
+func (x *IncrementLegBookedSeatsRequest) GetDelta() int32 {
+	if x != nil {
+		return x.Delta
+	}
+	return 0
+}
+
+type IncrementLegBookedSeatsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IncrementLegBookedSeatsResponse) Reset() {
+	*x = IncrementLegBookedSeatsResponse{}
+	mi := &file_trip_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IncrementLegBookedSeatsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IncrementLegBookedSeatsResponse) ProtoMessage() {}
+
+func (x *IncrementLegBookedSeatsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IncrementLegBookedSeatsResponse.ProtoReflect.Descriptor instead.
+func (*IncrementLegBookedSeatsResponse) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *IncrementLegBookedSeatsResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *IncrementLegBookedSeatsResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+type LegBookedSeatsEntry struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	SequencerOrder int32                  `protobuf:"varint,1,opt,name=SequencerOrder,proto3" json:"SequencerOrder,omitempty"`
+	BookedSeats    int32                  `protobuf:"varint,2,opt,name=BookedSeats,proto3" json:"BookedSeats,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *LegBookedSeatsEntry) Reset() {
+	*x = LegBookedSeatsEntry{}
+	mi := &file_trip_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LegBookedSeatsEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LegBookedSeatsEntry) ProtoMessage() {}
+
+func (x *LegBookedSeatsEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LegBookedSeatsEntry.ProtoReflect.Descriptor instead.
+func (*LegBookedSeatsEntry) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *LegBookedSeatsEntry) GetSequencerOrder() int32 {
+	if x != nil {
+		return x.SequencerOrder
+	}
+	return 0
+}
+
+func (x *LegBookedSeatsEntry) GetBookedSeats() int32 {
+	if x != nil {
+		return x.BookedSeats
+	}
+	return 0
+}
+
+type SyncLegBookedSeatsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TripId        string                 `protobuf:"bytes,1,opt,name=TripId,proto3" json:"TripId,omitempty"`
+	Legs          []*LegBookedSeatsEntry `protobuf:"bytes,2,rep,name=Legs,proto3" json:"Legs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncLegBookedSeatsRequest) Reset() {
+	*x = SyncLegBookedSeatsRequest{}
+	mi := &file_trip_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncLegBookedSeatsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncLegBookedSeatsRequest) ProtoMessage() {}
+
+func (x *SyncLegBookedSeatsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncLegBookedSeatsRequest.ProtoReflect.Descriptor instead.
+func (*SyncLegBookedSeatsRequest) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *SyncLegBookedSeatsRequest) GetTripId() string {
+	if x != nil {
+		return x.TripId
+	}
+	return ""
+}
+
+func (x *SyncLegBookedSeatsRequest) GetLegs() []*LegBookedSeatsEntry {
+	if x != nil {
+		return x.Legs
+	}
+	return nil
+}
+
+type SyncLegBookedSeatsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncLegBookedSeatsResponse) Reset() {
+	*x = SyncLegBookedSeatsResponse{}
+	mi := &file_trip_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncLegBookedSeatsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncLegBookedSeatsResponse) ProtoMessage() {}
+
+func (x *SyncLegBookedSeatsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncLegBookedSeatsResponse.ProtoReflect.Descriptor instead.
+func (*SyncLegBookedSeatsResponse) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *SyncLegBookedSeatsResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *SyncLegBookedSeatsResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+type GetDriverTripDetailsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TripId        string                 `protobuf:"bytes,1,opt,name=TripId,proto3" json:"TripId,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDriverTripDetailsRequest) Reset() {
+	*x = GetDriverTripDetailsRequest{}
+	mi := &file_trip_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDriverTripDetailsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDriverTripDetailsRequest) ProtoMessage() {}
+
+func (x *GetDriverTripDetailsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDriverTripDetailsRequest.ProtoReflect.Descriptor instead.
+func (*GetDriverTripDetailsRequest) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *GetDriverTripDetailsRequest) GetTripId() string {
+	if x != nil {
+		return x.TripId
+	}
+	return ""
+}
+
+type DriverWaypointDetail struct {
+	state                         protoimpl.MessageState `protogen:"open.v1"`
+	WaypointId                    string                 `protobuf:"bytes,1,opt,name=WaypointId,proto3" json:"WaypointId,omitempty"`
+	WaypointType                  string                 `protobuf:"bytes,2,opt,name=WaypointType,proto3" json:"WaypointType,omitempty"` // departure | stop | arrival
+	SequencerOrder                int32                  `protobuf:"varint,3,opt,name=SequencerOrder,proto3" json:"SequencerOrder,omitempty"`
+	LocationName                  string                 `protobuf:"bytes,4,opt,name=LocationName,proto3" json:"LocationName,omitempty"`
+	LocationLng                   float64                `protobuf:"fixed64,5,opt,name=LocationLng,proto3" json:"LocationLng,omitempty"`
+	LocationLat                   float64                `protobuf:"fixed64,6,opt,name=LocationLat,proto3" json:"LocationLat,omitempty"`
+	City                          string                 `protobuf:"bytes,7,opt,name=City,proto3" json:"City,omitempty"`
+	Country                       string                 `protobuf:"bytes,8,opt,name=Country,proto3" json:"Country,omitempty"`
+	ScheduledPickupDatetime       string                 `protobuf:"bytes,9,opt,name=ScheduledPickupDatetime,proto3" json:"ScheduledPickupDatetime,omitempty"`              // RFC3339
+	ActualArrivalDatetime         string                 `protobuf:"bytes,10,opt,name=ActualArrivalDatetime,proto3" json:"ActualArrivalDatetime,omitempty"`                 // RFC3339, vide si pas encore arrivé
+	ActualScheduledPickupDatetime string                 `protobuf:"bytes,11,opt,name=ActualScheduledPickupDatetime,proto3" json:"ActualScheduledPickupDatetime,omitempty"` // RFC3339, vide si pas encore parti
+	MinutesFromDeparture          int32                  `protobuf:"varint,12,opt,name=MinutesFromDeparture,proto3" json:"MinutesFromDeparture,omitempty"`
+	PriceFromPrevious             int32                  `protobuf:"varint,13,opt,name=PriceFromPrevious,proto3" json:"PriceFromPrevious,omitempty"`
+	IsCancelled                   bool                   `protobuf:"varint,14,opt,name=IsCancelled,proto3" json:"IsCancelled,omitempty"`
+	CancellationReason            string                 `protobuf:"bytes,15,opt,name=CancellationReason,proto3" json:"CancellationReason,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
+}
+
+func (x *DriverWaypointDetail) Reset() {
+	*x = DriverWaypointDetail{}
+	mi := &file_trip_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DriverWaypointDetail) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DriverWaypointDetail) ProtoMessage() {}
+
+func (x *DriverWaypointDetail) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DriverWaypointDetail.ProtoReflect.Descriptor instead.
+func (*DriverWaypointDetail) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *DriverWaypointDetail) GetWaypointId() string {
+	if x != nil {
+		return x.WaypointId
+	}
+	return ""
+}
+
+func (x *DriverWaypointDetail) GetWaypointType() string {
+	if x != nil {
+		return x.WaypointType
+	}
+	return ""
+}
+
+func (x *DriverWaypointDetail) GetSequencerOrder() int32 {
+	if x != nil {
+		return x.SequencerOrder
+	}
+	return 0
+}
+
+func (x *DriverWaypointDetail) GetLocationName() string {
+	if x != nil {
+		return x.LocationName
+	}
+	return ""
+}
+
+func (x *DriverWaypointDetail) GetLocationLng() float64 {
+	if x != nil {
+		return x.LocationLng
+	}
+	return 0
+}
+
+func (x *DriverWaypointDetail) GetLocationLat() float64 {
+	if x != nil {
+		return x.LocationLat
+	}
+	return 0
+}
+
+func (x *DriverWaypointDetail) GetCity() string {
+	if x != nil {
+		return x.City
+	}
+	return ""
+}
+
+func (x *DriverWaypointDetail) GetCountry() string {
+	if x != nil {
+		return x.Country
+	}
+	return ""
+}
+
+func (x *DriverWaypointDetail) GetScheduledPickupDatetime() string {
+	if x != nil {
+		return x.ScheduledPickupDatetime
+	}
+	return ""
+}
+
+func (x *DriverWaypointDetail) GetActualArrivalDatetime() string {
+	if x != nil {
+		return x.ActualArrivalDatetime
+	}
+	return ""
+}
+
+func (x *DriverWaypointDetail) GetActualScheduledPickupDatetime() string {
+	if x != nil {
+		return x.ActualScheduledPickupDatetime
+	}
+	return ""
+}
+
+func (x *DriverWaypointDetail) GetMinutesFromDeparture() int32 {
+	if x != nil {
+		return x.MinutesFromDeparture
+	}
+	return 0
+}
+
+func (x *DriverWaypointDetail) GetPriceFromPrevious() int32 {
+	if x != nil {
+		return x.PriceFromPrevious
+	}
+	return 0
+}
+
+func (x *DriverWaypointDetail) GetIsCancelled() bool {
+	if x != nil {
+		return x.IsCancelled
+	}
+	return false
+}
+
+func (x *DriverWaypointDetail) GetCancellationReason() string {
+	if x != nil {
+		return x.CancellationReason
+	}
+	return ""
+}
+
+type GetDriverTripDetailsResponse struct {
+	state                    protoimpl.MessageState  `protogen:"open.v1"`
+	TripId                   string                  `protobuf:"bytes,1,opt,name=TripId,proto3" json:"TripId,omitempty"`
+	DriverId                 string                  `protobuf:"bytes,2,opt,name=DriverId,proto3" json:"DriverId,omitempty"`
+	Status                   string                  `protobuf:"bytes,3,opt,name=Status,proto3" json:"Status,omitempty"`
+	TotalSeats               int32                   `protobuf:"varint,4,opt,name=TotalSeats,proto3" json:"TotalSeats,omitempty"`
+	AvailableSeats           int32                   `protobuf:"varint,5,opt,name=AvailableSeats,proto3" json:"AvailableSeats,omitempty"`
+	PricePerSeat             int32                   `protobuf:"varint,6,opt,name=PricePerSeat,proto3" json:"PricePerSeat,omitempty"`
+	AutoApproveEnabled       bool                    `protobuf:"varint,7,opt,name=AutoApproveEnabled,proto3" json:"AutoApproveEnabled,omitempty"`
+	DepartureDatetime        string                  `protobuf:"bytes,8,opt,name=DepartureDatetime,proto3" json:"DepartureDatetime,omitempty"`               // RFC3339
+	EstimatedArrivalDatetime string                  `protobuf:"bytes,9,opt,name=EstimatedArrivalDatetime,proto3" json:"EstimatedArrivalDatetime,omitempty"` // RFC3339
+	ActualDepartureDatetime  string                  `protobuf:"bytes,10,opt,name=ActualDepartureDatetime,proto3" json:"ActualDepartureDatetime,omitempty"`  // RFC3339, vide si pas encore parti
+	ActualArrivalDatetime    string                  `protobuf:"bytes,11,opt,name=ActualArrivalDatetime,proto3" json:"ActualArrivalDatetime,omitempty"`      // RFC3339, vide si pas encore arrivé
+	EstimatedDurationMinutes int32                   `protobuf:"varint,12,opt,name=EstimatedDurationMinutes,proto3" json:"EstimatedDurationMinutes,omitempty"`
+	EstimatedDistanceMeters  int32                   `protobuf:"varint,13,opt,name=EstimatedDistanceMeters,proto3" json:"EstimatedDistanceMeters,omitempty"`
+	VehicleId                string                  `protobuf:"bytes,14,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"`
+	VehicleBrand             string                  `protobuf:"bytes,15,opt,name=VehicleBrand,proto3" json:"VehicleBrand,omitempty"`
+	VehiclePlate             string                  `protobuf:"bytes,16,opt,name=VehiclePlate,proto3" json:"VehiclePlate,omitempty"`
+	PaymentMethodsAccepted   []string                `protobuf:"bytes,17,rep,name=PaymentMethodsAccepted,proto3" json:"PaymentMethodsAccepted,omitempty"`
+	AllowLuggages            bool                    `protobuf:"varint,18,opt,name=AllowLuggages,proto3" json:"AllowLuggages,omitempty"`
+	AllowPets                bool                    `protobuf:"varint,19,opt,name=AllowPets,proto3" json:"AllowPets,omitempty"`
+	AllowFood                bool                    `protobuf:"varint,20,opt,name=AllowFood,proto3" json:"AllowFood,omitempty"`
+	AllowSmoking             bool                    `protobuf:"varint,21,opt,name=AllowSmoking,proto3" json:"AllowSmoking,omitempty"`
+	Description              string                  `protobuf:"bytes,22,opt,name=Description,proto3" json:"Description,omitempty"`
+	Waypoints                []*DriverWaypointDetail `protobuf:"bytes,23,rep,name=Waypoints,proto3" json:"Waypoints,omitempty"`
+	ErrorMessage             string                  `protobuf:"bytes,24,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *GetDriverTripDetailsResponse) Reset() {
+	*x = GetDriverTripDetailsResponse{}
+	mi := &file_trip_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDriverTripDetailsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDriverTripDetailsResponse) ProtoMessage() {}
+
+func (x *GetDriverTripDetailsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDriverTripDetailsResponse.ProtoReflect.Descriptor instead.
+func (*GetDriverTripDetailsResponse) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *GetDriverTripDetailsResponse) GetTripId() string {
+	if x != nil {
+		return x.TripId
+	}
+	return ""
+}
+
+func (x *GetDriverTripDetailsResponse) GetDriverId() string {
+	if x != nil {
+		return x.DriverId
+	}
+	return ""
+}
+
+func (x *GetDriverTripDetailsResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *GetDriverTripDetailsResponse) GetTotalSeats() int32 {
+	if x != nil {
+		return x.TotalSeats
+	}
+	return 0
+}
+
+func (x *GetDriverTripDetailsResponse) GetAvailableSeats() int32 {
+	if x != nil {
+		return x.AvailableSeats
+	}
+	return 0
+}
+
+func (x *GetDriverTripDetailsResponse) GetPricePerSeat() int32 {
+	if x != nil {
+		return x.PricePerSeat
+	}
+	return 0
+}
+
+func (x *GetDriverTripDetailsResponse) GetAutoApproveEnabled() bool {
+	if x != nil {
+		return x.AutoApproveEnabled
+	}
+	return false
+}
+
+func (x *GetDriverTripDetailsResponse) GetDepartureDatetime() string {
+	if x != nil {
+		return x.DepartureDatetime
+	}
+	return ""
+}
+
+func (x *GetDriverTripDetailsResponse) GetEstimatedArrivalDatetime() string {
+	if x != nil {
+		return x.EstimatedArrivalDatetime
+	}
+	return ""
+}
+
+func (x *GetDriverTripDetailsResponse) GetActualDepartureDatetime() string {
+	if x != nil {
+		return x.ActualDepartureDatetime
+	}
+	return ""
+}
+
+func (x *GetDriverTripDetailsResponse) GetActualArrivalDatetime() string {
+	if x != nil {
+		return x.ActualArrivalDatetime
+	}
+	return ""
+}
+
+func (x *GetDriverTripDetailsResponse) GetEstimatedDurationMinutes() int32 {
+	if x != nil {
+		return x.EstimatedDurationMinutes
+	}
+	return 0
+}
+
+func (x *GetDriverTripDetailsResponse) GetEstimatedDistanceMeters() int32 {
+	if x != nil {
+		return x.EstimatedDistanceMeters
+	}
+	return 0
+}
+
+func (x *GetDriverTripDetailsResponse) GetVehicleId() string {
+	if x != nil {
+		return x.VehicleId
+	}
+	return ""
+}
+
+func (x *GetDriverTripDetailsResponse) GetVehicleBrand() string {
+	if x != nil {
+		return x.VehicleBrand
+	}
+	return ""
+}
+
+func (x *GetDriverTripDetailsResponse) GetVehiclePlate() string {
+	if x != nil {
+		return x.VehiclePlate
+	}
+	return ""
+}
+
+func (x *GetDriverTripDetailsResponse) GetPaymentMethodsAccepted() []string {
+	if x != nil {
+		return x.PaymentMethodsAccepted
+	}
+	return nil
+}
+
+func (x *GetDriverTripDetailsResponse) GetAllowLuggages() bool {
+	if x != nil {
+		return x.AllowLuggages
+	}
+	return false
+}
+
+func (x *GetDriverTripDetailsResponse) GetAllowPets() bool {
+	if x != nil {
+		return x.AllowPets
+	}
+	return false
+}
+
+func (x *GetDriverTripDetailsResponse) GetAllowFood() bool {
+	if x != nil {
+		return x.AllowFood
+	}
+	return false
+}
+
+func (x *GetDriverTripDetailsResponse) GetAllowSmoking() bool {
+	if x != nil {
+		return x.AllowSmoking
+	}
+	return false
+}
+
+func (x *GetDriverTripDetailsResponse) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *GetDriverTripDetailsResponse) GetWaypoints() []*DriverWaypointDetail {
+	if x != nil {
+		return x.Waypoints
+	}
+	return nil
+}
+
+func (x *GetDriverTripDetailsResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+type GetPassengerTripDetailsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TripId        string                 `protobuf:"bytes,1,opt,name=TripId,proto3" json:"TripId,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPassengerTripDetailsRequest) Reset() {
+	*x = GetPassengerTripDetailsRequest{}
+	mi := &file_trip_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPassengerTripDetailsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPassengerTripDetailsRequest) ProtoMessage() {}
+
+func (x *GetPassengerTripDetailsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPassengerTripDetailsRequest.ProtoReflect.Descriptor instead.
+func (*GetPassengerTripDetailsRequest) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *GetPassengerTripDetailsRequest) GetTripId() string {
+	if x != nil {
+		return x.TripId
+	}
+	return ""
+}
+
+type PassengerWaypointDetail struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	WaypointId              string                 `protobuf:"bytes,1,opt,name=WaypointId,proto3" json:"WaypointId,omitempty"`
+	WaypointType            string                 `protobuf:"bytes,2,opt,name=WaypointType,proto3" json:"WaypointType,omitempty"` // departure | stop | arrival
+	SequencerOrder          int32                  `protobuf:"varint,3,opt,name=SequencerOrder,proto3" json:"SequencerOrder,omitempty"`
+	LocationName            string                 `protobuf:"bytes,4,opt,name=LocationName,proto3" json:"LocationName,omitempty"`
+	City                    string                 `protobuf:"bytes,5,opt,name=City,proto3" json:"City,omitempty"`
+	ScheduledPickupDatetime string                 `protobuf:"bytes,6,opt,name=ScheduledPickupDatetime,proto3" json:"ScheduledPickupDatetime,omitempty"` // RFC3339
+	PriceFromPrevious       int32                  `protobuf:"varint,7,opt,name=PriceFromPrevious,proto3" json:"PriceFromPrevious,omitempty"`
+	MinutesFromDeparture    int32                  `protobuf:"varint,8,opt,name=MinutesFromDeparture,proto3" json:"MinutesFromDeparture,omitempty"`
+	IsCancelled             bool                   `protobuf:"varint,9,opt,name=IsCancelled,proto3" json:"IsCancelled,omitempty"` // true si le waypoint a été annulé
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *PassengerWaypointDetail) Reset() {
+	*x = PassengerWaypointDetail{}
+	mi := &file_trip_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PassengerWaypointDetail) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PassengerWaypointDetail) ProtoMessage() {}
+
+func (x *PassengerWaypointDetail) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PassengerWaypointDetail.ProtoReflect.Descriptor instead.
+func (*PassengerWaypointDetail) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *PassengerWaypointDetail) GetWaypointId() string {
+	if x != nil {
+		return x.WaypointId
+	}
+	return ""
+}
+
+func (x *PassengerWaypointDetail) GetWaypointType() string {
+	if x != nil {
+		return x.WaypointType
+	}
+	return ""
+}
+
+func (x *PassengerWaypointDetail) GetSequencerOrder() int32 {
+	if x != nil {
+		return x.SequencerOrder
+	}
+	return 0
+}
+
+func (x *PassengerWaypointDetail) GetLocationName() string {
+	if x != nil {
+		return x.LocationName
+	}
+	return ""
+}
+
+func (x *PassengerWaypointDetail) GetCity() string {
+	if x != nil {
+		return x.City
+	}
+	return ""
+}
+
+func (x *PassengerWaypointDetail) GetScheduledPickupDatetime() string {
+	if x != nil {
+		return x.ScheduledPickupDatetime
+	}
+	return ""
+}
+
+func (x *PassengerWaypointDetail) GetPriceFromPrevious() int32 {
+	if x != nil {
+		return x.PriceFromPrevious
+	}
+	return 0
+}
+
+func (x *PassengerWaypointDetail) GetMinutesFromDeparture() int32 {
+	if x != nil {
+		return x.MinutesFromDeparture
+	}
+	return 0
+}
+
+func (x *PassengerWaypointDetail) GetIsCancelled() bool {
+	if x != nil {
+		return x.IsCancelled
+	}
+	return false
+}
+
+type GetPassengerTripDetailsResponse struct {
+	state                    protoimpl.MessageState     `protogen:"open.v1"`
+	TripId                   string                     `protobuf:"bytes,1,opt,name=TripId,proto3" json:"TripId,omitempty"`
+	DriverId                 string                     `protobuf:"bytes,2,opt,name=DriverId,proto3" json:"DriverId,omitempty"`
+	DriverName               string                     `protobuf:"bytes,3,opt,name=DriverName,proto3" json:"DriverName,omitempty"`
+	DriverProfileImageURL    string                     `protobuf:"bytes,4,opt,name=DriverProfileImageURL,proto3" json:"DriverProfileImageURL,omitempty"`
+	DriverRatingAverage      float64                    `protobuf:"fixed64,5,opt,name=DriverRatingAverage,proto3" json:"DriverRatingAverage,omitempty"`
+	Status                   string                     `protobuf:"bytes,6,opt,name=Status,proto3" json:"Status,omitempty"`
+	TotalSeats               int32                      `protobuf:"varint,7,opt,name=TotalSeats,proto3" json:"TotalSeats,omitempty"`
+	AvailableSeats           int32                      `protobuf:"varint,8,opt,name=AvailableSeats,proto3" json:"AvailableSeats,omitempty"`
+	PricePerSeat             int32                      `protobuf:"varint,9,opt,name=PricePerSeat,proto3" json:"PricePerSeat,omitempty"`
+	DepartureDatetime        string                     `protobuf:"bytes,10,opt,name=DepartureDatetime,proto3" json:"DepartureDatetime,omitempty"`               // RFC3339
+	EstimatedArrivalDatetime string                     `protobuf:"bytes,11,opt,name=EstimatedArrivalDatetime,proto3" json:"EstimatedArrivalDatetime,omitempty"` // RFC3339
+	EstimatedDurationMinutes int32                      `protobuf:"varint,12,opt,name=EstimatedDurationMinutes,proto3" json:"EstimatedDurationMinutes,omitempty"`
+	VehicleId                string                     `protobuf:"bytes,13,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"`
+	VehicleBrand             string                     `protobuf:"bytes,14,opt,name=VehicleBrand,proto3" json:"VehicleBrand,omitempty"`
+	VehiclePlate             string                     `protobuf:"bytes,15,opt,name=VehiclePlate,proto3" json:"VehiclePlate,omitempty"`
+	PaymentMethodsAccepted   []string                   `protobuf:"bytes,16,rep,name=PaymentMethodsAccepted,proto3" json:"PaymentMethodsAccepted,omitempty"`
+	AllowLuggages            bool                       `protobuf:"varint,17,opt,name=AllowLuggages,proto3" json:"AllowLuggages,omitempty"`
+	AllowPets                bool                       `protobuf:"varint,18,opt,name=AllowPets,proto3" json:"AllowPets,omitempty"`
+	AllowFood                bool                       `protobuf:"varint,19,opt,name=AllowFood,proto3" json:"AllowFood,omitempty"`
+	AllowSmoking             bool                       `protobuf:"varint,20,opt,name=AllowSmoking,proto3" json:"AllowSmoking,omitempty"`
+	Description              string                     `protobuf:"bytes,21,opt,name=Description,proto3" json:"Description,omitempty"`
+	Waypoints                []*PassengerWaypointDetail `protobuf:"bytes,22,rep,name=Waypoints,proto3" json:"Waypoints,omitempty"`
+	ErrorMessage             string                     `protobuf:"bytes,23,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *GetPassengerTripDetailsResponse) Reset() {
+	*x = GetPassengerTripDetailsResponse{}
+	mi := &file_trip_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPassengerTripDetailsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPassengerTripDetailsResponse) ProtoMessage() {}
+
+func (x *GetPassengerTripDetailsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPassengerTripDetailsResponse.ProtoReflect.Descriptor instead.
+func (*GetPassengerTripDetailsResponse) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *GetPassengerTripDetailsResponse) GetTripId() string {
+	if x != nil {
+		return x.TripId
+	}
+	return ""
+}
+
+func (x *GetPassengerTripDetailsResponse) GetDriverId() string {
+	if x != nil {
+		return x.DriverId
+	}
+	return ""
+}
+
+func (x *GetPassengerTripDetailsResponse) GetDriverName() string {
+	if x != nil {
+		return x.DriverName
+	}
+	return ""
+}
+
+func (x *GetPassengerTripDetailsResponse) GetDriverProfileImageURL() string {
+	if x != nil {
+		return x.DriverProfileImageURL
+	}
+	return ""
+}
+
+func (x *GetPassengerTripDetailsResponse) GetDriverRatingAverage() float64 {
+	if x != nil {
+		return x.DriverRatingAverage
+	}
+	return 0
+}
+
+func (x *GetPassengerTripDetailsResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *GetPassengerTripDetailsResponse) GetTotalSeats() int32 {
+	if x != nil {
+		return x.TotalSeats
+	}
+	return 0
+}
+
+func (x *GetPassengerTripDetailsResponse) GetAvailableSeats() int32 {
+	if x != nil {
+		return x.AvailableSeats
+	}
+	return 0
+}
+
+func (x *GetPassengerTripDetailsResponse) GetPricePerSeat() int32 {
+	if x != nil {
+		return x.PricePerSeat
+	}
+	return 0
+}
+
+func (x *GetPassengerTripDetailsResponse) GetDepartureDatetime() string {
+	if x != nil {
+		return x.DepartureDatetime
+	}
+	return ""
+}
+
+func (x *GetPassengerTripDetailsResponse) GetEstimatedArrivalDatetime() string {
+	if x != nil {
+		return x.EstimatedArrivalDatetime
+	}
+	return ""
+}
+
+func (x *GetPassengerTripDetailsResponse) GetEstimatedDurationMinutes() int32 {
+	if x != nil {
+		return x.EstimatedDurationMinutes
+	}
+	return 0
+}
+
+func (x *GetPassengerTripDetailsResponse) GetVehicleId() string {
+	if x != nil {
+		return x.VehicleId
+	}
+	return ""
+}
+
+func (x *GetPassengerTripDetailsResponse) GetVehicleBrand() string {
+	if x != nil {
+		return x.VehicleBrand
+	}
+	return ""
+}
+
+func (x *GetPassengerTripDetailsResponse) GetVehiclePlate() string {
+	if x != nil {
+		return x.VehiclePlate
+	}
+	return ""
+}
+
+func (x *GetPassengerTripDetailsResponse) GetPaymentMethodsAccepted() []string {
+	if x != nil {
+		return x.PaymentMethodsAccepted
+	}
+	return nil
+}
+
+func (x *GetPassengerTripDetailsResponse) GetAllowLuggages() bool {
+	if x != nil {
+		return x.AllowLuggages
+	}
+	return false
+}
+
+func (x *GetPassengerTripDetailsResponse) GetAllowPets() bool {
+	if x != nil {
+		return x.AllowPets
+	}
+	return false
+}
+
+func (x *GetPassengerTripDetailsResponse) GetAllowFood() bool {
+	if x != nil {
+		return x.AllowFood
+	}
+	return false
+}
+
+func (x *GetPassengerTripDetailsResponse) GetAllowSmoking() bool {
+	if x != nil {
+		return x.AllowSmoking
+	}
+	return false
+}
+
+func (x *GetPassengerTripDetailsResponse) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *GetPassengerTripDetailsResponse) GetWaypoints() []*PassengerWaypointDetail {
+	if x != nil {
+		return x.Waypoints
+	}
+	return nil
+}
+
+func (x *GetPassengerTripDetailsResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
 }
 
 var File_trip_proto protoreflect.FileDescriptor
@@ -2797,7 +4098,7 @@ const file_trip_proto_rawDesc = "" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"K\n" +
 	"\x17GetTripsPreviewsRequest\x12\x1a\n" +
 	"\bDriverId\x18\x01 \x01(\tR\bDriverId\x12\x14\n" +
-	"\x05Index\x18\x02 \x01(\x05R\x05Index\"\xc3\x03\n" +
+	"\x05Index\x18\x02 \x01(\x05R\x05Index\"\xe7\x05\n" +
 	"\vTripPreview\x12\x16\n" +
 	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12\x1a\n" +
 	"\bDriverId\x18\x02 \x01(\tR\bDriverId\x12\x1e\n" +
@@ -2815,7 +4116,13 @@ const file_trip_proto_rawDesc = "" +
 	"\x0eAvailableSeats\x18\n" +
 	" \x01(\x05R\x0eAvailableSeats\x124\n" +
 	"\x15DepartureLocationName\x18\v \x01(\tR\x15DepartureLocationName\x120\n" +
-	"\x13ArrivalLocationName\x18\f \x01(\tR\x13ArrivalLocationName\"w\n" +
+	"\x13ArrivalLocationName\x18\f \x01(\tR\x13ArrivalLocationName\x120\n" +
+	"\x13DepartureWaypointId\x18\r \x01(\tR\x13DepartureWaypointId\x12,\n" +
+	"\x11ArrivalWaypointId\x18\x0e \x01(\tR\x11ArrivalWaypointId\x12\"\n" +
+	"\fSegmentPrice\x18\x0f \x01(\x05R\fSegmentPrice\x126\n" +
+	"\x16SegmentDurationMinutes\x18\x10 \x01(\x05R\x16SegmentDurationMinutes\x124\n" +
+	"\x15DriverProfileImageURL\x18\x11 \x01(\tR\x15DriverProfileImageURL\x120\n" +
+	"\x13DriverRatingAverage\x18\x12 \x01(\x01R\x13DriverRatingAverage\"w\n" +
 	"\x18GetTripsPreviewsResponse\x127\n" +
 	"\rTripsPreviews\x18\x01 \x03(\v2\x11.trip.TripPreviewR\rTripsPreviews\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"T\n" +
@@ -2917,12 +4224,138 @@ const file_trip_proto_rawDesc = "" +
 	"\x12CancellationReason\x18\x03 \x01(\tR\x12CancellationReason\"V\n" +
 	"\x16CancelWaypointResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\x0f\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\xb3\x03\n" +
+	" GetScheduledTripsPreviewsRequest\x124\n" +
+	"\x16passenger_position_lng\x18\x01 \x01(\x01R\x14passengerPositionLng\x124\n" +
+	"\x16passenger_position_lat\x18\x02 \x01(\x01R\x14passengerPositionLat\x12%\n" +
+	"\x0edistance_range\x18\x03 \x01(\x05R\rdistanceRange\x126\n" +
+	"\x17departure_location_name\x18\x04 \x01(\tR\x15departureLocationName\x122\n" +
+	"\x15arrival_location_name\x18\x05 \x01(\tR\x13arrivalLocationName\x12&\n" +
+	"\x0ftrip_start_date\x18\x06 \x01(\tR\rtripStartDate\x12&\n" +
+	"\x0ftrip_start_hour\x18\a \x01(\tR\rtripStartHour\x12*\n" +
+	"\x11trip_arrival_hour\x18\b \x01(\tR\x0ftripArrivalHour\x12\x14\n" +
+	"\x05index\x18\t \x01(\x05R\x05index\"\xc2\x01\n" +
+	"!GetScheduledTripsPreviewsResponse\x128\n" +
+	"\x0etrips_previews\x18\x01 \x03(\v2\x11.trip.TripPreviewR\rtripsPreviews\x12#\n" +
+	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage\x12\x1d\n" +
+	"\n" +
+	"next_index\x18\x03 \x01(\x05R\tnextIndex\x12\x1f\n" +
+	"\vtotal_count\x18\x04 \x01(\x05R\n" +
+	"totalCount\"\x0f\n" +
 	"\rHealthRequest\"`\n" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
 	"\aVersion\x18\x02 \x01(\tR\aVersion\x12\x1c\n" +
-	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp2\xbb\x10\n" +
+	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp\"\x86\x01\n" +
+	"\x1eIncrementLegBookedSeatsRequest\x12\x16\n" +
+	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12\x1c\n" +
+	"\tFromOrder\x18\x02 \x01(\x05R\tFromOrder\x12\x18\n" +
+	"\aToOrder\x18\x03 \x01(\x05R\aToOrder\x12\x14\n" +
+	"\x05Delta\x18\x04 \x01(\x05R\x05Delta\"_\n" +
+	"\x1fIncrementLegBookedSeatsResponse\x12\x18\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"_\n" +
+	"\x13LegBookedSeatsEntry\x12&\n" +
+	"\x0eSequencerOrder\x18\x01 \x01(\x05R\x0eSequencerOrder\x12 \n" +
+	"\vBookedSeats\x18\x02 \x01(\x05R\vBookedSeats\"b\n" +
+	"\x19SyncLegBookedSeatsRequest\x12\x16\n" +
+	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12-\n" +
+	"\x04Legs\x18\x02 \x03(\v2\x19.trip.LegBookedSeatsEntryR\x04Legs\"Z\n" +
+	"\x1aSyncLegBookedSeatsResponse\x12\x18\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"5\n" +
+	"\x1bGetDriverTripDetailsRequest\x12\x16\n" +
+	"\x06TripId\x18\x01 \x01(\tR\x06TripId\"\x82\x05\n" +
+	"\x14DriverWaypointDetail\x12\x1e\n" +
+	"\n" +
+	"WaypointId\x18\x01 \x01(\tR\n" +
+	"WaypointId\x12\"\n" +
+	"\fWaypointType\x18\x02 \x01(\tR\fWaypointType\x12&\n" +
+	"\x0eSequencerOrder\x18\x03 \x01(\x05R\x0eSequencerOrder\x12\"\n" +
+	"\fLocationName\x18\x04 \x01(\tR\fLocationName\x12 \n" +
+	"\vLocationLng\x18\x05 \x01(\x01R\vLocationLng\x12 \n" +
+	"\vLocationLat\x18\x06 \x01(\x01R\vLocationLat\x12\x12\n" +
+	"\x04City\x18\a \x01(\tR\x04City\x12\x18\n" +
+	"\aCountry\x18\b \x01(\tR\aCountry\x128\n" +
+	"\x17ScheduledPickupDatetime\x18\t \x01(\tR\x17ScheduledPickupDatetime\x124\n" +
+	"\x15ActualArrivalDatetime\x18\n" +
+	" \x01(\tR\x15ActualArrivalDatetime\x12D\n" +
+	"\x1dActualScheduledPickupDatetime\x18\v \x01(\tR\x1dActualScheduledPickupDatetime\x122\n" +
+	"\x14MinutesFromDeparture\x18\f \x01(\x05R\x14MinutesFromDeparture\x12,\n" +
+	"\x11PriceFromPrevious\x18\r \x01(\x05R\x11PriceFromPrevious\x12 \n" +
+	"\vIsCancelled\x18\x0e \x01(\bR\vIsCancelled\x12.\n" +
+	"\x12CancellationReason\x18\x0f \x01(\tR\x12CancellationReason\"\xfa\a\n" +
+	"\x1cGetDriverTripDetailsResponse\x12\x16\n" +
+	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12\x1a\n" +
+	"\bDriverId\x18\x02 \x01(\tR\bDriverId\x12\x16\n" +
+	"\x06Status\x18\x03 \x01(\tR\x06Status\x12\x1e\n" +
+	"\n" +
+	"TotalSeats\x18\x04 \x01(\x05R\n" +
+	"TotalSeats\x12&\n" +
+	"\x0eAvailableSeats\x18\x05 \x01(\x05R\x0eAvailableSeats\x12\"\n" +
+	"\fPricePerSeat\x18\x06 \x01(\x05R\fPricePerSeat\x12.\n" +
+	"\x12AutoApproveEnabled\x18\a \x01(\bR\x12AutoApproveEnabled\x12,\n" +
+	"\x11DepartureDatetime\x18\b \x01(\tR\x11DepartureDatetime\x12:\n" +
+	"\x18EstimatedArrivalDatetime\x18\t \x01(\tR\x18EstimatedArrivalDatetime\x128\n" +
+	"\x17ActualDepartureDatetime\x18\n" +
+	" \x01(\tR\x17ActualDepartureDatetime\x124\n" +
+	"\x15ActualArrivalDatetime\x18\v \x01(\tR\x15ActualArrivalDatetime\x12:\n" +
+	"\x18EstimatedDurationMinutes\x18\f \x01(\x05R\x18EstimatedDurationMinutes\x128\n" +
+	"\x17EstimatedDistanceMeters\x18\r \x01(\x05R\x17EstimatedDistanceMeters\x12\x1c\n" +
+	"\tVehicleId\x18\x0e \x01(\tR\tVehicleId\x12\"\n" +
+	"\fVehicleBrand\x18\x0f \x01(\tR\fVehicleBrand\x12\"\n" +
+	"\fVehiclePlate\x18\x10 \x01(\tR\fVehiclePlate\x126\n" +
+	"\x16PaymentMethodsAccepted\x18\x11 \x03(\tR\x16PaymentMethodsAccepted\x12$\n" +
+	"\rAllowLuggages\x18\x12 \x01(\bR\rAllowLuggages\x12\x1c\n" +
+	"\tAllowPets\x18\x13 \x01(\bR\tAllowPets\x12\x1c\n" +
+	"\tAllowFood\x18\x14 \x01(\bR\tAllowFood\x12\"\n" +
+	"\fAllowSmoking\x18\x15 \x01(\bR\fAllowSmoking\x12 \n" +
+	"\vDescription\x18\x16 \x01(\tR\vDescription\x128\n" +
+	"\tWaypoints\x18\x17 \x03(\v2\x1a.trip.DriverWaypointDetailR\tWaypoints\x12\"\n" +
+	"\fErrorMessage\x18\x18 \x01(\tR\fErrorMessage\"8\n" +
+	"\x1eGetPassengerTripDetailsRequest\x12\x16\n" +
+	"\x06TripId\x18\x01 \x01(\tR\x06TripId\"\xfb\x02\n" +
+	"\x17PassengerWaypointDetail\x12\x1e\n" +
+	"\n" +
+	"WaypointId\x18\x01 \x01(\tR\n" +
+	"WaypointId\x12\"\n" +
+	"\fWaypointType\x18\x02 \x01(\tR\fWaypointType\x12&\n" +
+	"\x0eSequencerOrder\x18\x03 \x01(\x05R\x0eSequencerOrder\x12\"\n" +
+	"\fLocationName\x18\x04 \x01(\tR\fLocationName\x12\x12\n" +
+	"\x04City\x18\x05 \x01(\tR\x04City\x128\n" +
+	"\x17ScheduledPickupDatetime\x18\x06 \x01(\tR\x17ScheduledPickupDatetime\x12,\n" +
+	"\x11PriceFromPrevious\x18\a \x01(\x05R\x11PriceFromPrevious\x122\n" +
+	"\x14MinutesFromDeparture\x18\b \x01(\x05R\x14MinutesFromDeparture\x12 \n" +
+	"\vIsCancelled\x18\t \x01(\bR\vIsCancelled\"\xae\a\n" +
+	"\x1fGetPassengerTripDetailsResponse\x12\x16\n" +
+	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12\x1a\n" +
+	"\bDriverId\x18\x02 \x01(\tR\bDriverId\x12\x1e\n" +
+	"\n" +
+	"DriverName\x18\x03 \x01(\tR\n" +
+	"DriverName\x124\n" +
+	"\x15DriverProfileImageURL\x18\x04 \x01(\tR\x15DriverProfileImageURL\x120\n" +
+	"\x13DriverRatingAverage\x18\x05 \x01(\x01R\x13DriverRatingAverage\x12\x16\n" +
+	"\x06Status\x18\x06 \x01(\tR\x06Status\x12\x1e\n" +
+	"\n" +
+	"TotalSeats\x18\a \x01(\x05R\n" +
+	"TotalSeats\x12&\n" +
+	"\x0eAvailableSeats\x18\b \x01(\x05R\x0eAvailableSeats\x12\"\n" +
+	"\fPricePerSeat\x18\t \x01(\x05R\fPricePerSeat\x12,\n" +
+	"\x11DepartureDatetime\x18\n" +
+	" \x01(\tR\x11DepartureDatetime\x12:\n" +
+	"\x18EstimatedArrivalDatetime\x18\v \x01(\tR\x18EstimatedArrivalDatetime\x12:\n" +
+	"\x18EstimatedDurationMinutes\x18\f \x01(\x05R\x18EstimatedDurationMinutes\x12\x1c\n" +
+	"\tVehicleId\x18\r \x01(\tR\tVehicleId\x12\"\n" +
+	"\fVehicleBrand\x18\x0e \x01(\tR\fVehicleBrand\x12\"\n" +
+	"\fVehiclePlate\x18\x0f \x01(\tR\fVehiclePlate\x126\n" +
+	"\x16PaymentMethodsAccepted\x18\x10 \x03(\tR\x16PaymentMethodsAccepted\x12$\n" +
+	"\rAllowLuggages\x18\x11 \x01(\bR\rAllowLuggages\x12\x1c\n" +
+	"\tAllowPets\x18\x12 \x01(\bR\tAllowPets\x12\x1c\n" +
+	"\tAllowFood\x18\x13 \x01(\bR\tAllowFood\x12\"\n" +
+	"\fAllowSmoking\x18\x14 \x01(\bR\fAllowSmoking\x12 \n" +
+	"\vDescription\x18\x15 \x01(\tR\vDescription\x12;\n" +
+	"\tWaypoints\x18\x16 \x03(\v2\x1d.trip.PassengerWaypointDetailR\tWaypoints\x12\"\n" +
+	"\fErrorMessage\x18\x17 \x01(\tR\fErrorMessage2\x99\x15\n" +
 	"\vTripService\x12c\n" +
 	"\n" +
 	"CreateTrip\x12\x17.trip.CreateTripRequest\x1a\x18.trip.CreateTripResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/trip/driver/createTrip\x12\x87\x01\n" +
@@ -2936,12 +4369,17 @@ const file_trip_proto_rawDesc = "" +
 	"\tStartTrip\x12\x16.trip.StartTripRequest\x1a\x17.trip.StartTripResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*2\x16/trip/driver/startTrip\x12W\n" +
 	"\aEndTrip\x12\x14.trip.EndTripRequest\x1a\x15.trip.EndTripResponse\"\x1f\x82\xd3\xe4\x93\x02\x19:\x01*2\x14/trip/driver/endTrip\x12\x93\x01\n" +
 	"\x16ConfirmWaypointArrival\x12#.trip.ConfirmWaypointArrivalRequest\x1a$.trip.ConfirmWaypointArrivalResponse\".\x82\xd3\xe4\x93\x02(:\x01*2#/trip/driver/confirmWaypointArrival\x12\x9b\x01\n" +
-	"\x18ConfirmWaypointDeparture\x12%.trip.ConfirmWaypointDepartureRequest\x1a&.trip.ConfirmWaypointDepartureResponse\"0\x82\xd3\xe4\x93\x02*:\x01*2%/trip/driver/confirmWaypointDeparture\x12]\n" +
-	"\vGetTripByID\x12\x18.trip.GetTripByIDRequest\x1a\x19.trip.GetTripByIDResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/trip/getTripByID\x12\x8d\x01\n" +
+	"\x18ConfirmWaypointDeparture\x12%.trip.ConfirmWaypointDepartureRequest\x1a&.trip.ConfirmWaypointDepartureResponse\"0\x82\xd3\xe4\x93\x02*:\x01*2%/trip/driver/confirmWaypointDeparture\x12B\n" +
+	"\vGetTripByID\x12\x18.trip.GetTripByIDRequest\x1a\x19.trip.GetTripByIDResponse\x12\x82\x01\n" +
+	"\x14GetDriverTripDetails\x12!.trip.GetDriverTripDetailsRequest\x1a\".trip.GetDriverTripDetailsResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/trip/driver/getTripDetails\x12\x8e\x01\n" +
+	"\x17GetPassengerTripDetails\x12$.trip.GetPassengerTripDetailsRequest\x1a%.trip.GetPassengerTripDetailsResponse\"&\x82\xd3\xe4\x93\x02 \x12\x1e/trip/passenger/getTripDetails\x12\x8d\x01\n" +
 	"\x14UpdateAvailableSeats\x12!.trip.UpdateAvailableSeatsRequest\x1a\".trip.UpdateAvailableSeatsResponse\".\x82\xd3\xe4\x93\x02(:\x01*2#/trip/internal/updateAvailableSeats\x12c\n" +
 	"\n" +
 	"CancelTrip\x12\x17.trip.CancelTripRequest\x1a\x18.trip.CancelTripResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01**\x17/trip/driver/cancelTrip\x12s\n" +
-	"\x0eCancelWaypoint\x12\x1b.trip.CancelWaypointRequest\x1a\x1c.trip.CancelWaypointResponse\"&\x82\xd3\xe4\x93\x02 :\x01**\x1b/trip/driver/cancelWaypoint\x12I\n" +
+	"\x0eCancelWaypoint\x12\x1b.trip.CancelWaypointRequest\x1a\x1c.trip.CancelWaypointResponse\"&\x82\xd3\xe4\x93\x02 :\x01**\x1b/trip/driver/cancelWaypoint\x12\x9f\x01\n" +
+	"\x19GetScheduledTripsPreviews\x12&.trip.GetScheduledTripsPreviewsRequest\x1a'.trip.GetScheduledTripsPreviewsResponse\"1\x82\xd3\xe4\x93\x02+\x12)/trip/passenger/getScheduledTripsPreviews\x12f\n" +
+	"\x17IncrementLegBookedSeats\x12$.trip.IncrementLegBookedSeatsRequest\x1a%.trip.IncrementLegBookedSeatsResponse\x12W\n" +
+	"\x12SyncLegBookedSeats\x12\x1f.trip.SyncLegBookedSeatsRequest\x1a .trip.SyncLegBookedSeatsResponse\x12I\n" +
 	"\x06Health\x12\x13.trip.HealthRequest\x1a\x14.trip.HealthResponse\"\x14\x82\xd3\xe4\x93\x02\x0e\x12\f/trip/healthBCZAgithub.com/Kpeewu/tissi-mah/services/trips-service/proto/gen;tripb\x06proto3"
 
 var (
@@ -2956,7 +4394,7 @@ func file_trip_proto_rawDescGZIP() []byte {
 	return file_trip_proto_rawDescData
 }
 
-var file_trip_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
+var file_trip_proto_msgTypes = make([]protoimpl.MessageInfo, 52)
 var file_trip_proto_goTypes = []any{
 	(*GetTripByIDRequest)(nil),                // 0: trip.GetTripByIDRequest
 	(*TripWaypointDetail)(nil),                // 1: trip.TripWaypointDetail
@@ -2995,8 +4433,21 @@ var file_trip_proto_goTypes = []any{
 	(*CancelTripResponse)(nil),                // 34: trip.CancelTripResponse
 	(*CancelWaypointRequest)(nil),             // 35: trip.CancelWaypointRequest
 	(*CancelWaypointResponse)(nil),            // 36: trip.CancelWaypointResponse
-	(*HealthRequest)(nil),                     // 37: trip.HealthRequest
-	(*HealthResponse)(nil),                    // 38: trip.HealthResponse
+	(*GetScheduledTripsPreviewsRequest)(nil),  // 37: trip.GetScheduledTripsPreviewsRequest
+	(*GetScheduledTripsPreviewsResponse)(nil), // 38: trip.GetScheduledTripsPreviewsResponse
+	(*HealthRequest)(nil),                     // 39: trip.HealthRequest
+	(*HealthResponse)(nil),                    // 40: trip.HealthResponse
+	(*IncrementLegBookedSeatsRequest)(nil),    // 41: trip.IncrementLegBookedSeatsRequest
+	(*IncrementLegBookedSeatsResponse)(nil),   // 42: trip.IncrementLegBookedSeatsResponse
+	(*LegBookedSeatsEntry)(nil),               // 43: trip.LegBookedSeatsEntry
+	(*SyncLegBookedSeatsRequest)(nil),         // 44: trip.SyncLegBookedSeatsRequest
+	(*SyncLegBookedSeatsResponse)(nil),        // 45: trip.SyncLegBookedSeatsResponse
+	(*GetDriverTripDetailsRequest)(nil),       // 46: trip.GetDriverTripDetailsRequest
+	(*DriverWaypointDetail)(nil),              // 47: trip.DriverWaypointDetail
+	(*GetDriverTripDetailsResponse)(nil),      // 48: trip.GetDriverTripDetailsResponse
+	(*GetPassengerTripDetailsRequest)(nil),    // 49: trip.GetPassengerTripDetailsRequest
+	(*PassengerWaypointDetail)(nil),           // 50: trip.PassengerWaypointDetail
+	(*GetPassengerTripDetailsResponse)(nil),   // 51: trip.GetPassengerTripDetailsResponse
 }
 var file_trip_proto_depIdxs = []int32{
 	1,  // 0: trip.GetTripByIDResponse.Waypoints:type_name -> trip.TripWaypointDetail
@@ -3005,45 +4456,59 @@ var file_trip_proto_depIdxs = []int32{
 	5,  // 3: trip.CreateRecurringTripRequest.TripWaypoints:type_name -> trip.WaypointInput
 	12, // 4: trip.GetTripsPreviewsResponse.TripsPreviews:type_name -> trip.TripPreview
 	15, // 5: trip.GetCompletedTripsPreviewsResponse.TripsPreviews:type_name -> trip.CompletedTripPreview
-	6,  // 6: trip.TripService.CreateTrip:input_type -> trip.CreateTripRequest
-	9,  // 7: trip.TripService.CreateRecurringTrip:input_type -> trip.CreateRecurringTripRequest
-	11, // 8: trip.TripService.GetTripsPreviews:input_type -> trip.GetTripsPreviewsRequest
-	14, // 9: trip.TripService.GetCompletedTripsPreviews:input_type -> trip.GetCompletedTripsPreviewsRequest
-	17, // 10: trip.TripService.ChangeTripDateAndTime:input_type -> trip.ChangeTripDateAndTimeRequest
-	19, // 11: trip.TripService.ChangeTripVehicle:input_type -> trip.ChangeTripVehicleRequest
-	21, // 12: trip.TripService.ChangeTripAllowances:input_type -> trip.ChangeTripAllowancesRequest
-	23, // 13: trip.TripService.ChangeAutoApprove:input_type -> trip.ChangeAutoApproveRequest
-	25, // 14: trip.TripService.StartTrip:input_type -> trip.StartTripRequest
-	27, // 15: trip.TripService.EndTrip:input_type -> trip.EndTripRequest
-	29, // 16: trip.TripService.ConfirmWaypointArrival:input_type -> trip.ConfirmWaypointArrivalRequest
-	31, // 17: trip.TripService.ConfirmWaypointDeparture:input_type -> trip.ConfirmWaypointDepartureRequest
-	0,  // 18: trip.TripService.GetTripByID:input_type -> trip.GetTripByIDRequest
-	3,  // 19: trip.TripService.UpdateAvailableSeats:input_type -> trip.UpdateAvailableSeatsRequest
-	33, // 20: trip.TripService.CancelTrip:input_type -> trip.CancelTripRequest
-	35, // 21: trip.TripService.CancelWaypoint:input_type -> trip.CancelWaypointRequest
-	37, // 22: trip.TripService.Health:input_type -> trip.HealthRequest
-	7,  // 23: trip.TripService.CreateTrip:output_type -> trip.CreateTripResponse
-	10, // 24: trip.TripService.CreateRecurringTrip:output_type -> trip.CreateRecurringTripResponse
-	13, // 25: trip.TripService.GetTripsPreviews:output_type -> trip.GetTripsPreviewsResponse
-	16, // 26: trip.TripService.GetCompletedTripsPreviews:output_type -> trip.GetCompletedTripsPreviewsResponse
-	18, // 27: trip.TripService.ChangeTripDateAndTime:output_type -> trip.ChangeTripDateAndTimeResponse
-	20, // 28: trip.TripService.ChangeTripVehicle:output_type -> trip.ChangeTripVehicleResponse
-	22, // 29: trip.TripService.ChangeTripAllowances:output_type -> trip.ChangeTripAllowancesResponse
-	24, // 30: trip.TripService.ChangeAutoApprove:output_type -> trip.ChangeAutoApproveResponse
-	26, // 31: trip.TripService.StartTrip:output_type -> trip.StartTripResponse
-	28, // 32: trip.TripService.EndTrip:output_type -> trip.EndTripResponse
-	30, // 33: trip.TripService.ConfirmWaypointArrival:output_type -> trip.ConfirmWaypointArrivalResponse
-	32, // 34: trip.TripService.ConfirmWaypointDeparture:output_type -> trip.ConfirmWaypointDepartureResponse
-	2,  // 35: trip.TripService.GetTripByID:output_type -> trip.GetTripByIDResponse
-	4,  // 36: trip.TripService.UpdateAvailableSeats:output_type -> trip.UpdateAvailableSeatsResponse
-	34, // 37: trip.TripService.CancelTrip:output_type -> trip.CancelTripResponse
-	36, // 38: trip.TripService.CancelWaypoint:output_type -> trip.CancelWaypointResponse
-	38, // 39: trip.TripService.Health:output_type -> trip.HealthResponse
-	23, // [23:40] is the sub-list for method output_type
-	6,  // [6:23] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	12, // 6: trip.GetScheduledTripsPreviewsResponse.trips_previews:type_name -> trip.TripPreview
+	43, // 7: trip.SyncLegBookedSeatsRequest.Legs:type_name -> trip.LegBookedSeatsEntry
+	47, // 8: trip.GetDriverTripDetailsResponse.Waypoints:type_name -> trip.DriverWaypointDetail
+	50, // 9: trip.GetPassengerTripDetailsResponse.Waypoints:type_name -> trip.PassengerWaypointDetail
+	6,  // 10: trip.TripService.CreateTrip:input_type -> trip.CreateTripRequest
+	9,  // 11: trip.TripService.CreateRecurringTrip:input_type -> trip.CreateRecurringTripRequest
+	11, // 12: trip.TripService.GetTripsPreviews:input_type -> trip.GetTripsPreviewsRequest
+	14, // 13: trip.TripService.GetCompletedTripsPreviews:input_type -> trip.GetCompletedTripsPreviewsRequest
+	17, // 14: trip.TripService.ChangeTripDateAndTime:input_type -> trip.ChangeTripDateAndTimeRequest
+	19, // 15: trip.TripService.ChangeTripVehicle:input_type -> trip.ChangeTripVehicleRequest
+	21, // 16: trip.TripService.ChangeTripAllowances:input_type -> trip.ChangeTripAllowancesRequest
+	23, // 17: trip.TripService.ChangeAutoApprove:input_type -> trip.ChangeAutoApproveRequest
+	25, // 18: trip.TripService.StartTrip:input_type -> trip.StartTripRequest
+	27, // 19: trip.TripService.EndTrip:input_type -> trip.EndTripRequest
+	29, // 20: trip.TripService.ConfirmWaypointArrival:input_type -> trip.ConfirmWaypointArrivalRequest
+	31, // 21: trip.TripService.ConfirmWaypointDeparture:input_type -> trip.ConfirmWaypointDepartureRequest
+	0,  // 22: trip.TripService.GetTripByID:input_type -> trip.GetTripByIDRequest
+	46, // 23: trip.TripService.GetDriverTripDetails:input_type -> trip.GetDriverTripDetailsRequest
+	49, // 24: trip.TripService.GetPassengerTripDetails:input_type -> trip.GetPassengerTripDetailsRequest
+	3,  // 25: trip.TripService.UpdateAvailableSeats:input_type -> trip.UpdateAvailableSeatsRequest
+	33, // 26: trip.TripService.CancelTrip:input_type -> trip.CancelTripRequest
+	35, // 27: trip.TripService.CancelWaypoint:input_type -> trip.CancelWaypointRequest
+	37, // 28: trip.TripService.GetScheduledTripsPreviews:input_type -> trip.GetScheduledTripsPreviewsRequest
+	41, // 29: trip.TripService.IncrementLegBookedSeats:input_type -> trip.IncrementLegBookedSeatsRequest
+	44, // 30: trip.TripService.SyncLegBookedSeats:input_type -> trip.SyncLegBookedSeatsRequest
+	39, // 31: trip.TripService.Health:input_type -> trip.HealthRequest
+	7,  // 32: trip.TripService.CreateTrip:output_type -> trip.CreateTripResponse
+	10, // 33: trip.TripService.CreateRecurringTrip:output_type -> trip.CreateRecurringTripResponse
+	13, // 34: trip.TripService.GetTripsPreviews:output_type -> trip.GetTripsPreviewsResponse
+	16, // 35: trip.TripService.GetCompletedTripsPreviews:output_type -> trip.GetCompletedTripsPreviewsResponse
+	18, // 36: trip.TripService.ChangeTripDateAndTime:output_type -> trip.ChangeTripDateAndTimeResponse
+	20, // 37: trip.TripService.ChangeTripVehicle:output_type -> trip.ChangeTripVehicleResponse
+	22, // 38: trip.TripService.ChangeTripAllowances:output_type -> trip.ChangeTripAllowancesResponse
+	24, // 39: trip.TripService.ChangeAutoApprove:output_type -> trip.ChangeAutoApproveResponse
+	26, // 40: trip.TripService.StartTrip:output_type -> trip.StartTripResponse
+	28, // 41: trip.TripService.EndTrip:output_type -> trip.EndTripResponse
+	30, // 42: trip.TripService.ConfirmWaypointArrival:output_type -> trip.ConfirmWaypointArrivalResponse
+	32, // 43: trip.TripService.ConfirmWaypointDeparture:output_type -> trip.ConfirmWaypointDepartureResponse
+	2,  // 44: trip.TripService.GetTripByID:output_type -> trip.GetTripByIDResponse
+	48, // 45: trip.TripService.GetDriverTripDetails:output_type -> trip.GetDriverTripDetailsResponse
+	51, // 46: trip.TripService.GetPassengerTripDetails:output_type -> trip.GetPassengerTripDetailsResponse
+	4,  // 47: trip.TripService.UpdateAvailableSeats:output_type -> trip.UpdateAvailableSeatsResponse
+	34, // 48: trip.TripService.CancelTrip:output_type -> trip.CancelTripResponse
+	36, // 49: trip.TripService.CancelWaypoint:output_type -> trip.CancelWaypointResponse
+	38, // 50: trip.TripService.GetScheduledTripsPreviews:output_type -> trip.GetScheduledTripsPreviewsResponse
+	42, // 51: trip.TripService.IncrementLegBookedSeats:output_type -> trip.IncrementLegBookedSeatsResponse
+	45, // 52: trip.TripService.SyncLegBookedSeats:output_type -> trip.SyncLegBookedSeatsResponse
+	40, // 53: trip.TripService.Health:output_type -> trip.HealthResponse
+	32, // [32:54] is the sub-list for method output_type
+	10, // [10:32] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_trip_proto_init() }
@@ -3057,7 +4522,7 @@ func file_trip_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_trip_proto_rawDesc), len(file_trip_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   39,
+			NumMessages:   52,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
