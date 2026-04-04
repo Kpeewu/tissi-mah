@@ -53,11 +53,11 @@ func (r *NotificationRepositoryImpl) UpdateStatus(ctx context.Context, notificat
 		failure_reason = $3,
 		provider_message_id = $4,
 		last_attempt_at = NOW(),
-		sent_at = CASE WHEN $2 = 'sent' THEN NOW() ELSE sent_at END,
+		sent_at = CASE WHEN $5 = 'sent' THEN NOW() ELSE sent_at END,
 		updated_at = NOW()
 		WHERE notification_id = $1`
 
-	_, err := r.pool.Exec(ctx, query, notificationID, status, failureReason, providerMessageID)
+	_, err := r.pool.Exec(ctx, query, notificationID, status, failureReason, providerMessageID, status)
 	if err != nil {
 		r.logger.Error("failed to update notification status", zap.String("id", notificationID), zap.Error(err))
 		return notifErrors.ErrorDataUpdateFail

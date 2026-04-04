@@ -27,9 +27,14 @@ func (r *InboxRepositoryImpl) Create(ctx context.Context, entry *domain.InboxEnt
 	) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, false, $7, NOW())
 	RETURNING inbox_id`
 
+	var notifID interface{}
+	if entry.NotificationID != "" {
+		notifID = entry.NotificationID
+	}
+
 	err := r.pool.QueryRow(ctx, query,
 		entry.UserID, entry.EventType, entry.Title, entry.Body,
-		entry.ActionType, entry.ActionID, entry.NotificationID,
+		entry.ActionType, entry.ActionID, notifID,
 	).Scan(&entry.InboxID)
 	if err != nil {
 		r.logger.Error("failed to create inbox entry", zap.Error(err))
@@ -65,12 +70,16 @@ func (r *InboxRepositoryImpl) GetByUserID(ctx context.Context, userID string, pa
 	var entries []*domain.InboxEntry
 	for rows.Next() {
 		var e domain.InboxEntry
+		var notifID *string
 		if err := rows.Scan(
 			&e.InboxID, &e.UserID, &e.EventType, &e.Title, &e.Body,
 			&e.ActionType, &e.ActionID, &e.IsRead, &e.ReadAt,
-			&e.NotificationID, &e.CreatedAt,
+			&notifID, &e.CreatedAt,
 		); err != nil {
 			return nil, 0, notifErrors.ErrorDataRetrievalFail
+		}
+		if notifID != nil {
+			e.NotificationID = *notifID
 		}
 		entries = append(entries, &e)
 	}
