@@ -260,6 +260,10 @@ type UserProfileResponse struct {
 	TripPreferences            []*TripPreference      `protobuf:"bytes,14,rep,name=TripPreferences,proto3" json:"TripPreferences,omitempty"`
 	IDCardExpirationDate       string                 `protobuf:"bytes,15,opt,name=IDCardExpirationDate,proto3" json:"IDCardExpirationDate,omitempty"`
 	DriveLicenceExpirationDate string                 `protobuf:"bytes,16,opt,name=DriveLicenceExpirationDate,proto3" json:"DriveLicenceExpirationDate,omitempty"`
+	WithdrawNumber             string                 `protobuf:"bytes,17,opt,name=WithdrawNumber,proto3" json:"WithdrawNumber,omitempty"`
+	LanguageCode               string                 `protobuf:"bytes,18,opt,name=LanguageCode,proto3" json:"LanguageCode,omitempty"`
+	Email                      string                 `protobuf:"bytes,19,opt,name=Email,proto3" json:"Email,omitempty"`
+	PhoneNumber                string                 `protobuf:"bytes,20,opt,name=PhoneNumber,proto3" json:"PhoneNumber,omitempty"`
 	unknownFields              protoimpl.UnknownFields
 	sizeCache                  protoimpl.SizeCache
 }
@@ -406,6 +410,34 @@ func (x *UserProfileResponse) GetDriveLicenceExpirationDate() string {
 	return ""
 }
 
+func (x *UserProfileResponse) GetWithdrawNumber() string {
+	if x != nil {
+		return x.WithdrawNumber
+	}
+	return ""
+}
+
+func (x *UserProfileResponse) GetLanguageCode() string {
+	if x != nil {
+		return x.LanguageCode
+	}
+	return ""
+}
+
+func (x *UserProfileResponse) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *UserProfileResponse) GetPhoneNumber() string {
+	if x != nil {
+		return x.PhoneNumber
+	}
+	return ""
+}
+
 type OperationResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ErrorMessage  string                 `protobuf:"bytes,1,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
@@ -480,7 +512,7 @@ const file_user_proto_rawDesc = "" +
 	"\n" +
 	"Preference\x18\x01 \x01(\tR\n" +
 	"Preference\x12\x1c\n" +
-	"\tIsAllowed\x18\x02 \x01(\bR\tIsAllowed\"\x83\x05\n" +
+	"\tIsAllowed\x18\x02 \x01(\bR\tIsAllowed\"\x87\x06\n" +
 	"\x13UserProfileResponse\x12\x16\n" +
 	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12\x16\n" +
 	"\x06AuthID\x18\x02 \x01(\tR\x06AuthID\x12\x12\n" +
@@ -498,7 +530,11 @@ const file_user_proto_rawDesc = "" +
 	"\x1aIsPassengerProfileVerified\x18\r \x01(\bR\x1aIsPassengerProfileVerified\x12>\n" +
 	"\x0fTripPreferences\x18\x0e \x03(\v2\x14.user.TripPreferenceR\x0fTripPreferences\x122\n" +
 	"\x14IDCardExpirationDate\x18\x0f \x01(\tR\x14IDCardExpirationDate\x12>\n" +
-	"\x1aDriveLicenceExpirationDate\x18\x10 \x01(\tR\x1aDriveLicenceExpirationDate\"Q\n" +
+	"\x1aDriveLicenceExpirationDate\x18\x10 \x01(\tR\x1aDriveLicenceExpirationDate\x12&\n" +
+	"\x0eWithdrawNumber\x18\x11 \x01(\tR\x0eWithdrawNumber\x12\"\n" +
+	"\fLanguageCode\x18\x12 \x01(\tR\fLanguageCode\x12\x14\n" +
+	"\x05Email\x18\x13 \x01(\tR\x05Email\x12 \n" +
+	"\vPhoneNumber\x18\x14 \x01(\tR\vPhoneNumber\"Q\n" +
 	"\x11OperationResponse\x12\"\n" +
 	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12\x18\n" +
 	"\aSuccess\x18\x02 \x01(\bR\aSuccess2\xe3\x01\n" +

@@ -70,6 +70,10 @@ message UserProfileResponse {
   repeated TripPreference TripPreferences    = 14;
   string IDCardExpirationDate                = 15;
   string DriveLicenceExpirationDate          = 16;
+  string WithdrawNumber                      = 17;
+  string LanguageCode                       = 18;
+  string Email                              = 19;
+  string PhoneNumber                        = 20;
 }
 
 message OperationResponse {
