@@ -63,6 +63,12 @@ jobs:
               - 'services/booking-service/**'
             payment-service:
               - 'services/payment-service/**'
+            email-service:
+              - 'services/email-service/**'
+            push-service:
+              - 'services/push-service/**'
+            notification-service:
+              - 'services/notification-service/**'
             pkg:
               - 'pkg/**'
 
@@ -88,7 +94,7 @@ jobs:
           else
             services=()
             if [ "${{ steps.filter.outputs.pkg }}" == "true" ]; then
-              services+=("api-gateway" "auth-service" "user-service" "file-service" "rating-service" "vehicle-service" "trips-service" "booking-service" "payment-service")
+              services+=("api-gateway" "auth-service" "user-service" "file-service" "rating-service" "vehicle-service" "trips-service" "booking-service" "payment-service" "email-service" "push-service" "notification-service")
             else
               if [ "${{ steps.filter.outputs.api-gateway }}" == "true" ]; then
                 services+=("api-gateway")
@@ -116,6 +122,15 @@ jobs:
               fi
               if [ "${{ steps.filter.outputs.payment-service }}" == "true" ]; then
                 services+=("payment-service")
+              fi
+              if [ "${{ steps.filter.outputs.email-service }}" == "true" ]; then
+                services+=("email-service")
+              fi
+              if [ "${{ steps.filter.outputs.push-service }}" == "true" ]; then
+                services+=("push-service")
+              fi
+              if [ "${{ steps.filter.outputs.notification-service }}" == "true" ]; then
+                services+=("notification-service")
               fi
             fi
 
