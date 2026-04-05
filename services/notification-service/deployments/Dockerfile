@@ -6,11 +6,12 @@ FROM golang:${GO_VERSION}-alpine AS deps
 WORKDIR /build
 RUN apk add --no-cache git ca-certificates tzdata
 COPY pkg/go.mod pkg/go.sum ./pkg/
+COPY pkg-test/go.mod pkg-test/go.sum* ./pkg-test/
 COPY services/notification-service/go.mod services/notification-service/go.sum* ./services/notification-service/
 COPY services/user-service/go.mod services/user-service/go.sum* ./services/user-service/
 COPY services/push-service/go.mod services/push-service/go.sum* ./services/push-service/
 COPY services/email-service/go.mod services/email-service/go.sum* ./services/email-service/
-RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./services/notification-service\n\t./services/user-service\n\t./services/push-service\n\t./services/email-service\n)\n' > go.work
+RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/notification-service\n\t./services/user-service\n\t./services/push-service\n\t./services/email-service\n)\n' > go.work
 RUN go mod download -C ./pkg
 RUN go mod download -C ./services/notification-service
 
@@ -21,6 +22,7 @@ ARG COMMIT_SHA=unknown
 ARG BUILD_TIME
 WORKDIR /build
 COPY pkg/ ./pkg/
+COPY pkg-test/ ./pkg-test/
 COPY services/notification-service/ ./services/notification-service/
 COPY services/user-service/proto/ ./services/user-service/proto/
 COPY services/push-service/proto/ ./services/push-service/proto/
