@@ -64,6 +64,12 @@ jobs:
               - 'services/kyc-service/**'
             payment-service:
               - 'services/payment-service/**'
+            email-service:
+              - 'services/email-service/**'
+            push-service:
+              - 'services/push-service/**'
+            notification-service:
+              - 'services/notification-service/**'
             pkg:
               - 'pkg/**'
 
@@ -73,7 +79,7 @@ jobs:
           if [ -n "${{ github.event.inputs.service }}" ]; then
             echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
           else
-            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service","booking-service","kyc-service","payment-service"]' >> $GITHUB_OUTPUT
+            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service","booking-service","kyc-service","payment-service","email-service","push-service","notification-service"]' >> $GITHUB_OUTPUT
           fi
 
   build-and-push:
@@ -184,6 +190,13 @@ jobs:
           # kyc-service secrets
           KYC_PERSONA_API_KEY: ${{ secrets.KYC_PERSONA_API_KEY }}
           KYC_PERSONA_WEBHOOK_SECRET: ${{ secrets.KYC_PERSONA_WEBHOOK_SECRET }}
+          # email-service secrets
+          EMAIL_SENDGRID_API_KEY: ${{ secrets.EMAIL_SENDGRID_API_KEY }}
+          # push-service secrets
+          PUSH_FIREBASE_CREDENTIALS: ${{ secrets.PUSH_FIREBASE_CREDENTIALS }}
+          # notification-service secrets
+          NOTIFICATION_DATABASE_URL: ${{ secrets.NOTIFICATION_DATABASE_URL }}
+          NOTIFICATION_REDIS_URL: ${{ secrets.NOTIFICATION_REDIS_URL }}
         run: |
           python3 - <<'PYEOF'
           import yaml, os, json, sys
@@ -278,6 +291,28 @@ jobs:
                   'secrets': {
                       'personaApiKey': os.environ.get('KYC_PERSONA_API_KEY', ''),
                       'personaWebhookSecret': os.environ.get('KYC_PERSONA_WEBHOOK_SECRET', ''),
+                  },
+              }
+
+          elif service == "email-service":
+              data = {
+                  'secrets': {
+                      'sendgridApiKey': os.environ.get('EMAIL_SENDGRID_API_KEY', ''),
+                  },
+              }
+
+          elif service == "push-service":
+              data = {
+                  'secrets': {
+                      'firebaseCredentials': os.environ.get('PUSH_FIREBASE_CREDENTIALS', ''),
+                  },
+              }
+
+          elif service == "notification-service":
+              data = {
+                  'secrets': {
+                      'databaseUrl': os.environ.get('NOTIFICATION_DATABASE_URL', ''),
+                      'redisUrl': os.environ.get('NOTIFICATION_REDIS_URL', ''),
                   },
               }
 

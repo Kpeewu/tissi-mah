@@ -5,12 +5,14 @@ on:
     branches: [develop]
     paths:
       - "services/**"
+      - "pkg/**"
       - "go.work"
-      - ".github/workflows/test.yml"
+      - ".github/workflows/tests.yaml"
   pull_request:
     branches: [develop]
     paths:
       - "services/**"
+      - "pkg/**"
       - "go.work"
 
 jobs:
@@ -22,6 +24,10 @@ jobs:
       auth-service: ${{ steps.filter.outputs.auth-service }}
       file-service: ${{ steps.filter.outputs.file-service }}
       rating-service: ${{ steps.filter.outputs.rating-service }}
+      email-service: ${{ steps.filter.outputs.email-service }}
+      push-service: ${{ steps.filter.outputs.push-service }}
+      notification-service: ${{ steps.filter.outputs.notification-service }}
+      pkg-notification: ${{ steps.filter.outputs.pkg-notification }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,6 +41,14 @@ jobs:
               - 'services/file-service/**'
             rating-service:
               - 'services/rating-service/**'
+            email-service:
+              - 'services/email-service/**'
+            push-service:
+              - 'services/push-service/**'
+            notification-service:
+              - 'services/notification-service/**'
+            pkg-notification:
+              - 'pkg/notification/**'
 
   # Test Auth Service
   test-auth-service:
@@ -217,6 +231,138 @@ jobs:
           flags: rating-service
           name: rating-service-coverage
 
+  # Test pkg/notification
+  test-pkg-notification:
+    name: Test pkg/notification
+    needs: detect-changes
+    if: needs.detect-changes.outputs.pkg-notification == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.5"
+          cache: true
+          cache-dependency-path: pkg/go.sum
+
+      - name: Download dependencies
+        working-directory: pkg
+        run: go mod download
+
+      - name: Run tests
+        working-directory: pkg
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./notification/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: pkg/coverage.out
+          flags: pkg-notification
+          name: pkg-notification-coverage
+
+  # Test Email Service
+  test-email-service:
+    name: Test Email Service
+    needs: detect-changes
+    if: needs.detect-changes.outputs.email-service == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.5"
+          cache: true
+          cache-dependency-path: services/email-service/go.sum
+
+      - name: Download dependencies
+        working-directory: services/email-service
+        run: go mod download
+
+      - name: Run unit tests
+        working-directory: services/email-service
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: services/email-service/coverage.out
+          flags: email-service
+          name: email-service-coverage
+
+  # Test Push Service
+  test-push-service:
+    name: Test Push Service
+    needs: detect-changes
+    if: needs.detect-changes.outputs.push-service == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.5"
+          cache: true
+          cache-dependency-path: services/push-service/go.sum
+
+      - name: Download dependencies
+        working-directory: services/push-service
+        run: go mod download
+
+      - name: Run unit tests
+        working-directory: services/push-service
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: services/push-service/coverage.out
+          flags: push-service
+          name: push-service-coverage
+
+  # Test Notification Service
+  test-notification-service:
+    name: Test Notification Service
+    needs: detect-changes
+    if: needs.detect-changes.outputs.notification-service == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.5"
+          cache: true
+          cache-dependency-path: services/notification-service/go.sum
+
+      - name: Download dependencies
+        working-directory: services/notification-service
+        run: go mod download
+
+      - name: Run unit tests
+        working-directory: services/notification-service
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
+
+      - name: Run integration tests
+        working-directory: services/notification-service
+        run: go test -v -race -timeout 120s ./tests/integration/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: services/notification-service/coverage.out
+          flags: notification-service
+          name: notification-service-coverage
+
   # Summary job
   test-summary:
     name: Test Summary
@@ -226,6 +372,10 @@ jobs:
         test-auth-service,
         test-file-service,
         test-rating-service,
+        test-pkg-notification,
+        test-email-service,
+        test-push-service,
+        test-notification-service,
       ]
     if: always()
     runs-on: ubuntu-latest
@@ -253,6 +403,34 @@ jobs:
             echo "✅ Rating Service: PASSED"
           else
             echo "❌ Rating Service: FAILED"
+            exit 1
+          fi
+
+          if [ "${{ needs.test-pkg-notification.result }}" == "success" ] || [ "${{ needs.detect-changes.outputs.pkg-notification }}" != "true" ]; then
+            echo "✅ pkg/notification: PASSED"
+          else
+            echo "❌ pkg/notification: FAILED"
+            exit 1
+          fi
+
+          if [ "${{ needs.test-email-service.result }}" == "success" ] || [ "${{ needs.detect-changes.outputs.email-service }}" != "true" ]; then
+            echo "✅ Email Service: PASSED"
+          else
+            echo "❌ Email Service: FAILED"
+            exit 1
+          fi
+
+          if [ "${{ needs.test-push-service.result }}" == "success" ] || [ "${{ needs.detect-changes.outputs.push-service }}" != "true" ]; then
+            echo "✅ Push Service: PASSED"
+          else
+            echo "❌ Push Service: FAILED"
+            exit 1
+          fi
+
+          if [ "${{ needs.test-notification-service.result }}" == "success" ] || [ "${{ needs.detect-changes.outputs.notification-service }}" != "true" ]; then
+            echo "✅ Notification Service: PASSED"
+          else
+            echo "❌ Notification Service: FAILED"
             exit 1
           fi
 
