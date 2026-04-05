@@ -6,6 +6,26 @@ import (
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
 )
 
+// SearchTripsParams contient les filtres pour la recherche de trajets passager.
+type SearchTripsParams struct {
+	PassengerLng          *float64
+	PassengerLat          *float64
+	DistanceRangeMeters   int     // converti en mètres (défaut 5000)
+	DepartureLocationName string  // obligatoire
+	ArrivalLocationName   string  // obligatoire
+	TripStartDate         *string // "YYYY-MM-DD" (UTC)
+	TripStartHour         *string // "HH:MM" (UTC)
+	TripArrivalHour       *string // "HH:MM" (UTC)
+	PageIndex             int
+	PageSize              int // 10 par défaut
+}
+
+// SearchTripsResult contient les résultats paginés de la recherche.
+type SearchTripsResult struct {
+	Previews   []*domain.TripPreview
+	TotalCount int
+}
+
 // TripRepositoryRead définit les opérations de lecture sur la table trips.
 type TripRepositoryRead interface {
 	// GetDriverTripsPreviews retourne la liste paginée des trajets d'un conducteur
@@ -29,4 +49,8 @@ type TripRepositoryRead interface {
 
 	// GetTripIDByWaypointID retourne le tripID associé à un waypointID.
 	GetTripIDByWaypointID(ctx context.Context, waypointID string) (string, error)
+
+	// SearchScheduledTripSegments recherche les trajets/segments disponibles avec pagination.
+	// Retourne les segments dont le départ ET l'arrivée matchent les filtres textuels (fuzzy).
+	SearchScheduledTripSegments(ctx context.Context, params *SearchTripsParams) (*SearchTripsResult, error)
 }

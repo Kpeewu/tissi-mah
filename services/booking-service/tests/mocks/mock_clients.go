@@ -25,6 +25,16 @@ func (m *MockTripClient) UpdateAvailableSeats(ctx context.Context, tripID string
 	return args.Error(0)
 }
 
+func (m *MockTripClient) IncrementLegBookedSeats(ctx context.Context, tripID string, fromOrder, toOrder, delta int) error {
+	args := m.Called(ctx, tripID, fromOrder, toOrder, delta)
+	return args.Error(0)
+}
+
+func (m *MockTripClient) SyncLegBookedSeats(ctx context.Context, tripID string, legs []client.LegBookedSeats) error {
+	args := m.Called(ctx, tripID, legs)
+	return args.Error(0)
+}
+
 func (m *MockTripClient) Close() error {
 	args := m.Called()
 	return args.Error(0)

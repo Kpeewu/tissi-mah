@@ -14,6 +14,7 @@ type Config struct {
 	UserService    UserServiceConfig
 	VehicleService VehicleServiceConfig
 	BookingService BookingServiceConfig
+	RatingService  RatingServiceConfig
 	LogLevel       string
 }
 
@@ -61,6 +62,15 @@ func (c BookingServiceConfig) Addr() string {
 	return fmt.Sprintf("%s:%s", c.Address, c.Port)
 }
 
+type RatingServiceConfig struct {
+	Address string
+	Port    string
+}
+
+func (c RatingServiceConfig) Addr() string {
+	return fmt.Sprintf("%s:%s", c.Address, c.Port)
+}
+
 func Load() (*Config, error) {
 	values, err := sharedconfig.Load("")
 	if err != nil {
@@ -92,6 +102,10 @@ func Load() (*Config, error) {
 		BookingService: BookingServiceConfig{
 			Address: sharedconfig.GetStringOrDefault(values, "BOOKING_SERVICE_HOST", "0.0.0.0"),
 			Port:    sharedconfig.GetStringOrDefault(values, "BOOKING_SERVICE_PORT", "50058"),
+		},
+		RatingService: RatingServiceConfig{
+			Address: sharedconfig.GetStringOrDefault(values, "RATING_SERVICE_HOST", "0.0.0.0"),
+			Port:    sharedconfig.GetStringOrDefault(values, "RATING_SERVICE_PORT", "50054"),
 		},
 		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
 	}

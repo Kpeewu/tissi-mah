@@ -2,10 +2,15 @@ package cache
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
@@ -13,7 +18,16 @@ import (
 	"go.uber.org/zap"
 )
 
+// cachedSearchResult est la structure JSON stockée pour les résultats de recherche.
+type cachedSearchResult struct {
+	Previews   []*domain.TripPreview `json:"previews"`
+	TotalCount int                   `json:"total_count"`
+}
+
 const (
+	// TTL du cache pour les résultats de recherche passager
+	searchResultsTTL = 60 * time.Second
+
 	// TTL du cache pour la liste paginée des trajets d'un conducteur
 	previewsTTL = 2 * time.Minute
 
@@ -26,6 +40,12 @@ const (
 	// TTL du compteur de places disponibles — plus long que l'intervalle de réconciliation
 	seatCounterTTL = 24 * time.Hour
 
+	// TTL du cache pour les infos enrichies du conducteur (nom + photo)
+	driverInfoTTL = 15 * time.Minute
+
+	// TTL du cache pour la note moyenne du conducteur
+	driverRatingTTL = 5 * time.Minute
+
 	// Préfixe des clés Redis pour le trips-service
 	keyPrefix = "trip:"
 )
@@ -34,6 +54,12 @@ const (
 type cachedVehicleInfo struct {
 	Brand string `json:"brand"`
 	Plate string `json:"plate"`
+}
+
+// cachedDriverInfo est la structure JSON stockée pour les infos enrichies du conducteur.
+type cachedDriverInfo struct {
+	Name            string `json:"name"`
+	ProfileImageURL string `json:"profile_image_url"`
 }
 
 // TripCache gère le cache Redis pour le trips-service.
@@ -337,4 +363,168 @@ func (c *TripCache) vehicleInfoKey(vehicleID string) string {
 
 func (c *TripCache) completedPreviewsKey(driverID string, pageIndex int) string {
 	return keyPrefix + "completed-previews:" + driverID + ":page:" + strconv.Itoa(pageIndex)
+}
+
+func (c *TripCache) driverInfoKey(driverID string) string {
+	return keyPrefix + "driver-info:" + driverID
+}
+
+func (c *TripCache) driverRatingKey(driverID string) string {
+	return keyPrefix + "driver-rating:" + driverID
+}
+
+// =============================================================================
+// Driver Info (nom + photo, enrichissement pour la recherche)
+// =============================================================================
+
+// GetDriverInfo récupère les infos enrichies du conducteur depuis le cache.
+func (c *TripCache) GetDriverInfo(ctx context.Context, driverID string) (string, string, bool, error) {
+	key := c.driverInfoKey(driverID)
+
+	data, err := c.client.Get(ctx, key).Bytes()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return "", "", false, nil
+		}
+		return "", "", false, fmt.Errorf("cache get: %w", err)
+	}
+
+	var info cachedDriverInfo
+	if err := json.Unmarshal(data, &info); err != nil {
+		c.client.Del(ctx, key) //nolint:errcheck
+		return "", "", false, nil
+	}
+
+	return info.Name, info.ProfileImageURL, true, nil
+}
+
+// SetDriverInfo stocke les infos enrichies du conducteur dans le cache.
+func (c *TripCache) SetDriverInfo(ctx context.Context, driverID, name, profileImageURL string) error {
+	key := c.driverInfoKey(driverID)
+
+	data, err := json.Marshal(cachedDriverInfo{Name: name, ProfileImageURL: profileImageURL})
+	if err != nil {
+		return fmt.Errorf("cache marshal: %w", err)
+	}
+
+	return c.client.Set(ctx, key, data, driverInfoTTL).Err()
+}
+
+// =============================================================================
+// Driver Rating (note moyenne, enrichissement pour la recherche)
+// =============================================================================
+
+// GetDriverRating récupère la note moyenne du conducteur depuis le cache.
+func (c *TripCache) GetDriverRating(ctx context.Context, driverID string) (float64, bool, error) {
+	key := c.driverRatingKey(driverID)
+
+	val, err := c.client.Get(ctx, key).Result()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return 0, false, nil
+		}
+		return 0, false, fmt.Errorf("cache get: %w", err)
+	}
+
+	rating, err := strconv.ParseFloat(val, 64)
+	if err != nil {
+		c.client.Del(ctx, key) //nolint:errcheck
+		return 0, false, nil
+	}
+
+	return rating, true, nil
+}
+
+// SetDriverRating stocke la note moyenne du conducteur dans le cache.
+func (c *TripCache) SetDriverRating(ctx context.Context, driverID string, average float64) error {
+	key := c.driverRatingKey(driverID)
+	return c.client.Set(ctx, key, fmt.Sprintf("%.1f", average), driverRatingTTL).Err()
+}
+
+// =============================================================================
+// Search Results (résultats de recherche passager, TTL 60s)
+// =============================================================================
+
+// GetSearchResults récupère les résultats de recherche depuis le cache.
+// Retourne (nil, 0, nil) si la clé n'existe pas (cache miss).
+func (c *TripCache) GetSearchResults(ctx context.Context, cacheKey string) ([]*domain.TripPreview, int, error) {
+	data, err := c.client.Get(ctx, cacheKey).Bytes()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			c.logger.Debug("cache miss: search results", zap.String("key", cacheKey))
+			return nil, 0, nil
+		}
+		c.logger.Error("cache get failed", zap.Error(err), zap.String("key", cacheKey))
+		return nil, 0, fmt.Errorf("cache get: %w", err)
+	}
+
+	var result cachedSearchResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		c.logger.Error("cache unmarshal failed", zap.Error(err), zap.String("key", cacheKey))
+		c.client.Del(ctx, cacheKey) //nolint:errcheck
+		return nil, 0, nil
+	}
+
+	c.logger.Debug("cache hit: search results", zap.String("key", cacheKey))
+	return result.Previews, result.TotalCount, nil
+}
+
+// SetSearchResults stocke les résultats de recherche dans le cache.
+func (c *TripCache) SetSearchResults(ctx context.Context, cacheKey string, previews []*domain.TripPreview, totalCount int) error {
+	data, err := json.Marshal(cachedSearchResult{Previews: previews, TotalCount: totalCount})
+	if err != nil {
+		c.logger.Error("cache marshal failed", zap.Error(err), zap.String("key", cacheKey))
+		return fmt.Errorf("cache marshal: %w", err)
+	}
+
+	if err := c.client.Set(ctx, cacheKey, data, searchResultsTTL).Err(); err != nil {
+		c.logger.Error("cache set failed", zap.Error(err), zap.String("key", cacheKey))
+		return fmt.Errorf("cache set: %w", err)
+	}
+
+	c.logger.Debug("cache set: search results", zap.String("key", cacheKey))
+	return nil
+}
+
+// BuildSearchCacheKey génère une clé de cache normalisée à partir des paramètres de recherche.
+// Arrondit lng/lat à 3 décimales (~111m) pour regrouper les requêtes proches.
+func BuildSearchCacheKey(
+	passengerLng, passengerLat *float64,
+	distanceRangeMeters int,
+	departureLocationName, arrivalLocationName string,
+	tripStartDate, tripStartHour, tripArrivalHour *string,
+	pageIndex int,
+) string {
+	parts := make([]string, 0, 10)
+
+	// Normaliser les noms en minuscules pour le hash
+	parts = append(parts, "dep="+strings.ToLower(departureLocationName))
+	parts = append(parts, "arr="+strings.ToLower(arrivalLocationName))
+
+	if passengerLng != nil && passengerLat != nil {
+		// Arrondir à 3 décimales (~111m de précision)
+		lng := math.Round(*passengerLng*1000) / 1000
+		lat := math.Round(*passengerLat*1000) / 1000
+		parts = append(parts, fmt.Sprintf("lng=%.3f", lng))
+		parts = append(parts, fmt.Sprintf("lat=%.3f", lat))
+		parts = append(parts, fmt.Sprintf("dist=%d", distanceRangeMeters))
+	}
+
+	if tripStartDate != nil && *tripStartDate != "" {
+		parts = append(parts, "date="+*tripStartDate)
+	}
+	if tripStartHour != nil && *tripStartHour != "" {
+		parts = append(parts, "sh="+*tripStartHour)
+	}
+	if tripArrivalHour != nil && *tripArrivalHour != "" {
+		parts = append(parts, "ah="+*tripArrivalHour)
+	}
+
+	parts = append(parts, fmt.Sprintf("p=%d", pageIndex))
+
+	sort.Strings(parts)
+	raw := strings.Join(parts, "|")
+
+	hash := sha256.Sum256([]byte(raw))
+	return keyPrefix + "search:" + hex.EncodeToString(hash[:])
 }

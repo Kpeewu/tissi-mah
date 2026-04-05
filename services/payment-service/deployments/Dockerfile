@@ -25,6 +25,7 @@ COPY services/file-service/go.mod services/file-service/go.sum* ./services/file-
 COPY services/user-service/go.mod services/user-service/go.sum* ./services/user-service/
 COPY services/vehicle-service/go.mod services/vehicle-service/go.sum* ./services/vehicle-service/
 COPY services/trips-service/go.mod services/trips-service/go.sum* ./services/trips-service/
+COPY services/rating-service/go.mod services/rating-service/go.sum* ./services/rating-service/
 COPY services/booking-service/go.mod services/booking-service/go.sum* ./services/booking-service/
 COPY services/payment-service/go.mod services/payment-service/go.sum* ./services/payment-service/
 
@@ -36,7 +37,8 @@ RUN mkdir -p pkg-test && \
 
 # Create a scoped go.work with all required modules
 # file-service → vehicle-service → trips-service → booking-service → payment-service (transitive chain)
-RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/user-service\n\t./services/vehicle-service\n\t./services/trips-service\n\t./services/booking-service\n\t./services/payment-service\n)\n' > go.work
+# rating-service is required because trips-service has a replace directive pointing to it
+RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/user-service\n\t./services/vehicle-service\n\t./services/trips-service\n\t./services/rating-service\n\t./services/booking-service\n\t./services/payment-service\n)\n' > go.work
 
 # Download dependencies for all modules
 RUN go mod download -C ./pkg
@@ -44,6 +46,7 @@ RUN go mod download -C ./services/file-service
 RUN go mod download -C ./services/user-service
 RUN go mod download -C ./services/vehicle-service
 RUN go mod download -C ./services/trips-service
+RUN go mod download -C ./services/rating-service
 RUN go mod download -C ./services/booking-service
 RUN go mod download -C ./services/payment-service
 
@@ -73,6 +76,9 @@ COPY services/vehicle-service/ ./services/vehicle-service/
 
 # Copy trips-service source code (required by booking-service replace directive)
 COPY services/trips-service/ ./services/trips-service/
+
+# Copy rating-service source code (required by trips-service replace directive)
+COPY services/rating-service/ ./services/rating-service/
 
 # Copy booking-service source code (required by payment-service replace directive)
 COPY services/booking-service/ ./services/booking-service/

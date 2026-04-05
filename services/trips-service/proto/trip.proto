@@ -110,11 +110,20 @@ service TripService {
     };
   }
 
-  // GetTripByID retourne les détails complets d'un trajet par son ID.
-  // Utilisé par booking-service pour valider les réservations.
-  rpc GetTripByID(GetTripByIDRequest) returns (GetTripByIDResponse) {
+  // GetTripByID — RPC interne uniquement (booking-service).
+  rpc GetTripByID(GetTripByIDRequest) returns (GetTripByIDResponse);
+
+  // GetDriverTripDetails retourne les détails complets d'un trajet pour le conducteur.
+  rpc GetDriverTripDetails(GetDriverTripDetailsRequest) returns (GetDriverTripDetailsResponse) {
     option (google.api.http) = {
-      get: "/trip/getTripByID"
+      get: "/trip/driver/getTripDetails"
+    };
+  }
+
+  // GetPassengerTripDetails retourne les détails d'un trajet pour un passager.
+  rpc GetPassengerTripDetails(GetPassengerTripDetailsRequest) returns (GetPassengerTripDetailsResponse) {
+    option (google.api.http) = {
+      get: "/trip/passenger/getTripDetails"
     };
   }
 
@@ -144,6 +153,22 @@ service TripService {
       body: "*"
     };
   }
+
+  // GetScheduledTripsPreviews recherche les trajets disponibles pour un passager.
+  // Endpoint public — pas d'authentification requise.
+  rpc GetScheduledTripsPreviews(GetScheduledTripsPreviewsRequest) returns (GetScheduledTripsPreviewsResponse) {
+    option (google.api.http) = {
+      get: "/trip/passenger/getScheduledTripsPreviews"
+    };
+  }
+
+  // IncrementLegBookedSeats incrémente/décrémente booked_seats sur les legs d'un segment.
+  // Appelé par booking-service à chaque réservation (+delta) ou annulation (-delta).
+  rpc IncrementLegBookedSeats(IncrementLegBookedSeatsRequest) returns (IncrementLegBookedSeatsResponse);
+
+  // SyncLegBookedSeats force la valeur de booked_seats pour chaque leg (réconciliation).
+  // Appelé par le job de réconciliation du booking-service.
+  rpc SyncLegBookedSeats(SyncLegBookedSeatsRequest) returns (SyncLegBookedSeatsResponse);
 
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
@@ -300,12 +325,19 @@ message TripPreview {
   string VehicleId              = 4;
   string VehicleBrand           = 5;
   string VehiclePlate           = 6;
-  string DepartureDate          = 7; // YYYY-MM-DD
-  string DepartureTime          = 8; // HH:MM
+  string DepartureDate          = 7; // YYYY-MM-DD (UTC)
+  string DepartureTime          = 8; // HH:MM (UTC)
   int32  TotalSeats             = 9;
   int32  AvailableSeats         = 10;
   string DepartureLocationName  = 11;
   string ArrivalLocationName    = 12;
+  // Champs segment (recherche passager)
+  string DepartureWaypointId    = 13; // ID du waypoint de départ du segment
+  string ArrivalWaypointId      = 14; // ID du waypoint d'arrivée du segment
+  int32  SegmentPrice           = 15; // Prix du segment en FCFA
+  int32  SegmentDurationMinutes = 16; // Durée estimée du segment en minutes
+  string DriverProfileImageURL  = 17; // URL photo de profil du conducteur
+  double DriverRatingAverage    = 18; // Note moyenne du conducteur (0 si aucune note)
 }
 
 message GetTripsPreviewsResponse {
@@ -496,10 +528,171 @@ message CancelWaypointResponse {
 // Health
 // =============================================================================
 
+// =============================================================================
+// GetScheduledTripsPreviews (recherche passager)
+// =============================================================================
+
+message GetScheduledTripsPreviewsRequest {
+  double passenger_position_lng  = 1;  // 0 = non renseigné
+  double passenger_position_lat  = 2;  // 0 = non renseigné
+  int32  distance_range          = 3;  // km, défaut 5 si 0
+  string departure_location_name = 4;  // recherche floue (obligatoire)
+  string arrival_location_name   = 5;  // recherche floue (obligatoire)
+  string trip_start_date         = 6;  // "YYYY-MM-DD" (UTC)
+  string trip_start_hour         = 7;  // "HH:MM" (UTC)
+  string trip_arrival_hour       = 8;  // "HH:MM" (UTC)
+  int32  index                   = 9;  // pagination 0-based
+}
+
+message GetScheduledTripsPreviewsResponse {
+  repeated TripPreview trips_previews = 1;
+  string error_message                = 2;
+  int32  next_index                   = 3;  // -1 si plus de résultats
+  int32  total_count                  = 4;  // nombre total de résultats matchant
+}
+
+// =============================================================================
+// Health
+// =============================================================================
+
 message HealthRequest {}
 
 message HealthResponse {
   string Status    = 1;
   string Version   = 2;
   int64  Timestamp = 3;
+}
+
+// =============================================================================
+// IncrementLegBookedSeats (interne — appelé par booking-service)
+// =============================================================================
+
+message IncrementLegBookedSeatsRequest {
+  string TripId    = 1;
+  int32  FromOrder = 2; // sequencer_order du waypoint de départ (inclusif)
+  int32  ToOrder   = 3; // sequencer_order du waypoint d'arrivée (exclusif)
+  int32  Delta     = 4; // +N pour réservation, -N pour annulation
+}
+
+message IncrementLegBookedSeatsResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// SyncLegBookedSeats (interne — appelé par le job de réconciliation)
+// =============================================================================
+
+message LegBookedSeatsEntry {
+  int32 SequencerOrder = 1;
+  int32 BookedSeats    = 2;
+}
+
+message SyncLegBookedSeatsRequest {
+  string TripId                      = 1;
+  repeated LegBookedSeatsEntry Legs  = 2;
+}
+
+message SyncLegBookedSeatsResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// GetDriverTripDetails (conducteur — route protégée JWT)
+// =============================================================================
+
+message GetDriverTripDetailsRequest {
+  string TripId = 1;
+}
+
+message DriverWaypointDetail {
+  string WaypointId                    = 1;
+  string WaypointType                  = 2;  // departure | stop | arrival
+  int32  SequencerOrder                = 3;
+  string LocationName                  = 4;
+  double LocationLng                   = 5;
+  double LocationLat                   = 6;
+  string City                          = 7;
+  string Country                       = 8;
+  string ScheduledPickupDatetime       = 9;  // RFC3339
+  string ActualArrivalDatetime         = 10; // RFC3339, vide si pas encore arrivé
+  string ActualScheduledPickupDatetime = 11; // RFC3339, vide si pas encore parti
+  int32  MinutesFromDeparture          = 12;
+  int32  PriceFromPrevious             = 13;
+  bool   IsCancelled                   = 14;
+  string CancellationReason            = 15;
+}
+
+message GetDriverTripDetailsResponse {
+  string TripId                            = 1;
+  string DriverId                          = 2;
+  string Status                            = 3;
+  int32  TotalSeats                        = 4;
+  int32  AvailableSeats                    = 5;
+  int32  PricePerSeat                      = 6;
+  bool   AutoApproveEnabled                = 7;
+  string DepartureDatetime                 = 8;  // RFC3339
+  string EstimatedArrivalDatetime          = 9;  // RFC3339
+  string ActualDepartureDatetime           = 10; // RFC3339, vide si pas encore parti
+  string ActualArrivalDatetime             = 11; // RFC3339, vide si pas encore arrivé
+  int32  EstimatedDurationMinutes          = 12;
+  int32  EstimatedDistanceMeters           = 13;
+  string VehicleId                         = 14;
+  string VehicleBrand                      = 15;
+  string VehiclePlate                      = 16;
+  repeated string PaymentMethodsAccepted   = 17;
+  bool   AllowLuggages                     = 18;
+  bool   AllowPets                         = 19;
+  bool   AllowFood                         = 20;
+  bool   AllowSmoking                      = 21;
+  string Description                       = 22;
+  repeated DriverWaypointDetail Waypoints  = 23;
+  string ErrorMessage                      = 24;
+}
+
+// =============================================================================
+// GetPassengerTripDetails (passager — route publique)
+// =============================================================================
+
+message GetPassengerTripDetailsRequest {
+  string TripId = 1;
+}
+
+message PassengerWaypointDetail {
+  string WaypointId              = 1;
+  string WaypointType            = 2;  // departure | stop | arrival
+  int32  SequencerOrder          = 3;
+  string LocationName            = 4;
+  string City                    = 5;
+  string ScheduledPickupDatetime = 6;  // RFC3339
+  int32  PriceFromPrevious       = 7;
+  int32  MinutesFromDeparture    = 8;
+  bool   IsCancelled             = 9;  // true si le waypoint a été annulé
+}
+
+message GetPassengerTripDetailsResponse {
+  string TripId                              = 1;
+  string DriverId                            = 2;
+  string DriverName                          = 3;
+  string DriverProfileImageURL               = 4;
+  double DriverRatingAverage                 = 5;
+  string Status                              = 6;
+  int32  TotalSeats                          = 7;
+  int32  AvailableSeats                      = 8;
+  int32  PricePerSeat                        = 9;
+  string DepartureDatetime                   = 10; // RFC3339
+  string EstimatedArrivalDatetime            = 11; // RFC3339
+  int32  EstimatedDurationMinutes            = 12;
+  string VehicleId                           = 13;
+  string VehicleBrand                        = 14;
+  string VehiclePlate                        = 15;
+  repeated string PaymentMethodsAccepted     = 16;
+  bool   AllowLuggages                       = 17;
+  bool   AllowPets                           = 18;
+  bool   AllowFood                           = 19;
+  bool   AllowSmoking                        = 20;
+  string Description                         = 21;
+  repeated PassengerWaypointDetail Waypoints = 22;
+  string ErrorMessage                        = 23;
 }

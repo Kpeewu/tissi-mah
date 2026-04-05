@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
+	repoInterfaces "github.com/Kpeewu/tissi-mah/services/trips-service/internal/repository/interfaces"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -58,3 +59,14 @@ func (m *MockTripRepositoryRead) GetTripIDByWaypointID(ctx context.Context, wayp
 	args := m.Called(ctx, waypointID)
 	return args.String(0), args.Error(1)
 }
+
+func (m *MockTripRepositoryRead) SearchScheduledTripSegments(ctx context.Context, params *repoInterfaces.SearchTripsParams) (*repoInterfaces.SearchTripsResult, error) {
+	args := m.Called(ctx, params)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*repoInterfaces.SearchTripsResult), args.Error(1)
+}
+
+// compile-time check
+var _ repoInterfaces.TripRepositoryRead = (*MockTripRepositoryRead)(nil)

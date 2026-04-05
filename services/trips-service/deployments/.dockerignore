@@ -110,11 +110,14 @@ proto/buf.gen.yaml
 !proto/gen/
 
 # =============================================================================
-# Other services (excluded — only pkg, file-service, user-service, vehicle-service and trips-service needed)
+# Other services (excluded — only pkg, file-service, user-service, vehicle-service,
+# booking-service, payment-service, rating-service and trips-service needed)
 # file-service is included because vehicle-service has a replace directive pointing to it
+# booking-service is included because trips-service has a replace directive pointing to it
+# payment-service is included because booking-service has a replace directive pointing to it
+# rating-service is included because trips-service has a replace directive pointing to it
 # =============================================================================
 services/auth-service/
-services/rating-service/
 services/api-gateway/
 
 # =============================================================================

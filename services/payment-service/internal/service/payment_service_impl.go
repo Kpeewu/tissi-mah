@@ -108,6 +108,16 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 		return nil, paymentErrors.ErrorInvalidInput
 	}
 
+	// Vérifier qu'il n'existe pas déjà un paiement actif pour ce booking
+	hasActive, err := s.paymentReadRepo.HasActivePayment(ctx, input.BookingID)
+	if err != nil {
+		s.logger.Error("check active payment failed", zap.Error(err))
+		return nil, paymentErrors.ErrorInternalServer
+	}
+	if hasActive {
+		return nil, paymentErrors.ErrorDuplicatePayment
+	}
+
 	// Récupérer les infos du passager via booking → user
 	booking, err := s.bookingClient.GetBookingDetails(ctx, input.BookingID)
 	if err != nil {
@@ -244,8 +254,12 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 			return nil
 		}
 
-		// MAJ status → held
+		// MAJ status → held (verrouillage optimiste : AND status = 'pending')
 		if err := s.paymentWriteRepo.UpdatePaymentStatus(ctx, payment.PaymentID, domain.PaymentStatusHeld, externalID); err != nil {
+			if err == paymentErrors.ErrorPaymentAlreadyProcessed {
+				s.logger.Info("payment already processed by another webhook, skipping", zap.String("paymentID", payment.PaymentID))
+				return nil
+			}
 			return err
 		}
 
@@ -270,8 +284,12 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 
 		reason := fmt.Sprintf("FedaPay: %s", payload.Name)
 
-		// Marquer le paiement comme échoué
+		// Marquer le paiement comme échoué (verrouillage optimiste : AND status = 'pending')
 		if err := s.paymentWriteRepo.MarkPaymentFailed(ctx, payment.PaymentID, reason); err != nil {
+			if err == paymentErrors.ErrorPaymentAlreadyProcessed {
+				s.logger.Info("payment already processed by another webhook, skipping", zap.String("paymentID", payment.PaymentID))
+				return nil
+			}
 			return err
 		}
 
