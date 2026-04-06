@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	pkgDatabase "github.com/Kpeewu/tissi-mah/pkg/database"
 	pkgLogger "github.com/Kpeewu/tissi-mah/pkg/logger"
 	"github.com/Kpeewu/tissi-mah/services/kyc-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/kyc-service/internal/config"
@@ -58,12 +59,21 @@ func run(bootstrapLogger *zap.Logger) error {
 	personaClient := client.NewPersonaClient(cfg.Persona.APIKey, logger)
 	logger.Info("persona client ready")
 
+	// --- Notification Redis (stream publication) ---
+	notifRedis, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.NotificationRedis.URL)
+	if err != nil {
+		return fmt.Errorf("notification redis: %w", err)
+	}
+	defer notifRedis.Close()
+	logger.Info("connected to notification redis")
+
 	// --- KYC Service ---
 	kycService := service.NewKYCService(
 		fileClient,
 		personaClient,
 		cfg.Persona.TemplateID,
 		cfg.Persona.WebhookSecret,
+		notifRedis,
 		logger,
 	)
 

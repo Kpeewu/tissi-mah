@@ -246,6 +246,7 @@ jobs:
                   'secrets': {
                       'databaseUrl': os.environ.get('RATING_DATABASE_URL', ''),
                       'redisUrl': os.environ.get('RATING_REDIS_URL', ''),
+                      'notificationRedisUrl': os.environ.get('NOTIFICATION_REDIS_URL', ''),
                   },
               }
 
@@ -270,6 +271,7 @@ jobs:
                   'secrets': {
                       'databaseUrl': os.environ.get('BOOKING_DATABASE_URL', ''),
                       'redisUrl': os.environ.get('BOOKING_REDIS_URL', ''),
+                      'notificationRedisUrl': os.environ.get('NOTIFICATION_REDIS_URL', ''),
                   },
               }
 
@@ -284,6 +286,7 @@ jobs:
                       'fedapayLiveApiUrl': os.environ.get('PAYMENT_FEDAPAY_LIVE_API_URL', ''),
                       'fedapayLiveApiKey': os.environ.get('PAYMENT_FEDAPAY_LIVE_API_KEY', ''),
                       'fedapayLiveWebhookSecret': os.environ.get('PAYMENT_FEDAPAY_LIVE_WEBHOOK_SECRET', ''),
+                      'notificationRedisUrl': os.environ.get('NOTIFICATION_REDIS_URL', ''),
                   },
               }
 
@@ -292,6 +295,7 @@ jobs:
                   'secrets': {
                       'personaApiKey': os.environ.get('KYC_PERSONA_API_KEY', ''),
                       'personaWebhookSecret': os.environ.get('KYC_PERSONA_WEBHOOK_SECRET', ''),
+                      'notificationRedisUrl': os.environ.get('NOTIFICATION_REDIS_URL', ''),
                   },
               }
 

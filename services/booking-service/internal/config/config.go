@@ -9,17 +9,18 @@ import (
 
 // Config contient toute la configuration du booking-service.
 type Config struct {
-	Server         ServerConfig
-	Environment    EnvironmentConfig
-	Database       DatabaseConfig
-	Redis          RedisConfig
-	TripService    ServiceEndpoint
-	UserService    ServiceEndpoint
-	PaymentService ServiceEndpoint
-	ServiceFee     ServiceFeeConfig
-	Reconciliation ReconciliationConfig
-	Payment        PaymentConfig
-	LogLevel       string
+	Server            ServerConfig
+	Environment       EnvironmentConfig
+	Database          DatabaseConfig
+	Redis             RedisConfig
+	NotificationRedis RedisConfig
+	TripService       ServiceEndpoint
+	UserService       ServiceEndpoint
+	PaymentService    ServiceEndpoint
+	ServiceFee        ServiceFeeConfig
+	Reconciliation    ReconciliationConfig
+	Payment           PaymentConfig
+	LogLevel          string
 }
 
 // ServerConfig contient la configuration du serveur gRPC.
@@ -90,6 +91,9 @@ func Load() (*Config, error) {
 		},
 		Redis: RedisConfig{
 			URL: sharedconfig.MustGetString(values, "REDIS_URL"),
+		},
+		NotificationRedis: RedisConfig{
+			URL: sharedconfig.MustGetString(values, "NOTIFICATION_REDIS_URL"),
 		},
 		TripService: ServiceEndpoint{
 			Host: sharedconfig.GetStringOrDefault(values, "TRIPS_SERVICE_HOST", "0.0.0.0"),

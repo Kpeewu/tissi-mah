@@ -118,6 +118,9 @@ func (s *tripServiceImpl) ChangeTripDateAndTime(ctx context.Context, input *serv
 		s.cache.InvalidateDriverPreviews(ctx, input.DriverID)
 	}
 
+	// TODO: notifier les passagers de la modification via TRIP_MODIFIED — nécessite une méthode
+	// GetPassengerIDsForTrip sur le booking-service client (nouveau contrat gRPC à définir).
+
 	s.logger.Info("trip departure datetime updated",
 		zap.String("tripID", input.TripID),
 		zap.String("driverID", input.DriverID),
