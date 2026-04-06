@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/Kpeewu/tissi-mah/pkg/notification"
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/domain"
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/middleware"
@@ -10,27 +11,31 @@ import (
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/auth-service/internal/service/interfaces"
 	authErrors "github.com/Kpeewu/tissi-mah/services/auth-service/pkg/errors"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
 type authServiceImpl struct {
-	readRepo   repoInterfaces.AuthRepositoryRead
-	writeRepo  repoInterfaces.AuthRepositoryWrite
-	userClient client.UserClient
-	logger     *zap.Logger
+	readRepo    repoInterfaces.AuthRepositoryRead
+	writeRepo   repoInterfaces.AuthRepositoryWrite
+	userClient  client.UserClient
+	redisClient *redis.Client
+	logger      *zap.Logger
 }
 
 func NewAuthService(
 	readRepo repoInterfaces.AuthRepositoryRead,
 	writeRepo repoInterfaces.AuthRepositoryWrite,
 	userClient client.UserClient,
+	redisClient *redis.Client,
 	logger *zap.Logger) serviceInterfaces.AuthService {
 
 	return &authServiceImpl{
-		readRepo:   readRepo,
-		writeRepo:  writeRepo,
-		userClient: userClient,
-		logger:     logger,
+		readRepo:    readRepo,
+		writeRepo:   writeRepo,
+		userClient:  userClient,
+		redisClient: redisClient,
+		logger:      logger,
 	}
 }
 
@@ -121,6 +126,21 @@ func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstNa
 	userPreview.PhoneNumber = auth.PhoneNumber
 
 	s.logger.Info("user registered", zap.String("authID", authID), zap.String("firebaseID", firebaseID))
+
+	// Publication de l'event WELCOME (non bloquant)
+	welcomeEvent := notification.Event{
+		EventType:     notification.Welcome,
+		UserID:        userPreview.UserID,
+		ReferenceID:   authID,
+		ReferenceType: notification.RefUser,
+		Payload: map[string]string{
+			"first_name": firstName,
+			"user_name":  name,
+		},
+	}
+	if err := notification.Publish(ctx, s.redisClient, welcomeEvent); err != nil {
+		s.logger.Error("failed to publish welcome notification", zap.Error(err))
+	}
 
 	return userPreview, nil
 }
