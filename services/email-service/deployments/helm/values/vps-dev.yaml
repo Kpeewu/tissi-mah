@@ -40,7 +40,7 @@ config:
   environment: "development"
   logLevel: "debug"
   awsRegion: "eu-west-1"
-  emailFrom: "noreply@tissimah.com"
+  emailFrom: "teouri.samrou@kpeewu.dev"
   extra: {}
 
 secrets:
