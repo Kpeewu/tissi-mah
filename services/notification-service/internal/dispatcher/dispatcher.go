@@ -142,8 +142,13 @@ func (d *Dispatcher) processForUser(ctx context.Context, event *Event) error {
 		d.dispatchPush(ctx, event, routing, userInfo, lang, maxAttempts)
 	}
 
-	// 5. Email
-	if routing.SendEmail && prefs.EmailEnabled && userInfo.Email != "" {
+	// 5. Email — fallback sur le payload si le user-service ne retourne pas l'email
+	emailAddr := userInfo.Email
+	if emailAddr == "" {
+		emailAddr = event.Payload["email"]
+	}
+	if routing.SendEmail && prefs.EmailEnabled && emailAddr != "" {
+		userInfo.Email = emailAddr
 		d.dispatchEmail(ctx, event, routing, userInfo, lang, maxAttempts)
 	}
 
