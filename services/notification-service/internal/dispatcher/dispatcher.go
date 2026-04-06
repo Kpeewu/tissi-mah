@@ -147,6 +147,12 @@ func (d *Dispatcher) processForUser(ctx context.Context, event *Event) error {
 	if emailAddr == "" {
 		emailAddr = event.Payload["email"]
 	}
+	d.logger.Debug("email dispatch check",
+		zap.String("user_id", event.UserID),
+		zap.Bool("send_email_routing", routing.SendEmail),
+		zap.Bool("email_enabled_pref", prefs.EmailEnabled),
+		zap.String("email_addr", emailAddr),
+	)
 	if routing.SendEmail && prefs.EmailEnabled && emailAddr != "" {
 		userInfo.Email = emailAddr
 		d.dispatchEmail(ctx, event, routing, userInfo, lang, maxAttempts)
