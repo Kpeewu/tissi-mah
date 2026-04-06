@@ -7,12 +7,13 @@ import (
 )
 
 type Config struct {
-	Server      ServerConfig
-	Environment EnvironmentConfig
-	Database    DatabaseConfig
-	Redis       RedisConfig
-	UserService UserServiceConfig
-	LogLevel    string
+	Server             ServerConfig
+	Environment        EnvironmentConfig
+	Database           DatabaseConfig
+	Redis              RedisConfig
+	NotificationRedis  RedisConfig
+	UserService        UserServiceConfig
+	LogLevel           string
 }
 
 type ServerConfig struct {
@@ -58,6 +59,9 @@ func Load() (*Config, error) {
 		Redis: RedisConfig{
 			URL: sharedconfig.MustGetString(values, "REDIS_URL"),
 		},
+		NotificationRedis: RedisConfig{
+			URL: sharedconfig.MustGetString(values, "NOTIFICATION_REDIS_URL"),
+		},
 		UserService: UserServiceConfig{
 			Address: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_HOST", "0.0.0.0"),
 			Port:    sharedconfig.GetStringOrDefault(values, "USER_SERVICE_PORT", "50052"),
@@ -78,6 +82,9 @@ func validate(cfg *Config) error {
 	}
 	if cfg.Redis.URL == "" {
 		return fmt.Errorf("REDIS_URL is required")
+	}
+	if cfg.NotificationRedis.URL == "" {
+		return fmt.Errorf("NOTIFICATION_REDIS_URL is required")
 	}
 	if cfg.Server.Port == "" {
 		return fmt.Errorf("GRPC_PORT is required")

@@ -55,13 +55,13 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer pool.Close()
 	logger.Info("connected to postgres")
 
-	// --- Redis ---
-	redisClient, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.Redis.URL)
+	// --- Notification Redis (stream publication) ---
+	redisClient, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.NotificationRedis.URL)
 	if err != nil {
-		return fmt.Errorf("redis: %w", err)
+		return fmt.Errorf("notification redis: %w", err)
 	}
 	defer redisClient.Close()
-	logger.Info("connected to redis")
+	logger.Info("connected to notification redis")
 
 	// --- Repositories ---
 	readRepo := implementations.NewAuthReadRepository(pool, logger)

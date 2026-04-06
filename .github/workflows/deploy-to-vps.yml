@@ -216,6 +216,7 @@ jobs:
                   'secrets': {
                       'databaseUrl': os.environ.get('AUTH_DATABASE_URL', ''),
                       'redisUrl': os.environ.get('AUTH_REDIS_URL', ''),
+                      'notificationRedisUrl': os.environ.get('NOTIFICATION_REDIS_URL', ''),
                   },
               }
 
