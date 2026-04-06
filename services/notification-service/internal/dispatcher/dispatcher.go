@@ -284,16 +284,19 @@ func (d *Dispatcher) dispatchEmail(ctx context.Context, event *Event, routing *d
 	}
 
 	// Envoi via email-service
+	d.logger.Debug("calling email-service", zap.String("to", userInfo.Email), zap.String("subject", resolved.Subject))
 	success, errCode, err := d.emailClient.SendEmail(ctx, userInfo.Email, resolved.Subject, resolved.Body, resolved.BodyHTML)
 	if err != nil || !success {
 		failReason := errCode
 		if err != nil {
 			failReason = err.Error()
 		}
+		d.logger.Error("email send failed", zap.String("to", userInfo.Email), zap.String("reason", failReason))
 		d.notificationRepo.UpdateStatus(ctx, notif.NotificationID, "failed", failReason, "") //nolint:errcheck
 		return
 	}
 
+	d.logger.Info("email sent", zap.String("to", userInfo.Email), zap.String("event_type", event.EventType))
 	d.notificationRepo.UpdateStatus(ctx, notif.NotificationID, "sent", "", "") //nolint:errcheck
 }
 
