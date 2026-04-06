@@ -136,6 +136,7 @@ func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstNa
 		Payload: map[string]string{
 			"first_name": firstName,
 			"user_name":  name,
+			"email":      email,
 		},
 	}
 	if err := notification.Publish(ctx, s.redisClient, welcomeEvent); err != nil {
