@@ -112,6 +112,7 @@ func (s *tripServiceImpl) validateRecurringInput(input *serviceInterfaces.Create
 }
 
 // validateRecurringWaypoints vérifie les waypoints du pattern (min 2, 1 départ, 1 arrivée).
+// Le waypoint d'arrivée doit avoir un ScheduledDatetime pour calculer la durée du trajet.
 func (s *tripServiceImpl) validateRecurringWaypoints(waypoints []serviceInterfaces.WaypointInput) error {
 	if len(waypoints) < minWaypoints {
 		s.logger.Warn("not enough waypoints", zap.Int("count", len(waypoints)))
@@ -125,6 +126,10 @@ func (s *tripServiceImpl) validateRecurringWaypoints(waypoints []serviceInterfac
 			departures++
 		case domain.WaypointTypeArrival:
 			arrivals++
+			if wp.ScheduledDatetime == "" {
+				s.logger.Warn("arrival waypoint missing ScheduledDatetime")
+				return tripErrors.ErrorInvalidWaypoints
+			}
 		case domain.WaypointTypeStop:
 			// ok
 		default:

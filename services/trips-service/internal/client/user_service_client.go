@@ -86,6 +86,25 @@ func (c *UserServiceClient) GetDriverName(ctx context.Context, userID string) (s
 	return strings.TrimSpace(resp.FirstName + " " + resp.Name), nil
 }
 
+// GetUserIDByAuthID résout un Firebase UID en UserID interne via user-service.
+func (c *UserServiceClient) GetUserIDByAuthID(ctx context.Context, authID string) (string, error) {
+	c.logger.Debug("client: GetUserIDByAuthID called", zap.String("authID", authID))
+
+	resp, err := c.grpcClient.GetUserByAuthID(ctx, &userpb.GetUserByAuthIDRequest{
+		AuthID: authID,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			c.logger.Debug("client: user not found by authID", zap.String("authID", authID))
+			return "", fmt.Errorf("user-service: user not found for authID %s", authID)
+		}
+		c.logger.Error("client: GetUserByAuthID failed", zap.Error(err), zap.String("authID", authID))
+		return "", fmt.Errorf("user-service: GetUserByAuthID failed: %w", err)
+	}
+
+	return resp.UserID, nil
+}
+
 // GetDriverInfo retourne le nom complet et l'URL de la photo de profil du conducteur.
 func (c *UserServiceClient) GetDriverInfo(ctx context.Context, userID string) (string, string, error) {
 	c.logger.Debug("client: GetDriverInfo called", zap.String("userID", userID))
