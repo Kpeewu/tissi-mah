@@ -2,6 +2,7 @@ package consumer
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -60,6 +61,9 @@ func (c *Consumer) Start(ctx context.Context) error {
 			if err == redis.Nil || err == context.Canceled {
 				continue
 			}
+			if strings.Contains(err.Error(), "NOGROUP") {
+				c.ensureGroup(ctx)
+			}
 			c.logger.Error("xreadgroup error", zap.Error(err))
 			time.Sleep(1 * time.Second)
 			continue
@@ -92,6 +96,13 @@ func (c *Consumer) processMessage(ctx context.Context, msg redis.XMessage) {
 	}
 
 	c.ack(ctx, msg.ID)
+}
+
+func (c *Consumer) ensureGroup(ctx context.Context) {
+	err := c.rdb.XGroupCreateMkStream(ctx, streamName, groupName, "0").Err()
+	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
+		c.logger.Error("failed to recreate consumer group", zap.Error(err))
+	}
 }
 
 func (c *Consumer) ack(ctx context.Context, msgID string) {
