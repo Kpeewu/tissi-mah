@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"math/big"
 	"strings"
 	"time"
 
+	"github.com/Kpeewu/tissi-mah/pkg/notification"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/cache"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/domain"
@@ -15,6 +17,7 @@ import (
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/booking-service/internal/service/interfaces"
 	bookingErrors "github.com/Kpeewu/tissi-mah/services/booking-service/pkg/errors"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
@@ -25,6 +28,7 @@ type bookingServiceImpl struct {
 	userClient    client.UserClient
 	paymentClient client.PaymentClient
 	cache         *cache.BookingCache
+	notifRedis    *redis.Client
 	serviceFee    int // pourcentage
 	logger        *zap.Logger
 }
@@ -36,6 +40,7 @@ func NewBookingService(
 	userClient client.UserClient,
 	paymentClient client.PaymentClient,
 	bookingCache *cache.BookingCache,
+	notifRedis *redis.Client,
 	serviceFeePercent int,
 	logger *zap.Logger,
 ) serviceInterfaces.BookingService {
@@ -46,6 +51,7 @@ func NewBookingService(
 		userClient:    userClient,
 		paymentClient: paymentClient,
 		cache:         bookingCache,
+		notifRedis:    notifRedis,
 		serviceFee:    serviceFeePercent,
 		logger:        logger,
 	}
@@ -250,12 +256,29 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 		s.cache.InvalidateDriverTripBookings(ctx, tripDetails.DriverID, input.TripID)
 	}
 
-	return &serviceInterfaces.CreateBookingResult{
+	result := &serviceInterfaces.CreateBookingResult{
 		BookingID:        bookingID,
 		BookingReference: bookingRef,
 		Status:           string(initialStatus),
 		TotalAmount:      totalAmount,
-	}, nil
+	}
+
+	// Notifier le conducteur d'une nouvelle demande (non bloquant)
+	if s.notifRedis != nil {
+		if err := notification.Publish(ctx, s.notifRedis, notification.Event{
+			EventType:     notification.NewBookingRequest,
+			UserID:        tripDetails.DriverID,
+			ReferenceID:   bookingID,
+			ReferenceType: notification.RefBooking,
+			Payload: map[string]string{
+				"seats": fmt.Sprintf("%d", input.SeatsBooked),
+			},
+		}); err != nil {
+			s.logger.Error("failed to publish NEW_BOOKING_REQUEST notification", zap.Error(err))
+		}
+	}
+
+	return result, nil
 }
 
 // =============================================================================
@@ -337,11 +360,31 @@ func (s *bookingServiceImpl) ApproveBooking(ctx context.Context, input *serviceI
 		return bookingErrors.ErrorInvalidInput
 	}
 
+	// Récupérer le booking pour obtenir le passengerID (nécessaire pour la notification)
+	booking, err := s.readRepo.GetByID(ctx, input.BookingID)
+	if err != nil {
+		return err
+	}
+
 	if err := s.writeRepo.Approve(ctx, input.BookingID, input.DriverID); err != nil {
 		return err
 	}
 
 	s.invalidateBookingCaches(ctx, input.BookingID)
+
+	// Notifier le passager (non bloquant)
+	if s.notifRedis != nil {
+		if err := notification.Publish(ctx, s.notifRedis, notification.Event{
+			EventType:     notification.BookingConfirmed,
+			UserID:        booking.PassengerID,
+			ReferenceID:   input.BookingID,
+			ReferenceType: notification.RefBooking,
+			Payload:       map[string]string{"booking_id": input.BookingID},
+		}); err != nil {
+			s.logger.Error("failed to publish BOOKING_CONFIRMED notification", zap.Error(err))
+		}
+	}
+
 	return nil
 }
 
@@ -380,6 +423,19 @@ func (s *bookingServiceImpl) RejectBooking(ctx context.Context, input *serviceIn
 	// Demander le remboursement au payment-service (fire-and-forget)
 	if s.shouldRequestRefund(booking) {
 		go s.requestRefundAsync(booking, "bookingRejected", time.Now().UTC())
+	}
+
+	// Notifier le passager (non bloquant)
+	if s.notifRedis != nil {
+		if err := notification.Publish(ctx, s.notifRedis, notification.Event{
+			EventType:     notification.BookingRejected,
+			UserID:        booking.PassengerID,
+			ReferenceID:   input.BookingID,
+			ReferenceType: notification.RefBooking,
+			Payload:       map[string]string{"reason": input.Reason},
+		}); err != nil {
+			s.logger.Error("failed to publish BOOKING_REJECTED notification", zap.Error(err))
+		}
 	}
 
 	return nil
@@ -426,6 +482,25 @@ func (s *bookingServiceImpl) CancelBooking(ctx context.Context, input *serviceIn
 		go s.requestRefundAsync(booking, reason, time.Now().UTC())
 	}
 
+	// Notifier l'autre partie (non bloquant)
+	if s.notifRedis != nil {
+		eventType := notification.BookingCancelledByPassenger
+		recipientID := booking.DriverID
+		if input.UserID == booking.DriverID {
+			eventType = notification.BookingCancelledByDriver
+			recipientID = booking.PassengerID
+		}
+		if err := notification.Publish(ctx, s.notifRedis, notification.Event{
+			EventType:     eventType,
+			UserID:        recipientID,
+			ReferenceID:   input.BookingID,
+			ReferenceType: notification.RefBooking,
+			Payload:       map[string]string{"reason": input.Reason},
+		}); err != nil {
+			s.logger.Error("failed to publish booking cancellation notification", zap.Error(err))
+		}
+	}
+
 	return nil
 }
 
@@ -438,12 +513,24 @@ func (s *bookingServiceImpl) StartBookingsForWaypoint(ctx context.Context, input
 		return 0, bookingErrors.ErrorInvalidInput
 	}
 
-	count, err := s.writeRepo.StartBookingsForWaypoint(ctx, input.TripID, input.WaypointID)
+	passengerIDs, err := s.writeRepo.StartBookingsForWaypoint(ctx, input.TripID, input.WaypointID)
 	if err != nil {
 		return 0, err
 	}
 
-	return count, nil
+	// Notifier les passagers que leur trajet a démarré (non bloquant)
+	if s.notifRedis != nil && len(passengerIDs) > 0 {
+		if err := notification.Publish(ctx, s.notifRedis, notification.Event{
+			EventType:     notification.TripStarted,
+			UserIDs:       passengerIDs,
+			ReferenceID:   input.TripID,
+			ReferenceType: notification.RefTrip,
+		}); err != nil {
+			s.logger.Error("failed to publish TRIP_STARTED notification", zap.Error(err))
+		}
+	}
+
+	return len(passengerIDs), nil
 }
 
 // =============================================================================
@@ -455,12 +542,24 @@ func (s *bookingServiceImpl) CompleteBookingsForWaypoint(ctx context.Context, in
 		return 0, bookingErrors.ErrorInvalidInput
 	}
 
-	count, err := s.writeRepo.CompleteBookingsForWaypoint(ctx, input.TripID, input.WaypointID)
+	passengerIDs, err := s.writeRepo.CompleteBookingsForWaypoint(ctx, input.TripID, input.WaypointID)
 	if err != nil {
 		return 0, err
 	}
 
-	return count, nil
+	// Notifier les passagers que leur trajet est terminé (non bloquant)
+	if s.notifRedis != nil && len(passengerIDs) > 0 {
+		if err := notification.Publish(ctx, s.notifRedis, notification.Event{
+			EventType:     notification.TripEnded,
+			UserIDs:       passengerIDs,
+			ReferenceID:   input.TripID,
+			ReferenceType: notification.RefTrip,
+		}); err != nil {
+			s.logger.Error("failed to publish TRIP_ENDED notification", zap.Error(err))
+		}
+	}
+
+	return len(passengerIDs), nil
 }
 
 // =============================================================================
@@ -582,6 +681,7 @@ func (s *bookingServiceImpl) CancelBookingsForWaypoint(ctx context.Context, inpu
 	}
 
 	now := time.Now().UTC()
+	passengerIDs := make([]string, 0, len(cancelledBookings))
 	for _, booking := range cancelledBookings {
 		// Restaurer les places Redis par segment
 		if s.cache != nil {
@@ -593,6 +693,19 @@ func (s *bookingServiceImpl) CancelBookingsForWaypoint(ctx context.Context, inpu
 		// Demander le remboursement au payment-service (fire-and-forget)
 		if s.shouldRequestRefund(booking) {
 			go s.requestRefundAsync(booking, "waypointCancelled", now)
+		}
+		passengerIDs = append(passengerIDs, booking.PassengerID)
+	}
+
+	// Notifier les passagers concernés (non bloquant)
+	if s.notifRedis != nil && len(passengerIDs) > 0 {
+		if err := notification.Publish(ctx, s.notifRedis, notification.Event{
+			EventType:     notification.WaypointCanceled,
+			UserIDs:       passengerIDs,
+			ReferenceID:   input.TripID,
+			ReferenceType: notification.RefTrip,
+		}); err != nil {
+			s.logger.Error("failed to publish WAYPOINT_CANCELED notification", zap.Error(err))
 		}
 	}
 
@@ -614,6 +727,7 @@ func (s *bookingServiceImpl) CancelBookingsForTrip(ctx context.Context, input *s
 	}
 
 	now := time.Now().UTC()
+	passengerIDs := make([]string, 0, len(cancelledBookings))
 	for _, booking := range cancelledBookings {
 		// Restaurer les places Redis par segment
 		if s.cache != nil {
@@ -625,6 +739,19 @@ func (s *bookingServiceImpl) CancelBookingsForTrip(ctx context.Context, input *s
 		// Demander le remboursement au payment-service (fire-and-forget)
 		if s.shouldRequestRefund(booking) {
 			go s.requestRefundAsync(booking, "tripCancelled", now)
+		}
+		passengerIDs = append(passengerIDs, booking.PassengerID)
+	}
+
+	// Notifier tous les passagers de l'annulation du trajet (non bloquant)
+	if s.notifRedis != nil && len(passengerIDs) > 0 {
+		if err := notification.Publish(ctx, s.notifRedis, notification.Event{
+			EventType:     notification.TripCancelled,
+			UserIDs:       passengerIDs,
+			ReferenceID:   input.TripID,
+			ReferenceType: notification.RefTrip,
+		}); err != nil {
+			s.logger.Error("failed to publish TRIP_CANCELLED notification", zap.Error(err))
 		}
 	}
 

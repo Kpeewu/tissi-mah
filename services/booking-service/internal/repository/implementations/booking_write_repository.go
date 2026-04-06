@@ -306,120 +306,134 @@ func (r *bookingWriteRepositoryImpl) Cancel(ctx context.Context, bookingID, canc
 }
 
 // StartBookingsForWaypoint démarre les réservations approved d'un waypoint (pickup).
-func (r *bookingWriteRepositoryImpl) StartBookingsForWaypoint(ctx context.Context, tripID, waypointID string) (int, error) {
+// Retourne la liste des passengerIDs des bookings démarrés.
+func (r *bookingWriteRepositoryImpl) StartBookingsForWaypoint(ctx context.Context, tripID, waypointID string) ([]string, error) {
 	r.logger.Debug("starting bookings for waypoint",
 		zap.String("tripID", tripID), zap.String("waypointID", waypointID))
 
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return 0, bookingErrors.ErrorInternalServer
+		return nil, bookingErrors.ErrorInternalServer
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
 	// Récupérer les bookings approved pour ce waypoint de pickup
 	rows, err := tx.Query(ctx, `
-		SELECT booking_id FROM bookings
+		SELECT booking_id, passenger_id FROM bookings
 		WHERE trip_id = $1 AND pickup_waypoint_id = $2 AND status = 'approved'
 		FOR UPDATE`, tripID, waypointID)
 	if err != nil {
 		r.logger.Error("start bookings query failed", zap.Error(err))
-		return 0, bookingErrors.ErrorInternalServer
+		return nil, bookingErrors.ErrorInternalServer
 	}
 
-	var bookingIDs []string
+	type bookingRow struct {
+		bookingID   string
+		passengerID string
+	}
+	var bookings []bookingRow
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
+		var row bookingRow
+		if err := rows.Scan(&row.bookingID, &row.passengerID); err != nil {
 			rows.Close()
-			return 0, bookingErrors.ErrorInternalServer
+			return nil, bookingErrors.ErrorInternalServer
 		}
-		bookingIDs = append(bookingIDs, id)
+		bookings = append(bookings, row)
 	}
 	rows.Close()
 
-	if len(bookingIDs) == 0 {
-		return 0, tx.Commit(ctx)
+	if len(bookings) == 0 {
+		return nil, tx.Commit(ctx)
 	}
 
 	// Mettre à jour en batch
-	for _, bid := range bookingIDs {
+	passengerIDs := make([]string, 0, len(bookings))
+	for _, b := range bookings {
 		_, err = tx.Exec(ctx, `
-			UPDATE bookings SET status = 'inProgress' WHERE booking_id = $1`, bid)
+			UPDATE bookings SET status = 'inProgress' WHERE booking_id = $1`, b.bookingID)
 		if err != nil {
-			r.logger.Error("start booking update failed", zap.Error(err), zap.String("bookingID", bid))
-			return 0, bookingErrors.ErrorInternalServer
+			r.logger.Error("start booking update failed", zap.Error(err), zap.String("bookingID", b.bookingID))
+			return nil, bookingErrors.ErrorInternalServer
 		}
 
-		if err := r.insertHistoryInTx(ctx, tx, bid, string(domain.BookingStatusApproved), string(domain.BookingStatusInProgress), "system", "system"); err != nil {
-			return 0, err
+		if err := r.insertHistoryInTx(ctx, tx, b.bookingID, string(domain.BookingStatusApproved), string(domain.BookingStatusInProgress), "system", "system"); err != nil {
+			return nil, err
 		}
+		passengerIDs = append(passengerIDs, b.passengerID)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return 0, bookingErrors.ErrorInternalServer
+		return nil, bookingErrors.ErrorInternalServer
 	}
 
 	r.logger.Info("bookings started for waypoint",
-		zap.String("tripID", tripID), zap.String("waypointID", waypointID), zap.Int("count", len(bookingIDs)))
-	return len(bookingIDs), nil
+		zap.String("tripID", tripID), zap.String("waypointID", waypointID), zap.Int("count", len(passengerIDs)))
+	return passengerIDs, nil
 }
 
 // CompleteBookingsForWaypoint complète les réservations inProgress d'un waypoint (dropoff).
-func (r *bookingWriteRepositoryImpl) CompleteBookingsForWaypoint(ctx context.Context, tripID, waypointID string) (int, error) {
+// Retourne la liste des passengerIDs des bookings complétés.
+func (r *bookingWriteRepositoryImpl) CompleteBookingsForWaypoint(ctx context.Context, tripID, waypointID string) ([]string, error) {
 	r.logger.Debug("completing bookings for waypoint",
 		zap.String("tripID", tripID), zap.String("waypointID", waypointID))
 
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return 0, bookingErrors.ErrorInternalServer
+		return nil, bookingErrors.ErrorInternalServer
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
 	// Récupérer les bookings inProgress pour ce waypoint de dropoff
 	rows, err := tx.Query(ctx, `
-		SELECT booking_id FROM bookings
+		SELECT booking_id, passenger_id FROM bookings
 		WHERE trip_id = $1 AND dropoff_waypoint_id = $2 AND status = 'inProgress'
 		FOR UPDATE`, tripID, waypointID)
 	if err != nil {
 		r.logger.Error("complete bookings query failed", zap.Error(err))
-		return 0, bookingErrors.ErrorInternalServer
+		return nil, bookingErrors.ErrorInternalServer
 	}
 
-	var bookingIDs []string
+	type bookingRow struct {
+		bookingID   string
+		passengerID string
+	}
+	var bookings []bookingRow
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
+		var row bookingRow
+		if err := rows.Scan(&row.bookingID, &row.passengerID); err != nil {
 			rows.Close()
-			return 0, bookingErrors.ErrorInternalServer
+			return nil, bookingErrors.ErrorInternalServer
 		}
-		bookingIDs = append(bookingIDs, id)
+		bookings = append(bookings, row)
 	}
 	rows.Close()
 
-	if len(bookingIDs) == 0 {
-		return 0, tx.Commit(ctx)
+	if len(bookings) == 0 {
+		return nil, tx.Commit(ctx)
 	}
 
-	for _, bid := range bookingIDs {
+	passengerIDs := make([]string, 0, len(bookings))
+	for _, b := range bookings {
 		_, err = tx.Exec(ctx, `
-			UPDATE bookings SET status = 'completed', completed_at = NOW() WHERE booking_id = $1`, bid)
+			UPDATE bookings SET status = 'completed', completed_at = NOW() WHERE booking_id = $1`, b.bookingID)
 		if err != nil {
-			r.logger.Error("complete booking update failed", zap.Error(err), zap.String("bookingID", bid))
-			return 0, bookingErrors.ErrorInternalServer
+			r.logger.Error("complete booking update failed", zap.Error(err), zap.String("bookingID", b.bookingID))
+			return nil, bookingErrors.ErrorInternalServer
 		}
 
-		if err := r.insertHistoryInTx(ctx, tx, bid, string(domain.BookingStatusInProgress), string(domain.BookingStatusCompleted), "system", "system"); err != nil {
-			return 0, err
+		if err := r.insertHistoryInTx(ctx, tx, b.bookingID, string(domain.BookingStatusInProgress), string(domain.BookingStatusCompleted), "system", "system"); err != nil {
+			return nil, err
 		}
+		passengerIDs = append(passengerIDs, b.passengerID)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return 0, bookingErrors.ErrorInternalServer
+		return nil, bookingErrors.ErrorInternalServer
 	}
 
 	r.logger.Info("bookings completed for waypoint",
-		zap.String("tripID", tripID), zap.String("waypointID", waypointID), zap.Int("count", len(bookingIDs)))
-	return len(bookingIDs), nil
+		zap.String("tripID", tripID), zap.String("waypointID", waypointID), zap.Int("count", len(passengerIDs)))
+	return passengerIDs, nil
 }
 
 // ReportNoShow signale l'absence d'un passager ou d'un conducteur.

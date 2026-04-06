@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
+	"github.com/Kpeewu/tissi-mah/pkg/notification"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/cache"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/config"
@@ -34,6 +36,7 @@ type paymentServiceImpl struct {
 	userClient       client.UserClient
 	fedapayClient    *fedapay.Client
 	cache            *cache.PaymentCache
+	notifRedis       *redis.Client
 	cfg              *config.Config
 	logger           *zap.Logger
 }
@@ -50,6 +53,7 @@ func NewPaymentService(
 	userClient client.UserClient,
 	fedapayClient *fedapay.Client,
 	paymentCache *cache.PaymentCache,
+	notifRedis *redis.Client,
 	cfg *config.Config,
 	logger *zap.Logger,
 ) serviceInterfaces.PaymentService {
@@ -64,6 +68,7 @@ func NewPaymentService(
 		userClient:       userClient,
 		fedapayClient:    fedapayClient,
 		cache:            paymentCache,
+		notifRedis:       notifRedis,
 		cfg:              cfg,
 		logger:           logger.Named("service"),
 	}
@@ -274,6 +279,23 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 			// Le paiement est held — on ne rollback pas
 		}
 
+		// Notifier le passager (non bloquant)
+		if s.notifRedis != nil {
+			if booking, err := s.bookingClient.GetBookingDetails(ctx, payment.BookingID); err == nil {
+				if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
+					EventType:     notification.PaymentCompleted,
+					UserID:        booking.PassengerID,
+					ReferenceID:   payment.PaymentID,
+					ReferenceType: notification.RefPayment,
+					Payload: map[string]string{
+						"amount": fmt.Sprintf("%d", payment.Amount),
+					},
+				}); pubErr != nil {
+					s.logger.Error("failed to publish PAYMENT_COMPLETED notification", zap.Error(pubErr))
+				}
+			}
+		}
+
 		s.logger.Info("payment held", zap.String("paymentID", payment.PaymentID))
 
 	case "transaction.declined", "transaction.canceled", "transaction.expired", "transaction.deleted":
@@ -300,6 +322,20 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 		// Notifier booking-service pour restaurer les places et changer le statut
 		if err := s.bookingClient.FailPayment(ctx, payment.BookingID, reason); err != nil {
 			s.logger.Error("fail payment to booking-service failed", zap.Error(err))
+		}
+
+		// Notifier le passager (non bloquant)
+		if s.notifRedis != nil {
+			if booking, err := s.bookingClient.GetBookingDetails(ctx, payment.BookingID); err == nil {
+				if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
+					EventType:     notification.PaymentFailed,
+					UserID:        booking.PassengerID,
+					ReferenceID:   payment.PaymentID,
+					ReferenceType: notification.RefPayment,
+				}); pubErr != nil {
+					s.logger.Error("failed to publish PAYMENT_FAILED notification", zap.Error(pubErr))
+				}
+			}
 		}
 
 		s.logger.Info("payment failed", zap.String("paymentID", payment.PaymentID), zap.String("reason", reason))
@@ -489,6 +525,23 @@ func (s *paymentServiceImpl) RequestRefund(ctx context.Context, input *serviceIn
 		zap.String("rule", string(rule)),
 		zap.Int("refundAmount", calc.RefundAmount),
 	)
+
+	// Notifier le passager (non bloquant)
+	if s.notifRedis != nil {
+		if booking, err := s.bookingClient.GetBookingDetails(ctx, input.BookingID); err == nil {
+			if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
+				EventType:     notification.RefundProcessed,
+				UserID:        booking.PassengerID,
+				ReferenceID:   refundID,
+				ReferenceType: notification.RefRefund,
+				Payload: map[string]string{
+					"amount": fmt.Sprintf("%d", calc.RefundAmount),
+				},
+			}); pubErr != nil {
+				s.logger.Error("failed to publish REFUND_PROCESSED notification", zap.Error(pubErr))
+			}
+		}
+	}
 
 	return &serviceInterfaces.RequestRefundResult{
 		RefundID:        refundID,

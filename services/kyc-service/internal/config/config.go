@@ -7,11 +7,16 @@ import (
 )
 
 type Config struct {
-	Server      ServerConfig
-	Environment EnvironmentConfig
-	FileService FileServiceConfig
-	Persona     PersonaConfig
-	LogLevel    string
+	Server            ServerConfig
+	Environment       EnvironmentConfig
+	FileService       FileServiceConfig
+	Persona           PersonaConfig
+	NotificationRedis RedisConfig
+	LogLevel          string
+}
+
+type RedisConfig struct {
+	URL string
 }
 
 type ServerConfig struct {
@@ -57,6 +62,9 @@ func Load() (*Config, error) {
 			TemplateID:    sharedconfig.GetStringOrDefault(values, "PERSONA_TEMPLATE_ID", "itmpl_default"),
 			WebhookSecret: sharedconfig.MustGetString(values, "PERSONA_WEBHOOK_SECRET"),
 		},
+		NotificationRedis: RedisConfig{
+			URL: sharedconfig.MustGetString(values, "NOTIFICATION_REDIS_URL"),
+		},
 		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
 	}
 
@@ -76,6 +84,9 @@ func validate(cfg *Config) error {
 	}
 	if cfg.Persona.WebhookSecret == "" {
 		return fmt.Errorf("PERSONA_WEBHOOK_SECRET is required")
+	}
+	if cfg.NotificationRedis.URL == "" {
+		return fmt.Errorf("NOTIFICATION_REDIS_URL is required")
 	}
 	return nil
 }

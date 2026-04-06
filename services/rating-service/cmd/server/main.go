@@ -85,8 +85,16 @@ func run(bootstrapLogger *zap.Logger) error {
 	readRepo := implementations.NewRatingReadRepository(pool, logger)
 	writeRepo := implementations.NewRatingWriteRepository(pool, logger)
 
+	// --- Notification Redis (stream publication) ---
+	notifRedis, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.NotificationRedis.URL)
+	if err != nil {
+		return fmt.Errorf("notification redis: %w", err)
+	}
+	defer notifRedis.Close()
+	logger.Info("connected to notification redis")
+
 	// --- Rating service ---
-	ratingService := service.NewRatingService(readRepo, writeRepo, userClient, ratingCache, logger)
+	ratingService := service.NewRatingService(readRepo, writeRepo, userClient, ratingCache, notifRedis, logger)
 
 	// --- gRPC server ---
 	srv, err := grpcServer.NewRatingServer(cfg, ratingService, logger)

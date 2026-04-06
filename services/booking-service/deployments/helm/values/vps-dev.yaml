@@ -53,6 +53,7 @@ config:
 secrets:
   databaseUrl: ""
   redisUrl: ""
+  notificationRedisUrl: ""
   extra: {}
 
 probes:

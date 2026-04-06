@@ -8,17 +8,18 @@ import (
 )
 
 type Config struct {
-	Server         ServerConfig
-	Environment    EnvironmentConfig
-	Database       DatabaseConfig
-	Redis          RedisConfig
-	FedaPay        FedaPayConfig
-	BookingService ServiceEndpoint
-	UserService    ServiceEndpoint
-	Payout         PayoutConfig
-	Refund         RefundConfig
-	Expiration     ExpirationConfig
-	LogLevel       string
+	Server            ServerConfig
+	Environment       EnvironmentConfig
+	Database          DatabaseConfig
+	Redis             RedisConfig
+	NotificationRedis RedisConfig
+	FedaPay           FedaPayConfig
+	BookingService    ServiceEndpoint
+	UserService       ServiceEndpoint
+	Payout            PayoutConfig
+	Refund            RefundConfig
+	Expiration        ExpirationConfig
+	LogLevel          string
 }
 
 type ServerConfig struct {
@@ -90,6 +91,9 @@ func Load() (*Config, error) {
 		},
 		Redis: RedisConfig{
 			URL: sharedconfig.MustGetString(values, "REDIS_URL"),
+		},
+		NotificationRedis: RedisConfig{
+			URL: sharedconfig.MustGetString(values, "NOTIFICATION_REDIS_URL"),
 		},
 		FedaPay: loadFedaPayConfig(values, sharedconfig.MustGetString(values, "ENVIRONMENT")),
 		BookingService: ServiceEndpoint{

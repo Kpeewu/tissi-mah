@@ -38,6 +38,10 @@ const (
 	TripEnded                   = "TRIP_ENDED"
 	Welcome                     = "WELCOME"
 	AccountSuspended            = "ACCOUNT_SUSPENDED"
+	NewBookingRequest           = "NEW_BOOKING_REQUEST"
+	KycApproved                 = "KYC_APPROVED"
+	KycRejected                 = "KYC_REJECTED"
+	DriverProfileVerified       = "DRIVER_PROFILE_VERIFIED"
 )
 
 // Reference types
