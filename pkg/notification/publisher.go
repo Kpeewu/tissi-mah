@@ -42,6 +42,7 @@ const (
 
 // Reference types
 const (
+	RefUser          = "user"
 	RefBooking       = "booking"
 	RefTrip          = "trip"
 	RefDocument      = "document"

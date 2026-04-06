@@ -55,6 +55,14 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer pool.Close()
 	logger.Info("connected to postgres")
 
+	// --- Redis ---
+	redisClient, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.Redis.URL)
+	if err != nil {
+		return fmt.Errorf("redis: %w", err)
+	}
+	defer redisClient.Close()
+	logger.Info("connected to redis")
+
 	// --- Repositories ---
 	readRepo := implementations.NewAuthReadRepository(pool, logger)
 	writeRepo := implementations.NewAuthWriteRepository(pool, logger)
@@ -69,7 +77,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	logger.Info("user-service client ready", zap.String("address", userServiceAddr))
 
 	// --- Auth service ---
-	authService := service.NewAuthService(readRepo, writeRepo, userClient, logger)
+	authService := service.NewAuthService(readRepo, writeRepo, userClient, redisClient, logger)
 
 	// --- gRPC server ---
 	srv, err := grpcServer.NewAuthServer(cfg, authService, logger)
