@@ -138,6 +138,11 @@ func (d *Dispatcher) processForUser(ctx context.Context, event *Event) error {
 	maxAttempts := domain.MaxAttemptsForPriority(routing.Priority)
 
 	// 4. Push
+	d.logger.Debug("push dispatch check",
+		zap.String("user_id", event.UserID),
+		zap.Bool("send_push_routing", routing.SendPush),
+		zap.Bool("push_enabled_pref", prefs.PushEnabled),
+	)
 	if routing.SendPush && prefs.PushEnabled {
 		d.dispatchPush(ctx, event, routing, userInfo, lang, maxAttempts)
 	}
@@ -196,6 +201,7 @@ func (d *Dispatcher) dispatchPush(ctx context.Context, event *Event, routing *do
 	for i, t := range tokens {
 		fcmTokens[i] = t.FCMToken
 	}
+	d.logger.Debug("push tokens found", zap.String("user_id", event.UserID), zap.Int("count", len(fcmTokens)))
 
 	// Enregistrer le log notification
 	notif := &domain.Notification{
@@ -225,20 +231,41 @@ func (d *Dispatcher) dispatchPush(ctx context.Context, event *Event, routing *do
 	}
 	data["event_type"] = event.EventType
 
+	d.logger.Debug("calling push-service",
+		zap.String("user_id", event.UserID),
+		zap.String("title", resolved.Title),
+		zap.Int("token_count", len(fcmTokens)),
+	)
 	if len(fcmTokens) == 1 {
 		success, errCode, err := d.pushClient.SendPush(ctx, resolved.Title, resolved.Body, fcmTokens[0], data)
 		if err != nil || !success {
+			d.logger.Error("push send failed",
+				zap.String("user_id", event.UserID),
+				zap.String("event_type", event.EventType),
+				zap.String("reason", errCode),
+				zap.Error(err),
+			)
 			d.notificationRepo.UpdateStatus(ctx, notif.NotificationID, "failed", errCode, "") //nolint:errcheck
 			return
 		}
 	} else {
 		_, _, err := d.pushClient.SendPushMulticast(ctx, resolved.Title, resolved.Body, fcmTokens, data)
 		if err != nil {
+			d.logger.Error("push multicast send failed",
+				zap.String("user_id", event.UserID),
+				zap.String("event_type", event.EventType),
+				zap.Error(err),
+			)
 			d.notificationRepo.UpdateStatus(ctx, notif.NotificationID, "failed", err.Error(), "") //nolint:errcheck
 			return
 		}
 	}
 
+	d.logger.Info("push sent",
+		zap.String("user_id", event.UserID),
+		zap.String("event_type", event.EventType),
+		zap.Int("token_count", len(fcmTokens)),
+	)
 	d.notificationRepo.UpdateStatus(ctx, notif.NotificationID, "sent", "", "") //nolint:errcheck
 }
 
@@ -302,6 +329,11 @@ func (d *Dispatcher) dispatchEmail(ctx context.Context, event *Event, routing *d
 
 // dispatchInbox crée une entrée dans l'inbox de l'utilisateur.
 func (d *Dispatcher) dispatchInbox(ctx context.Context, event *Event, lang string) {
+	d.logger.Debug("dispatching inbox entry",
+		zap.String("user_id", event.UserID),
+		zap.String("event_type", event.EventType),
+	)
+
 	tmpl, err := d.templateRepo.GetByEventTypeAndChannel(ctx, event.EventType, "push", lang)
 	if err != nil {
 		d.logger.Error("inbox template not found", zap.String("event_type", event.EventType))
@@ -321,5 +353,11 @@ func (d *Dispatcher) dispatchInbox(ctx context.Context, event *Event, lang strin
 
 	if err := d.inboxRepo.Create(ctx, entry); err != nil {
 		d.logger.Error("failed to create inbox entry", zap.Error(err))
+		return
 	}
+
+	d.logger.Info("inbox entry created",
+		zap.String("user_id", event.UserID),
+		zap.String("event_type", event.EventType),
+	)
 }
