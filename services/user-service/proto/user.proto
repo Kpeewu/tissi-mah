@@ -25,6 +25,9 @@ service UserService {
   // GetUserByAuthID - Récupère le profil utilisateur lié à un AuthID
   rpc GetUserByAuthID(GetUserByAuthIDRequest) returns (UserProfileResponse);
 
+  // GetUserByFirebaseID - Récupère le profil utilisateur par son Firebase UID (appelé par trips-service)
+  rpc GetUserByFirebaseID(GetUserByFirebaseIDRequest) returns (UserProfileResponse);
+
   // GetUserByUserID - Récupère le profil utilisateur par son UserID interne
   rpc GetUserByUserID(GetUserByUserIDRequest) returns (UserProfileResponse);
 
@@ -95,6 +98,10 @@ message CreateUserRequest {
 
 message GetUserByAuthIDRequest {
   string AuthID = 1;
+}
+
+message GetUserByFirebaseIDRequest {
+  string FirebaseID = 1;
 }
 
 message GetUserByUserIDRequest {

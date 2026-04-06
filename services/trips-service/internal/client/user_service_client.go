@@ -87,19 +87,19 @@ func (c *UserServiceClient) GetDriverName(ctx context.Context, userID string) (s
 }
 
 // GetUserIDByAuthID résout un Firebase UID en UserID interne via user-service.
-func (c *UserServiceClient) GetUserIDByAuthID(ctx context.Context, authID string) (string, error) {
-	c.logger.Debug("client: GetUserIDByAuthID called", zap.String("authID", authID))
+func (c *UserServiceClient) GetUserIDByAuthID(ctx context.Context, firebaseUID string) (string, error) {
+	c.logger.Debug("client: GetUserIDByAuthID called", zap.String("firebaseUID", firebaseUID))
 
-	resp, err := c.grpcClient.GetUserByAuthID(ctx, &userpb.GetUserByAuthIDRequest{
-		AuthID: authID,
+	resp, err := c.grpcClient.GetUserByFirebaseID(ctx, &userpb.GetUserByFirebaseIDRequest{
+		FirebaseID: firebaseUID,
 	})
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-			c.logger.Debug("client: user not found by authID", zap.String("authID", authID))
-			return "", fmt.Errorf("user-service: user not found for authID %s", authID)
+			c.logger.Debug("client: user not found by firebaseUID", zap.String("firebaseUID", firebaseUID))
+			return "", fmt.Errorf("user-service: user not found for firebaseUID %s", firebaseUID)
 		}
-		c.logger.Error("client: GetUserByAuthID failed", zap.Error(err), zap.String("authID", authID))
-		return "", fmt.Errorf("user-service: GetUserByAuthID failed: %w", err)
+		c.logger.Error("client: GetUserByFirebaseID failed", zap.Error(err), zap.String("firebaseUID", firebaseUID))
+		return "", fmt.Errorf("user-service: GetUserByFirebaseID failed: %w", err)
 	}
 
 	return resp.UserID, nil
