@@ -21,12 +21,12 @@ type BookingRepositoryWrite interface {
 	Cancel(ctx context.Context, bookingID, cancellerID, reason string) error
 
 	// StartBookingsForWaypoint démarre les réservations approved d'un waypoint (pickup).
-	// Retourne le nombre de bookings démarrés.
-	StartBookingsForWaypoint(ctx context.Context, tripID, waypointID string) (int, error)
+	// Retourne la liste des passengerIDs des bookings démarrés.
+	StartBookingsForWaypoint(ctx context.Context, tripID, waypointID string) ([]string, error)
 
 	// CompleteBookingsForWaypoint complète les réservations inProgress d'un waypoint (dropoff).
-	// Retourne le nombre de bookings complétés.
-	CompleteBookingsForWaypoint(ctx context.Context, tripID, waypointID string) (int, error)
+	// Retourne la liste des passengerIDs des bookings complétés.
+	CompleteBookingsForWaypoint(ctx context.Context, tripID, waypointID string) ([]string, error)
 
 	// ReportNoShow signale l'absence d'un passager ou d'un conducteur.
 	ReportNoShow(ctx context.Context, bookingID, reporterID, noShowType, description string) error

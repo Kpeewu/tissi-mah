@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
+	"github.com/Kpeewu/tissi-mah/pkg/notification"
 	"github.com/Kpeewu/tissi-mah/services/kyc-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/kyc-service/internal/domain"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/kyc-service/internal/service/interfaces"
@@ -23,6 +25,7 @@ type kycServiceImpl struct {
 	personaClient     client.PersonaClient
 	personaTemplateID string
 	webhookSecret     string
+	notifRedis        *redis.Client
 	logger            *zap.Logger
 }
 
@@ -32,6 +35,7 @@ func NewKYCService(
 	personaClient client.PersonaClient,
 	personaTemplateID string,
 	webhookSecret string,
+	notifRedis *redis.Client,
 	logger *zap.Logger,
 ) serviceInterfaces.KYCService {
 	return &kycServiceImpl{
@@ -39,6 +43,7 @@ func NewKYCService(
 		personaClient:     personaClient,
 		personaTemplateID: personaTemplateID,
 		webhookSecret:     webhookSecret,
+		notifRedis:        notifRedis,
 		logger:            logger,
 	}
 }
@@ -563,6 +568,41 @@ func (s *kycServiceImpl) ProcessWebhook(ctx context.Context, input serviceInterf
 		zap.String("eventType", input.WebhookEventType),
 		zap.String("newStatus", newStatus),
 	)
+
+	// Notifier l'utilisateur pour les décisions finales (approuvé ou rejeté)
+	if s.notifRedis != nil {
+		var eventType string
+		switch input.WebhookEventType {
+		case "inquiry.approved":
+			eventType = notification.KycApproved
+		case "inquiry.declined":
+			eventType = notification.KycRejected
+		}
+		if eventType != "" {
+			// Extraire le userID depuis le champ reference-id du payload Persona
+			var personaPayload struct {
+				Data struct {
+					Attributes struct {
+						ReferenceID string `json:"reference-id"`
+					} `json:"attributes"`
+				} `json:"data"`
+			}
+			var userID string
+			if err := json.Unmarshal(input.PersonaRawPayload, &personaPayload); err == nil {
+				userID = personaPayload.Data.Attributes.ReferenceID
+			}
+			if userID != "" {
+				if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
+					EventType:     eventType,
+					UserID:        userID,
+					ReferenceID:   review.ReviewID,
+					ReferenceType: notification.RefDocument,
+				}); pubErr != nil {
+					s.logger.Error("failed to publish KYC notification", zap.Error(pubErr))
+				}
+			}
+		}
+	}
 
 	return nil
 }

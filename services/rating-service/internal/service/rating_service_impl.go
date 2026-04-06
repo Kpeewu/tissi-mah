@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"math"
 
+	"github.com/Kpeewu/tissi-mah/pkg/notification"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/cache"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/domain"
@@ -11,6 +13,7 @@ import (
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/rating-service/internal/service/interfaces"
 	ratingErrors "github.com/Kpeewu/tissi-mah/services/rating-service/pkg/errors"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
@@ -19,6 +22,7 @@ type ratingServiceImpl struct {
 	writeRepo  repoInterfaces.RatingRepositoryWrite
 	userClient client.UserClient
 	cache      *cache.RatingCache // nil si Redis indisponible
+	notifRedis *redis.Client
 	logger     *zap.Logger
 }
 
@@ -27,6 +31,7 @@ func NewRatingService(
 	writeRepo repoInterfaces.RatingRepositoryWrite,
 	userClient client.UserClient,
 	ratingCache *cache.RatingCache,
+	notifRedis *redis.Client,
 	logger *zap.Logger) serviceInterfaces.RatingService {
 
 	return &ratingServiceImpl{
@@ -34,6 +39,7 @@ func NewRatingService(
 		writeRepo:  writeRepo,
 		userClient: userClient,
 		cache:      ratingCache,
+		notifRedis: notifRedis,
 		logger:     logger,
 	}
 }
@@ -113,6 +119,21 @@ func (s *ratingServiceImpl) RateUser(ctx context.Context, raterID string, userRa
 
 	// Invalider le cache de l'utilisateur noté
 	s.invalidateCache(ctx, userRatedID)
+
+	// Notifier l'utilisateur noté (non bloquant)
+	if s.notifRedis != nil {
+		if err := notification.Publish(ctx, s.notifRedis, notification.Event{
+			EventType:     notification.RatingReceived,
+			UserID:        userRatedID,
+			ReferenceID:   ratingID,
+			ReferenceType: notification.RefRating,
+			Payload: map[string]string{
+				"stars": fmt.Sprintf("%d", numberOfStars),
+			},
+		}); err != nil {
+			s.logger.Error("failed to publish RATING_RECEIVED notification", zap.Error(err))
+		}
+	}
 
 	return s.readRepo.GetByID(ctx, ratingID)
 }

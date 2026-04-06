@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/Kpeewu/tissi-mah/pkg/notification"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/domain"
 )
 
@@ -203,6 +204,21 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 	}
 
 	*totalAmount += netAmount
+
+	// Notifier le conducteur (non bloquant)
+	if s.notifRedis != nil {
+		if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
+			EventType:     notification.DriverPaymentLaunched,
+			UserID:        booking.DriverID,
+			ReferenceID:   payoutID,
+			ReferenceType: notification.RefPayment,
+			Payload: map[string]string{
+				"amount": fmt.Sprintf("%d", netAmount),
+			},
+		}); pubErr != nil {
+			s.logger.Error("failed to publish DRIVER_PAYMENT_LAUNCHED notification", zap.Error(pubErr))
+		}
+	}
 
 	s.logger.Info("payout processed for trip",
 		zap.String("tripID", tripID),

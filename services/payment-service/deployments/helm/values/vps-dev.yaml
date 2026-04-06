@@ -58,6 +58,7 @@ config:
 secrets:
   databaseUrl: ""
   redisUrl: ""
+  notificationRedisUrl: ""
   fedapaySandboxApiUrl: ""
   fedapaySandboxApiKey: ""
   fedapaySandboxWebhookSecret: ""

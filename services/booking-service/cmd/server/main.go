@@ -91,6 +91,14 @@ func run(bootstrapLogger *zap.Logger) error {
 		logger.Info("redis connected, cache enabled")
 	}
 
+	// --- Notification Redis (stream publication) ---
+	notifRedis, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.NotificationRedis.URL)
+	if err != nil {
+		return fmt.Errorf("notification redis: %w", err)
+	}
+	defer notifRedis.Close()
+	logger.Info("connected to notification redis")
+
 	// --- Repositories ---
 	readRepo := implementations.NewBookingReadRepository(pool, logger)
 	writeRepo := implementations.NewBookingWriteRepository(pool, logger)
@@ -100,6 +108,7 @@ func run(bootstrapLogger *zap.Logger) error {
 		readRepo, writeRepo,
 		tripClient, userClient, paymentClient,
 		bookingCache,
+		notifRedis,
 		cfg.ServiceFee.Percent,
 		logger,
 	)
