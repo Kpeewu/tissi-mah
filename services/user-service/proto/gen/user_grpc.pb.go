@@ -27,6 +27,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	UserService_CreateUser_FullMethodName           = "/user.UserService/CreateUser"
 	UserService_GetUserByAuthID_FullMethodName      = "/user.UserService/GetUserByAuthID"
+	UserService_GetUserByFirebaseID_FullMethodName  = "/user.UserService/GetUserByFirebaseID"
 	UserService_GetUserByUserID_FullMethodName      = "/user.UserService/GetUserByUserID"
 	UserService_SoftDeleteUser_FullMethodName       = "/user.UserService/SoftDeleteUser"
 	UserService_GetMyProfile_FullMethodName         = "/user.UserService/GetMyProfile"
@@ -45,6 +46,8 @@ type UserServiceClient interface {
 	CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*UserProfileResponse, error)
 	// GetUserByAuthID - Récupère le profil utilisateur lié à un AuthID
 	GetUserByAuthID(ctx context.Context, in *GetUserByAuthIDRequest, opts ...grpc.CallOption) (*UserProfileResponse, error)
+	// GetUserByFirebaseID - Récupère le profil utilisateur par son Firebase UID (appelé par trips-service)
+	GetUserByFirebaseID(ctx context.Context, in *GetUserByFirebaseIDRequest, opts ...grpc.CallOption) (*UserProfileResponse, error)
 	// GetUserByUserID - Récupère le profil utilisateur par son UserID interne
 	GetUserByUserID(ctx context.Context, in *GetUserByUserIDRequest, opts ...grpc.CallOption) (*UserProfileResponse, error)
 	// SoftDeleteUser - Anonymise et soft-delete le profil utilisateur
@@ -85,6 +88,16 @@ func (c *userServiceClient) GetUserByAuthID(ctx context.Context, in *GetUserByAu
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(UserProfileResponse)
 	err := c.cc.Invoke(ctx, UserService_GetUserByAuthID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) GetUserByFirebaseID(ctx context.Context, in *GetUserByFirebaseIDRequest, opts ...grpc.CallOption) (*UserProfileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UserProfileResponse)
+	err := c.cc.Invoke(ctx, UserService_GetUserByFirebaseID_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -179,6 +192,8 @@ type UserServiceServer interface {
 	CreateUser(context.Context, *CreateUserRequest) (*UserProfileResponse, error)
 	// GetUserByAuthID - Récupère le profil utilisateur lié à un AuthID
 	GetUserByAuthID(context.Context, *GetUserByAuthIDRequest) (*UserProfileResponse, error)
+	// GetUserByFirebaseID - Récupère le profil utilisateur par son Firebase UID (appelé par trips-service)
+	GetUserByFirebaseID(context.Context, *GetUserByFirebaseIDRequest) (*UserProfileResponse, error)
 	// GetUserByUserID - Récupère le profil utilisateur par son UserID interne
 	GetUserByUserID(context.Context, *GetUserByUserIDRequest) (*UserProfileResponse, error)
 	// SoftDeleteUser - Anonymise et soft-delete le profil utilisateur
@@ -210,6 +225,9 @@ func (UnimplementedUserServiceServer) CreateUser(context.Context, *CreateUserReq
 }
 func (UnimplementedUserServiceServer) GetUserByAuthID(context.Context, *GetUserByAuthIDRequest) (*UserProfileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUserByAuthID not implemented")
+}
+func (UnimplementedUserServiceServer) GetUserByFirebaseID(context.Context, *GetUserByFirebaseIDRequest) (*UserProfileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUserByFirebaseID not implemented")
 }
 func (UnimplementedUserServiceServer) GetUserByUserID(context.Context, *GetUserByUserIDRequest) (*UserProfileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUserByUserID not implemented")
@@ -288,6 +306,24 @@ func _UserService_GetUserByAuthID_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UserServiceServer).GetUserByAuthID(ctx, req.(*GetUserByAuthIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_GetUserByFirebaseID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserByFirebaseIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetUserByFirebaseID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetUserByFirebaseID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetUserByFirebaseID(ctx, req.(*GetUserByFirebaseIDRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -450,6 +486,10 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUserByAuthID",
 			Handler:    _UserService_GetUserByAuthID_Handler,
+		},
+		{
+			MethodName: "GetUserByFirebaseID",
+			Handler:    _UserService_GetUserByFirebaseID_Handler,
 		},
 		{
 			MethodName: "GetUserByUserID",

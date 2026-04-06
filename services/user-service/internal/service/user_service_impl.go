@@ -87,6 +87,23 @@ func (s *userServiceImpl) GetUserByAuthID(ctx context.Context, authID string) (*
 	return user, nil
 }
 
+// GetUserByFirebaseID récupère le profil utilisateur par son Firebase UID (appelé par trips-service)
+func (s *userServiceImpl) GetUserByFirebaseID(ctx context.Context, firebaseID string) (*domain.User, error) {
+	s.logger.Debug("récupération profil par firebaseID", zap.String("firebase_id", firebaseID))
+
+	if firebaseID == "" {
+		return nil, userErrors.ErrorUserNotFound
+	}
+
+	user, err := s.readRepo.GetByFirebaseID(ctx, firebaseID)
+	if err != nil {
+		s.logger.Error("échec de la récupération du profil par firebaseID", zap.Error(err), zap.String("firebase_id", firebaseID))
+		return nil, err
+	}
+
+	return user, nil
+}
+
 // GetUserByUserID récupère le profil utilisateur par son UserID interne (appelé par trips-service)
 func (s *userServiceImpl) GetUserByUserID(ctx context.Context, userID string) (*domain.User, error) {
 	s.logger.Debug("récupération profil par userID", zap.String("user_id", userID))

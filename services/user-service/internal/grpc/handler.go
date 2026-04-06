@@ -62,6 +62,20 @@ func (h *UserHandler) GetUserByAuthID(ctx context.Context, req *userpb.GetUserBy
 	return toProtoUserProfile(user), nil
 }
 
+// GetUserByFirebaseID récupère le profil utilisateur par son Firebase UID (appelé par trips-service)
+func (h *UserHandler) GetUserByFirebaseID(ctx context.Context, req *userpb.GetUserByFirebaseIDRequest) (*userpb.UserProfileResponse, error) {
+	h.logger.Debug("GetUserByFirebaseID appelé", zap.String("firebase_id", req.FirebaseID))
+
+	user, err := h.service.GetUserByFirebaseID(ctx, req.FirebaseID)
+	if err != nil {
+		h.logger.Error("GetUserByFirebaseID échoué", zap.Error(err), zap.String("firebase_id", req.FirebaseID))
+		return nil, toGRPCError(err)
+	}
+
+	h.logger.Debug("GetUserByFirebaseID réussi", zap.String("firebase_id", req.FirebaseID), zap.String("user_id", user.UserID))
+	return toProtoUserProfile(user), nil
+}
+
 // GetUserByUserID récupère le profil utilisateur par son UserID interne (appelé par trips-service, notification-service)
 // Enrichit la réponse avec email/phone depuis auth-service.
 func (h *UserHandler) GetUserByUserID(ctx context.Context, req *userpb.GetUserByUserIDRequest) (*userpb.UserProfileResponse, error) {
