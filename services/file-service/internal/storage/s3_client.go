@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -66,15 +67,22 @@ func (s *s3Client) Upload(ctx context.Context, key string, data io.Reader, conte
 		zap.Int64("size", size),
 	)
 
+	// Convertir en reader seekable pour le calcul de checksum AWS SDK v2 (sans TLS)
+	bodyBytes, err := io.ReadAll(data)
+	if err != nil {
+		s.logger.Error("failed to read upload data", zap.Error(err), zap.String("key", key))
+		return "", fmt.Errorf("failed to read upload data: %w", err)
+	}
+
 	input := &s3.PutObjectInput{
 		Bucket:        aws.String(s.bucket),
 		Key:           aws.String(key),
-		Body:          data,
+		Body:          bytes.NewReader(bodyBytes),
 		ContentType:   aws.String(contentType),
 		ContentLength: aws.Int64(size),
 	}
 
-	_, err := s.client.PutObject(ctx, input)
+	_, err = s.client.PutObject(ctx, input)
 	if err != nil {
 		s.logger.Error("S3 upload failed", zap.Error(err), zap.String("key", key))
 		return "", fmt.Errorf("failed to upload to S3: %w", err)
