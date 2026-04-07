@@ -676,8 +676,16 @@ func (s *tripServiceImpl) GetDriverTripDetails(ctx context.Context, input *servi
 		return nil, err
 	}
 
+	// Résoudre le Firebase UID (authID) en UserID interne avant la vérification de propriété
+	driverUserID, err := s.userClient.GetUserIDByAuthID(ctx, input.DriverID)
+	if err != nil {
+		s.logger.Warn("service: GetDriverTripDetails — could not resolve authID to userID",
+			zap.String("authID", input.DriverID), zap.Error(err))
+		return nil, tripErrors.ErrorUnauthorized
+	}
+
 	// Vérifier que le conducteur est propriétaire du trajet
-	if trip.DriverID != input.DriverID {
+	if trip.DriverID != driverUserID {
 		return nil, tripErrors.ErrorUnauthorized
 	}
 

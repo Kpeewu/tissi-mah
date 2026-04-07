@@ -10,6 +10,8 @@ type UserClient interface {
 	GetDriverName(ctx context.Context, userID string) (string, error)
 	// GetDriverInfo retourne le nom et l'URL de la photo de profil du conducteur.
 	GetDriverInfo(ctx context.Context, userID string) (name, profileImageURL string, err error)
+	// GetUserIDByAuthID résout un Firebase UID (authID) en UserID interne.
+	GetUserIDByAuthID(ctx context.Context, authID string) (string, error)
 	Close() error
 }
 

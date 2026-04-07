@@ -80,6 +80,7 @@ var ProtectedRoutes = map[string]bool{
 	"/trip/driver/confirmWaypointArrival":    true,
 	"/trip/driver/confirmWaypointDeparture":  true,
 	"/trip/driver/cancelWaypoint":            true,
+	"/trip/driver/cancelTrip":               true,
 	"/trip/driver/getTripDetails":            true,
 
 	// notification-service
