@@ -747,6 +747,18 @@ func (s *tripServiceImpl) GetDriverTripDetails(ctx context.Context, input *servi
 		})
 	}
 
+	// Récupérer les réservations du trajet (dégradation gracieuse)
+	var bookings []client.BookingPreview
+	if s.bookingClient != nil {
+		b, err := s.bookingClient.GetDriverTripBookings(ctx, trip.DriverID, trip.TripID)
+		if err != nil {
+			s.logger.Warn("service: GetDriverTripDetails — booking fetch failed (non-blocking)",
+				zap.String("tripID", trip.TripID), zap.Error(err))
+		} else {
+			bookings = b
+		}
+	}
+
 	return &serviceInterfaces.DriverTripDetailResult{
 		TripID:                   trip.TripID,
 		DriverID:                 trip.DriverID,
@@ -771,6 +783,7 @@ func (s *tripServiceImpl) GetDriverTripDetails(ctx context.Context, input *servi
 		AllowSmoking:             trip.AllowSmoking,
 		Description:              trip.Description,
 		Waypoints:                wpResults,
+		Bookings:                 bookings,
 	}, nil
 }
 
