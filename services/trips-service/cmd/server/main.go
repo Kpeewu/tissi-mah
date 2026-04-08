@@ -14,6 +14,7 @@ import (
 	grpcServer "github.com/Kpeewu/tissi-mah/services/trips-service/internal/grpc"
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/repository/implementations"
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/service"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
@@ -105,12 +106,25 @@ func run(bootstrapLogger *zap.Logger) error {
 		logger.Info("redis connected, cache enabled")
 	}
 
+	// --- Notification Redis (stream publication) ---
+	var notifRedis *redis.Client
+	if cfg.NotificationRedis.URL != "" {
+		nr, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.NotificationRedis.URL)
+		if err != nil {
+			logger.Warn("notification redis unavailable, TRIP_MODIFIED notifications disabled", zap.Error(err))
+		} else {
+			defer nr.Close()
+			notifRedis = nr
+			logger.Info("connected to notification redis")
+		}
+	}
+
 	// --- Repositories ---
 	readRepo := implementations.NewTripReadRepository(pool, logger)
 	writeRepo := implementations.NewTripWriteRepository(pool, logger)
 
 	// --- Trip service ---
-	tripService := service.NewTripService(readRepo, writeRepo, userClient, vehicleClient, bookingClient, ratingClient, tripCache, logger)
+	tripService := service.NewTripService(readRepo, writeRepo, userClient, vehicleClient, bookingClient, ratingClient, tripCache, notifRedis, logger)
 
 	// --- gRPC server ---
 	srv, err := grpcServer.NewTripServer(cfg, tripService, logger)

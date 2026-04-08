@@ -111,3 +111,18 @@ func (c *BookingServiceClient) CancelBookingsForTrip(ctx context.Context, tripID
 
 	return nil
 }
+
+// GetPassengerIDsForTrip retourne les IDs des passagers avec une réservation active sur un trajet.
+func (c *BookingServiceClient) GetPassengerIDsForTrip(ctx context.Context, tripID string) ([]string, error) {
+	c.logger.Debug("client: GetPassengerIDsForTrip called", zap.String("tripID", tripID))
+
+	resp, err := c.grpcClient.GetActivePassengerIDsForTrip(ctx, &bookingpb.GetActivePassengerIDsForTripRequest{
+		TripID: tripID,
+	})
+	if err != nil {
+		c.logger.Error("client: GetPassengerIDsForTrip failed", zap.Error(err), zap.String("tripID", tripID))
+		return nil, err
+	}
+
+	return resp.PassengerIDs, nil
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/Kpeewu/tissi-mah/pkg/notification"
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/cache"
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
@@ -11,6 +12,7 @@ import (
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/trips-service/internal/service/interfaces"
 	tripErrors "github.com/Kpeewu/tissi-mah/services/trips-service/pkg/errors"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
@@ -24,6 +26,7 @@ type tripServiceImpl struct {
 	bookingClient client.BookingClient
 	ratingClient  client.RatingClient
 	cache         *cache.TripCache
+	notifRedis    *redis.Client
 	logger        *zap.Logger
 }
 
@@ -35,6 +38,7 @@ func NewTripService(
 	bookingClient client.BookingClient,
 	ratingClient client.RatingClient,
 	tripCache *cache.TripCache,
+	notifRedis *redis.Client,
 	logger *zap.Logger,
 ) serviceInterfaces.TripService {
 	return &tripServiceImpl{
@@ -45,6 +49,7 @@ func NewTripService(
 		bookingClient: bookingClient,
 		ratingClient:  ratingClient,
 		cache:         tripCache,
+		notifRedis:    notifRedis,
 		logger:        logger,
 	}
 }
@@ -118,8 +123,26 @@ func (s *tripServiceImpl) ChangeTripDateAndTime(ctx context.Context, input *serv
 		s.cache.InvalidateDriverPreviews(ctx, input.DriverID)
 	}
 
-	// TODO: notifier les passagers de la modification via TRIP_MODIFIED — nécessite une méthode
-	// GetPassengerIDsForTrip sur le booking-service client (nouveau contrat gRPC à définir).
+	// Notifier les passagers de la modification du trajet
+	if s.notifRedis != nil && s.bookingClient != nil {
+		passengerIDs, err := s.bookingClient.GetPassengerIDsForTrip(ctx, input.TripID)
+		if err != nil {
+			s.logger.Warn("TRIP_MODIFIED: could not get passenger IDs, notification skipped",
+				zap.String("tripID", input.TripID), zap.Error(err))
+		} else if len(passengerIDs) > 0 {
+			if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
+				EventType:     notification.TripModified,
+				UserIDs:       passengerIDs,
+				ReferenceID:   input.TripID,
+				ReferenceType: notification.RefTrip,
+				Payload: map[string]string{
+					"new_departure_time": input.DepartureDatetime,
+				},
+			}); pubErr != nil {
+				s.logger.Error("failed to publish TRIP_MODIFIED notification", zap.Error(pubErr))
+			}
+		}
+	}
 
 	s.logger.Info("trip departure datetime updated",
 		zap.String("tripID", input.TripID),

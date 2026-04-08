@@ -400,3 +400,30 @@ func (r *bookingReadRepositoryImpl) GetCompletedBookingsPendingRelease(ctx conte
 
 	return bookings, nil
 }
+
+// GetActivePassengerIDsForTrip retourne les IDs distincts des passagers avec une réservation active.
+func (r *bookingReadRepositoryImpl) GetActivePassengerIDsForTrip(ctx context.Context, tripID string) ([]string, error) {
+	query := `
+		SELECT DISTINCT passenger_id
+		FROM bookings
+		WHERE trip_id = $1
+		  AND status IN ('pendingApproval', 'approved', 'inProgress')`
+
+	rows, err := r.pool.Query(ctx, query, tripID)
+	if err != nil {
+		r.logger.Error("GetActivePassengerIDsForTrip failed", zap.Error(err), zap.String("tripID", tripID))
+		return nil, bookingErrors.ErrorDataRetrievalFailed
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			r.logger.Error("GetActivePassengerIDsForTrip scan failed", zap.Error(err))
+			return nil, bookingErrors.ErrorDataRetrievalFailed
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}

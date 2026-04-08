@@ -345,6 +345,15 @@ func (h *BookingHandler) FailPayment(ctx context.Context, req *bookingpb.FailPay
 	return &bookingpb.FailPaymentResponse{Success: true}, nil
 }
 
+// GetActivePassengerIDsForTrip retourne les IDs des passagers avec une réservation active sur un trajet.
+func (h *BookingHandler) GetActivePassengerIDsForTrip(ctx context.Context, req *bookingpb.GetActivePassengerIDsForTripRequest) (*bookingpb.GetActivePassengerIDsForTripResponse, error) {
+	ids, err := h.service.GetActivePassengerIDsForTrip(ctx, req.TripID)
+	if err != nil {
+		return &bookingpb.GetActivePassengerIDsForTripResponse{}, toGRPCError(err)
+	}
+	return &bookingpb.GetActivePassengerIDsForTripResponse{PassengerIDs: ids}, nil
+}
+
 // Health retourne l'état de santé du service.
 func (h *BookingHandler) Health(ctx context.Context, req *bookingpb.HealthRequest) (*bookingpb.HealthResponse, error) {
 	return &bookingpb.HealthResponse{

@@ -626,6 +626,17 @@ func (s *bookingServiceImpl) ReportNoShow(ctx context.Context, input *serviceInt
 }
 
 // =============================================================================
+// GetActivePassengerIDsForTrip
+// =============================================================================
+
+func (s *bookingServiceImpl) GetActivePassengerIDsForTrip(ctx context.Context, tripID string) ([]string, error) {
+	if tripID == "" {
+		return nil, bookingErrors.ErrorInvalidInput
+	}
+	return s.readRepo.GetActivePassengerIDsForTrip(ctx, tripID)
+}
+
+// =============================================================================
 // ConfirmPayment
 // =============================================================================
 

@@ -38,4 +38,8 @@ type BookingRepositoryRead interface {
 	// GetCompletedBookingsPendingRelease retourne les bookings complétés non-cash
 	// dont le paiement n'a pas encore été libéré et dont la complétion est antérieure à completedBefore.
 	GetCompletedBookingsPendingRelease(ctx context.Context, completedBefore time.Time) ([]*domain.Booking, error)
+
+	// GetActivePassengerIDsForTrip retourne les IDs distincts des passagers avec une réservation active sur un trajet.
+	// Statuts considérés comme actifs : pendingApproval, approved, inProgress.
+	GetActivePassengerIDsForTrip(ctx context.Context, tripID string) ([]string, error)
 }

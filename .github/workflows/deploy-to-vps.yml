@@ -263,6 +263,7 @@ jobs:
                   'secrets': {
                       'databaseUrl': os.environ.get('TRIPS_DATABASE_URL', ''),
                       'redisUrl': os.environ.get('TRIPS_REDIS_URL', ''),
+                      'notificationRedisUrl': os.environ.get('NOTIFICATION_REDIS_URL', ''),
                   },
               }
 
