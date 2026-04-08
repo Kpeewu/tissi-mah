@@ -598,6 +598,21 @@ func (s *bookingServiceImpl) ReportNoShow(ctx context.Context, input *serviceInt
 
 	s.invalidateBookingCaches(ctx, input.BookingID)
 
+	// Notifier le passager de l'absence signalée
+	if s.notifRedis != nil {
+		if err := notification.Publish(ctx, s.notifRedis, notification.Event{
+			EventType:     notification.NoShowAtDeparture,
+			UserID:        booking.PassengerID,
+			ReferenceID:   booking.BookingID,
+			ReferenceType: notification.RefBooking,
+			Payload: map[string]string{
+				"trip_id": booking.TripID,
+			},
+		}); err != nil {
+			s.logger.Error("failed to publish NO_SHOW_AT_DEPARTURE notification", zap.Error(err))
+		}
+	}
+
 	// Demander le remboursement au payment-service (fire-and-forget)
 	if s.shouldRequestRefund(booking) {
 		reason := "noShowPassenger"
