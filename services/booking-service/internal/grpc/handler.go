@@ -401,6 +401,8 @@ func toGRPCError(err error) error {
 		return status.Error(codes.NotFound, err.Error())
 	case errors.Is(err, bookingErrors.ErrorUnauthorized):
 		return status.Error(codes.PermissionDenied, err.Error())
+	case errors.Is(err, bookingErrors.ErrorPassengerNotVerified):
+		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, bookingErrors.ErrorTripNotAvailable),
 		errors.Is(err, bookingErrors.ErrorNoSeatsAvailable),
 		errors.Is(err, bookingErrors.ErrorPassengerIsDriver),
