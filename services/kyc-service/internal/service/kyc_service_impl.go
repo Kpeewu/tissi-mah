@@ -571,14 +571,16 @@ func (s *kycServiceImpl) ProcessWebhook(ctx context.Context, input serviceInterf
 
 	// Notifier l'utilisateur pour les décisions finales (approuvé ou rejeté)
 	if s.notifRedis != nil {
-		var eventType string
+		var kycEventType, docEventType string
 		switch input.WebhookEventType {
 		case "inquiry.approved":
-			eventType = notification.KycApproved
+			kycEventType = notification.KycApproved
+			docEventType = notification.DocumentValidated
 		case "inquiry.declined":
-			eventType = notification.KycRejected
+			kycEventType = notification.KycRejected
+			docEventType = notification.DocumentRejected
 		}
-		if eventType != "" {
+		if kycEventType != "" {
 			// Extraire le userID depuis le champ reference-id du payload Persona
 			var personaPayload struct {
 				Data struct {
@@ -593,12 +595,20 @@ func (s *kycServiceImpl) ProcessWebhook(ctx context.Context, input serviceInterf
 			}
 			if userID != "" {
 				if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
-					EventType:     eventType,
+					EventType:     kycEventType,
 					UserID:        userID,
 					ReferenceID:   review.ReviewID,
 					ReferenceType: notification.RefDocument,
 				}); pubErr != nil {
 					s.logger.Error("failed to publish KYC notification", zap.Error(pubErr))
+				}
+				if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
+					EventType:     docEventType,
+					UserID:        userID,
+					ReferenceID:   review.ReviewID,
+					ReferenceType: notification.RefDocument,
+				}); pubErr != nil {
+					s.logger.Error("failed to publish document validation notification", zap.Error(pubErr))
 				}
 			}
 		}
@@ -790,6 +800,10 @@ func (s *kycServiceImpl) OverrideReview(ctx context.Context, input serviceInterf
 		zap.String("decision", updatedReview.Decision),
 		zap.String("reviewedBy", input.UserID),
 	)
+
+	// TODO: publier DOCUMENT_VALIDATED / DOCUMENT_REJECTED pour le propriétaire du document.
+	// Le review.UserDocumentID permet d'identifier le document, mais le file-service ne expose pas
+	// encore de méthode GetDocumentOwnerByDocumentID. À implémenter quand cette méthode sera disponible.
 
 	return &serviceInterfaces.OverrideResult{
 		ReviewID:         updatedReview.ReviewID,

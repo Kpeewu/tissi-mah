@@ -45,6 +45,9 @@ type BookingService interface {
 
 	// CancelBookingsForTrip annule toutes les réservations actives d'un trajet annulé.
 	CancelBookingsForTrip(ctx context.Context, input *CancelBookingsForTripInput) (int, error)
+
+	// GetActivePassengerIDsForTrip retourne les IDs distincts des passagers avec une réservation active.
+	GetActivePassengerIDsForTrip(ctx context.Context, tripID string) ([]string, error)
 }
 
 // =============================================================================

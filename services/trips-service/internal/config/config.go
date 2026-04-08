@@ -7,15 +7,16 @@ import (
 )
 
 type Config struct {
-	Server         ServerConfig
-	Environment    EnvironmentConfig
-	Database       DatabaseConfig
-	Redis          RedisConfig
-	UserService    UserServiceConfig
-	VehicleService VehicleServiceConfig
-	BookingService BookingServiceConfig
-	RatingService  RatingServiceConfig
-	LogLevel       string
+	Server              ServerConfig
+	Environment         EnvironmentConfig
+	Database            DatabaseConfig
+	Redis               RedisConfig
+	NotificationRedis   RedisConfig
+	UserService         UserServiceConfig
+	VehicleService      VehicleServiceConfig
+	BookingService      BookingServiceConfig
+	RatingService       RatingServiceConfig
+	LogLevel            string
 }
 
 type ServerConfig struct {
@@ -90,6 +91,9 @@ func Load() (*Config, error) {
 		},
 		Redis: RedisConfig{
 			URL: sharedconfig.MustGetString(values, "REDIS_URL"),
+		},
+		NotificationRedis: RedisConfig{
+			URL: sharedconfig.GetStringOrDefault(values, "NOTIFICATION_REDIS_URL", ""),
 		},
 		UserService: UserServiceConfig{
 			Address: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_HOST", "0.0.0.0"),
