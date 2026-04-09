@@ -19,6 +19,7 @@ type Config struct {
 	Payout            PayoutConfig
 	Refund            RefundConfig
 	Expiration        ExpirationConfig
+	Worker            WorkerConfig
 	LogLevel          string
 }
 
@@ -32,7 +33,9 @@ type EnvironmentConfig struct {
 }
 
 type DatabaseConfig struct {
-	URL string
+	URL      string
+	MaxConns int32
+	MinConns int32
 }
 
 type RedisConfig struct {
@@ -40,9 +43,15 @@ type RedisConfig struct {
 }
 
 type FedaPayConfig struct {
-	APIURL        string
-	APIKey        string
-	WebhookSecret string
+	APIURL               string
+	APIKey               string
+	WebhookSecret        string
+	MaxConcurrentRequests int
+}
+
+type WorkerConfig struct {
+	WebhookMaxConcurrent int
+	PayoutMaxConcurrent  int
 }
 
 type ServiceEndpoint struct {
@@ -87,7 +96,9 @@ func Load() (*Config, error) {
 			Mode: sharedconfig.MustGetString(values, "ENVIRONMENT"),
 		},
 		Database: DatabaseConfig{
-			URL: sharedconfig.MustGetString(values, "DATABASE_URL"),
+			URL:      sharedconfig.MustGetString(values, "DATABASE_URL"),
+			MaxConns: int32(getIntOrDefault(values, "DB_MAX_CONNS", 20)),
+			MinConns: int32(getIntOrDefault(values, "DB_MIN_CONNS", 5)),
 		},
 		Redis: RedisConfig{
 			URL: sharedconfig.MustGetString(values, "REDIS_URL"),
@@ -119,6 +130,10 @@ func Load() (*Config, error) {
 			NoShowDriverDelayMinutes:       getIntOrDefault(values, "NOSHOW_DRIVER_DELAY_MINUTES", 15),
 			NoShowPassengerDelayMinutes:    getIntOrDefault(values, "NOSHOW_PASSENGER_DELAY_MINUTES", 15),
 		},
+		Worker: WorkerConfig{
+			WebhookMaxConcurrent: getIntOrDefault(values, "WEBHOOK_MAX_CONCURRENT", 10),
+			PayoutMaxConcurrent:  getIntOrDefault(values, "PAYOUT_MAX_CONCURRENT", 5),
+		},
 		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
 	}
 
@@ -126,18 +141,22 @@ func Load() (*Config, error) {
 }
 
 func loadFedaPayConfig(v *viper.Viper, environment string) FedaPayConfig {
+	maxConcurrent := getIntOrDefault(v, "FEDAPAY_MAX_CONCURRENT", 10)
+
 	switch environment {
 	case "prod", "staging", "development", "vps-dev":
 		return FedaPayConfig{
-			APIURL:        sharedconfig.MustGetString(v, "FEDAPAY_LIVE_API_URL"),
-			APIKey:        sharedconfig.MustGetString(v, "FEDAPAY_LIVE_API_KEY"),
-			WebhookSecret: sharedconfig.MustGetString(v, "FEDAPAY_LIVE_WEBHOOK_SECRET"),
+			APIURL:                sharedconfig.MustGetString(v, "FEDAPAY_LIVE_API_URL"),
+			APIKey:                sharedconfig.MustGetString(v, "FEDAPAY_LIVE_API_KEY"),
+			WebhookSecret:         sharedconfig.MustGetString(v, "FEDAPAY_LIVE_WEBHOOK_SECRET"),
+			MaxConcurrentRequests: maxConcurrent,
 		}
 	default: // local
 		return FedaPayConfig{
-			APIURL:        sharedconfig.MustGetString(v, "FEDAPAY_SANDBOX_API_URL"),
-			APIKey:        sharedconfig.MustGetString(v, "FEDAPAY_SANDBOX_API_KEY"),
-			WebhookSecret: sharedconfig.MustGetString(v, "FEDAPAY_SANDBOX_WEBHOOK_SECRET"),
+			APIURL:                sharedconfig.MustGetString(v, "FEDAPAY_SANDBOX_API_URL"),
+			APIKey:                sharedconfig.MustGetString(v, "FEDAPAY_SANDBOX_API_KEY"),
+			WebhookSecret:         sharedconfig.MustGetString(v, "FEDAPAY_SANDBOX_WEBHOOK_SECRET"),
+			MaxConcurrentRequests: maxConcurrent,
 		}
 	}
 }

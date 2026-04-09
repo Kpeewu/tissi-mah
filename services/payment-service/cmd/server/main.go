@@ -8,6 +8,7 @@ import (
 
 	pkgDatabase "github.com/Kpeewu/tissi-mah/pkg/database"
 	pkgLogger "github.com/Kpeewu/tissi-mah/pkg/logger"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/cache"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/config"
@@ -49,13 +50,25 @@ func run(bootstrapLogger *zap.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// --- PostgreSQL ---
-	pool, err := pkgDatabase.NewPostgresPoolFromURL(ctx, cfg.Database.URL)
+	// --- PostgreSQL (pool custom avec MaxConns/MinConns configurables) ---
+	poolConfig, err := pgxpool.ParseConfig(cfg.Database.URL)
+	if err != nil {
+		return fmt.Errorf("postgres parse config: %w", err)
+	}
+	poolConfig.MaxConns = cfg.Database.MaxConns
+	poolConfig.MinConns = cfg.Database.MinConns
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return fmt.Errorf("postgres: %w", err)
 	}
 	defer pool.Close()
-	logger.Info("connected to postgres")
+	if err := pool.Ping(ctx); err != nil {
+		return fmt.Errorf("postgres ping: %w", err)
+	}
+	logger.Info("connected to postgres",
+		zap.Int32("maxConns", cfg.Database.MaxConns),
+		zap.Int32("minConns", cfg.Database.MinConns),
+	)
 
 	// --- Booking-service client ---
 	bookingClient, err := client.NewBookingServiceClient(cfg.BookingService.Addr(), logger)
@@ -74,7 +87,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	logger.Info("user-service client ready", zap.String("address", cfg.UserService.Addr()))
 
 	// --- FedaPay client ---
-	fedapayClient := fedapay.NewClient(cfg.FedaPay.APIURL, cfg.FedaPay.APIKey, cfg.FedaPay.WebhookSecret, logger)
+	fedapayClient := fedapay.NewClient(cfg.FedaPay.APIURL, cfg.FedaPay.APIKey, cfg.FedaPay.WebhookSecret, cfg.FedaPay.MaxConcurrentRequests, logger)
 	logger.Info("fedapay client ready", zap.String("apiURL", cfg.FedaPay.APIURL))
 
 	// --- Redis (cache + payout lock, graceful degradation) ---

@@ -122,6 +122,14 @@ service BookingService {
     };
   }
 
+  // GetActivePassengerIDsForTrip retourne les IDs des passagers ayant une réservation active sur un trajet.
+  // Route interne appelée par trips-service lors d'une modification de trajet (TRIP_MODIFIED).
+  rpc GetActivePassengerIDsForTrip(GetActivePassengerIDsForTripRequest) returns (GetActivePassengerIDsForTripResponse) {
+    option (google.api.http) = {
+      get: "/booking/internal/getActivePassengerIDsForTrip"
+    };
+  }
+
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -437,6 +445,18 @@ message FailPaymentRequest {
 message FailPaymentResponse {
   bool   Success      = 1;
   string ErrorMessage = 2;
+}
+
+// =============================================================================
+// GetActivePassengerIDsForTrip
+// =============================================================================
+
+message GetActivePassengerIDsForTripRequest {
+  string TripID = 1;
+}
+
+message GetActivePassengerIDsForTripResponse {
+  repeated string PassengerIDs = 1;
 }
 
 // =============================================================================

@@ -29,6 +29,20 @@ type RatingClient interface {
 	Close() error
 }
 
+// BookingPreview contient les informations résumées d'une réservation.
+type BookingPreview struct {
+	BookingID           string
+	BookingReference    string
+	TripID              string
+	Status              string
+	SeatsBooked         int
+	TotalAmount         int
+	PickupLocationName  string
+	DropoffLocationName string
+	DepartureDate       string
+	DepartureTime       string
+}
+
 // BookingClient définit le contrat pour appeler booking-service depuis trips-service.
 type BookingClient interface {
 	// StartBookingsForWaypoint démarre les réservations approved d'un waypoint (pickup).
@@ -41,5 +55,7 @@ type BookingClient interface {
 	CancelBookingsForTrip(ctx context.Context, tripID string) error
 	// GetPassengerIDsForTrip retourne les IDs des passagers avec une réservation active (pour TRIP_MODIFIED).
 	GetPassengerIDsForTrip(ctx context.Context, tripID string) ([]string, error)
+	// GetDriverTripBookings retourne les réservations d'un trajet pour le conducteur.
+	GetDriverTripBookings(ctx context.Context, driverID, tripID string) ([]BookingPreview, error)
 	Close() error
 }

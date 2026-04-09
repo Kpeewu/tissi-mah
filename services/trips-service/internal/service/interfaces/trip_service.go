@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
 )
 
@@ -381,6 +382,7 @@ type DriverTripDetailResult struct {
 	AllowSmoking             bool
 	Description              string
 	Waypoints                []DriverWaypointDetailResult
+	Bookings                 []client.BookingPreview
 }
 
 // DriverWaypointDetailResult contient les informations complètes d'un waypoint pour le conducteur.

@@ -454,6 +454,19 @@ func (h *TripHandler) GetDriverTripDetails(ctx context.Context, req *trippb.GetD
 		pbWaypoints = append(pbWaypoints, pbWP)
 	}
 
+	pbBookings := make([]*trippb.DriverBookingPreview, 0, len(result.Bookings))
+	for _, b := range result.Bookings {
+		pbBookings = append(pbBookings, &trippb.DriverBookingPreview{
+			BookingId:           b.BookingID,
+			BookingReference:    b.BookingReference,
+			Status:              b.Status,
+			SeatsBooked:         int32(b.SeatsBooked),
+			TotalAmount:         int32(b.TotalAmount),
+			PickupLocationName:  b.PickupLocationName,
+			DropoffLocationName: b.DropoffLocationName,
+		})
+	}
+
 	resp := &trippb.GetDriverTripDetailsResponse{
 		TripId:                   result.TripID,
 		DriverId:                 result.DriverID,
@@ -476,6 +489,7 @@ func (h *TripHandler) GetDriverTripDetails(ctx context.Context, req *trippb.GetD
 		AllowSmoking:             result.AllowSmoking,
 		Description:              result.Description,
 		Waypoints:                pbWaypoints,
+		Bookings:                 pbBookings,
 	}
 	if result.ActualDepartureDatetime != nil {
 		resp.ActualDepartureDatetime = result.ActualDepartureDatetime.Format(time.RFC3339)

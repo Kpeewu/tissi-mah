@@ -126,3 +126,38 @@ func (c *BookingServiceClient) GetPassengerIDsForTrip(ctx context.Context, tripI
 
 	return resp.PassengerIDs, nil
 }
+
+// GetDriverTripBookings retourne les réservations d'un trajet pour le conducteur.
+func (c *BookingServiceClient) GetDriverTripBookings(ctx context.Context, driverID, tripID string) ([]BookingPreview, error) {
+	c.logger.Debug("client: GetDriverTripBookings called",
+		zap.String("driverID", driverID), zap.String("tripID", tripID))
+
+	resp, err := c.grpcClient.GetDriverTripBookings(ctx, &bookingpb.GetDriverTripBookingsRequest{
+		DriverId: driverID,
+		TripId:   tripID,
+		Index:    0,
+	})
+	if err != nil {
+		c.logger.Error("client: GetDriverTripBookings failed",
+			zap.Error(err), zap.String("tripID", tripID))
+		return nil, err
+	}
+
+	bookings := make([]BookingPreview, 0, len(resp.Bookings))
+	for _, b := range resp.Bookings {
+		bookings = append(bookings, BookingPreview{
+			BookingID:           b.BookingId,
+			BookingReference:    b.BookingReference,
+			TripID:              b.TripId,
+			Status:              b.Status,
+			SeatsBooked:         int(b.SeatsBooked),
+			TotalAmount:         int(b.TotalAmount),
+			PickupLocationName:  b.PickupLocationName,
+			DropoffLocationName: b.DropoffLocationName,
+			DepartureDate:       b.DepartureDate,
+			DepartureTime:       b.DepartureTime,
+		})
+	}
+
+	return bookings, nil
+}
