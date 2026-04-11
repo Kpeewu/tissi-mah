@@ -48,6 +48,19 @@ func NewKYCService(
 	}
 }
 
+// mapToFileDocumentType converts high-level KYC document type aliases to the
+// actual types stored by file-service ("IDCard" is decomposed into front/back at upload).
+func mapToFileDocumentType(docType string) string {
+	switch docType {
+	case "IDCard":
+		return "idCardFront"
+	case "DriverLicence":
+		return "driverLicenceFront"
+	default:
+		return docType // "passport", "idCardFront", "idCardBack", etc.
+	}
+}
+
 // =============================================================================
 // CreateInquiry
 // =============================================================================
@@ -114,7 +127,8 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 		}
 	} else {
 		// Document utilisateur
-		doc, err := s.fileClient.GetCurrentUserDocument(ctx, input.UserID, input.DocumentType)
+		fileDocType := mapToFileDocumentType(input.DocumentType)
+		doc, err := s.fileClient.GetCurrentUserDocument(ctx, input.UserID, fileDocType)
 		if err != nil {
 			s.logger.Error("failed to get current user document", zap.Error(err))
 			return nil, kycErrors.ErrorFileServiceUnavailable
