@@ -47,3 +47,15 @@ type PersonaClient interface {
 	// Renouvelle le session token pour une inquiry existante
 	ResumeInquiry(ctx context.Context, inquiryID string) (*domain.PersonaSession, error)
 }
+
+// UserClient est l'interface pour communiquer avec user-service via gRPC.
+// Utilisé pour résoudre le Firebase UID en UserID interne MongoDB, car
+// le kyc-service reçoit un Firebase UID depuis l'api-gateway mais le
+// file-service stocke les documents avec l'UserID interne.
+type UserClient interface {
+	// GetUserIDByFirebaseID résout un Firebase UID en UserID interne MongoDB.
+	GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error)
+
+	// Ferme la connexion gRPC
+	Close() error
+}

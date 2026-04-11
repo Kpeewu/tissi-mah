@@ -349,7 +349,8 @@ func toGRPCError(err error) error {
 
 	// 5 - NOT_FOUND
 	case errors.Is(err, kycErrors.ErrorInquiryNotFound),
-		errors.Is(err, kycErrors.ErrorReviewNotFound):
+		errors.Is(err, kycErrors.ErrorReviewNotFound),
+		errors.Is(err, kycErrors.ErrorUserNotFound):
 		return status.Error(codes.NotFound, err.Error())
 
 	// 6 - ALREADY_EXISTS (409)

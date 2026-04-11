@@ -41,6 +41,8 @@ config:
   logLevel: "debug"
   fileServiceHost: "file-service"
   fileServicePort: "50053"
+  userServiceHost: "user-service"
+  userServicePort: "50052"
   personaTemplateId: "itmpl_default"
   extra: {}
 
