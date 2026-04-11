@@ -32,7 +32,13 @@ const testWebhookSecret = "test-webhook-secret"
 func newTestService() (*mocks.MockFileServiceClient, *mocks.MockPersonaClient, serviceInterfaces.KYCService) {
 	mockFileClient := new(mocks.MockFileServiceClient)
 	mockPersonaClient := new(mocks.MockPersonaClient)
-	svc := service.NewKYCService(mockFileClient, mockPersonaClient, testTemplateID, testWebhookSecret, zap.NewNop())
+	mockUserClient := new(mocks.MockUserClient)
+	// Pass-through : les tests utilisent des IDs "user-XXX" directement comme
+	// si le Firebase UID et l'UserID interne étaient identiques. Le mock
+	// renvoie simplement l'ID reçu.
+	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, mock.AnythingOfType("string")).
+		Return(func(_ context.Context, firebaseUID string) string { return firebaseUID }, nil)
+	svc := service.NewKYCService(mockFileClient, mockPersonaClient, mockUserClient, testTemplateID, testWebhookSecret, nil, zap.NewNop())
 	return mockFileClient, mockPersonaClient, svc
 }
 

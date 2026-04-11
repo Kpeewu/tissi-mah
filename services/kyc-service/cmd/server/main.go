@@ -55,6 +55,14 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer fileClient.Close()
 	logger.Info("file-service client ready", zap.String("address", fileServiceAddr))
 
+	// --- User-service gRPC client ---
+	userClient, err := client.NewUserServiceClient(cfg.UserService.Addr(), logger)
+	if err != nil {
+		return fmt.Errorf("user-service client: %w", err)
+	}
+	defer userClient.Close()
+	logger.Info("user-service client ready", zap.String("address", cfg.UserService.Addr()))
+
 	// --- Persona HTTP client ---
 	personaClient := client.NewPersonaClient(cfg.Persona.APIKey, logger)
 	logger.Info("persona client ready")
@@ -71,6 +79,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	kycService := service.NewKYCService(
 		fileClient,
 		personaClient,
+		userClient,
 		cfg.Persona.TemplateID,
 		cfg.Persona.WebhookSecret,
 		notifRedis,

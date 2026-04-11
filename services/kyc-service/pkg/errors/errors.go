@@ -18,4 +18,5 @@ var (
 	ErrorMissingReviewID         = errors.New("ErrorMissingReviewID")
 	ErrorFileServiceUnavailable  = errors.New("ErrorFileServiceUnavailable")
 	ErrorPersonaUnavailable      = errors.New("ErrorPersonaUnavailable")
+	ErrorUserNotFound            = errors.New("ErrorUserNotFound")
 )

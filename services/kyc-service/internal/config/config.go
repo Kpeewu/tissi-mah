@@ -10,6 +10,7 @@ type Config struct {
 	Server            ServerConfig
 	Environment       EnvironmentConfig
 	FileService       FileServiceConfig
+	UserService       UserServiceConfig
 	Persona           PersonaConfig
 	NotificationRedis RedisConfig
 	LogLevel          string
@@ -31,6 +32,15 @@ type EnvironmentConfig struct {
 type FileServiceConfig struct {
 	Address string
 	Port    string
+}
+
+type UserServiceConfig struct {
+	Address string
+	Port    string
+}
+
+func (c UserServiceConfig) Addr() string {
+	return fmt.Sprintf("%s:%s", c.Address, c.Port)
 }
 
 type PersonaConfig struct {
@@ -56,6 +66,10 @@ func Load() (*Config, error) {
 		FileService: FileServiceConfig{
 			Address: sharedconfig.GetStringOrDefault(values, "FILE_SERVICE_HOST", "0.0.0.0"),
 			Port:    sharedconfig.GetStringOrDefault(values, "FILE_SERVICE_PORT", "50053"),
+		},
+		UserService: UserServiceConfig{
+			Address: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_HOST", "0.0.0.0"),
+			Port:    sharedconfig.GetStringOrDefault(values, "USER_SERVICE_PORT", "50052"),
 		},
 		Persona: PersonaConfig{
 			APIKey:        sharedconfig.MustGetString(values, "PERSONA_API_KEY"),

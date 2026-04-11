@@ -23,6 +23,7 @@ import (
 type kycServiceImpl struct {
 	fileClient        client.FileServiceClient
 	personaClient     client.PersonaClient
+	userClient        client.UserClient
 	personaTemplateID string
 	webhookSecret     string
 	notifRedis        *redis.Client
@@ -33,6 +34,7 @@ type kycServiceImpl struct {
 func NewKYCService(
 	fileClient client.FileServiceClient,
 	personaClient client.PersonaClient,
+	userClient client.UserClient,
 	personaTemplateID string,
 	webhookSecret string,
 	notifRedis *redis.Client,
@@ -41,11 +43,27 @@ func NewKYCService(
 	return &kycServiceImpl{
 		fileClient:        fileClient,
 		personaClient:     personaClient,
+		userClient:        userClient,
 		personaTemplateID: personaTemplateID,
 		webhookSecret:     webhookSecret,
 		notifRedis:        notifRedis,
 		logger:            logger,
 	}
+}
+
+// resolveInternalUserID résout le Firebase UID reçu depuis l'api-gateway
+// en UserID interne MongoDB via le user-service. Le file-service stocke les
+// documents avec l'UserID interne, pas avec le Firebase UID.
+func (s *kycServiceImpl) resolveInternalUserID(ctx context.Context, firebaseUID string) (string, error) {
+	internalID, err := s.userClient.GetUserIDByFirebaseID(ctx, firebaseUID)
+	if err != nil {
+		s.logger.Error("failed to resolve firebaseUID to internal userID",
+			zap.String("firebaseUID", firebaseUID),
+			zap.Error(err),
+		)
+		return "", kycErrors.ErrorUserNotFound
+	}
+	return internalID, nil
 }
 
 // mapToFileDocumentType converts high-level KYC document type aliases to the
@@ -67,7 +85,7 @@ func mapToFileDocumentType(docType string) string {
 
 func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfaces.CreateInquiryInput) (*serviceInterfaces.CreateInquiryResult, error) {
 	s.logger.Debug("create inquiry",
-		zap.String("userID", input.UserID),
+		zap.String("firebaseUID", input.UserID),
 		zap.String("documentType", input.DocumentType),
 		zap.String("vehicleID", input.VehicleID),
 	)
@@ -82,8 +100,15 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 		return nil, kycErrors.ErrorMissingDocumentType
 	}
 
+	// Résoudre le Firebase UID reçu en UserID interne MongoDB.
+	// Le file-service stocke les documents avec l'UserID interne.
+	internalUserID, err := s.resolveInternalUserID(ctx, input.UserID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Récupérer les revues existantes de l'utilisateur
-	existingReviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, input.UserID)
+	existingReviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, internalUserID)
 	if err != nil {
 		s.logger.Error("failed to get existing reviews", zap.Error(err))
 		return nil, kycErrors.ErrorFileServiceUnavailable
@@ -93,7 +118,7 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 	for _, review := range existingReviews {
 		if domain.IsActiveStatus(review.Status) {
 			s.logger.Warn("active review already exists",
-				zap.String("userID", input.UserID),
+				zap.String("userID", internalUserID),
 				zap.String("existingReviewID", review.ReviewID),
 				zap.String("existingStatus", review.Status),
 			)
@@ -128,7 +153,7 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 	} else {
 		// Document utilisateur
 		fileDocType := mapToFileDocumentType(input.DocumentType)
-		doc, err := s.fileClient.GetCurrentUserDocument(ctx, input.UserID, fileDocType)
+		doc, err := s.fileClient.GetCurrentUserDocument(ctx, internalUserID, fileDocType)
 		if err != nil {
 			s.logger.Error("failed to get current user document", zap.Error(err))
 			return nil, kycErrors.ErrorFileServiceUnavailable
@@ -146,8 +171,10 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 		}
 	}
 
-	// Appeler l'API Persona pour créer l'inquiry
-	referenceID := input.UserID
+	// Appeler l'API Persona pour créer l'inquiry.
+	// Le referenceID stocké côté Persona est l'UserID interne MongoDB,
+	// qui est relu dans ProcessWebhook pour publier les notifications.
+	referenceID := internalUserID
 	personaInquiry, err := s.personaClient.CreateInquiry(ctx, s.personaTemplateID, referenceID)
 	if err != nil {
 		s.logger.Error("failed to create persona inquiry", zap.Error(err))
@@ -209,7 +236,7 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 
 func (s *kycServiceImpl) GetInquiry(ctx context.Context, userID string, personaInquiryID string) (*serviceInterfaces.InquiryDetail, error) {
 	s.logger.Debug("get inquiry",
-		zap.String("userID", userID),
+		zap.String("firebaseUID", userID),
 		zap.String("personaInquiryID", personaInquiryID),
 	)
 
@@ -220,6 +247,12 @@ func (s *kycServiceImpl) GetInquiry(ctx context.Context, userID string, personaI
 	if personaInquiryID == "" {
 		s.logger.Error("persona_inquiry_id is required")
 		return nil, kycErrors.ErrorMissingInquiryID
+	}
+
+	// Résoudre le Firebase UID en UserID interne MongoDB.
+	internalUserID, err := s.resolveInternalUserID(ctx, userID)
+	if err != nil {
+		return nil, err
 	}
 
 	// Récupérer la review par persona_inquiry_id
@@ -233,7 +266,7 @@ func (s *kycServiceImpl) GetInquiry(ctx context.Context, userID string, personaI
 	ownershipValid := false
 	if review.UserDocumentID != "" {
 		// Récupérer les reviews de l'utilisateur pour vérifier la propriété
-		reviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, userID)
+		reviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, internalUserID)
 		if err != nil {
 			s.logger.Error("failed to verify ownership", zap.Error(err))
 			return nil, kycErrors.ErrorFileServiceUnavailable
@@ -246,7 +279,7 @@ func (s *kycServiceImpl) GetInquiry(ctx context.Context, userID string, personaI
 		}
 	}
 	if review.VehicleDocumentID != "" && !ownershipValid {
-		reviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, userID)
+		reviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, internalUserID)
 		if err != nil {
 			s.logger.Error("failed to verify ownership", zap.Error(err))
 			return nil, kycErrors.ErrorFileServiceUnavailable
@@ -261,7 +294,7 @@ func (s *kycServiceImpl) GetInquiry(ctx context.Context, userID string, personaI
 
 	if !ownershipValid {
 		s.logger.Warn("unauthorized access to inquiry",
-			zap.String("userID", userID),
+			zap.String("userID", internalUserID),
 			zap.String("personaInquiryID", personaInquiryID),
 		)
 		return nil, kycErrors.ErrorUnauthorized
@@ -313,14 +346,20 @@ var driverDocumentTypes = map[string]bool{
 }
 
 func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serviceInterfaces.KYCStatus, error) {
-	s.logger.Debug("get kyc status", zap.String("userID", userID))
+	s.logger.Debug("get kyc status", zap.String("firebaseUID", userID))
 
 	if userID == "" {
 		s.logger.Error("user_id is required")
 		return nil, kycErrors.ErrorMissingUserID
 	}
 
-	reviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, userID)
+	// Résoudre le Firebase UID en UserID interne MongoDB.
+	internalUserID, err := s.resolveInternalUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	reviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, internalUserID)
 	if err != nil {
 		s.logger.Error("failed to get reviews for kyc status", zap.Error(err))
 		return nil, kycErrors.ErrorFileServiceUnavailable
@@ -333,7 +372,7 @@ func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serv
 
 	// Mapper document_id → document_type via le file-service
 	docTypeByID := make(map[string]string)
-	userDocs, err := s.fileClient.GetUserDocuments(ctx, userID)
+	userDocs, err := s.fileClient.GetUserDocuments(ctx, internalUserID)
 	if err == nil {
 		for _, doc := range userDocs {
 			docTypeByID[doc.DocumentID] = doc.DocumentType
@@ -389,7 +428,7 @@ func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serv
 	}
 
 	s.logger.Info("kyc status retrieved",
-		zap.String("userID", userID),
+		zap.String("userID", internalUserID),
 		zap.Bool("identityVerified", identityVerified),
 		zap.Bool("driverVerified", driverVerified),
 		zap.Int("pendingCount", len(pendingReviews)),
@@ -416,7 +455,7 @@ var nonResumableStatuses = map[string]bool{
 
 func (s *kycServiceImpl) ResumeInquiry(ctx context.Context, userID string, personaInquiryID string) (*serviceInterfaces.ResumeResult, error) {
 	s.logger.Debug("resume inquiry",
-		zap.String("userID", userID),
+		zap.String("firebaseUID", userID),
 		zap.String("personaInquiryID", personaInquiryID),
 	)
 
@@ -429,6 +468,12 @@ func (s *kycServiceImpl) ResumeInquiry(ctx context.Context, userID string, perso
 		return nil, kycErrors.ErrorMissingInquiryID
 	}
 
+	// Résoudre le Firebase UID en UserID interne MongoDB.
+	internalUserID, err := s.resolveInternalUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Récupérer la review par persona_inquiry_id
 	review, err := s.fileClient.GetDocumentReviewByPersonaInquiryID(ctx, personaInquiryID)
 	if err != nil {
@@ -438,7 +483,7 @@ func (s *kycServiceImpl) ResumeInquiry(ctx context.Context, userID string, perso
 
 	// Vérifier l'ownership
 	ownershipValid := false
-	reviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, userID)
+	reviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, internalUserID)
 	if err != nil {
 		s.logger.Error("failed to verify ownership", zap.Error(err))
 		return nil, kycErrors.ErrorFileServiceUnavailable
@@ -451,7 +496,7 @@ func (s *kycServiceImpl) ResumeInquiry(ctx context.Context, userID string, perso
 	}
 	if !ownershipValid {
 		s.logger.Warn("unauthorized access to inquiry",
-			zap.String("userID", userID),
+			zap.String("userID", internalUserID),
 			zap.String("personaInquiryID", personaInquiryID),
 		)
 		return nil, kycErrors.ErrorUnauthorized
