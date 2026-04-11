@@ -190,6 +190,7 @@ jobs:
           # kyc-service secrets
           KYC_PERSONA_API_KEY: ${{ secrets.KYC_PERSONA_API_KEY }}
           KYC_PERSONA_WEBHOOK_SECRET: ${{ secrets.KYC_PERSONA_WEBHOOK_SECRET }}
+          KYC_PERSONA_TEMPLATE_ID: ${{ secrets.KYC_PERSONA_TEMPLATE_ID }}
           # email-service secrets
           EMAIL_SENDGRID_API_KEY: ${{ secrets.EMAIL_SENDGRID_API_KEY }}
           # push-service secrets
@@ -293,6 +294,9 @@ jobs:
 
           elif service == "kyc-service":
               data = {
+                  'config': {
+                      'personaTemplateId': os.environ.get('KYC_PERSONA_TEMPLATE_ID', ''),
+                  },
                   'secrets': {
                       'personaApiKey': os.environ.get('KYC_PERSONA_API_KEY', ''),
                       'personaWebhookSecret': os.environ.get('KYC_PERSONA_WEBHOOK_SECRET', ''),

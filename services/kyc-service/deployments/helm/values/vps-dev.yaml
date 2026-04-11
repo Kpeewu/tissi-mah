@@ -43,7 +43,7 @@ config:
   fileServicePort: "50053"
   userServiceHost: "user-service"
   userServicePort: "50052"
-  personaTemplateId: "itmpl_default"
+  personaTemplateId: ""  # Set via CI/CD from KYC_PERSONA_TEMPLATE_ID GitHub secret
   extra: {}
 
 # Secrets should be provided via external secret management
