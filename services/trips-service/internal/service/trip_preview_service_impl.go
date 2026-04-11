@@ -15,12 +15,13 @@ import (
 // enrichie avec le nom du conducteur et les infos du véhicule.
 // Utilise un cache-aside à 3 niveaux : previews DB, driver name, vehicle info.
 func (s *tripServiceImpl) GetTripsPreviews(ctx context.Context, input *serviceInterfaces.GetTripsPreviewsInput) ([]*serviceInterfaces.TripPreviewResult, error) {
-	if input.DriverID == "" {
-		return nil, tripErrors.ErrorInvalidInput
+	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	if err != nil {
+		return nil, err
 	}
 
 	// --- Niveau 1 : cache des previews DB bruts ---
-	previews, err := s.getCachedOrFetchPreviews(ctx, input.DriverID, input.PageIndex)
+	previews, err := s.getCachedOrFetchPreviews(ctx, driverUserID, input.PageIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +31,7 @@ func (s *tripServiceImpl) GetTripsPreviews(ctx context.Context, input *serviceIn
 	}
 
 	// --- Niveau 2 : cache du nom du conducteur ---
-	driverName := s.getCachedOrFetchDriverName(ctx, input.DriverID)
+	driverName := s.getCachedOrFetchDriverName(ctx, driverUserID)
 
 	// --- Niveau 3 : cache des infos véhicule ---
 	type vehicleInfo struct{ brand, plate string }
@@ -39,7 +40,7 @@ func (s *tripServiceImpl) GetTripsPreviews(ctx context.Context, input *serviceIn
 		if _, ok := vehicleMap[p.VehicleID]; ok {
 			continue
 		}
-		brand, plate := s.getCachedOrFetchVehicleInfo(ctx, input.DriverID, p.VehicleID)
+		brand, plate := s.getCachedOrFetchVehicleInfo(ctx, driverUserID, p.VehicleID)
 		vehicleMap[p.VehicleID] = vehicleInfo{brand: brand, plate: plate}
 	}
 
@@ -82,12 +83,13 @@ func (s *tripServiceImpl) GetTripsPreviews(ctx context.Context, input *serviceIn
 // GetCompletedTripsPreviews retourne la liste paginée des trajets complétés du conducteur
 // enrichie avec le nom du conducteur et les infos du véhicule.
 func (s *tripServiceImpl) GetCompletedTripsPreviews(ctx context.Context, input *serviceInterfaces.GetTripsPreviewsInput) ([]*serviceInterfaces.CompletedTripPreviewResult, error) {
-	if input.DriverID == "" {
-		return nil, tripErrors.ErrorInvalidInput
+	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	if err != nil {
+		return nil, err
 	}
 
 	// --- Niveau 1 : cache des previews complétés DB bruts ---
-	previews, err := s.getCachedOrFetchCompletedPreviews(ctx, input.DriverID, input.PageIndex)
+	previews, err := s.getCachedOrFetchCompletedPreviews(ctx, driverUserID, input.PageIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +99,7 @@ func (s *tripServiceImpl) GetCompletedTripsPreviews(ctx context.Context, input *
 	}
 
 	// --- Niveau 2 : cache du nom du conducteur ---
-	driverName := s.getCachedOrFetchDriverName(ctx, input.DriverID)
+	driverName := s.getCachedOrFetchDriverName(ctx, driverUserID)
 
 	// --- Niveau 3 : cache des infos véhicule ---
 	type vehicleInfo struct{ brand, plate string }
@@ -106,7 +108,7 @@ func (s *tripServiceImpl) GetCompletedTripsPreviews(ctx context.Context, input *
 		if _, ok := vehicleMap[p.VehicleID]; ok {
 			continue
 		}
-		brand, plate := s.getCachedOrFetchVehicleInfo(ctx, input.DriverID, p.VehicleID)
+		brand, plate := s.getCachedOrFetchVehicleInfo(ctx, driverUserID, p.VehicleID)
 		vehicleMap[p.VehicleID] = vehicleInfo{brand: brand, plate: plate}
 	}
 

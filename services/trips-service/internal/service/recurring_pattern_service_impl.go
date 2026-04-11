@@ -14,10 +14,16 @@ import (
 // CreateRecurringTrip crée un pattern récurrent et génère les instances de trajet.
 func (s *tripServiceImpl) CreateRecurringTrip(ctx context.Context, input *serviceInterfaces.CreateRecurringTripInput) (string, error) {
 	s.logger.Debug("service: CreateRecurringTrip called",
-		zap.String("driverID", input.DriverID),
 		zap.String("vehicleID", input.VehicleID),
 		zap.String("recurrenceType", input.RecurrenceType),
 	)
+
+	// Résoudre Firebase UID → UserID interne
+	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	if err != nil {
+		return "", err
+	}
+	input.DriverID = driverUserID
 
 	// Validation des champs obligatoires
 	if err := s.validateRecurringInput(input); err != nil {
@@ -48,7 +54,7 @@ func (s *tripServiceImpl) CreateRecurringTrip(ctx context.Context, input *servic
 	}
 
 	// Vérification : conducteur certifié
-	if err := s.validateVerifiedDriver(ctx, input.DriverID); err != nil {
+	if err := s.validateVerifiedDriver(ctx, driverUserID); err != nil {
 		return "", err
 	}
 
@@ -64,12 +70,12 @@ func (s *tripServiceImpl) CreateRecurringTrip(ctx context.Context, input *servic
 
 	// Invalidation du cache des previews pour ce conducteur
 	if s.cache != nil {
-		s.cache.InvalidateDriverPreviews(ctx, input.DriverID)
+		s.cache.InvalidateDriverPreviews(ctx, driverUserID)
 	}
 
 	s.logger.Info("recurring pattern created",
 		zap.String("patternID", patternID),
-		zap.String("driverID", input.DriverID),
+		zap.String("driverID", driverUserID),
 	)
 	return patternID, nil
 }
