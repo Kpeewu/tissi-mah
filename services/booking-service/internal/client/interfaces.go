@@ -48,6 +48,8 @@ type TripWaypoint struct {
 type UserClient interface {
 	// UserExists vérifie qu'un utilisateur existe.
 	UserExists(ctx context.Context, userID string) (bool, error)
+	// IsPassengerVerified vérifie qu'un utilisateur existe et que son profil passager est vérifié.
+	IsPassengerVerified(ctx context.Context, userID string) (bool, error)
 	Close() error
 }
 

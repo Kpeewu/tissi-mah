@@ -18,10 +18,14 @@ type Client struct {
 	apiKey        string
 	webhookSecret string
 	logger        *zap.Logger
+	sem           chan struct{} // sémaphore pour limiter les appels concurrents
 }
 
 // NewClient crée un nouveau client FedaPay.
-func NewClient(apiURL, apiKey, webhookSecret string, logger *zap.Logger) *Client {
+func NewClient(apiURL, apiKey, webhookSecret string, maxConcurrent int, logger *zap.Logger) *Client {
+	if maxConcurrent <= 0 {
+		maxConcurrent = 10
+	}
 	return &Client{
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
@@ -36,11 +40,16 @@ func NewClient(apiURL, apiKey, webhookSecret string, logger *zap.Logger) *Client
 		apiKey:        apiKey,
 		webhookSecret: webhookSecret,
 		logger:        logger,
+		sem:           make(chan struct{}, maxConcurrent),
 	}
 }
 
 // doRequest exécute une requête HTTP avec les headers FedaPay.
 func (c *Client) doRequest(method, path string, body interface{}) ([]byte, int, error) {
+	// Limiter les appels concurrents vers FedaPay
+	c.sem <- struct{}{}
+	defer func() { <-c.sem }()
+
 	var reqBody io.Reader
 	var reqBodyStr string
 	if body != nil {

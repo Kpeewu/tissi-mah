@@ -70,6 +70,7 @@ func newTestService() *testDeps {
 		d.userClient,
 		nil, // fedapayClient — non testable sans mock HTTP
 		nil, // cache
+		nil, // notifRedis
 		cfg,
 		logger,
 	)

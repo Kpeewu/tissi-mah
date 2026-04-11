@@ -62,3 +62,21 @@ func (c *UserServiceClient) UserExists(ctx context.Context, userID string) (bool
 
 	return true, nil
 }
+
+// IsPassengerVerified vérifie qu'un utilisateur existe et que son profil passager est vérifié.
+func (c *UserServiceClient) IsPassengerVerified(ctx context.Context, userID string) (bool, error) {
+	c.logger.Debug("client: IsPassengerVerified called", zap.String("userID", userID))
+
+	resp, err := c.grpcClient.GetUserByUserID(ctx, &userpb.GetUserByUserIDRequest{
+		UserID: userID,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return false, nil
+		}
+		c.logger.Error("client: GetUserByUserID failed", zap.Error(err), zap.String("userID", userID))
+		return false, fmt.Errorf("user-service: GetUserByUserID failed: %w", err)
+	}
+
+	return resp.IsPassengerProfileVerified, nil
+}

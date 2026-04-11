@@ -93,14 +93,15 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 		return nil, bookingErrors.ErrorPassengerIsDriver
 	}
 
-	// 4. Vérifier que le passager existe
-	exists, err := s.userClient.UserExists(ctx, input.PassengerID)
+	// 4. Vérifier que le passager existe et que son profil est vérifié
+	verified, err := s.userClient.IsPassengerVerified(ctx, input.PassengerID)
 	if err != nil {
-		s.logger.Error("service: UserExists failed", zap.Error(err))
+		s.logger.Error("service: IsPassengerVerified failed", zap.Error(err))
 		return nil, bookingErrors.ErrorInternalServer
 	}
-	if !exists {
-		return nil, bookingErrors.ErrorPassengerNotFound
+	if !verified {
+		s.logger.Warn("service: passenger not verified", zap.String("passengerID", input.PassengerID))
+		return nil, bookingErrors.ErrorPassengerNotVerified
 	}
 
 	// 5. Vérifier pas de double réservation

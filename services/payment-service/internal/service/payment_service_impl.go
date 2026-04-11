@@ -39,6 +39,7 @@ type paymentServiceImpl struct {
 	notifRedis       *redis.Client
 	cfg              *config.Config
 	logger           *zap.Logger
+	webhookSem       chan struct{} // sémaphore pour limiter les webhooks concurrents
 }
 
 // NewPaymentService crée le service de paiement.
@@ -57,6 +58,11 @@ func NewPaymentService(
 	cfg *config.Config,
 	logger *zap.Logger,
 ) serviceInterfaces.PaymentService {
+	webhookMaxConcurrent := cfg.Worker.WebhookMaxConcurrent
+	if webhookMaxConcurrent <= 0 {
+		webhookMaxConcurrent = 10
+	}
+
 	return &paymentServiceImpl{
 		paymentReadRepo:  paymentReadRepo,
 		paymentWriteRepo: paymentWriteRepo,
@@ -71,6 +77,7 @@ func NewPaymentService(
 		notifRedis:       notifRedis,
 		cfg:              cfg,
 		logger:           logger.Named("service"),
+		webhookSem:       make(chan struct{}, webhookMaxConcurrent),
 	}
 }
 
@@ -201,6 +208,14 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 // =============================================================================
 
 func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceInterfaces.ProcessWebhookInput) error {
+	// Limiter les webhooks concurrents pour ne pas saturer le pool DB
+	select {
+	case s.webhookSem <- struct{}{}:
+		defer func() { <-s.webhookSem }()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
 	s.logger.Debug("processing webhook")
 
 	// Vérifier la signature HMAC

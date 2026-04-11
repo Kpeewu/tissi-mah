@@ -97,6 +97,7 @@ func TestMain(m *testing.M) {
 		mockBookingClient, mockUserClient,
 		nil, // fedapayClient
 		nil, // cache
+		nil, // notifRedis
 		cfg, logger,
 	)
 
