@@ -32,13 +32,17 @@ func NewTripHandler(service serviceInterfaces.TripService, logger *zap.Logger) *
 // CreateTrip crée un nouveau trajet avec ses waypoints.
 func (h *TripHandler) CreateTrip(ctx context.Context, req *trippb.CreateTripRequest) (*trippb.CreateTripResponse, error) {
 	h.logger.Debug("handler: CreateTrip called",
-		zap.String("driverID", req.DriverId),
 		zap.String("vehicleID", req.VehicleId),
 		zap.Int("waypointCount", len(req.TripWaypoints)),
 	)
 
+	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	if err != nil {
+		return &trippb.CreateTripResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
 	input := &serviceInterfaces.CreateTripInput{
-		DriverID:                 req.DriverId,
+		DriverID:                 driverAuthID,
 		VehicleID:                req.VehicleId,
 		DepartureDatetime:        req.DepartureDatetime,
 		EstimatedArrivalDatetime: req.EstimatedArrivalDatetime,
@@ -68,10 +72,14 @@ func (h *TripHandler) CreateTrip(ctx context.Context, req *trippb.CreateTripRequ
 // CreateRecurringTrip programme un trajet récurrent.
 func (h *TripHandler) CreateRecurringTrip(ctx context.Context, req *trippb.CreateRecurringTripRequest) (*trippb.CreateRecurringTripResponse, error) {
 	h.logger.Debug("handler: CreateRecurringTrip called",
-		zap.String("driverID", req.DriverId),
 		zap.String("vehicleID", req.VehicleId),
 		zap.String("recurrenceType", req.RecurrenceType),
 	)
+
+	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	if err != nil {
+		return &trippb.CreateRecurringTripResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
 
 	var daysOfWeek []int32
 	if req.DaysOfWeek != nil {
@@ -79,7 +87,7 @@ func (h *TripHandler) CreateRecurringTrip(ctx context.Context, req *trippb.Creat
 	}
 
 	input := &serviceInterfaces.CreateRecurringTripInput{
-		DriverID:              req.DriverId,
+		DriverID:              driverAuthID,
 		VehicleID:             req.VehicleId,
 		DepartureTime:         req.DepartureTime,
 		RecurrenceType:        req.RecurrenceType,
@@ -97,7 +105,7 @@ func (h *TripHandler) CreateRecurringTrip(ctx context.Context, req *trippb.Creat
 		Waypoints:             toServiceWaypoints(req.TripWaypoints),
 	}
 
-	_, err := h.service.CreateRecurringTrip(ctx, input)
+	_, err = h.service.CreateRecurringTrip(ctx, input)
 	if err != nil {
 		h.logger.Error("handler: CreateRecurringTrip failed", zap.Error(err))
 		return &trippb.CreateRecurringTripResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
@@ -109,13 +117,15 @@ func (h *TripHandler) CreateRecurringTrip(ctx context.Context, req *trippb.Creat
 
 // GetTripsPreviews retourne la liste paginée des trajets du conducteur.
 func (h *TripHandler) GetTripsPreviews(ctx context.Context, req *trippb.GetTripsPreviewsRequest) (*trippb.GetTripsPreviewsResponse, error) {
-	h.logger.Debug("handler: GetTripsPreviews called",
-		zap.String("driverID", req.DriverId),
-		zap.Int32("index", req.Index),
-	)
+	h.logger.Debug("handler: GetTripsPreviews called", zap.Int32("index", req.Index))
+
+	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	if err != nil {
+		return &trippb.GetTripsPreviewsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
 
 	results, err := h.service.GetTripsPreviews(ctx, &serviceInterfaces.GetTripsPreviewsInput{
-		DriverID:  req.DriverId,
+		DriverID:  driverAuthID,
 		PageIndex: int(req.Index),
 	})
 	if err != nil {
@@ -141,22 +151,21 @@ func (h *TripHandler) GetTripsPreviews(ctx context.Context, req *trippb.GetTrips
 		})
 	}
 
-	h.logger.Info("handler: GetTripsPreviews success",
-		zap.String("driverID", req.DriverId),
-		zap.Int("count", len(pbPreviews)),
-	)
+	h.logger.Info("handler: GetTripsPreviews success", zap.Int("count", len(pbPreviews)))
 	return &trippb.GetTripsPreviewsResponse{TripsPreviews: pbPreviews}, nil
 }
 
 // GetCompletedTripsPreviews retourne la liste paginée des trajets complétés du conducteur.
 func (h *TripHandler) GetCompletedTripsPreviews(ctx context.Context, req *trippb.GetCompletedTripsPreviewsRequest) (*trippb.GetCompletedTripsPreviewsResponse, error) {
-	h.logger.Debug("handler: GetCompletedTripsPreviews called",
-		zap.String("driverID", req.DriverId),
-		zap.Int32("index", req.Index),
-	)
+	h.logger.Debug("handler: GetCompletedTripsPreviews called", zap.Int32("index", req.Index))
+
+	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	if err != nil {
+		return &trippb.GetCompletedTripsPreviewsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
 
 	results, err := h.service.GetCompletedTripsPreviews(ctx, &serviceInterfaces.GetTripsPreviewsInput{
-		DriverID:  req.DriverId,
+		DriverID:  driverAuthID,
 		PageIndex: int(req.Index),
 	})
 	if err != nil {
@@ -182,22 +191,21 @@ func (h *TripHandler) GetCompletedTripsPreviews(ctx context.Context, req *trippb
 		})
 	}
 
-	h.logger.Info("handler: GetCompletedTripsPreviews success",
-		zap.String("driverID", req.DriverId),
-		zap.Int("count", len(pbPreviews)),
-	)
+	h.logger.Info("handler: GetCompletedTripsPreviews success", zap.Int("count", len(pbPreviews)))
 	return &trippb.GetCompletedTripsPreviewsResponse{TripsPreviews: pbPreviews}, nil
 }
 
 // ChangeTripDateAndTime modifie la date/heure de départ d'un trajet planifié.
 func (h *TripHandler) ChangeTripDateAndTime(ctx context.Context, req *trippb.ChangeTripDateAndTimeRequest) (*trippb.ChangeTripDateAndTimeResponse, error) {
-	h.logger.Debug("handler: ChangeTripDateAndTime called",
-		zap.String("driverID", req.DriverId),
-		zap.String("tripID", req.TripId),
-	)
+	h.logger.Debug("handler: ChangeTripDateAndTime called", zap.String("tripID", req.TripId))
 
-	err := h.service.ChangeTripDateAndTime(ctx, &serviceInterfaces.ChangeTripDateAndTimeInput{
-		DriverID:          req.DriverId,
+	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	if err != nil {
+		return &trippb.ChangeTripDateAndTimeResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	err = h.service.ChangeTripDateAndTime(ctx, &serviceInterfaces.ChangeTripDateAndTimeInput{
+		DriverID:          driverAuthID,
 		TripID:            req.TripId,
 		DepartureDatetime: req.DepartureDatetime,
 	})
@@ -213,13 +221,17 @@ func (h *TripHandler) ChangeTripDateAndTime(ctx context.Context, req *trippb.Cha
 // ChangeTripVehicle modifie le véhicule associé à un trajet planifié.
 func (h *TripHandler) ChangeTripVehicle(ctx context.Context, req *trippb.ChangeTripVehicleRequest) (*trippb.ChangeTripVehicleResponse, error) {
 	h.logger.Debug("handler: ChangeTripVehicle called",
-		zap.String("driverID", req.DriverId),
 		zap.String("tripID", req.TripId),
 		zap.String("vehicleID", req.VehicleId),
 	)
 
-	err := h.service.ChangeTripVehicle(ctx, &serviceInterfaces.ChangeTripVehicleInput{
-		DriverID:  req.DriverId,
+	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	if err != nil {
+		return &trippb.ChangeTripVehicleResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	err = h.service.ChangeTripVehicle(ctx, &serviceInterfaces.ChangeTripVehicleInput{
+		DriverID:  driverAuthID,
 		TripID:    req.TripId,
 		VehicleID: req.VehicleId,
 	})
@@ -234,13 +246,15 @@ func (h *TripHandler) ChangeTripVehicle(ctx context.Context, req *trippb.ChangeT
 
 // ChangeTripAllowances modifie les autorisations d'un trajet planifié.
 func (h *TripHandler) ChangeTripAllowances(ctx context.Context, req *trippb.ChangeTripAllowancesRequest) (*trippb.ChangeTripAllowancesResponse, error) {
-	h.logger.Debug("handler: ChangeTripAllowances called",
-		zap.String("driverID", req.DriverId),
-		zap.String("tripID", req.TripId),
-	)
+	h.logger.Debug("handler: ChangeTripAllowances called", zap.String("tripID", req.TripId))
 
-	err := h.service.ChangeTripAllowances(ctx, &serviceInterfaces.ChangeTripAllowancesInput{
-		DriverID:      req.DriverId,
+	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	if err != nil {
+		return &trippb.ChangeTripAllowancesResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	err = h.service.ChangeTripAllowances(ctx, &serviceInterfaces.ChangeTripAllowancesInput{
+		DriverID:      driverAuthID,
 		TripID:        req.TripId,
 		AllowPets:     req.AllowPets,
 		AllowFood:     req.AllowFood,
@@ -259,13 +273,17 @@ func (h *TripHandler) ChangeTripAllowances(ctx context.Context, req *trippb.Chan
 // ChangeAutoApprove active ou désactive l'approbation automatique d'un trajet.
 func (h *TripHandler) ChangeAutoApprove(ctx context.Context, req *trippb.ChangeAutoApproveRequest) (*trippb.ChangeAutoApproveResponse, error) {
 	h.logger.Debug("handler: ChangeAutoApprove called",
-		zap.String("driverID", req.DriverId),
 		zap.String("tripID", req.TripId),
 		zap.Bool("autoApprove", req.AutoApprove),
 	)
 
-	err := h.service.ChangeAutoApprove(ctx, &serviceInterfaces.ChangeAutoApproveInput{
-		DriverID:    req.DriverId,
+	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	if err != nil {
+		return &trippb.ChangeAutoApproveResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	err = h.service.ChangeAutoApprove(ctx, &serviceInterfaces.ChangeAutoApproveInput{
+		DriverID:    driverAuthID,
 		TripID:      req.TripId,
 		AutoApprove: req.AutoApprove,
 	})
@@ -280,13 +298,15 @@ func (h *TripHandler) ChangeAutoApprove(ctx context.Context, req *trippb.ChangeA
 
 // StartTrip démarre un trajet planifié.
 func (h *TripHandler) StartTrip(ctx context.Context, req *trippb.StartTripRequest) (*trippb.StartTripResponse, error) {
-	h.logger.Debug("handler: StartTrip called",
-		zap.String("driverID", req.DriverId),
-		zap.String("tripID", req.TripId),
-	)
+	h.logger.Debug("handler: StartTrip called", zap.String("tripID", req.TripId))
 
-	err := h.service.StartTrip(ctx, &serviceInterfaces.StartTripInput{
-		DriverID: req.DriverId,
+	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	if err != nil {
+		return &trippb.StartTripResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	err = h.service.StartTrip(ctx, &serviceInterfaces.StartTripInput{
+		DriverID: driverAuthID,
 		TripID:   req.TripId,
 	})
 	if err != nil {
@@ -300,13 +320,15 @@ func (h *TripHandler) StartTrip(ctx context.Context, req *trippb.StartTripReques
 
 // EndTrip termine un trajet en cours.
 func (h *TripHandler) EndTrip(ctx context.Context, req *trippb.EndTripRequest) (*trippb.EndTripResponse, error) {
-	h.logger.Debug("handler: EndTrip called",
-		zap.String("driverID", req.DriverId),
-		zap.String("tripID", req.TripId),
-	)
+	h.logger.Debug("handler: EndTrip called", zap.String("tripID", req.TripId))
 
-	err := h.service.EndTrip(ctx, &serviceInterfaces.EndTripInput{
-		DriverID: req.DriverId,
+	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	if err != nil {
+		return &trippb.EndTripResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	err = h.service.EndTrip(ctx, &serviceInterfaces.EndTripInput{
+		DriverID: driverAuthID,
 		TripID:   req.TripId,
 	})
 	if err != nil {
@@ -320,13 +342,15 @@ func (h *TripHandler) EndTrip(ctx context.Context, req *trippb.EndTripRequest) (
 
 // ConfirmWaypointDeparture enregistre le départ du conducteur d'un waypoint de type "stop".
 func (h *TripHandler) ConfirmWaypointDeparture(ctx context.Context, req *trippb.ConfirmWaypointDepartureRequest) (*trippb.ConfirmWaypointDepartureResponse, error) {
-	h.logger.Debug("handler: ConfirmWaypointDeparture called",
-		zap.String("driverID", req.DriverId),
-		zap.String("waypointID", req.WaypointId),
-	)
+	h.logger.Debug("handler: ConfirmWaypointDeparture called", zap.String("waypointID", req.WaypointId))
 
-	err := h.service.ConfirmWaypointDeparture(ctx, &serviceInterfaces.ConfirmWaypointDepartureInput{
-		DriverID:   req.DriverId,
+	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	if err != nil {
+		return &trippb.ConfirmWaypointDepartureResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	err = h.service.ConfirmWaypointDeparture(ctx, &serviceInterfaces.ConfirmWaypointDepartureInput{
+		DriverID:   driverAuthID,
 		WaypointID: req.WaypointId,
 	})
 	if err != nil {
@@ -340,13 +364,15 @@ func (h *TripHandler) ConfirmWaypointDeparture(ctx context.Context, req *trippb.
 
 // ConfirmWaypointArrival enregistre l'arrivée du conducteur à un waypoint de type "stop".
 func (h *TripHandler) ConfirmWaypointArrival(ctx context.Context, req *trippb.ConfirmWaypointArrivalRequest) (*trippb.ConfirmWaypointArrivalResponse, error) {
-	h.logger.Debug("handler: ConfirmWaypointArrival called",
-		zap.String("driverID", req.DriverId),
-		zap.String("waypointID", req.WaypointId),
-	)
+	h.logger.Debug("handler: ConfirmWaypointArrival called", zap.String("waypointID", req.WaypointId))
 
-	err := h.service.ConfirmWaypointArrival(ctx, &serviceInterfaces.ConfirmWaypointArrivalInput{
-		DriverID:   req.DriverId,
+	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	if err != nil {
+		return &trippb.ConfirmWaypointArrivalResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	err = h.service.ConfirmWaypointArrival(ctx, &serviceInterfaces.ConfirmWaypointArrivalInput{
+		DriverID:   driverAuthID,
 		WaypointID: req.WaypointId,
 	})
 	if err != nil {
@@ -581,13 +607,15 @@ func (h *TripHandler) UpdateAvailableSeats(ctx context.Context, req *trippb.Upda
 
 // CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
 func (h *TripHandler) CancelTrip(ctx context.Context, req *trippb.CancelTripRequest) (*trippb.CancelTripResponse, error) {
-	h.logger.Debug("handler: CancelTrip called",
-		zap.String("driverID", req.DriverId),
-		zap.String("tripID", req.TripId),
-	)
+	h.logger.Debug("handler: CancelTrip called", zap.String("tripID", req.TripId))
 
-	err := h.service.CancelTrip(ctx, &serviceInterfaces.CancelTripInput{
-		DriverID:           req.DriverId,
+	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	if err != nil {
+		return &trippb.CancelTripResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	err = h.service.CancelTrip(ctx, &serviceInterfaces.CancelTripInput{
+		DriverID:           driverAuthID,
 		TripID:             req.TripId,
 		CancellationReason: req.CancellationReason,
 	})
@@ -601,13 +629,15 @@ func (h *TripHandler) CancelTrip(ctx context.Context, req *trippb.CancelTripRequ
 }
 
 func (h *TripHandler) CancelWaypoint(ctx context.Context, req *trippb.CancelWaypointRequest) (*trippb.CancelWaypointResponse, error) {
-	h.logger.Debug("handler: CancelWaypoint called",
-		zap.String("driverID", req.DriverId),
-		zap.String("waypointID", req.WaypointId),
-	)
+	h.logger.Debug("handler: CancelWaypoint called", zap.String("waypointID", req.WaypointId))
 
-	err := h.service.CancelWaypoint(ctx, &serviceInterfaces.CancelWaypointInput{
-		DriverID:           req.DriverId,
+	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	if err != nil {
+		return &trippb.CancelWaypointResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	err = h.service.CancelWaypoint(ctx, &serviceInterfaces.CancelWaypointInput{
+		DriverID:           driverAuthID,
 		WaypointID:         req.WaypointId,
 		CancellationReason: req.CancellationReason,
 	})
@@ -627,6 +657,16 @@ func (h *TripHandler) Health(_ context.Context, _ *trippb.HealthRequest) (*tripp
 		Version:   serviceVersion,
 		Timestamp: time.Now().Unix(),
 	}, nil
+}
+
+// firebaseUIDFromCtx extrait le Firebase UID injecté par le middleware depuis le contexte.
+// Retourne ErrorUnauthorized si absent.
+func firebaseUIDFromCtx(ctx context.Context) (string, error) {
+	uid, ok := ctx.Value(middleware.FirebaseIDKey).(string)
+	if !ok || uid == "" {
+		return "", tripErrors.ErrorUnauthorized
+	}
+	return uid, nil
 }
 
 // toServiceWaypoints convertit les waypoints proto en input de service.

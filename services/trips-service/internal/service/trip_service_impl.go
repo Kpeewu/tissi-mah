@@ -30,6 +30,24 @@ type tripServiceImpl struct {
 	logger        *zap.Logger
 }
 
+// resolveDriverUserID résout un Firebase UID en UserID interne via user-service.
+// Retourne ErrorUnauthorized si authID est vide ou si la résolution échoue.
+func (s *tripServiceImpl) resolveDriverUserID(ctx context.Context, authID string) (string, error) {
+	if authID == "" {
+		return "", tripErrors.ErrorUnauthorized
+	}
+	userID, err := s.userClient.GetUserIDByAuthID(ctx, authID)
+	if err != nil {
+		s.logger.Warn("could not resolve authID to userID",
+			zap.String("authID", authID), zap.Error(err))
+		return "", tripErrors.ErrorUnauthorized
+	}
+	if userID == "" {
+		return "", tripErrors.ErrorUnauthorized
+	}
+	return userID, nil
+}
+
 func NewTripService(
 	readRepo repoInterfaces.TripRepositoryRead,
 	writeRepo repoInterfaces.TripRepositoryWrite,
@@ -56,10 +74,14 @@ func NewTripService(
 
 // CreateTrip crée un nouveau trajet avec ses waypoints.
 func (s *tripServiceImpl) CreateTrip(ctx context.Context, input *serviceInterfaces.CreateTripInput) (*domain.Trip, error) {
-	s.logger.Debug("service: CreateTrip called",
-		zap.String("driverID", input.DriverID),
-		zap.String("vehicleID", input.VehicleID),
-	)
+	s.logger.Debug("service: CreateTrip called", zap.String("vehicleID", input.VehicleID))
+
+	// Résoudre Firebase UID → UserID interne
+	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	if err != nil {
+		return nil, err
+	}
+	input.DriverID = driverUserID
 
 	// Validation des champs obligatoires
 	if err := s.validateInput(input); err != nil {
@@ -73,7 +95,7 @@ func (s *tripServiceImpl) CreateTrip(ctx context.Context, input *serviceInterfac
 	}
 
 	// Vérification : conducteur certifié
-	if err := s.validateVerifiedDriver(ctx, input.DriverID); err != nil {
+	if err := s.validateVerifiedDriver(ctx, driverUserID); err != nil {
 		return nil, err
 	}
 
@@ -89,7 +111,7 @@ func (s *tripServiceImpl) CreateTrip(ctx context.Context, input *serviceInterfac
 
 	// Invalidation du cache des previews pour ce conducteur
 	if s.cache != nil {
-		s.cache.InvalidateDriverPreviews(ctx, input.DriverID)
+		s.cache.InvalidateDriverPreviews(ctx, driverUserID)
 	}
 
 	s.logger.Info("trip created", zap.String("tripID", tripID))
@@ -99,13 +121,15 @@ func (s *tripServiceImpl) CreateTrip(ctx context.Context, input *serviceInterfac
 
 // ChangeTripDateAndTime modifie la date/heure de départ d'un trajet planifié.
 func (s *tripServiceImpl) ChangeTripDateAndTime(ctx context.Context, input *serviceInterfaces.ChangeTripDateAndTimeInput) error {
-	s.logger.Debug("service: ChangeTripDateAndTime called",
-		zap.String("driverID", input.DriverID),
-		zap.String("tripID", input.TripID),
-	)
+	s.logger.Debug("service: ChangeTripDateAndTime called", zap.String("tripID", input.TripID))
 
-	if input.DriverID == "" || input.TripID == "" || input.DepartureDatetime == "" {
+	if input.TripID == "" || input.DepartureDatetime == "" {
 		return tripErrors.ErrorInvalidInput
+	}
+
+	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	if err != nil {
+		return err
 	}
 
 	newDatetime, err := time.Parse(time.RFC3339, input.DepartureDatetime)
@@ -114,13 +138,13 @@ func (s *tripServiceImpl) ChangeTripDateAndTime(ctx context.Context, input *serv
 		return tripErrors.ErrorInvalidDatetime
 	}
 
-	if err := s.writeRepo.UpdateDepartureDatetime(ctx, input.TripID, input.DriverID, newDatetime); err != nil {
+	if err := s.writeRepo.UpdateDepartureDatetime(ctx, input.TripID, driverUserID, newDatetime); err != nil {
 		return err
 	}
 
 	// Invalidation du cache des previews pour ce conducteur
 	if s.cache != nil {
-		s.cache.InvalidateDriverPreviews(ctx, input.DriverID)
+		s.cache.InvalidateDriverPreviews(ctx, driverUserID)
 	}
 
 	// Notifier les passagers de la modification du trajet
@@ -146,7 +170,7 @@ func (s *tripServiceImpl) ChangeTripDateAndTime(ctx context.Context, input *serv
 
 	s.logger.Info("trip departure datetime updated",
 		zap.String("tripID", input.TripID),
-		zap.String("driverID", input.DriverID),
+		zap.String("driverID", driverUserID),
 	)
 	return nil
 }
@@ -154,17 +178,21 @@ func (s *tripServiceImpl) ChangeTripDateAndTime(ctx context.Context, input *serv
 // ChangeTripVehicle modifie le véhicule associé à un trajet planifié.
 func (s *tripServiceImpl) ChangeTripVehicle(ctx context.Context, input *serviceInterfaces.ChangeTripVehicleInput) error {
 	s.logger.Debug("service: ChangeTripVehicle called",
-		zap.String("driverID", input.DriverID),
 		zap.String("tripID", input.TripID),
 		zap.String("vehicleID", input.VehicleID),
 	)
 
-	if input.DriverID == "" || input.TripID == "" || input.VehicleID == "" {
+	if input.TripID == "" || input.VehicleID == "" {
 		return tripErrors.ErrorInvalidInput
 	}
 
+	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	if err != nil {
+		return err
+	}
+
 	// Vérification : le véhicule existe et appartient au conducteur
-	brand, _, vehicleSeats, err := s.vehicleClient.GetVehicleInfo(ctx, input.DriverID, input.VehicleID)
+	brand, _, vehicleSeats, err := s.vehicleClient.GetVehicleInfo(ctx, driverUserID, input.VehicleID)
 	if err != nil {
 		s.logger.Error("vehicle-service check failed",
 			zap.Error(err),
@@ -174,7 +202,7 @@ func (s *tripServiceImpl) ChangeTripVehicle(ctx context.Context, input *serviceI
 	}
 	if brand == "" {
 		s.logger.Warn("vehicle not found or does not belong to driver",
-			zap.String("driverID", input.DriverID),
+			zap.String("driverID", driverUserID),
 			zap.String("vehicleID", input.VehicleID),
 		)
 		return tripErrors.ErrorVehicleNotFound
@@ -193,13 +221,13 @@ func (s *tripServiceImpl) ChangeTripVehicle(ctx context.Context, input *serviceI
 		return tripErrors.ErrorVehicleInsufficientSeats
 	}
 
-	if err := s.writeRepo.UpdateVehicle(ctx, input.TripID, input.DriverID, input.VehicleID); err != nil {
+	if err := s.writeRepo.UpdateVehicle(ctx, input.TripID, driverUserID, input.VehicleID); err != nil {
 		return err
 	}
 
 	// Invalidation du cache des previews pour ce conducteur
 	if s.cache != nil {
-		s.cache.InvalidateDriverPreviews(ctx, input.DriverID)
+		s.cache.InvalidateDriverPreviews(ctx, driverUserID)
 	}
 
 	s.logger.Info("trip vehicle updated",
@@ -211,16 +239,18 @@ func (s *tripServiceImpl) ChangeTripVehicle(ctx context.Context, input *serviceI
 
 // ChangeTripAllowances modifie les autorisations d'un trajet planifié.
 func (s *tripServiceImpl) ChangeTripAllowances(ctx context.Context, input *serviceInterfaces.ChangeTripAllowancesInput) error {
-	s.logger.Debug("service: ChangeTripAllowances called",
-		zap.String("driverID", input.DriverID),
-		zap.String("tripID", input.TripID),
-	)
+	s.logger.Debug("service: ChangeTripAllowances called", zap.String("tripID", input.TripID))
 
-	if input.DriverID == "" || input.TripID == "" {
+	if input.TripID == "" {
 		return tripErrors.ErrorInvalidInput
 	}
 
-	if err := s.writeRepo.UpdateAllowances(ctx, input.TripID, input.DriverID,
+	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.UpdateAllowances(ctx, input.TripID, driverUserID,
 		input.AllowPets, input.AllowFood, input.AllowSmoking, input.AllowLuggages,
 	); err != nil {
 		return err
@@ -228,7 +258,7 @@ func (s *tripServiceImpl) ChangeTripAllowances(ctx context.Context, input *servi
 
 	s.logger.Info("trip allowances updated",
 		zap.String("tripID", input.TripID),
-		zap.String("driverID", input.DriverID),
+		zap.String("driverID", driverUserID),
 	)
 	return nil
 }
@@ -236,44 +266,50 @@ func (s *tripServiceImpl) ChangeTripAllowances(ctx context.Context, input *servi
 // ChangeAutoApprove active ou désactive l'approbation automatique d'un trajet.
 func (s *tripServiceImpl) ChangeAutoApprove(ctx context.Context, input *serviceInterfaces.ChangeAutoApproveInput) error {
 	s.logger.Debug("service: ChangeAutoApprove called",
-		zap.String("driverID", input.DriverID),
 		zap.String("tripID", input.TripID),
 		zap.Bool("autoApprove", input.AutoApprove),
 	)
 
-	if input.DriverID == "" || input.TripID == "" {
+	if input.TripID == "" {
 		return tripErrors.ErrorInvalidInput
 	}
 
-	if err := s.writeRepo.UpdateAutoApprove(ctx, input.TripID, input.DriverID, input.AutoApprove); err != nil {
+	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.UpdateAutoApprove(ctx, input.TripID, driverUserID, input.AutoApprove); err != nil {
 		return err
 	}
 
 	s.logger.Info("trip auto_approve updated",
 		zap.String("tripID", input.TripID),
-		zap.String("driverID", input.DriverID),
+		zap.String("driverID", driverUserID),
 	)
 	return nil
 }
 
 // StartTrip démarre un trajet planifié.
 func (s *tripServiceImpl) StartTrip(ctx context.Context, input *serviceInterfaces.StartTripInput) error {
-	s.logger.Debug("service: StartTrip called",
-		zap.String("driverID", input.DriverID),
-		zap.String("tripID", input.TripID),
-	)
+	s.logger.Debug("service: StartTrip called", zap.String("tripID", input.TripID))
 
-	if input.DriverID == "" || input.TripID == "" {
+	if input.TripID == "" {
 		return tripErrors.ErrorInvalidInput
 	}
 
-	if err := s.writeRepo.StartTrip(ctx, input.TripID, input.DriverID); err != nil {
+	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.StartTrip(ctx, input.TripID, driverUserID); err != nil {
 		return err
 	}
 
 	// Invalidation du cache des previews pour ce conducteur
 	if s.cache != nil {
-		s.cache.InvalidateDriverPreviews(ctx, input.DriverID)
+		s.cache.InvalidateDriverPreviews(ctx, driverUserID)
 	}
 
 	// Démarrer les réservations du waypoint de départ (non-bloquant)
@@ -288,29 +324,31 @@ func (s *tripServiceImpl) StartTrip(ctx context.Context, input *serviceInterface
 
 	s.logger.Info("trip started",
 		zap.String("tripID", input.TripID),
-		zap.String("driverID", input.DriverID),
+		zap.String("driverID", driverUserID),
 	)
 	return nil
 }
 
 // EndTrip termine un trajet en cours.
 func (s *tripServiceImpl) EndTrip(ctx context.Context, input *serviceInterfaces.EndTripInput) error {
-	s.logger.Debug("service: EndTrip called",
-		zap.String("driverID", input.DriverID),
-		zap.String("tripID", input.TripID),
-	)
+	s.logger.Debug("service: EndTrip called", zap.String("tripID", input.TripID))
 
-	if input.DriverID == "" || input.TripID == "" {
+	if input.TripID == "" {
 		return tripErrors.ErrorInvalidInput
 	}
 
-	if err := s.writeRepo.EndTrip(ctx, input.TripID, input.DriverID); err != nil {
+	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.EndTrip(ctx, input.TripID, driverUserID); err != nil {
 		return err
 	}
 
 	// Invalidation du cache des previews pour ce conducteur
 	if s.cache != nil {
-		s.cache.InvalidateDriverPreviews(ctx, input.DriverID)
+		s.cache.InvalidateDriverPreviews(ctx, driverUserID)
 	}
 
 	// Compléter les réservations du waypoint d'arrivée (non-bloquant)
@@ -325,23 +363,25 @@ func (s *tripServiceImpl) EndTrip(ctx context.Context, input *serviceInterfaces.
 
 	s.logger.Info("trip ended",
 		zap.String("tripID", input.TripID),
-		zap.String("driverID", input.DriverID),
+		zap.String("driverID", driverUserID),
 	)
 	return nil
 }
 
 // ConfirmWaypointDeparture enregistre le départ du conducteur d'un stop.
 func (s *tripServiceImpl) ConfirmWaypointDeparture(ctx context.Context, input *serviceInterfaces.ConfirmWaypointDepartureInput) error {
-	s.logger.Debug("service: ConfirmWaypointDeparture called",
-		zap.String("driverID", input.DriverID),
-		zap.String("waypointID", input.WaypointID),
-	)
+	s.logger.Debug("service: ConfirmWaypointDeparture called", zap.String("waypointID", input.WaypointID))
 
-	if input.DriverID == "" || input.WaypointID == "" {
+	if input.WaypointID == "" {
 		return tripErrors.ErrorInvalidInput
 	}
 
-	if err := s.writeRepo.ConfirmWaypointDeparture(ctx, input.WaypointID, input.DriverID); err != nil {
+	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.ConfirmWaypointDeparture(ctx, input.WaypointID, driverUserID); err != nil {
 		return err
 	}
 
@@ -357,23 +397,25 @@ func (s *tripServiceImpl) ConfirmWaypointDeparture(ctx context.Context, input *s
 
 	s.logger.Info("waypoint departure confirmed",
 		zap.String("waypointID", input.WaypointID),
-		zap.String("driverID", input.DriverID),
+		zap.String("driverID", driverUserID),
 	)
 	return nil
 }
 
 // ConfirmWaypointArrival enregistre l'arrivée du conducteur à un stop.
 func (s *tripServiceImpl) ConfirmWaypointArrival(ctx context.Context, input *serviceInterfaces.ConfirmWaypointArrivalInput) error {
-	s.logger.Debug("service: ConfirmWaypointArrival called",
-		zap.String("driverID", input.DriverID),
-		zap.String("waypointID", input.WaypointID),
-	)
+	s.logger.Debug("service: ConfirmWaypointArrival called", zap.String("waypointID", input.WaypointID))
 
-	if input.DriverID == "" || input.WaypointID == "" {
+	if input.WaypointID == "" {
 		return tripErrors.ErrorInvalidInput
 	}
 
-	if err := s.writeRepo.ConfirmWaypointArrival(ctx, input.WaypointID, input.DriverID); err != nil {
+	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.ConfirmWaypointArrival(ctx, input.WaypointID, driverUserID); err != nil {
 		return err
 	}
 
@@ -389,23 +431,25 @@ func (s *tripServiceImpl) ConfirmWaypointArrival(ctx context.Context, input *ser
 
 	s.logger.Info("waypoint arrival confirmed",
 		zap.String("waypointID", input.WaypointID),
-		zap.String("driverID", input.DriverID),
+		zap.String("driverID", driverUserID),
 	)
 	return nil
 }
 
 // CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
 func (s *tripServiceImpl) CancelTrip(ctx context.Context, input *serviceInterfaces.CancelTripInput) error {
-	s.logger.Debug("service: CancelTrip called",
-		zap.String("driverID", input.DriverID),
-		zap.String("tripID", input.TripID),
-	)
+	s.logger.Debug("service: CancelTrip called", zap.String("tripID", input.TripID))
 
-	if input.DriverID == "" || input.TripID == "" || input.CancellationReason == "" {
+	if input.TripID == "" || input.CancellationReason == "" {
 		return tripErrors.ErrorInvalidInput
 	}
 
-	if err := s.writeRepo.CancelTrip(ctx, input.TripID, input.DriverID, input.CancellationReason); err != nil {
+	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.CancelTrip(ctx, input.TripID, driverUserID, input.CancellationReason); err != nil {
 		return err
 	}
 
@@ -421,19 +465,21 @@ func (s *tripServiceImpl) CancelTrip(ctx context.Context, input *serviceInterfac
 
 	s.logger.Info("trip cancelled",
 		zap.String("tripID", input.TripID),
-		zap.String("driverID", input.DriverID),
+		zap.String("driverID", driverUserID),
 	)
 	return nil
 }
 
 func (s *tripServiceImpl) CancelWaypoint(ctx context.Context, input *serviceInterfaces.CancelWaypointInput) error {
-	s.logger.Debug("service: CancelWaypoint called",
-		zap.String("driverID", input.DriverID),
-		zap.String("waypointID", input.WaypointID),
-	)
+	s.logger.Debug("service: CancelWaypoint called", zap.String("waypointID", input.WaypointID))
 
-	if input.DriverID == "" || input.WaypointID == "" || input.CancellationReason == "" {
+	if input.WaypointID == "" || input.CancellationReason == "" {
 		return tripErrors.ErrorInvalidInput
+	}
+
+	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	if err != nil {
+		return err
 	}
 
 	// Récupérer le tripID avant l'annulation
@@ -442,7 +488,7 @@ func (s *tripServiceImpl) CancelWaypoint(ctx context.Context, input *serviceInte
 		return err
 	}
 
-	if err := s.writeRepo.CancelWaypoint(ctx, input.WaypointID, input.DriverID, input.CancellationReason); err != nil {
+	if err := s.writeRepo.CancelWaypoint(ctx, input.WaypointID, driverUserID, input.CancellationReason); err != nil {
 		return err
 	}
 
@@ -456,7 +502,7 @@ func (s *tripServiceImpl) CancelWaypoint(ctx context.Context, input *serviceInte
 
 	s.logger.Info("waypoint cancelled",
 		zap.String("waypointID", input.WaypointID),
-		zap.String("driverID", input.DriverID),
+		zap.String("driverID", driverUserID),
 	)
 	return nil
 }
