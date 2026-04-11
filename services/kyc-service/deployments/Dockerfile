@@ -1,7 +1,7 @@
 # =============================================================================
 # KYC Service Dockerfile
 # Multi-stage build for optimized production image
-# Supports Go workspace with shared pkg module and file-service dependency
+# Supports Go workspace with shared pkg, file-service and user-service
 # =============================================================================
 
 # Build arguments
@@ -21,6 +21,7 @@ RUN apk add --no-cache git ca-certificates tzdata
 # Copy go.mod files first (for better caching)
 COPY pkg/go.mod pkg/go.sum ./pkg/
 COPY services/file-service/go.mod services/file-service/go.sum* ./services/file-service/
+COPY services/user-service/go.mod services/user-service/go.sum* ./services/user-service/
 COPY services/kyc-service/go.mod services/kyc-service/go.sum* ./services/kyc-service/
 
 # pkg-test est un module de test uniquement, mais file-service/go.mod a un replace directive qui
@@ -29,12 +30,15 @@ COPY services/kyc-service/go.mod services/kyc-service/go.sum* ./services/kyc-ser
 RUN mkdir -p pkg-test && \
     printf 'module github.com/Kpeewu/tissi-mah/pkg-test\n\ngo 1.25\n' > pkg-test/go.mod
 
-# Create a scoped go.work with pkg + pkg-test + file-service + kyc-service
-RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/kyc-service\n)\n' > go.work
+# Create a scoped go.work with pkg + pkg-test + file-service + user-service + kyc-service
+# user-service is required because kyc-service has a replace directive pointing to it
+# (kyc-service importe user-service/proto/gen pour résoudre firebaseUID → internal userID)
+RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/user-service\n\t./services/kyc-service\n)\n' > go.work
 
 # Download dependencies for all modules
 RUN go mod download -C ./pkg
 RUN go mod download -C ./services/file-service
+RUN go mod download -C ./services/user-service
 RUN go mod download -C ./services/kyc-service
 
 # =============================================================================
@@ -54,6 +58,9 @@ COPY pkg/ ./pkg/
 
 # Copy file-service source code (required by kyc-service replace directive)
 COPY services/file-service/ ./services/file-service/
+
+# Copy user-service source code (required by kyc-service replace directive)
+COPY services/user-service/ ./services/user-service/
 
 # Copy kyc-service source code
 COPY services/kyc-service/ ./services/kyc-service/
