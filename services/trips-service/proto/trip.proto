@@ -649,6 +649,18 @@ message GetDriverTripDetailsResponse {
   string Description                       = 22;
   repeated DriverWaypointDetail Waypoints  = 23;
   string ErrorMessage                      = 24;
+  repeated DriverBookingPreview Bookings   = 25; // réservations sur ce trajet
+}
+
+// DriverBookingPreview contient les informations résumées d'une réservation pour le conducteur.
+message DriverBookingPreview {
+  string BookingId           = 1;
+  string BookingReference    = 2;
+  string Status              = 3;  // pending | approved | rejected | cancelled | inProgress | completed
+  int32  SeatsBooked         = 4;
+  int32  TotalAmount         = 5;
+  string PickupLocationName  = 6;
+  string DropoffLocationName = 7;
 }
 
 // =============================================================================
