@@ -381,6 +381,47 @@ services:
     networks:
       - tissi-mah-network
 
+  # PostgreSQL pour Support Service (back-office admin/support)
+  support-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-support-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_SUPPORT_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPPORT_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_SUPPORT_DB:-support_db}
+    ports:
+      - "5441:5432"
+    volumes:
+      - support_postgres_data:/var/lib/postgresql/data
+      - ./services/support-service/migrations/up:/docker-entrypoint-initdb.d
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_SUPPORT_USER:-dev} -d ${POSTGRES_SUPPORT_DB:-support_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour Support Service (OTP, refresh tokens, rate limit)
+  support-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-support-redis
+    ports:
+      - "6390:6379"
+    volumes:
+      - support_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
   # MinIO - Stockage S3 compatible (dev local)
   minio:
     image: minio/minio:latest
@@ -438,6 +479,8 @@ volumes:
   payment_redis_data:
   notification_postgres_data:
   notification_redis_data:
+  support_postgres_data:
+  support_redis_data:
   minio_data:
 
 networks:

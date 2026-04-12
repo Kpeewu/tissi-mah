@@ -24,6 +24,7 @@ import (
 	trippb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/trippb"
 	userpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/userpb"
 	notificationpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/notificationpb"
+	supportpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/supportpb"
 	vehiclepb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/vehiclepb"
 )
 
@@ -39,6 +40,7 @@ type MuxConfig struct {
 	BookingServiceAddr string
 	PaymentServiceAddr      string
 	NotificationServiceAddr string
+	SupportServiceAddr      string
 	Logger                  *zap.Logger
 }
 
@@ -63,6 +65,12 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		md := grpcMetadata.MD{}
 		if uid := r.Header.Get("x-firebase-uid"); uid != "" {
 			md.Set("x-firebase-uid", uid)
+		}
+		if uid := r.Header.Get("x-support-uid"); uid != "" {
+			md.Set("x-support-uid", uid)
+		}
+		if role := r.Header.Get("x-support-role"); role != "" {
+			md.Set("x-support-role", role)
 		}
 		return md
 	})
@@ -153,6 +161,12 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		return nil, err
 	}
 	cfg.Logger.Info("registered notification-service handler", zap.String("endpoint", cfg.NotificationServiceAddr))
+
+	// Enregistrer support-service
+	if err := supportpb.RegisterSupportServiceHandlerFromEndpoint(ctx, mux, cfg.SupportServiceAddr, dialOpts); err != nil {
+		return nil, err
+	}
+	cfg.Logger.Info("registered support-service handler", zap.String("endpoint", cfg.SupportServiceAddr))
 
 	// Handler brut pour le webhook FedaPay : bypass le transcoding grpc-gateway afin de
 	// conserver les bytes raw du body (nécessaires pour la vérification HMAC-SHA256) et

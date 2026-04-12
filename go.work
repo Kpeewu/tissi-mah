@@ -16,6 +16,7 @@ use (
 	./services/payment-service
 	./services/push-service
 	./services/rating-service
+	./services/support-service
 	./services/trips-service
 	./services/user-service
 	./services/vehicle-service

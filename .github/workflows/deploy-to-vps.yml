@@ -70,6 +70,8 @@ jobs:
               - 'services/push-service/**'
             notification-service:
               - 'services/notification-service/**'
+            support-service:
+              - 'services/support-service/**'
             pkg:
               - 'pkg/**'
 
@@ -79,7 +81,7 @@ jobs:
           if [ -n "${{ github.event.inputs.service }}" ]; then
             echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
           else
-            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service","booking-service","kyc-service","payment-service","email-service","push-service","notification-service"]' >> $GITHUB_OUTPUT
+            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service","booking-service","kyc-service","payment-service","email-service","push-service","notification-service","support-service"]' >> $GITHUB_OUTPUT
           fi
 
   build-and-push:
@@ -198,6 +200,10 @@ jobs:
           # notification-service secrets
           NOTIFICATION_DATABASE_URL: ${{ secrets.NOTIFICATION_DATABASE_URL }}
           NOTIFICATION_REDIS_URL: ${{ secrets.NOTIFICATION_REDIS_URL }}
+          # support-service secrets
+          SUPPORT_DATABASE_URL: ${{ secrets.SUPPORT_DATABASE_URL }}
+          SUPPORT_REDIS_URL: ${{ secrets.SUPPORT_REDIS_URL }}
+          SUPPORT_JWT_SECRET: ${{ secrets.SUPPORT_JWT_SECRET }}
         run: |
           python3 - <<'PYEOF'
           import yaml, os, json, sys
@@ -323,6 +329,15 @@ jobs:
                   'secrets': {
                       'databaseUrl': os.environ.get('NOTIFICATION_DATABASE_URL', ''),
                       'redisUrl': os.environ.get('NOTIFICATION_REDIS_URL', ''),
+                  },
+              }
+
+          elif service == "support-service":
+              data = {
+                  'secrets': {
+                      'databaseUrl': os.environ.get('SUPPORT_DATABASE_URL', ''),
+                      'redisUrl': os.environ.get('SUPPORT_REDIS_URL', ''),
+                      'jwtSecret': os.environ.get('SUPPORT_JWT_SECRET', ''),
                   },
               }
 
