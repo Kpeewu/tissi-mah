@@ -78,8 +78,13 @@ type DocumentReview struct {
 	UpdatedAt   time.Time
 }
 
-// IsValidReviewDecision vérifie si la décision est valide
+// IsValidReviewDecision vérifie si la décision est valide.
+// La chaîne vide est acceptée : une review fraîchement créée (status "pending")
+// n'a pas encore de décision — elle sera renseignée plus tard via le webhook Persona.
 func IsValidReviewDecision(decision string) bool {
+	if decision == "" {
+		return true
+	}
 	return ValidReviewDecisions[decision]
 }
 
