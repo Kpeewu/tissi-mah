@@ -57,7 +57,8 @@ PROTO_OUT_KYC="${PROTO_DIR}/gen/kycpb"
 PROTO_OUT_BOOKING="${PROTO_DIR}/gen/bookingpb"
 PROTO_OUT_PAYMENT="${PROTO_DIR}/gen/paymentpb"
 PROTO_OUT_NOTIFICATION="${PROTO_DIR}/gen/notificationpb"
-mkdir -p ${PROTO_OUT_AUTH} ${PROTO_OUT_USER} ${PROTO_OUT_RATING} ${PROTO_OUT_FILE} ${PROTO_OUT_TRIP} ${PROTO_OUT_KYC} ${PROTO_OUT_BOOKING} ${PROTO_OUT_PAYMENT} ${PROTO_OUT_NOTIFICATION}
+PROTO_OUT_SUPPORT="${PROTO_DIR}/gen/supportpb"
+mkdir -p ${PROTO_OUT_AUTH} ${PROTO_OUT_USER} ${PROTO_OUT_RATING} ${PROTO_OUT_FILE} ${PROTO_OUT_TRIP} ${PROTO_OUT_KYC} ${PROTO_OUT_BOOKING} ${PROTO_OUT_PAYMENT} ${PROTO_OUT_NOTIFICATION} ${PROTO_OUT_SUPPORT}
 
 # Download google/api proto files if they don't exist
 if [ ! -f "${GOOGLE_API_DIR}/annotations.proto" ]; then
@@ -193,6 +194,19 @@ protoc \
   --grpc-gateway_opt=paths=source_relative \
   --grpc-gateway_opt=generate_unbound_methods=false \
   notification.proto
+
+# Generate support.proto (stubs + grpc-gateway reverse proxy)
+echo "Generating Go code from support.proto..."
+protoc \
+  --proto_path=${PROTO_DIR} \
+  --go_out=${PROTO_OUT_SUPPORT} \
+  --go_opt=paths=source_relative \
+  --go-grpc_out=${PROTO_OUT_SUPPORT} \
+  --go-grpc_opt=paths=source_relative \
+  --grpc-gateway_out=${PROTO_OUT_SUPPORT} \
+  --grpc-gateway_opt=paths=source_relative \
+  --grpc-gateway_opt=generate_unbound_methods=false \
+  support.proto
 
 # Check result
 if [ $? -eq 0 ]; then

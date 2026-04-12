@@ -1,0 +1,89 @@
+replicaCount: 1
+
+image:
+  registry: ghcr.io
+  repository: kpeewu/tissi-mah/support-service
+  pullPolicy: Always
+  tag: "develop"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 50063
+
+config:
+  environment: "vps-dev"
+  logLevel: "debug"
+  emailServiceHost: "email-service"
+  emailServicePort: "50061"
+  jwtTTLHours: "12"
+  refreshTokenTTLHours: "720"
+  otpTTLSeconds: "300"
+  otpMaxAttempts: "3"
+  otpResendCooldownSeconds: "300"
+  loginFailThreshold: "5"
+  loginFailWindowSeconds: "86400"
+  extra: {}
+
+secrets:
+  databaseUrl: ""
+  redisUrl: ""
+  jwtSecret: ""
+  extra: {}
+
+probes:
+  enabled: true
+  liveness:
+    initialDelaySeconds: 15
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: false
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+imagePullSecrets:
+  - name: ghcr-secret

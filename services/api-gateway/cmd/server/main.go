@@ -87,6 +87,7 @@ func run(bootstrapLogger *zap.Logger) error {
 		BookingServiceAddr: cfg.BookingService.Address(),
 		PaymentServiceAddr:      cfg.PaymentService.Address(),
 		NotificationServiceAddr: cfg.NotificationService.Address(),
+		SupportServiceAddr:      cfg.SupportService.Address(),
 		Logger:                  logger,
 	})
 	if err != nil {
@@ -185,6 +186,11 @@ func buildHandler(
 		return gateway.ProtectedRoutes[path]
 	}, logger)
 
-	// Chain : CORS → Rate Limit → JWT → handler
-	return corsMW(rateLimitMW(jwtMW(rootMux)))
+	// JWT Support (back-office admin / agents) — canal d'auth séparé de Firebase
+	jwtSupportMW := middleware.JWTSupport(cfg.SupportJWTSecret, func(path string) bool {
+		return gateway.SupportProtectedRoutes[path]
+	}, logger)
+
+	// Chain : CORS → Rate Limit → JWT Firebase → JWT Support → handler
+	return corsMW(rateLimitMW(jwtMW(jwtSupportMW(rootMux))))
 }

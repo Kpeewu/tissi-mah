@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "support-service.fullname" . }}
+  labels:
+    {{- include "support-service.labels" . | nindent 4 }}
+data:
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  GRPC_PORT: {{ .Values.service.port | quote }}
+  EMAIL_SERVICE_HOST: {{ .Values.config.emailServiceHost | quote }}
+  EMAIL_SERVICE_PORT: {{ .Values.config.emailServicePort | quote }}
+  JWT_TTL_HOURS: {{ .Values.config.jwtTTLHours | quote }}
+  REFRESH_TOKEN_TTL_HOURS: {{ .Values.config.refreshTokenTTLHours | quote }}
+  OTP_TTL_SECONDS: {{ .Values.config.otpTTLSeconds | quote }}
+  OTP_MAX_ATTEMPTS: {{ .Values.config.otpMaxAttempts | quote }}
+  OTP_RESEND_COOLDOWN_SECONDS: {{ .Values.config.otpResendCooldownSeconds | quote }}
+  LOGIN_FAIL_THRESHOLD: {{ .Values.config.loginFailThreshold | quote }}
+  LOGIN_FAIL_WINDOW_SECONDS: {{ .Values.config.loginFailWindowSeconds | quote }}
+  {{- range $key, $value := .Values.config.extra }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}

@@ -197,6 +197,28 @@ grpc/handler.go → middleware/interceptor.go (public) → service → repositor
 | `USER_SERVICE_HOST` | non (0.0.0.0) | Host user-service |
 | `USER_SERVICE_PORT` | non (50052) | Port user-service |
 
+### support-service
+
+| Variable | Obligatoire | Description |
+|----------|-------------|-------------|
+| `DATABASE_URL` | oui | PostgreSQL (base `support_db`, port 5441 dev) |
+| `REDIS_URL` | oui | Redis (OTP, refresh tokens, lockout) |
+| `ENVIRONMENT` | oui | `local` / `vps-dev` / `staging` / `prod` |
+| `LOG_LEVEL` | oui | `debug` / `info` / `warn` / `error` |
+| `JWT_SECRET` | oui | Secret HS256 — doit matcher `SUPPORT_JWT_SECRET` côté api-gateway (≥32 bytes) |
+| `GRPC_PORT` | non (50063) | Port gRPC |
+| `EMAIL_SERVICE_HOST` / `_PORT` | non | Host/port email-service (OTP + mot de passe provisoire) |
+| `JWT_TTL_HOURS` | non (12) | Durée access token |
+| `REFRESH_TOKEN_TTL_HOURS` | non (720) | Durée refresh token (30j) |
+| `OTP_TTL_SECONDS` | non (300) | TTL des codes OTP |
+| `OTP_MAX_ATTEMPTS` | non (3) | Essais OTP max par session |
+| `OTP_RESEND_COOLDOWN_SECONDS` | non (300) | Cooldown entre demandes OTP |
+| `LOGIN_FAIL_THRESHOLD` | non (5) | Échecs login+OTP avant lockout |
+| `LOGIN_FAIL_WINDOW_SECONDS` | non (86400) | Fenêtre du compteur (24h) |
+
+**Admin seed** : `admin@tissimah.local` / `Admin1234!` (`must_change_password=true`, forcé à changer au 1er login).
+**Auth distincte de Firebase** : middleware `JWTSupport` côté api-gateway, routes dans `SupportProtectedRoutes`, headers `x-support-uid` / `x-support-role`.
+
 ---
 
 ## Conventions de code
@@ -223,6 +245,7 @@ grpc/handler.go → middleware/interceptor.go (public) → service → repositor
 | `user-service` | Complet |
 | `rating-service` | Complet |
 | `trips-service` | Complet |
+| `support-service` | Complet (phase 1 : auth + admin seed) |
 | Tests unitaires + intégration | Structure créée, à compléter |
 | `payment-service` | TODO |
 

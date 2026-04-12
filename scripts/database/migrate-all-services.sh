@@ -49,8 +49,13 @@ SERVICE_DB_URLS["user-service"]="${USER_DATABASE_URL:-mongodb://dev:dev123@local
 SERVICE_DB_TYPES["user-service"]="mongodb"
 SERVICE_MIGRATIONS_DIRS["user-service"]="$ROOT_DIR/services/user-service/migrations"
 
+# Support Service (PostgreSQL)
+SERVICE_DB_URLS["support-service"]="${SUPPORT_DATABASE_URL:-postgresql://dev:dev123@localhost:5441/support_db?sslmode=disable}"
+SERVICE_DB_TYPES["support-service"]="postgres"
+SERVICE_MIGRATIONS_DIRS["support-service"]="$ROOT_DIR/services/support-service/migrations"
+
 # Currently implemented services
-IMPLEMENTED_SERVICES=("auth-service")
+IMPLEMENTED_SERVICES=("auth-service" "support-service")
 
 # =============================================================================
 # Functions

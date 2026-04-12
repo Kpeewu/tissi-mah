@@ -93,6 +93,17 @@ var ProtectedRoutes = map[string]bool{
 	// notification-service — health est public (pas de JWT)
 }
 
+// SupportProtectedRoutes liste les routes HTTP qui requièrent un JWT support-service valide
+// (back-office admin / agents support — distinct du JWT Firebase utilisé pour les passagers/conducteurs).
+var SupportProtectedRoutes = map[string]bool{
+	"/api/v1/support/logout":                  true,
+	"/api/v1/support/me":                      true,
+	"/api/v1/support/me/password":             true,
+	"/api/v1/support/me/email":                true,
+	"/api/v1/support/admin/agents":            true,
+	"/api/v1/support/admin/agents/deactivate": true,
+}
+
 // RateLimitTier identifie le niveau de rate limiting pour une route
 type RateLimitTier string
 

@@ -1,0 +1,25 @@
+package errors
+
+import "errors"
+
+var (
+	ErrInternal             = errors.New("ErrInternal")
+	ErrInvalidInput         = errors.New("ErrInvalidInput")
+	ErrInvalidCredentials   = errors.New("ErrInvalidCredentials")
+	ErrAccountLocked        = errors.New("ErrAccountLocked")
+	ErrAccountInactive      = errors.New("ErrAccountInactive")
+	ErrUserNotFound         = errors.New("ErrUserNotFound")
+	ErrEmailAlreadyExists   = errors.New("ErrEmailAlreadyExists")
+	ErrOTPExpired           = errors.New("ErrOTPExpired")
+	ErrOTPSessionNotFound   = errors.New("ErrOTPSessionNotFound")
+	ErrOTPInvalid           = errors.New("ErrOTPInvalid")
+	ErrOTPTooManyAttempts   = errors.New("ErrOTPTooManyAttempts")
+	ErrResendCooldown       = errors.New("ErrResendCooldown")
+	ErrRefreshInvalid       = errors.New("ErrRefreshInvalid")
+	ErrRefreshRevoked       = errors.New("ErrRefreshRevoked")
+	ErrForbidden            = errors.New("ErrForbidden")
+	ErrWeakPassword         = errors.New("ErrWeakPassword")
+	ErrEmailChangeCooldown  = errors.New("ErrEmailChangeCooldown")
+	ErrMustChangePassword   = errors.New("ErrMustChangePassword")
+	ErrUnauthenticated      = errors.New("ErrUnauthenticated")
+)
