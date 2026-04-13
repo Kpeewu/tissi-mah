@@ -108,7 +108,7 @@ jobs:
           cache-dependency-path: services/${{ matrix.service }}/go.sum
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
           version: v2.1.6
           working-directory: services/${{ matrix.service }}
@@ -126,9 +126,9 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: ${{ secrets.TEST_POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.TEST_POSTGRES_DB }}
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
         ports:
           - 5432:5432
         options: >-
@@ -153,7 +153,7 @@ jobs:
       - name: Run tests with coverage
         working-directory: services/${{ matrix.service }}
         env:
-          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db?sslmode=disable
         run: |
           go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
@@ -182,7 +182,7 @@ jobs:
           go-version-file: "go.work"
 
       - name: Run Gosec
-        uses: securego/gosec@v2
+        uses: securego/gosec@v2.22.4
         with:
           args: -exclude-dir=tests ./services/${{ matrix.service }}/...
 
