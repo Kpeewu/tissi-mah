@@ -29,6 +29,21 @@ spec:
       serviceAccountName: {{ include "file-service.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: migrate
+          image: {{ include "file-service.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Running database migrations..."
+              migrate -path /app/migrations -database "$DATABASE_URL" up
+              echo "Migrations complete."
+          envFrom:
+            - configMapRef:
+                name: {{ include "file-service.fullname" . }}
+            - secretRef:
+                name: {{ include "file-service.fullname" . }}
       containers:
         - name: {{ .Chart.Name }}
           securityContext:

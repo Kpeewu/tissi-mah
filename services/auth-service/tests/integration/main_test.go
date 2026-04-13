@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 	ctx := context.Background()
 
 	// Setup : Démarrer PostgreSQL avec migrations
-	testPostgres, err := postgresHelper.SetupTestPostgres(ctx, "../../migrations/up")
+	testPostgres, err := postgresHelper.SetupTestPostgres(ctx, "../../migrations")
 	if err != nil {
 		log.Fatalf("Failed to setup test database: %v", err)
 	}

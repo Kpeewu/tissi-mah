@@ -72,9 +72,7 @@ services:
       # Volume nommé pour les données PostgreSQL
       - postgres-auth-data:/var/lib/postgresql/data
 
-      # Migrations UP : exécutées automatiquement au premier démarrage
-      # Monter uniquement le dossier up/ pour éviter d'exécuter les down
-      - ../../../services/auth-service/migrations/up:/docker-entrypoint-initdb.d:ro
+      # Les migrations sont gérées par l'initContainer Kubernetes (golang-migrate)
 
     # Health check pour vérifier que PostgreSQL est prêt
     healthcheck:

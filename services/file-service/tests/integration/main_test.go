@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 
 	testLogger = zap.NewNop()
 
-	testPostgres, err := postgresHelper.SetupTestPostgres(ctx, "../../migrations/up")
+	testPostgres, err := postgresHelper.SetupTestPostgres(ctx, "../../migrations")
 	if err != nil {
 		log.Fatalf("Failed to setup test database: %v", err)
 	}

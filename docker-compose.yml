@@ -13,7 +13,6 @@ services:
       - "5433:5432"
     volumes:
       - auth_postgres_data:/var/lib/postgresql/data
-      - ./services/auth-service/migrations/up:/docker-entrypoint-initdb.d
     healthcheck:
       test:
         [
@@ -23,6 +22,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - tissi-mah-network
+
+  auth-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/auth-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@auth-postgres:5432/auth_db?sslmode=disable", "up"]
     networks:
       - tissi-mah-network
 
@@ -106,7 +116,6 @@ services:
       - "5434:5432"
     volumes:
       - file_postgres_data:/var/lib/postgresql/data
-      - ./services/file-service/migrations/up:/docker-entrypoint-initdb.d
     healthcheck:
       test:
         [
@@ -147,7 +156,6 @@ services:
       - "5435:5432"
     volumes:
       - rating_postgres_data:/var/lib/postgresql/data
-      - ./services/rating-service/migrations/up:/docker-entrypoint-initdb.d
     healthcheck:
       test:
         [
@@ -188,7 +196,6 @@ services:
       - "5436:5432"
     volumes:
       - vehicle_postgres_data:/var/lib/postgresql/data
-      - ./services/vehicle-service/migrations/up:/docker-entrypoint-initdb.d
     healthcheck:
       test:
         [
@@ -229,7 +236,6 @@ services:
       - "5437:5432"
     volumes:
       - trips_postgres_data:/var/lib/postgresql/data
-      - ./services/trips-service/migrations/up:/docker-entrypoint-initdb.d
     healthcheck:
       test:
         [
@@ -270,7 +276,6 @@ services:
       - "5438:5432"
     volumes:
       - booking_postgres_data:/var/lib/postgresql/data
-      - ./services/booking-service/migrations/up:/docker-entrypoint-initdb.d
     healthcheck:
       test:
         [
@@ -311,7 +316,6 @@ services:
       - "5439:5432"
     volumes:
       - payment_postgres_data:/var/lib/postgresql/data
-      - ./services/payment-service/migrations/up:/docker-entrypoint-initdb.d
     healthcheck:
       test:
         [
@@ -352,7 +356,6 @@ services:
       - "5440:5432"
     volumes:
       - notification_postgres_data:/var/lib/postgresql/data
-      - ./services/notification-service/migrations/up:/docker-entrypoint-initdb.d
     healthcheck:
       test:
         [
@@ -393,7 +396,6 @@ services:
       - "5441:5432"
     volumes:
       - support_postgres_data:/var/lib/postgresql/data
-      - ./services/support-service/migrations/up:/docker-entrypoint-initdb.d
     healthcheck:
       test:
         [
@@ -419,6 +421,97 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - tissi-mah-network
+
+  # === Migrate sidecar services (golang-migrate) ===
+  # Chaque service attend que sa base Postgres soit healthy, puis applique les migrations incrémentales.
+
+  file-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      file-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/file-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@file-postgres:5432/file_db?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
+  rating-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      rating-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/rating-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@rating-postgres:5432/rating_db?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
+  vehicle-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      vehicle-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/vehicle-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@vehicle-postgres:5432/vehicle_db?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
+  trips-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      trips-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/trips-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@trips-postgres:5432/trips_db?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
+  booking-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      booking-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/booking-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@booking-postgres:5432/booking_db?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
+  payment-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      payment-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/payment-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@payment-postgres:5432/payment_db?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
+  notification-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      notification-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/notification-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@notification-postgres:5432/notification_db?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
+  support-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      support-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/support-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@support-postgres:5432/support_db?sslmode=disable", "up"]
     networks:
       - tissi-mah-network
 

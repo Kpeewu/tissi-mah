@@ -142,6 +142,9 @@ COPY --from=builder --chown=appuser:appuser /build/trips-service .
 COPY --from=builder --chown=appuser:appuser /build/services/trips-service/migrations ./migrations/
 
 # Switch to non-root user
+# Copy golang-migrate binary for Kubernetes initContainer
+COPY --from=migrate/migrate:v4.17.0 /usr/local/bin/migrate /usr/local/bin/migrate
+
 USER appuser
 
 # Expose gRPC port and metrics port

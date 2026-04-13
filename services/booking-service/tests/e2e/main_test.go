@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 	ctx := context.Background()
 
 	// --- PostgreSQL via testcontainers ---
-	testPostgres, err := postgresHelper.SetupTestPostgres(ctx, "../../migrations/up")
+	testPostgres, err := postgresHelper.SetupTestPostgres(ctx, "../../migrations")
 	if err != nil {
 		log.Printf("SetupTestPostgres returned error: %v, trying manual setup...", err)
 	}
@@ -52,7 +52,7 @@ func TestMain(m *testing.M) {
 	}
 	if !tableExists {
 		log.Println("Table 'bookings' not found, applying migrations manually...")
-		if err := applyMigrationsManually(ctx, testPool, "../../migrations/up"); err != nil {
+		if err := applyMigrationsManually(ctx, testPool, "../../migrations"); err != nil {
 			log.Fatalf("Failed to apply migrations manually: %v", err)
 		}
 	}

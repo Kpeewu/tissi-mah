@@ -16,7 +16,7 @@ var testPool *pgxpool.Pool
 func TestMain(m *testing.M) {
 	ctx := context.Background()
 
-	testPostgres, err := postgresHelper.SetupTestPostgres(ctx, "../../migrations/up")
+	testPostgres, err := postgresHelper.SetupTestPostgres(ctx, "../../migrations")
 	if err != nil {
 		log.Fatalf("Failed to setup test database: %v", err)
 	}
