@@ -84,9 +84,15 @@ jobs:
             echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service","booking-service","kyc-service","payment-service","email-service","push-service","notification-service","support-service"]' >> $GITHUB_OUTPUT
           fi
 
+  run-tests:
+    name: Unit & Integration Tests
+    needs: detect-changes
+    uses: ./.github/workflows/tests.yaml
+    secrets: inherit
+
   build-and-push:
     name: Build and Push
-    needs: detect-changes
+    needs: [detect-changes, run-tests]
     if: needs.detect-changes.outputs.services != '[]'
     runs-on: ubuntu-latest
     strategy:
@@ -426,9 +432,74 @@ jobs:
             -l app.kubernetes.io/name=${{ matrix.service }} \
             --tail=50
 
+  smoke-tests:
+    name: Smoke Tests
+    needs: [detect-changes, health-check]
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: https://api.tissimah.kpeewu.dev
+    steps:
+      - name: Run smoke tests
+        run: |
+          set -euo pipefail
+
+          SERVICES='${{ needs.detect-changes.outputs.services }}'
+
+          # Mapping service → endpoint health HTTP public
+          declare -A HEALTH_ENDPOINTS
+          HEALTH_ENDPOINTS["api-gateway"]="${BASE_URL}/api/v1/auth/health"
+          HEALTH_ENDPOINTS["auth-service"]="${BASE_URL}/api/v1/auth/health"
+          HEALTH_ENDPOINTS["user-service"]="${BASE_URL}/api/v1/user/health"
+          HEALTH_ENDPOINTS["vehicle-service"]="${BASE_URL}/vehicle/health"
+          HEALTH_ENDPOINTS["trips-service"]="${BASE_URL}/trip/health"
+          HEALTH_ENDPOINTS["booking-service"]="${BASE_URL}/booking/health"
+          HEALTH_ENDPOINTS["payment-service"]="${BASE_URL}/payment/health"
+          HEALTH_ENDPOINTS["rating-service"]="${BASE_URL}/api/v1/ratings/health"
+          HEALTH_ENDPOINTS["kyc-service"]="${BASE_URL}/api/v1/kyc/health"
+          HEALTH_ENDPOINTS["notification-service"]="${BASE_URL}/api/v1/notifications/health"
+          # Pas d'endpoint HTTP public pour ces services :
+          HEALTH_ENDPOINTS["email-service"]=""
+          HEALTH_ENDPOINTS["push-service"]=""
+          HEALTH_ENDPOINTS["file-service"]=""
+          HEALTH_ENDPOINTS["support-service"]=""
+
+          echo "Smoke Tests — ${BASE_URL}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          FAILED=0
+
+          for SERVICE in $(echo "$SERVICES" | jq -r '.[]'); do
+            ENDPOINT="${HEALTH_ENDPOINTS[$SERVICE]:-}"
+
+            if [ -z "$ENDPOINT" ]; then
+              echo "⏭  ${SERVICE}: skip (pas d'endpoint HTTP public)"
+              continue
+            fi
+
+            HTTP_CODE=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+              --max-time 10 --retry 3 --retry-delay 2 \
+              "$ENDPOINT" || echo "000")
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ ${SERVICE}: HTTP ${HTTP_CODE} — ${ENDPOINT}"
+            else
+              echo "❌ ${SERVICE}: HTTP ${HTTP_CODE} — ${ENDPOINT}"
+              FAILED=1
+            fi
+          done
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          if [ "$FAILED" -ne 0 ]; then
+            echo "Un ou plusieurs smoke tests ont échoué."
+            exit 1
+          fi
+
+          echo "Tous les smoke tests sont passés."
+
   deployment-summary:
     name: Deployment Summary
-    needs: [detect-changes, build-and-push, deploy, health-check]
+    needs: [detect-changes, build-and-push, deploy, health-check, smoke-tests]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -443,11 +514,13 @@ jobs:
           echo "Services: ${{ needs.detect-changes.outputs.services }}"
           echo ""
           echo "Results:"
-          echo "  Build: ${{ needs.build-and-push.result }}"
-          echo "  Deploy: ${{ needs.deploy.result }}"
+          echo "  Tests:        ${{ needs.run-tests.result }}"
+          echo "  Build:        ${{ needs.build-and-push.result }}"
+          echo "  Deploy:       ${{ needs.deploy.result }}"
           echo "  Health Check: ${{ needs.health-check.result }}"
+          echo "  Smoke Tests:  ${{ needs.smoke-tests.result }}"
 
-          if [ "${{ needs.health-check.result }}" != "success" ]; then
+          if [ "${{ needs.smoke-tests.result }}" != "success" ]; then
             echo ""
             echo "Deployment may have issues. Check the logs above."
             exit 1
