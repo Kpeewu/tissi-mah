@@ -85,6 +85,9 @@ WORKDIR /app
 
 COPY --from=builder --chown=appuser:appuser /build/support-service .
 
+# Copy golang-migrate binary for Kubernetes initContainer
+COPY --from=migrate/migrate:v4.17.0 /usr/local/bin/migrate /usr/local/bin/migrate
+
 USER appuser
 
 EXPOSE 50063

@@ -43,7 +43,7 @@ func TestMain(m *testing.M) {
 	ctx := context.Background() //nolint:testmain
 
 	// Setup : démarrer PostgreSQL avec les migrations du trips-service
-	testPostgres, err := postgresHelper.SetupTestPostgres(ctx, "../../migrations/up",
+	testPostgres, err := postgresHelper.SetupTestPostgres(ctx, "../../migrations",
 		postgresHelper.WithImage("postgis/postgis:16-3.4"),
 	)
 	if err != nil {

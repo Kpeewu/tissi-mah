@@ -34,13 +34,53 @@ declare -A SERVICE_DB_URLS
 declare -A SERVICE_DB_TYPES
 declare -A SERVICE_MIGRATIONS_DIRS
 
-# Auth Service (PostgreSQL)
-SERVICE_DB_URLS["auth-service"]="${AUTH_DATABASE_URL:-postgresql://dev:dev123@localhost:5432/auth_db?sslmode=disable}"
+# Auth Service (PostgreSQL — port 5433)
+SERVICE_DB_URLS["auth-service"]="${AUTH_DATABASE_URL:-postgresql://dev:dev123@localhost:5433/auth_db?sslmode=disable}"
 SERVICE_DB_TYPES["auth-service"]="postgres"
 SERVICE_MIGRATIONS_DIRS["auth-service"]="$ROOT_DIR/services/auth-service/migrations"
 
+# File Service (PostgreSQL — port 5434)
+SERVICE_DB_URLS["file-service"]="${FILE_DATABASE_URL:-postgresql://dev:dev123@localhost:5434/file_db?sslmode=disable}"
+SERVICE_DB_TYPES["file-service"]="postgres"
+SERVICE_MIGRATIONS_DIRS["file-service"]="$ROOT_DIR/services/file-service/migrations"
+
+# Rating Service (PostgreSQL — port 5435)
+SERVICE_DB_URLS["rating-service"]="${RATING_DATABASE_URL:-postgresql://dev:dev123@localhost:5435/rating_db?sslmode=disable}"
+SERVICE_DB_TYPES["rating-service"]="postgres"
+SERVICE_MIGRATIONS_DIRS["rating-service"]="$ROOT_DIR/services/rating-service/migrations"
+
+# Vehicle Service (PostgreSQL — port 5436)
+SERVICE_DB_URLS["vehicle-service"]="${VEHICLE_DATABASE_URL:-postgresql://dev:dev123@localhost:5436/vehicle_db?sslmode=disable}"
+SERVICE_DB_TYPES["vehicle-service"]="postgres"
+SERVICE_MIGRATIONS_DIRS["vehicle-service"]="$ROOT_DIR/services/vehicle-service/migrations"
+
+# Trips Service (PostgreSQL/PostGIS — port 5437)
+SERVICE_DB_URLS["trips-service"]="${TRIPS_DATABASE_URL:-postgresql://dev:dev123@localhost:5437/trips_db?sslmode=disable}"
+SERVICE_DB_TYPES["trips-service"]="postgres"
+SERVICE_MIGRATIONS_DIRS["trips-service"]="$ROOT_DIR/services/trips-service/migrations"
+
+# Booking Service (PostgreSQL — port 5438)
+SERVICE_DB_URLS["booking-service"]="${BOOKING_DATABASE_URL:-postgresql://dev:dev123@localhost:5438/booking_db?sslmode=disable}"
+SERVICE_DB_TYPES["booking-service"]="postgres"
+SERVICE_MIGRATIONS_DIRS["booking-service"]="$ROOT_DIR/services/booking-service/migrations"
+
+# Payment Service (PostgreSQL — port 5439)
+SERVICE_DB_URLS["payment-service"]="${PAYMENT_DATABASE_URL:-postgresql://dev:dev123@localhost:5439/payment_db?sslmode=disable}"
+SERVICE_DB_TYPES["payment-service"]="postgres"
+SERVICE_MIGRATIONS_DIRS["payment-service"]="$ROOT_DIR/services/payment-service/migrations"
+
+# Notification Service (PostgreSQL — port 5440)
+SERVICE_DB_URLS["notification-service"]="${NOTIFICATION_DATABASE_URL:-postgresql://dev:dev123@localhost:5440/notification_db?sslmode=disable}"
+SERVICE_DB_TYPES["notification-service"]="postgres"
+SERVICE_MIGRATIONS_DIRS["notification-service"]="$ROOT_DIR/services/notification-service/migrations"
+
+# Support Service (PostgreSQL — port 5441)
+SERVICE_DB_URLS["support-service"]="${SUPPORT_DATABASE_URL:-postgresql://dev:dev123@localhost:5441/support_db?sslmode=disable}"
+SERVICE_DB_TYPES["support-service"]="postgres"
+SERVICE_MIGRATIONS_DIRS["support-service"]="$ROOT_DIR/services/support-service/migrations"
+
 # Client Service (PostgreSQL) - future
-SERVICE_DB_URLS["client-service"]="${CLIENT_DATABASE_URL:-postgresql://dev:dev123@localhost:5433/client_db?sslmode=disable}"
+SERVICE_DB_URLS["client-service"]="${CLIENT_DATABASE_URL:-postgresql://dev:dev123@localhost:5442/client_db?sslmode=disable}"
 SERVICE_DB_TYPES["client-service"]="postgres"
 SERVICE_MIGRATIONS_DIRS["client-service"]="$ROOT_DIR/services/client-service/migrations"
 
@@ -49,13 +89,8 @@ SERVICE_DB_URLS["user-service"]="${USER_DATABASE_URL:-mongodb://dev:dev123@local
 SERVICE_DB_TYPES["user-service"]="mongodb"
 SERVICE_MIGRATIONS_DIRS["user-service"]="$ROOT_DIR/services/user-service/migrations"
 
-# Support Service (PostgreSQL)
-SERVICE_DB_URLS["support-service"]="${SUPPORT_DATABASE_URL:-postgresql://dev:dev123@localhost:5441/support_db?sslmode=disable}"
-SERVICE_DB_TYPES["support-service"]="postgres"
-SERVICE_MIGRATIONS_DIRS["support-service"]="$ROOT_DIR/services/support-service/migrations"
-
-# Currently implemented services
-IMPLEMENTED_SERVICES=("auth-service" "support-service")
+# Currently implemented services (PostgreSQL only)
+IMPLEMENTED_SERVICES=("auth-service" "file-service" "rating-service" "vehicle-service" "trips-service" "booking-service" "payment-service" "notification-service" "support-service")
 
 # =============================================================================
 # Functions

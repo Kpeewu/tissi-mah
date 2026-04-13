@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -95,8 +96,8 @@ func connectToPostgres(ctx context.Context, connString string) (*pgxpool.Pool, e
 	return pool, nil
 }
 
-// runMigrations exécute tous les fichiers *.sql du répertoire donné dans l'ordre alphabétique.
-// Compatible avec la structure migrations/up/*.sql sans convention de nommage golang-migrate.
+// runMigrations exécute tous les fichiers *.up.sql du répertoire donné dans l'ordre alphabétique.
+// Compatible avec la convention golang-migrate (NNNNNN_name.up.sql / .down.sql).
 func runMigrations(ctx context.Context, pool *pgxpool.Pool, migrationPath string) error {
 	absPath, err := filepath.Abs(migrationPath)
 	if err != nil {
@@ -110,7 +111,7 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool, migrationPath string
 
 	var files []string
 	for _, e := range entries {
-		if !e.IsDir() && filepath.Ext(e.Name()) == ".sql" {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".up.sql") {
 			files = append(files, filepath.Join(absPath, e.Name()))
 		}
 	}
