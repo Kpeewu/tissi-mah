@@ -55,9 +55,9 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: ${{ secrets.TEST_POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.TEST_POSTGRES_DB }}
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
         ports:
           - 5432:5432
         options: >-
@@ -84,14 +84,14 @@ jobs:
       - name: Run unit tests
         working-directory: services/auth-service
         env:
-          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db?sslmode=disable
         run: |
           go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
 
       - name: Run integration tests
         working-directory: services/auth-service
         env:
-          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db?sslmode=disable
         run: |
           go test -v -race ./tests/integration/...
 
@@ -113,9 +113,9 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: ${{ secrets.TEST_POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.TEST_POSTGRES_DB }}
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
         ports:
           - 5432:5432
         options: >-
@@ -142,14 +142,14 @@ jobs:
       - name: Run unit tests
         working-directory: services/file-service
         env:
-          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db?sslmode=disable
         run: |
           go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
 
       - name: Run integration tests
         working-directory: services/file-service
         env:
-          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db?sslmode=disable
         run: |
           go test -v -race ./tests/integration/...
 
@@ -171,9 +171,9 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: ${{ secrets.TEST_POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.TEST_POSTGRES_DB }}
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
         ports:
           - 5432:5432
         options: >-
@@ -200,21 +200,21 @@ jobs:
       - name: Run unit tests
         working-directory: services/rating-service
         env:
-          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db?sslmode=disable
         run: |
           go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
 
       - name: Run integration tests
         working-directory: services/rating-service
         env:
-          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db?sslmode=disable
         run: |
           go test -v -race ./tests/integration/...
 
       - name: Run e2e tests
         working-directory: services/rating-service
         env:
-          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db?sslmode=disable
         run: |
           go test -v -race ./tests/e2e/...
 
