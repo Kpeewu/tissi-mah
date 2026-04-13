@@ -52,17 +52,20 @@ BASELINE_VERSIONS["payment-service"]=2
 BASELINE_VERSIONS["notification-service"]=4
 BASELINE_VERSIONS["support-service"]=2
 
-# Service -> database URL
+# Database host (localhost en dev, configurable via env pour le VPS)
+DB_HOST="${DB_HOST:-localhost}"
+
+# Service -> database URL (construites à partir des variables .env)
 declare -A SERVICE_DB_URLS
-SERVICE_DB_URLS["auth-service"]="${AUTH_DATABASE_URL:-postgresql://dev:dev123@localhost:5433/auth_db?sslmode=disable}"
-SERVICE_DB_URLS["file-service"]="${FILE_DATABASE_URL:-postgresql://dev:dev123@localhost:5434/file_db?sslmode=disable}"
-SERVICE_DB_URLS["rating-service"]="${RATING_DATABASE_URL:-postgresql://dev:dev123@localhost:5435/rating_db?sslmode=disable}"
-SERVICE_DB_URLS["vehicle-service"]="${VEHICLE_DATABASE_URL:-postgresql://dev:dev123@localhost:5436/vehicle_db?sslmode=disable}"
-SERVICE_DB_URLS["trips-service"]="${TRIPS_DATABASE_URL:-postgresql://dev:dev123@localhost:5437/trips_db?sslmode=disable}"
-SERVICE_DB_URLS["booking-service"]="${BOOKING_DATABASE_URL:-postgresql://dev:dev123@localhost:5438/booking_db?sslmode=disable}"
-SERVICE_DB_URLS["payment-service"]="${PAYMENT_DATABASE_URL:-postgresql://dev:dev123@localhost:5439/payment_db?sslmode=disable}"
-SERVICE_DB_URLS["notification-service"]="${NOTIFICATION_DATABASE_URL:-postgresql://dev:dev123@localhost:5440/notification_db?sslmode=disable}"
-SERVICE_DB_URLS["support-service"]="${SUPPORT_DATABASE_URL:-postgresql://dev:dev123@localhost:5441/support_db?sslmode=disable}"
+SERVICE_DB_URLS["auth-service"]="postgresql://${POSTGRES_AUTH_USER:-dev}:${POSTGRES_AUTH_PASSWORD:-dev123}@${DB_HOST}:5433/${POSTGRES_AUTH_DB:-auth_db}?sslmode=disable"
+SERVICE_DB_URLS["file-service"]="postgresql://${POSTGRES_FILE_USER:-dev}:${POSTGRES_FILE_PASSWORD:-dev123}@${DB_HOST}:5434/${POSTGRES_FILE_DB:-file_db}?sslmode=disable"
+SERVICE_DB_URLS["rating-service"]="postgresql://${POSTGRES_RATING_USER:-dev}:${POSTGRES_RATING_PASSWORD:-dev123}@${DB_HOST}:5435/${POSTGRES_RATING_DB:-rating_db}?sslmode=disable"
+SERVICE_DB_URLS["vehicle-service"]="postgresql://${POSTGRES_VEHICLE_USER:-dev}:${POSTGRES_VEHICLE_PASSWORD:-dev123}@${DB_HOST}:5436/${POSTGRES_VEHICLE_DB:-vehicle_db}?sslmode=disable"
+SERVICE_DB_URLS["trips-service"]="postgresql://${POSTGRES_TRIPS_USER:-dev}:${POSTGRES_TRIPS_PASSWORD:-dev123}@${DB_HOST}:5437/${POSTGRES_TRIPS_DB:-trips_db}?sslmode=disable"
+SERVICE_DB_URLS["booking-service"]="postgresql://${POSTGRES_BOOKING_USER:-dev}:${POSTGRES_BOOKING_PASSWORD:-dev123}@${DB_HOST}:5438/${POSTGRES_BOOKING_DB:-booking_db}?sslmode=disable"
+SERVICE_DB_URLS["payment-service"]="postgresql://${POSTGRES_PAYMENT_USER:-dev}:${POSTGRES_PAYMENT_PASSWORD:-dev123}@${DB_HOST}:5439/${POSTGRES_PAYMENT_DB:-payment_db}?sslmode=disable"
+SERVICE_DB_URLS["notification-service"]="postgresql://${POSTGRES_NOTIFICATION_USER:-dev}:${POSTGRES_NOTIFICATION_PASSWORD:-dev123}@${DB_HOST}:5440/${POSTGRES_NOTIFICATION_DB:-notification_db}?sslmode=disable"
+SERVICE_DB_URLS["support-service"]="postgresql://${POSTGRES_SUPPORT_USER:-dev}:${POSTGRES_SUPPORT_PASSWORD:-dev123}@${DB_HOST}:5441/${POSTGRES_SUPPORT_DB:-support_db}?sslmode=disable"
 
 # Determine which services to process
 if [ -n "$1" ]; then

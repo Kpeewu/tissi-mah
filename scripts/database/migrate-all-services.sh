@@ -34,58 +34,61 @@ declare -A SERVICE_DB_URLS
 declare -A SERVICE_DB_TYPES
 declare -A SERVICE_MIGRATIONS_DIRS
 
+# Database host (localhost en dev, configurable via env pour le VPS)
+DB_HOST="${DB_HOST:-localhost}"
+
 # Auth Service (PostgreSQL — port 5433)
-SERVICE_DB_URLS["auth-service"]="${AUTH_DATABASE_URL:-postgresql://dev:dev123@localhost:5433/auth_db?sslmode=disable}"
+SERVICE_DB_URLS["auth-service"]="postgresql://${POSTGRES_AUTH_USER:-dev}:${POSTGRES_AUTH_PASSWORD:-dev123}@${DB_HOST}:5433/${POSTGRES_AUTH_DB:-auth_db}?sslmode=disable"
 SERVICE_DB_TYPES["auth-service"]="postgres"
 SERVICE_MIGRATIONS_DIRS["auth-service"]="$ROOT_DIR/services/auth-service/migrations"
 
 # File Service (PostgreSQL — port 5434)
-SERVICE_DB_URLS["file-service"]="${FILE_DATABASE_URL:-postgresql://dev:dev123@localhost:5434/file_db?sslmode=disable}"
+SERVICE_DB_URLS["file-service"]="postgresql://${POSTGRES_FILE_USER:-dev}:${POSTGRES_FILE_PASSWORD:-dev123}@${DB_HOST}:5434/${POSTGRES_FILE_DB:-file_db}?sslmode=disable"
 SERVICE_DB_TYPES["file-service"]="postgres"
 SERVICE_MIGRATIONS_DIRS["file-service"]="$ROOT_DIR/services/file-service/migrations"
 
 # Rating Service (PostgreSQL — port 5435)
-SERVICE_DB_URLS["rating-service"]="${RATING_DATABASE_URL:-postgresql://dev:dev123@localhost:5435/rating_db?sslmode=disable}"
+SERVICE_DB_URLS["rating-service"]="postgresql://${POSTGRES_RATING_USER:-dev}:${POSTGRES_RATING_PASSWORD:-dev123}@${DB_HOST}:5435/${POSTGRES_RATING_DB:-rating_db}?sslmode=disable"
 SERVICE_DB_TYPES["rating-service"]="postgres"
 SERVICE_MIGRATIONS_DIRS["rating-service"]="$ROOT_DIR/services/rating-service/migrations"
 
 # Vehicle Service (PostgreSQL — port 5436)
-SERVICE_DB_URLS["vehicle-service"]="${VEHICLE_DATABASE_URL:-postgresql://dev:dev123@localhost:5436/vehicle_db?sslmode=disable}"
+SERVICE_DB_URLS["vehicle-service"]="postgresql://${POSTGRES_VEHICLE_USER:-dev}:${POSTGRES_VEHICLE_PASSWORD:-dev123}@${DB_HOST}:5436/${POSTGRES_VEHICLE_DB:-vehicle_db}?sslmode=disable"
 SERVICE_DB_TYPES["vehicle-service"]="postgres"
 SERVICE_MIGRATIONS_DIRS["vehicle-service"]="$ROOT_DIR/services/vehicle-service/migrations"
 
 # Trips Service (PostgreSQL/PostGIS — port 5437)
-SERVICE_DB_URLS["trips-service"]="${TRIPS_DATABASE_URL:-postgresql://dev:dev123@localhost:5437/trips_db?sslmode=disable}"
+SERVICE_DB_URLS["trips-service"]="postgresql://${POSTGRES_TRIPS_USER:-dev}:${POSTGRES_TRIPS_PASSWORD:-dev123}@${DB_HOST}:5437/${POSTGRES_TRIPS_DB:-trips_db}?sslmode=disable"
 SERVICE_DB_TYPES["trips-service"]="postgres"
 SERVICE_MIGRATIONS_DIRS["trips-service"]="$ROOT_DIR/services/trips-service/migrations"
 
 # Booking Service (PostgreSQL — port 5438)
-SERVICE_DB_URLS["booking-service"]="${BOOKING_DATABASE_URL:-postgresql://dev:dev123@localhost:5438/booking_db?sslmode=disable}"
+SERVICE_DB_URLS["booking-service"]="postgresql://${POSTGRES_BOOKING_USER:-dev}:${POSTGRES_BOOKING_PASSWORD:-dev123}@${DB_HOST}:5438/${POSTGRES_BOOKING_DB:-booking_db}?sslmode=disable"
 SERVICE_DB_TYPES["booking-service"]="postgres"
 SERVICE_MIGRATIONS_DIRS["booking-service"]="$ROOT_DIR/services/booking-service/migrations"
 
 # Payment Service (PostgreSQL — port 5439)
-SERVICE_DB_URLS["payment-service"]="${PAYMENT_DATABASE_URL:-postgresql://dev:dev123@localhost:5439/payment_db?sslmode=disable}"
+SERVICE_DB_URLS["payment-service"]="postgresql://${POSTGRES_PAYMENT_USER:-dev}:${POSTGRES_PAYMENT_PASSWORD:-dev123}@${DB_HOST}:5439/${POSTGRES_PAYMENT_DB:-payment_db}?sslmode=disable"
 SERVICE_DB_TYPES["payment-service"]="postgres"
 SERVICE_MIGRATIONS_DIRS["payment-service"]="$ROOT_DIR/services/payment-service/migrations"
 
 # Notification Service (PostgreSQL — port 5440)
-SERVICE_DB_URLS["notification-service"]="${NOTIFICATION_DATABASE_URL:-postgresql://dev:dev123@localhost:5440/notification_db?sslmode=disable}"
+SERVICE_DB_URLS["notification-service"]="postgresql://${POSTGRES_NOTIFICATION_USER:-dev}:${POSTGRES_NOTIFICATION_PASSWORD:-dev123}@${DB_HOST}:5440/${POSTGRES_NOTIFICATION_DB:-notification_db}?sslmode=disable"
 SERVICE_DB_TYPES["notification-service"]="postgres"
 SERVICE_MIGRATIONS_DIRS["notification-service"]="$ROOT_DIR/services/notification-service/migrations"
 
 # Support Service (PostgreSQL — port 5441)
-SERVICE_DB_URLS["support-service"]="${SUPPORT_DATABASE_URL:-postgresql://dev:dev123@localhost:5441/support_db?sslmode=disable}"
+SERVICE_DB_URLS["support-service"]="postgresql://${POSTGRES_SUPPORT_USER:-dev}:${POSTGRES_SUPPORT_PASSWORD:-dev123}@${DB_HOST}:5441/${POSTGRES_SUPPORT_DB:-support_db}?sslmode=disable"
 SERVICE_DB_TYPES["support-service"]="postgres"
 SERVICE_MIGRATIONS_DIRS["support-service"]="$ROOT_DIR/services/support-service/migrations"
 
 # Client Service (PostgreSQL) - future
-SERVICE_DB_URLS["client-service"]="${CLIENT_DATABASE_URL:-postgresql://dev:dev123@localhost:5442/client_db?sslmode=disable}"
+SERVICE_DB_URLS["client-service"]="postgresql://${POSTGRES_CLIENT_USER:-dev}:${POSTGRES_CLIENT_PASSWORD:-dev123}@${DB_HOST}:5442/${POSTGRES_CLIENT_DB:-client_db}?sslmode=disable"
 SERVICE_DB_TYPES["client-service"]="postgres"
 SERVICE_MIGRATIONS_DIRS["client-service"]="$ROOT_DIR/services/client-service/migrations"
 
 # User Service (MongoDB) - future
-SERVICE_DB_URLS["user-service"]="${USER_DATABASE_URL:-mongodb://dev:dev123@localhost:27017/user_db?authSource=admin}"
+SERVICE_DB_URLS["user-service"]="${USER_DATABASE_URL:-mongodb://${MONGO_USER_USER:-dev}:${MONGO_USER_PASSWORD:-dev123}@${DB_HOST}:27017/${MONGO_USER_DB:-user_db}?authSource=admin}"
 SERVICE_DB_TYPES["user-service"]="mongodb"
 SERVICE_MIGRATIONS_DIRS["user-service"]="$ROOT_DIR/services/user-service/migrations"
 
