@@ -32,7 +32,7 @@ services:
         condition: service_healthy
     volumes:
       - ./services/auth-service/migrations:/migrations
-    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@auth-postgres:5432/auth_db?sslmode=disable", "up"]
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_AUTH_USER:-dev}:${POSTGRES_AUTH_PASSWORD:-dev123}@auth-postgres:5432/${POSTGRES_AUTH_DB:-auth_db}?sslmode=disable", "up"]
     networks:
       - tissi-mah-network
 
@@ -434,7 +434,7 @@ services:
         condition: service_healthy
     volumes:
       - ./services/file-service/migrations:/migrations
-    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@file-postgres:5432/file_db?sslmode=disable", "up"]
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_FILE_USER:-dev}:${POSTGRES_FILE_PASSWORD:-dev123}@file-postgres:5432/${POSTGRES_FILE_DB:-file_db}?sslmode=disable", "up"]
     networks:
       - tissi-mah-network
 
@@ -445,7 +445,7 @@ services:
         condition: service_healthy
     volumes:
       - ./services/rating-service/migrations:/migrations
-    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@rating-postgres:5432/rating_db?sslmode=disable", "up"]
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_RATING_USER:-dev}:${POSTGRES_RATING_PASSWORD:-dev123}@rating-postgres:5432/${POSTGRES_RATING_DB:-rating_db}?sslmode=disable", "up"]
     networks:
       - tissi-mah-network
 
@@ -456,7 +456,7 @@ services:
         condition: service_healthy
     volumes:
       - ./services/vehicle-service/migrations:/migrations
-    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@vehicle-postgres:5432/vehicle_db?sslmode=disable", "up"]
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_VEHICLE_USER:-dev}:${POSTGRES_VEHICLE_PASSWORD:-dev123}@vehicle-postgres:5432/${POSTGRES_VEHICLE_DB:-vehicle_db}?sslmode=disable", "up"]
     networks:
       - tissi-mah-network
 
@@ -467,7 +467,7 @@ services:
         condition: service_healthy
     volumes:
       - ./services/trips-service/migrations:/migrations
-    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@trips-postgres:5432/trips_db?sslmode=disable", "up"]
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_TRIPS_USER:-dev}:${POSTGRES_TRIPS_PASSWORD:-dev123}@trips-postgres:5432/${POSTGRES_TRIPS_DB:-trips_db}?sslmode=disable", "up"]
     networks:
       - tissi-mah-network
 
@@ -478,7 +478,7 @@ services:
         condition: service_healthy
     volumes:
       - ./services/booking-service/migrations:/migrations
-    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@booking-postgres:5432/booking_db?sslmode=disable", "up"]
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_BOOKING_USER:-dev}:${POSTGRES_BOOKING_PASSWORD:-dev123}@booking-postgres:5432/${POSTGRES_BOOKING_DB:-booking_db}?sslmode=disable", "up"]
     networks:
       - tissi-mah-network
 
@@ -489,7 +489,7 @@ services:
         condition: service_healthy
     volumes:
       - ./services/payment-service/migrations:/migrations
-    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@payment-postgres:5432/payment_db?sslmode=disable", "up"]
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_PAYMENT_USER:-dev}:${POSTGRES_PAYMENT_PASSWORD:-dev123}@payment-postgres:5432/${POSTGRES_PAYMENT_DB:-payment_db}?sslmode=disable", "up"]
     networks:
       - tissi-mah-network
 
@@ -500,7 +500,7 @@ services:
         condition: service_healthy
     volumes:
       - ./services/notification-service/migrations:/migrations
-    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@notification-postgres:5432/notification_db?sslmode=disable", "up"]
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_NOTIFICATION_USER:-dev}:${POSTGRES_NOTIFICATION_PASSWORD:-dev123}@notification-postgres:5432/${POSTGRES_NOTIFICATION_DB:-notification_db}?sslmode=disable", "up"]
     networks:
       - tissi-mah-network
 
@@ -511,7 +511,7 @@ services:
         condition: service_healthy
     volumes:
       - ./services/support-service/migrations:/migrations
-    command: ["-path", "/migrations", "-database", "postgresql://dev:dev123@support-postgres:5432/support_db?sslmode=disable", "up"]
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_SUPPORT_USER:-dev}:${POSTGRES_SUPPORT_PASSWORD:-dev123}@support-postgres:5432/${POSTGRES_SUPPORT_DB:-support_db}?sslmode=disable", "up"]
     networks:
       - tissi-mah-network
 
