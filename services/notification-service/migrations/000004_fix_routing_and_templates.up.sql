@@ -35,7 +35,7 @@ UPDATE notification_event_routing SET priority = 'critical' WHERE event_type = '
 -- =============================================================================
 
 -- TRIP_CANCELLED : routing (000001) a send_email=true mais aucun template email n'existait
-INSERT INTO notification_templates (event_type, channel, language_code, title, subject, body_text, body_html)
+INSERT INTO notification_templates (event_type, channel, language_code, title, subject, body, body_html)
 VALUES (
     'TRIP_CANCELLED', 'email', 'fr',
     'Trajet annulé',
@@ -45,7 +45,7 @@ VALUES (
 ) ON CONFLICT (event_type, channel, language_code) DO NOTHING;
 
 -- NO_SHOW_AT_DEPARTURE : send_email corrigé à true ci-dessus, template manquant
-INSERT INTO notification_templates (event_type, channel, language_code, title, subject, body_text, body_html)
+INSERT INTO notification_templates (event_type, channel, language_code, title, subject, body, body_html)
 VALUES (
     'NO_SHOW_AT_DEPARTURE', 'email', 'fr',
     'Absence signalée',
