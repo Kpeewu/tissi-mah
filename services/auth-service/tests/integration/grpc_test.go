@@ -250,7 +250,9 @@ func TestE2E_DeleteAccount(t *testing.T) {
 
 	t.Run("should soft-delete account successfully", func(t *testing.T) {
 		cleanupAuthTable(t, ctx)
-		client, cleanup := newTestGRPCServer(t, &mocks.MockUserClient{})
+		mockUserClient := &mocks.MockUserClient{}
+		mockUserClient.On("SoftDeleteUser", mock.Anything, mock.Anything).Return(nil)
+		client, cleanup := newTestGRPCServer(t, mockUserClient)
 		defer cleanup()
 
 		firebaseUID := uuid.New().String()
