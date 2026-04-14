@@ -53,26 +53,28 @@ func isDuplicateKeyError(err error) bool {
 }
 
 func (r *paymentWriteRepository) UpdatePaymentStatus(ctx context.Context, paymentID string, status domain.PaymentStatus, externalTransactionID string) error {
-	var expectedCurrent domain.PaymentStatus
+	var allowedCurrent []string
 	switch status {
 	case domain.PaymentStatusHeld:
-		expectedCurrent = domain.PaymentStatusPending
-	case domain.PaymentStatusReleased, domain.PaymentStatusRefunded:
-		expectedCurrent = domain.PaymentStatusHeld
+		allowedCurrent = []string{string(domain.PaymentStatusPending)}
+	case domain.PaymentStatusReleased:
+		allowedCurrent = []string{string(domain.PaymentStatusHeld)}
+	case domain.PaymentStatusRefunded:
+		allowedCurrent = []string{string(domain.PaymentStatusHeld), string(domain.PaymentStatusReleased)}
 	default:
-		expectedCurrent = domain.PaymentStatusPending
+		allowedCurrent = []string{string(domain.PaymentStatusPending)}
 	}
 
 	var query string
 	var args []any
 	if status == domain.PaymentStatusHeld {
 		query = `UPDATE payments SET status = $2, external_transaction_id = COALESCE(NULLIF($3, ''), external_transaction_id), completed_at = $4
-			WHERE payment_id = $1 AND status = $5`
-		args = []any{paymentID, status, externalTransactionID, time.Now().UTC(), expectedCurrent}
+			WHERE payment_id = $1 AND status = ANY($5)`
+		args = []any{paymentID, status, externalTransactionID, time.Now().UTC(), allowedCurrent}
 	} else {
 		query = `UPDATE payments SET status = $2, external_transaction_id = COALESCE(NULLIF($3, ''), external_transaction_id)
-			WHERE payment_id = $1 AND status = $4`
-		args = []any{paymentID, status, externalTransactionID, expectedCurrent}
+			WHERE payment_id = $1 AND status = ANY($4)`
+		args = []any{paymentID, status, externalTransactionID, allowedCurrent}
 	}
 
 	tag, err := r.pool.Exec(ctx, query, args...)

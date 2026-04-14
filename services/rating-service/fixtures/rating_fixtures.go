@@ -55,7 +55,7 @@ func WithNoComment() RatingOption {
 
 // NewTestRating crée un Rating avec des valeurs par défaut
 func NewTestRating(opts ...RatingOption) *domain.Rating {
-	now := time.Now().UTC()
+	now := time.Now().UTC().Add(-time.Second).Truncate(time.Microsecond)
 	id := uuid.New().String()
 
 	defaultComment := "Excellent trajet, conducteur ponctuel"
