@@ -53,30 +53,42 @@ func isDuplicateKeyError(err error) bool {
 }
 
 func (r *paymentWriteRepository) UpdatePaymentStatus(ctx context.Context, paymentID string, status domain.PaymentStatus, externalTransactionID string) error {
-	query := `UPDATE payments SET status = $2, external_transaction_id = COALESCE(NULLIF($3, ''), external_transaction_id)
-		WHERE payment_id = $1 AND status = 'pending'`
-
-	if status == domain.PaymentStatusHeld {
-		query = `UPDATE payments SET status = $2, external_transaction_id = COALESCE(NULLIF($3, ''), external_transaction_id), completed_at = $4
-			WHERE payment_id = $1 AND status = 'pending'`
-		now := time.Now().UTC()
-		tag, err := r.pool.Exec(ctx, query, paymentID, status, externalTransactionID, now)
-		if err != nil {
-			r.logger.Error("update payment status failed", zap.Error(err), zap.String("paymentID", paymentID))
-			return paymentErrors.ErrorInternalServer
-		}
-		if tag.RowsAffected() == 0 {
-			return paymentErrors.ErrorPaymentAlreadyProcessed
-		}
-		return nil
+	var expectedCurrent domain.PaymentStatus
+	switch status {
+	case domain.PaymentStatusHeld:
+		expectedCurrent = domain.PaymentStatusPending
+	case domain.PaymentStatusReleased, domain.PaymentStatusRefunded:
+		expectedCurrent = domain.PaymentStatusHeld
+	default:
+		expectedCurrent = domain.PaymentStatusPending
 	}
 
-	tag, err := r.pool.Exec(ctx, query, paymentID, status, externalTransactionID)
+	var query string
+	var args []any
+	if status == domain.PaymentStatusHeld {
+		query = `UPDATE payments SET status = $2, external_transaction_id = COALESCE(NULLIF($3, ''), external_transaction_id), completed_at = $4
+			WHERE payment_id = $1 AND status = $5`
+		args = []any{paymentID, status, externalTransactionID, time.Now().UTC(), expectedCurrent}
+	} else {
+		query = `UPDATE payments SET status = $2, external_transaction_id = COALESCE(NULLIF($3, ''), external_transaction_id)
+			WHERE payment_id = $1 AND status = $4`
+		args = []any{paymentID, status, externalTransactionID, expectedCurrent}
+	}
+
+	tag, err := r.pool.Exec(ctx, query, args...)
 	if err != nil {
 		r.logger.Error("update payment status failed", zap.Error(err), zap.String("paymentID", paymentID))
 		return paymentErrors.ErrorInternalServer
 	}
 	if tag.RowsAffected() == 0 {
+		var exists bool
+		if err := r.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM payments WHERE payment_id = $1)`, paymentID).Scan(&exists); err != nil {
+			r.logger.Error("check payment existence failed", zap.Error(err), zap.String("paymentID", paymentID))
+			return paymentErrors.ErrorInternalServer
+		}
+		if !exists {
+			return paymentErrors.ErrorPaymentNotFound
+		}
 		return paymentErrors.ErrorPaymentAlreadyProcessed
 	}
 
