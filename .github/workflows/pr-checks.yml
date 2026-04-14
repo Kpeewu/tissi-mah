@@ -108,9 +108,9 @@ jobs:
           cache-dependency-path: services/${{ matrix.service }}/go.sum
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
-          version: v1.55
+          version: latest
           working-directory: services/${{ matrix.service }}
           args: --timeout=5m
 
@@ -182,7 +182,7 @@ jobs:
           go-version-file: "go.work"
 
       - name: Run Gosec
-        uses: securego/gosec@v2
+        uses: securego/gosec@v2.22.4
         with:
           args: -exclude-dir=tests ./services/${{ matrix.service }}/...
 

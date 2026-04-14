@@ -1,3 +1,4 @@
+// rating-service — service de notation des utilisateurs.
 package main
 
 import (

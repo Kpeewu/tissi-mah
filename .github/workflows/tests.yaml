@@ -1,13 +1,7 @@
 name: Tests
 
 on:
-  push:
-    branches: [develop]
-    paths:
-      - "services/**"
-      - "pkg/**"
-      - "go.work"
-      - ".github/workflows/tests.yaml"
+  workflow_call: # Appelé par deploy-to-vps.yml avant le build
   pull_request:
     branches: [develop]
     paths:
