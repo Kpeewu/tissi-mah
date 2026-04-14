@@ -31,14 +31,20 @@ func (m *MockBookingRepositoryWrite) Cancel(ctx context.Context, bookingID, canc
 	return args.Error(0)
 }
 
-func (m *MockBookingRepositoryWrite) StartBookingsForWaypoint(ctx context.Context, tripID, waypointID string) (int, error) {
+func (m *MockBookingRepositoryWrite) StartBookingsForWaypoint(ctx context.Context, tripID, waypointID string) ([]string, error) {
 	args := m.Called(ctx, tripID, waypointID)
-	return args.Int(0), args.Error(1)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
 }
 
-func (m *MockBookingRepositoryWrite) CompleteBookingsForWaypoint(ctx context.Context, tripID, waypointID string) (int, error) {
+func (m *MockBookingRepositoryWrite) CompleteBookingsForWaypoint(ctx context.Context, tripID, waypointID string) ([]string, error) {
 	args := m.Called(ctx, tripID, waypointID)
-	return args.Int(0), args.Error(1)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
 }
 
 func (m *MockBookingRepositoryWrite) ReportNoShow(ctx context.Context, bookingID, reporterID, noShowType, description string) error {

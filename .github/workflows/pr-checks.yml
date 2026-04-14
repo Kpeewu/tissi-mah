@@ -126,9 +126,9 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: test_db
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
         ports:
           - 5432:5432
         options: >-
@@ -153,7 +153,7 @@ jobs:
       - name: Run tests with coverage
         working-directory: services/${{ matrix.service }}
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db?sslmode=disable
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
         run: |
           go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 

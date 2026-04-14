@@ -14,6 +14,7 @@ import (
 
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
 	grpcHandler "github.com/Kpeewu/tissi-mah/services/trips-service/internal/grpc"
+	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/middleware"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/trips-service/internal/service/interfaces"
 	tripErrors "github.com/Kpeewu/tissi-mah/services/trips-service/pkg/errors"
 	trippb "github.com/Kpeewu/tissi-mah/services/trips-service/proto/gen"
@@ -30,6 +31,11 @@ func newHandler() (*grpcHandler.TripHandler, *mocks.MockTripService) {
 	mockService := new(mocks.MockTripService)
 	handler := grpcHandler.NewTripHandler(mockService, zap.NewNop())
 	return handler, mockService
+}
+
+// ctxWithUID retourne un contexte contenant le Firebase UID attendu par les handlers.
+func ctxWithUID() context.Context {
+	return context.WithValue(context.Background(), middleware.FirebaseIDKey, "driver-1")
 }
 
 // assertGRPCCode vérifie que l'erreur est un statut gRPC avec le code attendu.
@@ -86,7 +92,7 @@ func TestToGRPCError(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			handler, mockSvc := newHandler()
-			ctx := context.Background()
+			ctx := ctxWithUID()
 
 			// Utilise StartTrip pour déclencher toGRPCError avec n'importe quelle erreur domaine
 			mockSvc.On("StartTrip", mock.Anything, mock.Anything).Return(tc.err)
@@ -144,7 +150,7 @@ func TestCreateTrip_Handler(t *testing.T) {
 
 	t.Run("succès - retourne le tripID dans la réponse", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		returnedTrip := &domain.Trip{TripID: "new-trip-id"}
 		mockSvc.On("CreateTrip", ctx, mock.AnythingOfType("*interfaces.CreateTripInput")).
@@ -160,7 +166,7 @@ func TestCreateTrip_Handler(t *testing.T) {
 
 	t.Run("erreur service - propagée comme code gRPC", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("CreateTrip", ctx, mock.AnythingOfType("*interfaces.CreateTripInput")).
 			Return(nil, tripErrors.ErrorDriverNotVerified)
@@ -173,7 +179,7 @@ func TestCreateTrip_Handler(t *testing.T) {
 
 	t.Run("erreur - conducteur non trouvé → NotFound", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("CreateTrip", ctx, mock.AnythingOfType("*interfaces.CreateTripInput")).
 			Return(nil, tripErrors.ErrorDriverNotFound)
@@ -192,7 +198,7 @@ func TestCreateTrip_Handler(t *testing.T) {
 func TestStartTrip_Handler(t *testing.T) {
 	t.Run("succès - retourne Success=true", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("StartTrip", mock.Anything, mock.Anything).Return(nil)
 
@@ -209,7 +215,7 @@ func TestStartTrip_Handler(t *testing.T) {
 
 	t.Run("erreur - conducteur a déjà un trajet actif → FailedPrecondition", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("StartTrip", mock.Anything, mock.Anything).
 			Return(tripErrors.ErrorDriverAlreadyHasActiveTrip)
@@ -231,7 +237,7 @@ func TestStartTrip_Handler(t *testing.T) {
 func TestEndTrip_Handler(t *testing.T) {
 	t.Run("succès - retourne Success=true", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("EndTrip", mock.Anything, mock.Anything).Return(nil)
 
@@ -248,7 +254,7 @@ func TestEndTrip_Handler(t *testing.T) {
 
 	t.Run("erreur - trajet non en cours → FailedPrecondition", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("EndTrip", mock.Anything, mock.Anything).
 			Return(tripErrors.ErrorTripNotInProgress)
@@ -270,7 +276,7 @@ func TestEndTrip_Handler(t *testing.T) {
 func TestConfirmWaypointArrival_Handler(t *testing.T) {
 	t.Run("succès - retourne Success=true", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("ConfirmWaypointArrival", mock.Anything, mock.Anything).Return(nil)
 
@@ -287,7 +293,7 @@ func TestConfirmWaypointArrival_Handler(t *testing.T) {
 
 	t.Run("erreur - waypoint non trouvé → NotFound", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("ConfirmWaypointArrival", mock.Anything, mock.Anything).
 			Return(tripErrors.ErrorWaypointNotFound)
@@ -309,7 +315,7 @@ func TestConfirmWaypointArrival_Handler(t *testing.T) {
 func TestConfirmWaypointDeparture_Handler(t *testing.T) {
 	t.Run("succès - retourne Success=true", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("ConfirmWaypointDeparture", mock.Anything, mock.Anything).Return(nil)
 
@@ -326,7 +332,7 @@ func TestConfirmWaypointDeparture_Handler(t *testing.T) {
 
 	t.Run("erreur - arrivée pas encore confirmée → FailedPrecondition", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("ConfirmWaypointDeparture", mock.Anything, mock.Anything).
 			Return(tripErrors.ErrorWaypointNotArrived)
@@ -348,7 +354,7 @@ func TestConfirmWaypointDeparture_Handler(t *testing.T) {
 func TestGetTripByID_Handler(t *testing.T) {
 	t.Run("succès - retourne TripID, DriverID et waypoints", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		now := time.Now().UTC()
 		result := &serviceInterfaces.TripDetailResult{
@@ -380,7 +386,7 @@ func TestGetTripByID_Handler(t *testing.T) {
 
 	t.Run("erreur - trajet non trouvé → NotFound", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("GetTripByID", ctx, mock.AnythingOfType("*interfaces.GetTripByIDInput")).
 			Return(nil, tripErrors.ErrorTripNotFound)
@@ -393,7 +399,7 @@ func TestGetTripByID_Handler(t *testing.T) {
 
 	t.Run("erreur - service interne → Internal", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("GetTripByID", ctx, mock.AnythingOfType("*interfaces.GetTripByIDInput")).
 			Return(nil, tripErrors.ErrorInternalServer)
@@ -412,7 +418,7 @@ func TestGetTripByID_Handler(t *testing.T) {
 func TestUpdateAvailableSeats_Handler(t *testing.T) {
 	t.Run("succès - retourne Success=true", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("UpdateAvailableSeats", ctx, mock.AnythingOfType("*interfaces.UpdateAvailableSeatsInput")).
 			Return(nil)
@@ -430,7 +436,7 @@ func TestUpdateAvailableSeats_Handler(t *testing.T) {
 
 	t.Run("erreur - trajet non trouvé → NotFound", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("UpdateAvailableSeats", ctx, mock.AnythingOfType("*interfaces.UpdateAvailableSeatsInput")).
 			Return(tripErrors.ErrorTripNotFound)
@@ -452,7 +458,7 @@ func TestUpdateAvailableSeats_Handler(t *testing.T) {
 func TestCancelWaypoint_Handler(t *testing.T) {
 	t.Run("succès - retourne Success=true", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("CancelWaypoint", ctx, mock.AnythingOfType("*interfaces.CancelWaypointInput")).
 			Return(nil)
@@ -471,7 +477,7 @@ func TestCancelWaypoint_Handler(t *testing.T) {
 
 	t.Run("erreur - input invalide → InvalidArgument", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("CancelWaypoint", ctx, mock.AnythingOfType("*interfaces.CancelWaypointInput")).
 			Return(tripErrors.ErrorInvalidInput)
@@ -484,7 +490,7 @@ func TestCancelWaypoint_Handler(t *testing.T) {
 
 	t.Run("erreur - waypoint non trouvé → NotFound", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("CancelWaypoint", ctx, mock.AnythingOfType("*interfaces.CancelWaypointInput")).
 			Return(tripErrors.ErrorWaypointNotFound)
@@ -501,7 +507,7 @@ func TestCancelWaypoint_Handler(t *testing.T) {
 
 	t.Run("erreur - conducteur non autorisé → PermissionDenied", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("CancelWaypoint", ctx, mock.AnythingOfType("*interfaces.CancelWaypointInput")).
 			Return(tripErrors.ErrorUnauthorized)
@@ -518,7 +524,7 @@ func TestCancelWaypoint_Handler(t *testing.T) {
 
 	t.Run("erreur - trip pas scheduled → FailedPrecondition", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("CancelWaypoint", ctx, mock.AnythingOfType("*interfaces.CancelWaypointInput")).
 			Return(tripErrors.ErrorTripNotScheduled)
@@ -535,7 +541,7 @@ func TestCancelWaypoint_Handler(t *testing.T) {
 
 	t.Run("erreur - waypoint pas un stop → FailedPrecondition", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("CancelWaypoint", ctx, mock.AnythingOfType("*interfaces.CancelWaypointInput")).
 			Return(tripErrors.ErrorWaypointNotAStop)
@@ -552,7 +558,7 @@ func TestCancelWaypoint_Handler(t *testing.T) {
 
 	t.Run("erreur - waypoint déjà annulé → FailedPrecondition", func(t *testing.T) {
 		handler, mockSvc := newHandler()
-		ctx := context.Background()
+		ctx := ctxWithUID()
 
 		mockSvc.On("CancelWaypoint", ctx, mock.AnythingOfType("*interfaces.CancelWaypointInput")).
 			Return(tripErrors.ErrorWaypointAlreadyCancelled)

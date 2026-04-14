@@ -44,6 +44,7 @@ func newTestService() *testDeps {
 		d.userClient,
 		d.paymentClient,
 		nil, // cache
+		nil, // notifRedis
 		10,  // serviceFeePercent
 		logger,
 	)
@@ -67,6 +68,7 @@ func TestApproveBooking(t *testing.T) {
 		d := newTestService()
 		ctx := context.Background()
 
+		d.readRepo.On("GetByID", mock.Anything, "booking-1").Return(&domain.Booking{BookingID: "booking-1", PassengerID: "passenger-1"}, nil)
 		d.writeRepo.On("Approve", mock.Anything, "booking-1", "driver-1").Return(nil)
 
 		err := d.svc.ApproveBooking(ctx, &serviceInterfaces.ApproveBookingInput{
@@ -109,6 +111,7 @@ func TestRejectBooking(t *testing.T) {
 		// GetByID appele dans RejectBooking pour connaitre le tripID + places
 		d.readRepo.On("GetByID", mock.Anything, "booking-reject").Return(booking, nil)
 		d.writeRepo.On("Reject", mock.Anything, "booking-reject", "driver-1", "Pas disponible").Return(nil)
+		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, booking.TripID, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		// requestRefundAsync appelle tripClient.GetTripDetails pour la date de depart
 		d.tripClient.On("GetTripDetails", mock.Anything, booking.TripID).Return(nil, nil).Maybe()
@@ -140,6 +143,7 @@ func TestRejectBooking(t *testing.T) {
 
 		d.readRepo.On("GetByID", mock.Anything, "booking-cash").Return(booking, nil)
 		d.writeRepo.On("Reject", mock.Anything, "booking-cash", "driver-1", "").Return(nil)
+		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, booking.TripID, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		err := d.svc.RejectBooking(ctx, &serviceInterfaces.RejectBookingInput{
 			DriverID:  "driver-1",
@@ -184,6 +188,7 @@ func TestCancelBooking(t *testing.T) {
 
 		d.readRepo.On("GetByID", mock.Anything, "booking-cancel").Return(booking, nil)
 		d.writeRepo.On("Cancel", mock.Anything, "booking-cancel", "passenger-1", "Changement de plan").Return(nil)
+		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, booking.TripID, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		d.tripClient.On("GetTripDetails", mock.Anything, booking.TripID).Return(nil, nil).Maybe()
 		d.paymentClient.On("RequestRefund", mock.Anything, mock.MatchedBy(func(input interface{}) bool {
@@ -214,6 +219,7 @@ func TestCancelBooking(t *testing.T) {
 
 		d.readRepo.On("GetByID", mock.Anything, "booking-cancel-driver").Return(booking, nil)
 		d.writeRepo.On("Cancel", mock.Anything, "booking-cancel-driver", "driver-1", "Vehicule en panne").Return(nil)
+		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, booking.TripID, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		d.tripClient.On("GetTripDetails", mock.Anything, booking.TripID).Return(nil, nil).Maybe()
 		d.paymentClient.On("RequestRefund", mock.Anything, mock.MatchedBy(func(input interface{}) bool {
@@ -244,6 +250,7 @@ func TestCancelBooking(t *testing.T) {
 
 		d.readRepo.On("GetByID", mock.Anything, "booking-nopay").Return(booking, nil)
 		d.writeRepo.On("Cancel", mock.Anything, "booking-nopay", "user-1", "").Return(nil)
+		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		err := d.svc.CancelBooking(ctx, &serviceInterfaces.CancelBookingInput{
 			UserID:    "user-1",
@@ -302,6 +309,7 @@ func TestReportNoShow(t *testing.T) {
 
 		d.readRepo.On("GetByID", mock.Anything, "booking-noshow").Return(booking, nil)
 		d.writeRepo.On("ReportNoShow", mock.Anything, "booking-noshow", "driver-1", "passenger", "Passager absent").Return(nil)
+		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, booking.TripID, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		d.tripClient.On("GetTripDetails", mock.Anything, booking.TripID).Return(nil, nil).Maybe()
 		d.paymentClient.On("RequestRefund", mock.Anything, mock.MatchedBy(func(input interface{}) bool {
@@ -332,6 +340,7 @@ func TestReportNoShow(t *testing.T) {
 
 		d.readRepo.On("GetByID", mock.Anything, "booking-noshow-driver").Return(booking, nil)
 		d.writeRepo.On("ReportNoShow", mock.Anything, "booking-noshow-driver", "passenger-1", "driver", "Chauffeur pas venu").Return(nil)
+		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, booking.TripID, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		d.tripClient.On("GetTripDetails", mock.Anything, booking.TripID).Return(nil, nil).Maybe()
 		d.paymentClient.On("RequestRefund", mock.Anything, mock.MatchedBy(func(input interface{}) bool {
@@ -361,6 +370,7 @@ func TestReportNoShow(t *testing.T) {
 
 		d.readRepo.On("GetByID", mock.Anything, "booking-noshow-cash").Return(booking, nil)
 		d.writeRepo.On("ReportNoShow", mock.Anything, "booking-noshow-cash", "reporter-1", "passenger", "Absent").Return(nil)
+		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, booking.TripID, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		err := d.svc.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{
 			BookingID:   "booking-noshow-cash",
@@ -444,7 +454,7 @@ func TestStartBookingsForWaypoint(t *testing.T) {
 		d := newTestService()
 		ctx := context.Background()
 
-		d.writeRepo.On("StartBookingsForWaypoint", mock.Anything, "trip-1", "wp-1").Return(3, nil)
+		d.writeRepo.On("StartBookingsForWaypoint", mock.Anything, "trip-1", "wp-1").Return([]string{"p1", "p2", "p3"}, nil)
 
 		count, err := d.svc.StartBookingsForWaypoint(ctx, &serviceInterfaces.StartBookingsForWaypointInput{
 			TripID:     "trip-1",
@@ -474,7 +484,7 @@ func TestCompleteBookingsForWaypoint(t *testing.T) {
 		d := newTestService()
 		ctx := context.Background()
 
-		d.writeRepo.On("CompleteBookingsForWaypoint", mock.Anything, "trip-1", "wp-2").Return(2, nil)
+		d.writeRepo.On("CompleteBookingsForWaypoint", mock.Anything, "trip-1", "wp-2").Return([]string{"p1", "p2"}, nil)
 
 		count, err := d.svc.CompleteBookingsForWaypoint(ctx, &serviceInterfaces.CompleteBookingsForWaypointInput{
 			TripID:     "trip-1",
@@ -506,6 +516,7 @@ func TestShouldRequestRefund_Conditions(t *testing.T) {
 
 		d.readRepo.On("GetByID", mock.Anything, "booking-cash-paid").Return(booking, nil)
 		d.writeRepo.On("Cancel", mock.Anything, "booking-cash-paid", "user-1", "").Return(nil)
+		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		err := d.svc.CancelBooking(ctx, &serviceInterfaces.CancelBookingInput{
 			UserID:    "user-1",
@@ -528,6 +539,7 @@ func TestShouldRequestRefund_Conditions(t *testing.T) {
 
 		d.readRepo.On("GetByID", mock.Anything, "booking-nopay").Return(booking, nil)
 		d.writeRepo.On("Cancel", mock.Anything, "booking-nopay", "user-1", "").Return(nil)
+		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		err := d.svc.CancelBooking(ctx, &serviceInterfaces.CancelBookingInput{
 			UserID:    "user-1",

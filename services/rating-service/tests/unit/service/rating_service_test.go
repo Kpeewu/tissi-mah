@@ -25,7 +25,7 @@ func newTestService() (*mocks.MockRatingRepositoryRead, *mocks.MockRatingReposit
 	mockWriteRepo := new(mocks.MockRatingRepositoryWrite)
 	mockUserClient := new(mocks.MockUserClient)
 	logger := zap.NewNop()
-	svc := service.NewRatingService(mockReadRepo, mockWriteRepo, mockUserClient, nil, logger)
+	svc := service.NewRatingService(mockReadRepo, mockWriteRepo, mockUserClient, nil, nil, logger)
 	return mockReadRepo, mockWriteRepo, mockUserClient, svc
 }
 
