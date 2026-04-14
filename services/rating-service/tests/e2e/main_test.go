@@ -67,7 +67,7 @@ func TestMain(m *testing.M) {
 	logger := zap.NewNop()
 	readRepo := implementations.NewRatingReadRepository(testPool, logger)
 	writeRepo := implementations.NewRatingWriteRepository(testPool, logger)
-	ratingService := service.NewRatingService(readRepo, writeRepo, mockUserClient, nil, logger)
+	ratingService := service.NewRatingService(readRepo, writeRepo, mockUserClient, nil, nil, logger)
 
 	// --- gRPC server sur port dynamique ---
 	listener, err := net.Listen("tcp", "127.0.0.1:0")

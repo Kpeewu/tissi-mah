@@ -197,8 +197,8 @@ func TestAuth_AnonymizeAndDelete(t *testing.T) {
 
 	auth.AnonymizeAndDelete()
 
-	// FirebaseID vidé
-	assert.Equal(t, "", auth.FirebaseID)
+	// FirebaseID anonymisé
+	assert.Equal(t, "deleted_auth-123", auth.FirebaseID)
 
 	// Email anonymisé
 	require.NotNil(t, auth.Email)

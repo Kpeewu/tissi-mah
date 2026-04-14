@@ -24,6 +24,10 @@ jobs:
       auth-service: ${{ steps.filter.outputs.auth-service }}
       file-service: ${{ steps.filter.outputs.file-service }}
       rating-service: ${{ steps.filter.outputs.rating-service }}
+      booking-service: ${{ steps.filter.outputs.booking-service }}
+      payment-service: ${{ steps.filter.outputs.payment-service }}
+      trips-service: ${{ steps.filter.outputs.trips-service }}
+      user-service: ${{ steps.filter.outputs.user-service }}
       email-service: ${{ steps.filter.outputs.email-service }}
       push-service: ${{ steps.filter.outputs.push-service }}
       notification-service: ${{ steps.filter.outputs.notification-service }}
@@ -41,6 +45,14 @@ jobs:
               - 'services/file-service/**'
             rating-service:
               - 'services/rating-service/**'
+            booking-service:
+              - 'services/booking-service/**'
+            payment-service:
+              - 'services/payment-service/**'
+            trips-service:
+              - 'services/trips-service/**'
+            user-service:
+              - 'services/user-service/**'
             email-service:
               - 'services/email-service/**'
             push-service:
@@ -61,9 +73,9 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: ${{ secrets.TEST_POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.TEST_POSTGRES_DB }}
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
         ports:
           - 5432:5432
         options: >-
@@ -79,7 +91,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version-file: "go.work"
           cache: true
           cache-dependency-path: services/auth-service/go.sum
 
@@ -90,14 +102,14 @@ jobs:
       - name: Run unit tests
         working-directory: services/auth-service
         env:
-          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
         run: |
           go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
 
       - name: Run integration tests
         working-directory: services/auth-service
         env:
-          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
         run: |
           go test -v -race ./tests/integration/...
 
@@ -119,9 +131,9 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: ${{ secrets.TEST_POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.TEST_POSTGRES_DB }}
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
         ports:
           - 5432:5432
         options: >-
@@ -137,7 +149,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version-file: "go.work"
           cache: true
           cache-dependency-path: services/file-service/go.sum
 
@@ -148,14 +160,14 @@ jobs:
       - name: Run unit tests
         working-directory: services/file-service
         env:
-          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
         run: |
           go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
 
       - name: Run integration tests
         working-directory: services/file-service
         env:
-          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
         run: |
           go test -v -race ./tests/integration/...
 
@@ -177,9 +189,9 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: ${{ secrets.TEST_POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.TEST_POSTGRES_DB }}
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
         ports:
           - 5432:5432
         options: >-
@@ -195,7 +207,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version-file: "go.work"
           cache: true
           cache-dependency-path: services/rating-service/go.sum
 
@@ -206,21 +218,21 @@ jobs:
       - name: Run unit tests
         working-directory: services/rating-service
         env:
-          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
         run: |
           go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
 
       - name: Run integration tests
         working-directory: services/rating-service
         env:
-          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
         run: |
           go test -v -race ./tests/integration/...
 
       - name: Run e2e tests
         working-directory: services/rating-service
         env:
-          DATABASE_URL: postgresql://${{ secrets.TEST_POSTGRES_USER }}:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.TEST_POSTGRES_DB }}?sslmode=disable
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
         run: |
           go test -v -race ./tests/e2e/...
 
@@ -230,6 +242,245 @@ jobs:
           file: services/rating-service/coverage.out
           flags: rating-service
           name: rating-service-coverage
+
+  # Test Booking Service
+  test-booking-service:
+    name: Test Booking Service
+    needs: detect-changes
+    if: needs.detect-changes.outputs.booking-service == 'true'
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.work"
+          cache: true
+          cache-dependency-path: services/booking-service/go.sum
+
+      - name: Download dependencies
+        working-directory: services/booking-service
+        run: go mod download
+
+      - name: Run unit tests
+        working-directory: services/booking-service
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
+
+      - name: Run integration tests
+        working-directory: services/booking-service
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
+        run: |
+          go test -v -race ./tests/integration/...
+
+      - name: Run e2e tests
+        working-directory: services/booking-service
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
+        run: |
+          go test -v -race ./tests/e2e/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: services/booking-service/coverage.out
+          flags: booking-service
+          name: booking-service-coverage
+
+  # Test Payment Service
+  test-payment-service:
+    name: Test Payment Service
+    needs: detect-changes
+    if: needs.detect-changes.outputs.payment-service == 'true'
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.work"
+          cache: true
+          cache-dependency-path: services/payment-service/go.sum
+
+      - name: Download dependencies
+        working-directory: services/payment-service
+        run: go mod download
+
+      - name: Run unit tests
+        working-directory: services/payment-service
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
+
+      - name: Run integration tests
+        working-directory: services/payment-service
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
+        run: |
+          go test -v -race ./tests/integration/...
+
+      - name: Run e2e tests
+        working-directory: services/payment-service
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
+        run: |
+          go test -v -race ./tests/e2e/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: services/payment-service/coverage.out
+          flags: payment-service
+          name: payment-service-coverage
+
+  # Test Trips Service
+  test-trips-service:
+    name: Test Trips Service
+    needs: detect-changes
+    if: needs.detect-changes.outputs.trips-service == 'true'
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.work"
+          cache: true
+          cache-dependency-path: services/trips-service/go.sum
+
+      - name: Download dependencies
+        working-directory: services/trips-service
+        run: go mod download
+
+      - name: Run unit tests
+        working-directory: services/trips-service
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
+
+      - name: Run integration tests
+        working-directory: services/trips-service
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
+        run: |
+          go test -v -race ./tests/integration/...
+
+      - name: Run e2e tests
+        working-directory: services/trips-service
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
+        run: |
+          go test -v -race ./tests/e2e/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: services/trips-service/coverage.out
+          flags: trips-service
+          name: trips-service-coverage
+
+  # Test User Service
+  test-user-service:
+    name: Test User Service
+    needs: detect-changes
+    if: needs.detect-changes.outputs.user-service == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.work"
+          cache: true
+          cache-dependency-path: services/user-service/go.sum
+
+      - name: Download dependencies
+        working-directory: services/user-service
+        run: go mod download
+
+      - name: Run unit tests
+        working-directory: services/user-service
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
+
+      - name: Run integration tests
+        working-directory: services/user-service
+        run: |
+          go test -v -race -timeout 120s ./tests/integration/...
+
+      - name: Run e2e tests
+        working-directory: services/user-service
+        run: |
+          go test -v -race -timeout 120s ./tests/e2e/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: services/user-service/coverage.out
+          flags: user-service
+          name: user-service-coverage
 
   # Test pkg/notification
   test-pkg-notification:
@@ -372,6 +623,10 @@ jobs:
         test-auth-service,
         test-file-service,
         test-rating-service,
+        test-booking-service,
+        test-payment-service,
+        test-trips-service,
+        test-user-service,
         test-pkg-notification,
         test-email-service,
         test-push-service,
@@ -403,6 +658,34 @@ jobs:
             echo "✅ Rating Service: PASSED"
           else
             echo "❌ Rating Service: FAILED"
+            exit 1
+          fi
+
+          if [ "${{ needs.test-booking-service.result }}" == "success" ] || [ "${{ needs.detect-changes.outputs.booking-service }}" != "true" ]; then
+            echo "✅ Booking Service: PASSED"
+          else
+            echo "❌ Booking Service: FAILED"
+            exit 1
+          fi
+
+          if [ "${{ needs.test-payment-service.result }}" == "success" ] || [ "${{ needs.detect-changes.outputs.payment-service }}" != "true" ]; then
+            echo "✅ Payment Service: PASSED"
+          else
+            echo "❌ Payment Service: FAILED"
+            exit 1
+          fi
+
+          if [ "${{ needs.test-trips-service.result }}" == "success" ] || [ "${{ needs.detect-changes.outputs.trips-service }}" != "true" ]; then
+            echo "✅ Trips Service: PASSED"
+          else
+            echo "❌ Trips Service: FAILED"
+            exit 1
+          fi
+
+          if [ "${{ needs.test-user-service.result }}" == "success" ] || [ "${{ needs.detect-changes.outputs.user-service }}" != "true" ]; then
+            echo "✅ User Service: PASSED"
+          else
+            echo "❌ User Service: FAILED"
             exit 1
           fi
 

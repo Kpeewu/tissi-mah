@@ -28,6 +28,22 @@ func (m *MockUserService) GetUserByAuthID(ctx context.Context, authID string) (*
 	return args.Get(0).(*domain.User), args.Error(1)
 }
 
+func (m *MockUserService) GetUserByFirebaseID(ctx context.Context, firebaseID string) (*domain.User, error) {
+	args := m.Called(ctx, firebaseID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.User), args.Error(1)
+}
+
+func (m *MockUserService) GetUserProfileByUserID(ctx context.Context, userID string) (*domain.User, string, string, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.String(1), args.String(2), args.Error(3)
+	}
+	return args.Get(0).(*domain.User), args.String(1), args.String(2), args.Error(3)
+}
+
 func (m *MockUserService) GetUserByUserID(ctx context.Context, userID string) (*domain.User, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {

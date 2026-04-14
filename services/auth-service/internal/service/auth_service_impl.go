@@ -139,8 +139,10 @@ func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstNa
 			"email":      email,
 		},
 	}
-	if err := notification.Publish(ctx, s.redisClient, welcomeEvent); err != nil {
-		s.logger.Error("failed to publish welcome notification", zap.Error(err))
+	if s.redisClient != nil {
+		if err := notification.Publish(ctx, s.redisClient, welcomeEvent); err != nil {
+			s.logger.Error("failed to publish welcome notification", zap.Error(err))
+		}
 	}
 
 	return userPreview, nil

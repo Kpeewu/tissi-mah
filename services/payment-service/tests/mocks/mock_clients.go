@@ -16,6 +16,11 @@ func (m *MockBookingClient) ConfirmPayment(ctx context.Context, bookingID string
 	return args.Error(0)
 }
 
+func (m *MockBookingClient) FailPayment(ctx context.Context, bookingID string, reason string) error {
+	args := m.Called(ctx, bookingID, reason)
+	return args.Error(0)
+}
+
 func (m *MockBookingClient) GetBookingDetails(ctx context.Context, bookingID string) (*client.BookingDetails, error) {
 	args := m.Called(ctx, bookingID)
 	if args.Get(0) == nil {

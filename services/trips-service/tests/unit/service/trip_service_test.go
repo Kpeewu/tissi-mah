@@ -32,7 +32,11 @@ func newTestService() (
 	writeRepo := new(mocks.MockTripRepositoryWrite)
 	userClient := new(mocks.MockUserClient)
 	vehicleClient := new(mocks.MockVehicleClient)
-	svc := service.NewTripService(readRepo, writeRepo, userClient, vehicleClient, nil, nil, nil, zap.NewNop())
+	// Par défaut, résout authID -> userID en retournant l'authID (identity).
+	// Les tests peuvent surcharger avec .On("GetUserIDByAuthID", ...) explicite.
+	userClient.On("GetUserIDByAuthID", mock.Anything, mock.AnythingOfType("string")).
+		Return(func(_ context.Context, authID string) string { return authID }, nil).Maybe()
+	svc := service.NewTripService(readRepo, writeRepo, userClient, vehicleClient, nil, nil, nil, nil, zap.NewNop())
 	return readRepo, writeRepo, userClient, vehicleClient, svc
 }
 
@@ -81,6 +85,7 @@ func TestCreateTrip(t *testing.T) {
 		_, writeRepo, userClient, _, svc := newTestService()
 		ctx := context.Background()
 
+		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(true, nil)
 		writeRepo.On("Create", ctx, mock.Anything, mock.Anything).Return("new-trip-id", nil)
 
@@ -93,19 +98,21 @@ func TestCreateTrip(t *testing.T) {
 		writeRepo.AssertExpectations(t)
 	})
 
-	t.Run("erreur - driverID vide → ErrorInvalidInput", func(t *testing.T) {
+	t.Run("erreur - driverID vide → ErrorUnauthorized", func(t *testing.T) {
 		_, _, _, _, svc := newTestService()
 		ctx := context.Background()
 
 		trip, err := svc.CreateTrip(ctx, validCreateTripInput("", "vehicle-1"))
 
 		assert.Nil(t, trip)
-		assert.ErrorIs(t, err, tripErrors.ErrorInvalidInput)
+		assert.ErrorIs(t, err, tripErrors.ErrorUnauthorized)
 	})
 
 	t.Run("erreur - moins de 2 waypoints → ErrorInvalidWaypoints", func(t *testing.T) {
-		_, _, _, _, svc := newTestService()
+		_, _, userClient, _, svc := newTestService()
 		ctx := context.Background()
+
+		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 
 		input := validCreateTripInput("driver-1", "vehicle-1")
 		input.Waypoints = []serviceInterfaces.WaypointInput{
@@ -122,6 +129,7 @@ func TestCreateTrip(t *testing.T) {
 		_, _, userClient, _, svc := newTestService()
 		ctx := context.Background()
 
+		userClient.On("GetUserIDByAuthID", ctx, "driver-unverified").Return("driver-unverified", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-unverified").Return(false, nil)
 
 		trip, err := svc.CreateTrip(ctx, validCreateTripInput("driver-unverified", "vehicle-1"))
@@ -135,6 +143,7 @@ func TestCreateTrip(t *testing.T) {
 		_, writeRepo, userClient, _, svc := newTestService()
 		ctx := context.Background()
 
+		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(true, nil)
 		writeRepo.On("Create", ctx, mock.Anything, mock.Anything).Return("", tripErrors.ErrorInternalServer)
 
@@ -231,7 +240,7 @@ func TestStartTrip(t *testing.T) {
 		writeRepo.AssertExpectations(t)
 	})
 
-	t.Run("erreur - driverID vide → ErrorInvalidInput", func(t *testing.T) {
+	t.Run("erreur - driverID vide → ErrorUnauthorized", func(t *testing.T) {
 		_, _, _, _, svc := newTestService()
 		ctx := context.Background()
 
@@ -240,7 +249,7 @@ func TestStartTrip(t *testing.T) {
 			TripID:   "trip-1",
 		})
 
-		assert.ErrorIs(t, err, tripErrors.ErrorInvalidInput)
+		assert.ErrorIs(t, err, tripErrors.ErrorUnauthorized)
 	})
 
 	t.Run("erreur - conducteur a déjà un trajet actif → ErrorDriverAlreadyHasActiveTrip", func(t *testing.T) {
@@ -429,7 +438,7 @@ func TestChangeTripDateAndTime(t *testing.T) {
 		writeRepo.AssertExpectations(t)
 	})
 
-	t.Run("erreur - driverID vide → ErrorInvalidInput", func(t *testing.T) {
+	t.Run("erreur - driverID vide → ErrorUnauthorized", func(t *testing.T) {
 		_, _, _, _, svc := newTestService()
 		ctx := context.Background()
 
@@ -439,7 +448,7 @@ func TestChangeTripDateAndTime(t *testing.T) {
 			DepartureDatetime: time.Now().UTC().Add(2 * time.Hour).Format(time.RFC3339),
 		})
 
-		assert.ErrorIs(t, err, tripErrors.ErrorInvalidInput)
+		assert.ErrorIs(t, err, tripErrors.ErrorUnauthorized)
 	})
 
 	t.Run("erreur - datetime invalide → ErrorInvalidDatetime", func(t *testing.T) {
@@ -567,7 +576,7 @@ func TestChangeAutoApprove(t *testing.T) {
 
 func TestGetTripByID(t *testing.T) {
 	t.Run("succès - retourne TripDetailResult avec waypoints", func(t *testing.T) {
-		readRepo, _, _, _, svc := newTestService()
+		readRepo, _, _, vehicleClient, svc := newTestService()
 		ctx := context.Background()
 
 		trip := &domain.Trip{
@@ -582,6 +591,7 @@ func TestGetTripByID(t *testing.T) {
 		}
 
 		readRepo.On("GetTripByID", ctx, "trip-1").Return(trip, waypoints, nil)
+		vehicleClient.On("GetVehicleInfo", mock.Anything, "driver-1", mock.Anything).Return("", "", 0, nil).Maybe()
 
 		result, err := svc.GetTripByID(ctx, &serviceInterfaces.GetTripByIDInput{TripID: "trip-1"})
 
@@ -720,14 +730,14 @@ func TestGetTripsPreviews(t *testing.T) {
 		vehicleClient.AssertExpectations(t)
 	})
 
-	t.Run("erreur - driverID vide → ErrorInvalidInput", func(t *testing.T) {
+	t.Run("erreur - driverID vide → ErrorUnauthorized", func(t *testing.T) {
 		_, _, _, _, svc := newTestService()
 		ctx := context.Background()
 
 		results, err := svc.GetTripsPreviews(ctx, &serviceInterfaces.GetTripsPreviewsInput{DriverID: ""})
 
 		assert.Nil(t, results)
-		assert.ErrorIs(t, err, tripErrors.ErrorInvalidInput)
+		assert.ErrorIs(t, err, tripErrors.ErrorUnauthorized)
 	})
 }
 
@@ -737,9 +747,10 @@ func TestGetTripsPreviews(t *testing.T) {
 
 func TestCancelWaypoint(t *testing.T) {
 	t.Run("succès - annule le waypoint", func(t *testing.T) {
-		_, writeRepo, _, _, svc := newTestService()
+		readRepo, writeRepo, _, _, svc := newTestService()
 		ctx := context.Background()
 
+		readRepo.On("GetTripIDByWaypointID", ctx, "waypoint-1").Return("trip-1", nil)
 		writeRepo.On("CancelWaypoint", ctx, "waypoint-1", "driver-1", "route modifiée").Return(nil)
 
 		err := svc.CancelWaypoint(ctx, &serviceInterfaces.CancelWaypointInput{
@@ -752,7 +763,7 @@ func TestCancelWaypoint(t *testing.T) {
 		writeRepo.AssertExpectations(t)
 	})
 
-	t.Run("erreur - driverID vide → ErrorInvalidInput", func(t *testing.T) {
+	t.Run("erreur - driverID vide → ErrorUnauthorized", func(t *testing.T) {
 		_, _, _, _, svc := newTestService()
 		ctx := context.Background()
 
@@ -762,7 +773,7 @@ func TestCancelWaypoint(t *testing.T) {
 			CancellationReason: "route modifiée",
 		})
 
-		assert.ErrorIs(t, err, tripErrors.ErrorInvalidInput)
+		assert.ErrorIs(t, err, tripErrors.ErrorUnauthorized)
 	})
 
 	t.Run("erreur - waypointID vide → ErrorInvalidInput", func(t *testing.T) {
@@ -792,9 +803,10 @@ func TestCancelWaypoint(t *testing.T) {
 	})
 
 	t.Run("erreur - repo renvoie ErrorWaypointNotFound → propagé", func(t *testing.T) {
-		_, writeRepo, _, _, svc := newTestService()
+		readRepo, writeRepo, _, _, svc := newTestService()
 		ctx := context.Background()
 
+		readRepo.On("GetTripIDByWaypointID", ctx, "waypoint-ghost").Return("trip-1", nil)
 		writeRepo.On("CancelWaypoint", ctx, "waypoint-ghost", "driver-1", "raison").
 			Return(tripErrors.ErrorWaypointNotFound)
 
@@ -809,9 +821,10 @@ func TestCancelWaypoint(t *testing.T) {
 	})
 
 	t.Run("erreur - repo renvoie ErrorUnauthorized → propagé", func(t *testing.T) {
-		_, writeRepo, _, _, svc := newTestService()
+		readRepo, writeRepo, _, _, svc := newTestService()
 		ctx := context.Background()
 
+		readRepo.On("GetTripIDByWaypointID", ctx, "waypoint-1").Return("trip-1", nil)
 		writeRepo.On("CancelWaypoint", ctx, "waypoint-1", "wrong-driver", "raison").
 			Return(tripErrors.ErrorUnauthorized)
 
@@ -826,9 +839,10 @@ func TestCancelWaypoint(t *testing.T) {
 	})
 
 	t.Run("erreur - repo renvoie ErrorTripNotScheduled → propagé", func(t *testing.T) {
-		_, writeRepo, _, _, svc := newTestService()
+		readRepo, writeRepo, _, _, svc := newTestService()
 		ctx := context.Background()
 
+		readRepo.On("GetTripIDByWaypointID", ctx, "waypoint-1").Return("trip-1", nil)
 		writeRepo.On("CancelWaypoint", ctx, "waypoint-1", "driver-1", "raison").
 			Return(tripErrors.ErrorTripNotScheduled)
 
@@ -843,9 +857,10 @@ func TestCancelWaypoint(t *testing.T) {
 	})
 
 	t.Run("erreur - repo renvoie ErrorWaypointNotAStop → propagé", func(t *testing.T) {
-		_, writeRepo, _, _, svc := newTestService()
+		readRepo, writeRepo, _, _, svc := newTestService()
 		ctx := context.Background()
 
+		readRepo.On("GetTripIDByWaypointID", ctx, "waypoint-dep").Return("trip-1", nil)
 		writeRepo.On("CancelWaypoint", ctx, "waypoint-dep", "driver-1", "raison").
 			Return(tripErrors.ErrorWaypointNotAStop)
 
@@ -860,9 +875,10 @@ func TestCancelWaypoint(t *testing.T) {
 	})
 
 	t.Run("erreur - repo renvoie ErrorWaypointAlreadyCancelled → propagé", func(t *testing.T) {
-		_, writeRepo, _, _, svc := newTestService()
+		readRepo, writeRepo, _, _, svc := newTestService()
 		ctx := context.Background()
 
+		readRepo.On("GetTripIDByWaypointID", ctx, "waypoint-1").Return("trip-1", nil)
 		writeRepo.On("CancelWaypoint", ctx, "waypoint-1", "driver-1", "raison").
 			Return(tripErrors.ErrorWaypointAlreadyCancelled)
 

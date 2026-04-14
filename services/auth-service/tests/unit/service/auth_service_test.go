@@ -32,7 +32,7 @@ func newTestService() (*mocks.MockAuthRepositoryRead, *mocks.MockAuthRepositoryW
 	mockReadRepo := new(mocks.MockAuthRepositoryRead)
 	mockWriteRepo := new(mocks.MockAuthRepositoryWrite)
 	mockUserClient := new(mocks.MockUserClient)
-	svc := service.NewAuthService(mockReadRepo, mockWriteRepo, mockUserClient, zap.NewNop())
+	svc := service.NewAuthService(mockReadRepo, mockWriteRepo, mockUserClient, nil, zap.NewNop())
 	return mockReadRepo, mockWriteRepo, mockUserClient, svc
 }
 
@@ -403,12 +403,13 @@ func TestGetAuthInfo(t *testing.T) {
 
 func TestDeleteUserAccount(t *testing.T) {
 	t.Run("succès - supprime le compte auth", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, _, svc := newTestService()
+		mockReadRepo, mockWriteRepo, mockUserClient, svc := newTestService()
 		ctx := context.Background()
 
 		auth := fixtures.NewTestAuth(fixtures.WithFirebaseID("firebase-delete-ok"))
 		mockReadRepo.On("GetByFirebaseID", mock.Anything, "firebase-delete-ok").
 			Return(auth, nil)
+		mockUserClient.On("SoftDeleteUser", mock.Anything, auth.AuthID).Return(nil)
 		mockWriteRepo.On("Delete", mock.Anything, auth).
 			Return(nil)
 
@@ -442,13 +443,14 @@ func TestDeleteUserAccount(t *testing.T) {
 	})
 
 	t.Run("erreur - writeRepo.Delete échoue et propage l'erreur", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, _, svc := newTestService()
+		mockReadRepo, mockWriteRepo, mockUserClient, svc := newTestService()
 		ctx := context.Background()
 		deleteErr := errors.New("delete constraint violation")
 
 		auth := fixtures.NewTestAuth(fixtures.WithFirebaseID("firebase-delete-fail"))
 		mockReadRepo.On("GetByFirebaseID", mock.Anything, "firebase-delete-fail").
 			Return(auth, nil)
+		mockUserClient.On("SoftDeleteUser", mock.Anything, auth.AuthID).Return(nil)
 		mockWriteRepo.On("Delete", mock.Anything, auth).
 			Return(deleteErr)
 

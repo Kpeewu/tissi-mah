@@ -78,6 +78,7 @@ func TestMain(m *testing.M) {
 		readRepo, writeRepo,
 		mockTripClient, mockUserClient, mockPaymentClient,
 		nil, // cache
+		nil, // notifRedis
 		10,  // serviceFeePercent
 		logger,
 	)

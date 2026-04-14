@@ -26,6 +26,14 @@ func (m *MockUserClient) GetDriverInfo(ctx context.Context, userID string) (stri
 	return args.String(0), args.String(1), args.Error(2)
 }
 
+func (m *MockUserClient) GetUserIDByAuthID(ctx context.Context, authID string) (string, error) {
+	args := m.Called(ctx, authID)
+	if fn, ok := args.Get(0).(func(context.Context, string) string); ok {
+		return fn(ctx, authID), args.Error(1)
+	}
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockUserClient) Close() error {
 	args := m.Called()
 	return args.Error(0)
