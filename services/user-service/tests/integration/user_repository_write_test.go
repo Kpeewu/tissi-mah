@@ -110,6 +110,7 @@ func TestUserRepositoryWrite_Delete(t *testing.T) {
 		user := fixtures.NewTestUser()
 		insertUser(t, user)
 
+		user.AnonymizeAndDelete()
 		err := repo.AnonymizeAndDelete(context.Background(), user)
 
 		require.NoError(t, err)

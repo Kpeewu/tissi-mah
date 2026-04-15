@@ -61,6 +61,9 @@ func TestMain(m *testing.M) {
 	mockTripClient := new(mocks.MockTripClient)
 	mockTripClient.On("GetTripDetails", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	mockTripClient.On("UpdateAvailableSeats", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockTripClient.On("IncrementLegBookedSeats", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockTripClient.On("StartBookingsForWaypoint", mock.Anything, mock.Anything, mock.Anything).Return([]string{}, nil).Maybe()
+	mockTripClient.On("CompleteBookingsForWaypoint", mock.Anything, mock.Anything, mock.Anything).Return([]string{}, nil).Maybe()
 
 	mockUserClient := new(mocks.MockUserClient)
 	mockUserClient.On("UserExists", mock.Anything, mock.Anything).Return(true, nil).Maybe()

@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Kpeewu/tissi-mah/services/support-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/support-service/internal/config"
 	"github.com/Kpeewu/tissi-mah/services/support-service/internal/domain"
 	"github.com/Kpeewu/tissi-mah/services/support-service/internal/otp"
@@ -20,6 +19,12 @@ import (
 
 const emailChangeCooldown = 6 * 30 * 24 * time.Hour // 6 mois
 
+// EmailSender abstrait l'envoi d'email transactionnel (satisfait par *client.EmailClient).
+// Permet d'injecter un mock en tests sans dépendre d'un gRPC client.
+type EmailSender interface {
+	SendEmail(ctx context.Context, to, subject, bodyText, bodyHTML string) error
+}
+
 type supportServiceImpl struct {
 	cfg          *config.Config
 	readRepo     repoIfaces.SupportUserReadRepository
@@ -27,7 +32,7 @@ type supportServiceImpl struct {
 	otpStore     *otp.Store
 	jwtSigner    *token.JWTSigner
 	refreshStore *token.RefreshStore
-	emailClient  *client.EmailClient
+	emailClient  EmailSender
 	logger       *zap.Logger
 }
 
@@ -39,7 +44,7 @@ func NewSupportService(
 	otpStore *otp.Store,
 	jwtSigner *token.JWTSigner,
 	refreshStore *token.RefreshStore,
-	emailClient *client.EmailClient,
+	emailClient EmailSender,
 	logger *zap.Logger,
 ) svcIfaces.SupportService {
 	return &supportServiceImpl{

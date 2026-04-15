@@ -144,17 +144,21 @@ func NewTestCashBooking(opts ...BookingOption) *domain.Booking {
 func InsertBooking(ctx context.Context, pool *pgxpool.Pool, b *domain.Booking) error {
 	query := `INSERT INTO bookings (
 		booking_id, booking_reference, trip_id, passenger_id, driver_id,
-		pickup_waypoint_id, dropoff_waypoint_id, seats_booked, price_per_seat,
+		pickup_waypoint_id, dropoff_waypoint_id,
+		pickup_sequencer_order, dropoff_sequencer_order,
+		seats_booked, price_per_seat,
 		subtotal, service_fee, total_amount, payment_method, status,
 		payment_completed_at, approved_at, rejected_at, cancelled_at, completed_at,
 		canceller_id, cancellation_reason, no_show_type, no_show_reported_by,
 		no_show_reported_at, no_show_description
 	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-		$15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`
+		$15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)`
 
 	_, err := pool.Exec(ctx, query,
 		b.BookingID, b.BookingReference, b.TripID, b.PassengerID, b.DriverID,
-		b.PickupWaypointID, b.DropoffWaypointID, b.SeatsBooked, b.PricePerSeat,
+		b.PickupWaypointID, b.DropoffWaypointID,
+		b.PickupSequencerOrder, b.DropoffSequencerOrder,
+		b.SeatsBooked, b.PricePerSeat,
 		b.Subtotal, b.ServiceFee, b.TotalAmount, b.PaymentMethod, b.Status,
 		b.PaymentCompletedAt, b.ApprovedAt, b.RejectedAt, b.CancelledAt, b.CompletedAt,
 		b.CancellerID, b.CancellationReason, b.NoShowType, b.NoShowReportedBy,

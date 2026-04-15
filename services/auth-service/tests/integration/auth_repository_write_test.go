@@ -231,7 +231,7 @@ func TestAuthRepositoryWrite_Delete(t *testing.T) {
 		err = row.Scan(&firebaseID, &email, &phoneNumber, &isActive, &deletedAt)
 		require.NoError(t, err)
 
-		assert.Empty(t, firebaseID)
+		assert.Equal(t, "deleted_"+auth.AuthID, firebaseID)
 		assert.Nil(t, phoneNumber)
 		assert.False(t, isActive)
 		assert.NotNil(t, deletedAt)
