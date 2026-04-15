@@ -126,6 +126,12 @@ func TestE2E_GetUserByUserID(t *testing.T) {
 		})
 		require.NoError(t, err)
 
+		mockAuthClient.On("GetAuthInfo", mock.Anything, created.AuthID).
+			Return(&client.AuthInfo{
+				AuthID: created.AuthID, Email: "oumar@example.com", PhoneNumber: "+22500000000",
+				IsActive: true,
+			}, nil).Once()
+
 		resp, err := grpcClient.GetUserByUserID(context.Background(), &userpb.GetUserByUserIDRequest{
 			UserID: created.UserID,
 		})
@@ -133,6 +139,7 @@ func TestE2E_GetUserByUserID(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, created.UserID, resp.UserID)
 		assert.Equal(t, "Traoré", resp.Name)
+		assert.Equal(t, "oumar@example.com", resp.Email)
 	})
 
 	t.Run("erreur - utilisateur introuvable", func(t *testing.T) {
