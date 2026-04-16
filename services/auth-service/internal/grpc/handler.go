@@ -154,6 +154,10 @@ func toGRPCError(err error) error {
 		return status.Error(codes.DeadlineExceeded, "request timeout")
 	case errors.Is(err, context.Canceled):
 		return status.Error(codes.Canceled, "request canceled")
+	case errors.Is(err, domain.ErrEmailInvalidFormat),
+		errors.Is(err, domain.ErrEmailTooLong),
+		errors.Is(err, domain.ErrPhoneInvalidFormat):
+		return status.Error(codes.InvalidArgument, err.Error())
 	case errors.Is(err, authErrors.ErrorUserNotFound):
 		return status.Error(codes.NotFound, err.Error())
 	case errors.Is(err, authErrors.ErrorEmailNotAvailable):

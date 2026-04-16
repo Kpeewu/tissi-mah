@@ -289,6 +289,54 @@ func TestRegisterUser(t *testing.T) {
 		assert.ErrorIs(t, err, authErrors.ErrorInternalServer)
 		mockWriteRepo.AssertExpectations(t)
 	})
+
+	t.Run("erreur - email au format invalide retourne ErrEmailInvalidFormat", func(t *testing.T) {
+		_, _, _, svc := newTestService()
+		ctx := ctxWithFirebaseID("firebase-bad-email")
+
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "not-an-email", "+22890000000", "")
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, domain.ErrEmailInvalidFormat)
+	})
+
+	t.Run("erreur - téléphone au format invalide retourne ErrPhoneInvalidFormat", func(t *testing.T) {
+		_, _, _, svc := newTestService()
+		ctx := ctxWithFirebaseID("firebase-bad-phone")
+
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "ok@example.com", "12345", "")
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, domain.ErrPhoneInvalidFormat)
+	})
+
+	t.Run("succès - normalise l'email en minuscules", func(t *testing.T) {
+		mockReadRepo, mockWriteRepo, mockUserClient, svc := newTestService()
+		ctx := ctxWithFirebaseID("firebase-normalize")
+
+		// L'email normalisé est en minuscules
+		mockReadRepo.On("EmailExists", mock.Anything, "upper@example.com").
+			Return(false, nil)
+		mockWriteRepo.On("Create", mock.Anything, mock.MatchedBy(func(a *domain.Auth) bool {
+			return a.GetEmail() == "upper@example.com"
+		})).Return("auth-normalize", nil)
+
+		userPreview := &domain.UserPreview{
+			AuthID: "auth-normalize", UserID: "user-norm",
+			Name: "Doe", FirstName: "John",
+		}
+		mockUserClient.On("CreateUser", mock.Anything, "auth-normalize", "firebase-normalize", "Doe", "John", "").
+			Return(userPreview, nil)
+
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "UPPER@Example.COM", "", "")
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		// L'email stocké doit être normalisé
+		require.NotNil(t, result.Email)
+		assert.Equal(t, "upper@example.com", *result.Email)
+		mockReadRepo.AssertExpectations(t)
+	})
 }
 
 // =============================================================================
@@ -333,6 +381,16 @@ func TestCheckEmail(t *testing.T) {
 		assert.False(t, available)
 		assert.ErrorIs(t, err, authErrors.ErrorInternalServer)
 	})
+
+	t.Run("erreur - email au format invalide retourne ErrEmailInvalidFormat", func(t *testing.T) {
+		_, _, _, svc := newTestService()
+		ctx := context.Background()
+
+		available, err := svc.CheckEmail(ctx, "not-an-email")
+
+		assert.False(t, available)
+		assert.ErrorIs(t, err, domain.ErrEmailInvalidFormat)
+	})
 }
 
 // =============================================================================
@@ -376,6 +434,16 @@ func TestCheckPhoneNumber(t *testing.T) {
 
 		assert.False(t, available)
 		assert.ErrorIs(t, err, authErrors.ErrorInternalServer)
+	})
+
+	t.Run("erreur - téléphone au format invalide retourne ErrPhoneInvalidFormat", func(t *testing.T) {
+		_, _, _, svc := newTestService()
+		ctx := context.Background()
+
+		available, err := svc.CheckPhoneNumber(ctx, "12345")
+
+		assert.False(t, available)
+		assert.ErrorIs(t, err, domain.ErrPhoneInvalidFormat)
 	})
 }
 
