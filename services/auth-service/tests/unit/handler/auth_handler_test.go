@@ -71,7 +71,7 @@ func TestCreateAccount_Success(t *testing.T) {
 		ProfilePhotoURL: &photo,
 	}
 
-	mockService.On("RegisterUser", ctx, "Toure", "Moussa", email, phone, photo).
+	mockService.On("RegisterUser", mock.Anything, "Toure", "Moussa", email, phone, photo).
 		Return(preview, nil)
 
 	// Act
@@ -103,7 +103,7 @@ func TestCreateAccount_EmailNotAvailable(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("RegisterUser", ctx, "Toure", "Moussa", "taken@example.com", "+221780000000", "").
+	mockService.On("RegisterUser", mock.Anything, "Toure", "Moussa", "taken@example.com", "+221780000000", "").
 		Return(nil, authErrors.ErrorEmailNotAvailable)
 
 	// Act
@@ -126,7 +126,7 @@ func TestCreateAccount_PhoneNotAvailable(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("RegisterUser", ctx, "Diop", "Awa", "awa@example.com", "+221770000001", "").
+	mockService.On("RegisterUser", mock.Anything, "Diop", "Awa", "awa@example.com", "+221770000001", "").
 		Return(nil, authErrors.ErrorPhoneNumberNotAvailable)
 
 	// Act
@@ -149,7 +149,7 @@ func TestCreateAccount_InternalError(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("RegisterUser", ctx, "X", "Y", "x@y.com", "+000", "").
+	mockService.On("RegisterUser", mock.Anything, "X", "Y", "x@y.com", "+000", "").
 		Return(nil, authErrors.ErrorInternalServer)
 
 	// Act
@@ -176,7 +176,7 @@ func TestCheckEmail_Available(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("CheckEmail", ctx, "free@example.com").Return(true, nil)
+	mockService.On("CheckEmail", mock.Anything, "free@example.com").Return(true, nil)
 
 	// Act
 	resp, err := handler.CheckEmail(ctx, &authpb.CheckEmailRequest{Email: "free@example.com"})
@@ -194,7 +194,7 @@ func TestCheckEmail_NotAvailable(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("CheckEmail", ctx, "taken@example.com").
+	mockService.On("CheckEmail", mock.Anything, "taken@example.com").
 		Return(false, authErrors.ErrorEmailNotAvailable)
 
 	// Act
@@ -212,7 +212,7 @@ func TestCheckEmail_InternalError(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("CheckEmail", ctx, "fail@example.com").
+	mockService.On("CheckEmail", mock.Anything, "fail@example.com").
 		Return(false, authErrors.ErrorDataRetrievalFailed)
 
 	// Act
@@ -234,7 +234,7 @@ func TestCheckPhoneNumber_Available(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("CheckPhoneNumber", ctx, "+221770000000").Return(true, nil)
+	mockService.On("CheckPhoneNumber", mock.Anything, "+221770000000").Return(true, nil)
 
 	// Act
 	resp, err := handler.CheckPhoneNumber(ctx, &authpb.CheckPhoneNumberRequest{PhoneNumber: "+221770000000"})
@@ -252,7 +252,7 @@ func TestCheckPhoneNumber_NotAvailable(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("CheckPhoneNumber", ctx, "+221770000001").
+	mockService.On("CheckPhoneNumber", mock.Anything, "+221770000001").
 		Return(false, authErrors.ErrorPhoneNumberNotAvailable)
 
 	// Act
@@ -270,7 +270,7 @@ func TestCheckPhoneNumber_InternalError(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("CheckPhoneNumber", ctx, "+000").
+	mockService.On("CheckPhoneNumber", mock.Anything, "+000").
 		Return(false, authErrors.ErrorInternalServer)
 
 	// Act
@@ -292,7 +292,7 @@ func TestDeleteAccount_Success(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.WithValue(context.Background(), middleware.FirebaseIDKey, "firebase-uid-123")
 
-	mockService.On("DeleteUserAccount", ctx, "firebase-uid-123").Return(nil)
+	mockService.On("DeleteUserAccount", mock.Anything, "firebase-uid-123").Return(nil)
 
 	// Act
 	resp, err := handler.DeleteAccount(ctx, &authpb.DeleteAccountRequest{})
@@ -336,7 +336,7 @@ func TestDeleteAccount_UserNotFound(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.WithValue(context.Background(), middleware.FirebaseIDKey, "firebase-uid-ghost")
 
-	mockService.On("DeleteUserAccount", ctx, "firebase-uid-ghost").
+	mockService.On("DeleteUserAccount", mock.Anything, "firebase-uid-ghost").
 		Return(authErrors.ErrorUserNotFound)
 
 	// Act
@@ -354,7 +354,7 @@ func TestDeleteAccount_CantDelete(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.WithValue(context.Background(), middleware.FirebaseIDKey, "firebase-uid-locked")
 
-	mockService.On("DeleteUserAccount", ctx, "firebase-uid-locked").
+	mockService.On("DeleteUserAccount", mock.Anything, "firebase-uid-locked").
 		Return(authErrors.ErrorCantDeleteAccount)
 
 	// Act
@@ -372,7 +372,7 @@ func TestDeleteAccount_InternalError(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.WithValue(context.Background(), middleware.FirebaseIDKey, "firebase-uid-err")
 
-	mockService.On("DeleteUserAccount", ctx, "firebase-uid-err").
+	mockService.On("DeleteUserAccount", mock.Anything, "firebase-uid-err").
 		Return(authErrors.ErrorInternalServer)
 
 	// Act
@@ -430,7 +430,7 @@ func TestGetAuthInfo_SuccessAllFields(t *testing.T) {
 		SuspensionEndDate: &suspEnd,
 	}
 
-	mockService.On("GetAuthInfo", ctx, "auth-info-1").Return(auth, nil)
+	mockService.On("GetAuthInfo", mock.Anything, "auth-info-1").Return(auth, nil)
 
 	// Act
 	resp, err := handler.GetAuthInfo(ctx, &authpb.GetAuthInfoRequest{AuthID: "auth-info-1"})
@@ -459,7 +459,7 @@ func TestGetAuthInfo_SuccessNilOptionalFields(t *testing.T) {
 		IsSuspended: false,
 	}
 
-	mockService.On("GetAuthInfo", ctx, "auth-info-2").Return(auth, nil)
+	mockService.On("GetAuthInfo", mock.Anything, "auth-info-2").Return(auth, nil)
 
 	// Act
 	resp, err := handler.GetAuthInfo(ctx, &authpb.GetAuthInfoRequest{AuthID: "auth-info-2"})
@@ -482,7 +482,7 @@ func TestGetAuthInfo_UserNotFound(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("GetAuthInfo", ctx, "auth-ghost").
+	mockService.On("GetAuthInfo", mock.Anything, "auth-ghost").
 		Return(nil, authErrors.ErrorUserNotFound)
 
 	// Act
@@ -500,7 +500,7 @@ func TestGetAuthInfo_InternalError(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("GetAuthInfo", ctx, "auth-fail").
+	mockService.On("GetAuthInfo", mock.Anything, "auth-fail").
 		Return(nil, authErrors.ErrorDataRetrievalFailed)
 
 	// Act
@@ -628,7 +628,7 @@ func TestToGRPCError_UnknownErrorMessage(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("GetAuthInfo", ctx, "id").Return(nil, errors.New("secret database details"))
+	mockService.On("GetAuthInfo", mock.Anything, "id").Return(nil, errors.New("secret database details"))
 
 	// Act
 	_, err := handler.GetAuthInfo(ctx, &authpb.GetAuthInfoRequest{AuthID: "id"})
@@ -650,7 +650,7 @@ func TestToGRPCError_KnownErrorPreservesMessage(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("CheckEmail", ctx, "taken@test.com").
+	mockService.On("CheckEmail", mock.Anything, "taken@test.com").
 		Return(false, authErrors.ErrorEmailNotAvailable)
 
 	// Act
