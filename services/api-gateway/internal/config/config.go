@@ -130,8 +130,8 @@ func Load() (*Config, error) {
 			Port: sharedconfig.GetStringOrDefault(values, "PAYMENT_SERVICE_PORT", "50059"),
 		},
 		NotificationService: ServiceEndpoint{
-			Host: sharedconfig.GetStringOrDefault(values, "NOTIFICATION_SERVICE_HOST", "0.0.0.0"),
-			Port: sharedconfig.GetStringOrDefault(values, "NOTIFICATION_SERVICE_PORT", "50060"),
+			Host: sharedconfig.GetStringOrDefault(values, "NOTIF_SERVICE_HOST", "0.0.0.0"),
+			Port: sharedconfig.GetStringOrDefault(values, "NOTIF_SERVICE_PORT", "50060"),
 		},
 		SupportService: ServiceEndpoint{
 			Host: sharedconfig.GetStringOrDefault(values, "SUPPORT_SERVICE_HOST", "0.0.0.0"),
