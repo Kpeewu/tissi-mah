@@ -17,6 +17,12 @@ import (
 
 const serviceVersion = "1.0.0"
 
+// Timeouts pour les handlers gRPC
+const (
+	defaultTimeout      = 5 * time.Second  // Opérations simples (lecture DB)
+	crossServiceTimeout = 10 * time.Second // Opérations impliquant un appel inter-service
+)
+
 // AuthHandler implémente authpb.AuthServiceServer.
 // Il traduit les requêtes proto en appels de service et mappe les erreurs domaine
 // vers les codes gRPC appropriés.
@@ -32,6 +38,9 @@ func NewAuthHandler(service serviceInterfaces.AuthService, logger *zap.Logger) *
 
 // CreateAccount crée un nouveau compte utilisateur.
 func (h *AuthHandler) CreateAccount(ctx context.Context, req *authpb.CreateAccountRequest) (*authpb.CreateAccountResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, crossServiceTimeout)
+	defer cancel()
+
 	h.logger.Debug("handler: CreateAccount called",
 		zap.String("name", req.Name),
 		zap.String("firstName", req.FirstName),
@@ -49,6 +58,9 @@ func (h *AuthHandler) CreateAccount(ctx context.Context, req *authpb.CreateAccou
 
 // CheckEmail vérifie si une adresse email est disponible (non utilisée).
 func (h *AuthHandler) CheckEmail(ctx context.Context, req *authpb.CheckEmailRequest) (*authpb.CheckPhoneOrEmailResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
+	defer cancel()
+
 	h.logger.Debug("handler: CheckEmail called", zap.String("email", req.Email))
 	available, err := h.service.CheckEmail(ctx, req.Email)
 	if err != nil {
@@ -61,6 +73,9 @@ func (h *AuthHandler) CheckEmail(ctx context.Context, req *authpb.CheckEmailRequ
 
 // CheckPhoneNumber vérifie si un numéro de téléphone est disponible.
 func (h *AuthHandler) CheckPhoneNumber(ctx context.Context, req *authpb.CheckPhoneNumberRequest) (*authpb.CheckPhoneOrEmailResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
+	defer cancel()
+
 	h.logger.Debug("handler: CheckPhoneNumber called", zap.String("phone", req.PhoneNumber))
 	available, err := h.service.CheckPhoneNumber(ctx, req.PhoneNumber)
 	if err != nil {
@@ -74,6 +89,9 @@ func (h *AuthHandler) CheckPhoneNumber(ctx context.Context, req *authpb.CheckPho
 // DeleteAccount supprime le compte de l'utilisateur authentifié.
 // Le Firebase UID est extrait du contexte (injecté par l'intercepteur JWT).
 func (h *AuthHandler) DeleteAccount(ctx context.Context, _ *authpb.DeleteAccountRequest) (*authpb.AuthServerResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, crossServiceTimeout)
+	defer cancel()
+
 	h.logger.Debug("handler: DeleteAccount called")
 	firebaseID, ok := ctx.Value(middleware.FirebaseIDKey).(string)
 	if !ok || firebaseID == "" {
@@ -99,6 +117,9 @@ func (h *AuthHandler) Health(_ context.Context, _ *authpb.HealthRequest) (*authp
 
 // GetAuthInfo retourne les données d'authentification d'un utilisateur (inter-service, pas de JWT).
 func (h *AuthHandler) GetAuthInfo(ctx context.Context, req *authpb.GetAuthInfoRequest) (*authpb.GetAuthInfoResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
+	defer cancel()
+
 	h.logger.Debug("handler: GetAuthInfo called", zap.String("authID", req.AuthID))
 	auth, err := h.service.GetAuthInfo(ctx, req.AuthID)
 	if err != nil {
@@ -129,6 +150,14 @@ func (h *AuthHandler) GetAuthInfo(ctx context.Context, req *authpb.GetAuthInfoRe
 // toGRPCError traduit les erreurs domaine en codes de statut gRPC.
 func toGRPCError(err error) error {
 	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return status.Error(codes.DeadlineExceeded, "request timeout")
+	case errors.Is(err, context.Canceled):
+		return status.Error(codes.Canceled, "request canceled")
+	case errors.Is(err, domain.ErrEmailInvalidFormat),
+		errors.Is(err, domain.ErrEmailTooLong),
+		errors.Is(err, domain.ErrPhoneInvalidFormat):
+		return status.Error(codes.InvalidArgument, err.Error())
 	case errors.Is(err, authErrors.ErrorUserNotFound):
 		return status.Error(codes.NotFound, err.Error())
 	case errors.Is(err, authErrors.ErrorEmailNotAvailable):

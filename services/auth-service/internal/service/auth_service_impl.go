@@ -61,7 +61,25 @@ func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstNa
 		return nil, authErrors.ErrorInternalServer
 	}
 
+	// Normalisation des entrées
+	email = domain.NormalizeEmail(email)
+	phoneNumber = domain.NormalizePhone(phoneNumber)
+
 	s.logger.Debug("register user", zap.String("firebaseID", firebaseID), zap.String("email", email))
+
+	// Validation du format email
+	if email != "" {
+		if err := domain.ValidateEmail(email); err != nil {
+			return nil, err
+		}
+	}
+
+	// Validation du format téléphone
+	if phoneNumber != "" {
+		if err := domain.ValidatePhone(phoneNumber); err != nil {
+			return nil, err
+		}
+	}
 
 	// Vérification de la disponibilité de l'email
 	if email != "" {
@@ -117,7 +135,15 @@ func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstNa
 	// Email et PhoneNumber sont stockés dans auth-service, pas dans user-service
 	userPreview, err := s.userClient.CreateUser(ctx, authID, firebaseID, name, firstName, profilePhotoURL)
 	if err != nil {
-		s.logger.Error("user-service CreateUser failed", zap.Error(err))
+		s.logger.Error("user-service CreateUser failed, rolling back auth record",
+			zap.Error(err), zap.String("authID", authID))
+
+		// Compensation : suppression de l'auth record orphelin
+		if deleteErr := s.writeRepo.Delete(ctx, auth); deleteErr != nil {
+			s.logger.Error("failed to rollback auth record after user-service failure",
+				zap.Error(deleteErr), zap.String("authID", authID))
+		}
+
 		return nil, authErrors.ErrorInternalServer
 	}
 
@@ -150,8 +176,12 @@ func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstNa
 
 // CheckEmail vérifie si un email est disponible (non utilisé)
 func (s *authServiceImpl) CheckEmail(ctx context.Context, email string) (bool, error) {
+	email = domain.NormalizeEmail(email)
 	if email == "" {
 		return false, authErrors.ErrorInternalServer
+	}
+	if err := domain.ValidateEmail(email); err != nil {
+		return false, err
 	}
 
 	exists, err := s.readRepo.EmailExists(ctx, email)
@@ -164,8 +194,12 @@ func (s *authServiceImpl) CheckEmail(ctx context.Context, email string) (bool, e
 
 // CheckPhoneNumber vérifie si un numéro de téléphone est disponible (non utilisé)
 func (s *authServiceImpl) CheckPhoneNumber(ctx context.Context, phoneNumber string) (bool, error) {
+	phoneNumber = domain.NormalizePhone(phoneNumber)
 	if phoneNumber == "" {
 		return false, authErrors.ErrorInternalServer
+	}
+	if err := domain.ValidatePhone(phoneNumber); err != nil {
+		return false, err
 	}
 
 	exists, err := s.readRepo.PhoneNumberExists(ctx, phoneNumber)
@@ -208,5 +242,20 @@ func (s *authServiceImpl) DeleteUserAccount(ctx context.Context, firebaseID stri
 	}
 
 	// Anonymiser et soft-delete l'entrée auth
-	return s.writeRepo.Delete(ctx, auth)
+	// Retry en cas d'échec car user-service a déjà supprimé le profil
+	if err := s.writeRepo.Delete(ctx, auth); err != nil {
+		s.logger.Warn("first attempt to delete auth failed, retrying",
+			zap.Error(err), zap.String("authID", auth.AuthID))
+
+		if retryErr := s.writeRepo.Delete(ctx, auth); retryErr != nil {
+			s.logger.Error("CRITICAL: auth record not deleted after user-service deletion succeeded — manual cleanup required",
+				zap.Error(retryErr),
+				zap.String("authID", auth.AuthID),
+				zap.String("firebaseID", firebaseID),
+			)
+			return authErrors.ErrorCantDeleteAccount
+		}
+	}
+
+	return nil
 }

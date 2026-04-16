@@ -241,7 +241,7 @@ func TestRegisterUser(t *testing.T) {
 		mockWriteRepo.AssertExpectations(t)
 	})
 
-	t.Run("erreur - userClient.CreateUser échoue retourne ErrorInternalServer", func(t *testing.T) {
+	t.Run("erreur - userClient.CreateUser échoue, rollback auth record", func(t *testing.T) {
 		mockReadRepo, mockWriteRepo, mockUserClient, svc := newTestService()
 		ctx := ctxWithFirebaseID("firebase-user-client-fail")
 
@@ -253,12 +253,89 @@ func TestRegisterUser(t *testing.T) {
 			Return("auth-for-fail", nil)
 		mockUserClient.On("CreateUser", mock.Anything, "auth-for-fail", "firebase-user-client-fail", "Doe", "John", "").
 			Return(nil, errors.New("user-service unavailable"))
+		// Compensation : writeRepo.Delete doit être appelé pour rollback
+		mockWriteRepo.On("Delete", mock.Anything, mock.MatchedBy(func(a *domain.Auth) bool {
+			return a.FirebaseID == "firebase-user-client-fail"
+		})).Return(nil)
 
 		result, err := svc.RegisterUser(ctx, "Doe", "John", "g@h.com", "+22833333333", "")
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, authErrors.ErrorInternalServer)
 		mockUserClient.AssertExpectations(t)
+		mockWriteRepo.AssertExpectations(t)
+	})
+
+	t.Run("erreur - userClient.CreateUser échoue et le rollback échoue aussi", func(t *testing.T) {
+		mockReadRepo, mockWriteRepo, mockUserClient, svc := newTestService()
+		ctx := ctxWithFirebaseID("firebase-double-fail")
+
+		mockReadRepo.On("EmailExists", mock.Anything, "x@y.com").
+			Return(false, nil)
+		mockReadRepo.On("PhoneNumberExists", mock.Anything, "+22844444444").
+			Return(false, nil)
+		mockWriteRepo.On("Create", mock.Anything, mock.Anything).
+			Return("auth-double-fail", nil)
+		mockUserClient.On("CreateUser", mock.Anything, "auth-double-fail", "firebase-double-fail", "Doe", "John", "").
+			Return(nil, errors.New("user-service unavailable"))
+		// Compensation échoue aussi
+		mockWriteRepo.On("Delete", mock.Anything, mock.Anything).
+			Return(errors.New("delete also failed"))
+
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "x@y.com", "+22844444444", "")
+
+		// L'erreur retournée reste ErrorInternalServer même si le rollback échoue
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, authErrors.ErrorInternalServer)
+		mockWriteRepo.AssertExpectations(t)
+	})
+
+	t.Run("erreur - email au format invalide retourne ErrEmailInvalidFormat", func(t *testing.T) {
+		_, _, _, svc := newTestService()
+		ctx := ctxWithFirebaseID("firebase-bad-email")
+
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "not-an-email", "+22890000000", "")
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, domain.ErrEmailInvalidFormat)
+	})
+
+	t.Run("erreur - téléphone au format invalide retourne ErrPhoneInvalidFormat", func(t *testing.T) {
+		_, _, _, svc := newTestService()
+		ctx := ctxWithFirebaseID("firebase-bad-phone")
+
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "ok@example.com", "12345", "")
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, domain.ErrPhoneInvalidFormat)
+	})
+
+	t.Run("succès - normalise l'email en minuscules", func(t *testing.T) {
+		mockReadRepo, mockWriteRepo, mockUserClient, svc := newTestService()
+		ctx := ctxWithFirebaseID("firebase-normalize")
+
+		// L'email normalisé est en minuscules
+		mockReadRepo.On("EmailExists", mock.Anything, "upper@example.com").
+			Return(false, nil)
+		mockWriteRepo.On("Create", mock.Anything, mock.MatchedBy(func(a *domain.Auth) bool {
+			return a.GetEmail() == "upper@example.com"
+		})).Return("auth-normalize", nil)
+
+		userPreview := &domain.UserPreview{
+			AuthID: "auth-normalize", UserID: "user-norm",
+			Name: "Doe", FirstName: "John",
+		}
+		mockUserClient.On("CreateUser", mock.Anything, "auth-normalize", "firebase-normalize", "Doe", "John", "").
+			Return(userPreview, nil)
+
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "UPPER@Example.COM", "", "")
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		// L'email stocké doit être normalisé
+		require.NotNil(t, result.Email)
+		assert.Equal(t, "upper@example.com", *result.Email)
+		mockReadRepo.AssertExpectations(t)
 	})
 }
 
@@ -304,6 +381,16 @@ func TestCheckEmail(t *testing.T) {
 		assert.False(t, available)
 		assert.ErrorIs(t, err, authErrors.ErrorInternalServer)
 	})
+
+	t.Run("erreur - email au format invalide retourne ErrEmailInvalidFormat", func(t *testing.T) {
+		_, _, _, svc := newTestService()
+		ctx := context.Background()
+
+		available, err := svc.CheckEmail(ctx, "not-an-email")
+
+		assert.False(t, available)
+		assert.ErrorIs(t, err, domain.ErrEmailInvalidFormat)
+	})
 }
 
 // =============================================================================
@@ -347,6 +434,16 @@ func TestCheckPhoneNumber(t *testing.T) {
 
 		assert.False(t, available)
 		assert.ErrorIs(t, err, authErrors.ErrorInternalServer)
+	})
+
+	t.Run("erreur - téléphone au format invalide retourne ErrPhoneInvalidFormat", func(t *testing.T) {
+		_, _, _, svc := newTestService()
+		ctx := context.Background()
+
+		available, err := svc.CheckPhoneNumber(ctx, "12345")
+
+		assert.False(t, available)
+		assert.ErrorIs(t, err, domain.ErrPhoneInvalidFormat)
 	})
 }
 
@@ -442,21 +539,42 @@ func TestDeleteUserAccount(t *testing.T) {
 		mockReadRepo.AssertExpectations(t)
 	})
 
-	t.Run("erreur - writeRepo.Delete échoue et propage l'erreur", func(t *testing.T) {
+	t.Run("succès - writeRepo.Delete échoue puis réussit au retry", func(t *testing.T) {
 		mockReadRepo, mockWriteRepo, mockUserClient, svc := newTestService()
 		ctx := context.Background()
-		deleteErr := errors.New("delete constraint violation")
+
+		auth := fixtures.NewTestAuth(fixtures.WithFirebaseID("firebase-delete-retry"))
+		mockReadRepo.On("GetByFirebaseID", mock.Anything, "firebase-delete-retry").
+			Return(auth, nil)
+		mockUserClient.On("SoftDeleteUser", mock.Anything, auth.AuthID).Return(nil)
+		// Premier appel échoue, deuxième réussit
+		mockWriteRepo.On("Delete", mock.Anything, auth).
+			Return(errors.New("transient error")).Once()
+		mockWriteRepo.On("Delete", mock.Anything, auth).
+			Return(nil).Once()
+
+		err := svc.DeleteUserAccount(ctx, "firebase-delete-retry")
+
+		require.NoError(t, err)
+		mockReadRepo.AssertExpectations(t)
+		mockWriteRepo.AssertExpectations(t)
+	})
+
+	t.Run("erreur - writeRepo.Delete échoue deux fois retourne ErrorCantDeleteAccount", func(t *testing.T) {
+		mockReadRepo, mockWriteRepo, mockUserClient, svc := newTestService()
+		ctx := context.Background()
 
 		auth := fixtures.NewTestAuth(fixtures.WithFirebaseID("firebase-delete-fail"))
 		mockReadRepo.On("GetByFirebaseID", mock.Anything, "firebase-delete-fail").
 			Return(auth, nil)
 		mockUserClient.On("SoftDeleteUser", mock.Anything, auth.AuthID).Return(nil)
+		// Les deux tentatives échouent
 		mockWriteRepo.On("Delete", mock.Anything, auth).
-			Return(deleteErr)
+			Return(errors.New("persistent error"))
 
 		err := svc.DeleteUserAccount(ctx, "firebase-delete-fail")
 
-		assert.ErrorIs(t, err, deleteErr)
+		assert.ErrorIs(t, err, authErrors.ErrorCantDeleteAccount)
 		mockReadRepo.AssertExpectations(t)
 		mockWriteRepo.AssertExpectations(t)
 	})

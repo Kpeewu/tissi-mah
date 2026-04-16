@@ -4,16 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/domain"
 	userpb "github.com/Kpeewu/tissi-mah/services/auth-service/proto/gen/userpb"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // UserServiceClient est le client gRPC vers user-service.
-// Utilise insecure.NewCredentials() pour la communication intra-cluster
-// (le chiffrement est géré au niveau du service mesh / mTLS Kubernetes).
+// Utilise TLS en staging/prod, insecure en local uniquement.
 type UserServiceClient struct {
 	conn       *grpc.ClientConn
 	grpcClient userpb.UserServiceClient
@@ -22,12 +21,10 @@ type UserServiceClient struct {
 
 // NewUserServiceClient établit la connexion gRPC vers user-service.
 // address doit être au format "host:port" (ex: "user-service:50052").
-func NewUserServiceClient(address string, logger *zap.Logger) (*UserServiceClient, error) {
+// environment contrôle le mode TLS (local = insecure, sinon TLS système).
+func NewUserServiceClient(address string, environment string, logger *zap.Logger) (*UserServiceClient, error) {
 	logger.Debug("connecting to user-service", zap.String("address", address))
-	conn, err := grpc.NewClient(
-		address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+	conn, err := grpcutil.NewClientConn(address, environment, logger)
 	if err != nil {
 		logger.Error("failed to connect to user-service", zap.Error(err), zap.String("address", address))
 		return nil, fmt.Errorf("user-service: failed to connect to %s: %w", address, err)
