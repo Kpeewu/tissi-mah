@@ -12,8 +12,8 @@ require (
 	// Tests
 	github.com/alicebob/miniredis/v2 v2.33.0
 	// Database
-	github.com/jackc/pgx/v5 v5.8.0
-	github.com/redis/go-redis/v9 v9.17.2
+	github.com/jackc/pgx/v5 v5.9.1
+	github.com/redis/go-redis/v9 v9.18.0
 
 	// Configuration
 	github.com/spf13/viper v1.21.0
@@ -57,6 +57,7 @@ require (
 	github.com/yuin/gopher-lua v1.1.1 // indirect
 	go.opentelemetry.io/otel v1.42.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.42.0 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.49.0 // indirect
