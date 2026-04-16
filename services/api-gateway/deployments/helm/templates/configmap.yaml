@@ -26,6 +26,10 @@ data:
   BOOKING_SERVICE_PORT: {{ .Values.config.bookingServicePort | quote }}
   PAYMENT_SERVICE_HOST: {{ .Values.config.paymentServiceHost | quote }}
   PAYMENT_SERVICE_PORT: {{ .Values.config.paymentServicePort | quote }}
+  NOTIF_SERVICE_HOST: {{ .Values.config.notifServiceHost | quote }}
+  NOTIF_SERVICE_PORT: {{ .Values.config.notifServicePort | quote }}
+  SUPPORT_SERVICE_HOST: {{ .Values.config.supportServiceHost | quote }}
+  SUPPORT_SERVICE_PORT: {{ .Values.config.supportServicePort | quote }}
   CORS_ALLOWED_ORIGINS: {{ .Values.config.corsAllowedOrigins | quote }}
   {{- range $key, $value := .Values.config.extra }}
   {{ $key }}: {{ $value | quote }}

@@ -56,6 +56,10 @@ config:
   bookingServicePort: "50058"
   paymentServiceHost: "payment-service"
   paymentServicePort: "50059"
+  notifServiceHost: "notification-service"
+  notifServicePort: "50060"
+  supportServiceHost: "support-service"
+  supportServicePort: "50063"
   corsAllowedOrigins: "*"
   extra: {}
 
