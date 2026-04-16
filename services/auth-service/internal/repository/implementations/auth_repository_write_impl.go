@@ -90,20 +90,26 @@ func (r *authWriteRepositoryImpl) Update(ctx context.Context, auth *domain.Auth)
 }
 
 // delete user auth informations
+// Travaille sur une copie pour ne pas corrompre l'objet appelant en cas d'échec DB
 func (r *authWriteRepositoryImpl) Delete(ctx context.Context, auth *domain.Auth) error {
 	r.logger.Debug("deleting auth record (anonymize)", zap.String("authID", auth.AuthID))
 
-	auth.AnonymizeAndDelete()
+	// Copie locale pour l'anonymisation — l'original reste intact si le DB update échoue
+	anonymized := *auth
+	anonymized.AnonymizeAndDelete()
 
 	query := `UPDATE auth SET
 					firebase_id = $1, phone_number = $2, email = $3, is_active = $4, deleted_at = $5 WHERE auth_id = $6`
 
-	_, err := r.pool.Exec(ctx, query, auth.FirebaseID, auth.PhoneNumber, auth.Email, auth.IsActive, auth.DeletedAt, auth.AuthID)
+	_, err := r.pool.Exec(ctx, query, anonymized.FirebaseID, anonymized.PhoneNumber, anonymized.Email, anonymized.IsActive, anonymized.DeletedAt, anonymized.AuthID)
 
 	if err != nil {
 		r.logger.Error("delete auth failed", zap.Error(err), zap.String("authID", auth.AuthID))
 		return authErrors.ErrorCantDeleteAccount
 	}
+
+	// Succès DB — on propage les changements vers l'objet original
+	*auth = anonymized
 
 	r.logger.Info("auth record deleted", zap.String("authID", auth.AuthID))
 	return nil

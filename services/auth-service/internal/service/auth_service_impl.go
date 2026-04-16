@@ -117,7 +117,15 @@ func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstNa
 	// Email et PhoneNumber sont stockés dans auth-service, pas dans user-service
 	userPreview, err := s.userClient.CreateUser(ctx, authID, firebaseID, name, firstName, profilePhotoURL)
 	if err != nil {
-		s.logger.Error("user-service CreateUser failed", zap.Error(err))
+		s.logger.Error("user-service CreateUser failed, rolling back auth record",
+			zap.Error(err), zap.String("authID", authID))
+
+		// Compensation : suppression de l'auth record orphelin
+		if deleteErr := s.writeRepo.Delete(ctx, auth); deleteErr != nil {
+			s.logger.Error("failed to rollback auth record after user-service failure",
+				zap.Error(deleteErr), zap.String("authID", authID))
+		}
+
 		return nil, authErrors.ErrorInternalServer
 	}
 
@@ -208,5 +216,20 @@ func (s *authServiceImpl) DeleteUserAccount(ctx context.Context, firebaseID stri
 	}
 
 	// Anonymiser et soft-delete l'entrée auth
-	return s.writeRepo.Delete(ctx, auth)
+	// Retry en cas d'échec car user-service a déjà supprimé le profil
+	if err := s.writeRepo.Delete(ctx, auth); err != nil {
+		s.logger.Warn("first attempt to delete auth failed, retrying",
+			zap.Error(err), zap.String("authID", auth.AuthID))
+
+		if retryErr := s.writeRepo.Delete(ctx, auth); retryErr != nil {
+			s.logger.Error("CRITICAL: auth record not deleted after user-service deletion succeeded — manual cleanup required",
+				zap.Error(retryErr),
+				zap.String("authID", auth.AuthID),
+				zap.String("firebaseID", firebaseID),
+			)
+			return authErrors.ErrorCantDeleteAccount
+		}
+	}
+
+	return nil
 }
