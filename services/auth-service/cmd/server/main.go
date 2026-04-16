@@ -69,7 +69,7 @@ func run(bootstrapLogger *zap.Logger) error {
 
 	// --- User-service gRPC client ---
 	userServiceAddr := fmt.Sprintf("%s:%s", cfg.UserService.Address, cfg.UserService.Port)
-	userClient, err := client.NewUserServiceClient(userServiceAddr, logger)
+	userClient, err := client.NewUserServiceClient(userServiceAddr, cfg.Environment.Mode, logger)
 	if err != nil {
 		return fmt.Errorf("user-service client: %w", err)
 	}
