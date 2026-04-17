@@ -39,8 +39,7 @@ service UserService {
   // GetMyProfile - Récupère le profil complet de l'utilisateur connecté
   rpc GetMyProfile(GetMyProfileRequest) returns (GetMyProfileResponse) {
     option (google.api.http) = {
-      post: "/api/v1/user/me"
-      body: "*"
+      get: "/api/v1/user/me"
     };
   }
 
@@ -55,7 +54,7 @@ service UserService {
   // AddTripPreferences - Ajoute les préférences de trajet
   rpc AddTripPreferences(AddTripPreferencesRequest) returns (OperationResponse) {
     option (google.api.http) = {
-      post: "/api/v1/userProfile/addTripPreferences"
+      patch: "/api/v1/userProfile/addTripPreferences"
       body: "*"
     };
   }
