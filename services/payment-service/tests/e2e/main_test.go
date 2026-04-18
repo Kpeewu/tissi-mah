@@ -28,9 +28,10 @@ import (
 )
 
 var (
-	testPool   *pgxpool.Pool
-	grpcClient paymentpb.PaymentServiceClient
-	grpcConn   *grpc.ClientConn
+	testPool          *pgxpool.Pool
+	grpcClient        paymentpb.PaymentServiceClient
+	grpcConn          *grpc.ClientConn
+	mockSupportClient *mocks.MockSupportClient
 )
 
 func TestMain(m *testing.M) {
@@ -67,6 +68,8 @@ func TestMain(m *testing.M) {
 	mockUserClient := new(mocks.MockUserClient)
 	mockUserClient.On("GetUserByUserID", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
+	mockSupportClient = new(mocks.MockSupportClient)
+
 	// --- Service layer ---
 	logger := zap.NewNop()
 	paymentReadRepo := implementations.NewPaymentReadRepository(testPool, logger)
@@ -75,6 +78,7 @@ func TestMain(m *testing.M) {
 	refundWriteRepo := implementations.NewRefundWriteRepository(testPool, logger)
 	payoutReadRepo := implementations.NewPayoutReadRepository(testPool, logger)
 	payoutWriteRepo := implementations.NewPayoutWriteRepository(testPool, logger)
+	payoutHistoryRepo := implementations.NewPayoutHistoryWriteRepository(testPool, logger)
 
 	cfg := &config.Config{
 		Refund: config.RefundConfig{
@@ -94,7 +98,9 @@ func TestMain(m *testing.M) {
 		paymentReadRepo, paymentWriteRepo,
 		refundReadRepo, refundWriteRepo,
 		payoutReadRepo, payoutWriteRepo,
+		payoutHistoryRepo,
 		mockBookingClient, mockUserClient,
+		mockSupportClient,
 		nil, // fedapayClient
 		nil, // cache
 		nil, // notifRedis

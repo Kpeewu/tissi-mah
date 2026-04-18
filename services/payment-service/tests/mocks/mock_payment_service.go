@@ -76,3 +76,8 @@ func (m *MockPaymentService) GetDriverPayouts(ctx context.Context, driverID stri
 	}
 	return args.Get(0).([]*serviceInterfaces.PayoutPreviewResult), args.Error(1)
 }
+
+func (m *MockPaymentService) TriggerManualPayout(ctx context.Context, tripID string, supportUserID string) (int, error) {
+	args := m.Called(ctx, tripID, supportUserID)
+	return args.Int(0), args.Error(1)
+}

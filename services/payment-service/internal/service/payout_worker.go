@@ -120,7 +120,7 @@ func (s *paymentServiceImpl) ProcessPayoutBatch(ctx context.Context) error {
 			}
 			defer s.cache.ReleaseTripPayoutLock(gCtx, tripID)
 
-			amount, err := s.processPayoutForTrip(gCtx, tripID)
+			_, amount, err := s.processPayoutForTrip(gCtx, tripID)
 			mu.Lock()
 			if err != nil {
 				s.logger.Error("payout for trip failed", zap.Error(err), zap.String("tripID", tripID))
@@ -155,16 +155,17 @@ func (s *paymentServiceImpl) ProcessPayoutBatch(ctx context.Context) error {
 	return nil
 }
 
-// processPayoutForTrip traite le payout pour un trip donné et retourne le montant net versé.
-func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID string) (int, error) {
+// processPayoutForTrip traite le payout pour un trip donné et retourne le payoutID et le montant net versé.
+// Écrit les entrées d'historique (scheduled, processing ou failed) avec initiated_by="system".
+func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID string) (string, int, error) {
 	// Récupérer les paiements released du trip
 	payments, err := s.payoutReadRepo.GetReleasedPaymentsForTrip(ctx, tripID)
 	if err != nil {
-		return 0, err
+		return "", 0, err
 	}
 
 	if len(payments) == 0 {
-		return 0, nil
+		return "", 0, nil
 	}
 
 	// Calculer le montant total à verser au chauffeur
@@ -180,13 +181,13 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 	// Récupérer le booking pour trouver le driverID
 	booking, err := s.bookingClient.GetBookingDetails(ctx, payments[0].BookingID)
 	if err != nil {
-		return 0, fmt.Errorf("get booking details: %w", err)
+		return "", 0, fmt.Errorf("get booking details: %w", err)
 	}
 
 	// Récupérer le withdraw_number du chauffeur
 	user, err := s.userClient.GetUserByUserID(ctx, booking.DriverID)
 	if err != nil {
-		return 0, fmt.Errorf("get driver info: %w", err)
+		return "", 0, fmt.Errorf("get driver info: %w", err)
 	}
 
 	if user.WithdrawNumber == "" {
@@ -194,7 +195,7 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 			zap.String("driverID", booking.DriverID),
 			zap.String("tripID", tripID),
 		)
-		return 0, fmt.Errorf("driver %s has no withdraw number", booking.DriverID)
+		return "", 0, fmt.Errorf("driver %s has no withdraw number", booking.DriverID)
 	}
 
 	// Créer le payout FedaPay
@@ -203,7 +204,7 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 		user.FirstName, user.Name,
 	)
 	if err != nil {
-		return 0, fmt.Errorf("fedapay create payout: %w", err)
+		return "", 0, fmt.Errorf("fedapay create payout: %w", err)
 	}
 
 	// Sauvegarder le payout en DB
@@ -229,19 +230,26 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 	}
 
 	if err := s.payoutWriteRepo.CreatePayout(ctx, payout); err != nil {
-		return 0, err
+		return "", 0, err
 	}
+
+	// Historique : payout planifié
+	s.writeHistory(ctx, payoutID, "scheduled", "system", "", "", "", "Payout planifié")
 
 	// Démarrer le payout FedaPay
 	_, err = s.fedapayClient.StartPayouts([]int{fedapayPayout.ID})
 	if err != nil {
 		s.logger.Error("fedapay start payout failed", zap.Error(err), zap.String("payoutID", payoutID))
 		s.payoutWriteRepo.MarkPayoutFailed(ctx, payoutID, "fedapay start failed: "+err.Error()) //nolint:errcheck
-		return 0, err
+		s.writeHistory(ctx, payoutID, "failed", "system", "", "", "", "FedaPay start failed: "+err.Error())
+		return "", 0, err
 	}
 
 	// MAJ status du payout → processing
 	s.payoutWriteRepo.UpdatePayoutStatus(ctx, payoutID, domain.PayoutStatusProcessing, strconv.Itoa(fedapayPayout.ID)) //nolint:errcheck
+
+	// Historique : payout en cours de traitement
+	s.writeHistory(ctx, payoutID, "processing", "system", "", "", "", "FedaPay payout démarré")
 
 	// MAJ les paiements du trip → paidOut
 	if err := s.payoutWriteRepo.MarkPaymentsAsPaidOut(ctx, tripID); err != nil {
@@ -269,5 +277,30 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 		zap.Int("netAmount", netAmount),
 	)
 
-	return netAmount, nil
+	return payoutID, netAmount, nil
+}
+
+// writeHistory écrit une entrée dans payout_status_history de manière non bloquante.
+func (s *paymentServiceImpl) writeHistory(ctx context.Context, payoutID, status, initiatedBy, supportUserID, supportFirstName, supportLastName, notes string) {
+	if s.payoutHistoryRepo == nil {
+		return
+	}
+	entry := &domain.PayoutStatusHistory{
+		HistoryID:        uuid.New().String(),
+		PayoutID:         payoutID,
+		Status:           status,
+		InitiatedBy:      initiatedBy,
+		SupportUserID:    supportUserID,
+		SupportFirstName: supportFirstName,
+		SupportLastName:  supportLastName,
+		OccurredAt:       time.Now().UTC(),
+		Notes:            notes,
+	}
+	if err := s.payoutHistoryRepo.CreateHistoryEntry(ctx, entry); err != nil {
+		s.logger.Error("write payout history failed",
+			zap.Error(err),
+			zap.String("payoutID", payoutID),
+			zap.String("status", status),
+		)
+	}
 }

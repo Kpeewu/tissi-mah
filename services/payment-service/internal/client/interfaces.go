@@ -14,6 +14,20 @@ type UserClient interface {
 	GetUserByUserID(ctx context.Context, userID string) (*UserInfo, error)
 }
 
+// SupportClient est l'interface pour les appels vers support-service.
+type SupportClient interface {
+	GetSupportUserByID(ctx context.Context, userID string) (*SupportUserInfo, error)
+}
+
+// SupportUserInfo contient les informations d'un agent support nécessaires au payout manuel.
+type SupportUserInfo struct {
+	UserID    string
+	FirstName string
+	LastName  string
+	Role      string // "admin" | "support"
+	IsActive  bool
+}
+
 // BookingDetails contient les détails d'une réservation nécessaires au payment-service.
 type BookingDetails struct {
 	BookingID        string

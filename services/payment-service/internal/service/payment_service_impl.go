@@ -30,10 +30,12 @@ type paymentServiceImpl struct {
 	paymentWriteRepo repoInterfaces.PaymentRepositoryWrite
 	refundReadRepo   repoInterfaces.RefundRepositoryRead
 	refundWriteRepo  repoInterfaces.RefundRepositoryWrite
-	payoutReadRepo   repoInterfaces.PayoutRepositoryRead
-	payoutWriteRepo  repoInterfaces.PayoutRepositoryWrite
-	bookingClient    client.BookingClient
-	userClient       client.UserClient
+	payoutReadRepo    repoInterfaces.PayoutRepositoryRead
+	payoutWriteRepo   repoInterfaces.PayoutRepositoryWrite
+	payoutHistoryRepo repoInterfaces.PayoutHistoryRepositoryWrite
+	bookingClient     client.BookingClient
+	userClient        client.UserClient
+	supportClient     client.SupportClient
 	fedapayClient    *fedapay.Client
 	cache            *cache.PaymentCache
 	notifRedis       *redis.Client
@@ -50,8 +52,10 @@ func NewPaymentService(
 	refundWriteRepo repoInterfaces.RefundRepositoryWrite,
 	payoutReadRepo repoInterfaces.PayoutRepositoryRead,
 	payoutWriteRepo repoInterfaces.PayoutRepositoryWrite,
+	payoutHistoryRepo repoInterfaces.PayoutHistoryRepositoryWrite,
 	bookingClient client.BookingClient,
 	userClient client.UserClient,
+	supportClient client.SupportClient,
 	fedapayClient *fedapay.Client,
 	paymentCache *cache.PaymentCache,
 	notifRedis *redis.Client,
@@ -68,10 +72,12 @@ func NewPaymentService(
 		paymentWriteRepo: paymentWriteRepo,
 		refundReadRepo:   refundReadRepo,
 		refundWriteRepo:  refundWriteRepo,
-		payoutReadRepo:   payoutReadRepo,
-		payoutWriteRepo:  payoutWriteRepo,
-		bookingClient:    bookingClient,
-		userClient:       userClient,
+		payoutReadRepo:    payoutReadRepo,
+		payoutWriteRepo:   payoutWriteRepo,
+		payoutHistoryRepo: payoutHistoryRepo,
+		bookingClient:     bookingClient,
+		userClient:        userClient,
+		supportClient:     supportClient,
 		fedapayClient:    fedapayClient,
 		cache:            paymentCache,
 		notifRedis:       notifRedis,
@@ -252,6 +258,20 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 			return nil
 		}
 		return err
+	}
+
+	// Traiter les événements payout séparément
+	if payload.Name == "payout.completed" {
+		providerRef := strconv.Itoa(payload.Entity.ID)
+		payout, err := s.payoutReadRepo.GetByProviderReference(ctx, providerRef)
+		if err != nil {
+			s.logger.Warn("payout not found for webhook", zap.String("providerRef", providerRef))
+			return nil
+		}
+		s.payoutWriteRepo.UpdatePayoutStatus(ctx, payout.PayoutID, domain.PayoutStatusCompleted, providerRef) //nolint:errcheck
+		s.writeHistory(ctx, payout.PayoutID, "completed", "system", "", "", "", "Confirmé par FedaPay webhook")
+		s.logger.Info("payout completed via webhook", zap.String("payoutID", payout.PayoutID))
+		return nil
 	}
 
 	// Trouver le paiement par l'external transaction ID
@@ -654,6 +674,83 @@ func (s *paymentServiceImpl) GetDriverPayouts(ctx context.Context, driverID stri
 	}
 
 	return results, nil
+}
+
+// =============================================================================
+// TriggerManualPayout — exécuté par un agent support via api-gateway
+// =============================================================================
+
+func (s *paymentServiceImpl) TriggerManualPayout(ctx context.Context, tripID string, supportUserID string) (int, error) {
+	if tripID == "" || supportUserID == "" {
+		return 0, paymentErrors.ErrorInvalidInput
+	}
+
+	// Lock per-trip pour éviter les doublons avec le worker
+	if s.cache != nil {
+		acquired, err := s.cache.AcquireTripPayoutLock(ctx, tripID)
+		if err != nil {
+			return 0, paymentErrors.ErrorInternalServer
+		}
+		if !acquired {
+			return 0, paymentErrors.ErrorPayoutAlreadyExists
+		}
+		defer s.cache.ReleaseTripPayoutLock(ctx, tripID)
+	}
+
+	// Précondition : trip éligible (paiements released, aucun pending/held, pas de payout actif)
+	ready, err := s.payoutReadRepo.IsTripReadyForPayout(ctx, tripID)
+	if err != nil {
+		return 0, err
+	}
+	if !ready {
+		return 0, paymentErrors.ErrorTripNotReadyForPayout
+	}
+
+	// Autorisation : vérifier l'identité et l'habilitation de l'agent support (source de vérité DB)
+	if s.supportClient == nil {
+		return 0, paymentErrors.ErrorSupportServiceUnavailable
+	}
+	supportUser, err := s.supportClient.GetSupportUserByID(ctx, supportUserID)
+	if err != nil {
+		return 0, err
+	}
+	if !supportUser.IsActive {
+		s.logger.Warn("inactive support user attempted manual payout", zap.String("supportUserID", supportUserID))
+		return 0, paymentErrors.ErrorUnauthorized
+	}
+	if supportUser.Role != "admin" && supportUser.Role != "support" {
+		s.logger.Warn("unauthorized role attempted manual payout",
+			zap.String("supportUserID", supportUserID),
+			zap.String("role", supportUser.Role),
+		)
+		return 0, paymentErrors.ErrorUnauthorized
+	}
+
+	// Exécuter le payout (écrit déjà "scheduled"/"processing"/"failed" dans l'historique)
+	payoutID, netAmount, err := s.processPayoutForTrip(ctx, tripID)
+	if err != nil {
+		return 0, err
+	}
+
+	// Aucun payout créé (aucun paiement released) — rien à auditer
+	if payoutID == "" {
+		return 0, nil
+	}
+
+	// Entrée d'historique avec les informations de l'agent support (source de vérité DB)
+	s.writeHistory(ctx, payoutID, "launched_by_support", "support",
+		supportUser.UserID, supportUser.FirstName, supportUser.LastName,
+		fmt.Sprintf("Paiement initié manuellement par %s %s", supportUser.FirstName, supportUser.LastName),
+	)
+
+	s.logger.Info("manual payout triggered by support",
+		zap.String("tripID", tripID),
+		zap.String("payoutID", payoutID),
+		zap.String("supportUserID", supportUserID),
+		zap.Int("netAmount", netAmount),
+	)
+
+	return netAmount, nil
 }
 
 // =============================================================================

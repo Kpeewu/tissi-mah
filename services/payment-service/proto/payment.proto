@@ -79,6 +79,14 @@ service PaymentService {
     };
   }
 
+  // TriggerManualPayout permet à un agent support de lancer manuellement un payout pour un trajet
+  rpc TriggerManualPayout(TriggerManualPayoutRequest) returns (TriggerManualPayoutResponse) {
+    option (google.api.http) = {
+      post: "/payment/support/triggerManualPayout"
+      body: "*"
+    };
+  }
+
   // Health vérifie l'état du service
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -138,6 +146,10 @@ message GetPayoutStatusRequest {
 message GetDriverPayoutsRequest {
   string DriverId  = 1;
   int32  PageIndex = 2;
+}
+
+message TriggerManualPayoutRequest {
+  string TripId = 1;
 }
 
 message HealthRequest {}
@@ -239,6 +251,12 @@ message PayoutPreview {
   string Status          = 5;
   string CompletedAt     = 6;
   string CreatedAt       = 7;
+}
+
+message TriggerManualPayoutResponse {
+  bool   Success      = 1;
+  int32  NetAmount    = 2;
+  string ErrorMessage = 3;
 }
 
 message HealthResponse {

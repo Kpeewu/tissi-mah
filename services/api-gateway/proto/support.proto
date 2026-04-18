@@ -87,6 +87,10 @@ service SupportService {
       get: "/api/v1/support/health"
     };
   }
+
+  // GetSupportUserByID est un RPC inter-service (gRPC uniquement, pas d'annotation HTTP).
+  // Utilisé par payment-service pour vérifier l'identité et l'habilitation d'un agent support.
+  rpc GetSupportUserByID(GetSupportUserByIDRequest) returns (GetSupportUserByIDResponse);
 }
 
 message LoginRequest {
@@ -207,4 +211,16 @@ message HealthResponse {
   string status = 1;
   string version = 2;
   string service = 3;
+}
+
+message GetSupportUserByIDRequest {
+  string user_id = 1;
+}
+
+message GetSupportUserByIDResponse {
+  string user_id    = 1;
+  string first_name = 2;
+  string last_name  = 3;
+  string role       = 4;
+  bool   is_active  = 5;
 }

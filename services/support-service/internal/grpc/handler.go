@@ -255,3 +255,19 @@ func (h *SupportHandler) Health(_ context.Context, _ *supportpb.HealthRequest) (
 		Service: "support-service",
 	}, nil
 }
+
+// GetSupportUserByID est un RPC inter-service appelé par payment-service pour vérifier
+// l'identité et l'habilitation d'un agent support avant d'exécuter un payout manuel.
+func (h *SupportHandler) GetSupportUserByID(ctx context.Context, req *supportpb.GetSupportUserByIDRequest) (*supportpb.GetSupportUserByIDResponse, error) {
+	u, err := h.svc.Me(ctx, req.GetUserId())
+	if err != nil {
+		return nil, toGRPCError(err)
+	}
+	return &supportpb.GetSupportUserByIDResponse{
+		UserId:    u.UserID,
+		FirstName: u.FirstName,
+		LastName:  u.LastName,
+		Role:      u.Role,
+		IsActive:  u.IsActive,
+	}, nil
+}

@@ -13,11 +13,17 @@ func ctxWithUID(uid string) context.Context {
 	return metadata.NewOutgoingContext(context.Background(), md)
 }
 
+// ctxWithSupportUID retourne un contexte avec le support UID dans les metadata gRPC
+func ctxWithSupportUID(uid string) context.Context {
+	md := metadata.Pairs("x-support-uid", uid)
+	return metadata.NewOutgoingContext(context.Background(), md)
+}
+
 // cleanupPaymentTables vide toutes les tables (TRUNCATE CASCADE)
 func cleanupPaymentTables(t *testing.T, ctx context.Context) {
 	t.Helper()
 
-	_, err := testPool.Exec(ctx, "TRUNCATE TABLE payments, refunds, payouts, webhook_events, payout_batches CASCADE")
+	_, err := testPool.Exec(ctx, "TRUNCATE TABLE payout_status_history, payments, refunds, payouts, webhook_events, payout_batches CASCADE")
 	if err != nil {
 		t.Fatalf("Failed to cleanup payment tables: %v", err)
 	}

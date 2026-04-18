@@ -16,6 +16,7 @@ type Config struct {
 	FedaPay           FedaPayConfig
 	BookingService    ServiceEndpoint
 	UserService       ServiceEndpoint
+	SupportService    ServiceEndpoint
 	Payout            PayoutConfig
 	Refund            RefundConfig
 	Expiration        ExpirationConfig
@@ -114,6 +115,10 @@ func Load() (*Config, error) {
 		UserService: ServiceEndpoint{
 			Host: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_HOST", "0.0.0.0"),
 			Port: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_PORT", "50052"),
+		},
+		SupportService: ServiceEndpoint{
+			Host: sharedconfig.GetStringOrDefault(values, "SUPPORT_SERVICE_HOST", "0.0.0.0"),
+			Port: sharedconfig.GetStringOrDefault(values, "SUPPORT_SERVICE_PORT", "50063"),
 		},
 		Payout: PayoutConfig{
 			IntervalSeconds:        getIntOrDefault(values, "PAYOUT_INTERVAL_SECONDS", 1800),

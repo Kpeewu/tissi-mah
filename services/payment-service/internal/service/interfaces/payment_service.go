@@ -13,6 +13,7 @@ type PaymentService interface {
 	ReleasePayment(ctx context.Context, bookingID string) error
 	GetPayoutStatus(ctx context.Context, payoutID string) (*PayoutStatusResult, error)
 	GetDriverPayouts(ctx context.Context, driverID string, pageIndex int) ([]*PayoutPreviewResult, error)
+	TriggerManualPayout(ctx context.Context, tripID string, supportUserID string) (int, error)
 }
 
 // =============================================================================
