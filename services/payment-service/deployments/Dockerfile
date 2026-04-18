@@ -1,7 +1,7 @@
 # =============================================================================
 # Payment Service Dockerfile
 # Multi-stage build for optimized production image
-# Supports Go workspace with shared pkg, user-service, booking-service
+# Supports Go workspace with shared pkg, user-service, booking-service, support-service
 # (transitive: trips-service, vehicle-service, file-service)
 # =============================================================================
 
@@ -27,6 +27,8 @@ COPY services/vehicle-service/go.mod services/vehicle-service/go.sum* ./services
 COPY services/trips-service/go.mod services/trips-service/go.sum* ./services/trips-service/
 COPY services/rating-service/go.mod services/rating-service/go.sum* ./services/rating-service/
 COPY services/booking-service/go.mod services/booking-service/go.sum* ./services/booking-service/
+COPY services/email-service/go.mod services/email-service/go.sum* ./services/email-service/
+COPY services/support-service/go.mod services/support-service/go.sum* ./services/support-service/
 COPY services/payment-service/go.mod services/payment-service/go.sum* ./services/payment-service/
 
 # pkg-test est un module de test uniquement, mais plusieurs go.mod ont un replace directive qui
@@ -38,7 +40,7 @@ RUN mkdir -p pkg-test && \
 # Create a scoped go.work with all required modules
 # file-service → vehicle-service → trips-service → booking-service → payment-service (transitive chain)
 # rating-service is required because trips-service has a replace directive pointing to it
-RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/user-service\n\t./services/vehicle-service\n\t./services/trips-service\n\t./services/rating-service\n\t./services/booking-service\n\t./services/payment-service\n)\n' > go.work
+RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/user-service\n\t./services/vehicle-service\n\t./services/trips-service\n\t./services/rating-service\n\t./services/booking-service\n\t./services/email-service\n\t./services/support-service\n\t./services/payment-service\n)\n' > go.work
 
 # Download dependencies for all modules
 RUN go mod download -C ./pkg
@@ -48,6 +50,8 @@ RUN go mod download -C ./services/vehicle-service
 RUN go mod download -C ./services/trips-service
 RUN go mod download -C ./services/rating-service
 RUN go mod download -C ./services/booking-service
+RUN go mod download -C ./services/email-service
+RUN go mod download -C ./services/support-service
 RUN go mod download -C ./services/payment-service
 
 # =============================================================================
@@ -82,6 +86,12 @@ COPY services/rating-service/ ./services/rating-service/
 
 # Copy booking-service source code (required by payment-service replace directive)
 COPY services/booking-service/ ./services/booking-service/
+
+# Copy email-service source code (required by support-service replace directive)
+COPY services/email-service/ ./services/email-service/
+
+# Copy support-service source code (required by payment-service replace directive)
+COPY services/support-service/ ./services/support-service/
 
 # Copy payment-service source code
 COPY services/payment-service/ ./services/payment-service/

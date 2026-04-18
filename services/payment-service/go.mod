@@ -14,10 +14,13 @@ replace github.com/Kpeewu/tissi-mah/services/booking-service => ../booking-servi
 
 replace github.com/Kpeewu/tissi-mah/services/user-service => ../user-service
 
+replace github.com/Kpeewu/tissi-mah/services/support-service => ../support-service
+
 require (
-	github.com/Kpeewu/tissi-mah/pkg v0.0.0-00010101000000-000000000000
+	github.com/Kpeewu/tissi-mah/pkg v0.0.0
 	github.com/Kpeewu/tissi-mah/pkg-test v0.0.0-20260415202243-8e1b41071ae8
 	github.com/Kpeewu/tissi-mah/services/booking-service v0.0.0-00010101000000-000000000000
+	github.com/Kpeewu/tissi-mah/services/support-service v0.0.0-00010101000000-000000000000
 	github.com/Kpeewu/tissi-mah/services/user-service v0.0.0-00010101000000-000000000000
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.1
