@@ -26,15 +26,13 @@ service AuthService {
 
   rpc CheckPhoneNumber(CheckPhoneNumberRequest) returns (CheckPhoneOrEmailResponse) {
     option (google.api.http) = {
-      post: "/api/v1/auth/checkPhoneNumber"
-      body: "*"
+      get: "/api/v1/auth/checkPhoneNumber"
     };
   }
 
   rpc CheckEmail(CheckEmailRequest) returns (CheckPhoneOrEmailResponse) {
     option (google.api.http) = {
-      post: "/api/v1/auth/checkEmail"
-      body: "*"
+      get: "/api/v1/auth/checkEmail"
     };
   }
 

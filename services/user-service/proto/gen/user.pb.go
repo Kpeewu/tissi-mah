@@ -1513,17 +1513,17 @@ const file_user_proto_rawDesc = "" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
 	"\aVersion\x18\x02 \x01(\tR\aVersion\x12\x1c\n" +
-	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp2\xd0\b\n" +
+	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp2\xcd\b\n" +
 	"\vUserService\x12@\n" +
 	"\n" +
 	"CreateUser\x12\x17.user.CreateUserRequest\x1a\x19.user.UserProfileResponse\x12J\n" +
 	"\x0fGetUserByAuthID\x12\x1c.user.GetUserByAuthIDRequest\x1a\x19.user.UserProfileResponse\x12R\n" +
 	"\x13GetUserByFirebaseID\x12 .user.GetUserByFirebaseIDRequest\x1a\x19.user.UserProfileResponse\x12J\n" +
 	"\x0fGetUserByUserID\x12\x1c.user.GetUserByUserIDRequest\x1a\x19.user.UserProfileResponse\x12F\n" +
-	"\x0eSoftDeleteUser\x12\x1b.user.SoftDeleteUserRequest\x1a\x17.user.OperationResponse\x12a\n" +
-	"\fGetMyProfile\x12\x19.user.GetMyProfileRequest\x1a\x1a.user.GetMyProfileResponse\"\x1a\x82\xd3\xe4\x93\x02\x14:\x01*\"\x0f/api/v1/user/me\x12\x84\x01\n" +
+	"\x0eSoftDeleteUser\x12\x1b.user.SoftDeleteUserRequest\x1a\x17.user.OperationResponse\x12^\n" +
+	"\fGetMyProfile\x12\x19.user.GetMyProfileRequest\x1a\x1a.user.GetMyProfileResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/api/v1/user/me\x12\x84\x01\n" +
 	"\x13CreateDriverAccount\x12 .user.CreateDriverAccountRequest\x1a\x17.user.OperationResponse\"2\x82\xd3\xe4\x93\x02,:\x01*2'/api/v1/userProfile/createDriverAccount\x12\x81\x01\n" +
-	"\x12AddTripPreferences\x12\x1f.user.AddTripPreferencesRequest\x1a\x17.user.OperationResponse\"1\x82\xd3\xe4\x93\x02+:\x01*\"&/api/v1/userProfile/addTripPreferences\x12v\n" +
+	"\x12AddTripPreferences\x12\x1f.user.AddTripPreferencesRequest\x1a\x17.user.OperationResponse\"1\x82\xd3\xe4\x93\x02+:\x01*2&/api/v1/userProfile/addTripPreferences\x12v\n" +
 	"\rUpdateProfile\x12\x1a.user.UpdateProfileRequest\x1a\x1b.user.UpdateProfileResponse\",\x82\xd3\xe4\x93\x02&:\x01*2!/api/v1/userProfile/updateProfile\x12\x92\x01\n" +
 	"\x14ChangeProfilePicture\x12!.user.ChangeProfilePictureRequest\x1a\".user.ChangeProfilePictureResponse\"3\x82\xd3\xe4\x93\x02-:\x01*2(/api/v1/userProfile/changeProfilePicture\x12P\n" +
 	"\x06Health\x12\x13.user.HealthRequest\x1a\x14.user.HealthResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/api/v1/user/healthBBZ@github.com/Kpeewu/tissi-mah/services/user-service/proto/gen;userb\x06proto3"
