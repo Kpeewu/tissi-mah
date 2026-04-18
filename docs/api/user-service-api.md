@@ -1,76 +1,99 @@
 # User Service API
 
-This document describes the HTTP/REST API exposed by the user-service through the api-gateway (grpc-gateway). This API is consumed by mobile clients (iOS/Android).
+Documentation HTTP/REST des endpoints exposés par `user-service` à travers l'api-gateway (grpc-gateway). Consommé par les clients mobiles (iOS/Android).
 
 ## Base URL
 
-| Environment | Base URL |
-|-------------|----------|
+| Environnement | Base URL |
+|---------------|----------|
 | Local | `http://localhost:8080` |
 | VPS-Dev | `https://api.tissimah.kpeewu.dev` |
 | Staging | `https://staging.tissi-mah.com` |
 | Production | `https://api.tissi-mah.com` |
 
-## Authentication
+## Authentification
 
-Protected endpoints require a valid Firebase JWT token in the `Authorization` header.
+Les endpoints protégés nécessitent un **Firebase JWT** valide dans l'en-tête `Authorization` :
 
-```
+```http
 Authorization: Bearer <firebase_id_token>
 ```
 
-The token is obtained from Firebase Authentication on the mobile client after the user signs in.
+L'api-gateway valide le token Firebase, puis injecte le `x-firebase-uid` en metadata gRPC. L'intercepteur du user-service lit ce UID et l'injecte dans le contexte via `middleware.FirebaseIDKey`. Le `UserID` interne n'est **jamais** lu depuis le JWT — le service résout lui-même l'association FirebaseUID → UserID via MongoDB.
 
-## Common Headers
+## En-têtes communs
 
-| Header | Required | Description |
-|--------|----------|-------------|
-| `Authorization` | Yes (protected) | Firebase JWT token: `Bearer <token>` |
-| `Content-Type` | Yes (POST/PATCH) | `application/json` |
+| En-tête | Requis | Description |
+|---------|--------|-------------|
+| `Authorization` | Oui (endpoints protégés) | `Bearer <firebase_id_token>` |
+| `Content-Type` | Oui (PATCH) | `application/json` |
+| `Accept` | Non | `application/json` |
 
-## Error Response Format
+## Format des erreurs
 
-All errors return the appropriate HTTP status code with this JSON body:
+Toutes les erreurs renvoient un code HTTP approprié et un corps JSON au format suivant :
 
 ```json
 {
-    "ErrorMessage": "ErrUserNotFound"
+    "ErrorMessage": "ErrorUserNotFound"
 }
 ```
 
-> **Note:** JSON field names use PascalCase throughout the API (matching proto field names with `UseProtoNames: true`).
+> **Note :** les noms de champs JSON sont en PascalCase (proto `UseProtoNames: true`). Les identifiants d'erreur sont stables et peuvent servir de clés de traduction côté frontend.
 
-| HTTP Code | Meaning |
-|-----------|---------|
-| 200 | Success |
-| 400 | Invalid request parameters (`INVALID_ARGUMENT`) |
-| 401 | Missing or invalid token (`UNAUTHENTICATED`) |
-| 404 | Resource not found (`NOT_FOUND`) |
-| 412 | Pre-condition not met (`FAILED_PRECONDITION`) |
-| 500 | Internal server error (`INTERNAL`) |
+### Mapping gRPC → HTTP
+
+| Code gRPC | HTTP | Signification |
+|-----------|------|---------------|
+| `OK` (0) | 200 | Succès |
+| `INVALID_ARGUMENT` (3) | 400 | Paramètre invalide (UserID vide, image vide) |
+| `NOT_FOUND` (5) | 404 | Ressource inexistante |
+| `ALREADY_EXISTS` (6) | 409 | Profil déjà créé |
+| `UNAUTHENTICATED` (16) | 401 | Token manquant/invalide ou `x-firebase-uid` absent |
+| `UNAVAILABLE` (14) | 503 | Service dépendant indisponible (auth-service ou file-service) |
+| `INTERNAL` (13) | 500 | Erreur interne (MongoDB, logique) |
+
+## Rate Limiting
+
+Tous les endpoints user-service utilisent le tier **`global`** (aucun tier spécifique configuré) :
+
+| Tier | Minute | Heure |
+|------|--------|-------|
+| `global` | 60 | 1000 |
+
+En cas de dépassement : HTTP `429 Too Many Requests` avec headers `X-RateLimit-Limit-*` et `X-RateLimit-Remaining-*`.
+
+## Timeouts
+
+Le user-service n'applique pas de `context.WithTimeout` dans ses handlers. Les timeouts dépendent du client et de la configuration de l'api-gateway.
 
 ---
 
 ## Endpoints
 
-### POST /api/v1/user/me
+### GET /api/v1/user/me
 
-Retrieves the complete profile of the authenticated user, including auth data and files.
+Récupère le profil complet de l'utilisateur authentifié. Le `UserID` n'est jamais exposé dans l'URL — il est résolu en interne à partir du Firebase UID extrait du JWT.
 
-**Authentication:** Required (Firebase JWT)
+Flux interne :
+1. Firebase UID (JWT) → lookup MongoDB par `firebase_id`
+2. Enrichissement email/téléphone via **auth-service** (`GetAuthInfo`)
+3. Enrichissement dates d'expiration des documents via **file-service** (`GetDocumentExpiry`)
 
-#### Request
+**Authentification :** Requise (Firebase JWT)
+**Rate limit :** `global` (60/min, 1000/hr)
+
+#### Requête
 
 ```http
-POST /api/v1/user/me HTTP/1.1
-Host: api.tissimah.kpeewu.dev
+GET /api/v1/user/me HTTP/1.1
+Host: api.tissi-mah.com
 Authorization: Bearer <firebase_id_token>
-Content-Type: application/json
 ```
 
-**Body:** None required (Firebase UID extracted from JWT)
+**Body :** Aucun. **Query params :** Aucun.
 
-#### Response (Success)
+#### Réponse (succès)
 
 ```http
 HTTP/1.1 200 OK
@@ -79,15 +102,15 @@ Content-Type: application/json
 {
     "ErrorMessage": "",
     "User": {
-        "AuthID": "firebase-uid-abc123",
-        "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+        "AuthID": "8b1518f9-0949-4872-92a4-5dbdfb7863d9",
+        "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
         "Name": "Doe",
         "FirstName": "Samuel",
         "Gender": "male",
         "DateOfBirth": "1995-03-15",
-        "Bio": "Passager regulier",
+        "Bio": "Passager régulier Lomé-Kara",
         "Email": "samuel@example.com",
-        "PhoneNumber": "+22891234567",
+        "PhoneNumber": "+22890123456",
         "ProfileImageURL": "https://tissi-mah-files.s3.amazonaws.com/profiles/photo.jpg",
         "HasProfileImage": true,
         "IsDriver": true,
@@ -99,95 +122,92 @@ Content-Type: application/json
         "SuspensionEndDate": "",
         "TripPreferences": [
             {"Preference": "music", "IsAllowed": true},
-            {"Preference": "smoking", "IsAllowed": false}
+            {"Preference": "smoking", "IsAllowed": false},
+            {"Preference": "pets", "IsAllowed": true}
         ],
         "IDCardExpirationDate": "2028-06-15",
         "DriveLicenceExpirationDate": "2030-12-01",
-        "UserFiles": [
-            {
-                "FileID": "d-550e8400-e29b-41d4-a716-446655440000",
-                "FileURL": "https://tissi-mah-files.s3.amazonaws.com/idCardFront/photo.jpg",
-                "FileType": "idCardFront"
-            }
-        ]
+        "WithdrawNumber": "+22890123456"
     }
 }
 ```
 
-#### Response Fields
+#### Champs de la réponse
 
-| Field | Type | Description |
+| Champ | Type | Description |
 |-------|------|-------------|
-| `ErrorMessage` | string | Error identifier if failed, `""` if success |
-| `User` | object | Full user profile |
-| `User.AuthID` | string | Auth service ID |
-| `User.ProfileID` | string | User profile ID |
-| `User.Name` | string | Last name |
-| `User.FirstName` | string | First name |
-| `User.Gender` | string | Gender |
-| `User.DateOfBirth` | string | Birth date (YYYY-MM-DD) |
-| `User.Bio` | string | User biography |
-| `User.Email` | string | Email address |
-| `User.PhoneNumber` | string | Phone number (E.164) |
-| `User.ProfileImageURL` | string | Profile picture URL |
-| `User.HasProfileImage` | boolean | Whether user has a profile image |
-| `User.IsDriver` | boolean | Driver account activated |
-| `User.IsPassenger` | boolean | Passenger account activated |
-| `User.IsDriverProfileVerified` | boolean | Driver verification status |
-| `User.IsPassengerProfileVerified` | boolean | Passenger verification status |
-| `User.IsActive` | boolean | Account active status |
-| `User.IsSuspended` | boolean | Account suspension status |
-| `User.SuspensionEndDate` | string | Suspension end date (if suspended) |
-| `User.TripPreferences` | array | Trip preferences list |
-| `User.IDCardExpirationDate` | string | ID card expiration date |
-| `User.DriveLicenceExpirationDate` | string | Driver licence expiration date |
-| `User.UserFiles` | array | User uploaded files |
+| `ErrorMessage` | string | Identifiant d'erreur, `""` si succès |
+| `User.AuthID` | string (UUID) | ID auth-service |
+| `User.UserID` | string (UUID) | ID profil MongoDB |
+| `User.Name` | string | Nom de famille |
+| `User.FirstName` | string | Prénom |
+| `User.Gender` | string | Genre |
+| `User.DateOfBirth` | string | Date de naissance (YYYY-MM-DD) |
+| `User.Bio` | string | Biographie |
+| `User.Email` | string | Email (depuis auth-service) |
+| `User.PhoneNumber` | string | Téléphone E.164 (depuis auth-service) |
+| `User.ProfileImageURL` | string | URL photo de profil |
+| `User.HasProfileImage` | bool | Présence d'une photo de profil |
+| `User.IsDriver` | bool | Compte conducteur activé |
+| `User.IsPassenger` | bool | Compte passager activé |
+| `User.IsDriverProfileVerified` | bool | Profil conducteur vérifié (KYC) |
+| `User.IsPassengerProfileVerified` | bool | Profil passager vérifié (KYC) |
+| `User.IsActive` | bool | Compte actif |
+| `User.IsSuspended` | bool | Compte suspendu |
+| `User.SuspensionEndDate` | string | Fin de suspension (RFC 3339) ou `""` |
+| `User.TripPreferences` | array | Liste des préférences de trajet |
+| `User.TripPreferences[].Preference` | string | Nom de la préférence |
+| `User.TripPreferences[].IsAllowed` | bool | Autorisée ou non |
+| `User.IDCardExpirationDate` | string | Date d'expiration de la carte d'identité ou `""` |
+| `User.DriveLicenceExpirationDate` | string | Date d'expiration du permis de conduire ou `""` |
+| `User.WithdrawNumber` | string | Numéro de retrait (Mobile Money) |
 
-#### Errors
+#### Erreurs
 
-| ErrorMessage | HTTP | Description |
-|--------------|------|-------------|
-| `ErrUserNotFound` | 404 | User profile not found |
-| `ErrorInternalServer` | 500 | Internal error |
+| ErrorMessage | HTTP | Cause |
+|--------------|------|-------|
+| `ErrorUserNotFound` | 404 | Aucun profil associé au Firebase UID |
+| `ErrorAuthServiceUnavailable` | 503 | auth-service indisponible pour l'enrichissement |
+| `ErrorInternalServer` | 500 | Erreur MongoDB ou Firebase UID absent du contexte |
 
-#### Example (cURL)
+#### Exemple (cURL)
 
 ```bash
-curl -X POST https://api.tissimah.kpeewu.dev/api/v1/user/me \
-  -H "Authorization: Bearer <firebase_token>" \
-  -H "Content-Type: application/json"
+curl -X GET https://api.tissi-mah.com/api/v1/user/me \
+  -H "Authorization: Bearer <firebase_token>"
 ```
 
 ---
 
 ### PATCH /api/v1/userProfile/createDriverAccount
 
-Activates or deactivates the driver account on the user's profile.
+Active ou désactive le statut conducteur sur le profil de l'utilisateur.
 
-**Authentication:** Required (Firebase JWT)
+**Authentification :** Requise (Firebase JWT)
+**Rate limit :** `global` (60/min, 1000/hr)
 
-#### Request
+#### Requête
 
 ```http
 PATCH /api/v1/userProfile/createDriverAccount HTTP/1.1
-Host: api.tissimah.kpeewu.dev
+Host: api.tissi-mah.com
 Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
 
 {
-    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
     "CreateDriverAccount": true
 }
 ```
 
-#### Request Fields
+#### Champs de la requête
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `ProfileID` | string | Yes | User profile ID |
-| `CreateDriverAccount` | boolean | Yes | `true` to activate, `false` to deactivate |
+| Champ | Type | Requis | Description |
+|-------|------|--------|-------------|
+| `UserID` | string (UUID) | Oui | ID profil MongoDB |
+| `CreateDriverAccount` | bool | Oui | `true` → active `IsDriver`, `false` → désactive `IsDriver` |
 
-#### Response (Success)
+#### Réponse (succès)
 
 ```http
 HTTP/1.1 200 OK
@@ -199,40 +219,42 @@ Content-Type: application/json
 }
 ```
 
-#### Errors
+#### Erreurs
 
-| ErrorMessage | HTTP | Description |
-|--------------|------|-------------|
-| `ErrUserNotFound` | 404 | User profile not found |
-| `ErrorInternalServer` | 500 | Internal error |
+| ErrorMessage | HTTP | Cause |
+|--------------|------|-------|
+| `ErrorInvalidUserID` | 400 | `UserID` vide |
+| `ErrorUserNotFound` | 404 | Profil introuvable |
+| `ErrorInternalServer` | 500 | Erreur MongoDB |
 
-#### Example (cURL)
+#### Exemple (cURL)
 
 ```bash
-curl -X PATCH https://api.tissimah.kpeewu.dev/api/v1/userProfile/createDriverAccount \
+curl -X PATCH https://api.tissi-mah.com/api/v1/userProfile/createDriverAccount \
   -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json" \
-  -d '{"ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545", "CreateDriverAccount": true}'
+  -d '{"UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545", "CreateDriverAccount": true}'
 ```
 
 ---
 
-### POST /api/v1/userProfile/addTripPreferences
+### PATCH /api/v1/userProfile/addTripPreferences
 
-Adds or updates trip preferences for the user.
+Définit les préférences de trajet de l'utilisateur. **Remplace intégralement** les préférences existantes (non-additif).
 
-**Authentication:** Required (Firebase JWT)
+**Authentification :** Requise (Firebase JWT)
+**Rate limit :** `global` (60/min, 1000/hr)
 
-#### Request
+#### Requête
 
 ```http
-POST /api/v1/userProfile/addTripPreferences HTTP/1.1
-Host: api.tissimah.kpeewu.dev
+PATCH /api/v1/userProfile/addTripPreferences HTTP/1.1
+Host: api.tissi-mah.com
 Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
 
 {
-    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
     "Preferences": [
         {"Preference": "music", "IsAllowed": true},
         {"Preference": "smoking", "IsAllowed": false},
@@ -242,16 +264,16 @@ Content-Type: application/json
 }
 ```
 
-#### Request Fields
+#### Champs de la requête
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `ProfileID` | string | Yes | User profile ID |
-| `Preferences` | array | Yes | List of trip preferences |
-| `Preferences[].Preference` | string | Yes | Preference name |
-| `Preferences[].IsAllowed` | boolean | Yes | Whether the preference is allowed |
+| Champ | Type | Requis | Description |
+|-------|------|--------|-------------|
+| `UserID` | string (UUID) | Oui | ID profil MongoDB |
+| `Preferences` | array | Oui | Liste complète des préférences (remplace l'existant) |
+| `Preferences[].Preference` | string | Oui | Nom de la préférence (ex: `"music"`, `"smoking"`, `"pets"`) |
+| `Preferences[].IsAllowed` | bool | Oui | `true` = autorisée, `false` = non autorisée |
 
-#### Response (Success)
+#### Réponse (succès)
 
 ```http
 HTTP/1.1 200 OK
@@ -263,24 +285,26 @@ Content-Type: application/json
 }
 ```
 
-#### Errors
+#### Erreurs
 
-| ErrorMessage | HTTP | Description |
-|--------------|------|-------------|
-| `ErrUserNotFound` | 404 | User profile not found |
-| `ErrorInternalServer` | 500 | Internal error |
+| ErrorMessage | HTTP | Cause |
+|--------------|------|-------|
+| `ErrorInvalidUserID` | 400 | `UserID` vide |
+| `ErrorUserNotFound` | 404 | Profil introuvable |
+| `ErrorInternalServer` | 500 | Erreur MongoDB |
 
-#### Example (cURL)
+#### Exemple (cURL)
 
 ```bash
-curl -X POST https://api.tissimah.kpeewu.dev/api/v1/userProfile/addTripPreferences \
+curl -X PATCH https://api.tissi-mah.com/api/v1/userProfile/addTripPreferences \
   -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
     "Preferences": [
         {"Preference": "music", "IsAllowed": true},
-        {"Preference": "smoking", "IsAllowed": false}
+        {"Preference": "smoking", "IsAllowed": false},
+        {"Preference": "pets", "IsAllowed": true}
     ]
   }'
 ```
@@ -289,40 +313,43 @@ curl -X POST https://api.tissimah.kpeewu.dev/api/v1/userProfile/addTripPreferenc
 
 ### PATCH /api/v1/userProfile/updateProfile
 
-Updates the user's profile information. All fields except `ProfileID` are optional.
+Met à jour les informations du profil. Tous les champs sauf `UserID` sont optionnels (seuls les champs présents sont modifiés).
 
-**Authentication:** Required (Firebase JWT)
+**Authentification :** Requise (Firebase JWT)
+**Rate limit :** `global` (60/min, 1000/hr)
 
-#### Request
+> ⚠️ **Email et PhoneNumber ne sont pas modifiables ici.** Bien que présents dans le proto, ils sont ignorés dans l'implémentation — email et téléphone sont gérés exclusivement par auth-service.
+
+#### Requête
 
 ```http
 PATCH /api/v1/userProfile/updateProfile HTTP/1.1
-Host: api.tissimah.kpeewu.dev
+Host: api.tissi-mah.com
 Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
 
 {
-    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
     "FirstName": "Samuel",
     "LastName": "Doe",
     "BirthDate": "1995-03-15",
-    "Email": "new-email@example.com",
-    "PhoneNumber": "+22891234567"
+    "WithdrawNumber": "+22890123456"
 }
 ```
 
-#### Request Fields
+#### Champs de la requête
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `ProfileID` | string | Yes | User profile ID |
-| `FirstName` | string | No | New first name |
-| `LastName` | string | No | New last name |
-| `BirthDate` | string | No | Birth date (YYYY-MM-DD) |
-| `Email` | string | No | New email address |
-| `PhoneNumber` | string | No | New phone number (E.164) |
+| Champ | Type | Requis | Description |
+|-------|------|--------|-------------|
+| `UserID` | string (UUID) | Oui | ID profil MongoDB |
+| `FirstName` | string | Non | Nouveau prénom |
+| `LastName` | string | Non | Nouveau nom de famille |
+| `BirthDate` | string | Non | Date de naissance (YYYY-MM-DD) |
+| `WithdrawNumber` | string | Non | Numéro Mobile Money pour les retraits |
+| ~~`Email`~~ | string | — | Ignoré (géré par auth-service) |
+| ~~`PhoneNumber`~~ | string | — | Ignoré (géré par auth-service) |
 
-#### Response (Success)
+#### Réponse (succès)
 
 ```http
 HTTP/1.1 200 OK
@@ -331,122 +358,287 @@ Content-Type: application/json
 {
     "ErrorMessage": "",
     "User": {
-        "AuthID": "firebase-uid-abc123",
-        "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+        "AuthID": "8b1518f9-0949-4872-92a4-5dbdfb7863d9",
+        "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
         "Name": "Doe",
         "FirstName": "Samuel",
-        ...
+        "Gender": "male",
+        "DateOfBirth": "1995-03-15",
+        "Bio": "Passager régulier",
+        "Email": "samuel@example.com",
+        "PhoneNumber": "+22890123456",
+        "ProfileImageURL": "...",
+        "HasProfileImage": true,
+        "IsDriver": false,
+        "IsPassenger": true,
+        "IsDriverProfileVerified": false,
+        "IsPassengerProfileVerified": true,
+        "IsActive": true,
+        "IsSuspended": false,
+        "SuspensionEndDate": "",
+        "TripPreferences": [],
+        "IDCardExpirationDate": "",
+        "DriveLicenceExpirationDate": "",
+        "WithdrawNumber": "+22890123456"
     }
 }
 ```
 
-#### Response Fields
+Le profil retourné est enrichi avec les données auth-service (email, téléphone) et les dates d'expiration des documents (file-service).
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `ErrorMessage` | string | Error identifier if failed, `""` if success |
-| `User` | object | Updated full user profile (same structure as GetMyProfile) |
+#### Erreurs
 
-#### Errors
+| ErrorMessage | HTTP | Cause |
+|--------------|------|-------|
+| `ErrorInvalidUserID` | 400 | `UserID` vide |
+| `ErrorUserNotFound` | 404 | Profil introuvable |
+| `ErrorAuthServiceUnavailable` | 503 | auth-service indisponible pour l'enrichissement post-mise à jour |
+| `ErrorInternalServer` | 500 | Erreur MongoDB |
 
-| ErrorMessage | HTTP | Description |
-|--------------|------|-------------|
-| `ErrUserNotFound` | 404 | User profile not found |
-| `ErrPhoneNumberTaken` | 412 | Phone already in use |
-| `ErrEmailTaken` | 412 | Email already in use |
-| `ErrorInternalServer` | 500 | Internal error |
-
-#### Example (cURL)
+#### Exemple (cURL)
 
 ```bash
-curl -X PATCH https://api.tissimah.kpeewu.dev/api/v1/userProfile/updateProfile \
+curl -X PATCH https://api.tissi-mah.com/api/v1/userProfile/updateProfile \
   -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
     "FirstName": "Samuel",
-    "LastName": "Doe"
+    "BirthDate": "1995-03-15"
   }'
 ```
 
 ---
 
-### GET /api/v1/user/health
+### PATCH /api/v1/userProfile/changeProfilePicture
 
-Health check endpoint for the user-service.
+Change la photo de profil de l'utilisateur. L'image est uploadée via `file-service`, puis l'URL est enregistrée dans MongoDB.
 
-**Authentication:** Not required (public)
+**Authentification :** Requise (Firebase JWT)
+**Rate limit :** `global` (60/min, 1000/hr)
 
-#### Request
+> ⚠️ **Le champ `NewProfilePicture` doit être envoyé en base64.** Le grpc-gateway transcrit les champs `bytes` proto en chaînes base64 standard dans le JSON. La taille maximum de l'image dépend de la configuration de l'api-gateway et de file-service.
+
+Flux interne :
+1. Validation des champs (`UserID` et `NewProfilePicture` non vides)
+2. Lookup du profil MongoDB
+3. Upload via **file-service** → obtention de l'URL
+4. Mise à jour de `ProfileImageURL` et `HasProfileImage` dans MongoDB
+5. Enrichissement via **auth-service** + **file-service** (dates d'expiration)
+
+#### Requête
 
 ```http
-GET /api/v1/user/health HTTP/1.1
-Host: api.tissimah.kpeewu.dev
+PATCH /api/v1/userProfile/changeProfilePicture HTTP/1.1
+Host: api.tissi-mah.com
+Authorization: Bearer <firebase_id_token>
+Content-Type: application/json
+
+{
+    "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "NewProfilePicture": "<base64-encoded-image-bytes>"
+}
 ```
 
-#### Response
+#### Champs de la requête
+
+| Champ | Type | Requis | Description |
+|-------|------|--------|-------------|
+| `UserID` | string (UUID) | Oui | ID profil MongoDB |
+| `NewProfilePicture` | string (base64) | Oui | Image encodée en base64 (JPEG ou PNG recommandé) |
+
+#### Réponse (succès)
 
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-    "Status": "SERVING",
-    "Version": "v1.0.0",
-    "Timestamp": 1709136000
+    "ErrorMessage": "",
+    "User": {
+        "AuthID": "8b1518f9-0949-4872-92a4-5dbdfb7863d9",
+        "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+        "Name": "Doe",
+        "FirstName": "Samuel",
+        "ProfileImageURL": "https://tissi-mah-files.s3.amazonaws.com/profiles/8b1d4173.jpg",
+        "HasProfileImage": true,
+        "..."  : "..."
+    }
 }
 ```
 
-#### Example (cURL)
+Le profil retourné a la même structure que la réponse de `GET /api/v1/user/me`.
+
+#### Erreurs
+
+| ErrorMessage | HTTP | Cause |
+|--------------|------|-------|
+| `ErrorInvalidUserID` | 400 | `UserID` vide |
+| `"new_profile_picture est requis"` | 400 | `NewProfilePicture` vide ou absent |
+| `ErrorUserNotFound` | 404 | Profil introuvable |
+| `ErrorAuthServiceUnavailable` | 503 | auth-service indisponible pour l'enrichissement post-upload |
+| `ErrorInternalServer` | 500 | Échec upload file-service ou erreur MongoDB |
+
+#### Exemple (cURL)
 
 ```bash
-curl https://api.tissimah.kpeewu.dev/api/v1/user/health
+# Encoder l'image en base64
+IMAGE_B64=$(base64 -i photo.jpg)
+
+curl -X PATCH https://api.tissi-mah.com/api/v1/userProfile/changeProfilePicture \
+  -H "Authorization: Bearer <firebase_token>" \
+  -H "Content-Type: application/json" \
+  -d "{\"UserID\": \"8b1d4173-d563-4f81-aeb1-8bf565816545\", \"NewProfilePicture\": \"$IMAGE_B64\"}"
 ```
 
 ---
 
-## Inter-Service RPCs (gRPC only)
+### GET /api/v1/user/health
 
-Not exposed via HTTP. Called directly by other services.
+Health check du service.
+
+**Authentification :** Aucune (public)
+**Rate limit :** `global` (60/min, 1000/hr)
+
+#### Requête
+
+```http
+GET /api/v1/user/health HTTP/1.1
+Host: api.tissi-mah.com
+```
+
+#### Réponse
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Status": "healthy",
+    "Version": "1.0.0",
+    "Timestamp": 1713388800
+}
+```
+
+---
+
+## Catalogue des codes d'erreur
+
+Sentinel errors retournés par l'API. Ces identifiants sont **stables** et peuvent servir de clés de traduction côté frontend.
+
+### Validation (400 INVALID_ARGUMENT)
+
+| Code | Origine | Description |
+|------|---------|-------------|
+| `ErrorInvalidUserID` | `pkg/errors.ErrorInvalidUserID` | `UserID` vide ou invalide |
+| `"new_profile_picture est requis"` | handler direct | `NewProfilePicture` vide (ChangeProfilePicture) |
+
+### Ressources (404 / 409)
+
+| Code | HTTP | Origine | Description |
+|------|------|---------|-------------|
+| `ErrorUserNotFound` | 404 | `pkg/errors.ErrorUserNotFound` | Profil MongoDB introuvable |
+| `ErrorProfileAlreadyExists` | 409 | `pkg/errors.ErrorProfileAlreadyExists` | Profil déjà créé pour cet AuthID (inter-service CreateUser) |
+
+### Services dépendants (503)
+
+| Code | HTTP | Origine | Description |
+|------|------|---------|-------------|
+| `ErrorAuthServiceUnavailable` | 503 | `pkg/errors.ErrorAuthServiceUnavailable` | auth-service inaccessible (enrichissement email/phone impossible) |
+
+### Internes (500)
+
+| Code | HTTP | Origine | Description |
+|------|------|---------|-------------|
+| `ErrorDataRetrievalFailed` | 500 | `pkg/errors.ErrorDataRetrievalFailed` | Erreur lecture MongoDB |
+| `ErrorInternalServer` | 500 | `pkg/errors.ErrorInternalServer` | Erreur MongoDB, file-service indisponible, Firebase UID absent du contexte |
+
+---
+
+## RPCs inter-services (gRPC uniquement)
+
+Non exposés en HTTP. Appelés directement par les autres services du monorepo via gRPC (port 50052).
 
 ### CreateUser
 
-Called by auth-service after account creation to create the user profile.
+Appelé par **auth-service** après la création d'un compte pour créer le profil MongoDB.
 
 ```protobuf
 rpc CreateUser(CreateUserRequest) returns (UserProfileResponse);
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `AuthID` | string | Auth service account ID |
-| `Name` | string | Last name |
-| `FirstName` | string | First name |
-| `ProfilePhotoURL` | string | Profile picture URL (optional) |
+| Champ requête | Type | Description |
+|---------------|------|-------------|
+| `AuthID` | string (UUID) | ID auth-service |
+| `Name` | string | Nom de famille |
+| `FirstName` | string | Prénom |
+| `ProfilePhotoURL` | string | URL photo (optionnel) |
 | `FirebaseID` | string | Firebase UID |
+
+**Erreurs :** `ErrorProfileAlreadyExists` (ALREADY_EXISTS), `ErrorInternalServer` (INTERNAL).
 
 ### GetUserByAuthID
 
-Retrieves user profile by auth service ID.
+Appelé par **auth-service** (login).
 
 ```protobuf
 rpc GetUserByAuthID(GetUserByAuthIDRequest) returns (UserProfileResponse);
 ```
 
-| Field | Type | Description |
+| Champ | Type | Description |
 |-------|------|-------------|
-| `AuthID` | string | Auth service account ID |
+| `AuthID` | string (UUID) | ID auth-service |
+
+### GetUserByFirebaseID
+
+Appelé par **trips-service**.
+
+```protobuf
+rpc GetUserByFirebaseID(GetUserByFirebaseIDRequest) returns (UserProfileResponse);
+```
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `FirebaseID` | string | Firebase UID |
+
+### GetUserByUserID
+
+Appelé par **trips-service** et **notification-service**. Enrichit la réponse avec email/téléphone depuis auth-service.
+
+```protobuf
+rpc GetUserByUserID(GetUserByUserIDRequest) returns (UserProfileResponse);
+```
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `UserID` | string (UUID) | ID profil MongoDB |
+
+### SoftDeleteUser
+
+Appelé par **auth-service** lors de la suppression de compte. Anonymise et soft-delete le profil MongoDB (GDPR).
+
+```protobuf
+rpc SoftDeleteUser(SoftDeleteUserRequest) returns (OperationResponse);
+```
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `AuthID` | string (UUID) | ID auth-service |
 
 ---
 
-## Error Reference
+## Résumé des endpoints
 
-| ErrorMessage | HTTP | Description |
-|--------------|------|-------------|
-| `ErrUserNotFound` | 404 | User profile not found |
-| `ErrInvalidProfileID` | 400 | Invalid profile ID format |
-| `ErrInvalidPhoneNumber` | 400 | Invalid phone format (use E.164) |
-| `ErrInvalidEmail` | 400 | Invalid email format |
-| `ErrPhoneNumberTaken` | 412 | Phone already in use |
-| `ErrEmailTaken` | 412 | Email already in use |
-| `ErrorInternalServer` | 500 | Internal server error |
+| Méthode | Path | Auth | Rate limit | Type |
+|---------|------|------|------------|------|
+| `GET` | `/api/v1/user/me` | JWT | `global` | Lecture (enrichi auth + files) |
+| `PATCH` | `/api/v1/userProfile/createDriverAccount` | JWT | `global` | Mise à jour flag |
+| `PATCH` | `/api/v1/userProfile/addTripPreferences` | JWT | `global` | Remplacement préférences |
+| `PATCH` | `/api/v1/userProfile/updateProfile` | JWT | `global` | Mise à jour partielle |
+| `PATCH` | `/api/v1/userProfile/changeProfilePicture` | JWT | `global` | Upload + mise à jour |
+| `GET` | `/api/v1/user/health` | — | `global` | Health |
+| gRPC | `CreateUser` | — | — | Inter-service |
+| gRPC | `GetUserByAuthID` | — | — | Inter-service |
+| gRPC | `GetUserByFirebaseID` | — | — | Inter-service |
+| gRPC | `GetUserByUserID` | — | — | Inter-service |
+| gRPC | `SoftDeleteUser` | — | — | Inter-service |
