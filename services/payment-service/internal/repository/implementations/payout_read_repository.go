@@ -167,6 +167,38 @@ func (r *payoutReadRepository) GetReleasedPaymentsForTrip(ctx context.Context, t
 	return payments, nil
 }
 
+// IsTripReadyForPayout vérifie qu'un trip a des paiements released et aucun en pending/held,
+// et qu'aucun payout actif n'existe déjà pour ce trip.
+func (r *payoutReadRepository) IsTripReadyForPayout(ctx context.Context, tripID string) (bool, error) {
+	query := `SELECT EXISTS (
+		SELECT 1 FROM payments WHERE trip_id = $1 AND status = 'released'
+	) AND NOT EXISTS (
+		SELECT 1 FROM payments WHERE trip_id = $1 AND status IN ('pending', 'held')
+	) AND NOT EXISTS (
+		SELECT 1 FROM payouts WHERE trip_id = $1 AND status NOT IN ('failed', 'cancelled')
+	)`
+
+	var ready bool
+	err := r.pool.QueryRow(ctx, query, tripID).Scan(&ready)
+	if err != nil {
+		r.logger.Error("IsTripReadyForPayout failed", zap.Error(err), zap.String("tripID", tripID))
+		return false, paymentErrors.ErrorDataRetrievalFailed
+	}
+	return ready, nil
+}
+
+// GetByProviderReference retourne un payout par son identifiant FedaPay.
+func (r *payoutReadRepository) GetByProviderReference(ctx context.Context, providerReference string) (*domain.Payout, error) {
+	query := `SELECT payout_id, payout_reference, driver_id, trip_id,
+		gross_amount, platform_fee, net_amount, payout_method, payout_destination,
+		destination_name, status, scheduled_at, completed_at, failed_at, cancelled_at,
+		payment_provider, payment_provider_reference, failure_reason,
+		retry_count, last_retry_at, created_at, updated_at
+		FROM payouts WHERE payment_provider_reference = $1 ORDER BY created_at DESC LIMIT 1`
+
+	return r.scanPayout(ctx, query, providerReference)
+}
+
 func (r *payoutReadRepository) scanPayout(ctx context.Context, query string, arg interface{}) (*domain.Payout, error) {
 	p := &domain.Payout{}
 	err := r.pool.QueryRow(ctx, query, arg).Scan(

@@ -13,7 +13,7 @@ import (
 func cleanupPaymentTables(t *testing.T, ctx context.Context) {
 	t.Helper()
 
-	_, err := testPool.Exec(ctx, "TRUNCATE TABLE payments, refunds, payouts, webhook_events, payout_batches CASCADE")
+	_, err := testPool.Exec(ctx, "TRUNCATE TABLE payout_status_history, payments, refunds, payouts, webhook_events, payout_batches CASCADE")
 	if err != nil {
 		t.Fatalf("Failed to cleanup payment tables: %v", err)
 	}
@@ -41,4 +41,8 @@ func newTestPayoutReadRepository() repoInterfaces.PayoutRepositoryRead {
 
 func newTestPayoutWriteRepository() repoInterfaces.PayoutRepositoryWrite {
 	return implementations.NewPayoutWriteRepository(testPool, zap.NewNop())
+}
+
+func newTestPayoutHistoryWriteRepository() repoInterfaces.PayoutHistoryRepositoryWrite {
+	return implementations.NewPayoutHistoryWriteRepository(testPool, zap.NewNop())
 }

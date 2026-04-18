@@ -86,6 +86,14 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer userClient.Close()
 	logger.Info("user-service client ready", zap.String("address", cfg.UserService.Addr()))
 
+	// --- Support-service client ---
+	supportClient, err := client.NewSupportServiceClient(cfg.SupportService.Addr(), logger)
+	if err != nil {
+		return fmt.Errorf("support-service client: %w", err)
+	}
+	defer supportClient.Close()
+	logger.Info("support-service client ready", zap.String("address", cfg.SupportService.Addr()))
+
 	// --- FedaPay client ---
 	fedapayClient := fedapay.NewClient(cfg.FedaPay.APIURL, cfg.FedaPay.APIKey, cfg.FedaPay.WebhookSecret, cfg.FedaPay.MaxConcurrentRequests, logger)
 	logger.Info("fedapay client ready", zap.String("apiURL", cfg.FedaPay.APIURL))
@@ -118,13 +126,15 @@ func run(bootstrapLogger *zap.Logger) error {
 	// --- Payout repositories ---
 	payoutReadRepo := implementations.NewPayoutReadRepository(pool, logger)
 	payoutWriteRepo := implementations.NewPayoutWriteRepository(pool, logger)
+	payoutHistoryRepo := implementations.NewPayoutHistoryWriteRepository(pool, logger)
 
 	// --- Payment service ---
 	paymentService := service.NewPaymentService(
 		paymentReadRepo, paymentWriteRepo,
 		refundReadRepo, refundWriteRepo,
 		payoutReadRepo, payoutWriteRepo,
-		bookingClient, userClient,
+		payoutHistoryRepo,
+		bookingClient, userClient, supportClient,
 		fedapayClient,
 		paymentCache,
 		notifRedis,

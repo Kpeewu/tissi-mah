@@ -1330,6 +1330,126 @@ func (x *HealthResponse) GetService() string {
 	return ""
 }
 
+type GetSupportUserByIDRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSupportUserByIDRequest) Reset() {
+	*x = GetSupportUserByIDRequest{}
+	mi := &file_support_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSupportUserByIDRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSupportUserByIDRequest) ProtoMessage() {}
+
+func (x *GetSupportUserByIDRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_support_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSupportUserByIDRequest.ProtoReflect.Descriptor instead.
+func (*GetSupportUserByIDRequest) Descriptor() ([]byte, []int) {
+	return file_support_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *GetSupportUserByIDRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type GetSupportUserByIDResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	FirstName     string                 `protobuf:"bytes,2,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
+	LastName      string                 `protobuf:"bytes,3,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
+	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	IsActive      bool                   `protobuf:"varint,5,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSupportUserByIDResponse) Reset() {
+	*x = GetSupportUserByIDResponse{}
+	mi := &file_support_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSupportUserByIDResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSupportUserByIDResponse) ProtoMessage() {}
+
+func (x *GetSupportUserByIDResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_support_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSupportUserByIDResponse.ProtoReflect.Descriptor instead.
+func (*GetSupportUserByIDResponse) Descriptor() ([]byte, []int) {
+	return file_support_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *GetSupportUserByIDResponse) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *GetSupportUserByIDResponse) GetFirstName() string {
+	if x != nil {
+		return x.FirstName
+	}
+	return ""
+}
+
+func (x *GetSupportUserByIDResponse) GetLastName() string {
+	if x != nil {
+		return x.LastName
+	}
+	return ""
+}
+
+func (x *GetSupportUserByIDResponse) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *GetSupportUserByIDResponse) GetIsActive() bool {
+	if x != nil {
+		return x.IsActive
+	}
+	return false
+}
+
 var File_support_proto protoreflect.FileDescriptor
 
 const file_support_proto_rawDesc = "" +
@@ -1416,8 +1536,16 @@ const file_support_proto_rawDesc = "" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x18\n" +
-	"\aservice\x18\x03 \x01(\tR\aservice2\xda\n" +
+	"\aservice\x18\x03 \x01(\tR\aservice\"4\n" +
+	"\x19GetSupportUserByIDRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xa2\x01\n" +
+	"\x1aGetSupportUserByIDResponse\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
 	"\n" +
+	"first_name\x18\x02 \x01(\tR\tfirstName\x12\x1b\n" +
+	"\tlast_name\x18\x03 \x01(\tR\blastName\x12\x12\n" +
+	"\x04role\x18\x04 \x01(\tR\x04role\x12\x1b\n" +
+	"\tis_active\x18\x05 \x01(\bR\bisActive2\xb9\v\n" +
 	"\x0eSupportService\x12X\n" +
 	"\x05Login\x12\x15.support.LoginRequest\x1a\x16.support.LoginResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/api/v1/support/login\x12h\n" +
 	"\tVerifyOTP\x12\x19.support.VerifyOTPRequest\x1a\x1a.support.VerifyOTPResponse\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/api/v1/support/verifyOtp\x12h\n" +
@@ -1430,7 +1558,8 @@ const file_support_proto_rawDesc = "" +
 	"\x12CreateSupportAgent\x12\".support.CreateSupportAgentRequest\x1a#.support.CreateSupportAgentResponse\"'\x82\xd3\xe4\x93\x02!:\x01*\"\x1c/api/v1/support/admin/agents\x12\x80\x01\n" +
 	"\x11ListSupportAgents\x12!.support.ListSupportAgentsRequest\x1a\".support.ListSupportAgentsResponse\"$\x82\xd3\xe4\x93\x02\x1e\x12\x1c/api/v1/support/admin/agents\x12\x9d\x01\n" +
 	"\x16DeactivateSupportAgent\x12&.support.DeactivateSupportAgentRequest\x1a'.support.DeactivateSupportAgentResponse\"2\x82\xd3\xe4\x93\x02,:\x01*\"'/api/v1/support/admin/agents/deactivate\x12Y\n" +
-	"\x06Health\x12\x16.support.HealthRequest\x1a\x17.support.HealthResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/api/v1/support/healthBJZHgithub.com/Kpeewu/tissi-mah/services/support-service/proto/gen;supportpbb\x06proto3"
+	"\x06Health\x12\x16.support.HealthRequest\x1a\x17.support.HealthResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/api/v1/support/health\x12]\n" +
+	"\x12GetSupportUserByID\x12\".support.GetSupportUserByIDRequest\x1a#.support.GetSupportUserByIDResponseBJZHgithub.com/Kpeewu/tissi-mah/services/support-service/proto/gen;supportpbb\x06proto3"
 
 var (
 	file_support_proto_rawDescOnce sync.Once
@@ -1444,7 +1573,7 @@ func file_support_proto_rawDescGZIP() []byte {
 	return file_support_proto_rawDescData
 }
 
-var file_support_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_support_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_support_proto_goTypes = []any{
 	(*LoginRequest)(nil),                   // 0: support.LoginRequest
 	(*LoginResponse)(nil),                  // 1: support.LoginResponse
@@ -1471,6 +1600,8 @@ var file_support_proto_goTypes = []any{
 	(*DeactivateSupportAgentResponse)(nil), // 22: support.DeactivateSupportAgentResponse
 	(*HealthRequest)(nil),                  // 23: support.HealthRequest
 	(*HealthResponse)(nil),                 // 24: support.HealthResponse
+	(*GetSupportUserByIDRequest)(nil),      // 25: support.GetSupportUserByIDRequest
+	(*GetSupportUserByIDResponse)(nil),     // 26: support.GetSupportUserByIDResponse
 }
 var file_support_proto_depIdxs = []int32{
 	19, // 0: support.ListSupportAgentsResponse.agents:type_name -> support.SupportAgent
@@ -1486,20 +1617,22 @@ var file_support_proto_depIdxs = []int32{
 	18, // 10: support.SupportService.ListSupportAgents:input_type -> support.ListSupportAgentsRequest
 	21, // 11: support.SupportService.DeactivateSupportAgent:input_type -> support.DeactivateSupportAgentRequest
 	23, // 12: support.SupportService.Health:input_type -> support.HealthRequest
-	1,  // 13: support.SupportService.Login:output_type -> support.LoginResponse
-	3,  // 14: support.SupportService.VerifyOTP:output_type -> support.VerifyOTPResponse
-	5,  // 15: support.SupportService.ResendOTP:output_type -> support.ResendOTPResponse
-	7,  // 16: support.SupportService.RefreshToken:output_type -> support.RefreshTokenResponse
-	9,  // 17: support.SupportService.Logout:output_type -> support.LogoutResponse
-	11, // 18: support.SupportService.Me:output_type -> support.MeResponse
-	13, // 19: support.SupportService.ChangeMyPassword:output_type -> support.ChangeMyPasswordResponse
-	15, // 20: support.SupportService.ChangeMyEmail:output_type -> support.ChangeMyEmailResponse
-	17, // 21: support.SupportService.CreateSupportAgent:output_type -> support.CreateSupportAgentResponse
-	20, // 22: support.SupportService.ListSupportAgents:output_type -> support.ListSupportAgentsResponse
-	22, // 23: support.SupportService.DeactivateSupportAgent:output_type -> support.DeactivateSupportAgentResponse
-	24, // 24: support.SupportService.Health:output_type -> support.HealthResponse
-	13, // [13:25] is the sub-list for method output_type
-	1,  // [1:13] is the sub-list for method input_type
+	25, // 13: support.SupportService.GetSupportUserByID:input_type -> support.GetSupportUserByIDRequest
+	1,  // 14: support.SupportService.Login:output_type -> support.LoginResponse
+	3,  // 15: support.SupportService.VerifyOTP:output_type -> support.VerifyOTPResponse
+	5,  // 16: support.SupportService.ResendOTP:output_type -> support.ResendOTPResponse
+	7,  // 17: support.SupportService.RefreshToken:output_type -> support.RefreshTokenResponse
+	9,  // 18: support.SupportService.Logout:output_type -> support.LogoutResponse
+	11, // 19: support.SupportService.Me:output_type -> support.MeResponse
+	13, // 20: support.SupportService.ChangeMyPassword:output_type -> support.ChangeMyPasswordResponse
+	15, // 21: support.SupportService.ChangeMyEmail:output_type -> support.ChangeMyEmailResponse
+	17, // 22: support.SupportService.CreateSupportAgent:output_type -> support.CreateSupportAgentResponse
+	20, // 23: support.SupportService.ListSupportAgents:output_type -> support.ListSupportAgentsResponse
+	22, // 24: support.SupportService.DeactivateSupportAgent:output_type -> support.DeactivateSupportAgentResponse
+	24, // 25: support.SupportService.Health:output_type -> support.HealthResponse
+	26, // 26: support.SupportService.GetSupportUserByID:output_type -> support.GetSupportUserByIDResponse
+	14, // [14:27] is the sub-list for method output_type
+	1,  // [1:14] is the sub-list for method input_type
 	1,  // [1:1] is the sub-list for extension type_name
 	1,  // [1:1] is the sub-list for extension extendee
 	0,  // [0:1] is the sub-list for field type_name
@@ -1516,7 +1649,7 @@ func file_support_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_support_proto_rawDesc), len(file_support_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   25,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

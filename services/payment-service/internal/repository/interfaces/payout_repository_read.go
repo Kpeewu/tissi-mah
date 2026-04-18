@@ -14,4 +14,6 @@ type PayoutRepositoryRead interface {
 	GetBatchByID(ctx context.Context, batchID string) (*domain.PayoutBatch, error)
 	GetTripsReadyForPayout(ctx context.Context) ([]string, error)
 	GetReleasedPaymentsForTrip(ctx context.Context, tripID string) ([]*domain.Payment, error)
+	IsTripReadyForPayout(ctx context.Context, tripID string) (bool, error)
+	GetByProviderReference(ctx context.Context, providerReference string) (*domain.Payout, error)
 }

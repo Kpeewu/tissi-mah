@@ -159,6 +159,22 @@ type WebhookEvent struct {
 }
 
 // =============================================================================
+// PayoutStatusHistory
+// =============================================================================
+
+type PayoutStatusHistory struct {
+	HistoryID        string
+	PayoutID         string
+	Status           string // "scheduled" | "processing" | "failed" | "completed" | "launched_by_support"
+	InitiatedBy      string // "system" | "support"
+	SupportUserID    string
+	SupportFirstName string
+	SupportLastName  string
+	OccurredAt       time.Time
+	Notes            string
+}
+
+// =============================================================================
 // PayoutBatch
 // =============================================================================
 

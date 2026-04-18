@@ -59,6 +59,19 @@ func (m *MockPayoutRepositoryRead) GetReleasedPaymentsForTrip(ctx context.Contex
 	return args.Get(0).([]*domain.Payment), args.Error(1)
 }
 
+func (m *MockPayoutRepositoryRead) IsTripReadyForPayout(ctx context.Context, tripID string) (bool, error) {
+	args := m.Called(ctx, tripID)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockPayoutRepositoryRead) GetByProviderReference(ctx context.Context, providerReference string) (*domain.Payout, error) {
+	args := m.Called(ctx, providerReference)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Payout), args.Error(1)
+}
+
 type MockPayoutRepositoryWrite struct {
 	mock.Mock
 }

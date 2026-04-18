@@ -28,6 +28,7 @@ const (
 	PaymentService_ReleasePayment_FullMethodName      = "/payment.PaymentService/ReleasePayment"
 	PaymentService_GetPayoutStatus_FullMethodName     = "/payment.PaymentService/GetPayoutStatus"
 	PaymentService_GetDriverPayouts_FullMethodName    = "/payment.PaymentService/GetDriverPayouts"
+	PaymentService_TriggerManualPayout_FullMethodName = "/payment.PaymentService/TriggerManualPayout"
 	PaymentService_Health_FullMethodName              = "/payment.PaymentService/Health"
 )
 
@@ -53,6 +54,8 @@ type PaymentServiceClient interface {
 	GetPayoutStatus(ctx context.Context, in *GetPayoutStatusRequest, opts ...grpc.CallOption) (*GetPayoutStatusResponse, error)
 	// GetDriverPayouts retourne les payouts d'un chauffeur
 	GetDriverPayouts(ctx context.Context, in *GetDriverPayoutsRequest, opts ...grpc.CallOption) (*GetDriverPayoutsResponse, error)
+	// TriggerManualPayout permet à un agent support de lancer manuellement un payout pour un trajet
+	TriggerManualPayout(ctx context.Context, in *TriggerManualPayoutRequest, opts ...grpc.CallOption) (*TriggerManualPayoutResponse, error)
 	// Health vérifie l'état du service
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -155,6 +158,16 @@ func (c *paymentServiceClient) GetDriverPayouts(ctx context.Context, in *GetDriv
 	return out, nil
 }
 
+func (c *paymentServiceClient) TriggerManualPayout(ctx context.Context, in *TriggerManualPayoutRequest, opts ...grpc.CallOption) (*TriggerManualPayoutResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TriggerManualPayoutResponse)
+	err := c.cc.Invoke(ctx, PaymentService_TriggerManualPayout_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *paymentServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -187,6 +200,8 @@ type PaymentServiceServer interface {
 	GetPayoutStatus(context.Context, *GetPayoutStatusRequest) (*GetPayoutStatusResponse, error)
 	// GetDriverPayouts retourne les payouts d'un chauffeur
 	GetDriverPayouts(context.Context, *GetDriverPayoutsRequest) (*GetDriverPayoutsResponse, error)
+	// TriggerManualPayout permet à un agent support de lancer manuellement un payout pour un trajet
+	TriggerManualPayout(context.Context, *TriggerManualPayoutRequest) (*TriggerManualPayoutResponse, error)
 	// Health vérifie l'état du service
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedPaymentServiceServer()
@@ -225,6 +240,9 @@ func (UnimplementedPaymentServiceServer) GetPayoutStatus(context.Context, *GetPa
 }
 func (UnimplementedPaymentServiceServer) GetDriverPayouts(context.Context, *GetDriverPayoutsRequest) (*GetDriverPayoutsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetDriverPayouts not implemented")
+}
+func (UnimplementedPaymentServiceServer) TriggerManualPayout(context.Context, *TriggerManualPayoutRequest) (*TriggerManualPayoutResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method TriggerManualPayout not implemented")
 }
 func (UnimplementedPaymentServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -412,6 +430,24 @@ func _PaymentService_GetDriverPayouts_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PaymentService_TriggerManualPayout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TriggerManualPayoutRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaymentServiceServer).TriggerManualPayout(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PaymentService_TriggerManualPayout_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaymentServiceServer).TriggerManualPayout(ctx, req.(*TriggerManualPayoutRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PaymentService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -472,6 +508,10 @@ var PaymentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDriverPayouts",
 			Handler:    _PaymentService_GetDriverPayouts_Handler,
+		},
+		{
+			MethodName: "TriggerManualPayout",
+			Handler:    _PaymentService_TriggerManualPayout_Handler,
 		},
 		{
 			MethodName: "Health",

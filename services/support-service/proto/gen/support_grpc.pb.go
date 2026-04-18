@@ -31,6 +31,7 @@ const (
 	SupportService_ListSupportAgents_FullMethodName      = "/support.SupportService/ListSupportAgents"
 	SupportService_DeactivateSupportAgent_FullMethodName = "/support.SupportService/DeactivateSupportAgent"
 	SupportService_Health_FullMethodName                 = "/support.SupportService/Health"
+	SupportService_GetSupportUserByID_FullMethodName     = "/support.SupportService/GetSupportUserByID"
 )
 
 // SupportServiceClient is the client API for SupportService service.
@@ -49,6 +50,9 @@ type SupportServiceClient interface {
 	ListSupportAgents(ctx context.Context, in *ListSupportAgentsRequest, opts ...grpc.CallOption) (*ListSupportAgentsResponse, error)
 	DeactivateSupportAgent(ctx context.Context, in *DeactivateSupportAgentRequest, opts ...grpc.CallOption) (*DeactivateSupportAgentResponse, error)
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
+	// GetSupportUserByID est un RPC inter-service (gRPC uniquement, pas d'annotation HTTP).
+	// Utilisé par payment-service pour vérifier l'identité et l'habilitation d'un agent support.
+	GetSupportUserByID(ctx context.Context, in *GetSupportUserByIDRequest, opts ...grpc.CallOption) (*GetSupportUserByIDResponse, error)
 }
 
 type supportServiceClient struct {
@@ -179,6 +183,16 @@ func (c *supportServiceClient) Health(ctx context.Context, in *HealthRequest, op
 	return out, nil
 }
 
+func (c *supportServiceClient) GetSupportUserByID(ctx context.Context, in *GetSupportUserByIDRequest, opts ...grpc.CallOption) (*GetSupportUserByIDResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetSupportUserByIDResponse)
+	err := c.cc.Invoke(ctx, SupportService_GetSupportUserByID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SupportServiceServer is the server API for SupportService service.
 // All implementations must embed UnimplementedSupportServiceServer
 // for forward compatibility.
@@ -195,6 +209,9 @@ type SupportServiceServer interface {
 	ListSupportAgents(context.Context, *ListSupportAgentsRequest) (*ListSupportAgentsResponse, error)
 	DeactivateSupportAgent(context.Context, *DeactivateSupportAgentRequest) (*DeactivateSupportAgentResponse, error)
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
+	// GetSupportUserByID est un RPC inter-service (gRPC uniquement, pas d'annotation HTTP).
+	// Utilisé par payment-service pour vérifier l'identité et l'habilitation d'un agent support.
+	GetSupportUserByID(context.Context, *GetSupportUserByIDRequest) (*GetSupportUserByIDResponse, error)
 	mustEmbedUnimplementedSupportServiceServer()
 }
 
@@ -240,6 +257,9 @@ func (UnimplementedSupportServiceServer) DeactivateSupportAgent(context.Context,
 }
 func (UnimplementedSupportServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
+}
+func (UnimplementedSupportServiceServer) GetSupportUserByID(context.Context, *GetSupportUserByIDRequest) (*GetSupportUserByIDResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetSupportUserByID not implemented")
 }
 func (UnimplementedSupportServiceServer) mustEmbedUnimplementedSupportServiceServer() {}
 func (UnimplementedSupportServiceServer) testEmbeddedByValue()                        {}
@@ -478,6 +498,24 @@ func _SupportService_Health_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SupportService_GetSupportUserByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSupportUserByIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SupportServiceServer).GetSupportUserByID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SupportService_GetSupportUserByID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SupportServiceServer).GetSupportUserByID(ctx, req.(*GetSupportUserByIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SupportService_ServiceDesc is the grpc.ServiceDesc for SupportService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -532,6 +570,10 @@ var SupportService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Health",
 			Handler:    _SupportService_Health_Handler,
+		},
+		{
+			MethodName: "GetSupportUserByID",
+			Handler:    _SupportService_GetSupportUserByID_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

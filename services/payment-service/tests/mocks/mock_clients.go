@@ -40,3 +40,15 @@ func (m *MockUserClient) GetUserByUserID(ctx context.Context, userID string) (*c
 	}
 	return args.Get(0).(*client.UserInfo), args.Error(1)
 }
+
+type MockSupportClient struct {
+	mock.Mock
+}
+
+func (m *MockSupportClient) GetSupportUserByID(ctx context.Context, userID string) (*client.SupportUserInfo, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*client.SupportUserInfo), args.Error(1)
+}

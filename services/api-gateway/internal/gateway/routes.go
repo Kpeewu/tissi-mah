@@ -102,6 +102,9 @@ var SupportProtectedRoutes = map[string]bool{
 	"/api/v1/support/me/email":                true,
 	"/api/v1/support/admin/agents":            true,
 	"/api/v1/support/admin/agents/deactivate": true,
+
+	// payment-service — actions support
+	"/payment/support/triggerManualPayout": true,
 }
 
 // RateLimitTier identifie le niveau de rate limiting pour une route

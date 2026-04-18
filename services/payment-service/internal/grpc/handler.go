@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/middleware"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/payment-service/internal/service/interfaces"
 	paymentErrors "github.com/Kpeewu/tissi-mah/services/payment-service/pkg/errors"
 	paymentpb "github.com/Kpeewu/tissi-mah/services/payment-service/proto/gen"
@@ -179,6 +180,26 @@ func (h *PaymentHandler) GetPayoutStatus(ctx context.Context, req *paymentpb.Get
 	}, nil
 }
 
+// TriggerManualPayout permet à un agent support de lancer manuellement un payout pour un trajet.
+func (h *PaymentHandler) TriggerManualPayout(ctx context.Context, req *paymentpb.TriggerManualPayoutRequest) (*paymentpb.TriggerManualPayoutResponse, error) {
+	supportUID, ok := ctx.Value(middleware.SupportUIDKey).(string)
+	if !ok || supportUID == "" {
+		return &paymentpb.TriggerManualPayoutResponse{Success: false, ErrorMessage: paymentErrors.ErrorUnauthorized.Error()},
+			status.Error(codes.Unauthenticated, paymentErrors.ErrorUnauthorized.Error())
+	}
+
+	netAmount, err := h.service.TriggerManualPayout(ctx, req.TripId, supportUID)
+	if err != nil {
+		h.logger.Error("handler: TriggerManualPayout failed", zap.Error(err), zap.String("tripID", req.TripId))
+		return &paymentpb.TriggerManualPayoutResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return &paymentpb.TriggerManualPayoutResponse{
+		Success:   true,
+		NetAmount: int32(netAmount),
+	}, nil
+}
+
 // GetDriverPayouts retourne les payouts d'un chauffeur.
 func (h *PaymentHandler) GetDriverPayouts(ctx context.Context, req *paymentpb.GetDriverPayoutsRequest) (*paymentpb.GetDriverPayoutsResponse, error) {
 	results, err := h.service.GetDriverPayouts(ctx, req.DriverId, int(req.PageIndex))
@@ -241,8 +262,11 @@ func toGRPCError(err error) error {
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, paymentErrors.ErrorInsufficientBalance):
 		return status.Error(codes.ResourceExhausted, err.Error())
+	case errors.Is(err, paymentErrors.ErrorTripNotReadyForPayout):
+		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, paymentErrors.ErrorFedaPayAPIError),
-		errors.Is(err, paymentErrors.ErrorWebhookVerificationFailed):
+		errors.Is(err, paymentErrors.ErrorWebhookVerificationFailed),
+		errors.Is(err, paymentErrors.ErrorSupportServiceUnavailable):
 		return status.Error(codes.Unavailable, err.Error())
 	case errors.Is(err, paymentErrors.ErrorDataRetrievalFailed),
 		errors.Is(err, paymentErrors.ErrorInternalServer):

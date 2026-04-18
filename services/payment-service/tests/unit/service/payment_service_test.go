@@ -21,27 +21,31 @@ import (
 // --- Helpers ---
 
 type testDeps struct {
-	paymentReadRepo  *mocks.MockPaymentRepositoryRead
-	paymentWriteRepo *mocks.MockPaymentRepositoryWrite
-	refundReadRepo   *mocks.MockRefundRepositoryRead
-	refundWriteRepo  *mocks.MockRefundRepositoryWrite
-	payoutReadRepo   *mocks.MockPayoutRepositoryRead
-	payoutWriteRepo  *mocks.MockPayoutRepositoryWrite
-	bookingClient    *mocks.MockBookingClient
-	userClient       *mocks.MockUserClient
-	svc              serviceInterfaces.PaymentService
+	paymentReadRepo   *mocks.MockPaymentRepositoryRead
+	paymentWriteRepo  *mocks.MockPaymentRepositoryWrite
+	refundReadRepo    *mocks.MockRefundRepositoryRead
+	refundWriteRepo   *mocks.MockRefundRepositoryWrite
+	payoutReadRepo    *mocks.MockPayoutRepositoryRead
+	payoutWriteRepo   *mocks.MockPayoutRepositoryWrite
+	payoutHistoryRepo *mocks.MockPayoutHistoryRepositoryWrite
+	bookingClient     *mocks.MockBookingClient
+	userClient        *mocks.MockUserClient
+	supportClient     *mocks.MockSupportClient
+	svc               serviceInterfaces.PaymentService
 }
 
 func newTestService() *testDeps {
 	d := &testDeps{
-		paymentReadRepo:  new(mocks.MockPaymentRepositoryRead),
-		paymentWriteRepo: new(mocks.MockPaymentRepositoryWrite),
-		refundReadRepo:   new(mocks.MockRefundRepositoryRead),
-		refundWriteRepo:  new(mocks.MockRefundRepositoryWrite),
-		payoutReadRepo:   new(mocks.MockPayoutRepositoryRead),
-		payoutWriteRepo:  new(mocks.MockPayoutRepositoryWrite),
-		bookingClient:    new(mocks.MockBookingClient),
-		userClient:       new(mocks.MockUserClient),
+		paymentReadRepo:   new(mocks.MockPaymentRepositoryRead),
+		paymentWriteRepo:  new(mocks.MockPaymentRepositoryWrite),
+		refundReadRepo:    new(mocks.MockRefundRepositoryRead),
+		refundWriteRepo:   new(mocks.MockRefundRepositoryWrite),
+		payoutReadRepo:    new(mocks.MockPayoutRepositoryRead),
+		payoutWriteRepo:   new(mocks.MockPayoutRepositoryWrite),
+		payoutHistoryRepo: new(mocks.MockPayoutHistoryRepositoryWrite),
+		bookingClient:     new(mocks.MockBookingClient),
+		userClient:        new(mocks.MockUserClient),
+		supportClient:     new(mocks.MockSupportClient),
 	}
 
 	cfg := &config.Config{
@@ -66,8 +70,10 @@ func newTestService() *testDeps {
 		d.refundWriteRepo,
 		d.payoutReadRepo,
 		d.payoutWriteRepo,
+		d.payoutHistoryRepo,
 		d.bookingClient,
 		d.userClient,
+		d.supportClient,
 		nil, // fedapayClient — non testable sans mock HTTP
 		nil, // cache
 		nil, // notifRedis
@@ -85,8 +91,10 @@ func (d *testDeps) assertExpectations(t *testing.T) {
 	d.refundWriteRepo.AssertExpectations(t)
 	d.payoutReadRepo.AssertExpectations(t)
 	d.payoutWriteRepo.AssertExpectations(t)
+	d.payoutHistoryRepo.AssertExpectations(t)
 	d.bookingClient.AssertExpectations(t)
 	d.userClient.AssertExpectations(t)
+	d.supportClient.AssertExpectations(t)
 }
 
 // =============================================================================
