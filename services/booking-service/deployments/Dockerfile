@@ -29,6 +29,8 @@ COPY services/trips-service/go.mod services/trips-service/go.sum* ./services/tri
 COPY services/rating-service/go.mod services/rating-service/go.sum* ./services/rating-service/
 COPY services/booking-service/go.mod services/booking-service/go.sum* ./services/booking-service/
 COPY services/payment-service/go.mod services/payment-service/go.sum* ./services/payment-service/
+COPY services/email-service/go.mod services/email-service/go.sum* ./services/email-service/
+COPY services/support-service/go.mod services/support-service/go.sum* ./services/support-service/
 
 # pkg-test est un module de test uniquement, mais plusieurs go.mod ont un replace directive qui
 # pointe vers lui. On crée un stub minimal (go.mod vide) pour satisfaire la résolution Go sans
@@ -41,7 +43,7 @@ RUN mkdir -p pkg-test && \
 # vehicle-service is required because trips-service has a replace directive pointing to it,
 # rating-service is required because trips-service has a replace directive pointing to it,
 # payment-service is required because booking-service has a replace directive pointing to it
-RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/user-service\n\t./services/vehicle-service\n\t./services/trips-service\n\t./services/rating-service\n\t./services/booking-service\n\t./services/payment-service\n)\n' > go.work
+RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/user-service\n\t./services/vehicle-service\n\t./services/trips-service\n\t./services/rating-service\n\t./services/booking-service\n\t./services/email-service\n\t./services/support-service\n\t./services/payment-service\n)\n' > go.work
 
 # Download dependencies for all modules
 RUN go mod download -C ./pkg
@@ -51,6 +53,8 @@ RUN go mod download -C ./services/vehicle-service
 RUN go mod download -C ./services/trips-service
 RUN go mod download -C ./services/rating-service
 RUN go mod download -C ./services/booking-service
+RUN go mod download -C ./services/email-service
+RUN go mod download -C ./services/support-service
 RUN go mod download -C ./services/payment-service
 
 # =============================================================================
@@ -85,6 +89,12 @@ COPY services/rating-service/ ./services/rating-service/
 
 # Copy booking-service source code
 COPY services/booking-service/ ./services/booking-service/
+
+# Copy email-service source code (required by support-service replace directive)
+COPY services/email-service/ ./services/email-service/
+
+# Copy support-service source code (required by payment-service replace directive)
+COPY services/support-service/ ./services/support-service/
 
 # Copy payment-service source code (required by booking-service replace directive)
 COPY services/payment-service/ ./services/payment-service/
