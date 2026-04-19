@@ -200,7 +200,7 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 
 	// Créer le payout FedaPay
 	fedapayPayout, err := s.fedapayClient.CreatePayout(
-		netAmount, "moov_tg", user.WithdrawNumber,
+		netAmount, "togocel", user.WithdrawNumber,
 		user.FirstName, user.Name,
 	)
 	if err != nil {
