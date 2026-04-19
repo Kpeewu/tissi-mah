@@ -228,7 +228,8 @@ func (s *tripServiceImpl) computeMinutesFromDepartureTime(scheduledStr string, d
 	wp := time.Date(0, 1, 1, t.Hour(), t.Minute(), 0, 0, time.UTC)
 	diff := wp.Sub(ref)
 	if diff < 0 {
-		return 0
+		// Arrivée le jour suivant (trajet overnight)
+		diff += 24 * time.Hour
 	}
 	return int(diff.Minutes())
 }
