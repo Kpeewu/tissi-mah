@@ -188,6 +188,7 @@ jobs:
         run: |
           set -euo pipefail
           JOB_NAME="${SERVICE}-mig-${SHORT_SHA:0:10}"
+          IMAGE_LOWER=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
 
           # Nettoie un éventuel Job précédent portant le même nom (re-run CI sur le même SHA).
           kubectl delete job "$JOB_NAME" -n "$NS" --ignore-not-found --wait=true
@@ -203,12 +204,13 @@ jobs:
           spec:
             ttlSecondsAfterFinished: 600
             backoffLimit: 0
+            activeDeadlineSeconds: 300
             template:
               spec:
                 restartPolicy: Never
                 containers:
                 - name: migrate
-                  image: ${IMAGE}
+                  image: ${IMAGE_LOWER}
                   imagePullPolicy: Always
                   command: ["/bin/sh","-c"]
                   args:
@@ -222,30 +224,52 @@ jobs:
                         name: ${SERVICE}
           EOF
 
-          echo "Waiting for Job/${JOB_NAME}..."
-          for i in $(seq 1 120); do
+          echo "Waiting for Job/${JOB_NAME} (max 5 min)..."
+          DONE=""
+          for i in $(seq 1 60); do
             COMPLETE=$(kubectl get job "$JOB_NAME" -n "$NS" -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}' 2>/dev/null || echo "")
             FAILED=$(kubectl get job "$JOB_NAME" -n "$NS" -o jsonpath='{.status.conditions[?(@.type=="Failed")].status}' 2>/dev/null || echo "")
-            if [ "$COMPLETE" = "True" ] || [ "$FAILED" = "True" ]; then
-              break
+            if [ "$COMPLETE" = "True" ]; then
+              DONE="complete"; break
+            fi
+            if [ "$FAILED" = "True" ]; then
+              DONE="failed"; break
+            fi
+            # Détection précoce d'une erreur d'image / pull (sinon on attend le timeout pour rien).
+            POD_EARLY=$(kubectl get pod -n "$NS" -l job-name="$JOB_NAME" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+            if [ -n "$POD_EARLY" ]; then
+              REASON=$(kubectl get pod "$POD_EARLY" -n "$NS" -o jsonpath='{.status.containerStatuses[0].state.waiting.reason}' 2>/dev/null || echo "")
+              case "$REASON" in
+                InvalidImageName|ErrImageNeverPull|ImagePullBackOff|ErrImagePull|CreateContainerConfigError)
+                  DONE="pod-error"; break ;;
+              esac
             fi
             sleep 5
           done
 
           POD=$(kubectl get pod -n "$NS" -l job-name="$JOB_NAME" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
           if [ -n "$POD" ]; then
+            echo "----- pod status (${POD}) -----"
+            kubectl get pod "$POD" -n "$NS" -o wide || true
             echo "----- migrate logs (${POD}) -----"
             kubectl logs "$POD" -n "$NS" --tail=500 || true
             echo "---------------------------------"
           fi
 
+          SUCCEEDED=$(kubectl get job "$JOB_NAME" -n "$NS" -o jsonpath='{.status.succeeded}' 2>/dev/null || echo "0")
           FAILED_COUNT=$(kubectl get job "$JOB_NAME" -n "$NS" -o jsonpath='{.status.failed}' 2>/dev/null || echo "0")
-          kubectl delete job "$JOB_NAME" -n "$NS" --wait=false --ignore-not-found
 
-          if [ -n "$FAILED_COUNT" ] && [ "$FAILED_COUNT" != "0" ]; then
-            echo "::error::Migration failed for ${SERVICE}"
+          if [ "$SUCCEEDED" != "1" ]; then
+            echo "::error::Migration did NOT succeed for ${SERVICE} (state=${DONE:-timeout}, succeeded=${SUCCEEDED:-0}, failed=${FAILED_COUNT:-0})"
+            if [ -n "$POD" ]; then
+              echo "----- pod describe -----"
+              kubectl describe pod "$POD" -n "$NS" | tail -40 || true
+            fi
+            kubectl delete job "$JOB_NAME" -n "$NS" --wait=false --ignore-not-found
             exit 1
           fi
+
+          kubectl delete job "$JOB_NAME" -n "$NS" --wait=false --ignore-not-found
           echo "Migration succeeded for ${SERVICE}"
 
   deploy:
