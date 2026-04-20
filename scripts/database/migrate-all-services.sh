@@ -20,6 +20,16 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
+# Charger .env AVANT d'assembler les SERVICE_DB_URLS, sinon les valeurs
+# par défaut (dev:dev123) sont figées au moment où le script évalue les
+# assignments de tableau.
+if [ -f "$ROOT_DIR/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    . "$ROOT_DIR/.env"
+    set +a
+fi
+
 echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║        Database Migrations - tissiMah                  ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
@@ -378,11 +388,6 @@ done
 # Get service and direction arguments
 SERVICE=${1:-""}
 DIRECTION=${2:-"up"}
-
-# Load environment
-if [ -f "$ROOT_DIR/.env" ]; then
-    export $(cat "$ROOT_DIR/.env" | grep -v '^#' | xargs)
-fi
 
 # Determine which services to process
 if [ -n "$SERVICE" ]; then
