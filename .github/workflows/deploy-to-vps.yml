@@ -136,9 +136,121 @@ jobs:
             VERSION=develop-${{ github.sha }}
             COMMIT_SHA=${{ github.sha }}
 
+  run-migrations:
+    name: Run DB Migrations
+    needs: [detect-changes, build-and-push]
+    if: needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+      fail-fast: true
+    steps:
+      - name: Skip services without migrations
+        id: check
+        run: |
+          case "${{ matrix.service }}" in
+            auth-service|file-service|rating-service|vehicle-service|trips-service|booking-service|payment-service|notification-service|support-service)
+              echo "has_migrations=true" >> $GITHUB_OUTPUT ;;
+            *)
+              echo "has_migrations=false" >> $GITHUB_OUTPUT
+              echo "Service ${{ matrix.service }} has no PostgreSQL migrations — skipping." ;;
+          esac
+
+      - name: Setup kubeconfig
+        if: steps.check.outputs.has_migrations == 'true'
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.VPS_KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Check that service secret exists
+        if: steps.check.outputs.has_migrations == 'true'
+        id: secret
+        env:
+          SERVICE: ${{ matrix.service }}
+          NS: ${{ env.DEPLOY_NAMESPACE }}
+        run: |
+          if kubectl get secret "$SERVICE" -n "$NS" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::notice::Secret $SERVICE not found in namespace $NS — this is probably the first deploy. Migrations will run via the Helm initContainer."
+          fi
+
+      - name: Run migrations via Kubernetes Job
+        if: steps.check.outputs.has_migrations == 'true' && steps.secret.outputs.exists == 'true'
+        env:
+          SERVICE: ${{ matrix.service }}
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:develop-${{ github.sha }}
+          NS: ${{ env.DEPLOY_NAMESPACE }}
+          SHORT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          JOB_NAME="${SERVICE}-mig-${SHORT_SHA:0:10}"
+
+          # Nettoie un éventuel Job précédent portant le même nom (re-run CI sur le même SHA).
+          kubectl delete job "$JOB_NAME" -n "$NS" --ignore-not-found --wait=true
+
+          cat <<EOF | kubectl apply -n "$NS" -f -
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: ${JOB_NAME}
+            labels:
+              app: ${SERVICE}
+              tissimah.io/type: db-migration
+          spec:
+            ttlSecondsAfterFinished: 600
+            backoffLimit: 0
+            template:
+              spec:
+                restartPolicy: Never
+                containers:
+                - name: migrate
+                  image: ${IMAGE}
+                  imagePullPolicy: Always
+                  command: ["/bin/sh","-c"]
+                  args:
+                    - |
+                      set -e
+                      echo "Running migrations for ${SERVICE}..."
+                      migrate -path /app/migrations -database "\$DATABASE_URL" up
+                      echo "Migrations complete."
+                  envFrom:
+                    - secretRef:
+                        name: ${SERVICE}
+          EOF
+
+          echo "Waiting for Job/${JOB_NAME}..."
+          for i in $(seq 1 120); do
+            COMPLETE=$(kubectl get job "$JOB_NAME" -n "$NS" -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}' 2>/dev/null || echo "")
+            FAILED=$(kubectl get job "$JOB_NAME" -n "$NS" -o jsonpath='{.status.conditions[?(@.type=="Failed")].status}' 2>/dev/null || echo "")
+            if [ "$COMPLETE" = "True" ] || [ "$FAILED" = "True" ]; then
+              break
+            fi
+            sleep 5
+          done
+
+          POD=$(kubectl get pod -n "$NS" -l job-name="$JOB_NAME" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+          if [ -n "$POD" ]; then
+            echo "----- migrate logs (${POD}) -----"
+            kubectl logs "$POD" -n "$NS" --tail=500 || true
+            echo "---------------------------------"
+          fi
+
+          FAILED_COUNT=$(kubectl get job "$JOB_NAME" -n "$NS" -o jsonpath='{.status.failed}' 2>/dev/null || echo "0")
+          kubectl delete job "$JOB_NAME" -n "$NS" --wait=false --ignore-not-found
+
+          if [ -n "$FAILED_COUNT" ] && [ "$FAILED_COUNT" != "0" ]; then
+            echo "::error::Migration failed for ${SERVICE}"
+            exit 1
+          fi
+          echo "Migration succeeded for ${SERVICE}"
+
   deploy:
     name: Deploy to VPS
-    needs: [detect-changes, build-and-push]
+    needs: [detect-changes, build-and-push, run-migrations]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -499,7 +611,7 @@ jobs:
 
   deployment-summary:
     name: Deployment Summary
-    needs: [detect-changes, build-and-push, deploy, health-check, smoke-tests]
+    needs: [detect-changes, build-and-push, run-migrations, deploy, health-check, smoke-tests]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -516,6 +628,7 @@ jobs:
           echo "Results:"
           echo "  Tests:        ${{ needs.run-tests.result }}"
           echo "  Build:        ${{ needs.build-and-push.result }}"
+          echo "  Migrations:   ${{ needs.run-migrations.result }}"
           echo "  Deploy:       ${{ needs.deploy.result }}"
           echo "  Health Check: ${{ needs.health-check.result }}"
           echo "  Smoke Tests:  ${{ needs.smoke-tests.result }}"
