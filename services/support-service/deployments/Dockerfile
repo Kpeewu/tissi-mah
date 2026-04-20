@@ -84,6 +84,7 @@ RUN addgroup -g 1000 appuser && \
 WORKDIR /app
 
 COPY --from=builder --chown=appuser:appuser /build/support-service .
+COPY --from=builder --chown=appuser:appuser /build/services/support-service/migrations ./migrations/
 
 # Copy golang-migrate binary for Kubernetes initContainer
 COPY --from=migrate/migrate:v4.17.0 /usr/local/bin/migrate /usr/local/bin/migrate
