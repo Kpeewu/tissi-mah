@@ -48,6 +48,7 @@ RUN apk --no-cache add ca-certificates tzdata && update-ca-certificates
 RUN addgroup -g 1000 appuser && adduser -D -u 1000 -G appuser -h /app -s /sbin/nologin appuser
 WORKDIR /app
 COPY --from=builder --chown=appuser:appuser /build/notification-service .
+COPY --from=builder --chown=appuser:appuser /build/services/notification-service/migrations ./migrations/
 # Copy golang-migrate binary for Kubernetes initContainer
 COPY --from=migrate/migrate:v4.17.0 /usr/local/bin/migrate /usr/local/bin/migrate
 
