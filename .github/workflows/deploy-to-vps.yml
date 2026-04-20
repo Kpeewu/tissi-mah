@@ -208,6 +208,8 @@ jobs:
             template:
               spec:
                 restartPolicy: Never
+                imagePullSecrets:
+                  - name: ghcr-secret
                 containers:
                 - name: migrate
                   image: ${IMAGE_LOWER}
