@@ -14,10 +14,11 @@ This document describes the HTTP/REST API exposed by the trips-service through t
 ## Authentication
 
 All `/trip/driver/*` endpoints require a valid **Firebase JWT** in the `Authorization` header.
-The `DriverId` is provided in the request body and corresponds to the user's **internal ID** in the `users` table (UUID), not the Firebase UID.
+The driver identity is resolved **server-side from the Firebase UID** (via the `x-firebase-uid` metadata injected by the api-gateway). For `CancelTrip`, `CancelWaypoint`, and `GetDriverTripDetails`, any `DriverId` supplied in the request body is ignored — the server always uses the authenticated UID to prevent identity spoofing.
 
-The `/trip/getTripByID`, `/trip/internal/*`, and `/trip/health` endpoints are **public** (no token required).
+The `/trip/passenger/*` and `/trip/health` endpoints are **public** (no token required).
 The `/trip/internal/*` routes are intended for inter-service use (booking-service) and are not exposed to mobile clients.
+`GetTripByID` is now an **internal gRPC-only RPC** (no HTTP route) — called by booking-service to validate reservations.
 
 ```http
 Authorization: Bearer <firebase-id-token>
@@ -335,7 +336,13 @@ Content-Type: application/json
             "TotalSeats": 4,
             "AvailableSeats": 3,
             "DepartureLocationName": "Liberté 6",
-            "ArrivalLocationName": "Saint-Louis Centre"
+            "ArrivalLocationName": "Saint-Louis Centre",
+            "DepartureWaypointId": "",
+            "ArrivalWaypointId": "",
+            "SegmentPrice": 0,
+            "SegmentDurationMinutes": 0,
+            "DriverProfileImageURL": "https://cdn.tissi-mah.com/users/550e8400/avatar.jpg",
+            "DriverRatingAverage": 4.7
         }
     ],
     "ErrorMessage": ""
@@ -359,7 +366,15 @@ Content-Type: application/json
 | `TripsPreviews[].AvailableSeats` | integer | Remaining available seats |
 | `TripsPreviews[].DepartureLocationName` | string | Name of the departure location |
 | `TripsPreviews[].ArrivalLocationName` | string | Name of the arrival location |
+| `TripsPreviews[].DepartureWaypointId` | string | UUID of the segment's departure waypoint (empty on driver routes, populated by `GetScheduledTripsPreviews`) |
+| `TripsPreviews[].ArrivalWaypointId` | string | UUID of the segment's arrival waypoint (empty on driver routes, populated by `GetScheduledTripsPreviews`) |
+| `TripsPreviews[].SegmentPrice` | integer | Price of the segment in XOF (0 on driver routes) |
+| `TripsPreviews[].SegmentDurationMinutes` | integer | Estimated segment duration in minutes (0 on driver routes) |
+| `TripsPreviews[].DriverProfileImageURL` | string | URL of the driver's profile picture |
+| `TripsPreviews[].DriverRatingAverage` | float | Driver's average rating (0 if no ratings) |
 | `ErrorMessage` | string | Error identifier if failed, empty if success |
+
+> **Note:** The 6 segment/driver fields are populated for passenger search (`GetScheduledTripsPreviews`). On driver routes, the segment fields are empty/0 and the driver image/rating reflect the authenticated driver.
 
 #### Errors
 
@@ -871,16 +886,124 @@ Content-Type: application/json
 
 ---
 
-### GET /trip/getTripByID
+### GET /trip/driver/getTripDetails
 
-Returns the complete details of a trip including its waypoints. Used by booking-service to validate reservations.
+Returns the complete details of a trip for its driver, including waypoints with actual arrival/departure timestamps, the list of bookings, and cancellation flags.
 
-**Authentication:** Not required (public — inter-service)
+**Authentication:** Firebase JWT required. The driver is resolved from the token — any `DriverId` in the query is ignored.
 
 #### Request
 
 ```http
-GET /trip/getTripByID?TripId=t-550e8400-e29b-41d4-a716-446655440000 HTTP/1.1
+GET /trip/driver/getTripDetails?TripId=t-550e8400-e29b-41d4-a716-446655440000 HTTP/1.1
+Host: api.tissi-mah.com
+Authorization: Bearer <firebase-id-token>
+```
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `TripId` | string | Yes | UUID of the trip |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "TripId": "t-550e8400-e29b-41d4-a716-446655440000",
+    "DriverId": "550e8400-e29b-41d4-a716-446655440001",
+    "Status": "inProgress",
+    "TotalSeats": 4,
+    "AvailableSeats": 1,
+    "PricePerSeat": 5000,
+    "AutoApproveEnabled": false,
+    "DepartureDatetime": "2026-04-15T08:00:00Z",
+    "EstimatedArrivalDatetime": "2026-04-15T12:00:00Z",
+    "ActualDepartureDatetime": "2026-04-15T08:05:00Z",
+    "ActualArrivalDatetime": "",
+    "EstimatedDurationMinutes": 240,
+    "EstimatedDistanceMeters": 350000,
+    "VehicleId": "v-550e8400-e29b-41d4-a716-446655440000",
+    "VehicleBrand": "Toyota",
+    "VehiclePlate": "DK-1234-AB",
+    "PaymentMethodsAccepted": ["mobileMoney", "cash"],
+    "AllowLuggages": true,
+    "AllowPets": false,
+    "AllowFood": true,
+    "AllowSmoking": false,
+    "Description": "Trajet Dakar → Saint-Louis",
+    "Waypoints": [
+        {
+            "WaypointId": "w-dep-001",
+            "WaypointType": "departure",
+            "SequencerOrder": 1,
+            "LocationName": "Liberté 6",
+            "LocationLng": -17.4441,
+            "LocationLat": 14.7167,
+            "City": "Dakar",
+            "Country": "Sénégal",
+            "ScheduledPickupDatetime": "2026-04-15T08:00:00Z",
+            "ActualArrivalDatetime": "",
+            "ActualScheduledPickupDatetime": "2026-04-15T08:05:00Z",
+            "MinutesFromDeparture": 0,
+            "PriceFromPrevious": 0,
+            "IsCancelled": false,
+            "CancellationReason": ""
+        }
+    ],
+    "Bookings": [
+        {
+            "BookingId": "b-550e8400-e29b-41d4-a716-446655440000",
+            "BookingReference": "TM-ABC123",
+            "Status": "approved",
+            "SeatsBooked": 2,
+            "TotalAmount": 10000,
+            "PickupLocationName": "Liberté 6",
+            "DropoffLocationName": "Thiès Centre"
+        }
+    ],
+    "ErrorMessage": ""
+}
+```
+
+#### Response Fields (subset)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ActualDepartureDatetime` | string | Real-world departure time (empty if not started) |
+| `ActualArrivalDatetime` | string | Real-world arrival time (empty if not ended) |
+| `Waypoints[].ActualArrivalDatetime` | string | Empty until `ConfirmWaypointArrival` is called |
+| `Waypoints[].ActualScheduledPickupDatetime` | string | Empty until `ConfirmWaypointDeparture` is called |
+| `Waypoints[].IsCancelled` | boolean | `true` if this waypoint was cancelled via `CancelWaypoint` |
+| `Waypoints[].CancellationReason` | string | Reason provided at cancellation (empty otherwise) |
+| `Bookings[]` | array | Bookings attached to this trip (any status) |
+| `Bookings[].Status` | string | `pending` / `approved` / `rejected` / `cancelled` / `inProgress` / `completed` |
+
+#### Errors
+
+| Error | HTTP Code | Description |
+|-------|-----------|-------------|
+| `ErrorInvalidInput` | 400 | Missing `TripId` |
+| `ErrorTripNotFound` | 404 | Trip does not exist |
+| `ErrorUnauthorized` | 403 | Authenticated driver does not own this trip |
+| `ErrorDataRetrievalFailed` | 500 | Database query failed |
+| `ErrorInternalServer` | 500 | Internal server error |
+
+---
+
+### GET /trip/passenger/getTripDetails
+
+Returns the details of a trip for a passenger (public — used on the search result detail screen). Excludes bookings and driver-private data; includes the driver's public profile (name, photo, rating).
+
+**Authentication:** Not required (public)
+
+#### Request
+
+```http
+GET /trip/passenger/getTripDetails?TripId=t-550e8400-e29b-41d4-a716-446655440000 HTTP/1.1
 Host: api.tissi-mah.com
 ```
 
@@ -899,29 +1022,36 @@ Content-Type: application/json
 {
     "TripId": "t-550e8400-e29b-41d4-a716-446655440000",
     "DriverId": "550e8400-e29b-41d4-a716-446655440001",
+    "DriverName": "Mamadou Diallo",
+    "DriverProfileImageURL": "https://cdn.tissi-mah.com/users/550e8400/avatar.jpg",
+    "DriverRatingAverage": 4.7,
     "Status": "scheduled",
     "TotalSeats": 4,
     "AvailableSeats": 3,
     "PricePerSeat": 5000,
-    "AutoApproveEnabled": false,
     "DepartureDatetime": "2026-04-15T08:00:00Z",
     "EstimatedArrivalDatetime": "2026-04-15T12:00:00Z",
+    "EstimatedDurationMinutes": 240,
+    "VehicleId": "v-550e8400-e29b-41d4-a716-446655440000",
+    "VehicleBrand": "Toyota",
+    "VehiclePlate": "DK-1234-AB",
+    "PaymentMethodsAccepted": ["mobileMoney", "cash"],
+    "AllowLuggages": true,
+    "AllowPets": false,
+    "AllowFood": true,
+    "AllowSmoking": false,
+    "Description": "Trajet Dakar → Saint-Louis",
     "Waypoints": [
         {
             "WaypointId": "w-dep-001",
             "WaypointType": "departure",
             "SequencerOrder": 1,
-            "LocationName": "Gare routière de Dakar",
+            "LocationName": "Liberté 6",
             "City": "Dakar",
-            "ScheduledPickupDatetime": "2026-04-15T08:00:00Z"
-        },
-        {
-            "WaypointId": "w-arr-002",
-            "WaypointType": "arrival",
-            "SequencerOrder": 2,
-            "LocationName": "Gare de Saint-Louis",
-            "City": "Saint-Louis",
-            "ScheduledPickupDatetime": "2026-04-15T12:00:00Z"
+            "ScheduledPickupDatetime": "2026-04-15T08:00:00Z",
+            "PriceFromPrevious": 0,
+            "MinutesFromDeparture": 0,
+            "IsCancelled": false
         }
     ],
     "ErrorMessage": ""
@@ -932,9 +1062,203 @@ Content-Type: application/json
 
 | Error | HTTP Code | Description |
 |-------|-----------|-------------|
+| `ErrorInvalidInput` | 400 | Missing `TripId` |
 | `ErrorTripNotFound` | 404 | Trip does not exist |
 | `ErrorDataRetrievalFailed` | 500 | Database query failed |
 | `ErrorInternalServer` | 500 | Internal server error |
+
+---
+
+### GET /trip/passenger/getScheduledTripsPreviews
+
+Searches scheduled trips matching a passenger's origin/destination, time window, and optional GPS radius. Returns paginated results enriched with segment pricing, duration, and the driver's public profile.
+
+**Authentication:** Not required (public)
+
+#### Request
+
+```http
+GET /trip/passenger/getScheduledTripsPreviews?departure_location_name=Dakar&arrival_location_name=Saint-Louis&trip_start_date=2026-04-15&trip_start_hour=07:00&trip_arrival_hour=14:00&index=0 HTTP/1.1
+Host: api.tissi-mah.com
+```
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `departure_location_name` | string | Yes | Fuzzy-matched departure city/area |
+| `arrival_location_name` | string | Yes | Fuzzy-matched arrival city/area |
+| `trip_start_date` | string | Yes | `YYYY-MM-DD` (UTC) |
+| `trip_start_hour` | string | Yes | `HH:MM` (UTC) — lower bound of the departure window |
+| `trip_arrival_hour` | string | Yes | `HH:MM` (UTC) — upper bound of the arrival window |
+| `index` | integer | Yes | Page index (0-based) |
+| `passenger_position_lng` | float | No | Passenger longitude (`0` = not provided) |
+| `passenger_position_lat` | float | No | Passenger latitude (`0` = not provided) |
+| `distance_range` | integer | No | Radius in km around passenger position (default 5 if 0) |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "trips_previews": [
+        {
+            "TripId": "t-550e8400-e29b-41d4-a716-446655440000",
+            "DriverId": "550e8400-e29b-41d4-a716-446655440001",
+            "DriverName": "Mamadou Diallo",
+            "VehicleId": "v-550e8400-e29b-41d4-a716-446655440000",
+            "VehicleBrand": "Toyota",
+            "VehiclePlate": "DK-1234-AB",
+            "DepartureDate": "2026-04-15",
+            "DepartureTime": "08:00",
+            "TotalSeats": 4,
+            "AvailableSeats": 3,
+            "DepartureLocationName": "Liberté 6",
+            "ArrivalLocationName": "Saint-Louis Centre",
+            "DepartureWaypointId": "w-dep-001",
+            "ArrivalWaypointId": "w-arr-003",
+            "SegmentPrice": 5000,
+            "SegmentDurationMinutes": 240,
+            "DriverProfileImageURL": "https://cdn.tissi-mah.com/users/550e8400/avatar.jpg",
+            "DriverRatingAverage": 4.7
+        }
+    ],
+    "error_message": "",
+    "next_index": 1,
+    "total_count": 12
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `trips_previews` | array | Matching trips (see `TripPreview` schema above) |
+| `next_index` | integer | Next page index (`-1` if no more results) |
+| `total_count` | integer | Total number of matches across all pages |
+| `error_message` | string | Error identifier if failed, empty if success |
+
+#### Errors
+
+| Error | HTTP Code | Description |
+|-------|-----------|-------------|
+| `ErrorInvalidInput` | 400 | Missing required search fields |
+| `ErrorInvalidDatetime` | 400 | Invalid date/hour format |
+| `ErrorDataRetrievalFailed` | 500 | Database query failed |
+| `ErrorInternalServer` | 500 | Internal server error |
+
+---
+
+### DELETE /trip/driver/cancelTrip
+
+Cancels a scheduled trip and all its associated bookings. The trip must be in `scheduled` status.
+
+**Authentication:** Firebase JWT required. The driver is resolved from the token — any `DriverId` in the body is ignored.
+
+#### Request
+
+```http
+DELETE /trip/driver/cancelTrip HTTP/1.1
+Host: api.tissi-mah.com
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+
+{
+    "TripId": "t-550e8400-e29b-41d4-a716-446655440000",
+    "CancellationReason": "Véhicule en panne"
+}
+```
+
+#### Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `TripId` | string | Yes | UUID of the trip to cancel |
+| `CancellationReason` | string | Yes | Free-text reason shown to affected passengers |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{ "Success": true, "ErrorMessage": "" }
+```
+
+#### Errors
+
+| Error | HTTP Code | Description |
+|-------|-----------|-------------|
+| `ErrorInvalidInput` | 400 | Missing required fields |
+| `ErrorTripNotFound` | 404 | Trip does not exist |
+| `ErrorUnauthorized` | 403 | Authenticated driver does not own this trip |
+| `ErrorTripNotScheduled` | 422 | Trip is not in `scheduled` status |
+| `ErrorInternalServer` | 500 | Internal server error |
+
+---
+
+### DELETE /trip/driver/cancelWaypoint
+
+Cancels a `stop`-type waypoint of a scheduled trip. Affected segments and their bookings are marked accordingly. Departure and arrival waypoints cannot be cancelled individually — use `CancelTrip` to cancel the whole trip.
+
+**Authentication:** Firebase JWT required. The driver is resolved from the token — any `DriverId` in the body is ignored.
+
+#### Request
+
+```http
+DELETE /trip/driver/cancelWaypoint HTTP/1.1
+Host: api.tissi-mah.com
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+
+{
+    "WaypointId": "w-550e8400-e29b-41d4-a716-446655440000",
+    "CancellationReason": "Contournement imposé par la police"
+}
+```
+
+#### Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `WaypointId` | string | Yes | UUID of the stop waypoint to cancel |
+| `CancellationReason` | string | Yes | Free-text reason shown to affected passengers |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{ "Success": true, "ErrorMessage": "" }
+```
+
+#### Errors
+
+| Error | HTTP Code | Description |
+|-------|-----------|-------------|
+| `ErrorInvalidInput` | 400 | Missing required fields |
+| `ErrorWaypointNotFound` | 404 | Waypoint does not exist |
+| `ErrorUnauthorized` | 403 | Authenticated driver does not own this waypoint's trip |
+| `ErrorWaypointNotAStop` | 422 | Waypoint is not of type `stop` |
+| `ErrorTripNotScheduled` | 422 | Parent trip is not in `scheduled` status |
+| `ErrorWaypointAlreadyCancelled` | 422 | Waypoint is already cancelled |
+| `ErrorInternalServer` | 500 | Internal server error |
+
+---
+
+### GetTripByID (internal gRPC RPC — no HTTP route)
+
+Returns the complete details of a trip including its waypoints. Previously exposed on `GET /trip/getTripByID`; this route has been **removed**. The RPC remains on the internal gRPC port and is called by booking-service to validate reservations.
+
+| Item | Value |
+|------|-------|
+| gRPC service | `trip.TripService` |
+| gRPC method | `GetTripByID` |
+| Request | `{ TripId: string }` |
+| HTTP route | — (removed) |
 
 ---
 
@@ -1085,7 +1409,9 @@ scheduled → inProgress → completed
 | `ErrorWaypointAlreadyArrived` | 422 | FAILED_PRECONDITION (9) | Arrival already confirmed | No action needed |
 | `ErrorWaypointNotArrived` | 422 | FAILED_PRECONDITION (9) | Arrival not yet confirmed | Confirm arrival first |
 | `ErrorWaypointAlreadyDeparted` | 422 | FAILED_PRECONDITION (9) | Departure already confirmed | No action needed |
+| `ErrorWaypointAlreadyCancelled` | 422 | FAILED_PRECONDITION (9) | Waypoint is already cancelled | No action needed |
 | `ErrorPreviousWaypointNotConfirmed` | 422 | FAILED_PRECONDITION (9) | Previous waypoint not yet confirmed | Confirm waypoints in sequence |
 | `ErrorAnotherStopAlreadyActive` | 422 | FAILED_PRECONDITION (9) | Another stop is currently active | Confirm departure from current stop first |
+| `ErrorDepartureAfterArrival` | 400 | INVALID_ARGUMENT (3) | Departure datetime is after arrival datetime | Fix the datetime ordering in the request |
 | `ErrorDataRetrievalFailed` | 500 | INTERNAL (13) | Database query failed | Retry later |
 | `ErrorInternalServer` | 500 | INTERNAL (13) | Internal server error | Retry later |
