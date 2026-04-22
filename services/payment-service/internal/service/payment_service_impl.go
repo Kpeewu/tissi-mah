@@ -188,6 +188,7 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 		Status:                domain.PaymentStatusPending,
 		ExternalTransactionID: strconv.Itoa(transaction.ID),
 		PaymentReference:      paymentRef,
+		PassengerPhoneNumber:  input.PassengerPhoneNumber,
 	}
 
 	if err := s.paymentWriteRepo.CreatePayment(ctx, payment); err != nil {
@@ -517,9 +518,21 @@ func (s *paymentServiceImpl) RequestRefund(ctx context.Context, input *serviceIn
 	calc := CalculateRefund(input.OriginalAmount, input.ServiceFee, rule)
 
 	// Créer le refund
+	// Si AmountToPassenger == 0 (ex. noShowPassenger), aucun transfert FedaPay n'est requis
+	//   → on marque directement 'completed'.
+	// Sinon, on crée le refund en 'pending' et le refund_worker.go s'occupera du transfert FedaPay.
 	refundID := uuid.New().String()
 	refundRef := fmt.Sprintf("RMB-%s-%s", time.Now().UTC().Format("20060102"), generateAlphanumeric(6))
 	now := time.Now().UTC()
+
+	var refundStatus domain.RefundStatus
+	var completedAt *time.Time
+	if calc.AmountToPassenger == 0 {
+		refundStatus = domain.RefundStatusCompleted
+		completedAt = &now
+	} else {
+		refundStatus = domain.RefundStatusPending
+	}
 
 	refund := &domain.Refund{
 		RefundID:           refundID,
@@ -535,9 +548,12 @@ func (s *paymentServiceImpl) RequestRefund(ctx context.Context, input *serviceIn
 		AmountToPassenger:  calc.AmountToPassenger,
 		AmountToDriver:     calc.AmountToDriver,
 		AmountToPlatform:   calc.AmountToPlatform,
-		Status:             domain.RefundStatusCompleted,
+		Status:             refundStatus,
 		RefundMethod:       string(payment.PaymentMethod),
 		ProcessedAt:        &now,
+		CompletedAt:        completedAt,
+		PayoutDestination:  payment.PassengerPhoneNumber,
+		PaymentProvider:    "fedapay",
 	}
 
 	if s.refundWriteRepo != nil {
@@ -558,10 +574,13 @@ func (s *paymentServiceImpl) RequestRefund(ctx context.Context, input *serviceIn
 	s.logger.Info("refund created",
 		zap.String("refundID", refundID),
 		zap.String("rule", string(rule)),
+		zap.String("status", string(refundStatus)),
 		zap.Int("refundAmount", calc.RefundAmount),
+		zap.Int("amountToPassenger", calc.AmountToPassenger),
 	)
 
-	// Notifier le passager (non bloquant)
+	// Notifier le passager (non bloquant) que le remboursement est en cours de traitement.
+	// Le REFUND_COMPLETED sera publié par le refund_worker après succès FedaPay.
 	if s.notifRedis != nil {
 		if booking, err := s.bookingClient.GetBookingDetails(ctx, input.BookingID); err == nil {
 			if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
@@ -570,7 +589,8 @@ func (s *paymentServiceImpl) RequestRefund(ctx context.Context, input *serviceIn
 				ReferenceID:   refundID,
 				ReferenceType: notification.RefRefund,
 				Payload: map[string]string{
-					"amount": fmt.Sprintf("%d", calc.RefundAmount),
+					"amount":             fmt.Sprintf("%d", calc.RefundAmount),
+					"amount_to_passenger": fmt.Sprintf("%d", calc.AmountToPassenger),
 				},
 			}); pubErr != nil {
 				s.logger.Error("failed to publish REFUND_PROCESSED notification", zap.Error(pubErr))
@@ -581,7 +601,7 @@ func (s *paymentServiceImpl) RequestRefund(ctx context.Context, input *serviceIn
 	return &serviceInterfaces.RequestRefundResult{
 		RefundID:        refundID,
 		RefundReference: refundRef,
-		Status:          string(domain.RefundStatusCompleted),
+		Status:          string(refundStatus),
 		RefundAmount:    calc.RefundAmount,
 	}, nil
 }

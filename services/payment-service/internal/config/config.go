@@ -19,6 +19,7 @@ type Config struct {
 	SupportService    ServiceEndpoint
 	Payout            PayoutConfig
 	Refund            RefundConfig
+	RefundWorker      RefundWorkerConfig
 	Expiration        ExpirationConfig
 	Worker            WorkerConfig
 	LogLevel          string
@@ -53,6 +54,13 @@ type FedaPayConfig struct {
 type WorkerConfig struct {
 	WebhookMaxConcurrent int
 	PayoutMaxConcurrent  int
+	RefundMaxConcurrent  int
+}
+
+type RefundWorkerConfig struct {
+	IntervalSeconds int
+	MaxRetries      int
+	BatchSize       int
 }
 
 type ServiceEndpoint struct {
@@ -135,9 +143,15 @@ func Load() (*Config, error) {
 			NoShowDriverDelayMinutes:       getIntOrDefault(values, "NOSHOW_DRIVER_DELAY_MINUTES", 15),
 			NoShowPassengerDelayMinutes:    getIntOrDefault(values, "NOSHOW_PASSENGER_DELAY_MINUTES", 15),
 		},
+		RefundWorker: RefundWorkerConfig{
+			IntervalSeconds: getIntOrDefault(values, "REFUND_WORKER_INTERVAL_SECONDS", 60),
+			MaxRetries:      getIntOrDefault(values, "REFUND_MAX_RETRIES", 3),
+			BatchSize:       getIntOrDefault(values, "REFUND_BATCH_SIZE", 20),
+		},
 		Worker: WorkerConfig{
 			WebhookMaxConcurrent: getIntOrDefault(values, "WEBHOOK_MAX_CONCURRENT", 10),
 			PayoutMaxConcurrent:  getIntOrDefault(values, "PAYOUT_MAX_CONCURRENT", 5),
+			RefundMaxConcurrent:  getIntOrDefault(values, "REFUND_MAX_CONCURRENT", 5),
 		},
 		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
 	}

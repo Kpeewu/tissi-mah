@@ -253,7 +253,7 @@ func TestRequestRefund(t *testing.T) {
 	departure := time.Date(2026, 4, 1, 10, 0, 0, 0, time.UTC)
 	cancelledAt := departure.Add(-25 * time.Hour) // plus de 24h avant → full refund
 
-	t.Run("succes - remboursement complet annulation chauffeur", func(t *testing.T) {
+	t.Run("succes - annulation chauffeur cree un refund pending (AmountToPassenger > 0)", func(t *testing.T) {
 		d := newTestService()
 		ctx := context.Background()
 
@@ -261,6 +261,7 @@ func TestRequestRefund(t *testing.T) {
 			fixtures.WithPaymentID("pay-refund"),
 			fixtures.WithPaymentBookingID("booking-refund"),
 			fixtures.WithPaymentStatus(domain.PaymentStatusHeld),
+			fixtures.WithPaymentPassengerPhoneNumber("90001122"),
 		)
 		d.paymentReadRepo.On("GetByBookingID", mock.Anything, "booking-refund").Return(payment, nil)
 		d.refundWriteRepo.On("CreateRefund", mock.Anything, mock.MatchedBy(func(r *domain.Refund) bool {
@@ -268,7 +269,11 @@ func TestRequestRefund(t *testing.T) {
 				r.RefundReason == domain.RefundReasonCancelledByDriver &&
 				r.RefundRuleApplied == domain.RefundRuleDriverCancellation &&
 				r.RefundAmount == 5500 && // 5000 + 500
-				r.AmountToPassenger == 5500
+				r.AmountToPassenger == 5500 &&
+				r.Status == domain.RefundStatusPending &&
+				r.CompletedAt == nil &&
+				r.PayoutDestination == "90001122" &&
+				r.PaymentProvider == "fedapay"
 		})).Return(nil)
 		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-refund", domain.PaymentStatusRefunded, "").Return(nil)
 
@@ -284,12 +289,12 @@ func TestRequestRefund(t *testing.T) {
 		result, err := d.svc.RequestRefund(ctx, input)
 
 		require.NoError(t, err)
-		assert.Equal(t, "completed", result.Status)
+		assert.Equal(t, "pending", result.Status)
 		assert.Equal(t, 5500, result.RefundAmount)
 		d.assertExpectations(t)
 	})
 
-	t.Run("succes - remboursement partiel passager apres grace period", func(t *testing.T) {
+	t.Run("succes - remboursement partiel passager apres grace period (pending)", func(t *testing.T) {
 		d := newTestService()
 		ctx := context.Background()
 
@@ -297,13 +302,16 @@ func TestRequestRefund(t *testing.T) {
 			fixtures.WithPaymentID("pay-partial"),
 			fixtures.WithPaymentBookingID("booking-partial"),
 			fixtures.WithPaymentStatus(domain.PaymentStatusHeld),
+			fixtures.WithPaymentPassengerPhoneNumber("91112233"),
 		)
 		d.paymentReadRepo.On("GetByBookingID", mock.Anything, "booking-partial").Return(payment, nil)
 		d.refundWriteRepo.On("CreateRefund", mock.Anything, mock.MatchedBy(func(r *domain.Refund) bool {
 			return r.RefundPercentage == 50 &&
 				r.RefundAmount == 2500 &&
 				r.AmountToPassenger == 2500 &&
-				r.AmountToDriver == 2500
+				r.AmountToDriver == 2500 &&
+				r.Status == domain.RefundStatusPending &&
+				r.PayoutDestination == "91112233"
 		})).Return(nil)
 		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-partial", domain.PaymentStatusRefunded, "").Return(nil)
 
@@ -325,11 +333,12 @@ func TestRequestRefund(t *testing.T) {
 		result, err := d.svc.RequestRefund(ctx, input)
 
 		require.NoError(t, err)
+		assert.Equal(t, "pending", result.Status)
 		assert.Equal(t, 2500, result.RefundAmount)
 		d.assertExpectations(t)
 	})
 
-	t.Run("succes - no-show passager → pas de remboursement", func(t *testing.T) {
+	t.Run("succes - no-show passager cree un refund completed sans transfert", func(t *testing.T) {
 		d := newTestService()
 		ctx := context.Background()
 
@@ -342,7 +351,9 @@ func TestRequestRefund(t *testing.T) {
 		d.refundWriteRepo.On("CreateRefund", mock.Anything, mock.MatchedBy(func(r *domain.Refund) bool {
 			return r.RefundAmount == 0 &&
 				r.AmountToPassenger == 0 &&
-				r.AmountToDriver == 5000
+				r.AmountToDriver == 5000 &&
+				r.Status == domain.RefundStatusCompleted &&
+				r.CompletedAt != nil
 		})).Return(nil)
 		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-noshow", domain.PaymentStatusRefunded, "").Return(nil)
 
@@ -358,6 +369,7 @@ func TestRequestRefund(t *testing.T) {
 		result, err := d.svc.RequestRefund(ctx, input)
 
 		require.NoError(t, err)
+		assert.Equal(t, "completed", result.Status)
 		assert.Equal(t, 0, result.RefundAmount)
 		d.assertExpectations(t)
 	})

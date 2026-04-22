@@ -146,6 +146,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	if impl := service.AsImpl(paymentService); impl != nil {
 		go service.StartPayoutWorker(ctx, impl, cfg.Payout.IntervalSeconds, logger)
 		go service.StartExpirationWorker(ctx, impl, cfg.Expiration.IntervalSeconds, cfg.Expiration.PaymentTimeoutMinutes, logger)
+		go service.StartRefundWorker(ctx, impl, cfg.RefundWorker.IntervalSeconds, logger)
 	}
 
 	// --- gRPC server ---

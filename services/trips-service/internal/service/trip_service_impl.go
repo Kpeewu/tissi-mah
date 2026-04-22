@@ -453,15 +453,15 @@ func (s *tripServiceImpl) CancelTrip(ctx context.Context, input *serviceInterfac
 		return err
 	}
 
-	// Annuler toutes les réservations du trajet (remboursement automatique côté booking-service)
+	// Annuler toutes les réservations du trajet.
+	// booking-service s'occupe du remboursement automatique ET publie TRIP_CANCELLED
+	// à chaque passager concerné (source unique pour éviter les doublons).
 	if s.bookingClient != nil {
 		if err := s.bookingClient.CancelBookingsForTrip(ctx, input.TripID); err != nil {
 			s.logger.Warn("CancelBookingsForTrip failed (non-blocking)", zap.Error(err),
 				zap.String("tripID", input.TripID))
 		}
 	}
-
-	// TODO: notifier les passagers de l'annulation du trajet
 
 	s.logger.Info("trip cancelled",
 		zap.String("tripID", input.TripID),

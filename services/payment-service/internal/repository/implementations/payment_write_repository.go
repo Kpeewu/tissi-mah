@@ -26,14 +26,14 @@ func NewPaymentWriteRepository(pool *pgxpool.Pool, logger *zap.Logger) repoInter
 func (r *paymentWriteRepository) CreatePayment(ctx context.Context, payment *domain.Payment) error {
 	query := `INSERT INTO payments (
 		payment_id, booking_id, trip_id, amount, payment_method, payment_provider,
-		status, external_transaction_id, payment_reference, metadata
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+		status, external_transaction_id, payment_reference, passenger_phone_number, metadata
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
 
 	_, err := r.pool.Exec(ctx, query,
 		payment.PaymentID, payment.BookingID, payment.TripID, payment.Amount,
 		payment.PaymentMethod, payment.PaymentProvider,
 		payment.Status, payment.ExternalTransactionID, payment.PaymentReference,
-		payment.Metadata,
+		payment.PassengerPhoneNumber, payment.Metadata,
 	)
 	if err != nil {
 		if isDuplicateKeyError(err) {
