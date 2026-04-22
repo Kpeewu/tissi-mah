@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	filepb "github.com/Kpeewu/tissi-mah/services/file-service/proto/gen"
 	"github.com/Kpeewu/tissi-mah/services/kyc-service/internal/domain"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // fileServiceClientImpl est le client gRPC vers file-service.
-// Utilise insecure.NewCredentials() pour la communication intra-cluster.
+// Utilise TLS avec skip-verify pour la communication intra-cluster.
 type fileServiceClientImpl struct {
 	conn       *grpc.ClientConn
 	grpcClient filepb.FileServiceClient
@@ -28,7 +28,7 @@ func NewFileServiceClient(address string, logger *zap.Logger) (FileServiceClient
 
 	conn, err := grpc.NewClient(
 		address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(grpcutil.ClientTransportCredentials()),
 	)
 	if err != nil {
 		logger.Error("failed to connect to file-service", zap.Error(err), zap.String("address", address))

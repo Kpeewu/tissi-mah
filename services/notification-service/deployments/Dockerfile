@@ -52,6 +52,9 @@ COPY --from=builder --chown=appuser:appuser /build/services/notification-service
 # Copy golang-migrate binary for Kubernetes initContainer
 COPY --from=migrate/migrate:v4.17.0 /usr/local/bin/migrate /usr/local/bin/migrate
 
+# Copy grpc_health_probe for Kubernetes TLS-enabled health checks
+COPY --from=ghcr.io/grpc-ecosystem/grpc-health-probe:v0.4.24 /ko-app/grpc-health-probe /usr/local/bin/grpc_health_probe
+
 USER appuser
 EXPOSE 50060
 ENV ENVIRONMENT=production LOG_LEVEL=info GRPC_PORT=50060

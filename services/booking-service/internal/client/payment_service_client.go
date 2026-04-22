@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	paymentpb "github.com/Kpeewu/tissi-mah/services/payment-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // PaymentServiceClient est le client gRPC vers payment-service.
@@ -23,7 +23,7 @@ func NewPaymentServiceClient(address string, logger *zap.Logger) (*PaymentServic
 
 	conn, err := grpc.NewClient(
 		address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(grpcutil.ClientTransportCredentials()),
 	)
 	if err != nil {
 		logger.Error("failed to connect to payment-service", zap.Error(err), zap.String("address", address))

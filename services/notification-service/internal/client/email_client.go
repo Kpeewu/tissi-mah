@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	emailpb "github.com/Kpeewu/tissi-mah/services/email-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type EmailServiceClient struct {
@@ -17,7 +17,7 @@ type EmailServiceClient struct {
 }
 
 func NewEmailServiceClient(address string, logger *zap.Logger) (*EmailServiceClient, error) {
-	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(grpcutil.ClientTransportCredentials()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to email-service at %s: %w", address, err)
 	}

@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	supportpb "github.com/Kpeewu/tissi-mah/services/support-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
 	paymentErrors "github.com/Kpeewu/tissi-mah/services/payment-service/pkg/errors"
@@ -25,7 +25,7 @@ type SupportServiceClient struct {
 func NewSupportServiceClient(address string, logger *zap.Logger) (*SupportServiceClient, error) {
 	conn, err := grpc.NewClient(
 		address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(grpcutil.ClientTransportCredentials()),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("support-service: failed to connect to %s: %w", address, err)

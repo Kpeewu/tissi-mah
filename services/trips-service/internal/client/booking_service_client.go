@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	bookingpb "github.com/Kpeewu/tissi-mah/services/booking-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // BookingServiceClient est le client gRPC vers booking-service.
@@ -23,7 +23,7 @@ func NewBookingServiceClient(address string, logger *zap.Logger) (*BookingServic
 
 	conn, err := grpc.NewClient(
 		address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(grpcutil.ClientTransportCredentials()),
 	)
 	if err != nil {
 		logger.Error("failed to connect to booking-service", zap.Error(err), zap.String("address", address))

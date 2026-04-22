@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	authpb "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen/authpb"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // AuthInfo contient les données d'authentification récupérées depuis auth-service.
@@ -21,8 +21,7 @@ type AuthInfo struct {
 }
 
 // AuthServiceClient est le client gRPC vers auth-service.
-// Utilise insecure.NewCredentials() pour la communication intra-cluster
-// (le chiffrement est géré au niveau du service mesh / mTLS Kubernetes).
+// Utilise TLS avec skip-verify pour la communication intra-cluster.
 type AuthServiceClient struct {
 	conn       *grpc.ClientConn
 	grpcClient authpb.AuthServiceClient
@@ -37,7 +36,7 @@ func NewAuthServiceClient(address string, logger *zap.Logger) (*AuthServiceClien
 
 	conn, err := grpc.NewClient(
 		address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(grpcutil.ClientTransportCredentials()),
 	)
 	if err != nil {
 		log.Error("échec de la connexion au service auth", zap.Error(err), zap.String("address", address))

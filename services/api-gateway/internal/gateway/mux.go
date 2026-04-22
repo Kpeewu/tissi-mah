@@ -10,11 +10,11 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	grpcMetadata "google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 
+	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	authpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/authpb"
 	bookingpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/bookingpb"
 	paymentpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/paymentpb"
@@ -97,9 +97,9 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 
 	mux := runtime.NewServeMux(jsonOpts, metadataAnnotator, errorHandler)
 
-	// Options de connexion gRPC vers les services internes (pas de TLS intra-cluster)
+	// Options de connexion gRPC vers les services internes (TLS intra-cluster avec skip-verify)
 	dialOpts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(grpcutil.ClientTransportCredentials()),
 	}
 
 	// Enregistrer auth-service

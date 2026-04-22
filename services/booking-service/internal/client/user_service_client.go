@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	userpb "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
@@ -25,7 +25,7 @@ func NewUserServiceClient(address string, logger *zap.Logger) (*UserServiceClien
 
 	conn, err := grpc.NewClient(
 		address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(grpcutil.ClientTransportCredentials()),
 	)
 	if err != nil {
 		logger.Error("failed to connect to user-service", zap.Error(err), zap.String("address", address))

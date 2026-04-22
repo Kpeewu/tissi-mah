@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	ratingpb "github.com/Kpeewu/tissi-mah/services/rating-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // RatingServiceClient est le client gRPC vers rating-service.
@@ -23,7 +23,7 @@ func NewRatingServiceClient(address string, logger *zap.Logger) (*RatingServiceC
 
 	conn, err := grpc.NewClient(
 		address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(grpcutil.ClientTransportCredentials()),
 	)
 	if err != nil {
 		logger.Error("failed to connect to rating-service", zap.Error(err), zap.String("address", address))
