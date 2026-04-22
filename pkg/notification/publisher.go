@@ -32,6 +32,8 @@ const (
 	PaymentCompleted            = "PAYMENT_COMPLETED"
 	PaymentFailed               = "PAYMENT_FAILED"
 	RefundProcessed             = "REFUND_PROCESSED"
+	RefundCompleted             = "REFUND_COMPLETED"
+	RefundFailed                = "REFUND_FAILED"
 	DriverPaymentLaunched       = "DRIVER_PAYMENT_LAUNCHED"
 	TripFull                    = "TRIP_FULL"
 	TripStarted                 = "TRIP_STARTED"

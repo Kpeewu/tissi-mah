@@ -59,6 +59,10 @@ func WithPaymentFailureReason(reason string) PaymentOption {
 	return func(p *domain.Payment) { p.FailureReason = &reason }
 }
 
+func WithPaymentPassengerPhoneNumber(phone string) PaymentOption {
+	return func(p *domain.Payment) { p.PassengerPhoneNumber = phone }
+}
+
 // NewTestPayment cree un Payment avec des valeurs par defaut
 func NewTestPayment(opts ...PaymentOption) *domain.Payment {
 	now := time.Now().UTC()

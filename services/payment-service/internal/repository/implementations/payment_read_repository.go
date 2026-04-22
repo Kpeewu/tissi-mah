@@ -25,7 +25,7 @@ func NewPaymentReadRepository(pool *pgxpool.Pool, logger *zap.Logger) repoInterf
 
 func (r *paymentReadRepository) GetByID(ctx context.Context, paymentID string) (*domain.Payment, error) {
 	query := `SELECT payment_id, booking_id, trip_id, amount, payment_method, payment_provider,
-		status, external_transaction_id, payment_reference,
+		status, external_transaction_id, payment_reference, passenger_phone_number,
 		created_at, completed_at, failed_at, failure_reason, metadata, updated_at
 		FROM payments WHERE payment_id = $1`
 
@@ -34,7 +34,7 @@ func (r *paymentReadRepository) GetByID(ctx context.Context, paymentID string) (
 
 func (r *paymentReadRepository) GetByBookingID(ctx context.Context, bookingID string) (*domain.Payment, error) {
 	query := `SELECT payment_id, booking_id, trip_id, amount, payment_method, payment_provider,
-		status, external_transaction_id, payment_reference,
+		status, external_transaction_id, payment_reference, passenger_phone_number,
 		created_at, completed_at, failed_at, failure_reason, metadata, updated_at
 		FROM payments WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 1`
 
@@ -43,7 +43,7 @@ func (r *paymentReadRepository) GetByBookingID(ctx context.Context, bookingID st
 
 func (r *paymentReadRepository) GetByExternalTransactionID(ctx context.Context, externalID string) (*domain.Payment, error) {
 	query := `SELECT payment_id, booking_id, trip_id, amount, payment_method, payment_provider,
-		status, external_transaction_id, payment_reference,
+		status, external_transaction_id, payment_reference, passenger_phone_number,
 		created_at, completed_at, failed_at, failure_reason, metadata, updated_at
 		FROM payments WHERE external_transaction_id = $1`
 
@@ -72,7 +72,7 @@ func (r *paymentReadRepository) GetWebhookEvent(ctx context.Context, fedapayEven
 
 func (r *paymentReadRepository) GetExpiredPendingPayments(ctx context.Context, olderThan time.Duration) ([]*domain.Payment, error) {
 	query := `SELECT payment_id, booking_id, trip_id, amount, payment_method, payment_provider,
-		status, external_transaction_id, payment_reference,
+		status, external_transaction_id, payment_reference, passenger_phone_number,
 		created_at, completed_at, failed_at, failure_reason, metadata, updated_at
 		FROM payments WHERE status = 'pending' AND created_at < $1
 		ORDER BY created_at ASC LIMIT 100`
@@ -91,7 +91,7 @@ func (r *paymentReadRepository) GetExpiredPendingPayments(ctx context.Context, o
 		if err := rows.Scan(
 			&p.PaymentID, &p.BookingID, &p.TripID, &p.Amount,
 			&p.PaymentMethod, &p.PaymentProvider,
-			&p.Status, &p.ExternalTransactionID, &p.PaymentReference,
+			&p.Status, &p.ExternalTransactionID, &p.PaymentReference, &p.PassengerPhoneNumber,
 			&p.CreatedAt, &p.CompletedAt, &p.FailedAt, &p.FailureReason,
 			&p.Metadata, &p.UpdatedAt,
 		); err != nil {
@@ -119,7 +119,7 @@ func (r *paymentReadRepository) scanPayment(ctx context.Context, query string, a
 	err := r.pool.QueryRow(ctx, query, arg).Scan(
 		&p.PaymentID, &p.BookingID, &p.TripID, &p.Amount,
 		&p.PaymentMethod, &p.PaymentProvider,
-		&p.Status, &p.ExternalTransactionID, &p.PaymentReference,
+		&p.Status, &p.ExternalTransactionID, &p.PaymentReference, &p.PassengerPhoneNumber,
 		&p.CreatedAt, &p.CompletedAt, &p.FailedAt, &p.FailureReason,
 		&p.Metadata, &p.UpdatedAt,
 	)

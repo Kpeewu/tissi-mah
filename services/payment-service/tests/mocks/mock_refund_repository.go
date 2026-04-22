@@ -35,6 +35,14 @@ func (m *MockRefundRepositoryRead) GetByPaymentID(ctx context.Context, paymentID
 	return args.Get(0).(*domain.Refund), args.Error(1)
 }
 
+func (m *MockRefundRepositoryRead) GetPendingRefundsForPayout(ctx context.Context, limit int) ([]*domain.Refund, error) {
+	args := m.Called(ctx, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Refund), args.Error(1)
+}
+
 type MockRefundRepositoryWrite struct {
 	mock.Mock
 }
@@ -46,5 +54,20 @@ func (m *MockRefundRepositoryWrite) CreateRefund(ctx context.Context, refund *do
 
 func (m *MockRefundRepositoryWrite) UpdateRefundStatus(ctx context.Context, refundID string, status domain.RefundStatus) error {
 	args := m.Called(ctx, refundID, status)
+	return args.Error(0)
+}
+
+func (m *MockRefundRepositoryWrite) MarkRefundProcessing(ctx context.Context, refundID string) error {
+	args := m.Called(ctx, refundID)
+	return args.Error(0)
+}
+
+func (m *MockRefundRepositoryWrite) MarkRefundCompleted(ctx context.Context, refundID string, paymentProviderReference string) error {
+	args := m.Called(ctx, refundID, paymentProviderReference)
+	return args.Error(0)
+}
+
+func (m *MockRefundRepositoryWrite) MarkRefundFailed(ctx context.Context, refundID string, reason string, incrementRetry bool) error {
+	args := m.Called(ctx, refundID, reason, incrementRetry)
 	return args.Error(0)
 }

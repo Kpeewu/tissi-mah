@@ -16,6 +16,7 @@ const (
 	paymentByBookingTTL = 2 * time.Minute
 	payoutLockTTL       = 10 * time.Minute
 	tripPayoutLockTTL   = 2 * time.Minute
+	refundLockTTL       = 2 * time.Minute
 	expirationLockTTL   = 5 * time.Minute
 	keyPrefix           = "payment:"
 )
@@ -93,6 +94,18 @@ func (c *PaymentCache) AcquireTripPayoutLock(ctx context.Context, tripID string)
 // ReleaseTripPayoutLock libère le verrou de payout d'un trip.
 func (c *PaymentCache) ReleaseTripPayoutLock(ctx context.Context, tripID string) {
 	key := keyPrefix + "payout:trip:" + tripID + ":lock"
+	c.client.Del(ctx, key) //nolint:errcheck
+}
+
+// AcquireRefundLock tente d'acquérir un verrou distribué pour le traitement d'un refund spécifique.
+func (c *PaymentCache) AcquireRefundLock(ctx context.Context, refundID string) (bool, error) {
+	key := keyPrefix + "refund:lock:" + refundID
+	return c.client.SetNX(ctx, key, "locked", refundLockTTL).Result()
+}
+
+// ReleaseRefundLock libère le verrou d'un refund.
+func (c *PaymentCache) ReleaseRefundLock(ctx context.Context, refundID string) {
+	key := keyPrefix + "refund:lock:" + refundID
 	c.client.Del(ctx, key) //nolint:errcheck
 }
 

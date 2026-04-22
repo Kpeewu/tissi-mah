@@ -35,6 +35,7 @@ type Payment struct {
 	Status                PaymentStatus
 	ExternalTransactionID string
 	PaymentReference      string
+	PassengerPhoneNumber  string // Numéro utilisé au paiement, réutilisé pour le refund FedaPay.
 	CreatedAt             time.Time
 	CompletedAt           *time.Time
 	FailedAt              *time.Time
@@ -81,28 +82,34 @@ const (
 )
 
 type Refund struct {
-	RefundID           string
-	RefundReference    string
-	PaymentID          string
-	BookingID          string
-	RefundReason       RefundReason
-	RefundRuleApplied  RefundRule
-	OriginalAmount     int
-	RefundPercentage   int16
-	RefundAmount       int
-	ServiceFeeRefunded bool
-	AmountToPassenger  int
-	AmountToDriver     int
-	AmountToPlatform   int
-	Status             RefundStatus
-	RefundMethod       string
-	ProcessedAt        *time.Time
-	CompletedAt        *time.Time
-	EstimatedCompletion *time.Time
-	PassengerNotified  bool
-	NotificationSentAt *time.Time
-	Notes              *string
-	UpdatedAt          time.Time
+	RefundID                 string
+	RefundReference          string
+	PaymentID                string
+	BookingID                string
+	RefundReason             RefundReason
+	RefundRuleApplied        RefundRule
+	OriginalAmount           int
+	RefundPercentage         int16
+	RefundAmount             int
+	ServiceFeeRefunded       bool
+	AmountToPassenger        int
+	AmountToDriver           int
+	AmountToPlatform         int
+	Status                   RefundStatus
+	RefundMethod             string
+	ProcessedAt              *time.Time
+	CompletedAt              *time.Time
+	EstimatedCompletion      *time.Time
+	PassengerNotified        bool
+	NotificationSentAt       *time.Time
+	Notes                    *string
+	PayoutDestination        string // Numéro FedaPay destinataire (copie depuis Payment).
+	PaymentProvider          string // "fedapay" par défaut.
+	PaymentProviderReference string // ID FedaPay du payout de remboursement.
+	FailureReason            *string
+	RetryCount               int16
+	LastRetryAt              *time.Time
+	UpdatedAt                time.Time
 }
 
 // =============================================================================
