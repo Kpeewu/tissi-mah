@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	filepb "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen/filepb"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // FileServiceClient est le client gRPC vers file-service.
@@ -26,7 +26,7 @@ func NewFileServiceClient(address string, logger *zap.Logger) (*FileServiceClien
 
 	conn, err := grpc.NewClient(
 		address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(grpcutil.ClientTransportCredentials()),
 	)
 	if err != nil {
 		log.Error("échec de la connexion au service file", zap.Error(err), zap.String("address", address))

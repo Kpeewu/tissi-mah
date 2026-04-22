@@ -115,6 +115,9 @@ WORKDIR /app
 # Copy binary from builder
 COPY --from=builder --chown=appuser:appuser /build/kyc-service .
 
+# Copy grpc_health_probe for Kubernetes TLS-enabled health checks
+COPY --from=ghcr.io/grpc-ecosystem/grpc-health-probe:v0.4.24 /ko-app/grpc-health-probe /usr/local/bin/grpc_health_probe
+
 # Switch to non-root user
 USER appuser
 

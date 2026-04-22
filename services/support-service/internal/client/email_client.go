@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	emailpb "github.com/Kpeewu/tissi-mah/services/email-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // EmailClient encapsule l'appel gRPC vers email-service.
@@ -19,7 +19,7 @@ type EmailClient struct {
 
 func NewEmailClient(host, port string, logger *zap.Logger) (*EmailClient, error) {
 	addr := fmt.Sprintf("%s:%s", host, port)
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(grpcutil.ClientTransportCredentials()))
 	if err != nil {
 		return nil, fmt.Errorf("dial email-service: %w", err)
 	}

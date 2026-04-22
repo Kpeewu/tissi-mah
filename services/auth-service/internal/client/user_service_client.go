@@ -12,7 +12,6 @@ import (
 )
 
 // UserServiceClient est le client gRPC vers user-service.
-// Utilise TLS en staging/prod, insecure en local uniquement.
 type UserServiceClient struct {
 	conn       *grpc.ClientConn
 	grpcClient userpb.UserServiceClient
@@ -21,10 +20,9 @@ type UserServiceClient struct {
 
 // NewUserServiceClient établit la connexion gRPC vers user-service.
 // address doit être au format "host:port" (ex: "user-service:50052").
-// environment contrôle le mode TLS (local = insecure, sinon TLS système).
-func NewUserServiceClient(address string, environment string, logger *zap.Logger) (*UserServiceClient, error) {
+func NewUserServiceClient(address string, logger *zap.Logger) (*UserServiceClient, error) {
 	logger.Debug("connecting to user-service", zap.String("address", address))
-	conn, err := grpcutil.NewClientConn(address, environment, logger)
+	conn, err := grpcutil.NewClientConn(address, logger)
 	if err != nil {
 		logger.Error("failed to connect to user-service", zap.Error(err), zap.String("address", address))
 		return nil, fmt.Errorf("user-service: failed to connect to %s: %w", address, err)

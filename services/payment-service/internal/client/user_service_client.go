@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	userpb "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // UserServiceClient est le client gRPC vers user-service.
@@ -21,7 +21,7 @@ type UserServiceClient struct {
 func NewUserServiceClient(address string, logger *zap.Logger) (*UserServiceClient, error) {
 	conn, err := grpc.NewClient(
 		address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(grpcutil.ClientTransportCredentials()),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("user-service: failed to connect to %s: %w", address, err)
