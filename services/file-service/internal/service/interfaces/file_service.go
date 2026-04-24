@@ -60,10 +60,13 @@ type ChangeDocumentInput struct {
 }
 
 // UploadVehicleDocumentsInput contient les documents du véhicule à uploader.
-// Tous les champs sont obligatoires.
+// UserID, VehicleID et les 3 fichiers sont obligatoires.
+// FirstName / LastName viennent de user-service et servent à construire le docName.
 type UploadVehicleDocumentsInput struct {
 	UserID              string
 	VehicleID           string
+	FirstName           string
+	LastName            string
 	DriverLicenceImage  []byte
 	Assurance           []byte
 	VehicleRegistration []byte

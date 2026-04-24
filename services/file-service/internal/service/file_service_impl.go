@@ -9,9 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/domain"
 	repoInterfaces "github.com/Kpeewu/tissi-mah/services/file-service/internal/repository/interfaces"
@@ -717,10 +719,15 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 		docName string
 	}
 
+	timestamp := time.Now().UTC().Format("20060102_150405")
+	lastName := sanitizeForDocName(input.LastName)
+	firstName := sanitizeForDocName(input.FirstName)
+	prefix := fmt.Sprintf("%s_%s_%s", lastName, firstName, timestamp)
+
 	uploads := []fileUpload{
-		{data: input.DriverLicenceImage, docType: "insurance", docName: "driver_licence"},
-		{data: input.Assurance, docType: "insurance", docName: "assurance"},
-		{data: input.VehicleRegistration, docType: "registrationCard", docName: "vehicle_registration"},
+		{data: input.DriverLicenceImage, docType: "driverLicence", docName: prefix + "_driver_licence"},
+		{data: input.Assurance, docType: "insurance", docName: prefix + "_assurance"},
+		{data: input.VehicleRegistration, docType: "registrationCard", docName: prefix + "_vehicle_registration"},
 	}
 
 	for _, u := range uploads {
@@ -770,6 +777,35 @@ func s3KeyFromURL(documentURL string, documentType string, ownerID string, docum
 	// Enlever le point initial si nécessaire pour reconstruire
 	ext = strings.TrimPrefix(ext, "?")
 	return fmt.Sprintf("%s/%s/%s%s", documentType, ownerID, documentID, ext)
+}
+
+// sanitizeForDocName normalise un nom ou prénom pour composer un docName safe :
+// - décompose les accents (NFD) puis strippe les diacritiques (é → e, ç → c, …)
+// - lowercase
+// - remplace espaces et apostrophes par des tirets
+// - garde uniquement [a-z0-9-]
+// Retourne "x" si le résultat est vide, pour éviter les tokens vides dans le docName.
+func sanitizeForDocName(s string) string {
+	decomposed := norm.NFD.String(s)
+	var b strings.Builder
+	for _, r := range decomposed {
+		if unicode.Is(unicode.Mn, r) {
+			continue // strip combining marks (accents)
+		}
+		switch {
+		case r >= 'A' && r <= 'Z':
+			b.WriteRune(r + 32)
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == ' ' || r == '\'' || r == '-' || r == '_':
+			b.WriteRune('-')
+		}
+	}
+	out := strings.Trim(b.String(), "-")
+	if out == "" {
+		return "x"
+	}
+	return out
 }
 
 func mapDecisionToStatus(decision string) string {

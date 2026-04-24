@@ -12,6 +12,7 @@ type Config struct {
 	Database    DatabaseConfig
 	Redis       RedisConfig
 	S3          S3Config
+	UserService UserServiceConfig
 	LogLevel    string
 }
 
@@ -39,6 +40,15 @@ type S3Config struct {
 	SecretKey      string
 	Endpoint       string
 	ForcePathStyle bool
+}
+
+type UserServiceConfig struct {
+	Address string
+	Port    string
+}
+
+func (c UserServiceConfig) Addr() string {
+	return fmt.Sprintf("%s:%s", c.Address, c.Port)
 }
 
 func Load() (*Config, error) {
@@ -69,6 +79,10 @@ func Load() (*Config, error) {
 			SecretKey:      sharedconfig.MustGetString(values, "S3_SECRET_KEY"),
 			Endpoint:       sharedconfig.GetStringOrDefault(values, "S3_ENDPOINT", ""),
 			ForcePathStyle: sharedconfig.GetStringOrDefault(values, "S3_FORCE_PATH_STYLE", "true") == "true",
+		},
+		UserService: UserServiceConfig{
+			Address: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_HOST", "0.0.0.0"),
+			Port:    sharedconfig.GetStringOrDefault(values, "USER_SERVICE_PORT", "50052"),
 		},
 		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
 	}

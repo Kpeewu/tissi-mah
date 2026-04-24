@@ -3,6 +3,7 @@ package service_test
 import (
 	"bytes"
 	"context"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -957,6 +958,124 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		})
 
 		assert.ErrorIs(t, err, fileErrors.ErrorInvalidDocumentType)
+	})
+
+	t.Run("driver licence est stocke avec docType=driverLicence (non insurance)", func(t *testing.T) {
+		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
+		storage := &mocks.MockStorageClient{}
+		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
+			Return("https://storage.example.com/file.jpg", nil)
+
+		captured := make([]*domain.VehicleDocument, 0, 3)
+		vehicleDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).
+			Run(func(args mock.Arguments) {
+				doc := args.Get(1).(*domain.VehicleDocument)
+				captured = append(captured, doc)
+			}).
+			Return("vdoc-id", nil)
+
+		svc := newService(&mocks.MockUserDocumentRepositoryRead{}, &mocks.MockUserDocumentRepositoryWrite{},
+			&mocks.MockVehicleDocumentRepositoryRead{}, vehicleDocWrite,
+			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			storage)
+
+		err := svc.UploadVehicleDocuments(context.Background(), serviceInterfaces.UploadVehicleDocumentsInput{
+			UserID:              "user-1",
+			VehicleID:           "vehicle-1",
+			FirstName:           "Jean",
+			LastName:            "Dupont",
+			DriverLicenceImage:  fakeJPEG(),
+			Assurance:           fakeJPEG(),
+			VehicleRegistration: fakeJPEG(),
+		})
+
+		require.NoError(t, err)
+		require.Len(t, captured, 3)
+		types := []string{captured[0].DocumentType, captured[1].DocumentType, captured[2].DocumentType}
+		assert.Contains(t, types, "driverLicence")
+		assert.Contains(t, types, "insurance")
+		assert.Contains(t, types, "registrationCard")
+		// le permis ne doit plus etre stocke comme insurance (bug du copier-coller)
+		insuranceCount := 0
+		for _, t := range types {
+			if t == "insurance" {
+				insuranceCount++
+			}
+		}
+		assert.Equal(t, 1, insuranceCount, "un seul doc doit etre de type insurance")
+	})
+
+	t.Run("docName suit le format nom_prenom_date_heure_type", func(t *testing.T) {
+		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
+		storage := &mocks.MockStorageClient{}
+		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
+			Return("https://storage.example.com/file.jpg", nil)
+
+		captured := make([]*domain.VehicleDocument, 0, 3)
+		vehicleDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).
+			Run(func(args mock.Arguments) {
+				captured = append(captured, args.Get(1).(*domain.VehicleDocument))
+			}).
+			Return("vdoc-id", nil)
+
+		svc := newService(&mocks.MockUserDocumentRepositoryRead{}, &mocks.MockUserDocumentRepositoryWrite{},
+			&mocks.MockVehicleDocumentRepositoryRead{}, vehicleDocWrite,
+			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			storage)
+
+		err := svc.UploadVehicleDocuments(context.Background(), serviceInterfaces.UploadVehicleDocumentsInput{
+			UserID:              "user-1",
+			VehicleID:           "vehicle-1",
+			FirstName:           "Jean",
+			LastName:            "Dupont",
+			DriverLicenceImage:  fakeJPEG(),
+			Assurance:           fakeJPEG(),
+			VehicleRegistration: fakeJPEG(),
+		})
+
+		require.NoError(t, err)
+		require.Len(t, captured, 3)
+
+		re := regexp.MustCompile(`^dupont_jean_\d{8}_\d{6}_(driver_licence|assurance|vehicle_registration)$`)
+		for _, doc := range captured {
+			assert.Regexp(t, re, doc.DocumentName, "docName doit matcher le format")
+		}
+	})
+
+	t.Run("sanitize les noms accentues et apostrophes dans le docName", func(t *testing.T) {
+		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
+		storage := &mocks.MockStorageClient{}
+		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
+			Return("https://storage.example.com/file.jpg", nil)
+
+		captured := make([]*domain.VehicleDocument, 0, 3)
+		vehicleDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).
+			Run(func(args mock.Arguments) {
+				captured = append(captured, args.Get(1).(*domain.VehicleDocument))
+			}).
+			Return("vdoc-id", nil)
+
+		svc := newService(&mocks.MockUserDocumentRepositoryRead{}, &mocks.MockUserDocumentRepositoryWrite{},
+			&mocks.MockVehicleDocumentRepositoryRead{}, vehicleDocWrite,
+			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			storage)
+
+		err := svc.UploadVehicleDocuments(context.Background(), serviceInterfaces.UploadVehicleDocumentsInput{
+			UserID:              "user-1",
+			VehicleID:           "vehicle-1",
+			FirstName:           "Anne-Marie",
+			LastName:            "Dupré",
+			DriverLicenceImage:  fakeJPEG(),
+			Assurance:           fakeJPEG(),
+			VehicleRegistration: fakeJPEG(),
+		})
+
+		require.NoError(t, err)
+		require.Len(t, captured, 3)
+		re := regexp.MustCompile(`^dupre_anne-marie_\d{8}_\d{6}_(driver_licence|assurance|vehicle_registration)$`)
+		for _, doc := range captured {
+			assert.Regexp(t, re, doc.DocumentName)
+		}
 	})
 }
 

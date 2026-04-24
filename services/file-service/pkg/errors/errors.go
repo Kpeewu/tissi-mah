@@ -18,4 +18,5 @@ var (
 	ErrorInvalidReviewStatus       = errors.New("ErrorInvalidReviewStatus")
 	ErrorInvalidReviewType         = errors.New("ErrorInvalidReviewType")
 	ErrorInvalidReasonRejection    = errors.New("ErrorInvalidReasonRejection")
+	ErrorUserServiceUnavailable    = errors.New("ErrorUserServiceUnavailable")
 )

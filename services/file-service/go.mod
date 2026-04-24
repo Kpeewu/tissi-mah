@@ -11,6 +11,7 @@ go 1.25.5
 require (
 	github.com/Kpeewu/tissi-mah/pkg v0.0.0-00010101000000-000000000000
 	github.com/Kpeewu/tissi-mah/pkg-test v0.0.0-00010101000000-000000000000
+	github.com/Kpeewu/tissi-mah/services/user-service v0.0.0-00010101000000-000000000000
 	github.com/aws/aws-sdk-go-v2 v1.41.5
 	github.com/aws/aws-sdk-go-v2/config v1.32.14
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.14
@@ -19,6 +20,7 @@ require (
 	github.com/jackc/pgx/v5 v5.9.1
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.1
+	golang.org/x/text v0.35.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260316180232-0b37fe3546d5
 	google.golang.org/grpc v1.79.3
 	google.golang.org/protobuf v1.36.11
@@ -115,7 +117,6 @@ require (
 	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260319201613-d00831a3d3e7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
@@ -129,3 +130,5 @@ require (
 replace github.com/Kpeewu/tissi-mah/pkg => ../../pkg
 
 replace github.com/Kpeewu/tissi-mah/pkg-test => ../../pkg-test
+
+replace github.com/Kpeewu/tissi-mah/services/user-service => ../user-service
