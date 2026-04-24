@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	grpcutil "github.com/Kpeewu/tissi-mah/pkg/grpcutil"
+	"github.com/Kpeewu/tissi-mah/services/file-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/config"
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/middleware"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/file-service/internal/service/interfaces"
@@ -18,6 +19,7 @@ import (
 func NewFileServer(
 	cfg *config.Config,
 	service serviceInterfaces.FileService,
+	userClient client.UserClient,
 	logger *zap.Logger,
 ) (*grpcutil.Server, error) {
 	port, err := strconv.Atoi(cfg.Server.Port)
@@ -40,7 +42,7 @@ func NewFileServer(
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)
 	}
 
-	handler := NewFileHandler(service, logger)
+	handler := NewFileHandler(service, userClient, logger)
 	filepb.RegisterFileServiceServer(srv.Server(), handler)
 	srv.SetServingStatus("file.FileService", grpc_health_v1.HealthCheckResponse_SERVING)
 

@@ -11,6 +11,7 @@ go 1.25.5
 require (
 	github.com/Kpeewu/tissi-mah/pkg v0.0.0-00010101000000-000000000000
 	github.com/Kpeewu/tissi-mah/pkg-test v0.0.0-00010101000000-000000000000
+	github.com/Kpeewu/tissi-mah/services/user-service v0.0.0-00010101000000-000000000000
 	github.com/aws/aws-sdk-go-v2 v1.41.5
 	github.com/aws/aws-sdk-go-v2/config v1.32.14
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.14
@@ -129,3 +130,5 @@ require (
 replace github.com/Kpeewu/tissi-mah/pkg => ../../pkg
 
 replace github.com/Kpeewu/tissi-mah/pkg-test => ../../pkg-test
+
+replace github.com/Kpeewu/tissi-mah/services/user-service => ../user-service

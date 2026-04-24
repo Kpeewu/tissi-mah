@@ -8,6 +8,7 @@ import (
 
 	pkgDatabase "github.com/Kpeewu/tissi-mah/pkg/database"
 	pkgLogger "github.com/Kpeewu/tissi-mah/pkg/logger"
+	"github.com/Kpeewu/tissi-mah/services/file-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/config"
 	grpcServer "github.com/Kpeewu/tissi-mah/services/file-service/internal/grpc"
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/repository/implementations"
@@ -65,6 +66,14 @@ func run(bootstrapLogger *zap.Logger) error {
 		zap.String("endpoint", cfg.S3.Endpoint),
 	)
 
+	// --- User-service client ---
+	userClient, err := client.NewUserServiceClient(cfg.UserService.Addr(), logger)
+	if err != nil {
+		return fmt.Errorf("user-service client: %w", err)
+	}
+	defer userClient.Close()
+	logger.Info("user-service client ready", zap.String("address", cfg.UserService.Addr()))
+
 	// --- Repositories ---
 	userDocRead := implementations.NewUserDocumentReadRepository(pool, logger)
 	userDocWrite := implementations.NewUserDocumentWriteRepository(pool, logger)
@@ -83,7 +92,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	)
 
 	// --- gRPC server ---
-	srv, err := grpcServer.NewFileServer(cfg, fileService, logger)
+	srv, err := grpcServer.NewFileServer(cfg, fileService, userClient, logger)
 	if err != nil {
 		return fmt.Errorf("grpc server: %w", err)
 	}

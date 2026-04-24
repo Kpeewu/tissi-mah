@@ -71,7 +71,8 @@ func TestMain(m *testing.M) {
 	}
 
 	srv := grpc.NewServer()
-	handler := grpcHandler.NewFileHandler(svc, logger)
+	mockUserClient := new(mocks.MockUserClient)
+	handler := grpcHandler.NewFileHandler(svc, mockUserClient, logger)
 	filepb.RegisterFileServiceServer(srv, handler)
 
 	go func() {

@@ -7,12 +7,14 @@ import (
 	"io"
 	"time"
 
+	"github.com/Kpeewu/tissi-mah/services/file-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/domain"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/file-service/internal/service/interfaces"
 	fileErrors "github.com/Kpeewu/tissi-mah/services/file-service/pkg/errors"
 	filepb "github.com/Kpeewu/tissi-mah/services/file-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -21,12 +23,13 @@ const serviceVersion = "1.0.0"
 // FileHandler implémente filepb.FileServiceServer.
 type FileHandler struct {
 	filepb.UnimplementedFileServiceServer
-	service serviceInterfaces.FileService
-	logger  *zap.Logger
+	service    serviceInterfaces.FileService
+	userClient client.UserClient
+	logger     *zap.Logger
 }
 
-func NewFileHandler(service serviceInterfaces.FileService, logger *zap.Logger) *FileHandler {
-	return &FileHandler{service: service, logger: logger}
+func NewFileHandler(service serviceInterfaces.FileService, userClient client.UserClient, logger *zap.Logger) *FileHandler {
+	return &FileHandler{service: service, userClient: userClient, logger: logger}
 }
 
 // --- Upload streaming : documents utilisateur ---
@@ -178,14 +181,43 @@ func (h *FileHandler) ChangeDocument(ctx context.Context, req *filepb.ChangeDocu
 
 // UploadIdDocument reçoit les documents d'identité en base64 JSON, les upload vers S3/MinIO
 // et sauvegarde les URLs en base. Retourne toujours HTTP 200 avec ErrorMessage si erreur.
+//
+// Sécurité : le Firebase UID est lu depuis la metadata gRPC x-firebase-uid (injectée
+// par l'api-gateway après validation JWT), puis résolu en UUID interne via user-service.
+// Le champ req.UserID du body est ignoré car client-supplied et non sûr.
 func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadIdDocumentRequest) (*filepb.UploadIdDocumentResponse, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		h.logger.Error("handler: UploadIdDocument - missing metadata")
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+	uids := md.Get("x-firebase-uid")
+	if len(uids) == 0 || uids[0] == "" {
+		h.logger.Error("handler: UploadIdDocument - missing x-firebase-uid")
+		return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
+	}
+	firebaseUID := uids[0]
+
+	internalUserID, err := h.userClient.GetInternalUserIDByFirebaseID(ctx, firebaseUID)
+	if err != nil {
+		h.logger.Error("handler: UploadIdDocument - failed to resolve firebaseUID",
+			zap.String("firebaseUID", firebaseUID),
+			zap.Error(err),
+		)
+		return &filepb.UploadIdDocumentResponse{
+			Success:      false,
+			ErrorMessage: fileErrors.ErrorUserServiceUnavailable.Error(),
+		}, nil
+	}
+
 	h.logger.Debug("handler: UploadIdDocument called",
-		zap.String("profileID", req.UserID),
+		zap.String("firebaseUID", firebaseUID),
+		zap.String("internalUserID", internalUserID),
 		zap.String("documentType", req.DocumentType),
 	)
 
-	err := h.service.UploadIdDocument(ctx, serviceInterfaces.UploadIdDocumentInput{
-		UserID:             req.UserID,
+	err = h.service.UploadIdDocument(ctx, serviceInterfaces.UploadIdDocumentInput{
+		UserID:             internalUserID,
 		DocumentType:       req.DocumentType,
 		IDCardRecto:        req.IDCardRecto,
 		IDCardVerso:        req.IDCardVerso,
@@ -195,7 +227,8 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 	})
 	if err != nil {
 		h.logger.Error("handler: UploadIdDocument failed",
-			zap.String("profileID", req.UserID),
+			zap.String("firebaseUID", firebaseUID),
+			zap.String("internalUserID", internalUserID),
 			zap.Error(err),
 		)
 		return &filepb.UploadIdDocumentResponse{
@@ -204,7 +237,10 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 		}, nil
 	}
 
-	h.logger.Info("handler: UploadIdDocument success", zap.String("profileID", req.UserID))
+	h.logger.Info("handler: UploadIdDocument success",
+		zap.String("firebaseUID", firebaseUID),
+		zap.String("internalUserID", internalUserID),
+	)
 	return &filepb.UploadIdDocumentResponse{Success: true}, nil
 }
 
