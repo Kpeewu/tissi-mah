@@ -53,7 +53,17 @@ func (c *UserServiceClient) Close() error {
 // avec l'UUID interne (convention partagée avec user-service et kyc-service)
 // plutôt que le Firebase UID fourni par le client.
 func (c *UserServiceClient) GetInternalUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error) {
-	c.logger.Debug("client: GetInternalUserIDByFirebaseID called", zap.String("firebaseUID", firebaseUID))
+	profile, err := c.GetUserProfileByFirebaseID(ctx, firebaseUID)
+	if err != nil {
+		return "", err
+	}
+	return profile.UserID, nil
+}
+
+// GetUserProfileByFirebaseID retourne l'UUID interne + prenom/nom du user.
+// Utilisé par UploadVehicleDocuments pour construire un docName humain-lisible.
+func (c *UserServiceClient) GetUserProfileByFirebaseID(ctx context.Context, firebaseUID string) (*UserProfile, error) {
+	c.logger.Debug("client: GetUserProfileByFirebaseID called", zap.String("firebaseUID", firebaseUID))
 
 	resp, err := c.grpcClient.GetUserByFirebaseID(ctx, &userpb.GetUserByFirebaseIDRequest{
 		FirebaseID: firebaseUID,
@@ -61,11 +71,15 @@ func (c *UserServiceClient) GetInternalUserIDByFirebaseID(ctx context.Context, f
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 			c.logger.Debug("client: user not found by firebaseUID", zap.String("firebaseUID", firebaseUID))
-			return "", fmt.Errorf("user-service: user not found for firebaseUID %s", firebaseUID)
+			return nil, fmt.Errorf("user-service: user not found for firebaseUID %s", firebaseUID)
 		}
 		c.logger.Error("client: GetUserByFirebaseID failed", zap.Error(err), zap.String("firebaseUID", firebaseUID))
-		return "", fmt.Errorf("user-service: GetUserByFirebaseID failed: %w", err)
+		return nil, fmt.Errorf("user-service: GetUserByFirebaseID failed: %w", err)
 	}
 
-	return resp.UserID, nil
+	return &UserProfile{
+		UserID:    resp.UserID,
+		FirstName: resp.FirstName,
+		LastName:  resp.Name,
+	}, nil
 }

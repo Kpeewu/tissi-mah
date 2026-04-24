@@ -3,6 +3,7 @@ package mocks
 import (
 	"context"
 
+	"github.com/Kpeewu/tissi-mah/services/file-service/internal/client"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -14,6 +15,14 @@ type MockUserClient struct {
 func (m *MockUserClient) GetInternalUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error) {
 	args := m.Called(ctx, firebaseUID)
 	return args.String(0), args.Error(1)
+}
+
+func (m *MockUserClient) GetUserProfileByFirebaseID(ctx context.Context, firebaseUID string) (*client.UserProfile, error) {
+	args := m.Called(ctx, firebaseUID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*client.UserProfile), args.Error(1)
 }
 
 func (m *MockUserClient) Close() error {

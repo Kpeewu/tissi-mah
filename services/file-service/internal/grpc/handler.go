@@ -246,21 +246,54 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 
 // UploadVehicleDocuments reçoit les documents du véhicule en base64 JSON,
 // les upload vers S3/MinIO et sauvegarde les URLs en base.
+//
+// Sécurité : le Firebase UID est lu depuis la metadata gRPC x-firebase-uid (injectée
+// par l'api-gateway après validation JWT), puis résolu en profil (UUID + prenom + nom)
+// via user-service. Le champ req.UserID du body est ignoré car client-supplied et non sûr.
 func (h *FileHandler) UploadVehicleDocuments(ctx context.Context, req *filepb.UploadVehicleDocumentsRequest) (*filepb.UploadVehicleDocumentsResponse, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		h.logger.Error("handler: UploadVehicleDocuments - missing metadata")
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+	uids := md.Get("x-firebase-uid")
+	if len(uids) == 0 || uids[0] == "" {
+		h.logger.Error("handler: UploadVehicleDocuments - missing x-firebase-uid")
+		return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
+	}
+	firebaseUID := uids[0]
+
+	profile, err := h.userClient.GetUserProfileByFirebaseID(ctx, firebaseUID)
+	if err != nil {
+		h.logger.Error("handler: UploadVehicleDocuments - failed to resolve firebaseUID",
+			zap.String("firebaseUID", firebaseUID),
+			zap.Error(err),
+		)
+		return &filepb.UploadVehicleDocumentsResponse{
+			Success:      false,
+			ErrorMessage: fileErrors.ErrorUserServiceUnavailable.Error(),
+		}, nil
+	}
+
 	h.logger.Debug("handler: UploadVehicleDocuments called",
-		zap.String("profileID", req.UserID),
+		zap.String("firebaseUID", firebaseUID),
+		zap.String("internalUserID", profile.UserID),
 		zap.String("vehicleID", req.VehicleID),
 	)
 
-	err := h.service.UploadVehicleDocuments(ctx, serviceInterfaces.UploadVehicleDocumentsInput{
-		UserID:              req.UserID,
+	err = h.service.UploadVehicleDocuments(ctx, serviceInterfaces.UploadVehicleDocumentsInput{
+		UserID:              profile.UserID,
 		VehicleID:           req.VehicleID,
+		FirstName:           profile.FirstName,
+		LastName:            profile.LastName,
 		DriverLicenceImage:  req.DriverLicenceImage,
 		Assurance:           req.Assurance,
 		VehicleRegistration: req.VehicleRegistration,
 	})
 	if err != nil {
 		h.logger.Error("handler: UploadVehicleDocuments failed",
+			zap.String("firebaseUID", firebaseUID),
+			zap.String("internalUserID", profile.UserID),
 			zap.String("vehicleID", req.VehicleID),
 			zap.Error(err),
 		)
@@ -270,7 +303,11 @@ func (h *FileHandler) UploadVehicleDocuments(ctx context.Context, req *filepb.Up
 		}, nil
 	}
 
-	h.logger.Info("handler: UploadVehicleDocuments success", zap.String("vehicleID", req.VehicleID))
+	h.logger.Info("handler: UploadVehicleDocuments success",
+		zap.String("firebaseUID", firebaseUID),
+		zap.String("internalUserID", profile.UserID),
+		zap.String("vehicleID", req.VehicleID),
+	)
 	return &filepb.UploadVehicleDocumentsResponse{Success: true}, nil
 }
 

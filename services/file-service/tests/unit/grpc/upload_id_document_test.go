@@ -20,16 +20,23 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// spyFileService capture l'input reçu par UploadIdDocument.
-// Les autres méthodes panic car le handler UploadIdDocument ne les appelle pas.
+// spyFileService capture les inputs reçus par UploadIdDocument et UploadVehicleDocuments.
+// Les autres méthodes panic car le handler ne les appelle pas.
 type spyFileService struct {
-	gotInput        *serviceInterfaces.UploadIdDocumentInput
-	uploadIdErr     error
+	gotInput         *serviceInterfaces.UploadIdDocumentInput
+	uploadIdErr      error
+	gotVehicleInput  *serviceInterfaces.UploadVehicleDocumentsInput
+	uploadVehicleErr error
 }
 
 func (s *spyFileService) UploadIdDocument(_ context.Context, input serviceInterfaces.UploadIdDocumentInput) error {
 	s.gotInput = &input
 	return s.uploadIdErr
+}
+
+func (s *spyFileService) UploadVehicleDocuments(_ context.Context, input serviceInterfaces.UploadVehicleDocumentsInput) error {
+	s.gotVehicleInput = &input
+	return s.uploadVehicleErr
 }
 
 // --- Stubs pour satisfaire l'interface FileService ---
@@ -68,9 +75,6 @@ func (s *spyFileService) DeleteVehicleDocument(context.Context, string) error {
 	panic("not implemented")
 }
 func (s *spyFileService) ChangeDocument(context.Context, serviceInterfaces.ChangeDocumentInput) error {
-	panic("not implemented")
-}
-func (s *spyFileService) UploadVehicleDocuments(context.Context, serviceInterfaces.UploadVehicleDocumentsInput) error {
 	panic("not implemented")
 }
 func (s *spyFileService) CreateDocumentReview(context.Context, serviceInterfaces.CreateReviewInput) (*domain.DocumentReview, error) {
