@@ -1,0 +1,138 @@
+// Geolocation Service Proto Definition
+// Calcule distance/durée/polyline entre waypoints (routing OSRM self-hosted)
+// + geocoding (Nominatim self-hosted) sur Togo, Ghana, Bénin, Burkina Faso.
+//
+// Ce service est appelé par le front pendant la création d'un trajet —
+// trips-service ne l'appelle pas, il fait confiance aux valeurs envoyées par le front.
+
+syntax = "proto3";
+
+package geolocation;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/geolocation-service/proto/gen;geolocation";
+
+import "google/api/annotations.proto";
+
+// =============================================================================
+// Geolocation Service
+// =============================================================================
+
+service GeolocationService {
+  // ComputeRoute calcule distance + durée + polyline + ETAs cumulés par leg.
+  // Appelé par le front pendant que le chauffeur édite ses waypoints.
+  rpc ComputeRoute(ComputeRouteRequest) returns (ComputeRouteResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/geolocation/route"
+      body: "*"
+    };
+  }
+
+  // Geocode résout texte → coordonnées via Nominatim (filtré par pays).
+  rpc Geocode(GeocodeRequest) returns (GeocodeResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/geolocation/geocode"
+    };
+  }
+
+  // ReverseGeocode résout lat/lng → adresse via Nominatim.
+  rpc ReverseGeocode(ReverseGeocodeRequest) returns (ReverseGeocodeResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/geolocation/reverse"
+    };
+  }
+
+  // Health check (public).
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/geolocation/health"
+    };
+  }
+}
+
+// =============================================================================
+// Common
+// =============================================================================
+
+message Coordinate {
+  double Lat = 1;
+  double Lng = 2;
+}
+
+// =============================================================================
+// ComputeRoute
+// =============================================================================
+
+message ComputeRouteRequest {
+  // Waypoints en ordre : départ, ..., arrivée. Min 2.
+  repeated Coordinate Waypoints = 1;
+
+  // Profile de routing. V1 : "driving" uniquement.
+  string Profile = 2;
+
+  // RFC3339, optionnel. Si fourni, EstimatedArrivalTime est calculé pour chaque leg.
+  string DepartureTime = 3;
+}
+
+// RouteLeg = segment entre Waypoints[i] et Waypoints[i+1].
+// Il y a len(Waypoints) - 1 legs au total (ex: 3 waypoints → 2 legs).
+// L'index N indique l'arrivée AU waypoint d'index N+1.
+message RouteLeg {
+  double DistanceMeters       = 1; // distance de ce segment uniquement
+  int64  DurationSeconds      = 2; // durée de ce segment uniquement
+  int32  MinutesFromDeparture = 3; // cumul depuis Waypoints[0]
+  string EstimatedArrivalTime = 4; // RFC3339, vide si DepartureTime non fourni
+}
+
+message ComputeRouteResponse {
+  double DistanceMeters     = 1; // total
+  int64  DurationSeconds    = 2; // total
+  string PolylineEncoded    = 3; // Google encoded polyline (compact)
+  repeated RouteLeg Legs    = 4;
+  string ErrorMessage       = 5;
+}
+
+// =============================================================================
+// Geocoding
+// =============================================================================
+
+message GeocodeRequest {
+  string Query         = 1; // ex: "Marché de Lomé"
+  string CountryFilter = 2; // ISO codes séparés par virgules; défaut: "tg,gh,bj,bf"
+  int32  Limit         = 3; // défaut: 5
+}
+
+message GeocodeResult {
+  string DisplayName = 1; // adresse complète
+  double Lat         = 2;
+  double Lng         = 3;
+  string Country     = 4; // ISO code
+  string City        = 5;
+  string Type        = 6; // ex: "city", "village", "amenity"
+}
+
+message GeocodeResponse {
+  repeated GeocodeResult Results = 1;
+  string ErrorMessage            = 2;
+}
+
+message ReverseGeocodeRequest {
+  double Lat = 1;
+  double Lng = 2;
+}
+
+message ReverseGeocodeResponse {
+  GeocodeResult Result  = 1;
+  string ErrorMessage   = 2;
+}
+
+// =============================================================================
+// Health
+// =============================================================================
+
+message HealthRequest {}
+
+message HealthResponse {
+  string Status    = 1; // SERVING | NOT_SERVING
+  string Version   = 2;
+  int64  Timestamp = 3;
+}

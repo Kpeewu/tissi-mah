@@ -116,6 +116,10 @@ run-support: deps-up
 	@echo "🚀 Démarrage support-service..."
 	@cd services/support-service && $(MAKE) run
 
+run-geolocation: deps-up
+	@echo "🚀 Démarrage geolocation-service..."
+	@cd services/geolocation-service && $(MAKE) run
+
 # === PROTOBUF ===
 
 proto:
@@ -138,6 +142,10 @@ proto-file:
 proto-trips:
 	@echo "🔧 Génération proto trips-service..."
 	@cd services/trips-service && $(MAKE) proto
+
+proto-geolocation:
+	@echo "🔧 Génération proto geolocation-service..."
+	@cd services/geolocation-service && $(MAKE) proto
 
 proto-booking:
 	@echo "🔧 Génération proto booking-service..."
