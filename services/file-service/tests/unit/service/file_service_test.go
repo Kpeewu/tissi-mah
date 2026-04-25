@@ -727,7 +727,7 @@ func TestFileService_ChangeDocument(t *testing.T) {
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			storage)
 
-		err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{
+		_, err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{
 			UserID:      "user-1",
 			FileID:      "doc-1",
 			NewDocument: fakeJPEG(),
@@ -742,7 +742,7 @@ func TestFileService_ChangeDocument(t *testing.T) {
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			&mocks.MockStorageClient{})
 
-		err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{
+		_, err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{
 			UserID:      "user-1",
 			FileID:      "doc-1",
 			NewDocument: nil,
@@ -760,7 +760,7 @@ func TestFileService_ChangeDocument(t *testing.T) {
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			&mocks.MockStorageClient{})
 
-		err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{
+		_, err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{
 			UserID:      "user-1",
 			FileID:      "missing",
 			NewDocument: fakeJPEG(),
@@ -779,7 +779,7 @@ func TestFileService_ChangeDocument(t *testing.T) {
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			&mocks.MockStorageClient{})
 
-		err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{
+		_, err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{
 			UserID:      "other-user",
 			FileID:      "doc-1",
 			NewDocument: fakeJPEG(),
@@ -811,7 +811,7 @@ func TestFileService_UploadIdDocument(t *testing.T) {
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			storage)
 
-		err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
+		_, err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
 			UserID:       "user-1",
 			DocumentType: "IDCard",
 			IDCardRecto:  fakeJPEG(),
@@ -840,7 +840,7 @@ func TestFileService_UploadIdDocument(t *testing.T) {
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			storage)
 
-		err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
+		_, err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
 			UserID:       "user-1",
 			DocumentType: "Passport",
 			Passport:     fakeJPEG(),
@@ -856,7 +856,7 @@ func TestFileService_UploadIdDocument(t *testing.T) {
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			&mocks.MockStorageClient{})
 
-		err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
+		_, err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
 			UserID:       "",
 			DocumentType: "IDCard",
 			IDCardRecto:  fakeJPEG(),
@@ -872,7 +872,7 @@ func TestFileService_UploadIdDocument(t *testing.T) {
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			&mocks.MockStorageClient{})
 
-		err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
+		_, err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
 			UserID:       "user-1",
 			DocumentType: "IDCard",
 			IDCardRecto:  fakeJPEG(),
@@ -888,7 +888,7 @@ func TestFileService_UploadIdDocument(t *testing.T) {
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			&mocks.MockStorageClient{})
 
-		err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
+		_, err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
 			UserID:       "user-1",
 			DocumentType: "UnknownType",
 		})
@@ -917,7 +917,7 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			storage)
 
-		err := svc.UploadVehicleDocuments(context.Background(), serviceInterfaces.UploadVehicleDocumentsInput{
+		_, err := svc.UploadVehicleDocuments(context.Background(), serviceInterfaces.UploadVehicleDocumentsInput{
 			UserID:              "user-1",
 			VehicleID:           "vehicle-1",
 			DriverLicenceImage:  fakeJPEG(),
@@ -935,7 +935,7 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			&mocks.MockStorageClient{})
 
-		err := svc.UploadVehicleDocuments(context.Background(), serviceInterfaces.UploadVehicleDocumentsInput{
+		_, err := svc.UploadVehicleDocuments(context.Background(), serviceInterfaces.UploadVehicleDocumentsInput{
 			UserID:    "user-1",
 			VehicleID: "",
 		})
@@ -949,7 +949,7 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			&mocks.MockStorageClient{})
 
-		err := svc.UploadVehicleDocuments(context.Background(), serviceInterfaces.UploadVehicleDocumentsInput{
+		_, err := svc.UploadVehicleDocuments(context.Background(), serviceInterfaces.UploadVehicleDocumentsInput{
 			UserID:              "user-1",
 			VehicleID:           "vehicle-1",
 			DriverLicenceImage:  nil, // premier dans l'ordre — déclenche l'erreur immédiatement
@@ -979,7 +979,7 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			storage)
 
-		err := svc.UploadVehicleDocuments(context.Background(), serviceInterfaces.UploadVehicleDocumentsInput{
+		_, err := svc.UploadVehicleDocuments(context.Background(), serviceInterfaces.UploadVehicleDocumentsInput{
 			UserID:              "user-1",
 			VehicleID:           "vehicle-1",
 			FirstName:           "Jean",
@@ -1023,7 +1023,7 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			storage)
 
-		err := svc.UploadVehicleDocuments(context.Background(), serviceInterfaces.UploadVehicleDocumentsInput{
+		_, err := svc.UploadVehicleDocuments(context.Background(), serviceInterfaces.UploadVehicleDocumentsInput{
 			UserID:              "user-1",
 			VehicleID:           "vehicle-1",
 			FirstName:           "Jean",
@@ -1060,7 +1060,7 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			storage)
 
-		err := svc.UploadVehicleDocuments(context.Background(), serviceInterfaces.UploadVehicleDocumentsInput{
+		_, err := svc.UploadVehicleDocuments(context.Background(), serviceInterfaces.UploadVehicleDocumentsInput{
 			UserID:              "user-1",
 			VehicleID:           "vehicle-1",
 			FirstName:           "Anne-Marie",

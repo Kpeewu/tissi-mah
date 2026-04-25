@@ -8,7 +8,7 @@
 // - protoc             v6.33.4
 // source: file.proto
 
-package file
+package filepb
 
 import (
 	context "context"

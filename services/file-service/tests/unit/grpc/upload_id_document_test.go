@@ -25,18 +25,20 @@ import (
 type spyFileService struct {
 	gotInput         *serviceInterfaces.UploadIdDocumentInput
 	uploadIdErr      error
+	uploadIdReturn   []*serviceInterfaces.UploadedDocument
 	gotVehicleInput  *serviceInterfaces.UploadVehicleDocumentsInput
 	uploadVehicleErr error
+	uploadVehicleRet []*serviceInterfaces.UploadedDocument
 }
 
-func (s *spyFileService) UploadIdDocument(_ context.Context, input serviceInterfaces.UploadIdDocumentInput) error {
+func (s *spyFileService) UploadIdDocument(_ context.Context, input serviceInterfaces.UploadIdDocumentInput) ([]*serviceInterfaces.UploadedDocument, error) {
 	s.gotInput = &input
-	return s.uploadIdErr
+	return s.uploadIdReturn, s.uploadIdErr
 }
 
-func (s *spyFileService) UploadVehicleDocuments(_ context.Context, input serviceInterfaces.UploadVehicleDocumentsInput) error {
+func (s *spyFileService) UploadVehicleDocuments(_ context.Context, input serviceInterfaces.UploadVehicleDocumentsInput) ([]*serviceInterfaces.UploadedDocument, error) {
 	s.gotVehicleInput = &input
-	return s.uploadVehicleErr
+	return s.uploadVehicleRet, s.uploadVehicleErr
 }
 
 // --- Stubs pour satisfaire l'interface FileService ---
@@ -74,7 +76,7 @@ func (s *spyFileService) GetVehicleDocument(context.Context, string) (*domain.Ve
 func (s *spyFileService) DeleteVehicleDocument(context.Context, string) error {
 	panic("not implemented")
 }
-func (s *spyFileService) ChangeDocument(context.Context, serviceInterfaces.ChangeDocumentInput) error {
+func (s *spyFileService) ChangeDocument(context.Context, serviceInterfaces.ChangeDocumentInput) (*serviceInterfaces.UploadedDocument, error) {
 	panic("not implemented")
 }
 func (s *spyFileService) CreateDocumentReview(context.Context, serviceInterfaces.CreateReviewInput) (*domain.DocumentReview, error) {

@@ -575,17 +575,17 @@ func extensionFromMimeType(mimeType string) string {
 // ChangeDocument remplace le fichier d'un document utilisateur existant par un nouveau.
 // Récupère le document existant, upload le nouveau fichier en S3, puis crée un nouvel
 // enregistrement DB en marquant l'ancien comme remplacé.
-func (s *fileServiceImpl) ChangeDocument(ctx context.Context, input serviceInterfaces.ChangeDocumentInput) error {
+func (s *fileServiceImpl) ChangeDocument(ctx context.Context, input serviceInterfaces.ChangeDocumentInput) (*serviceInterfaces.UploadedDocument, error) {
 	s.logger.Debug("change document", zap.String("userID", input.UserID), zap.String("fileID", input.FileID))
 
 	if len(input.NewDocument) == 0 {
-		return fileErrors.ErrorInvalidDocumentType
+		return nil, fileErrors.ErrorInvalidDocumentType
 	}
 
 	existing, err := s.userDocRead.GetByID(ctx, input.FileID)
 	if err != nil {
 		s.logger.Error("change document: document not found", zap.Error(err), zap.String("fileID", input.FileID))
-		return fileErrors.ErrorDocumentNotFound
+		return nil, fileErrors.ErrorDocumentNotFound
 	}
 
 	if existing.UserID != input.UserID {
@@ -593,7 +593,7 @@ func (s *fileServiceImpl) ChangeDocument(ctx context.Context, input serviceInter
 			zap.String("expected", existing.UserID),
 			zap.String("got", input.UserID),
 		)
-		return fileErrors.ErrorDocumentNotFound
+		return nil, fileErrors.ErrorDocumentNotFound
 	}
 
 	mimeType := http.DetectContentType(input.NewDocument)
@@ -601,7 +601,7 @@ func (s *fileServiceImpl) ChangeDocument(ctx context.Context, input serviceInter
 		mimeType = "image/jpeg"
 	}
 
-	_, err = s.UploadUserDocument(ctx, serviceInterfaces.UploadUserDocumentInput{
+	newDoc, err := s.UploadUserDocument(ctx, serviceInterfaces.UploadUserDocumentInput{
 		UserID:         existing.UserID,
 		DocumentName:   existing.DocumentName,
 		DocumentType:   existing.DocumentType,
@@ -613,22 +613,32 @@ func (s *fileServiceImpl) ChangeDocument(ctx context.Context, input serviceInter
 	})
 	if err != nil {
 		s.logger.Error("change document: upload failed", zap.Error(err), zap.String("fileID", input.FileID))
-		return err
+		return nil, err
 	}
 
-	s.logger.Info("document changed", zap.String("fileID", input.FileID), zap.String("userID", input.UserID))
-	return nil
+	s.logger.Info("document changed",
+		zap.String("oldFileID", input.FileID),
+		zap.String("newFileID", newDoc.DocumentID),
+		zap.String("userID", input.UserID),
+	)
+	return &serviceInterfaces.UploadedDocument{
+		DocumentID:   newDoc.DocumentID,
+		DocumentURL:  newDoc.DocumentURL,
+		DocumentType: newDoc.DocumentType,
+		DocumentName: newDoc.DocumentName,
+	}, nil
 }
 
 // --- Upload identité ---
 
 // UploadIdDocument upload les documents d'identité vers S3/MinIO et sauvegarde les URLs en base.
 // Les fichiers sont uploadés individuellement via UploadUserDocument.
-func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInterfaces.UploadIdDocumentInput) error {
+// Retourne la liste des documents créés (1 pour Passport, 2 pour IDCard / DriverLicence).
+func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInterfaces.UploadIdDocumentInput) ([]*serviceInterfaces.UploadedDocument, error) {
 	s.logger.Debug("upload id document", zap.String("profileID", input.UserID), zap.String("type", input.DocumentType))
 
 	if input.UserID == "" {
-		return fileErrors.ErrorInvalidDocumentType
+		return nil, fileErrors.ErrorInvalidDocumentType
 	}
 
 	// Détermine les fichiers requis selon le type de document
@@ -644,7 +654,7 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 	case "IDCard":
 		if len(input.IDCardRecto) == 0 || len(input.IDCardVerso) == 0 {
 			s.logger.Error("IDCard: recto et verso obligatoires", zap.String("profileID", input.UserID))
-			return fileErrors.ErrorInvalidDocumentType
+			return nil, fileErrors.ErrorInvalidDocumentType
 		}
 		uploads = []fileUpload{
 			{data: input.IDCardRecto, docType: "idCardFront", docName: "id_card_recto"},
@@ -653,7 +663,7 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 	case "Passport":
 		if len(input.Passport) == 0 {
 			s.logger.Error("Passport: fichier obligatoire", zap.String("profileID", input.UserID))
-			return fileErrors.ErrorInvalidDocumentType
+			return nil, fileErrors.ErrorInvalidDocumentType
 		}
 		uploads = []fileUpload{
 			{data: input.Passport, docType: "passport", docName: "passport"},
@@ -661,7 +671,7 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 	case "DriverLicence":
 		if len(input.DriverLicenceRecto) == 0 || len(input.DriverLicenceVerso) == 0 {
 			s.logger.Error("DriverLicence: recto et verso obligatoires", zap.String("profileID", input.UserID))
-			return fileErrors.ErrorInvalidDocumentType
+			return nil, fileErrors.ErrorInvalidDocumentType
 		}
 		uploads = []fileUpload{
 			{data: input.DriverLicenceRecto, docType: "driverLicenceFront", docName: "driver_licence_recto"},
@@ -669,17 +679,18 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 		}
 	default:
 		s.logger.Error("type de document inconnu", zap.String("type", input.DocumentType))
-		return fileErrors.ErrorInvalidDocumentType
+		return nil, fileErrors.ErrorInvalidDocumentType
 	}
 
 	// Upload chaque fichier vers S3 + DB
+	created := make([]*serviceInterfaces.UploadedDocument, 0, len(uploads))
 	for _, u := range uploads {
 		mimeType := http.DetectContentType(u.data)
 		if !allowedMimeTypes[mimeType] {
 			mimeType = "image/jpeg"
 		}
 
-		_, err := s.UploadUserDocument(ctx, serviceInterfaces.UploadUserDocumentInput{
+		doc, err := s.UploadUserDocument(ctx, serviceInterfaces.UploadUserDocumentInput{
 			UserID:        input.UserID,
 			DocumentName:  u.docName,
 			DocumentType:  u.docType,
@@ -693,24 +704,35 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 				zap.String("docType", u.docType),
 				zap.Error(err),
 			)
-			return err
+			return nil, err
 		}
-		s.logger.Info("id document file uploaded", zap.String("profileID", input.UserID), zap.String("docType", u.docType))
+		s.logger.Info("id document file uploaded",
+			zap.String("profileID", input.UserID),
+			zap.String("docType", u.docType),
+			zap.String("documentID", doc.DocumentID),
+		)
+		created = append(created, &serviceInterfaces.UploadedDocument{
+			DocumentID:   doc.DocumentID,
+			DocumentURL:  doc.DocumentURL,
+			DocumentType: doc.DocumentType,
+			DocumentName: doc.DocumentName,
+		})
 	}
 
-	return nil
+	return created, nil
 }
 
 // UploadVehicleDocuments upload le permis de conduire, l'assurance et la carte grise
 // vers S3/MinIO et sauvegarde les URLs en base via UploadVehicleDocument.
-func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serviceInterfaces.UploadVehicleDocumentsInput) error {
+// Retourne les 3 documents créés dans l'ordre permis / assurance / carte grise.
+func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serviceInterfaces.UploadVehicleDocumentsInput) ([]*serviceInterfaces.UploadedDocument, error) {
 	s.logger.Debug("upload vehicle documents",
 		zap.String("profileID", input.UserID),
 		zap.String("vehicleID", input.VehicleID),
 	)
 
 	if input.VehicleID == "" {
-		return fileErrors.ErrorInvalidDocumentType
+		return nil, fileErrors.ErrorInvalidDocumentType
 	}
 
 	type fileUpload struct {
@@ -730,13 +752,14 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 		{data: input.VehicleRegistration, docType: "registrationCard", docName: prefix + "_vehicle_registration"},
 	}
 
+	created := make([]*serviceInterfaces.UploadedDocument, 0, len(uploads))
 	for _, u := range uploads {
 		if len(u.data) == 0 {
 			s.logger.Error("upload vehicle documents: fichier manquant",
 				zap.String("vehicleID", input.VehicleID),
 				zap.String("docName", u.docName),
 			)
-			return fileErrors.ErrorInvalidDocumentType
+			return nil, fileErrors.ErrorInvalidDocumentType
 		}
 
 		mimeType := http.DetectContentType(u.data)
@@ -744,7 +767,7 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 			mimeType = "image/jpeg"
 		}
 
-		_, err := s.UploadVehicleDocument(ctx, serviceInterfaces.UploadVehicleDocumentInput{
+		doc, err := s.UploadVehicleDocument(ctx, serviceInterfaces.UploadVehicleDocumentInput{
 			VehicleID:     input.VehicleID,
 			DocumentName:  u.docName,
 			DocumentType:  u.docType,
@@ -758,15 +781,22 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 				zap.String("docName", u.docName),
 				zap.Error(err),
 			)
-			return err
+			return nil, err
 		}
 		s.logger.Info("vehicle document file uploaded",
 			zap.String("vehicleID", input.VehicleID),
 			zap.String("docType", u.docType),
+			zap.String("documentID", doc.DocumentID),
 		)
+		created = append(created, &serviceInterfaces.UploadedDocument{
+			DocumentID:   doc.DocumentID,
+			DocumentURL:  doc.DocumentURL,
+			DocumentType: doc.DocumentType,
+			DocumentName: doc.DocumentName,
+		})
 	}
 
-	return nil
+	return created, nil
 }
 
 func s3KeyFromURL(documentURL string, documentType string, ownerID string, documentID string) string {

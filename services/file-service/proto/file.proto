@@ -104,8 +104,19 @@ message UploadVehicleDocumentsRequest {
 }
 
 message UploadVehicleDocumentsResponse {
-  bool   Success      = 1;
-  string ErrorMessage = 2;
+  bool                     Success      = 1;
+  string                   ErrorMessage = 2;
+  repeated UploadedDocument Documents   = 3; // Permis, assurance, carte grise (dans cet ordre)
+}
+
+// UploadedDocument décrit un document fraîchement uploadé/remplacé.
+// Renvoyé par UploadIdDocument, UploadVehicleDocuments et ChangeDocument
+// pour que le front affiche la ressource sans avoir à la re-fetcher.
+message UploadedDocument {
+  string DocumentID   = 1;
+  string DocumentURL  = 2;
+  string DocumentType = 3;
+  string DocumentName = 4;
 }
 
 // =============================================================================
@@ -154,8 +165,9 @@ message ChangeDocumentRequest {
 }
 
 message ChangeDocumentResponse {
-  bool   Success      = 1;
-  string ErrorMessage = 2;
+  bool             Success      = 1;
+  string           ErrorMessage = 2;
+  UploadedDocument Document     = 3;
 }
 
 // =============================================================================
@@ -180,8 +192,9 @@ message UploadIdDocumentRequest {
 }
 
 message UploadIdDocumentResponse {
-  bool   Success      = 1;
-  string ErrorMessage = 2;
+  bool                     Success      = 1;
+  string                   ErrorMessage = 2;
+  repeated UploadedDocument Documents   = 3; // 1 doc pour Passport, 2 pour IDCard / DriverLicence (recto + verso)
 }
 
 // =============================================================================
