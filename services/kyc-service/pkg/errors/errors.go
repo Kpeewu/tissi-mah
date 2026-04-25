@@ -14,6 +14,8 @@ var (
 	ErrorReviewNotFound          = errors.New("ErrorReviewNotFound")
 	ErrorMissingUserID           = errors.New("ErrorMissingUserID")
 	ErrorMissingDocumentType     = errors.New("ErrorMissingDocumentType")
+	ErrorMissingDocumentID       = errors.New("ErrorMissingDocumentID")
+	ErrorDocumentMismatch        = errors.New("ErrorDocumentMismatch")
 	ErrorMissingInquiryID        = errors.New("ErrorMissingInquiryID")
 	ErrorMissingReviewID         = errors.New("ErrorMissingReviewID")
 	ErrorFileServiceUnavailable  = errors.New("ErrorFileServiceUnavailable")

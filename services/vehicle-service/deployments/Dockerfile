@@ -21,6 +21,7 @@ RUN apk add --no-cache git ca-certificates tzdata
 # Copy go.mod files first (for better caching)
 COPY pkg/go.mod pkg/go.sum ./pkg/
 COPY services/file-service/go.mod services/file-service/go.sum* ./services/file-service/
+COPY services/user-service/go.mod services/user-service/go.sum* ./services/user-service/
 COPY services/vehicle-service/go.mod services/vehicle-service/go.sum* ./services/vehicle-service/
 
 # pkg-test est un module de test uniquement, mais file-service/go.mod a un replace directive qui
@@ -29,12 +30,15 @@ COPY services/vehicle-service/go.mod services/vehicle-service/go.sum* ./services
 RUN mkdir -p pkg-test && \
     printf 'module github.com/Kpeewu/tissi-mah/pkg-test\n\ngo 1.25\n' > pkg-test/go.mod
 
-# Create a scoped go.work with pkg + pkg-test + file-service + vehicle-service
-RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/vehicle-service\n)\n' > go.work
+# Create a scoped go.work with pkg + pkg-test + file-service + user-service + vehicle-service
+# user-service is required because file-service/go.mod has a replace directive pointing to it
+# (transitively pulled into the workspace via vehicle-service's replace on file-service)
+RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/user-service\n\t./services/vehicle-service\n)\n' > go.work
 
 # Download dependencies for all modules
 RUN go mod download -C ./pkg
 RUN go mod download -C ./services/file-service
+RUN go mod download -C ./services/user-service
 RUN go mod download -C ./services/vehicle-service
 
 # =============================================================================
@@ -51,6 +55,9 @@ WORKDIR /build
 
 # Copy shared pkg source code
 COPY pkg/ ./pkg/
+
+# Copy user-service source code (required transitively — file-service/go.mod replaces it)
+COPY services/user-service/ ./services/user-service/
 
 # Copy file-service source code (required by vehicle-service replace directive)
 COPY services/file-service/ ./services/file-service/

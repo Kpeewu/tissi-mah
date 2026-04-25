@@ -30,8 +30,9 @@ const (
 
 type CreateInquiryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	DocumentType  string                 `protobuf:"bytes,1,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"`
-	VehicleId     string                 `protobuf:"bytes,2,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"` // Optionnel : si renseigné, document véhicule
+	DocumentType  string                 `protobuf:"bytes,1,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"` // IDCard | Passport | DriverLicence (user) | driverLicence | insurance | registrationCard (vehicle)
+	VehicleId     string                 `protobuf:"bytes,2,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"`       // Optionnel : si renseigné, document véhicule
+	DocumentId    string                 `protobuf:"bytes,3,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`     // Identifiant du document à vérifier (retourné par UploadIdDocument / UploadVehicleDocuments)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -76,6 +77,13 @@ func (x *CreateInquiryRequest) GetDocumentType() string {
 func (x *CreateInquiryRequest) GetVehicleId() string {
 	if x != nil {
 		return x.VehicleId
+	}
+	return ""
+}
+
+func (x *CreateInquiryRequest) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
 	}
 	return ""
 }
@@ -1852,10 +1860,13 @@ var File_kyc_proto protoreflect.FileDescriptor
 
 const file_kyc_proto_rawDesc = "" +
 	"\n" +
-	"\tkyc.proto\x12\x03kyc\x1a\x1cgoogle/api/annotations.proto\"X\n" +
+	"\tkyc.proto\x12\x03kyc\x1a\x1cgoogle/api/annotations.proto\"x\n" +
 	"\x14CreateInquiryRequest\x12\"\n" +
 	"\fDocumentType\x18\x01 \x01(\tR\fDocumentType\x12\x1c\n" +
-	"\tVehicleId\x18\x02 \x01(\tR\tVehicleId\"?\n" +
+	"\tVehicleId\x18\x02 \x01(\tR\tVehicleId\x12\x1e\n" +
+	"\n" +
+	"DocumentId\x18\x03 \x01(\tR\n" +
+	"DocumentId\"?\n" +
 	"\x11GetInquiryRequest\x12*\n" +
 	"\x10PersonaInquiryId\x18\x01 \x01(\tR\x10PersonaInquiryId\"\x15\n" +
 	"\x13GetKYCStatusRequest\"B\n" +

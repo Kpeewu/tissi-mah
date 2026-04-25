@@ -87,10 +87,13 @@ type PersonaSession struct {
 	ExpiresAt    time.Time
 }
 
-// DocumentRef contient l'identifiant d'un document retourné par le file-service
+// DocumentRef contient l'identifiant d'un document retourné par le file-service.
+// OwnerID est l'UUID interne (user_id pour user_documents, vehicle_id pour vehicle_documents)
+// — utilisé pour vérifier que le document appartient bien à l'appelant.
 type DocumentRef struct {
 	DocumentID   string
 	DocumentType string
+	OwnerID      string
 }
 
 // PendingReview est une vue allégée pour le statut KYC

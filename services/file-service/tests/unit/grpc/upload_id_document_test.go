@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/Kpeewu/tissi-mah/services/file-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/domain"
 	grpcHandler "github.com/Kpeewu/tissi-mah/services/file-service/internal/grpc"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/file-service/internal/service/interfaces"
@@ -25,18 +26,20 @@ import (
 type spyFileService struct {
 	gotInput         *serviceInterfaces.UploadIdDocumentInput
 	uploadIdErr      error
+	uploadIdReturn   []*serviceInterfaces.UploadedDocument
 	gotVehicleInput  *serviceInterfaces.UploadVehicleDocumentsInput
 	uploadVehicleErr error
+	uploadVehicleRet []*serviceInterfaces.UploadedDocument
 }
 
-func (s *spyFileService) UploadIdDocument(_ context.Context, input serviceInterfaces.UploadIdDocumentInput) error {
+func (s *spyFileService) UploadIdDocument(_ context.Context, input serviceInterfaces.UploadIdDocumentInput) ([]*serviceInterfaces.UploadedDocument, error) {
 	s.gotInput = &input
-	return s.uploadIdErr
+	return s.uploadIdReturn, s.uploadIdErr
 }
 
-func (s *spyFileService) UploadVehicleDocuments(_ context.Context, input serviceInterfaces.UploadVehicleDocumentsInput) error {
+func (s *spyFileService) UploadVehicleDocuments(_ context.Context, input serviceInterfaces.UploadVehicleDocumentsInput) ([]*serviceInterfaces.UploadedDocument, error) {
 	s.gotVehicleInput = &input
-	return s.uploadVehicleErr
+	return s.uploadVehicleRet, s.uploadVehicleErr
 }
 
 // --- Stubs pour satisfaire l'interface FileService ---
@@ -74,7 +77,7 @@ func (s *spyFileService) GetVehicleDocument(context.Context, string) (*domain.Ve
 func (s *spyFileService) DeleteVehicleDocument(context.Context, string) error {
 	panic("not implemented")
 }
-func (s *spyFileService) ChangeDocument(context.Context, serviceInterfaces.ChangeDocumentInput) error {
+func (s *spyFileService) ChangeDocument(context.Context, serviceInterfaces.ChangeDocumentInput) (*serviceInterfaces.UploadedDocument, error) {
 	panic("not implemented")
 }
 func (s *spyFileService) CreateDocumentReview(context.Context, serviceInterfaces.CreateReviewInput) (*domain.DocumentReview, error) {
@@ -118,7 +121,7 @@ func TestUploadIdDocument_MissingMetadata_ReturnsUnauthenticated(t *testing.T) {
 	st, ok := status.FromError(err)
 	require.True(t, ok)
 	assert.Equal(t, codes.Unauthenticated, st.Code())
-	mockUser.AssertNotCalled(t, "GetInternalUserIDByFirebaseID")
+	mockUser.AssertNotCalled(t, "GetUserProfileByFirebaseID")
 	assert.Nil(t, spy.gotInput)
 }
 
@@ -137,15 +140,15 @@ func TestUploadIdDocument_MissingFirebaseUID_ReturnsUnauthenticated(t *testing.T
 	st, ok := status.FromError(err)
 	require.True(t, ok)
 	assert.Equal(t, codes.Unauthenticated, st.Code())
-	mockUser.AssertNotCalled(t, "GetInternalUserIDByFirebaseID")
+	mockUser.AssertNotCalled(t, "GetUserProfileByFirebaseID")
 	assert.Nil(t, spy.gotInput)
 }
 
 func TestUploadIdDocument_UserServiceError_ReturnsErrorMessage(t *testing.T) {
 	spy := &spyFileService{}
 	mockUser := new(mocks.MockUserClient)
-	mockUser.On("GetInternalUserIDByFirebaseID", mock.Anything, "firebaseXYZ").
-		Return("", errors.New("user-service down"))
+	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
+		Return((*client.UserProfile)(nil), errors.New("user-service down"))
 	h := grpcHandler.NewFileHandler(spy, mockUser, zap.NewNop())
 
 	resp, err := h.UploadIdDocument(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadIdDocumentRequest{
@@ -160,11 +163,11 @@ func TestUploadIdDocument_UserServiceError_ReturnsErrorMessage(t *testing.T) {
 	mockUser.AssertExpectations(t)
 }
 
-func TestUploadIdDocument_ResolvesFirebaseToInternalAndForwardsInternalUUID(t *testing.T) {
+func TestUploadIdDocument_ResolvesFirebaseToProfileAndForwardsInternalUUID(t *testing.T) {
 	spy := &spyFileService{}
 	mockUser := new(mocks.MockUserClient)
-	mockUser.On("GetInternalUserIDByFirebaseID", mock.Anything, "firebaseXYZ").
-		Return("uuid-abc", nil)
+	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
+		Return(&client.UserProfile{UserID: "uuid-abc", FirstName: "Jean", LastName: "Dupont"}, nil)
 	h := grpcHandler.NewFileHandler(spy, mockUser, zap.NewNop())
 
 	resp, err := h.UploadIdDocument(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadIdDocumentRequest{
@@ -180,6 +183,8 @@ func TestUploadIdDocument_ResolvesFirebaseToInternalAndForwardsInternalUUID(t *t
 	require.NotNil(t, spy.gotInput)
 	assert.Equal(t, "uuid-abc", spy.gotInput.UserID, "le service doit recevoir l'UUID interne, pas le Firebase UID")
 	assert.NotEqual(t, "firebaseXYZ", spy.gotInput.UserID, "le champ req.UserID du body doit etre ignore")
+	assert.Equal(t, "Jean", spy.gotInput.FirstName, "le service doit recevoir le prenom du profil user-service")
+	assert.Equal(t, "Dupont", spy.gotInput.LastName, "le service doit recevoir le nom du profil user-service")
 	assert.Equal(t, "DriverLicence", spy.gotInput.DocumentType)
 	assert.Equal(t, []byte("recto-bytes"), spy.gotInput.DriverLicenceRecto)
 	assert.Equal(t, []byte("verso-bytes"), spy.gotInput.DriverLicenceVerso)
@@ -189,8 +194,8 @@ func TestUploadIdDocument_ResolvesFirebaseToInternalAndForwardsInternalUUID(t *t
 func TestUploadIdDocument_IgnoresBodyUserIDEvenWhenDifferentFromMetadata(t *testing.T) {
 	spy := &spyFileService{}
 	mockUser := new(mocks.MockUserClient)
-	mockUser.On("GetInternalUserIDByFirebaseID", mock.Anything, "legitFirebaseUID").
-		Return("internal-from-legit", nil)
+	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "legitFirebaseUID").
+		Return(&client.UserProfile{UserID: "internal-from-legit", FirstName: "Anne", LastName: "Martin"}, nil)
 	h := grpcHandler.NewFileHandler(spy, mockUser, zap.NewNop())
 
 	// Un attaquant met un Firebase UID autre dans le body mais possede son propre JWT legitime.
@@ -211,8 +216,8 @@ func TestUploadIdDocument_IgnoresBodyUserIDEvenWhenDifferentFromMetadata(t *test
 func TestUploadIdDocument_ServiceError_ReturnsErrorMessage(t *testing.T) {
 	spy := &spyFileService{uploadIdErr: fileErrors.ErrorUploadFailed}
 	mockUser := new(mocks.MockUserClient)
-	mockUser.On("GetInternalUserIDByFirebaseID", mock.Anything, "firebaseXYZ").
-		Return("uuid-abc", nil)
+	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
+		Return(&client.UserProfile{UserID: "uuid-abc", FirstName: "Jean", LastName: "Dupont"}, nil)
 	h := grpcHandler.NewFileHandler(spy, mockUser, zap.NewNop())
 
 	resp, err := h.UploadIdDocument(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadIdDocumentRequest{

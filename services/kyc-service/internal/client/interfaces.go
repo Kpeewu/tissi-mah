@@ -11,6 +11,12 @@ type FileServiceClient interface {
 	// Récupère le document utilisateur courant par type
 	GetCurrentUserDocument(ctx context.Context, userID string, documentType string) (*domain.DocumentRef, error)
 
+	// Récupère un document utilisateur par son ID (renseigne OwnerID = user_id)
+	GetUserDocument(ctx context.Context, documentID string) (*domain.DocumentRef, error)
+
+	// Récupère un document véhicule par son ID (renseigne OwnerID = vehicle_id)
+	GetVehicleDocument(ctx context.Context, documentID string) (*domain.DocumentRef, error)
+
 	// Récupère tous les documents d'un utilisateur
 	GetUserDocuments(ctx context.Context, userID string) ([]*domain.DocumentRef, error)
 

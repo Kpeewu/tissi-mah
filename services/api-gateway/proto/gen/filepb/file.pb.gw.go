@@ -2,11 +2,11 @@
 // source: file.proto
 
 /*
-Package file is a reverse proxy.
+Package filepb is a reverse proxy.
 
 It translates gRPC into RESTful JSON APIs.
 */
-package file
+package filepb
 
 import (
 	"context"

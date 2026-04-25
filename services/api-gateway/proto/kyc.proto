@@ -90,8 +90,9 @@ service KYCService {
 // =============================================================================
 
 message CreateInquiryRequest {
-  string DocumentType = 1;
-  string VehicleId = 2; // Optionnel : si renseigné, document véhicule
+  string DocumentType = 1; // IDCard | Passport | DriverLicence (user) | driverLicence | insurance | registrationCard (vehicle)
+  string VehicleId    = 2; // Optionnel : si renseigné, document véhicule
+  string DocumentId   = 3; // Identifiant du document à vérifier (retourné par UploadIdDocument / UploadVehicleDocuments)
 }
 
 message GetInquiryRequest {

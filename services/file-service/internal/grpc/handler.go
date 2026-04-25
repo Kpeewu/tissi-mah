@@ -157,7 +157,7 @@ func (h *FileHandler) ChangeDocument(ctx context.Context, req *filepb.ChangeDocu
 		zap.String("fileID", req.FileID),
 	)
 
-	err := h.service.ChangeDocument(ctx, serviceInterfaces.ChangeDocumentInput{
+	doc, err := h.service.ChangeDocument(ctx, serviceInterfaces.ChangeDocumentInput{
 		UserID:      req.UserID,
 		FileID:      req.FileID,
 		NewDocument: req.NewDocument,
@@ -173,8 +173,14 @@ func (h *FileHandler) ChangeDocument(ctx context.Context, req *filepb.ChangeDocu
 		}, nil
 	}
 
-	h.logger.Info("handler: ChangeDocument success", zap.String("fileID", req.FileID))
-	return &filepb.ChangeDocumentResponse{Success: true}, nil
+	h.logger.Info("handler: ChangeDocument success",
+		zap.String("oldFileID", req.FileID),
+		zap.String("newFileID", doc.DocumentID),
+	)
+	return &filepb.ChangeDocumentResponse{
+		Success:  true,
+		Document: toProtoUploadedDocument(doc),
+	}, nil
 }
 
 // --- Upload identité (HTTP via api-gateway) ---
@@ -183,8 +189,8 @@ func (h *FileHandler) ChangeDocument(ctx context.Context, req *filepb.ChangeDocu
 // et sauvegarde les URLs en base. Retourne toujours HTTP 200 avec ErrorMessage si erreur.
 //
 // Sécurité : le Firebase UID est lu depuis la metadata gRPC x-firebase-uid (injectée
-// par l'api-gateway après validation JWT), puis résolu en UUID interne via user-service.
-// Le champ req.UserID du body est ignoré car client-supplied et non sûr.
+// par l'api-gateway après validation JWT), puis résolu en profil (UUID + prenom + nom)
+// via user-service. Le champ req.UserID du body est ignoré car client-supplied et non sûr.
 func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadIdDocumentRequest) (*filepb.UploadIdDocumentResponse, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -198,7 +204,7 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 	}
 	firebaseUID := uids[0]
 
-	internalUserID, err := h.userClient.GetInternalUserIDByFirebaseID(ctx, firebaseUID)
+	profile, err := h.userClient.GetUserProfileByFirebaseID(ctx, firebaseUID)
 	if err != nil {
 		h.logger.Error("handler: UploadIdDocument - failed to resolve firebaseUID",
 			zap.String("firebaseUID", firebaseUID),
@@ -212,12 +218,14 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 
 	h.logger.Debug("handler: UploadIdDocument called",
 		zap.String("firebaseUID", firebaseUID),
-		zap.String("internalUserID", internalUserID),
+		zap.String("internalUserID", profile.UserID),
 		zap.String("documentType", req.DocumentType),
 	)
 
-	err = h.service.UploadIdDocument(ctx, serviceInterfaces.UploadIdDocumentInput{
-		UserID:             internalUserID,
+	docs, err := h.service.UploadIdDocument(ctx, serviceInterfaces.UploadIdDocumentInput{
+		UserID:             profile.UserID,
+		FirstName:          profile.FirstName,
+		LastName:           profile.LastName,
 		DocumentType:       req.DocumentType,
 		IDCardRecto:        req.IDCardRecto,
 		IDCardVerso:        req.IDCardVerso,
@@ -228,7 +236,7 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 	if err != nil {
 		h.logger.Error("handler: UploadIdDocument failed",
 			zap.String("firebaseUID", firebaseUID),
-			zap.String("internalUserID", internalUserID),
+			zap.String("internalUserID", profile.UserID),
 			zap.Error(err),
 		)
 		return &filepb.UploadIdDocumentResponse{
@@ -239,9 +247,13 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 
 	h.logger.Info("handler: UploadIdDocument success",
 		zap.String("firebaseUID", firebaseUID),
-		zap.String("internalUserID", internalUserID),
+		zap.String("internalUserID", profile.UserID),
+		zap.Int("count", len(docs)),
 	)
-	return &filepb.UploadIdDocumentResponse{Success: true}, nil
+	return &filepb.UploadIdDocumentResponse{
+		Success:   true,
+		Documents: toProtoUploadedDocuments(docs),
+	}, nil
 }
 
 // UploadVehicleDocuments reçoit les documents du véhicule en base64 JSON,
@@ -281,7 +293,7 @@ func (h *FileHandler) UploadVehicleDocuments(ctx context.Context, req *filepb.Up
 		zap.String("vehicleID", req.VehicleID),
 	)
 
-	err = h.service.UploadVehicleDocuments(ctx, serviceInterfaces.UploadVehicleDocumentsInput{
+	docs, err := h.service.UploadVehicleDocuments(ctx, serviceInterfaces.UploadVehicleDocumentsInput{
 		UserID:              profile.UserID,
 		VehicleID:           req.VehicleID,
 		FirstName:           profile.FirstName,
@@ -307,8 +319,12 @@ func (h *FileHandler) UploadVehicleDocuments(ctx context.Context, req *filepb.Up
 		zap.String("firebaseUID", firebaseUID),
 		zap.String("internalUserID", profile.UserID),
 		zap.String("vehicleID", req.VehicleID),
+		zap.Int("count", len(docs)),
 	)
-	return &filepb.UploadVehicleDocumentsResponse{Success: true}, nil
+	return &filepb.UploadVehicleDocumentsResponse{
+		Success:   true,
+		Documents: toProtoUploadedDocuments(docs),
+	}, nil
 }
 
 // --- Upload streaming : documents véhicule ---
@@ -669,6 +685,26 @@ func formatTimeOrEmpty(t *time.Time) string {
 		return ""
 	}
 	return t.Format(time.RFC3339)
+}
+
+func toProtoUploadedDocument(doc *serviceInterfaces.UploadedDocument) *filepb.UploadedDocument {
+	if doc == nil {
+		return nil
+	}
+	return &filepb.UploadedDocument{
+		DocumentID:   doc.DocumentID,
+		DocumentURL:  doc.DocumentURL,
+		DocumentType: doc.DocumentType,
+		DocumentName: doc.DocumentName,
+	}
+}
+
+func toProtoUploadedDocuments(docs []*serviceInterfaces.UploadedDocument) []*filepb.UploadedDocument {
+	out := make([]*filepb.UploadedDocument, 0, len(docs))
+	for _, d := range docs {
+		out = append(out, toProtoUploadedDocument(d))
+	}
+	return out
 }
 
 func toProtoUserDocument(doc *domain.UserDocument) *filepb.UserDocumentResponse {

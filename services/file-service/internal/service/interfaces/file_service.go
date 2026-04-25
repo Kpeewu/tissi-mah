@@ -77,14 +77,28 @@ type UploadVehicleDocumentsInput struct {
 //   - IDCard       : IDCardRecto + IDCardVerso
 //   - Passport     : Passport
 //   - DriverLicence: DriverLicenceRecto + DriverLicenceVerso
+//
+// FirstName / LastName viennent de user-service et servent à construire le docName
+// au format {nom}_{prenom}_{YYYYMMDD}_{HHMMSS}_{type}.
 type UploadIdDocumentInput struct {
 	UserID             string
+	FirstName          string
+	LastName           string
 	DocumentType       string // IDCard | Passport | DriverLicence
 	IDCardRecto        []byte
 	IDCardVerso        []byte
 	DriverLicenceRecto []byte
 	DriverLicenceVerso []byte
 	Passport           []byte
+}
+
+// UploadedDocument décrit un document fraîchement uploadé/remplacé,
+// retourné aux handlers pour que le front affiche l'ID + l'URL S3.
+type UploadedDocument struct {
+	DocumentID   string
+	DocumentURL  string
+	DocumentType string
+	DocumentName string
 }
 
 // CreateReviewInput contient les données nécessaires à la création d'une revue
@@ -165,19 +179,21 @@ type FileService interface {
 	// --- Remplacement de document ---
 
 	// Remplace le fichier d'un document utilisateur existant par un nouveau.
-	ChangeDocument(ctx context.Context, input ChangeDocumentInput) error
+	// Retourne le document fraîchement créé (ID + URL S3).
+	ChangeDocument(ctx context.Context, input ChangeDocumentInput) (*UploadedDocument, error)
 
 	// --- Upload identité ---
 
 	// Upload les documents d'identité vers S3/MinIO et sauvegarde les URLs en base.
 	// Les fichiers fournis sont uploadés individuellement (un par type de pièce).
-	UploadIdDocument(ctx context.Context, input UploadIdDocumentInput) error
+	// Retourne la liste des documents créés (1 pour Passport, 2 pour IDCard / DriverLicence).
+	UploadIdDocument(ctx context.Context, input UploadIdDocumentInput) ([]*UploadedDocument, error)
 
 	// --- Upload documents véhicule ---
 
 	// Upload les documents du véhicule (permis, assurance, carte grise) vers S3/MinIO
-	// et sauvegarde les URLs en base.
-	UploadVehicleDocuments(ctx context.Context, input UploadVehicleDocumentsInput) error
+	// et sauvegarde les URLs en base. Retourne la liste des documents créés.
+	UploadVehicleDocuments(ctx context.Context, input UploadVehicleDocumentsInput) ([]*UploadedDocument, error)
 
 	// --- Revues ---
 

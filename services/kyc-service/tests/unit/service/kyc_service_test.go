@@ -55,9 +55,9 @@ func TestCreateInquiry(t *testing.T) {
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-001").
 			Return([]*domain.Review{}, nil)
 
-		// Document utilisateur trouvé
-		mockFileClient.On("GetCurrentUserDocument", mock.Anything, "user-001", "passport").
-			Return(&domain.DocumentRef{DocumentID: "doc-passport-001", DocumentType: "passport"}, nil)
+		// Document utilisateur trouvé par ID, owner = caller
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-passport-001").
+			Return(&domain.DocumentRef{DocumentID: "doc-passport-001", DocumentType: "passport", OwnerID: "user-001"}, nil)
 
 		// Persona crée l'inquiry
 		expiresAt := time.Now().Add(30 * time.Minute).UTC()
@@ -93,6 +93,7 @@ func TestCreateInquiry(t *testing.T) {
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-001",
+			DocumentID:   "doc-passport-001",
 			DocumentType: "passport",
 		})
 
@@ -117,12 +118,9 @@ func TestCreateInquiry(t *testing.T) {
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-002").
 			Return([]*domain.Review{}, nil)
 
-		// Documents véhicule trouvés
-		mockFileClient.On("GetVehicleDocuments", mock.Anything, "vehicle-001").
-			Return([]*domain.DocumentRef{
-				{DocumentID: "vdoc-insurance-001", DocumentType: "insurance"},
-				{DocumentID: "vdoc-reg-001", DocumentType: "registrationCard"},
-			}, nil)
+		// Document véhicule trouvé par ID
+		mockFileClient.On("GetVehicleDocument", mock.Anything, "vdoc-insurance-001").
+			Return(&domain.DocumentRef{DocumentID: "vdoc-insurance-001", DocumentType: "insurance", OwnerID: "vehicle-001"}, nil)
 
 		expiresAt := time.Now().Add(30 * time.Minute).UTC()
 		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-002").
@@ -151,6 +149,7 @@ func TestCreateInquiry(t *testing.T) {
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-002",
+			DocumentID:   "vdoc-insurance-001",
 			DocumentType: "insurance",
 			VehicleID:    "vehicle-001",
 		})
@@ -181,8 +180,8 @@ func TestCreateInquiry(t *testing.T) {
 				},
 			}, nil)
 
-		mockFileClient.On("GetCurrentUserDocument", mock.Anything, "user-003", "idCardFront").
-			Return(&domain.DocumentRef{DocumentID: "doc-id-front-003", DocumentType: "idCardFront"}, nil)
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-id-front-003").
+			Return(&domain.DocumentRef{DocumentID: "doc-id-front-003", DocumentType: "idCardFront", OwnerID: "user-003"}, nil)
 
 		expiresAt := time.Now().Add(30 * time.Minute).UTC()
 		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-003").
@@ -208,6 +207,7 @@ func TestCreateInquiry(t *testing.T) {
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-003",
+			DocumentID:   "doc-id-front-003",
 			DocumentType: "idCardFront",
 		})
 
@@ -261,6 +261,7 @@ func TestCreateInquiry(t *testing.T) {
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-004",
+			DocumentID:   "doc-active-001",
 			DocumentType: "passport",
 		})
 
@@ -285,6 +286,7 @@ func TestCreateInquiry(t *testing.T) {
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-005",
+			DocumentID:   "doc-inprogress-001",
 			DocumentType: "passport",
 		})
 
@@ -302,6 +304,7 @@ func TestCreateInquiry(t *testing.T) {
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-006",
+			DocumentID:   "doc-006",
 			DocumentType: "passport",
 		})
 
@@ -316,11 +319,12 @@ func TestCreateInquiry(t *testing.T) {
 
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-007").
 			Return([]*domain.Review{}, nil)
-		mockFileClient.On("GetCurrentUserDocument", mock.Anything, "user-007", "passport").
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-missing-007").
 			Return(nil, errors.New("document not found"))
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-007",
+			DocumentID:   "doc-missing-007",
 			DocumentType: "passport",
 		})
 
@@ -329,27 +333,80 @@ func TestCreateInquiry(t *testing.T) {
 		mockFileClient.AssertExpectations(t)
 	})
 
-	t.Run("erreur - document véhicule du type demandé introuvable", func(t *testing.T) {
+	t.Run("erreur - document véhicule trouve mais type ne matche pas", func(t *testing.T) {
 		mockFileClient, _, svc := newTestService()
 		ctx := context.Background()
 
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-008").
 			Return([]*domain.Review{}, nil)
-		// Véhicule a des documents mais pas du bon type
-		mockFileClient.On("GetVehicleDocuments", mock.Anything, "vehicle-002").
-			Return([]*domain.DocumentRef{
-				{DocumentID: "vdoc-001", DocumentType: "insurance"},
-			}, nil)
+		// Document existe mais le type ne correspond pas a la demande
+		mockFileClient.On("GetVehicleDocument", mock.Anything, "vdoc-001").
+			Return(&domain.DocumentRef{DocumentID: "vdoc-001", DocumentType: "insurance", OwnerID: "vehicle-002"}, nil)
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-008",
+			DocumentID:   "vdoc-001",
 			DocumentType: "registrationCard",
 			VehicleID:    "vehicle-002",
 		})
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, kycErrors.ErrorReviewNotFound)
+		assert.ErrorIs(t, err, kycErrors.ErrorDocumentMismatch)
 		mockFileClient.AssertExpectations(t)
+	})
+
+	t.Run("erreur - document véhicule appartient a un autre véhicule", func(t *testing.T) {
+		mockFileClient, _, svc := newTestService()
+		ctx := context.Background()
+
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-008b").
+			Return([]*domain.Review{}, nil)
+		mockFileClient.On("GetVehicleDocument", mock.Anything, "vdoc-other").
+			Return(&domain.DocumentRef{DocumentID: "vdoc-other", DocumentType: "insurance", OwnerID: "vehicle-OTHER"}, nil)
+
+		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
+			UserID:       "user-008b",
+			DocumentID:   "vdoc-other",
+			DocumentType: "insurance",
+			VehicleID:    "vehicle-002",
+		})
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, kycErrors.ErrorUnauthorized)
+		mockFileClient.AssertExpectations(t)
+	})
+
+	t.Run("erreur - document utilisateur appartient a un autre user", func(t *testing.T) {
+		mockFileClient, _, svc := newTestService()
+		ctx := context.Background()
+
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-008c").
+			Return([]*domain.Review{}, nil)
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-of-other").
+			Return(&domain.DocumentRef{DocumentID: "doc-of-other", DocumentType: "passport", OwnerID: "user-OTHER"}, nil)
+
+		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
+			UserID:       "user-008c",
+			DocumentID:   "doc-of-other",
+			DocumentType: "passport",
+		})
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, kycErrors.ErrorUnauthorized)
+		mockFileClient.AssertExpectations(t)
+	})
+
+	t.Run("erreur - document_id vide retourne ErrorMissingDocumentID", func(t *testing.T) {
+		_, _, svc := newTestService()
+		ctx := context.Background()
+
+		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
+			UserID:       "user-008d",
+			DocumentType: "passport",
+		})
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, kycErrors.ErrorMissingDocumentID)
 	})
 
 	t.Run("erreur - API Persona indisponible", func(t *testing.T) {
@@ -358,14 +415,15 @@ func TestCreateInquiry(t *testing.T) {
 
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-009").
 			Return([]*domain.Review{}, nil)
-		mockFileClient.On("GetCurrentUserDocument", mock.Anything, "user-009", "passport").
-			Return(&domain.DocumentRef{DocumentID: "doc-009", DocumentType: "passport"}, nil)
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-009").
+			Return(&domain.DocumentRef{DocumentID: "doc-009", DocumentType: "passport", OwnerID: "user-009"}, nil)
 
 		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-009").
 			Return(nil, errors.New("persona API timeout"))
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-009",
+			DocumentID:   "doc-009",
 			DocumentType: "passport",
 		})
 
@@ -381,8 +439,8 @@ func TestCreateInquiry(t *testing.T) {
 
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-010").
 			Return([]*domain.Review{}, nil)
-		mockFileClient.On("GetCurrentUserDocument", mock.Anything, "user-010", "passport").
-			Return(&domain.DocumentRef{DocumentID: "doc-010", DocumentType: "passport"}, nil)
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-010").
+			Return(&domain.DocumentRef{DocumentID: "doc-010", DocumentType: "passport", OwnerID: "user-010"}, nil)
 
 		expiresAt := time.Now().Add(30 * time.Minute).UTC()
 		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-010").
@@ -398,6 +456,7 @@ func TestCreateInquiry(t *testing.T) {
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-010",
+			DocumentID:   "doc-010",
 			DocumentType: "passport",
 		})
 
@@ -423,8 +482,8 @@ func TestCreateInquiry(t *testing.T) {
 				},
 			}, nil)
 
-		mockFileClient.On("GetCurrentUserDocument", mock.Anything, "user-011", "passport").
-			Return(&domain.DocumentRef{DocumentID: "doc-011-new", DocumentType: "passport"}, nil)
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-011-new").
+			Return(&domain.DocumentRef{DocumentID: "doc-011-new", DocumentType: "passport", OwnerID: "user-011"}, nil)
 
 		expiresAt := time.Now().Add(30 * time.Minute).UTC()
 		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-011").
@@ -447,6 +506,7 @@ func TestCreateInquiry(t *testing.T) {
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-011",
+			DocumentID:   "doc-011-new",
 			DocumentType: "passport",
 		})
 

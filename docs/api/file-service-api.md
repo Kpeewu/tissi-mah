@@ -62,6 +62,8 @@ Uploads one or more identity documents for a user profile. Files are sent as bas
 
 **Authentication:** Required (Firebase JWT)
 
+> **Security note:** The user identity is resolved server-side from the Firebase JWT (`x-firebase-uid`). Any `UserID` field in the request body is ignored. The caller cannot impersonate another user.
+
 #### Request
 
 ```http
@@ -71,7 +73,6 @@ Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
 
 {
-    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
     "DocumentType": "IDCard",
     "IDCardRecto": "<base64-encoded bytes>",
     "IDCardVerso": "<base64-encoded bytes>"
@@ -82,7 +83,6 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `ProfileID` | string | Yes | User profile ID |
 | `DocumentType` | string | Yes | `IDCard`, `Passport`, or `DriverLicence` |
 | `IDCardRecto` | bytes (base64) | If `IDCard` | Front of ID card |
 | `IDCardVerso` | bytes (base64) | If `IDCard` | Back of ID card |
@@ -108,7 +108,21 @@ Content-Type: application/json
 
 {
     "Success": true,
-    "ErrorMessage": ""
+    "ErrorMessage": "",
+    "Documents": [
+        {
+            "DocumentID": "d-550e8400-e29b-41d4-a716-446655440001",
+            "DocumentURL": "https://storage.example.com/IDCard/uuid/d-550e8400.jpg",
+            "DocumentType": "IDCard",
+            "DocumentName": "dupont_jean_20260425_143052_id_card_recto"
+        },
+        {
+            "DocumentID": "d-550e8400-e29b-41d4-a716-446655440002",
+            "DocumentURL": "https://storage.example.com/IDCard/uuid/d-550e8400.jpg",
+            "DocumentType": "IDCard",
+            "DocumentName": "dupont_jean_20260425_143052_id_card_verso"
+        }
+    ]
 }
 ```
 
@@ -118,6 +132,11 @@ Content-Type: application/json
 |-------|------|-------------|
 | `Success` | boolean | `true` if all files uploaded successfully |
 | `ErrorMessage` | string | Error identifier if failed, `""` if success |
+| `Documents` | array | Uploaded documents — 1 item for `Passport`, 2 for `IDCard` / `DriverLicence` (recto + verso) |
+| `Documents[].DocumentID` | string | Document UUID — use this ID when calling `/kyc/inquiries/add` |
+| `Documents[].DocumentURL` | string | S3/MinIO URL of the uploaded file |
+| `Documents[].DocumentType` | string | Document type |
+| `Documents[].DocumentName` | string | Generated name: `{lastname}_{firstname}_{YYYYMMDD}_{HHMMSS}_{type}` (e.g. `dupont_jean_20260425_143052_id_card_recto`) |
 
 #### Errors
 
@@ -125,6 +144,7 @@ Content-Type: application/json
 |--------------|------|-------------|
 | `ErrorInvalidDocumentType` | 400 | Unknown `DocumentType` value |
 | `ErrorMissingDocumentFiles` | 400 | Required files missing for the given `DocumentType` |
+| `ErrorUserServiceUnavailable` | 503 | user-service unreachable (Firebase UID resolution failed) |
 | `ErrorUploadFailed` | 500 | S3/MinIO upload failed |
 | `ErrorInternalServer` | 500 | Internal error |
 
@@ -136,7 +156,6 @@ curl -X POST https://api.tissimah.kpeewu.dev/file/uploadIdDocument \
   -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
     "DocumentType": "IDCard",
     "IDCardRecto": "<base64>",
     "IDCardVerso": "<base64>"
@@ -147,7 +166,6 @@ curl -X POST https://api.tissimah.kpeewu.dev/file/uploadIdDocument \
   -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
     "DocumentType": "Passport",
     "Passport": "<base64>"
   }'
@@ -161,6 +179,8 @@ Uploads the vehicle documents (driver's licence, insurance, registration card). 
 
 **Authentication:** Required (Firebase JWT)
 
+> **Security note:** The user identity is resolved server-side from the Firebase JWT (`x-firebase-uid`). Any `UserID` field in the request body is ignored. The caller cannot impersonate another user.
+
 #### Request
 
 ```http
@@ -170,7 +190,6 @@ Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
 
 {
-    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
     "VehicleID": "v-550e8400-e29b-41d4-a716-446655440000",
     "DriverLicenceImage": "<base64-encoded bytes>",
     "Assurance": "<base64-encoded bytes>",
@@ -182,7 +201,6 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `ProfileID` | string | Yes | User profile ID |
 | `VehicleID` | string | Yes | Vehicle ID |
 | `DriverLicenceImage` | bytes (base64) | Yes | Driver's licence scan |
 | `Assurance` | bytes (base64) | Yes | Insurance document |
@@ -196,7 +214,27 @@ Content-Type: application/json
 
 {
     "Success": true,
-    "ErrorMessage": ""
+    "ErrorMessage": "",
+    "Documents": [
+        {
+            "DocumentID": "d-550e8400-e29b-41d4-a716-000000000001",
+            "DocumentURL": "https://storage.example.com/driverLicence/uuid/d-000001.jpg",
+            "DocumentType": "driverLicence",
+            "DocumentName": "dupont_jean_20260425_143052_driver_licence"
+        },
+        {
+            "DocumentID": "d-550e8400-e29b-41d4-a716-000000000002",
+            "DocumentURL": "https://storage.example.com/insurance/uuid/d-000002.jpg",
+            "DocumentType": "insurance",
+            "DocumentName": "dupont_jean_20260425_143052_assurance"
+        },
+        {
+            "DocumentID": "d-550e8400-e29b-41d4-a716-000000000003",
+            "DocumentURL": "https://storage.example.com/registrationCard/uuid/d-000003.jpg",
+            "DocumentType": "registrationCard",
+            "DocumentName": "dupont_jean_20260425_143052_vehicle_registration"
+        }
+    ]
 }
 ```
 
@@ -206,12 +244,18 @@ Content-Type: application/json
 |-------|------|-------------|
 | `Success` | boolean | `true` if all files uploaded successfully |
 | `ErrorMessage` | string | Error identifier if failed, `""` if success |
+| `Documents` | array | Always 3 items in order: `driverLicence`, `insurance`, `registrationCard` |
+| `Documents[].DocumentID` | string | Document UUID — use this ID when calling `/kyc/inquiries/add` |
+| `Documents[].DocumentURL` | string | S3/MinIO URL of the uploaded file |
+| `Documents[].DocumentType` | string | `driverLicence`, `insurance`, or `registrationCard` |
+| `Documents[].DocumentName` | string | Generated name: `{lastname}_{firstname}_{YYYYMMDD}_{HHMMSS}_{type}` |
 
 #### Errors
 
 | ErrorMessage | HTTP | Description |
 |--------------|------|-------------|
 | `ErrorInvalidDocumentType` | 400 | A required file is missing or `VehicleID` is empty |
+| `ErrorUserServiceUnavailable` | 503 | user-service unreachable (Firebase UID or profile resolution failed) |
 | `ErrorUploadFailed` | 500 | S3/MinIO upload failed |
 | `ErrorInternalServer` | 500 | Internal error |
 
@@ -222,13 +266,178 @@ curl -X POST https://api.tissimah.kpeewu.dev/file/uploadVehicleDocuments \
   -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "ProfileID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
     "VehicleID": "v-550e8400-e29b-41d4-a716-446655440000",
     "DriverLicenceImage": "<base64>",
     "Assurance": "<base64>",
     "VehicleRegistration": "<base64>"
   }'
 ```
+
+---
+
+### PATCH /file/changeDocument
+
+Replaces the file of an existing document with a new one. The old file is deleted from S3/MinIO and a new document record is created.
+
+**Authentication:** Required (Firebase JWT)
+
+#### Request
+
+```http
+PATCH /file/changeDocument HTTP/1.1
+Host: api.tissimah.kpeewu.dev
+Authorization: Bearer <firebase_id_token>
+Content-Type: application/json
+
+{
+    "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "FileID": "d-550e8400-e29b-41d4-a716-446655440001",
+    "NewDocument": "<base64-encoded bytes>"
+}
+```
+
+#### Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `UserID` | string | Yes | User UUID (internal ID) — ownership check |
+| `FileID` | string | Yes | ID of the document to replace |
+| `NewDocument` | bytes (base64) | Yes | Replacement file |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Success": true,
+    "ErrorMessage": "",
+    "Document": {
+        "DocumentID": "d-new-uuid-...",
+        "DocumentURL": "https://storage.example.com/IDCard/uuid/d-new-uuid.jpg",
+        "DocumentType": "IDCard",
+        "DocumentName": "id_card_recto"
+    }
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Success` | boolean | `true` if the replacement succeeded |
+| `ErrorMessage` | string | Error identifier if failed, `""` if success |
+| `Document` | object | Newly created document |
+| `Document.DocumentID` | string | New document UUID |
+| `Document.DocumentURL` | string | S3/MinIO URL of the new file |
+| `Document.DocumentType` | string | Document type |
+| `Document.DocumentName` | string | Document name |
+
+#### Errors
+
+| ErrorMessage | HTTP | Description |
+|--------------|------|-------------|
+| `ErrorDocumentNotFound` | 404 | `FileID` does not exist |
+| `ErrorUploadFailed` | 500 | S3/MinIO upload failed |
+| `ErrorInternalServer` | 500 | Internal error |
+
+---
+
+### GET /file/getDocument
+
+Retrieves a document file by ID. Access is controlled by ownership: either the owning user or a support agent can retrieve the file.
+
+**Authentication:** Required (Firebase JWT)
+
+#### Request
+
+```http
+GET /file/getDocument?FileID=d-550e8400-e29b-41d4-a716-446655440001&UserID=8b1d4173-d563-4f81-aeb1-8bf565816545 HTTP/1.1
+Host: api.tissimah.kpeewu.dev
+Authorization: Bearer <firebase_id_token>
+```
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `FileID` | string | Yes | Document ID to retrieve |
+| `UserID` | string | One required | User UUID — verifies ownership |
+| `SupportID` | string | One required | Support agent ID — bypasses ownership check |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "ErrorMessage": "",
+    "File": {
+        "FileID": "d-550e8400-e29b-41d4-a716-446655440001",
+        "FileURL": "https://storage.example.com/IDCard/uuid/d-550e8400.jpg",
+        "FileType": "image/jpeg"
+    }
+}
+```
+
+#### Errors
+
+| ErrorMessage | HTTP | Description |
+|--------------|------|-------------|
+| `ErrorDocumentNotFound` | 404 | Document does not exist |
+| `ErrorPermissionDenied` | 403 | `UserID` is not the owner of the document |
+| `ErrorInternalServer` | 500 | Internal error |
+
+---
+
+### POST /file/deleteFile
+
+Deletes a file from S3/MinIO and removes its metadata from the database. The caller must be the owner of the file.
+
+**Authentication:** Required (Firebase JWT)
+
+#### Request
+
+```http
+POST /file/deleteFile HTTP/1.1
+Host: api.tissimah.kpeewu.dev
+Authorization: Bearer <firebase_id_token>
+Content-Type: application/json
+
+{
+    "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+    "FileID": "d-550e8400-e29b-41d4-a716-446655440001"
+}
+```
+
+#### Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `UserID` | string | Yes | User UUID — ownership check |
+| `FileID` | string | Yes | Document ID to delete |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Success": true,
+    "ErrorMessage": ""
+}
+```
+
+#### Errors
+
+| ErrorMessage | HTTP | Description |
+|--------------|------|-------------|
+| `ErrorDocumentNotFound` | 404 | Document does not exist |
+| `ErrorPermissionDenied` | 403 | `UserID` is not the owner of the document |
+| `ErrorInternalServer` | 500 | Internal error |
 
 ---
 
@@ -309,7 +518,7 @@ rpc UploadVehicleDocument(stream UploadVehicleDocumentRequest) returns (VehicleD
 |-------|------|----------|-------------|
 | `vehicle_id` | string | Yes | Vehicle ID |
 | `document_name` | string | Yes | File name |
-| `document_type` | string | Yes | `insurance` or `registrationCard` |
+| `document_type` | string | Yes | `driverLicence`, `insurance`, or `registrationCard` |
 | `mime_type` | string | Yes | MIME type |
 | `file_size_bytes` | int64 | Yes | Total file size (max 10MB) |
 | `document_number` | string | No | Document number |
@@ -506,4 +715,5 @@ Example: `idCardFront/8b1d4173/d-550e8400.jpg`
 | `ErrorReviewNotFound` | 404 | NOT_FOUND | Review does not exist |
 | `ErrorInvalidReviewDecision` | 400 | INVALID_ARGUMENT | Invalid review decision |
 | `ErrorDataRetrievalFailed` | 500 | INTERNAL | Database query failed |
+| `ErrorUserServiceUnavailable` | 503 | UNAVAILABLE | user-service unreachable (Firebase UID resolution failed) |
 | `ErrorInternalServer` | 500 | INTERNAL | Internal server error |
