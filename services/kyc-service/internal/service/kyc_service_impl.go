@@ -86,6 +86,7 @@ func mapToFileDocumentType(docType string) string {
 func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfaces.CreateInquiryInput) (*serviceInterfaces.CreateInquiryResult, error) {
 	s.logger.Debug("create inquiry",
 		zap.String("firebaseUID", input.UserID),
+		zap.String("documentID", input.DocumentID),
 		zap.String("documentType", input.DocumentType),
 		zap.String("vehicleID", input.VehicleID),
 	)
@@ -98,6 +99,10 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 	if input.DocumentType == "" {
 		s.logger.Error("document_type is required")
 		return nil, kycErrors.ErrorMissingDocumentType
+	}
+	if input.DocumentID == "" {
+		s.logger.Error("document_id is required")
+		return nil, kycErrors.ErrorMissingDocumentID
 	}
 
 	// Résoudre le Firebase UID reçu en UserID interne MongoDB.
@@ -126,37 +131,69 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 		}
 	}
 
-	// Déterminer le document de référence et le previous_review_id
+	// Récupérer le document par ID, vérifier qu'il existe et qu'il appartient à l'appelant.
+	// Le DocumentType reçu est validé contre celui stocké en DB pour détecter les
+	// requêtes incohérentes (ex : DocumentID d'un permis avec DocumentType "Passport").
 	var userDocumentID string
 	var vehicleDocumentID string
 	var previousReviewID string
 	var attemptNumber int32 = 1
 
 	if input.VehicleID != "" {
-		// Document véhicule
-		docs, err := s.fileClient.GetVehicleDocuments(ctx, input.VehicleID)
+		// Document véhicule : récupérer par ID + vérifier qu'il appartient au véhicule fourni.
+		doc, err := s.fileClient.GetVehicleDocument(ctx, input.DocumentID)
 		if err != nil {
-			s.logger.Error("failed to get vehicle documents", zap.Error(err))
+			s.logger.Error("failed to get vehicle document by ID",
+				zap.String("documentID", input.DocumentID),
+				zap.Error(err),
+			)
 			return nil, kycErrors.ErrorFileServiceUnavailable
 		}
-		// Trouver le document correspondant au type demandé
-		for _, doc := range docs {
-			if doc.DocumentType == input.DocumentType {
-				vehicleDocumentID = doc.DocumentID
-				break
-			}
+		if doc.OwnerID != input.VehicleID {
+			s.logger.Warn("vehicle document does not belong to the provided vehicleID",
+				zap.String("documentID", input.DocumentID),
+				zap.String("docVehicleID", doc.OwnerID),
+				zap.String("requestedVehicleID", input.VehicleID),
+			)
+			return nil, kycErrors.ErrorUnauthorized
 		}
-		if vehicleDocumentID == "" {
-			s.logger.Error("vehicle document not found for type", zap.String("type", input.DocumentType))
-			return nil, kycErrors.ErrorReviewNotFound
+		if doc.DocumentType != input.DocumentType {
+			s.logger.Warn("vehicle document type mismatch",
+				zap.String("documentID", input.DocumentID),
+				zap.String("docType", doc.DocumentType),
+				zap.String("requestedType", input.DocumentType),
+			)
+			return nil, kycErrors.ErrorDocumentMismatch
 		}
+		vehicleDocumentID = doc.DocumentID
 	} else {
-		// Document utilisateur
-		fileDocType := mapToFileDocumentType(input.DocumentType)
-		doc, err := s.fileClient.GetCurrentUserDocument(ctx, internalUserID, fileDocType)
+		// Document utilisateur : récupérer par ID + vérifier qu'il appartient à l'appelant.
+		doc, err := s.fileClient.GetUserDocument(ctx, input.DocumentID)
 		if err != nil {
-			s.logger.Error("failed to get current user document", zap.Error(err))
+			s.logger.Error("failed to get user document by ID",
+				zap.String("documentID", input.DocumentID),
+				zap.Error(err),
+			)
 			return nil, kycErrors.ErrorFileServiceUnavailable
+		}
+		if doc.OwnerID != internalUserID {
+			s.logger.Warn("user document does not belong to the caller",
+				zap.String("documentID", input.DocumentID),
+				zap.String("docOwnerID", doc.OwnerID),
+				zap.String("callerUserID", internalUserID),
+			)
+			return nil, kycErrors.ErrorUnauthorized
+		}
+		// Pour les types haut-niveau (IDCard, DriverLicence), le document est stocké
+		// sous un sous-type concret côté file-service (idCardFront, driverLicenceFront).
+		expectedFileType := mapToFileDocumentType(input.DocumentType)
+		if doc.DocumentType != expectedFileType && doc.DocumentType != input.DocumentType {
+			s.logger.Warn("user document type mismatch",
+				zap.String("documentID", input.DocumentID),
+				zap.String("docType", doc.DocumentType),
+				zap.String("requestedType", input.DocumentType),
+			)
+			return nil, kycErrors.ErrorDocumentMismatch
 		}
 		userDocumentID = doc.DocumentID
 	}

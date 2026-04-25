@@ -6,9 +6,13 @@ import (
 	"github.com/Kpeewu/tissi-mah/services/kyc-service/internal/domain"
 )
 
-// CreateInquiryInput contient les données pour démarrer une vérification KYC
+// CreateInquiryInput contient les données pour démarrer une vérification KYC.
+// DocumentID identifie précisément le document à vérifier (retourné par
+// file-service lors de l'upload). VehicleID, si renseigné, indique qu'il s'agit
+// d'un document véhicule (sinon document utilisateur).
 type CreateInquiryInput struct {
 	UserID       string
+	DocumentID   string
 	DocumentType string
 	VehicleID    string // Optionnel : si renseigné, document véhicule
 }

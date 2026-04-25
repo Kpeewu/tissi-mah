@@ -67,6 +67,42 @@ func (c *fileServiceClientImpl) GetCurrentUserDocument(ctx context.Context, user
 	}, nil
 }
 
+func (c *fileServiceClientImpl) GetUserDocument(ctx context.Context, documentID string) (*domain.DocumentRef, error) {
+	c.logger.Debug("client: GetUserDocument", zap.String("documentID", documentID))
+
+	resp, err := c.grpcClient.GetUserDocument(ctx, &filepb.GetDocumentByIDRequest{
+		DocumentId: documentID,
+	})
+	if err != nil {
+		c.logger.Error("client: GetUserDocument failed", zap.Error(err))
+		return nil, fmt.Errorf("file-service: GetUserDocument: %w", err)
+	}
+
+	return &domain.DocumentRef{
+		DocumentID:   resp.DocumentId,
+		DocumentType: resp.DocumentType,
+		OwnerID:      resp.UserId,
+	}, nil
+}
+
+func (c *fileServiceClientImpl) GetVehicleDocument(ctx context.Context, documentID string) (*domain.DocumentRef, error) {
+	c.logger.Debug("client: GetVehicleDocument", zap.String("documentID", documentID))
+
+	resp, err := c.grpcClient.GetVehicleDocument(ctx, &filepb.GetDocumentByIDRequest{
+		DocumentId: documentID,
+	})
+	if err != nil {
+		c.logger.Error("client: GetVehicleDocument failed", zap.Error(err))
+		return nil, fmt.Errorf("file-service: GetVehicleDocument: %w", err)
+	}
+
+	return &domain.DocumentRef{
+		DocumentID:   resp.DocumentId,
+		DocumentType: resp.DocumentType,
+		OwnerID:      resp.VehicleId,
+	}, nil
+}
+
 func (c *fileServiceClientImpl) GetUserDocuments(ctx context.Context, userID string) ([]*domain.DocumentRef, error) {
 	c.logger.Debug("client: GetUserDocuments", zap.String("userID", userID))
 

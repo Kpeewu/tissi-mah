@@ -54,11 +54,13 @@ func (h *KYCHandler) CreateInquiry(ctx context.Context, req *kycpb.CreateInquiry
 	h.logger.Debug("handler: CreateInquiry called",
 		zap.String("userID", userID),
 		zap.String("documentType", req.DocumentType),
+		zap.String("documentID", req.DocumentId),
 		zap.String("vehicleID", req.VehicleId),
 	)
 
 	result, err := h.service.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 		UserID:       userID,
+		DocumentID:   req.DocumentId,
 		DocumentType: req.DocumentType,
 		VehicleID:    req.VehicleId,
 	})
@@ -342,6 +344,8 @@ func toGRPCError(err error) error {
 	// 3 - INVALID_ARGUMENT
 	case errors.Is(err, kycErrors.ErrorMissingUserID),
 		errors.Is(err, kycErrors.ErrorMissingDocumentType),
+		errors.Is(err, kycErrors.ErrorMissingDocumentID),
+		errors.Is(err, kycErrors.ErrorDocumentMismatch),
 		errors.Is(err, kycErrors.ErrorMissingInquiryID),
 		errors.Is(err, kycErrors.ErrorMissingReviewID),
 		errors.Is(err, kycErrors.ErrorInvalidDecision):
