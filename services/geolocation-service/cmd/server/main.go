@@ -8,7 +8,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	pkgDatabase "github.com/Kpeewu/tissi-mah/pkg/database"
 	pkgLogger "github.com/Kpeewu/tissi-mah/pkg/logger"
+	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/cache"
+	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/client/osrm"
 	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/config"
 	grpcServer "github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/grpc"
 	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/service"
@@ -46,8 +49,24 @@ func run(bootstrapLogger *zap.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// --- Service (stub en Phase 1.3 — wiring complet en Phase 1.6) ---
-	geoService := service.NewGeolocationService(logger)
+	// --- OSRM client (timeout + semaphore + circuit breaker actifs dès le départ) ---
+	osrmClient := osrm.New(osrm.DefaultConfig(cfg.OSRM.URL), logger)
+	logger.Info("osrm client ready", zap.String("base_url", cfg.OSRM.URL))
+
+	// --- Redis cache (graceful degradation si indisponible) ---
+	redisClient, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.Redis.URL)
+	var geoCache *cache.Cache
+	if err != nil {
+		logger.Warn("redis not reachable, cache disabled", zap.Error(err))
+		geoCache = cache.New(nil, logger)
+	} else {
+		logger.Info("connected to redis for caching")
+		geoCache = cache.New(redisClient, logger)
+		defer redisClient.Close() //nolint:errcheck
+	}
+
+	// --- Service ---
+	geoService := service.NewGeolocationService(osrmClient, geoCache, logger)
 
 	// --- gRPC server ---
 	srv, err := grpcServer.NewGeolocationServer(cfg, geoService, logger)
