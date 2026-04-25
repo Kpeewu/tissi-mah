@@ -136,7 +136,7 @@ Content-Type: application/json
 | `Documents[].DocumentID` | string | Document UUID — use this ID when calling `/kyc/inquiries/add` |
 | `Documents[].DocumentURL` | string | S3/MinIO URL of the uploaded file |
 | `Documents[].DocumentType` | string | Document type |
-| `Documents[].DocumentName` | string | Generated file name |
+| `Documents[].DocumentName` | string | Generated name: `{lastname}_{firstname}_{YYYYMMDD}_{HHMMSS}_{type}` (e.g. `dupont_jean_20260425_143052_id_card_recto`) |
 
 #### Errors
 

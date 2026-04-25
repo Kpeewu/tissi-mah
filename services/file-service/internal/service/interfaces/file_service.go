@@ -77,8 +77,13 @@ type UploadVehicleDocumentsInput struct {
 //   - IDCard       : IDCardRecto + IDCardVerso
 //   - Passport     : Passport
 //   - DriverLicence: DriverLicenceRecto + DriverLicenceVerso
+//
+// FirstName / LastName viennent de user-service et servent à construire le docName
+// au format {nom}_{prenom}_{YYYYMMDD}_{HHMMSS}_{type}.
 type UploadIdDocumentInput struct {
 	UserID             string
+	FirstName          string
+	LastName           string
 	DocumentType       string // IDCard | Passport | DriverLicence
 	IDCardRecto        []byte
 	IDCardVerso        []byte

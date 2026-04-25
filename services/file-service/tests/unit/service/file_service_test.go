@@ -895,6 +895,79 @@ func TestFileService_UploadIdDocument(t *testing.T) {
 
 		assert.ErrorIs(t, err, fileErrors.ErrorInvalidDocumentType)
 	})
+
+	t.Run("docName suit le format nom_prenom_date_heure_type pour IDCard", func(t *testing.T) {
+		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+		userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
+		storage := &mocks.MockStorageClient{}
+		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
+			Return("https://storage.example.com/file.jpg", nil)
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
+			Return(nil, fileErrors.ErrorDocumentNotFound)
+
+		captured := make([]*domain.UserDocument, 0, 2)
+		userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).
+			Run(func(args mock.Arguments) {
+				captured = append(captured, args.Get(1).(*domain.UserDocument))
+			}).
+			Return("doc-id", nil)
+
+		svc := newService(userDocRead, userDocWrite,
+			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
+			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			storage)
+
+		_, err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
+			UserID:       "user-1",
+			FirstName:    "Jean",
+			LastName:     "Dupont",
+			DocumentType: "IDCard",
+			IDCardRecto:  fakeJPEG(),
+			IDCardVerso:  fakeJPEG(),
+		})
+
+		require.NoError(t, err)
+		require.Len(t, captured, 2)
+		re := regexp.MustCompile(`^dupont_jean_\d{8}_\d{6}_id_card_(recto|verso)$`)
+		for _, doc := range captured {
+			assert.Regexp(t, re, doc.DocumentName, "docName doit matcher le format")
+		}
+	})
+
+	t.Run("sanitize les noms accentues et apostrophes dans le docName id", func(t *testing.T) {
+		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+		userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
+		storage := &mocks.MockStorageClient{}
+		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
+			Return("https://storage.example.com/file.jpg", nil)
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
+			Return(nil, fileErrors.ErrorDocumentNotFound)
+
+		captured := make([]*domain.UserDocument, 0, 1)
+		userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).
+			Run(func(args mock.Arguments) {
+				captured = append(captured, args.Get(1).(*domain.UserDocument))
+			}).
+			Return("doc-id", nil)
+
+		svc := newService(userDocRead, userDocWrite,
+			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
+			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			storage)
+
+		_, err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
+			UserID:       "user-1",
+			FirstName:    "Anne-Marie",
+			LastName:     "Dupré",
+			DocumentType: "Passport",
+			Passport:     fakeJPEG(),
+		})
+
+		require.NoError(t, err)
+		require.Len(t, captured, 1)
+		re := regexp.MustCompile(`^dupre_anne-marie_\d{8}_\d{6}_passport$`)
+		assert.Regexp(t, re, captured[0].DocumentName)
+	})
 }
 
 // =============================================================================

@@ -648,6 +648,11 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 		docName string
 	}
 
+	timestamp := time.Now().UTC().Format("20060102_150405")
+	lastName := sanitizeForDocName(input.LastName)
+	firstName := sanitizeForDocName(input.FirstName)
+	prefix := fmt.Sprintf("%s_%s_%s", lastName, firstName, timestamp)
+
 	var uploads []fileUpload
 
 	switch input.DocumentType {
@@ -657,8 +662,8 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 			return nil, fileErrors.ErrorInvalidDocumentType
 		}
 		uploads = []fileUpload{
-			{data: input.IDCardRecto, docType: "idCardFront", docName: "id_card_recto"},
-			{data: input.IDCardVerso, docType: "idCardBack", docName: "id_card_verso"},
+			{data: input.IDCardRecto, docType: "idCardFront", docName: prefix + "_id_card_recto"},
+			{data: input.IDCardVerso, docType: "idCardBack", docName: prefix + "_id_card_verso"},
 		}
 	case "Passport":
 		if len(input.Passport) == 0 {
@@ -666,7 +671,7 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 			return nil, fileErrors.ErrorInvalidDocumentType
 		}
 		uploads = []fileUpload{
-			{data: input.Passport, docType: "passport", docName: "passport"},
+			{data: input.Passport, docType: "passport", docName: prefix + "_passport"},
 		}
 	case "DriverLicence":
 		if len(input.DriverLicenceRecto) == 0 || len(input.DriverLicenceVerso) == 0 {
@@ -674,8 +679,8 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 			return nil, fileErrors.ErrorInvalidDocumentType
 		}
 		uploads = []fileUpload{
-			{data: input.DriverLicenceRecto, docType: "driverLicenceFront", docName: "driver_licence_recto"},
-			{data: input.DriverLicenceVerso, docType: "driverLicenceBack", docName: "driver_licence_verso"},
+			{data: input.DriverLicenceRecto, docType: "driverLicenceFront", docName: prefix + "_driver_licence_recto"},
+			{data: input.DriverLicenceVerso, docType: "driverLicenceBack", docName: prefix + "_driver_licence_verso"},
 		}
 	default:
 		s.logger.Error("type de document inconnu", zap.String("type", input.DocumentType))
