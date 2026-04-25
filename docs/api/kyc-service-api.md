@@ -42,9 +42,11 @@ Authorization: Bearer <firebase-id-token>
 
 ### POST /api/v1/kyc/inquiries/add
 
-Starts a new Persona identity verification inquiry.
+Starts a new Persona identity verification inquiry for a document already uploaded via the file-service.
 
 **Authentication:** Firebase JWT required
+
+> **Flow:** Upload the document first with `/file/uploadIdDocument` or `/file/uploadVehicleDocuments`, then pass the returned `DocumentID` to this endpoint. The service verifies that the document exists and belongs to the authenticated user before submitting it to Persona.
 
 #### Request
 
@@ -55,8 +57,9 @@ Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
 
 {
-    "DocumentType": "idCardFront",
-    "VehicleId": ""
+    "DocumentType": "IDCard",
+    "VehicleId": "",
+    "DocumentId": "d-550e8400-e29b-41d4-a716-446655440001"
 }
 ```
 
@@ -64,8 +67,9 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `DocumentType` | string | Yes | Document type (`idCardFront`, `passport`, `driverLicenceFront`, …) |
-| `VehicleId` | string | No | If set, this inquiry is for a vehicle document |
+| `DocumentType` | string | Yes | Document type: `IDCard`, `Passport`, `DriverLicence` for identity docs; `driverLicence`, `insurance`, `registrationCard` for vehicle docs |
+| `VehicleId` | string | Conditional | Required when submitting a vehicle document |
+| `DocumentId` | string | Yes | ID of the uploaded document — returned by `/file/uploadIdDocument` or `/file/uploadVehicleDocuments` |
 
 #### Response (Success)
 
@@ -91,6 +95,8 @@ Content-Type: application/json
 | Error | HTTP Code | Description |
 |-------|-----------|-------------|
 | `ErrorInvalidInput` | 400 | Missing required fields |
+| `ErrorMissingDocumentID` | 400 | `DocumentId` is absent or empty |
+| `ErrorDocumentMismatch` | 400 | Document type does not match `DocumentType`, or the document does not belong to the authenticated user |
 | `ErrorInquiryAlreadyActive` | 409 | An inquiry is already in progress |
 | `ErrorFileServiceUnavailable` | 503 | file-service is unreachable |
 | `ErrorPersonaUnavailable` | 503 | Persona API is unreachable |
@@ -410,6 +416,8 @@ Health check endpoint.
 | Error | HTTP Code | gRPC Code | Description |
 |-------|-----------|-----------|-------------|
 | `ErrorInvalidInput` | 400 | INVALID_ARGUMENT (3) | Missing or invalid fields |
+| `ErrorMissingDocumentID` | 400 | INVALID_ARGUMENT (3) | `DocumentId` absent or empty in CreateInquiry |
+| `ErrorDocumentMismatch` | 400 | INVALID_ARGUMENT (3) | Document type mismatch or document does not belong to the user |
 | `ErrorInquiryNotFound` | 404 | NOT_FOUND (5) | Inquiry does not exist |
 | `ErrorReviewNotFound` | 404 | NOT_FOUND (5) | Review does not exist |
 | `ErrorInquiryAlreadyActive` | 409 | ALREADY_EXISTS (6) | Inquiry already in progress |
