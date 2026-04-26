@@ -620,6 +620,7 @@ func (s *tripServiceImpl) buildTripAndWaypoints(
 		Status:                   domain.TripStatusScheduled,
 		AutoApproveEnabled:       input.AutoApprove,
 		Description:              input.Description,
+		RoutePolyline:            input.RoutePolyline,
 	}
 
 	waypoints := make([]*domain.Waypoint, 0, len(input.Waypoints))
@@ -828,6 +829,7 @@ func (s *tripServiceImpl) GetDriverTripDetails(ctx context.Context, input *servi
 		AllowFood:                trip.AllowFood,
 		AllowSmoking:             trip.AllowSmoking,
 		Description:              trip.Description,
+		RoutePolyline:            trip.RoutePolyline,
 		Waypoints:                wpResults,
 		Bookings:                 bookings,
 	}, nil
@@ -903,6 +905,8 @@ func (s *tripServiceImpl) GetPassengerTripDetails(ctx context.Context, input *se
 		AllowFood:                trip.AllowFood,
 		AllowSmoking:             trip.AllowSmoking,
 		Description:              trip.Description,
+		RoutePolyline:            trip.RoutePolyline,
+		EstimatedDistanceMeters:  trip.EstimatedDistanceMeters,
 		Waypoints:                wpResults,
 	}, nil
 }

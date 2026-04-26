@@ -44,7 +44,7 @@ func (r *tripReadRepositoryImpl) GetTripByID(ctx context.Context, tripID string)
 		       allow_luggages, allow_pets, allow_food, allow_smoking,
 		       status, auto_approve_enabled,
 		       canceller_id, cancellation_reason,
-		       description, created_at, updated_at
+		       description, route_polyline, created_at, updated_at
 		FROM trips
 		WHERE trip_id = $1 AND deleted_at IS NULL`
 
@@ -59,7 +59,7 @@ func (r *tripReadRepositoryImpl) GetTripByID(ctx context.Context, tripID string)
 		&trip.AllowLuggages, &trip.AllowPets, &trip.AllowFood, &trip.AllowSmoking,
 		&trip.Status, &trip.AutoApproveEnabled,
 		&trip.CancellerID, &trip.CancellationReason,
-		&trip.Description, &trip.CreatedAt, &trip.UpdatedAt,
+		&trip.Description, &trip.RoutePolyline, &trip.CreatedAt, &trip.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

@@ -56,6 +56,7 @@ func (h *TripHandler) CreateTrip(ctx context.Context, req *trippb.CreateTripRequ
 		AllowFood:                req.AllowFood,
 		AutoApprove:              req.AutoApprove,
 		Description:              req.Description,
+		RoutePolyline:            req.RoutePolyline,
 		Waypoints:                toServiceWaypoints(req.TripWaypoints),
 	}
 
@@ -516,6 +517,7 @@ func (h *TripHandler) GetDriverTripDetails(ctx context.Context, req *trippb.GetD
 		Description:              result.Description,
 		Waypoints:                pbWaypoints,
 		Bookings:                 pbBookings,
+		RoutePolyline:            result.RoutePolyline,
 	}
 	if result.ActualDepartureDatetime != nil {
 		resp.ActualDepartureDatetime = result.ActualDepartureDatetime.Format(time.RFC3339)
@@ -581,6 +583,8 @@ func (h *TripHandler) GetPassengerTripDetails(ctx context.Context, req *trippb.G
 		AllowFood:                result.AllowFood,
 		AllowSmoking:             result.AllowSmoking,
 		Description:              result.Description,
+		RoutePolyline:            result.RoutePolyline,
+		EstimatedDistanceMeters:  int32(result.EstimatedDistanceMeters),
 		Waypoints:                pbWaypoints,
 	}, nil
 }
