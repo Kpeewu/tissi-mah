@@ -72,6 +72,8 @@ jobs:
               - 'services/notification-service/**'
             support-service:
               - 'services/support-service/**'
+            geolocation-service:
+              - 'services/geolocation-service/**'
             pkg:
               - 'pkg/**'
 
@@ -81,7 +83,7 @@ jobs:
           if [ -n "${{ github.event.inputs.service }}" ]; then
             echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
           else
-            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service","booking-service","kyc-service","payment-service","email-service","push-service","notification-service","support-service"]' >> $GITHUB_OUTPUT
+            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service","booking-service","kyc-service","payment-service","email-service","push-service","notification-service","support-service","geolocation-service"]' >> $GITHUB_OUTPUT
           fi
 
   run-tests:
@@ -210,6 +212,10 @@ jobs:
           SUPPORT_DATABASE_URL: ${{ secrets.SUPPORT_DATABASE_URL }}
           SUPPORT_REDIS_URL: ${{ secrets.SUPPORT_REDIS_URL }}
           SUPPORT_JWT_SECRET: ${{ secrets.SUPPORT_JWT_SECRET }}
+          # geolocation-service secrets
+          GEOLOCATION_REDIS_URL: ${{ secrets.GEOLOCATION_REDIS_URL }}
+          GEOLOCATION_OSRM_URL: ${{ secrets.GEOLOCATION_OSRM_URL }}
+          GEOLOCATION_NOMINATIM_URL: ${{ secrets.GEOLOCATION_NOMINATIM_URL }}
         run: |
           python3 - <<'PYEOF'
           import yaml, os, json, sys
@@ -347,6 +353,24 @@ jobs:
                   },
               }
 
+          elif service == "geolocation-service":
+              # Service stateless : pas de DATABASE_URL.
+              # OSRM_URL et NOMINATIM_URL pointent vers les Services internes
+              # K8s (osrm-backend, nominatim-backend) — overridable via secrets
+              # uniquement si on veut taper un backend externe.
+              cfg_data = {}
+              if os.environ.get('GEOLOCATION_OSRM_URL'):
+                  cfg_data['osrmUrl'] = os.environ['GEOLOCATION_OSRM_URL']
+              if os.environ.get('GEOLOCATION_NOMINATIM_URL'):
+                  cfg_data['nominatimUrl'] = os.environ['GEOLOCATION_NOMINATIM_URL']
+              data = {
+                  'secrets': {
+                      'redisUrl': os.environ.get('GEOLOCATION_REDIS_URL', ''),
+                  },
+              }
+              if cfg_data:
+                  data['config'] = cfg_data
+
           else:
               print(f"ERROR: Unknown service '{service}'", file=sys.stderr)
               sys.exit(1)
@@ -457,6 +481,7 @@ jobs:
           HEALTH_ENDPOINTS["rating-service"]="${BASE_URL}/api/v1/ratings/health"
           HEALTH_ENDPOINTS["kyc-service"]="${BASE_URL}/api/v1/kyc/health"
           HEALTH_ENDPOINTS["notification-service"]="${BASE_URL}/api/v1/notifications/health"
+          HEALTH_ENDPOINTS["geolocation-service"]="${BASE_URL}/api/v1/geolocation/health"
           # Pas d'endpoint HTTP public pour ces services :
           HEALTH_ENDPOINTS["email-service"]=""
           HEALTH_ENDPOINTS["push-service"]=""
@@ -602,6 +627,14 @@ jobs:
 #      - KYC_PERSONA_API_KEY       : cle API Persona (sandbox ou production)
 #      - KYC_PERSONA_WEBHOOK_SECRET : secret HMAC pour valider les webhooks Persona
 #
+#  13. Secrets GitHub pour geolocation-service:
+#      - GEOLOCATION_REDIS_URL     : redis://host:6391/0 (cache routes/geocoding)
+#      - GEOLOCATION_OSRM_URL      : (optionnel) override le default http://osrm-backend:5000
+#      - GEOLOCATION_NOMINATIM_URL : (optionnel) override le default http://nominatim-backend:7070
+#      Les backends OSRM/Nominatim/TileServer sont des Deployments K8s separes
+#      (cf. infrastructure/manifests/{osrm,nominatim,tileserver,osm-data-prep}/),
+#      a deployer en one-shot avant le premier deploy de geolocation-service.
+#
 # Architecture:
 #   VPS K3s namespace "default":
 #     |- api-gateway (HTTP LoadBalancer, port 8080)
@@ -614,3 +647,7 @@ jobs:
 #     |- booking-service (gRPC ClusterIP, port 50058)
 #     |- payment-service (gRPC ClusterIP, port 50059)
 #     |- kyc-service (gRPC ClusterIP, port 50057)
+#     |- geolocation-service (gRPC ClusterIP, port 50064)
+#     |- osrm-backend (HTTP ClusterIP interne, port 5000)
+#     |- nominatim-backend (HTTP ClusterIP interne, port 7070)
+#     |- tileserver-gl (HTTP via Ingress public tiles.tissi-mah.com)

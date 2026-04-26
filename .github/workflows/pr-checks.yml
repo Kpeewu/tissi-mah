@@ -46,6 +46,8 @@ jobs:
               - 'services/rating-service/**'
             booking-service:
               - 'services/booking-service/**'
+            geolocation-service:
+              - 'services/geolocation-service/**'
             pkg:
               - 'pkg/**'
 
@@ -55,9 +57,9 @@ jobs:
           services=()
           # Sur un push direct, on relance tous les services
           if [ "${{ github.event_name }}" == "push" ]; then
-            services=("api-gateway" "auth-service" "user-service" "file-service" "rating-service" "trips-service" "booking-service")
+            services=("api-gateway" "auth-service" "user-service" "file-service" "rating-service" "trips-service" "booking-service" "geolocation-service")
           elif [ "${{ steps.filter.outputs.pkg }}" == "true" ]; then
-            services=("api-gateway" "auth-service" "user-service" "file-service" "rating-service" "trips-service" "booking-service")
+            services=("api-gateway" "auth-service" "user-service" "file-service" "rating-service" "trips-service" "booking-service" "geolocation-service")
           else
             if [ "${{ steps.filter.outputs.api-gateway }}" == "true" ]; then
               services+=("api-gateway")
@@ -79,6 +81,9 @@ jobs:
             fi
             if [ "${{ steps.filter.outputs.booking-service }}" == "true" ]; then
               services+=("booking-service")
+            fi
+            if [ "${{ steps.filter.outputs.geolocation-service }}" == "true" ]; then
+              services+=("geolocation-service")
             fi
           fi
 
