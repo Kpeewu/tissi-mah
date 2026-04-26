@@ -539,8 +539,12 @@ type CreateTripRequest struct {
 	Description              string                 `protobuf:"bytes,14,opt,name=Description,proto3" json:"Description,omitempty"`
 	TripWaypoints            []*WaypointInput       `protobuf:"bytes,15,rep,name=TripWaypoints,proto3" json:"TripWaypoints,omitempty"`
 	PaymentMethodsAccepted   []string               `protobuf:"bytes,16,rep,name=PaymentMethodsAccepted,proto3" json:"PaymentMethodsAccepted,omitempty"` // mobileMoney | card | paypal | cash
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// Google encoded polyline du tracé entre les waypoints, calculé par
+	// geolocation-service côté front. Optionnel — si vide, le tracé ne sera
+	// pas affiché aux passagers tant qu'aucun calcul n'a été fait côté serveur.
+	RoutePolyline string `protobuf:"bytes,17,opt,name=RoutePolyline,proto3" json:"RoutePolyline,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateTripRequest) Reset() {
@@ -683,6 +687,13 @@ func (x *CreateTripRequest) GetPaymentMethodsAccepted() []string {
 		return x.PaymentMethodsAccepted
 	}
 	return nil
+}
+
+func (x *CreateTripRequest) GetRoutePolyline() string {
+	if x != nil {
+		return x.RoutePolyline
+	}
+	return ""
 }
 
 // CreateTripResponse retourne l'identifiant du trajet créé.
@@ -3419,7 +3430,8 @@ type GetDriverTripDetailsResponse struct {
 	Description              string                  `protobuf:"bytes,22,opt,name=Description,proto3" json:"Description,omitempty"`
 	Waypoints                []*DriverWaypointDetail `protobuf:"bytes,23,rep,name=Waypoints,proto3" json:"Waypoints,omitempty"`
 	ErrorMessage             string                  `protobuf:"bytes,24,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
-	Bookings                 []*DriverBookingPreview `protobuf:"bytes,25,rep,name=Bookings,proto3" json:"Bookings,omitempty"` // réservations sur ce trajet
+	Bookings                 []*DriverBookingPreview `protobuf:"bytes,25,rep,name=Bookings,proto3" json:"Bookings,omitempty"`           // réservations sur ce trajet
+	RoutePolyline            string                  `protobuf:"bytes,26,opt,name=RoutePolyline,proto3" json:"RoutePolyline,omitempty"` // Google encoded polyline du tracé
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -3627,6 +3639,13 @@ func (x *GetDriverTripDetailsResponse) GetBookings() []*DriverBookingPreview {
 		return x.Bookings
 	}
 	return nil
+}
+
+func (x *GetDriverTripDetailsResponse) GetRoutePolyline() string {
+	if x != nil {
+		return x.RoutePolyline
+	}
+	return ""
 }
 
 // DriverBookingPreview contient les informations résumées d'une réservation pour le conducteur.
@@ -3899,6 +3918,8 @@ type GetPassengerTripDetailsResponse struct {
 	Description              string                     `protobuf:"bytes,21,opt,name=Description,proto3" json:"Description,omitempty"`
 	Waypoints                []*PassengerWaypointDetail `protobuf:"bytes,22,rep,name=Waypoints,proto3" json:"Waypoints,omitempty"`
 	ErrorMessage             string                     `protobuf:"bytes,23,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	RoutePolyline            string                     `protobuf:"bytes,24,opt,name=RoutePolyline,proto3" json:"RoutePolyline,omitempty"` // Google encoded polyline du tracé
+	EstimatedDistanceMeters  int32                      `protobuf:"varint,25,opt,name=EstimatedDistanceMeters,proto3" json:"EstimatedDistanceMeters,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -4094,6 +4115,20 @@ func (x *GetPassengerTripDetailsResponse) GetErrorMessage() string {
 	return ""
 }
 
+func (x *GetPassengerTripDetailsResponse) GetRoutePolyline() string {
+	if x != nil {
+		return x.RoutePolyline
+	}
+	return ""
+}
+
+func (x *GetPassengerTripDetailsResponse) GetEstimatedDistanceMeters() int32 {
+	if x != nil {
+		return x.EstimatedDistanceMeters
+	}
+	return 0
+}
+
 var File_trip_proto protoreflect.FileDescriptor
 
 const file_trip_proto_rawDesc = "" +
@@ -4145,7 +4180,7 @@ const file_trip_proto_rawDesc = "" +
 	"\x04City\x18\x06 \x01(\tR\x04City\x12\x18\n" +
 	"\aCountry\x18\a \x01(\tR\aCountry\x12,\n" +
 	"\x11ScheduledDatetime\x18\b \x01(\tR\x11ScheduledDatetime\x12,\n" +
-	"\x11PriceFromPrevious\x18\t \x01(\x05R\x11PriceFromPrevious\"\xae\x05\n" +
+	"\x11PriceFromPrevious\x18\t \x01(\x05R\x11PriceFromPrevious\"\xd4\x05\n" +
 	"\x11CreateTripRequest\x12\x1a\n" +
 	"\bDriverId\x18\x01 \x01(\tR\bDriverId\x12\x1c\n" +
 	"\tVehicleId\x18\x02 \x01(\tR\tVehicleId\x12,\n" +
@@ -4165,7 +4200,8 @@ const file_trip_proto_rawDesc = "" +
 	"\vAutoApprove\x18\r \x01(\bR\vAutoApprove\x12 \n" +
 	"\vDescription\x18\x0e \x01(\tR\vDescription\x129\n" +
 	"\rTripWaypoints\x18\x0f \x03(\v2\x13.trip.WaypointInputR\rTripWaypoints\x126\n" +
-	"\x16PaymentMethodsAccepted\x18\x10 \x03(\tR\x16PaymentMethodsAccepted\"P\n" +
+	"\x16PaymentMethodsAccepted\x18\x10 \x03(\tR\x16PaymentMethodsAccepted\x12$\n" +
+	"\rRoutePolyline\x18\x11 \x01(\tR\rRoutePolyline\"P\n" +
 	"\x12CreateTripResponse\x12\x16\n" +
 	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"%\n" +
@@ -4385,7 +4421,7 @@ const file_trip_proto_rawDesc = "" +
 	"\x14MinutesFromDeparture\x18\f \x01(\x05R\x14MinutesFromDeparture\x12,\n" +
 	"\x11PriceFromPrevious\x18\r \x01(\x05R\x11PriceFromPrevious\x12 \n" +
 	"\vIsCancelled\x18\x0e \x01(\bR\vIsCancelled\x12.\n" +
-	"\x12CancellationReason\x18\x0f \x01(\tR\x12CancellationReason\"\xb2\b\n" +
+	"\x12CancellationReason\x18\x0f \x01(\tR\x12CancellationReason\"\xd8\b\n" +
 	"\x1cGetDriverTripDetailsResponse\x12\x16\n" +
 	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12\x1a\n" +
 	"\bDriverId\x18\x02 \x01(\tR\bDriverId\x12\x16\n" +
@@ -4414,7 +4450,8 @@ const file_trip_proto_rawDesc = "" +
 	"\vDescription\x18\x16 \x01(\tR\vDescription\x128\n" +
 	"\tWaypoints\x18\x17 \x03(\v2\x1a.trip.DriverWaypointDetailR\tWaypoints\x12\"\n" +
 	"\fErrorMessage\x18\x18 \x01(\tR\fErrorMessage\x126\n" +
-	"\bBookings\x18\x19 \x03(\v2\x1a.trip.DriverBookingPreviewR\bBookings\"\x9e\x02\n" +
+	"\bBookings\x18\x19 \x03(\v2\x1a.trip.DriverBookingPreviewR\bBookings\x12$\n" +
+	"\rRoutePolyline\x18\x1a \x01(\tR\rRoutePolyline\"\x9e\x02\n" +
 	"\x14DriverBookingPreview\x12\x1c\n" +
 	"\tBookingId\x18\x01 \x01(\tR\tBookingId\x12*\n" +
 	"\x10BookingReference\x18\x02 \x01(\tR\x10BookingReference\x12\x16\n" +
@@ -4436,7 +4473,7 @@ const file_trip_proto_rawDesc = "" +
 	"\x17ScheduledPickupDatetime\x18\x06 \x01(\tR\x17ScheduledPickupDatetime\x12,\n" +
 	"\x11PriceFromPrevious\x18\a \x01(\x05R\x11PriceFromPrevious\x122\n" +
 	"\x14MinutesFromDeparture\x18\b \x01(\x05R\x14MinutesFromDeparture\x12 \n" +
-	"\vIsCancelled\x18\t \x01(\bR\vIsCancelled\"\xae\a\n" +
+	"\vIsCancelled\x18\t \x01(\bR\vIsCancelled\"\x8e\b\n" +
 	"\x1fGetPassengerTripDetailsResponse\x12\x16\n" +
 	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12\x1a\n" +
 	"\bDriverId\x18\x02 \x01(\tR\bDriverId\x12\x1e\n" +
@@ -4465,7 +4502,9 @@ const file_trip_proto_rawDesc = "" +
 	"\fAllowSmoking\x18\x14 \x01(\bR\fAllowSmoking\x12 \n" +
 	"\vDescription\x18\x15 \x01(\tR\vDescription\x12;\n" +
 	"\tWaypoints\x18\x16 \x03(\v2\x1d.trip.PassengerWaypointDetailR\tWaypoints\x12\"\n" +
-	"\fErrorMessage\x18\x17 \x01(\tR\fErrorMessage2\x99\x15\n" +
+	"\fErrorMessage\x18\x17 \x01(\tR\fErrorMessage\x12$\n" +
+	"\rRoutePolyline\x18\x18 \x01(\tR\rRoutePolyline\x128\n" +
+	"\x17EstimatedDistanceMeters\x18\x19 \x01(\x05R\x17EstimatedDistanceMeters2\x99\x15\n" +
 	"\vTripService\x12c\n" +
 	"\n" +
 	"CreateTrip\x12\x17.trip.CreateTripRequest\x1a\x18.trip.CreateTripResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/trip/driver/createTrip\x12\x87\x01\n" +

@@ -6,7 +6,7 @@ syntax = "proto3";
 
 package file;
 
-option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/filepb;filepb";
+option go_package = "github.com/Kpeewu/tissi-mah/services/file-service/proto/gen;file";
 
 import "google/api/annotations.proto";
 

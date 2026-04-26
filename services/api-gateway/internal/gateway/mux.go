@@ -19,6 +19,7 @@ import (
 	bookingpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/bookingpb"
 	paymentpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/paymentpb"
 	filepb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/filepb"
+	geolocationpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/geolocationpb"
 	kycpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/kycpb"
 	ratingpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb"
 	trippb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/trippb"
@@ -41,6 +42,7 @@ type MuxConfig struct {
 	PaymentServiceAddr      string
 	NotificationServiceAddr string
 	SupportServiceAddr      string
+	GeolocationServiceAddr  string
 	Logger                  *zap.Logger
 }
 
@@ -167,6 +169,12 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		return nil, err
 	}
 	cfg.Logger.Info("registered support-service handler", zap.String("endpoint", cfg.SupportServiceAddr))
+
+	// Enregistrer geolocation-service (routing OSRM + geocoding Nominatim)
+	if err := geolocationpb.RegisterGeolocationServiceHandlerFromEndpoint(ctx, mux, cfg.GeolocationServiceAddr, dialOpts); err != nil {
+		return nil, err
+	}
+	cfg.Logger.Info("registered geolocation-service handler", zap.String("endpoint", cfg.GeolocationServiceAddr))
 
 	// Handler brut pour le webhook FedaPay : bypass le transcoding grpc-gateway afin de
 	// conserver les bytes raw du body (nécessaires pour la vérification HMAC-SHA256) et

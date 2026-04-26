@@ -263,6 +263,10 @@ message CreateTripRequest {
   string Description                 = 14;
   repeated WaypointInput TripWaypoints           = 15;
   repeated string        PaymentMethodsAccepted  = 16; // mobileMoney | card | paypal | cash
+  // Google encoded polyline du tracé entre les waypoints, calculé par
+  // geolocation-service côté front. Optionnel — si vide, le tracé ne sera
+  // pas affiché aux passagers tant qu'aucun calcul n'a été fait côté serveur.
+  string RoutePolyline                           = 17;
 }
 
 // CreateTripResponse retourne l'identifiant du trajet créé.
@@ -650,6 +654,7 @@ message GetDriverTripDetailsResponse {
   repeated DriverWaypointDetail Waypoints  = 23;
   string ErrorMessage                      = 24;
   repeated DriverBookingPreview Bookings   = 25; // réservations sur ce trajet
+  string RoutePolyline                     = 26; // Google encoded polyline du tracé
 }
 
 // DriverBookingPreview contient les informations résumées d'une réservation pour le conducteur.
@@ -707,4 +712,6 @@ message GetPassengerTripDetailsResponse {
   string Description                         = 21;
   repeated PassengerWaypointDetail Waypoints = 22;
   string ErrorMessage                        = 23;
+  string RoutePolyline                       = 24; // Google encoded polyline du tracé
+  int32  EstimatedDistanceMeters             = 25;
 }

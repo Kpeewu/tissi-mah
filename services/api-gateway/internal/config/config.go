@@ -23,6 +23,7 @@ type Config struct {
 	PaymentService      ServiceEndpoint
 	NotificationService ServiceEndpoint
 	SupportService      ServiceEndpoint
+	GeolocationService  ServiceEndpoint
 	SupportJWTSecret    string
 	CORS                CORSConfig
 	RateLimit      RateLimitConfig
@@ -136,6 +137,10 @@ func Load() (*Config, error) {
 		SupportService: ServiceEndpoint{
 			Host: sharedconfig.GetStringOrDefault(values, "SUPPORT_SERVICE_HOST", "0.0.0.0"),
 			Port: sharedconfig.GetStringOrDefault(values, "SUPPORT_SERVICE_PORT", "50063"),
+		},
+		GeolocationService: ServiceEndpoint{
+			Host: sharedconfig.GetStringOrDefault(values, "GEOLOCATION_SERVICE_HOST", "0.0.0.0"),
+			Port: sharedconfig.GetStringOrDefault(values, "GEOLOCATION_SERVICE_PORT", "50064"),
 		},
 		SupportJWTSecret: sharedconfig.GetStringOrDefault(values, "SUPPORT_JWT_SECRET", ""),
 		CORS: CORSConfig{
