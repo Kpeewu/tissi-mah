@@ -1,0 +1,90 @@
+# TileServer GL — sert les tuiles vectorielles depuis west-africa.pmtiles.
+#
+# Stateless (lit le .pmtiles en read-only depuis le PVC), donc scalable
+# horizontalement. Couche 5 du plan de protection : 2 réplicas baseline,
+# HPA jusqu'à 4. Le cache HTTP côté Ingress (long TTL) absorbe l'essentiel
+# du trafic — TileServer ne voit que les misses.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tileserver-gl
+  namespace: dev
+  labels:
+    app: tileserver-gl
+    tier: tiles
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: tileserver-gl
+  template:
+    metadata:
+      labels:
+        app: tileserver-gl
+        tier: tiles
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: tileserver-gl
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: tileserver
+          image: maptiler/tileserver-gl:v4.12
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--config"
+            - "/config/config.json"
+            - "--port"
+            - "8080"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: tile-data
+              mountPath: /data
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: tileserver-gl
+        - name: tile-data
+          persistentVolumeClaim:
+            claimName: tileserver-data
+            readOnly: true
