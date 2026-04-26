@@ -38,6 +38,8 @@ config:
   s3Bucket: "tissi-mah-files"
   s3Endpoint: ""
   s3ForcePathStyle: "true"
+  userServiceHost: "user-service"
+  userServicePort: "50052"
   extra: {}
 
 secrets:

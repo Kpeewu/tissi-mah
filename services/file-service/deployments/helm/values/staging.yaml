@@ -41,6 +41,8 @@ config:
   s3Region: ""
   s3Bucket: ""
   s3ForcePathStyle: "false"
+  userServiceHost: "user-service"
+  userServicePort: "50052"
   extra: {}
 
 secrets:
