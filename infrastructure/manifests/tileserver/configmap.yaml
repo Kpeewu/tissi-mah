@@ -5,7 +5,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: tileserver-gl
-  namespace: dev
+  namespace: default
   labels:
     app: tileserver-gl
     tier: tiles

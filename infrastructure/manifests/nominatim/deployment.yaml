@@ -17,7 +17,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nominatim-backend
-  namespace: dev
+  namespace: default
   labels:
     app: nominatim-backend
     tier: geocoding

@@ -20,7 +20,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: osrm-data
-  namespace: dev
+  namespace: default
   labels:
     app: osrm-backend
     tier: routing

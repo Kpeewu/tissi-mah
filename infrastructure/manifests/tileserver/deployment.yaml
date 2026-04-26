@@ -8,7 +8,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: tileserver-gl
-  namespace: dev
+  namespace: default
   labels:
     app: tileserver-gl
     tier: tiles

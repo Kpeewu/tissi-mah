@@ -11,17 +11,17 @@
 # Le Job écrit dans le PVC osrm-data (RWO partagé avec osrm-backend).
 # Important : osrm-backend doit être stoppé pendant l'exécution du Job
 # (RWO ne permet qu'un mount à la fois). Stratégie de refresh :
-#   1. kubectl scale deploy/osrm-backend --replicas=0 -n dev
+#   1. kubectl scale deploy/osrm-backend --replicas=0 -n default
 #   2. kubectl apply -f infrastructure/manifests/osm-data-prep/job.yaml
-#   3. kubectl wait --for=condition=complete --timeout=4h job/osm-data-prep -n dev
-#   4. kubectl scale deploy/osrm-backend --replicas=1 -n dev
+#   3. kubectl wait --for=condition=complete --timeout=4h job/osm-data-prep -n default
+#   4. kubectl scale deploy/osrm-backend --replicas=1 -n default
 #
 # Durée : 2-4h selon la machine. Resources généreux pendant l'exécution.
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: osm-data-prep
-  namespace: dev
+  namespace: default
   labels:
     app: osm-data-prep
     tier: routing-prep
