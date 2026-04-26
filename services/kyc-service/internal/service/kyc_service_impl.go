@@ -233,6 +233,7 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 		PreviousReviewID: previousReviewID,
 
 		Status:     "pending",
+		Decision:   "pending", // aucune décision Persona encore — mise à jour après webhook
 		ReviewType: "automatic",
 
 		CreatedAt: now,
