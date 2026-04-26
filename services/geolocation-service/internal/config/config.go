@@ -31,7 +31,7 @@ type OSRMConfig struct {
 }
 
 type NominatimConfig struct {
-	URL string // ex: http://nominatim-backend:8080
+	URL string // ex: http://nominatim-backend:7070 en K8s (port Service), http://localhost:7070 en local
 }
 
 type RedisConfig struct {

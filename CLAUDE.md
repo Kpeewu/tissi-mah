@@ -253,9 +253,9 @@ sur les 4 pays (Togo, Ghana, Bénin, Burkina Faso).
 
 | Variable | Obligatoire | Description |
 |----------|-------------|-------------|
-| `OSRM_URL` | oui | Backend OSRM (ex: `http://osrm-backend:5000`) |
-| `NOMINATIM_URL` | non | Backend Nominatim. Vide → Geocode/ReverseGeocode renvoient `ErrorGeocodingUnavailable` (graceful degradation) |
-| `REDIS_URL` | oui | Cache distribué (graceful degradation si injoignable) |
+| `OSRM_URL` | oui | Backend OSRM (ex: `http://osrm-backend:5000` en K8s, `http://localhost:5000` en local) |
+| `NOMINATIM_URL` | non | Backend Nominatim (ex: `http://nominatim-backend:7070` en K8s, `http://localhost:7070` en local). Vide → Geocode/ReverseGeocode renvoient `ErrorGeocodingUnavailable` (graceful degradation) |
+| `REDIS_URL` | oui | Cache distribué — `geolocation-redis` dans docker-compose, port hôte **6391** (graceful degradation si injoignable) |
 | `ENVIRONMENT` | oui | `local` / `vps-dev` / `staging` / `prod` |
 | `LOG_LEVEL` | oui | `debug` / `info` / `warn` / `error` |
 | `GRPC_PORT` | non (50064) | Port gRPC |

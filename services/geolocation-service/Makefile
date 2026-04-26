@@ -7,8 +7,8 @@ PROTO_OUT := $(PROTO_PATH)/gen
 
 # Variables d'environnement (override avec .env)
 OSRM_URL ?= http://localhost:5000
-NOMINATIM_URL ?= http://localhost:8080
-REDIS_URL ?= redis://localhost:6385
+NOMINATIM_URL ?= http://localhost:7070
+REDIS_URL ?= redis://localhost:6391
 LOG_LEVEL ?= debug
 GRPC_PORT ?= 50064
 ENVIRONMENT ?= local

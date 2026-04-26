@@ -63,6 +63,9 @@ spec:
             - name: POSTGRES_EFFECTIVE_CACHE_SIZE
               value: "2GB"
           ports:
+            # Apache à l'intérieur du container Nominatim écoute sur 8080.
+            # Le Service K8s (cf. service.yaml) le réexpose en 7070 pour
+            # éviter le conflit avec api-gateway:8080.
             - name: http
               containerPort: 8080
               protocol: TCP

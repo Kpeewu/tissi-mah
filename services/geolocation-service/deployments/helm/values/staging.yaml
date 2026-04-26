@@ -34,7 +34,7 @@ config:
   environment: "staging"
   logLevel: "info"
   osrmUrl: "http://osrm-backend:5000"
-  nominatimUrl: "http://nominatim-backend:8080"
+  nominatimUrl: "http://nominatim-backend:7070"
   geocodeDefaultCountries: "tg,gh,bj,bf"
   extra: {}
 

@@ -23,12 +23,12 @@ config:
   environment: "local"
   logLevel: "debug"
   osrmUrl: "http://localhost:5000"
-  nominatimUrl: "http://localhost:8080"
+  nominatimUrl: "http://localhost:7070"
   geocodeDefaultCountries: "tg,gh,bj,bf"
   extra: {}
 
 secrets:
-  redisUrl: "redis://localhost:6385/0"
+  redisUrl: "redis://localhost:6391/0"
   extra: {}
 
 probes:

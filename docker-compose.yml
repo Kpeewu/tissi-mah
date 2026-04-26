@@ -424,6 +424,24 @@ services:
     networks:
       - tissi-mah-network
 
+  # Redis dédié pour Geolocation Service (cache routes OSRM + résultats Nominatim)
+  # Service stateless : pas de Postgres, juste ce Redis pour le cache.
+  # Graceful degradation si indisponible — le service tourne mais sans cache.
+  geolocation-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-geolocation-redis
+    ports:
+      - "6391:6379"
+    volumes:
+      - geolocation_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
   # === Migrate sidecar services (golang-migrate) ===
   # Chaque service attend que sa base Postgres soit healthy, puis applique les migrations incrémentales.
 
@@ -574,6 +592,7 @@ volumes:
   notification_redis_data:
   support_postgres_data:
   support_redis_data:
+  geolocation_redis_data:
   minio_data:
 
 networks:

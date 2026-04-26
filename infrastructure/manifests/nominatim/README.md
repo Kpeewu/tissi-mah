@@ -4,7 +4,11 @@ Geocoding self-hosted (texte ↔ coordonnées) basé sur l'image
 [mediagis/nominatim](https://github.com/mediagis/nominatim-docker), couvrant
 les 4 pays cibles (Togo, Ghana, Bénin, Burkina Faso).
 
-Appelé par `geolocation-service` via `http://nominatim-backend:8080`.
+Appelé par `geolocation-service` via `http://nominatim-backend:7070`.
+
+> Note ports : Apache à l'intérieur du container écoute sur 8080 (default
+> mediagis/nominatim, non modifiable proprement). Le Service K8s remappe
+> en 7070 pour éviter le conflit avec api-gateway (port 8080).
 
 ## Manifests
 
@@ -44,9 +48,9 @@ kubectl logs -f -n dev deploy/nominatim-backend
 ## Vérification
 
 ```bash
-kubectl port-forward -n dev svc/nominatim-backend 8080:8080
-curl 'http://localhost:8080/search?q=Marché+de+Lomé&format=json&limit=3'
-curl 'http://localhost:8080/reverse?lat=6.13&lon=1.22&format=json'
+kubectl port-forward -n dev svc/nominatim-backend 7070:7070
+curl 'http://localhost:7070/search?q=Marché+de+Lomé&format=json&limit=3'
+curl 'http://localhost:7070/reverse?lat=6.13&lon=1.22&format=json'
 ```
 
 ## Refresh des données
