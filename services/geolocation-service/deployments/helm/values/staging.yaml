@@ -1,0 +1,87 @@
+# Staging values — same shape as vps-dev but pointing to staging backends
+replicaCount: 3
+
+image:
+  registry: ghcr.io
+  repository: kpeewu/tissi-mah/geolocation-service
+  pullPolicy: Always
+  tag: "staging"
+
+serviceAccount:
+  create: true
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 50064
+
+config:
+  environment: "staging"
+  logLevel: "info"
+  osrmUrl: "http://osrm-backend:5000"
+  nominatimUrl: "http://nominatim-backend:8080"
+  geocodeDefaultCountries: "tg,gh,bj,bf"
+  extra: {}
+
+secrets:
+  redisUrl: ""
+  extra: {}
+
+probes:
+  enabled: true
+  liveness:
+    initialDelaySeconds: 15
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: geolocation-service
+          topologyKey: kubernetes.io/hostname
+
+imagePullSecrets:
+  - name: ghcr-secret
