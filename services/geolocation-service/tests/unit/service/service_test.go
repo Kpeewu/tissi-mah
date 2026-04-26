@@ -31,7 +31,10 @@ func fakeRoute() *osrm.RouteResult {
 }
 
 func newTestService(osrmClient osrm.Client) interfaces.GeolocationService {
-	return service.NewGeolocationService(osrmClient, cache.New(nil, zap.NewNop()), zap.NewNop())
+	// Phase 4 : signature étendue avec nominatim client + defaultCountries.
+	// Les tests focalisés sur ComputeRoute passent nominatim=nil (Geocode/Reverse
+	// renverront ErrorGeocodingUnavailable, ce qu'on teste ailleurs).
+	return service.NewGeolocationService(osrmClient, nil, cache.New(nil, zap.NewNop()), "tg,gh,bj,bf", zap.NewNop())
 }
 
 // =============================================================================
@@ -166,11 +169,16 @@ func TestComputeRoute_OSRMError_PropagatesError(t *testing.T) {
 }
 
 // =============================================================================
-// Geocoding stubs (Phase 4 placeholder — vérifie qu'on retourne bien
-// ErrorGeocodingUnavailable en attendant l'implémentation Nominatim)
+// Geocoding (Phase 4)
 // =============================================================================
 
-func TestGeocode_PlaceholderReturnsUnavailable(t *testing.T) {
+// newTestServiceWithGeocode wrap newTestService avec un mock Nominatim injecté.
+func newTestServiceWithGeocode(osrmClient osrm.Client, nominatimClient *mocks.MockNominatimClient) interfaces.GeolocationService {
+	return service.NewGeolocationService(osrmClient, nominatimClient, cache.New(nil, zap.NewNop()), "tg,gh,bj,bf", zap.NewNop())
+}
+
+func TestGeocode_NominatimNil_ReturnsUnavailable(t *testing.T) {
+	// newTestService passe nominatim=nil → ErrorGeocodingUnavailable.
 	svc := newTestService(&mocks.MockOSRMClient{})
 
 	_, err := svc.Geocode(context.Background(), interfaces.GeocodeInput{Query: "Lomé"})
@@ -179,11 +187,74 @@ func TestGeocode_PlaceholderReturnsUnavailable(t *testing.T) {
 	assert.ErrorIs(t, err, geoErrors.ErrorGeocodingUnavailable)
 }
 
-func TestReverseGeocode_PlaceholderReturnsUnavailable(t *testing.T) {
+func TestGeocode_EmptyQuery_ReturnsError(t *testing.T) {
+	svc := newTestServiceWithGeocode(&mocks.MockOSRMClient{}, &mocks.MockNominatimClient{})
+
+	_, err := svc.Geocode(context.Background(), interfaces.GeocodeInput{Query: ""})
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, geoErrors.ErrorEmptyQuery)
+}
+
+func TestGeocode_DefaultCountriesUsedWhenFilterEmpty(t *testing.T) {
+	mockNomi := &mocks.MockNominatimClient{}
+	mockNomi.On("Search", mock.Anything, "Lomé", "tg,gh,bj,bf", int32(5)).
+		Return([]*interfaces.GeocodeResult{
+			{DisplayName: "Lomé, Togo", Lat: 6.13, Lng: 1.22, Country: "tg"},
+		}, nil).Once()
+	svc := newTestServiceWithGeocode(&mocks.MockOSRMClient{}, mockNomi)
+
+	results, err := svc.Geocode(context.Background(), interfaces.GeocodeInput{Query: "Lomé"})
+
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, "Lomé, Togo", results[0].DisplayName)
+	mockNomi.AssertExpectations(t)
+}
+
+func TestGeocode_CustomCountryFilterPropagated(t *testing.T) {
+	mockNomi := &mocks.MockNominatimClient{}
+	mockNomi.On("Search", mock.Anything, "Accra", "gh", int32(3)).
+		Return([]*interfaces.GeocodeResult{{DisplayName: "Accra, Ghana"}}, nil).Once()
+	svc := newTestServiceWithGeocode(&mocks.MockOSRMClient{}, mockNomi)
+
+	_, err := svc.Geocode(context.Background(), interfaces.GeocodeInput{
+		Query:         "Accra",
+		CountryFilter: "gh",
+		Limit:         3,
+	})
+	require.NoError(t, err)
+	mockNomi.AssertExpectations(t)
+}
+
+func TestReverseGeocode_NominatimNil_ReturnsUnavailable(t *testing.T) {
 	svc := newTestService(&mocks.MockOSRMClient{})
 
 	_, err := svc.ReverseGeocode(context.Background(), interfaces.ReverseGeocodeInput{Lat: 6, Lng: 1})
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, geoErrors.ErrorGeocodingUnavailable)
+}
+
+func TestReverseGeocode_OutOfRange_ReturnsInvalidWaypoints(t *testing.T) {
+	svc := newTestServiceWithGeocode(&mocks.MockOSRMClient{}, &mocks.MockNominatimClient{})
+
+	_, err := svc.ReverseGeocode(context.Background(), interfaces.ReverseGeocodeInput{Lat: 95, Lng: 0})
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, geoErrors.ErrorInvalidWaypoints)
+}
+
+func TestReverseGeocode_HappyPath(t *testing.T) {
+	mockNomi := &mocks.MockNominatimClient{}
+	mockNomi.On("Reverse", mock.Anything, 6.13, 1.22).
+		Return(&interfaces.GeocodeResult{DisplayName: "Lomé, Togo", Lat: 6.13, Lng: 1.22, Country: "tg"}, nil).Once()
+	svc := newTestServiceWithGeocode(&mocks.MockOSRMClient{}, mockNomi)
+
+	r, err := svc.ReverseGeocode(context.Background(), interfaces.ReverseGeocodeInput{Lat: 6.13, Lng: 1.22})
+
+	require.NoError(t, err)
+	require.NotNil(t, r)
+	assert.Equal(t, "Lomé, Togo", r.DisplayName)
+	mockNomi.AssertExpectations(t)
 }

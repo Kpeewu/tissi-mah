@@ -1,0 +1,20 @@
+# PersistentVolumeClaim pour la base Postgres de Nominatim.
+#
+# Taille : 15 Go pour les 4 pays (Togo + Ghana + Bénin + Burkina Faso).
+# L'import OSM est lent (~1-2h) et produit un index Postgres relativement compact.
+#
+# RWO suffit — Nominatim tourne en single-replica V1 (Postgres mono-instance).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nominatim-data
+  namespace: dev
+  labels:
+    app: nominatim-backend
+    tier: geocoding
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 15Gi

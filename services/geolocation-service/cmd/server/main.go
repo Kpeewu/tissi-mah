@@ -11,6 +11,7 @@ import (
 	pkgDatabase "github.com/Kpeewu/tissi-mah/pkg/database"
 	pkgLogger "github.com/Kpeewu/tissi-mah/pkg/logger"
 	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/cache"
+	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/client/nominatim"
 	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/client/osrm"
 	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/config"
 	grpcServer "github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/grpc"
@@ -53,6 +54,15 @@ func run(bootstrapLogger *zap.Logger) error {
 	osrmClient := osrm.New(osrm.DefaultConfig(cfg.OSRM.URL), logger)
 	logger.Info("osrm client ready", zap.String("base_url", cfg.OSRM.URL))
 
+	// --- Nominatim client (optionnel — si NOMINATIM_URL vide, le client est nil
+	// et le service renvoie ErrorGeocodingUnavailable sur Geocode/ReverseGeocode) ---
+	nominatimClient := nominatim.New(nominatim.DefaultConfig(cfg.Nominatim.URL), logger)
+	if nominatimClient != nil {
+		logger.Info("nominatim client ready", zap.String("base_url", cfg.Nominatim.URL))
+	} else {
+		logger.Warn("nominatim disabled (NOMINATIM_URL empty), geocoding endpoints will return ErrorGeocodingUnavailable")
+	}
+
 	// --- Redis cache (graceful degradation si indisponible) ---
 	redisClient, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.Redis.URL)
 	var geoCache *cache.Cache
@@ -66,7 +76,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	}
 
 	// --- Service ---
-	geoService := service.NewGeolocationService(osrmClient, geoCache, logger)
+	geoService := service.NewGeolocationService(osrmClient, nominatimClient, geoCache, cfg.Geocode.DefaultCountries, logger)
 
 	// --- gRPC server ---
 	srv, err := grpcServer.NewGeolocationServer(cfg, geoService, logger)

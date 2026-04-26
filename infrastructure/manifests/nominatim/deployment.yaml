@@ -1,0 +1,111 @@
+# Nominatim backend (geocoding self-hosted, basé sur Postgres).
+#
+# Image mediagis/nominatim qui inclut :
+#  - Postgres + extension PostGIS pré-configurée
+#  - Outils osm2pgsql et nominatim
+#  - Script /app/start.sh qui importe les .osm.pbf au premier démarrage
+#
+# Au premier démarrage : la variable PBF_PATH pointe vers un fichier OSM monté
+# en volume. Le container fait l'import (durée ~1-2h pour les 4 pays), indexe,
+# puis démarre l'API HTTP sur le port 8080.
+#
+# Au démarrage suivant : si la base existe déjà (REPLICATION_URL non set),
+# le container relance juste Postgres + l'API sans réimporter.
+#
+# Réplicas : 1 (Postgres single instance, scaling out of scope V1).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nominatim-backend
+  namespace: dev
+  labels:
+    app: nominatim-backend
+    tier: geocoding
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nominatim-backend
+  template:
+    metadata:
+      labels:
+        app: nominatim-backend
+        tier: geocoding
+    spec:
+      containers:
+        - name: nominatim
+          image: mediagis/nominatim:4.4
+          imagePullPolicy: IfNotPresent
+          env:
+            # Chemin vers le .osm.pbf consolidé (produit par osm-data-prep).
+            # Au premier boot, Nominatim l'importe dans Postgres.
+            - name: PBF_PATH
+              value: /osm/west-africa.osm.pbf
+            # Pas de réplication continue — on rafraîchit hebdomadairement.
+            - name: REPLICATION_URL
+              value: ""
+            - name: NOMINATIM_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nominatim-backend
+                  key: NOMINATIM_PASSWORD
+            # Tweaks Postgres pour 4 Gi de RAM (cf. doc mediagis/nominatim).
+            - name: POSTGRES_SHARED_BUFFERS
+              value: "1GB"
+            - name: POSTGRES_MAINTENANCE_WORK_MEM
+              value: "256MB"
+            - name: POSTGRES_AUTOVACUUM_WORK_MEM
+              value: "256MB"
+            - name: POSTGRES_WORK_MEM
+              value: "32MB"
+            - name: POSTGRES_EFFECTIVE_CACHE_SIZE
+              value: "2GB"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          # Pas de probe pendant l'import initial — il prend ~1-2h pendant lesquelles
+          # le container ne répond pas sur :8080. initialDelaySeconds long.
+          livenessProbe:
+            httpGet:
+              path: /status.php
+              port: 8080
+            initialDelaySeconds: 7200 # 2h pour laisser l'import initial finir
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /status.php
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 10
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 2Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+          volumeMounts:
+            - name: nominatim-data
+              mountPath: /var/lib/postgresql
+              subPath: postgres
+            - name: osm-data
+              mountPath: /osm
+              readOnly: true
+      volumes:
+        - name: nominatim-data
+          persistentVolumeClaim:
+            claimName: nominatim-data
+        # Réutilise le PVC osrm-data pour récupérer le west-africa.osm.pbf
+        # déjà téléchargé par le Job osm-data-prep. Lecture seule pour ne pas
+        # interférer avec la régénération OSRM.
+        - name: osm-data
+          persistentVolumeClaim:
+            claimName: osrm-data
+            readOnly: true

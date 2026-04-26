@@ -1,13 +1,14 @@
 // Package service contient l'implémentation du GeolocationService.
 //
-// Le service compose 3 dépendances :
-//   - osrm.Client    : routing self-hosted (avec timeout / semaphore / circuit breaker)
-//   - cache.Cache    : Redis avec graceful degradation
+// Le service compose 4 dépendances :
+//   - osrm.Client       : routing self-hosted (avec timeout / semaphore / circuit breaker)
+//   - nominatim.Client  : geocoding self-hosted (mêmes protections)
+//   - cache.Cache       : Redis avec graceful degradation
 //   - logger
 //
-// Le service lui-même est stateless. Il transforme les inputs métier en appels OSRM,
-// applique le cache, et compose le résultat final (notamment les ETAs cumulés par leg
-// quand DepartureTime est fourni).
+// Le service lui-même est stateless. Il transforme les inputs métier en appels
+// OSRM/Nominatim, applique le cache, et compose les résultats finaux (notamment
+// les ETAs cumulés par leg quand DepartureTime est fourni dans ComputeRoute).
 package service
 
 import (
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/cache"
+	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/client/nominatim"
 	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/client/osrm"
 	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/service/interfaces"
 	geoErrors "github.com/Kpeewu/tissi-mah/services/geolocation-service/pkg/errors"
@@ -22,22 +24,32 @@ import (
 )
 
 type geolocationServiceImpl struct {
-	osrm   osrm.Client
-	cache  *cache.Cache
-	logger *zap.Logger
+	osrm             osrm.Client
+	nominatim        nominatim.Client // peut être nil → Geocode/ReverseGeocode renvoient ErrorGeocodingUnavailable
+	cache            *cache.Cache
+	logger           *zap.Logger
+	defaultCountries string
 }
 
 // NewGeolocationService construit l'implémentation par défaut.
-// cache peut être nil — le service tournera sans cache (graceful degradation).
+//   - cache peut être nil → graceful degradation, pas de cache.
+//   - nominatimClient peut être nil → Geocode/ReverseGeocode renvoient une erreur
+//     contrôlée (utile pour Phase 1 quand Nominatim n'est pas encore déployé).
+//   - defaultCountries est utilisé comme filtre par défaut quand Geocode.CountryFilter
+//     est vide (ex: "tg,gh,bj,bf").
 func NewGeolocationService(
 	osrmClient osrm.Client,
+	nominatimClient nominatim.Client,
 	c *cache.Cache,
+	defaultCountries string,
 	logger *zap.Logger,
 ) interfaces.GeolocationService {
 	return &geolocationServiceImpl{
-		osrm:   osrmClient,
-		cache:  c,
-		logger: logger,
+		osrm:             osrmClient,
+		nominatim:        nominatimClient,
+		cache:            c,
+		defaultCountries: defaultCountries,
+		logger:           logger,
 	}
 }
 
@@ -128,13 +140,67 @@ func (s *geolocationServiceImpl) ComputeRoute(ctx context.Context, input interfa
 }
 
 // =============================================================================
-// Geocode (placeholder Phase 4)
+// Geocode (search)
 // =============================================================================
 
-func (s *geolocationServiceImpl) Geocode(_ context.Context, _ interfaces.GeocodeInput) ([]*interfaces.GeocodeResult, error) {
-	return nil, geoErrors.ErrorGeocodingUnavailable
+func (s *geolocationServiceImpl) Geocode(ctx context.Context, input interfaces.GeocodeInput) ([]*interfaces.GeocodeResult, error) {
+	if s.nominatim == nil {
+		return nil, geoErrors.ErrorGeocodingUnavailable
+	}
+	if input.Query == "" {
+		return nil, geoErrors.ErrorEmptyQuery
+	}
+
+	countryFilter := input.CountryFilter
+	if countryFilter == "" {
+		countryFilter = s.defaultCountries
+	}
+
+	limit := input.Limit
+	if limit <= 0 {
+		limit = 5
+	}
+
+	// --- Cache lookup ---
+	if cached, hit := s.cache.GetGeocode(ctx, input.Query, countryFilter, limit); hit {
+		s.logger.Debug("cache hit: geocode", zap.String("query", input.Query))
+		return cached, nil
+	}
+
+	// --- Appel Nominatim ---
+	results, err := s.nominatim.Search(ctx, input.Query, countryFilter, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	s.cache.SetGeocode(ctx, input.Query, countryFilter, limit, results)
+	return results, nil
 }
 
-func (s *geolocationServiceImpl) ReverseGeocode(_ context.Context, _ interfaces.ReverseGeocodeInput) (*interfaces.GeocodeResult, error) {
-	return nil, geoErrors.ErrorGeocodingUnavailable
+// =============================================================================
+// ReverseGeocode
+// =============================================================================
+
+func (s *geolocationServiceImpl) ReverseGeocode(ctx context.Context, input interfaces.ReverseGeocodeInput) (*interfaces.GeocodeResult, error) {
+	if s.nominatim == nil {
+		return nil, geoErrors.ErrorGeocodingUnavailable
+	}
+	if input.Lat < -90 || input.Lat > 90 || input.Lng < -180 || input.Lng > 180 {
+		return nil, geoErrors.ErrorInvalidWaypoints
+	}
+
+	// --- Cache lookup ---
+	if cached, hit := s.cache.GetReverseGeocode(ctx, input.Lat, input.Lng); hit {
+		s.logger.Debug("cache hit: reverse", zap.Float64("lat", input.Lat), zap.Float64("lng", input.Lng))
+		return cached, nil
+	}
+
+	// --- Appel Nominatim ---
+	result, err := s.nominatim.Reverse(ctx, input.Lat, input.Lng)
+	if err != nil {
+		return nil, err
+	}
+
+	s.cache.SetReverseGeocode(ctx, input.Lat, input.Lng, result)
+	return result, nil
 }
