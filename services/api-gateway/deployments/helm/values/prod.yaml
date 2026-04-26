@@ -61,6 +61,8 @@ config:
   notifServicePort: "50060"
   supportServiceHost: "support-service"
   supportServicePort: "50063"
+  geolocationServiceHost: "geolocation-service"
+  geolocationServicePort: "50064"
   corsAllowedOrigins: "https://tissi-mah.com,https://www.tissi-mah.com"
   extra: {}
 

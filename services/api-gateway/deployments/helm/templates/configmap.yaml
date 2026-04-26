@@ -30,6 +30,8 @@ data:
   NOTIF_SERVICE_PORT: {{ .Values.config.notifServicePort | quote }}
   SUPPORT_SERVICE_HOST: {{ .Values.config.supportServiceHost | quote }}
   SUPPORT_SERVICE_PORT: {{ .Values.config.supportServicePort | quote }}
+  GEOLOCATION_SERVICE_HOST: {{ .Values.config.geolocationServiceHost | quote }}
+  GEOLOCATION_SERVICE_PORT: {{ .Values.config.geolocationServicePort | quote }}
   CORS_ALLOWED_ORIGINS: {{ .Values.config.corsAllowedOrigins | quote }}
   {{- range $key, $value := .Values.config.extra }}
   {{ $key }}: {{ $value | quote }}
