@@ -37,6 +37,8 @@ config:
   s3Bucket: "tissi-mah-files"
   s3Endpoint: "http://minio:9000"
   s3ForcePathStyle: "true"
+  userServiceHost: "user-service"
+  userServicePort: "50052"
   extra: {}
 
 secrets:

@@ -14,6 +14,8 @@ data:
   S3_ENDPOINT: {{ .Values.config.s3Endpoint | quote }}
   {{- end }}
   S3_FORCE_PATH_STYLE: {{ .Values.config.s3ForcePathStyle | default "false" | quote }}
+  USER_SERVICE_HOST: {{ .Values.config.userServiceHost | quote }}
+  USER_SERVICE_PORT: {{ .Values.config.userServicePort | quote }}
   {{- range $key, $value := .Values.config.extra }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}
