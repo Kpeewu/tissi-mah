@@ -2,7 +2,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: tileserver-gl
-  namespace: dev
+  namespace: default
   labels:
     app: tileserver-gl
     tier: tiles

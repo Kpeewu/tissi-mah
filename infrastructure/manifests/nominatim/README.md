@@ -41,14 +41,14 @@ kubectl apply -f infrastructure/manifests/nominatim/deployment.yaml \
 
 # 5. Premier démarrage : ~1-2h pour importer les 4 pays.
 # Le pod ne sera pas Ready pendant cette période.
-kubectl logs -f -n dev deploy/nominatim-backend
+kubectl logs -f -n default deploy/nominatim-backend
 # Attendre les logs "INFO  Database setup completed" puis "Started API"
 ```
 
 ## Vérification
 
 ```bash
-kubectl port-forward -n dev svc/nominatim-backend 7070:7070
+kubectl port-forward -n default svc/nominatim-backend 7070:7070
 curl 'http://localhost:7070/search?q=Marché+de+Lomé&format=json&limit=3'
 curl 'http://localhost:7070/reverse?lat=6.13&lon=1.22&format=json'
 ```
@@ -61,14 +61,14 @@ Pour V1, le refresh Nominatim est **manuel** :
 
 ```bash
 # Stopper Nominatim
-kubectl scale deploy/nominatim-backend --replicas=0 -n dev
+kubectl scale deploy/nominatim-backend --replicas=0 -n default
 
 # Wipe l'ancienne base Postgres
-kubectl delete pvc nominatim-data -n dev
+kubectl delete pvc nominatim-data -n default
 kubectl apply -f infrastructure/manifests/nominatim/pvc.yaml
 
 # Redémarrer (réimport ~1-2h)
-kubectl scale deploy/nominatim-backend --replicas=1 -n dev
+kubectl scale deploy/nominatim-backend --replicas=1 -n default
 ```
 
 L'automatisation hebdomadaire est volontairement reportée à V2 — un Nominatim

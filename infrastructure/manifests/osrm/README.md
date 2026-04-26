@@ -24,13 +24,13 @@ kubectl apply -f infrastructure/manifests/osrm/pvc.yaml
 #    Le Job télécharge les extracts Geofabrik, fait le merge et le pré-traitement
 #    (osrm-extract → partition → customize). Durée ~2-4h.
 kubectl apply -f infrastructure/manifests/osm-data-prep/job.yaml
-kubectl wait --for=condition=complete --timeout=4h job/osm-data-prep -n dev
+kubectl wait --for=condition=complete --timeout=4h job/osm-data-prep -n default
 
 # 3. Une fois le Job terminé, déployer OSRM
 kubectl apply -f infrastructure/manifests/osrm/
 
 # 4. Vérifier
-kubectl port-forward svc/osrm-backend 5000:5000 -n dev &
+kubectl port-forward svc/osrm-backend 5000:5000 -n default &
 curl 'http://localhost:5000/route/v1/driving/1.2228,6.1319;0.6266,6.9269?overview=false'
 # Attendu : { "code": "Ok", "routes": [...] }
 ```

@@ -12,7 +12,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: tile-prep
-  namespace: dev
+  namespace: default
   labels:
     app: tile-prep
     tier: tiles-prep

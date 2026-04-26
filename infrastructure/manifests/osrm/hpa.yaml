@@ -13,7 +13,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: osrm-backend
-  namespace: dev
+  namespace: default
   labels:
     app: osrm-backend
     tier: routing

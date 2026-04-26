@@ -7,7 +7,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: osrm-backend
-  namespace: dev
+  namespace: default
   labels:
     app: osrm-backend
     tier: routing

@@ -14,7 +14,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: osm-data-refresh
-  namespace: dev
+  namespace: default
   labels:
     app: osm-data-refresh
     tier: routing-prep
@@ -43,9 +43,9 @@ spec:
                 - -c
                 - |
                   echo "Scaling osrm-backend to 0 replicas before refresh..."
-                  kubectl scale deploy/osrm-backend --replicas=0 -n dev
+                  kubectl scale deploy/osrm-backend --replicas=0 -n default
                   echo "Waiting for pod termination..."
-                  kubectl wait --for=delete pod -l app=osrm-backend -n dev --timeout=120s || true
+                  kubectl wait --for=delete pod -l app=osrm-backend -n default --timeout=120s || true
             # Step 1+2 : download + merge.
             - name: download-and-merge
               image: ubuntu:22.04
@@ -102,20 +102,20 @@ spec:
 # pour orchestrer la séquence complète.
 #
 # Workflow recommandé en V1 (manuel après le CronJob) :
-#   kubectl scale deploy/osrm-backend --replicas=1 -n dev
+#   kubectl scale deploy/osrm-backend --replicas=1 -n default
 ---
 # ServiceAccount + RBAC pour permettre au CronJob de scale osrm-backend.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: osm-data-prep-runner
-  namespace: dev
+  namespace: default
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: osm-data-prep-scaler
-  namespace: dev
+  namespace: default
 rules:
   - apiGroups: ["apps"]
     resources: ["deployments", "deployments/scale"]
@@ -129,11 +129,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: osm-data-prep-scaler
-  namespace: dev
+  namespace: default
 subjects:
   - kind: ServiceAccount
     name: osm-data-prep-runner
-    namespace: dev
+    namespace: default
 roleRef:
   kind: Role
   name: osm-data-prep-scaler

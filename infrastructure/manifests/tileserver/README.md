@@ -30,8 +30,8 @@ kubectl apply -f infrastructure/manifests/tileserver/pvc.yaml
 
 # 3. Lancer le Job de génération du .pmtiles (durée 30-60 min)
 kubectl apply -f infrastructure/manifests/tile-prep/job.yaml
-kubectl wait --for=condition=complete --timeout=2h job/tile-prep -n dev
-kubectl logs -n dev job/tile-prep | tail
+kubectl wait --for=condition=complete --timeout=2h job/tile-prep -n default
+kubectl logs -n default job/tile-prep | tail
 
 # 4. Déployer TileServer + Service + Ingress
 kubectl apply -f infrastructure/manifests/tileserver/configmap.yaml \
@@ -77,13 +77,13 @@ Quand `osm-data-prep` régénère `west-africa.osm.pbf` :
 
 ```bash
 # 1. Re-lancer la génération du .pmtiles
-kubectl delete job tile-prep -n dev --ignore-not-found
+kubectl delete job tile-prep -n default --ignore-not-found
 kubectl apply -f infrastructure/manifests/tile-prep/job.yaml
-kubectl wait --for=condition=complete --timeout=2h job/tile-prep -n dev
+kubectl wait --for=condition=complete --timeout=2h job/tile-prep -n default
 
 # 2. Faire reloader TileServer (le PVC est déjà à jour, mais TileServer
 # ouvre le .pmtiles au démarrage uniquement)
-kubectl rollout restart deploy/tileserver-gl -n dev
+kubectl rollout restart deploy/tileserver-gl -n default
 ```
 
 ## Resources

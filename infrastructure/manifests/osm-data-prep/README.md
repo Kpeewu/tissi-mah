@@ -22,11 +22,11 @@ kubectl apply -f infrastructure/manifests/osrm/pvc.yaml
 kubectl apply -f infrastructure/manifests/osm-data-prep/job.yaml
 
 # 3. Suivre la progression
-kubectl logs -f -n dev job/osm-data-prep -c download-and-merge
-kubectl logs -f -n dev job/osm-data-prep -c osrm-process
+kubectl logs -f -n default job/osm-data-prep -c download-and-merge
+kubectl logs -f -n default job/osm-data-prep -c osrm-process
 
 # 4. Attendre la fin
-kubectl wait --for=condition=complete --timeout=4h job/osm-data-prep -n dev
+kubectl wait --for=condition=complete --timeout=4h job/osm-data-prep -n default
 
 # 5. Déployer OSRM
 kubectl apply -f infrastructure/manifests/osrm/
@@ -37,11 +37,11 @@ kubectl apply -f infrastructure/manifests/osrm/
 Si on veut re-générer les données entre les CronJobs hebdomadaires :
 
 ```bash
-kubectl scale deploy/osrm-backend --replicas=0 -n dev
-kubectl delete job osm-data-prep -n dev --ignore-not-found
+kubectl scale deploy/osrm-backend --replicas=0 -n default
+kubectl delete job osm-data-prep -n default --ignore-not-found
 kubectl apply -f infrastructure/manifests/osm-data-prep/job.yaml
-kubectl wait --for=condition=complete --timeout=4h job/osm-data-prep -n dev
-kubectl scale deploy/osrm-backend --replicas=1 -n dev
+kubectl wait --for=condition=complete --timeout=4h job/osm-data-prep -n default
+kubectl scale deploy/osrm-backend --replicas=1 -n default
 ```
 
 ## Refresh automatique (CronJob)

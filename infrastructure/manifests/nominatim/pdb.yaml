@@ -6,7 +6,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: nominatim-backend
-  namespace: dev
+  namespace: default
   labels:
     app: nominatim-backend
     tier: geocoding
