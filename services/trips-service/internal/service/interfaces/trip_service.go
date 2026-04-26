@@ -164,7 +164,11 @@ type CreateTripInput struct {
 	AllowFood                bool
 	AutoApprove              bool
 	Description              string
-	Waypoints                []WaypointInput
+	// RoutePolyline encodage Google polyline du tracé, calculé côté front via
+	// geolocation-service. Optionnel — si vide, le tracé ne sera pas affiché
+	// aux passagers tant qu'aucun calcul n'a été fait côté serveur.
+	RoutePolyline string
+	Waypoints     []WaypointInput
 }
 
 // ChangeTripDateAndTimeInput contient les données nécessaires à la modification
@@ -381,6 +385,7 @@ type DriverTripDetailResult struct {
 	AllowFood                bool
 	AllowSmoking             bool
 	Description              string
+	RoutePolyline            string
 	Waypoints                []DriverWaypointDetailResult
 	Bookings                 []client.BookingPreview
 }
@@ -427,6 +432,8 @@ type PassengerTripDetailResult struct {
 	AllowFood                bool
 	AllowSmoking             bool
 	Description              string
+	RoutePolyline            string
+	EstimatedDistanceMeters  int
 	Waypoints                []PassengerWaypointDetailResult
 }
 

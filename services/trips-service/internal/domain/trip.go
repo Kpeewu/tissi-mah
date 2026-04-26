@@ -37,6 +37,11 @@ type Trip struct {
 	CancellerID              *string
 	CancellationReason       *string
 	Description              string
+	// RoutePolyline encodage Google polyline du tracé entre les waypoints.
+	// Calculé côté front via geolocation-service pendant la création, puis
+	// envoyé à trips-service. Utilisé pour afficher le tracé aux passagers
+	// sans relancer un calcul OSRM. Vide tant que le front ne le fournit pas.
+	RoutePolyline            string
 	CreatedAt                time.Time
 	UpdatedAt                time.Time
 }

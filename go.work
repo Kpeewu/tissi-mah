@@ -11,6 +11,7 @@ use (
 	./services/booking-service
 	./services/email-service
 	./services/file-service
+	./services/geolocation-service
 	./services/kyc-service
 	./services/notification-service
 	./services/payment-service

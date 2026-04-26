@@ -1,0 +1,19 @@
+# Service interne OSRM — appelé par geolocation-service via OSRM_URL=http://osrm-backend:5000
+# Pas d'Ingress, le service ne doit pas être exposé publiquement.
+apiVersion: v1
+kind: Service
+metadata:
+  name: osrm-backend
+  namespace: dev
+  labels:
+    app: osrm-backend
+    tier: routing
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 5000
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: osrm-backend

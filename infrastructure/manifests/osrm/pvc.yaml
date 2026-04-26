@@ -1,0 +1,34 @@
+# PersistentVolumeClaim pour les fichiers .osrm pré-générés (4 pays).
+#
+# Taille : 10 Go suffit pour Togo + Ghana + Bénin + Burkina Faso (l'extract
+# .osm.pbf consolidé fait ~1 Go, le pré-traitement OSRM produit 5-7 Go de
+# fichiers .osrm sur disque).
+#
+# Pattern d'accès :
+#  - Le Job de préparation OSM (osm-data-prep) écrit dans ce PVC.
+#  - Le Deployment osrm-backend monte ce PVC en lecture (mais comme RWO ne
+#    permet qu'un seul mount à la fois sur K3s local-path, le Job DOIT être
+#    terminé avant le démarrage de osrm-backend).
+#
+# Pour scaler osrm-backend > 1 réplique, il faut soit :
+#  - passer à un storageClass RWX (NFS, longhorn-rwx) et utiliser
+#    accessModes: [ReadWriteMany]
+#  - soit utiliser un initContainer par pod qui copie depuis un PVC source
+#    vers un emptyDir local
+# Cf. plan d'implémentation, section "Scaling at OSRM-data layer".
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: osrm-data
+  namespace: dev
+  labels:
+    app: osrm-backend
+    tier: routing
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  # storageClassName non spécifié → utilise la classe par défaut du cluster
+  # (sur K3s : local-path).

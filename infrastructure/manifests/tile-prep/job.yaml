@@ -1,0 +1,69 @@
+# Job de génération du .pmtiles vectoriel pour TileServer GL.
+#
+# Utilise planetiler (https://github.com/onthegomap/planetiler) — outil java
+# qui produit des vector tiles MapLibre-style depuis un .osm.pbf.
+#
+# Pré-requis : le PVC osrm-data doit contenir west-africa.osm.pbf (produit
+# par osm-data-prep). Le Job lit ce fichier en read-only et écrit le .pmtiles
+# dans le PVC tileserver-data.
+#
+# Durée typique : 30-60 min pour les 4 pays jusqu'au zoom 14.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tile-prep
+  namespace: dev
+  labels:
+    app: tile-prep
+    tier: tiles-prep
+spec:
+  ttlSecondsAfterFinished: 86400
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: tile-prep
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: planetiler
+          # Image officielle planetiler.
+          image: ghcr.io/onthegomap/planetiler:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              echo "Generating west-africa.pmtiles from west-africa.osm.pbf..."
+              # Profile openmaptiles (style standard MapLibre) jusqu'au zoom 14.
+              # Output au format .pmtiles (mono-fichier, plus léger qu'mbtiles
+              # et compatible TileServer GL via plugin natif).
+              java -Xmx4g -jar /app/planetiler.jar \
+                --osm-path=/osm/west-africa.osm.pbf \
+                --output=/tiles/west-africa.pmtiles \
+                --force \
+                --languages=en,fr \
+                --maxzoom=14
+              echo "✅ Tile generation complete:"
+              ls -lh /tiles/west-africa.pmtiles
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 4Gi
+            limits:
+              cpu: 4000m
+              memory: 6Gi
+          volumeMounts:
+            - name: osm-data
+              mountPath: /osm
+              readOnly: true
+            - name: tile-data
+              mountPath: /tiles
+      volumes:
+        - name: osm-data
+          persistentVolumeClaim:
+            claimName: osrm-data
+            readOnly: true
+        - name: tile-data
+          persistentVolumeClaim:
+            claimName: tileserver-data

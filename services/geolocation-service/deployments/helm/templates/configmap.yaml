@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "geolocation-service.fullname" . }}
+  labels:
+    {{- include "geolocation-service.labels" . | nindent 4 }}
+data:
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  GRPC_PORT: {{ .Values.service.port | quote }}
+  OSRM_URL: {{ .Values.config.osrmUrl | quote }}
+  NOMINATIM_URL: {{ .Values.config.nominatimUrl | quote }}
+  GEOCODE_DEFAULT_COUNTRIES: {{ .Values.config.geocodeDefaultCountries | quote }}
+  {{- range $key, $value := .Values.config.extra }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}

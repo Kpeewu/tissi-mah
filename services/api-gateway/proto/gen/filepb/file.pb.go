@@ -8,7 +8,7 @@
 // 	protoc        v6.33.4
 // source: file.proto
 
-package filepb
+package file
 
 import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
@@ -3028,7 +3028,7 @@ const file_file_proto_rawDesc = "" +
 	"\x1aGetDocumentReviewsByUserID\x12'.file.GetDocumentReviewsByUserIDRequest\x1a .file.GetDocumentReviewsResponse\x12W\n" +
 	"\x14UpdateDocumentReview\x12!.file.UpdateDocumentReviewRequest\x1a\x1c.file.DocumentReviewResponse\x12Y\n" +
 	"\x13ListDocumentReviews\x12 .file.ListDocumentReviewsRequest\x1a .file.GetDocumentReviewsResponse\x123\n" +
-	"\x06Health\x12\x13.file.HealthRequest\x1a\x14.file.HealthResponseBJZHgithub.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/filepb;filepbb\x06proto3"
+	"\x06Health\x12\x13.file.HealthRequest\x1a\x14.file.HealthResponseBBZ@github.com/Kpeewu/tissi-mah/services/file-service/proto/gen;fileb\x06proto3"
 
 var (
 	file_file_proto_rawDescOnce sync.Once

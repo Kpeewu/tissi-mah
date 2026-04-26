@@ -140,6 +140,36 @@ grpc/handler.go → middleware/interceptor.go (public) → service → repositor
 
 **Note** : La suppression de notes n'est pas autorisée. Cache Redis avec dégradation gracieuse.
 
+### geolocation-service — Routing OSRM + geocoding Nominatim
+
+```
+grpc/handler.go → middleware/interceptor.go (Firebase JWT pour endpoints non-Health)
+              → service (orchestrateur stateless)
+              → osrm.Client / nominatim.Client (HTTP avec timeout/semaphore/circuit breaker)
+              + cache.Cache (Redis avec graceful degradation)
+```
+
+**Port** : 50064 (gRPC)
+
+**Endpoints HTTP** (via api-gateway, Firebase JWT requis) :
+- `POST /api/v1/geolocation/route` — Calcul distance/durée/polyline + ETAs cumulés par leg
+- `GET /api/v1/geolocation/geocode` — Texte → coordonnées (Nominatim, filtré par pays)
+- `GET /api/v1/geolocation/reverse` — Coordonnées → adresse
+- `GET /api/v1/geolocation/health` — Health check (public)
+
+**Tuiles** : `https://tiles.tissi-mah.com/data/west-africa/{z}/{x}/{y}.pbf` — servi par
+TileServer GL en **bypass complet de l'api-gateway** (Ingress nginx direct).
+
+**Flow d'utilisation pendant la création d'un trajet** :
+1. Le front appelle `/api/v1/geolocation/route` à chaque modif de waypoint pour obtenir
+   le tracé + les ETAs proposés.
+2. Au moment de POST `/trip/driver/createTrip`, le front renvoie distance/duration/polyline
+   et trips-service les stocke. **trips-service n'appelle PAS geolocation-service.**
+
+**Backends self-hosted** (manifests dans `infrastructure/manifests/`) : OSRM, Nominatim,
+TileServer GL — chacun avec son PVC. Données régénérées hebdomadairement via CronJob
+sur les 4 pays (Togo, Ghana, Bénin, Burkina Faso).
+
 ---
 
 ## Variables d'environnement
@@ -219,6 +249,21 @@ grpc/handler.go → middleware/interceptor.go (public) → service → repositor
 **Admin seed** : `admin@tissimah.local` / `Admin1234!` (`must_change_password=true`, forcé à changer au 1er login).
 **Auth distincte de Firebase** : middleware `JWTSupport` côté api-gateway, routes dans `SupportProtectedRoutes`, headers `x-support-uid` / `x-support-role`.
 
+### geolocation-service
+
+| Variable | Obligatoire | Description |
+|----------|-------------|-------------|
+| `OSRM_URL` | oui | Backend OSRM (ex: `http://osrm-backend:5000` en K8s, `http://localhost:5000` en local) |
+| `NOMINATIM_URL` | non | Backend Nominatim (ex: `http://nominatim-backend:7070` en K8s, `http://localhost:7070` en local). Vide → Geocode/ReverseGeocode renvoient `ErrorGeocodingUnavailable` (graceful degradation) |
+| `REDIS_URL` | oui | Cache distribué — `geolocation-redis` dans docker-compose, port hôte **6391** (graceful degradation si injoignable) |
+| `ENVIRONMENT` | oui | `local` / `vps-dev` / `staging` / `prod` |
+| `LOG_LEVEL` | oui | `debug` / `info` / `warn` / `error` |
+| `GRPC_PORT` | non (50064) | Port gRPC |
+| `GEOCODE_DEFAULT_COUNTRIES` | non (`tg,gh,bj,bf`) | ISO codes filtre Nominatim par défaut |
+
+**Service stateless** : pas de DB applicative, juste Redis pour le cache. OSRM et
+Nominatim ont leurs propres PVC (cf. `infrastructure/manifests/{osrm,nominatim}/`).
+
 ---
 
 ## Conventions de code
@@ -246,6 +291,7 @@ grpc/handler.go → middleware/interceptor.go (public) → service → repositor
 | `rating-service` | Complet |
 | `trips-service` | Complet |
 | `support-service` | Complet (phase 1 : auth + admin seed) |
+| `geolocation-service` | Complet (phase 1 : OSRM routing + Nominatim geocoding + cache Redis + manifests K8s + tile-prep planetiler) |
 | Tests unitaires + intégration | Structure créée, à compléter |
 | `payment-service` | TODO |
 
@@ -273,4 +319,11 @@ grpc/handler.go → middleware/interceptor.go (public) → service → repositor
 | [services/trips-service/cmd/server/main.go](services/trips-service/cmd/server/main.go) | Point d'entrée trips-service |
 | [services/trips-service/proto/trip.proto](services/trips-service/proto/trip.proto) | Contrat API gRPC trips |
 | [docs/api/trips-service-api.md](docs/api/trips-service-api.md) | Documentation endpoints trips-service |
+| [services/geolocation-service/cmd/server/main.go](services/geolocation-service/cmd/server/main.go) | Point d'entrée geolocation-service |
+| [services/geolocation-service/proto/geolocation.proto](services/geolocation-service/proto/geolocation.proto) | Contrat API gRPC geolocation |
+| [docs/api/geolocation-service-api.md](docs/api/geolocation-service-api.md) | Documentation endpoints geolocation-service |
+| [infrastructure/manifests/osrm/](infrastructure/manifests/osrm/) | Manifests K8s OSRM backend |
+| [infrastructure/manifests/nominatim/](infrastructure/manifests/nominatim/) | Manifests K8s Nominatim backend |
+| [infrastructure/manifests/tileserver/](infrastructure/manifests/tileserver/) | Manifests K8s TileServer GL + Ingress public |
+| [infrastructure/manifests/osm-data-prep/](infrastructure/manifests/osm-data-prep/) | Job + CronJob de prep des données OSM |
 | [docs/architecture/overview.md](docs/architecture/overview.md) | Vue d'ensemble architecture |

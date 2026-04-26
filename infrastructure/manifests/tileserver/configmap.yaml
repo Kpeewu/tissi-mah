@@ -1,0 +1,31 @@
+# Config TileServer GL : déclare le dataset west-africa pointant sur le .pmtiles.
+# Le serveur expose alors /data/west-africa/{z}/{x}/{y}.pbf en vector tiles
+# et /data/west-africa.json en TileJSON (utilisable par MapLibre GL).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tileserver-gl
+  namespace: dev
+  labels:
+    app: tileserver-gl
+    tier: tiles
+data:
+  config.json: |
+    {
+      "options": {
+        "paths": {
+          "root": "/data",
+          "fonts": "/data/fonts",
+          "sprites": "/data/sprites",
+          "styles": "/data/styles",
+          "mbtiles": "/data"
+        },
+        "serveAllStyles": true,
+        "frontPage": false
+      },
+      "data": {
+        "west-africa": {
+          "pmtiles": "west-africa.pmtiles"
+        }
+      }
+    }

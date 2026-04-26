@@ -1,0 +1,23 @@
+# Service interne Nominatim — appelé par geolocation-service via
+# NOMINATIM_URL=http://nominatim-backend:7070. Pas d'Ingress.
+#
+# Port externe : 7070 (libre, pas de conflit avec api-gateway:8080 ni avec
+# tileserver-gl:8080). Le container Apache continue d'écouter sur 8080
+# en interne — le Service fait la traduction via targetPort: http.
+apiVersion: v1
+kind: Service
+metadata:
+  name: nominatim-backend
+  namespace: dev
+  labels:
+    app: nominatim-backend
+    tier: geocoding
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 7070
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: nominatim-backend

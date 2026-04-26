@@ -69,7 +69,8 @@ func (r *tripWriteRepositoryImpl) insertTrip(ctx context.Context, tx pgx.Tx, tri
 			total_seats, available_seats, price_per_seat,
 			payment_methods_accepted,
 			allow_luggages, allow_pets, allow_food, allow_smoking,
-			status, auto_approve_enabled, description
+			status, auto_approve_enabled, description,
+			route_polyline
 		) VALUES (
 			$1, $2, $3,
 			$4,
@@ -78,7 +79,8 @@ func (r *tripWriteRepositoryImpl) insertTrip(ctx context.Context, tx pgx.Tx, tri
 			$9, $10, $11,
 			$12::payment_method[],
 			$13, $14, $15, $16,
-			$17::trip_status, $18, $19
+			$17::trip_status, $18, $19,
+			$20
 		)
 		RETURNING trip_id`
 
@@ -92,6 +94,7 @@ func (r *tripWriteRepositoryImpl) insertTrip(ctx context.Context, tx pgx.Tx, tri
 		trip.PaymentMethodsAccepted,
 		trip.AllowLuggages, trip.AllowPets, trip.AllowFood, trip.AllowSmoking,
 		string(trip.Status), trip.AutoApproveEnabled, trip.Description,
+		trip.RoutePolyline,
 	).Scan(&tripID)
 
 	if err != nil {

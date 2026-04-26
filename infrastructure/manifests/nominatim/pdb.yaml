@@ -1,0 +1,17 @@
+# PodDisruptionBudget — bloque les évictions involontaires de l'unique pod
+# Nominatim. Avec 1 réplique, minAvailable=1 empêche les drains tant qu'on
+# n'a pas une 2e réplique (utile pour signaler aux ops qu'un drain doit
+# être planifié manuellement).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: nominatim-backend
+  namespace: dev
+  labels:
+    app: nominatim-backend
+    tier: geocoding
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: nominatim-backend

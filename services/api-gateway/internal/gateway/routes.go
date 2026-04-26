@@ -91,6 +91,12 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/notifications/preferences":           true,
 	"/api/v1/notifications/deviceToken":            true,
 	// notification-service — health est public (pas de JWT)
+
+	// geolocation-service (Firebase JWT requis pendant la création de trajet)
+	"/api/v1/geolocation/route":   true,
+	"/api/v1/geolocation/geocode": true,
+	"/api/v1/geolocation/reverse": true,
+	// geolocation-service — health est public (pas de JWT)
 }
 
 // SupportProtectedRoutes liste les routes HTTP qui requièrent un JWT support-service valide
