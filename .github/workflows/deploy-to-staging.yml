@@ -66,6 +66,8 @@ jobs:
               - 'services/notification-service/**'
             support-service:
               - 'services/support-service/**'
+            geolocation-service:
+              - 'services/geolocation-service/**'
             pkg:
               - 'pkg/**'
 
@@ -77,7 +79,7 @@ jobs:
           else
             services=()
             if [ "${{ steps.filter.outputs.pkg }}" == "true" ]; then
-              services+=("api-gateway" "auth-service" "user-service" "file-service" "rating-service" "vehicle-service" "trips-service" "booking-service" "payment-service" "email-service" "push-service" "notification-service" "support-service")
+              services+=("api-gateway" "auth-service" "user-service" "file-service" "rating-service" "vehicle-service" "trips-service" "booking-service" "payment-service" "email-service" "push-service" "notification-service" "support-service" "geolocation-service")
             else
               if [ "${{ steps.filter.outputs.api-gateway }}" == "true" ]; then
                 services+=("api-gateway")
@@ -117,6 +119,9 @@ jobs:
               fi
               if [ "${{ steps.filter.outputs.support-service }}" == "true" ]; then
                 services+=("support-service")
+              fi
+              if [ "${{ steps.filter.outputs.geolocation-service }}" == "true" ]; then
+                services+=("geolocation-service")
               fi
             fi
 

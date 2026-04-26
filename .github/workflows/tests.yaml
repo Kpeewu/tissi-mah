@@ -25,6 +25,7 @@ jobs:
       email-service: ${{ steps.filter.outputs.email-service }}
       push-service: ${{ steps.filter.outputs.push-service }}
       notification-service: ${{ steps.filter.outputs.notification-service }}
+      geolocation-service: ${{ steps.filter.outputs.geolocation-service }}
       pkg-notification: ${{ steps.filter.outputs.pkg-notification }}
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +54,8 @@ jobs:
               - 'services/push-service/**'
             notification-service:
               - 'services/notification-service/**'
+            geolocation-service:
+              - 'services/geolocation-service/**'
             pkg-notification:
               - 'pkg/notification/**'
 
@@ -608,6 +611,40 @@ jobs:
           flags: notification-service
           name: notification-service-coverage
 
+  # Test Geolocation Service
+  # Service stateless : pas de DB, juste Redis (utilisé en graceful degradation
+  # par les tests, donc pas besoin de container Redis dédié au CI).
+  test-geolocation-service:
+    name: Test Geolocation Service
+    needs: detect-changes
+    if: needs.detect-changes.outputs.geolocation-service == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.work"
+          cache: true
+          cache-dependency-path: services/geolocation-service/go.sum
+
+      - name: Download dependencies
+        working-directory: services/geolocation-service
+        run: go mod download
+
+      - name: Run unit tests
+        working-directory: services/geolocation-service
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./tests/unit/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: services/geolocation-service/coverage.out
+          flags: geolocation-service
+          name: geolocation-service-coverage
+
   # Summary job
   test-summary:
     name: Test Summary
@@ -625,6 +662,7 @@ jobs:
         test-email-service,
         test-push-service,
         test-notification-service,
+        test-geolocation-service,
       ]
     if: always()
     runs-on: ubuntu-latest
@@ -708,6 +746,13 @@ jobs:
             echo "✅ Notification Service: PASSED"
           else
             echo "❌ Notification Service: FAILED"
+            exit 1
+          fi
+
+          if [ "${{ needs.test-geolocation-service.result }}" == "success" ] || [ "${{ needs.detect-changes.outputs.geolocation-service }}" != "true" ]; then
+            echo "✅ Geolocation Service: PASSED"
+          else
+            echo "❌ Geolocation Service: FAILED"
             exit 1
           fi
 
