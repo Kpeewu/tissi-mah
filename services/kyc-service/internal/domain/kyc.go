@@ -6,7 +6,9 @@ import (
 )
 
 // Décisions de revue valides
+// "pending" = état initial à la création (pas encore de décision Persona).
 var ValidDecisions = map[string]bool{
+	"pending":      true,
 	"approved":     true,
 	"rejected":     true,
 	"resubmission": true,

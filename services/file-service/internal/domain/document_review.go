@@ -6,7 +6,10 @@ import (
 )
 
 // Décisions de revue valides
+// "pending" = état initial à la création de l'inquiry (pas encore de décision Persona).
+// La décision évolue vers approved / rejected / resubmission après le webhook.
 var ValidReviewDecisions = map[string]bool{
+	"pending":      true,
 	"approved":     true,
 	"rejected":     true,
 	"resubmission": true,
