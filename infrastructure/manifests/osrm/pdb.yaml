@@ -1,0 +1,18 @@
+# PodDisruptionBudget — protège OSRM pendant les drains de node.
+#
+# minAvailable: 1 garantit qu'au moins un pod OSRM reste up. Utile dès qu'on a
+# > 1 réplique. Avec 1 seule réplique, c'est inactif (le pod sera quand même
+# drainé) mais on garde la déclaration pour quand on scale.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: osrm-backend
+  namespace: dev
+  labels:
+    app: osrm-backend
+    tier: routing
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: osrm-backend

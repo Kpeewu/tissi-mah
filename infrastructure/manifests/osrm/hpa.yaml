@@ -1,0 +1,36 @@
+# HorizontalPodAutoscaler pour osrm-backend.
+#
+# DÉSACTIVÉ EN V1 — le PVC est RWO (storageClass local-path de K3s) et ne
+# peut être monté que par un pod à la fois. minReplicas=maxReplicas=1.
+#
+# Pour activer le scaling :
+#  1. Migrer le PVC vers un storageClass RWX (NFS, longhorn-rwx).
+#  2. Ou refondre le pattern avec un PVC source + initContainer copy par pod.
+#  3. Puis bumper minReplicas/maxReplicas et activer cette HPA.
+#
+# Cf. plan d'implémentation, "Scaling at OSRM-data layer".
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: osrm-backend
+  namespace: dev
+  labels:
+    app: osrm-backend
+    tier: routing
+  annotations:
+    # Marqueur pour les ops : V1 single-replica.
+    tissi-mah.com/scaling-blocked: "RWO PVC — bump after RWX migration"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: osrm-backend
+  minReplicas: 1
+  maxReplicas: 1
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
