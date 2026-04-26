@@ -1,0 +1,105 @@
+# Job de préparation des données OSM pour OSRM.
+#
+# À lancer une seule fois avant le premier déploiement de osrm-backend, puis
+# de manière périodique (cf. cronjob.yaml) pour rafraîchir les données.
+#
+# Pipeline (voir scripts/geo/prepare-osm-data.sh) :
+#   1. Download Geofabrik (Togo, Ghana, Bénin, Burkina Faso)
+#   2. osmium merge → west-africa.osm.pbf
+#   3. osrm-extract → osrm-partition → osrm-customize
+#
+# Le Job écrit dans le PVC osrm-data (RWO partagé avec osrm-backend).
+# Important : osrm-backend doit être stoppé pendant l'exécution du Job
+# (RWO ne permet qu'un mount à la fois). Stratégie de refresh :
+#   1. kubectl scale deploy/osrm-backend --replicas=0 -n dev
+#   2. kubectl apply -f infrastructure/manifests/osm-data-prep/job.yaml
+#   3. kubectl wait --for=condition=complete --timeout=4h job/osm-data-prep -n dev
+#   4. kubectl scale deploy/osrm-backend --replicas=1 -n dev
+#
+# Durée : 2-4h selon la machine. Resources généreux pendant l'exécution.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: osm-data-prep
+  namespace: dev
+  labels:
+    app: osm-data-prep
+    tier: routing-prep
+spec:
+  ttlSecondsAfterFinished: 86400 # auto-delete 24h après complétion
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: osm-data-prep
+    spec:
+      restartPolicy: Never
+      # Init 1 : download + merge avec osmium-tool
+      initContainers:
+        - name: download-and-merge
+          # Image légère contenant osmium-tool + curl.
+          # Alternative : utiliser ubuntu:22.04 + apt-get install osmium-tool.
+          image: ubuntu:22.04
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              apt-get update -qq && apt-get install -y -qq curl osmium-tool >/dev/null
+              cd /data
+              for c in togo ghana benin burkina-faso; do
+                if [ ! -f "${c}-latest.osm.pbf" ]; then
+                  echo "Downloading ${c}..."
+                  curl -fSL --retry 3 --retry-delay 30 \
+                    -o "${c}-latest.osm.pbf" \
+                    "https://download.geofabrik.de/africa/${c}-latest.osm.pbf"
+                fi
+              done
+              echo "Merging extracts..."
+              osmium merge --overwrite -o west-africa.osm.pbf \
+                togo-latest.osm.pbf ghana-latest.osm.pbf \
+                benin-latest.osm.pbf burkina-faso-latest.osm.pbf
+              echo "Done. Sizes:"
+              du -h *.osm.pbf
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+          volumeMounts:
+            - name: osrm-data
+              mountPath: /data
+      # Main container : OSRM pre-processing (extract → partition → customize)
+      containers:
+        - name: osrm-process
+          image: osrm/osrm-backend:v5.27.1
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              cd /data
+              echo "Step 3/5 — osrm-extract..."
+              osrm-extract -p /opt/car.lua west-africa.osm.pbf
+              echo "Step 4/5 — osrm-partition..."
+              osrm-partition west-africa.osrm
+              echo "Step 5/5 — osrm-customize..."
+              osrm-customize west-africa.osrm
+              echo "✅ OSM data preparation complete. Files in /data:"
+              ls -lh west-africa.osrm*
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 4Gi
+            limits:
+              cpu: 4000m
+              memory: 8Gi
+          volumeMounts:
+            - name: osrm-data
+              mountPath: /data
+      volumes:
+        - name: osrm-data
+          persistentVolumeClaim:
+            claimName: osrm-data

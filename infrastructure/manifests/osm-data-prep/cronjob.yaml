@@ -1,0 +1,140 @@
+# CronJob hebdomadaire pour rafraîchir les données OSM.
+#
+# Schedule : tous les dimanches à 02:00 UTC (faible trafic + données OSM
+# quotidiennement régénérées par Geofabrik vers 21h UTC la veille).
+#
+# Le CronJob :
+#  1. Stoppe osrm-backend (scale 0) — sinon RWO bloquerait le Job.
+#  2. Lance le Job de préparation (download + merge + OSRM pipeline).
+#  3. Redémarre osrm-backend (scale 1) après complétion.
+#
+# Note : le scaling osrm-backend est fait par un sidecar (kubectl) qui
+# nécessite un ServiceAccount avec les droits RBAC appropriés.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: osm-data-refresh
+  namespace: dev
+  labels:
+    app: osm-data-refresh
+    tier: routing-prep
+spec:
+  schedule: "0 2 * * 0" # dimanche 02:00 UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 604800 # auto-delete après 7 jours
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: osm-data-refresh
+        spec:
+          serviceAccountName: osm-data-prep-runner
+          restartPolicy: Never
+          initContainers:
+            # Pre-step : scale down osrm-backend.
+            - name: scale-down-osrm
+              image: bitnami/kubectl:1.28
+              command:
+                - sh
+                - -c
+                - |
+                  echo "Scaling osrm-backend to 0 replicas before refresh..."
+                  kubectl scale deploy/osrm-backend --replicas=0 -n dev
+                  echo "Waiting for pod termination..."
+                  kubectl wait --for=delete pod -l app=osrm-backend -n dev --timeout=120s || true
+            # Step 1+2 : download + merge.
+            - name: download-and-merge
+              image: ubuntu:22.04
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  set -euo pipefail
+                  apt-get update -qq && apt-get install -y -qq curl osmium-tool >/dev/null
+                  cd /data
+                  for c in togo ghana benin burkina-faso; do
+                    rm -f "${c}-latest.osm.pbf" # force re-download pour avoir les données fraîches
+                    curl -fSL --retry 3 --retry-delay 30 \
+                      -o "${c}-latest.osm.pbf" \
+                      "https://download.geofabrik.de/africa/${c}-latest.osm.pbf"
+                  done
+                  osmium merge --overwrite -o west-africa.osm.pbf \
+                    togo-latest.osm.pbf ghana-latest.osm.pbf \
+                    benin-latest.osm.pbf burkina-faso-latest.osm.pbf
+              resources:
+                requests: { cpu: 500m, memory: 1Gi }
+                limits:   { cpu: 2000m, memory: 4Gi }
+              volumeMounts:
+                - name: osrm-data
+                  mountPath: /data
+          # Main : OSRM processing.
+          containers:
+            - name: osrm-process
+              image: osrm/osrm-backend:v5.27.1
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  set -euo pipefail
+                  cd /data
+                  rm -f west-africa.osrm*  # nettoie l'ancien build avant régénération
+                  osrm-extract -p /opt/car.lua west-africa.osm.pbf
+                  osrm-partition west-africa.osrm
+                  osrm-customize west-africa.osrm
+                  echo "Refresh complete."
+              resources:
+                requests: { cpu: 1000m, memory: 4Gi }
+                limits:   { cpu: 4000m, memory: 8Gi }
+              volumeMounts:
+                - name: osrm-data
+                  mountPath: /data
+          volumes:
+            - name: osrm-data
+              persistentVolumeClaim:
+                claimName: osrm-data
+---
+# Le post-step (scale-up osrm-backend) est géré par un Job séparé déclenché
+# par le CronJob ci-dessus en succès. K8s ne supportant pas nativement les
+# "post-completion hooks" sur Job, on préfère que les ops fassent un kubectl
+# scale manuel après vérification, ou utilisent un outil comme Argo Workflows
+# pour orchestrer la séquence complète.
+#
+# Workflow recommandé en V1 (manuel après le CronJob) :
+#   kubectl scale deploy/osrm-backend --replicas=1 -n dev
+---
+# ServiceAccount + RBAC pour permettre au CronJob de scale osrm-backend.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: osm-data-prep-runner
+  namespace: dev
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: osm-data-prep-scaler
+  namespace: dev
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "deployments/scale"]
+    resourceNames: ["osrm-backend"]
+    verbs: ["get", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: osm-data-prep-scaler
+  namespace: dev
+subjects:
+  - kind: ServiceAccount
+    name: osm-data-prep-runner
+    namespace: dev
+roleRef:
+  kind: Role
+  name: osm-data-prep-scaler
+  apiGroup: rbac.authorization.k8s.io
