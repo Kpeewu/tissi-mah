@@ -30,22 +30,15 @@ spec:
           # Image officielle planetiler.
           image: ghcr.io/onthegomap/planetiler:latest
           imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "-c"]
+          # Appel Java direct — évite /bin/sh (dash dans l'image planetiler)
+          # qui ne supporte pas `set -o pipefail`.
+          command: ["java", "-Xmx4g", "-jar", "/app/planetiler.jar"]
           args:
-            - |
-              set -euo pipefail
-              echo "Generating west-africa.pmtiles from west-africa.osm.pbf..."
-              # Profile openmaptiles (style standard MapLibre) jusqu'au zoom 14.
-              # Output au format .pmtiles (mono-fichier, plus léger qu'mbtiles
-              # et compatible TileServer GL via plugin natif).
-              java -Xmx4g -jar /app/planetiler.jar \
-                --osm-path=/osm/west-africa.osm.pbf \
-                --output=/tiles/west-africa.pmtiles \
-                --force \
-                --languages=en,fr \
-                --maxzoom=14
-              echo "✅ Tile generation complete:"
-              ls -lh /tiles/west-africa.pmtiles
+            - "--osm-path=/osm/west-africa.osm.pbf"
+            - "--output=/tiles/west-africa.pmtiles"
+            - "--force"
+            - "--languages=en,fr"
+            - "--maxzoom=14"
           resources:
             requests:
               cpu: 1000m

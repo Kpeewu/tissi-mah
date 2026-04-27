@@ -258,19 +258,13 @@ spec:
         - name: planetiler
           image: ghcr.io/onthegomap/planetiler:latest
           imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "-c"]
+          command: ["java", "-Xmx4g", "-jar", "/app/planetiler.jar"]
           args:
-            - |
-              set -euo pipefail
-              echo "Generating west-africa.pmtiles..."
-              java -Xmx4g -jar /app/planetiler.jar \
-                --osm-path=/osm/west-africa.osm.pbf \
-                --output=/tiles/west-africa.pmtiles \
-                --force \
-                --languages=en,fr \
-                --maxzoom=14
-              echo "Done:"
-              ls -lh /tiles/west-africa.pmtiles
+            - "--osm-path=/osm/west-africa.osm.pbf"
+            - "--output=/tiles/west-africa.pmtiles"
+            - "--force"
+            - "--languages=en,fr"
+            - "--maxzoom=14"
           resources:
             requests:
               cpu: 1000m
