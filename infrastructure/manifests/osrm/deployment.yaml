@@ -37,7 +37,7 @@ spec:
         fsGroup: 0
       containers:
         - name: osrm
-          image: osrm/osrm-backend:v5.27.1
+          image: ghcr.io/project-osrm/osrm-backend:v5.27.1
           imagePullPolicy: IfNotPresent
           # Mode MLD (Multi-Level Dijkstra) — préprocessing plus rapide,
           # runtime acceptable, footprint mémoire raisonnable pour 4 pays.

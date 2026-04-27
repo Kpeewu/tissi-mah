@@ -74,7 +74,7 @@ spec:
       # Main container : OSRM pre-processing (extract → partition → customize)
       containers:
         - name: osrm-process
-          image: osrm/osrm-backend:v5.27.1
+          image: ghcr.io/project-osrm/osrm-backend:v5.27.1
           imagePullPolicy: IfNotPresent
           command: ["/bin/bash", "-c"]
           args:
