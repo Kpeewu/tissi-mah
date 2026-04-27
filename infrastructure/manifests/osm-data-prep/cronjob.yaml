@@ -73,7 +73,7 @@ spec:
           # Main : OSRM processing.
           containers:
             - name: osrm-process
-              image: osrm/osrm-backend:v5.27.1
+              image: ghcr.io/project-osrm/osrm-backend:v5.27.1
               command: ["/bin/bash", "-c"]
               args:
                 - |
