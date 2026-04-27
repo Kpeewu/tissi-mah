@@ -55,6 +55,7 @@ NOMINATIM_PASSWORD=""
 OSM_PVC="osrm-data"
 SKIP_TILES=false
 SKIP_NOMINATIM=false
+SKIP_CHECK=false
 DRY_RUN=false
 
 # === Parse des arguments ===
@@ -65,6 +66,7 @@ while [[ $# -gt 0 ]]; do
     --osm-pvc)              OSM_PVC="$2";             shift 2 ;;
     --skip-tiles)           SKIP_TILES=true;          shift   ;;
     --skip-nominatim)       SKIP_NOMINATIM=true;      shift   ;;
+    --skip-check)           SKIP_CHECK=true;          shift   ;;
     --dry-run)              DRY_RUN=true;             shift   ;;
     *) die "Option inconnue: $1. Utilise --help pour l'aide." ;;
   esac
@@ -101,25 +103,56 @@ if ! kubectl get pvc "$OSM_PVC" -n "$NAMESPACE" &>/dev/null; then
 fi
 ok "PVC $OSM_PVC présent"
 
-# Vérifier que le .osm.pbf est bien dans le PVC en lançant un pod temporaire
+# Vérifier que le .osm.pbf est bien dans le PVC.
+# Stratégie : si un pod utilise déjà le PVC (RWO), on tente un exec dessus ;
+# sinon on lance un pod temporaire sans -it pour éviter les problèmes de TTY.
 log "Vérification de west-africa.osm.pbf dans le PVC..."
-PBF_CHECK=$(kubectl run geo-init-check-$$ \
-  --image=busybox \
-  --restart=Never \
-  --rm \
-  -it \
-  -n "$NAMESPACE" \
-  --overrides='{
-    "spec": {
-      "containers": [{
-        "name": "check",
-        "image": "busybox",
-        "command": ["sh", "-c", "ls -lh /osm/west-africa.osm.pbf 2>/dev/null && echo OK || echo MISSING"],
-        "volumeMounts": [{"name": "osm", "mountPath": "/osm", "readOnly": true}]
-      }],
-      "volumes": [{"name": "osm", "persistentVolumeClaim": {"claimName": "'"$OSM_PVC"'", "readOnly": true}}]
-    }
-  }' 2>/dev/null | tr -d '\r' | tail -1 || echo "MISSING")
+PBF_CHECK="MISSING"
+if [[ "$SKIP_CHECK" == true ]]; then
+  PBF_CHECK="OK (skipped)"
+  warn "Vérification OSM ignorée (--skip-check)"
+else
+  # Chercher un pod qui monte déjà ce PVC (évite le problème RWO)
+  EXISTING_POD=$(kubectl get pods -n "$NAMESPACE" -o json 2>/dev/null | \
+    python3 -c "
+import json,sys
+pods=json.load(sys.stdin)
+for p in pods.get('items',[]):
+  phase=p.get('status',{}).get('phase','')
+  if phase not in ('Running','Pending'): continue
+  for v in p.get('spec',{}).get('volumes',[]):
+    pvc=v.get('persistentVolumeClaim',{}).get('claimName','')
+    if pvc=='$OSM_PVC':
+      print(p['metadata']['name'])
+      break
+" 2>/dev/null | head -1)
+
+  if [[ -n "$EXISTING_POD" ]]; then
+    log "PVC monté par $EXISTING_POD — vérification via exec"
+    RESULT=$(kubectl exec -n "$NAMESPACE" "$EXISTING_POD" -- \
+      ls /data/west-africa.osm.pbf 2>/dev/null && echo "OK" || echo "MISSING")
+    [[ "$RESULT" == *"OK"* || "$RESULT" == *"west-africa"* ]] && PBF_CHECK="OK"
+  else
+    # Aucun pod n'utilise le PVC — lancer un pod de vérification (sans -it)
+    CHECK_POD="geo-check-$$"
+    kubectl run "$CHECK_POD" \
+      --image=busybox \
+      --restart=Never \
+      -n "$NAMESPACE" \
+      --overrides='{
+        "spec": {
+          "containers": [{"name":"c","image":"busybox",
+            "command":["sh","-c","ls /osm/west-africa.osm.pbf 2>/dev/null && echo OK || echo MISSING"],
+            "volumeMounts":[{"name":"osm","mountPath":"/osm","readOnly":true}]}],
+          "volumes":[{"name":"osm","persistentVolumeClaim":{"claimName":"'"$OSM_PVC"'","readOnly":true}}]
+        }
+      }' &>/dev/null || true
+    sleep 10
+    RESULT=$(kubectl logs -n "$NAMESPACE" "$CHECK_POD" 2>/dev/null || echo "MISSING")
+    kubectl delete pod "$CHECK_POD" -n "$NAMESPACE" --ignore-not-found &>/dev/null || true
+    [[ "$RESULT" == *"OK"* ]] && PBF_CHECK="OK"
+  fi
+fi
 
 if [[ "$PBF_CHECK" != *"OK"* ]]; then
   err "west-africa.osm.pbf introuvable dans le PVC $OSM_PVC."
