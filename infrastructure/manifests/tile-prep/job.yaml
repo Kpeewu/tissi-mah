@@ -27,12 +27,15 @@ spec:
       restartPolicy: Never
       containers:
         - name: planetiler
-          # Image officielle planetiler.
+          # Image officielle planetiler (buildée avec Jib : pas de fat-jar,
+          # mais un classpath /app/classes + /app/libs déjà câblé via
+          # l'ENTRYPOINT généré par Jib). On laisse donc l'ENTRYPOINT par
+          # défaut faire son travail et on règle le heap via JAVA_TOOL_OPTIONS.
           image: ghcr.io/onthegomap/planetiler:latest
           imagePullPolicy: IfNotPresent
-          # Appel Java direct — évite /bin/sh (dash dans l'image planetiler)
-          # qui ne supporte pas `set -o pipefail`.
-          command: ["java", "-Xmx4g", "-jar", "/data/planetiler.jar"]
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xmx4g"
           args:
             - "--osm-path=/osm/west-africa.osm.pbf"
             - "--output=/tiles/west-africa.pmtiles"
