@@ -42,6 +42,12 @@ spec:
             - "--force"
             - "--languages=en,fr"
             - "--maxzoom=14"
+            # Le profil OpenMapTiles requiert 3 datasets externes (lakes,
+            # water-polygons, natural-earth, ~1 Gi cumulé). --download les
+            # récupère au démarrage dans data/sources/ du container. Pour
+            # éviter le re-download hebdomadaire on pourra persister ce
+            # dossier dans un PVC dédié plus tard.
+            - "--download"
           resources:
             requests:
               cpu: 1000m
