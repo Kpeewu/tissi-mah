@@ -39,7 +39,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
         - name: tileserver
-          image: maptiler/tileserver-gl:v4.12
+          image: maptiler/tileserver-gl:v5.6.0
           imagePullPolicy: IfNotPresent
           args:
             - "--config"
