@@ -74,8 +74,26 @@ func mapToFileDocumentType(docType string) string {
 		return "idCardFront"
 	case "DriverLicence":
 		return "driverLicenceFront"
+	case "Passport":
+		return "passport"
 	default:
 		return docType // "passport", "idCardFront", "idCardBack", etc.
+	}
+}
+
+// mapToPersonaKind convertit le type de document interne vers la valeur attendue
+// par l'API Persona (POST /api/v1/government-id-documents).
+// Cf. https://docs.withpersona.com/reference/create-a-government-id
+func mapToPersonaKind(docType string) string {
+	switch docType {
+	case "IDCard":
+		return "id_card"
+	case "Passport":
+		return "passport"
+	case "DriverLicence":
+		return "driver_license"
+	default:
+		return ""
 	}
 }
 
@@ -136,6 +154,7 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 	// requêtes incohérentes (ex : DocumentID d'un permis avec DocumentType "Passport").
 	var userDocumentID string
 	var vehicleDocumentID string
+	var frontDocURL string // URL S3/MinIO du recto, pour soumission Persona
 	var previousReviewID string
 	var attemptNumber int32 = 1
 
@@ -196,6 +215,7 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 			return nil, kycErrors.ErrorDocumentMismatch
 		}
 		userDocumentID = doc.DocumentID
+		frontDocURL = doc.DocumentURL
 	}
 
 	// Calculer l'attempt_number et le previous_review_id à partir des revues existantes
@@ -216,6 +236,38 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 	if err != nil {
 		s.logger.Error("failed to create persona inquiry", zap.Error(err))
 		return nil, kycErrors.ErrorPersonaUnavailable
+	}
+
+	// Soumettre les URLs S3/MinIO du document à Persona pour éviter la re-capture
+	// côté SDK Android. Uniquement pour les documents utilisateur (passport, IDCard,
+	// DriverLicence) — pas pour les documents véhicule (insurance, registrationCard).
+	personaKind := mapToPersonaKind(input.DocumentType)
+	if personaKind != "" && frontDocURL != "" {
+		backDocURL := ""
+		if input.DocumentIDBack != "" {
+			backDoc, backErr := s.fileClient.GetUserDocument(ctx, input.DocumentIDBack)
+			if backErr != nil {
+				s.logger.Warn("kyc: back document fetch failed, submitting front only",
+					zap.String("documentIDBack", input.DocumentIDBack),
+					zap.Error(backErr),
+				)
+			} else if backDoc.OwnerID != internalUserID {
+				s.logger.Warn("kyc: back document does not belong to caller, skipping",
+					zap.String("documentIDBack", input.DocumentIDBack),
+				)
+			} else {
+				backDocURL = backDoc.DocumentURL
+			}
+		}
+		// Graceful degradation : si SubmitGovernmentID échoue, on log et on continue.
+		// L'inquiry est créée, le SDK Android pourra capturer en fallback.
+		if subErr := s.personaClient.SubmitGovernmentID(ctx, personaInquiry.InquiryID, personaKind, frontDocURL, backDocURL); subErr != nil {
+			s.logger.Warn("kyc: SubmitGovernmentID failed, fallback to SDK capture",
+				zap.String("inquiryID", personaInquiry.InquiryID),
+				zap.String("kind", personaKind),
+				zap.Error(subErr),
+			)
+		}
 	}
 
 	// Créer la review dans le file-service

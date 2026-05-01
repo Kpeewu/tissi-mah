@@ -90,9 +90,10 @@ service KYCService {
 // =============================================================================
 
 message CreateInquiryRequest {
-  string DocumentType = 1; // IDCard | Passport | DriverLicence (user) | driverLicence | insurance | registrationCard (vehicle)
-  string VehicleId    = 2; // Optionnel : si renseigné, document véhicule
-  string DocumentId   = 3; // Identifiant du document à vérifier (retourné par UploadIdDocument / UploadVehicleDocuments)
+  string DocumentType   = 1; // IDCard | Passport | DriverLicence (user) | driverLicence | insurance | registrationCard (vehicle)
+  string VehicleId      = 2; // Optionnel : si renseigné, document véhicule
+  string DocumentId     = 3; // Identifiant du document à vérifier (recto/front pour IDCard et DriverLicence)
+  string DocumentIdBack = 4; // Optionnel — identifiant du verso pour IDCard et DriverLicence (vide pour Passport et docs véhicule)
 }
 
 message GetInquiryRequest {

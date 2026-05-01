@@ -178,6 +178,8 @@ proto-sync:
 	@sed -i '' 's|option go_package = "github.com/Kpeewu/tissi-mah/services/support-service/proto/gen;supportpb"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/supportpb;supportpb"|' services/api-gateway/proto/support.proto
 	@cp services/geolocation-service/proto/geolocation.proto services/api-gateway/proto/geolocation.proto
 	@sed -i '' 's|option go_package = "github.com/Kpeewu/tissi-mah/services/geolocation-service/proto/gen;geolocation"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/geolocationpb;geolocationpb"|' services/api-gateway/proto/geolocation.proto
+	@cp services/kyc-service/proto/kyc.proto services/api-gateway/proto/kyc.proto
+	@sed -i '' 's|option go_package = "github.com/Kpeewu/tissi-mah/services/kyc-service/proto/gen;kyc"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/kycpb;kycpb"|' services/api-gateway/proto/kyc.proto
 	@echo "✅ Protos synchronisés — pensez à lancer make proto-gateway"
 
 # === TESTS ===

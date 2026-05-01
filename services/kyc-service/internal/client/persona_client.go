@@ -22,6 +22,7 @@ const (
 // personaClientImpl est le client HTTP vers l'API Persona
 type personaClientImpl struct {
 	apiKey     string
+	baseURL    string
 	httpClient *http.Client
 	logger     *zap.Logger
 }
@@ -29,7 +30,8 @@ type personaClientImpl struct {
 // NewPersonaClient crée un client HTTP pour l'API Persona
 func NewPersonaClient(apiKey string, logger *zap.Logger) PersonaClient {
 	return &personaClientImpl{
-		apiKey: apiKey,
+		apiKey:  apiKey,
+		baseURL: personaBaseURL,
 		httpClient: &http.Client{
 			Timeout: personaTimeout,
 		},
@@ -89,7 +91,7 @@ func (c *personaClientImpl) CreateInquiry(ctx context.Context, templateID string
 		return nil, fmt.Errorf("persona: marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, personaBaseURL+"/inquiries", bytes.NewReader(bodyJSON))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/inquiries", bytes.NewReader(bodyJSON))
 	if err != nil {
 		return nil, fmt.Errorf("persona: create request: %w", err)
 	}
@@ -143,7 +145,7 @@ func (c *personaClientImpl) CreateInquiry(ctx context.Context, templateID string
 func (c *personaClientImpl) ResumeInquiry(ctx context.Context, inquiryID string) (*domain.PersonaSession, error) {
 	c.logger.Debug("persona: ResumeInquiry", zap.String("inquiryID", inquiryID))
 
-	url := fmt.Sprintf("%s/inquiries/%s/resume", personaBaseURL, inquiryID)
+	url := fmt.Sprintf("%s/inquiries/%s/resume", c.baseURL, inquiryID)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("persona: create request: %w", err)
@@ -185,6 +187,89 @@ func (c *personaClientImpl) ResumeInquiry(ctx context.Context, inquiryID string)
 		SessionToken: personaResp.Data.Attributes.SessionToken,
 		ExpiresAt:    expiresAt,
 	}, nil
+}
+
+// =============================================================================
+// SubmitGovernmentID
+// =============================================================================
+// Soumet un document d'identité (recto + verso optionnel) à Persona via les
+// URLs S3/MinIO de notre file-service. Évite la re-capture côté SDK Android.
+//
+// API Persona : POST /api/v1/government-id-documents
+// https://docs.withpersona.com/reference/create-a-government-id
+
+type submitGovernmentIDRequest struct {
+	Data submitGovernmentIDData `json:"data"`
+}
+
+type submitGovernmentIDData struct {
+	Attributes submitGovernmentIDAttributes `json:"attributes"`
+}
+
+type submitGovernmentIDAttributes struct {
+	InquiryID     string `json:"inquiry-id"`
+	Kind          string `json:"kind,omitempty"`
+	FrontPhotoURL string `json:"front-photo-url"`
+	BackPhotoURL  string `json:"back-photo-url,omitempty"`
+}
+
+func (c *personaClientImpl) SubmitGovernmentID(ctx context.Context, inquiryID, kind, frontURL, backURL string) error {
+	c.logger.Debug("persona: SubmitGovernmentID",
+		zap.String("inquiryID", inquiryID),
+		zap.String("kind", kind),
+		zap.Bool("hasBack", backURL != ""),
+	)
+
+	if inquiryID == "" {
+		return fmt.Errorf("persona: SubmitGovernmentID: inquiryID required")
+	}
+	if frontURL == "" {
+		return fmt.Errorf("persona: SubmitGovernmentID: frontURL required")
+	}
+
+	reqBody := submitGovernmentIDRequest{
+		Data: submitGovernmentIDData{
+			Attributes: submitGovernmentIDAttributes{
+				InquiryID:     inquiryID,
+				Kind:          kind,
+				FrontPhotoURL: frontURL,
+				BackPhotoURL:  backURL,
+			},
+		},
+	}
+
+	bodyJSON, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("persona: marshal request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/government-id-documents", bytes.NewReader(bodyJSON))
+	if err != nil {
+		return fmt.Errorf("persona: create request: %w", err)
+	}
+	c.setHeaders(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		c.logger.Error("persona: SubmitGovernmentID request failed", zap.Error(err))
+		return fmt.Errorf("persona: SubmitGovernmentID: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		c.logger.Error("persona: SubmitGovernmentID unexpected status",
+			zap.Int("statusCode", resp.StatusCode),
+			zap.String("body", string(body)),
+		)
+		return fmt.Errorf("persona: SubmitGovernmentID: unexpected status %d", resp.StatusCode)
+	}
+
+	c.logger.Info("persona: government-id submitted",
+		zap.String("inquiryID", inquiryID),
+		zap.String("kind", kind),
+	)
+	return nil
 }
 
 // setHeaders applique les headers communs à toutes les requêtes Persona

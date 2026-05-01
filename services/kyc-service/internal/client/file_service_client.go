@@ -82,6 +82,7 @@ func (c *fileServiceClientImpl) GetUserDocument(ctx context.Context, documentID 
 		DocumentID:   resp.DocumentId,
 		DocumentType: resp.DocumentType,
 		OwnerID:      resp.UserId,
+		DocumentURL:  resp.DocumentUrl,
 	}, nil
 }
 
@@ -100,6 +101,7 @@ func (c *fileServiceClientImpl) GetVehicleDocument(ctx context.Context, document
 		DocumentID:   resp.DocumentId,
 		DocumentType: resp.DocumentType,
 		OwnerID:      resp.VehicleId,
+		DocumentURL:  resp.DocumentUrl,
 	}, nil
 }
 

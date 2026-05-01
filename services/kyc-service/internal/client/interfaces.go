@@ -52,6 +52,12 @@ type PersonaClient interface {
 
 	// Renouvelle le session token pour une inquiry existante
 	ResumeInquiry(ctx context.Context, inquiryID string) (*domain.PersonaSession, error)
+
+	// Soumet un document d'identité (recto + verso optionnel) à une inquiry
+	// existante via les URLs S3/MinIO de notre file-service.
+	// kind doit être une valeur Persona : "id_card", "passport", "driver_license".
+	// Évite la re-capture côté SDK Android.
+	SubmitGovernmentID(ctx context.Context, inquiryID string, kind string, frontURL string, backURL string) error
 }
 
 // UserClient est l'interface pour communiquer avec user-service via gRPC.
