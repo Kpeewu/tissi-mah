@@ -11,10 +11,11 @@ import (
 // file-service lors de l'upload). VehicleID, si renseigné, indique qu'il s'agit
 // d'un document véhicule (sinon document utilisateur).
 type CreateInquiryInput struct {
-	UserID       string
-	DocumentID   string
-	DocumentType string
-	VehicleID    string // Optionnel : si renseigné, document véhicule
+	UserID         string
+	DocumentID     string
+	DocumentIDBack string // Optionnel — verso pour IDCard et DriverLicence
+	DocumentType   string
+	VehicleID      string // Optionnel : si renseigné, document véhicule
 }
 
 // CreateInquiryResult contient la réponse de création d'une inquiry

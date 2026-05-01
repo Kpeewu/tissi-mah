@@ -518,6 +518,426 @@ func TestCreateInquiry(t *testing.T) {
 		mockFileClient.AssertExpectations(t)
 		mockPersonaClient.AssertExpectations(t)
 	})
+
+	// =========================================================================
+	// SubmitGovernmentID — soumission des URLs S3/MinIO à Persona
+	// =========================================================================
+
+	t.Run("submit - Passport avec DocumentURL appelle SubmitGovernmentID front seul", func(t *testing.T) {
+		mockFileClient, mockPersonaClient, svc := newTestService()
+		ctx := context.Background()
+
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-sub-001").
+			Return([]*domain.Review{}, nil)
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-pp-001").
+			Return(&domain.DocumentRef{
+				DocumentID:   "doc-pp-001",
+				DocumentType: "passport",
+				OwnerID:      "user-sub-001",
+				DocumentURL:  "https://minio.local/bucket/pp-front.jpg",
+			}, nil)
+
+		expiresAt := time.Now().Add(30 * time.Minute).UTC()
+		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-sub-001").
+			Return(&domain.PersonaInquiry{
+				InquiryID:    "inq_pp_001",
+				TemplateID:   testTemplateID,
+				SessionToken: "sess_pp",
+				ExpiresAt:    expiresAt,
+			}, nil)
+
+		// SubmitGovernmentID doit être appelé avec kind "passport", front URL, back vide
+		mockPersonaClient.On("SubmitGovernmentID", mock.Anything,
+			"inq_pp_001", "passport",
+			"https://minio.local/bucket/pp-front.jpg", "").
+			Return(nil)
+
+		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.Anything).
+			Return(&domain.Review{
+				ReviewID:         "review-sub-pp-001",
+				PersonaInquiryID: "inq_pp_001",
+				Status:           "pending",
+				AttemptNumber:    1,
+				CreatedAt:        time.Now().UTC(),
+			}, nil)
+
+		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
+			UserID:       "user-sub-001",
+			DocumentID:   "doc-pp-001",
+			DocumentType: "Passport",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		mockPersonaClient.AssertCalled(t, "SubmitGovernmentID", mock.Anything,
+			"inq_pp_001", "passport",
+			"https://minio.local/bucket/pp-front.jpg", "")
+		mockFileClient.AssertExpectations(t)
+		mockPersonaClient.AssertExpectations(t)
+	})
+
+	t.Run("submit - IDCard avec front + back valides envoie les 2 URLs", func(t *testing.T) {
+		mockFileClient, mockPersonaClient, svc := newTestService()
+		ctx := context.Background()
+
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-sub-002").
+			Return([]*domain.Review{}, nil)
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-id-front-002").
+			Return(&domain.DocumentRef{
+				DocumentID:   "doc-id-front-002",
+				DocumentType: "idCardFront",
+				OwnerID:      "user-sub-002",
+				DocumentURL:  "https://minio.local/bucket/id-front.jpg",
+			}, nil)
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-id-back-002").
+			Return(&domain.DocumentRef{
+				DocumentID:   "doc-id-back-002",
+				DocumentType: "idCardBack",
+				OwnerID:      "user-sub-002",
+				DocumentURL:  "https://minio.local/bucket/id-back.jpg",
+			}, nil)
+
+		expiresAt := time.Now().Add(30 * time.Minute).UTC()
+		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-sub-002").
+			Return(&domain.PersonaInquiry{
+				InquiryID:    "inq_id_002",
+				TemplateID:   testTemplateID,
+				SessionToken: "sess_id",
+				ExpiresAt:    expiresAt,
+			}, nil)
+
+		mockPersonaClient.On("SubmitGovernmentID", mock.Anything,
+			"inq_id_002", "id_card",
+			"https://minio.local/bucket/id-front.jpg",
+			"https://minio.local/bucket/id-back.jpg").
+			Return(nil)
+
+		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.Anything).
+			Return(&domain.Review{
+				ReviewID:         "review-sub-id-002",
+				PersonaInquiryID: "inq_id_002",
+				Status:           "pending",
+				AttemptNumber:    1,
+				CreatedAt:        time.Now().UTC(),
+			}, nil)
+
+		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
+			UserID:         "user-sub-002",
+			DocumentID:     "doc-id-front-002",
+			DocumentIDBack: "doc-id-back-002",
+			DocumentType:   "IDCard",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		mockPersonaClient.AssertExpectations(t)
+		mockFileClient.AssertExpectations(t)
+	})
+
+	t.Run("submit - back doc owned par autre user → submit front seul", func(t *testing.T) {
+		mockFileClient, mockPersonaClient, svc := newTestService()
+		ctx := context.Background()
+
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-sub-003").
+			Return([]*domain.Review{}, nil)
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-id-front-003").
+			Return(&domain.DocumentRef{
+				DocumentID:   "doc-id-front-003",
+				DocumentType: "idCardFront",
+				OwnerID:      "user-sub-003",
+				DocumentURL:  "https://minio.local/bucket/id-front-3.jpg",
+			}, nil)
+		// Back doc appartient à un autre utilisateur
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-id-back-other").
+			Return(&domain.DocumentRef{
+				DocumentID:   "doc-id-back-other",
+				DocumentType: "idCardBack",
+				OwnerID:      "user-OTHER",
+				DocumentURL:  "https://minio.local/bucket/id-back-other.jpg",
+			}, nil)
+
+		expiresAt := time.Now().Add(30 * time.Minute).UTC()
+		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-sub-003").
+			Return(&domain.PersonaInquiry{
+				InquiryID:    "inq_id_003",
+				TemplateID:   testTemplateID,
+				SessionToken: "sess_id",
+				ExpiresAt:    expiresAt,
+			}, nil)
+
+		// SubmitGovernmentID appelé avec back URL vide (skip silencieux)
+		mockPersonaClient.On("SubmitGovernmentID", mock.Anything,
+			"inq_id_003", "id_card",
+			"https://minio.local/bucket/id-front-3.jpg", "").
+			Return(nil)
+
+		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.Anything).
+			Return(&domain.Review{
+				ReviewID:         "review-sub-id-003",
+				PersonaInquiryID: "inq_id_003",
+				Status:           "pending",
+				AttemptNumber:    1,
+				CreatedAt:        time.Now().UTC(),
+			}, nil)
+
+		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
+			UserID:         "user-sub-003",
+			DocumentID:     "doc-id-front-003",
+			DocumentIDBack: "doc-id-back-other",
+			DocumentType:   "IDCard",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		mockPersonaClient.AssertExpectations(t)
+		mockFileClient.AssertExpectations(t)
+	})
+
+	t.Run("submit - fetch back échoue → submit front seul (pas d'erreur globale)", func(t *testing.T) {
+		mockFileClient, mockPersonaClient, svc := newTestService()
+		ctx := context.Background()
+
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-sub-004").
+			Return([]*domain.Review{}, nil)
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-id-front-004").
+			Return(&domain.DocumentRef{
+				DocumentID:   "doc-id-front-004",
+				DocumentType: "idCardFront",
+				OwnerID:      "user-sub-004",
+				DocumentURL:  "https://minio.local/bucket/id-front-4.jpg",
+			}, nil)
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-id-back-missing").
+			Return(nil, errors.New("document not found"))
+
+		expiresAt := time.Now().Add(30 * time.Minute).UTC()
+		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-sub-004").
+			Return(&domain.PersonaInquiry{
+				InquiryID:    "inq_id_004",
+				TemplateID:   testTemplateID,
+				SessionToken: "sess_id",
+				ExpiresAt:    expiresAt,
+			}, nil)
+
+		mockPersonaClient.On("SubmitGovernmentID", mock.Anything,
+			"inq_id_004", "id_card",
+			"https://minio.local/bucket/id-front-4.jpg", "").
+			Return(nil)
+
+		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.Anything).
+			Return(&domain.Review{
+				ReviewID:         "review-sub-id-004",
+				PersonaInquiryID: "inq_id_004",
+				Status:           "pending",
+				AttemptNumber:    1,
+				CreatedAt:        time.Now().UTC(),
+			}, nil)
+
+		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
+			UserID:         "user-sub-004",
+			DocumentID:     "doc-id-front-004",
+			DocumentIDBack: "doc-id-back-missing",
+			DocumentType:   "IDCard",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		mockPersonaClient.AssertExpectations(t)
+		mockFileClient.AssertExpectations(t)
+	})
+
+	t.Run("submit - DriverLicence mappé sur kind 'driver_license'", func(t *testing.T) {
+		mockFileClient, mockPersonaClient, svc := newTestService()
+		ctx := context.Background()
+
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-sub-005").
+			Return([]*domain.Review{}, nil)
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-dl-005").
+			Return(&domain.DocumentRef{
+				DocumentID:   "doc-dl-005",
+				DocumentType: "driverLicenceFront",
+				OwnerID:      "user-sub-005",
+				DocumentURL:  "https://minio.local/bucket/dl-front.jpg",
+			}, nil)
+
+		expiresAt := time.Now().Add(30 * time.Minute).UTC()
+		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-sub-005").
+			Return(&domain.PersonaInquiry{
+				InquiryID:    "inq_dl_005",
+				TemplateID:   testTemplateID,
+				SessionToken: "sess_dl",
+				ExpiresAt:    expiresAt,
+			}, nil)
+
+		mockPersonaClient.On("SubmitGovernmentID", mock.Anything,
+			"inq_dl_005", "driver_license",
+			"https://minio.local/bucket/dl-front.jpg", "").
+			Return(nil)
+
+		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.Anything).
+			Return(&domain.Review{
+				ReviewID:         "review-sub-dl-005",
+				PersonaInquiryID: "inq_dl_005",
+				Status:           "pending",
+				AttemptNumber:    1,
+				CreatedAt:        time.Now().UTC(),
+			}, nil)
+
+		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
+			UserID:       "user-sub-005",
+			DocumentID:   "doc-dl-005",
+			DocumentType: "DriverLicence",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		mockPersonaClient.AssertExpectations(t)
+		mockFileClient.AssertExpectations(t)
+	})
+
+	t.Run("submit - SubmitGovernmentID échoue → dégradation gracieuse, inquiry créée", func(t *testing.T) {
+		mockFileClient, mockPersonaClient, svc := newTestService()
+		ctx := context.Background()
+
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-sub-006").
+			Return([]*domain.Review{}, nil)
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-pp-006").
+			Return(&domain.DocumentRef{
+				DocumentID:   "doc-pp-006",
+				DocumentType: "passport",
+				OwnerID:      "user-sub-006",
+				DocumentURL:  "https://minio.local/bucket/pp-006.jpg",
+			}, nil)
+
+		expiresAt := time.Now().Add(30 * time.Minute).UTC()
+		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-sub-006").
+			Return(&domain.PersonaInquiry{
+				InquiryID:    "inq_pp_006",
+				TemplateID:   testTemplateID,
+				SessionToken: "sess_pp",
+				ExpiresAt:    expiresAt,
+			}, nil)
+
+		// SubmitGovernmentID renvoie une erreur — l'inquiry doit malgré tout être créée
+		mockPersonaClient.On("SubmitGovernmentID", mock.Anything,
+			"inq_pp_006", "passport",
+			"https://minio.local/bucket/pp-006.jpg", "").
+			Return(errors.New("persona 503"))
+
+		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.Anything).
+			Return(&domain.Review{
+				ReviewID:         "review-sub-pp-006",
+				PersonaInquiryID: "inq_pp_006",
+				Status:           "pending",
+				AttemptNumber:    1,
+				CreatedAt:        time.Now().UTC(),
+			}, nil)
+
+		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
+			UserID:       "user-sub-006",
+			DocumentID:   "doc-pp-006",
+			DocumentType: "Passport",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "review-sub-pp-006", result.ReviewID)
+		mockPersonaClient.AssertExpectations(t)
+		mockFileClient.AssertExpectations(t)
+	})
+
+	t.Run("submit - document véhicule (insurance) ne déclenche PAS SubmitGovernmentID", func(t *testing.T) {
+		mockFileClient, mockPersonaClient, svc := newTestService()
+		ctx := context.Background()
+
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-sub-007").
+			Return([]*domain.Review{}, nil)
+		mockFileClient.On("GetVehicleDocument", mock.Anything, "vdoc-ins-007").
+			Return(&domain.DocumentRef{
+				DocumentID:   "vdoc-ins-007",
+				DocumentType: "insurance",
+				OwnerID:      "vehicle-007",
+				DocumentURL:  "https://minio.local/bucket/insurance.jpg",
+			}, nil)
+
+		expiresAt := time.Now().Add(30 * time.Minute).UTC()
+		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-sub-007").
+			Return(&domain.PersonaInquiry{
+				InquiryID:    "inq_ins_007",
+				TemplateID:   testTemplateID,
+				SessionToken: "sess_ins",
+				ExpiresAt:    expiresAt,
+			}, nil)
+
+		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.Anything).
+			Return(&domain.Review{
+				ReviewID:          "review-sub-ins-007",
+				VehicleDocumentID: "vdoc-ins-007",
+				PersonaInquiryID:  "inq_ins_007",
+				Status:            "pending",
+				AttemptNumber:     1,
+				CreatedAt:         time.Now().UTC(),
+			}, nil)
+
+		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
+			UserID:       "user-sub-007",
+			DocumentID:   "vdoc-ins-007",
+			DocumentType: "insurance",
+			VehicleID:    "vehicle-007",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		// Vehicle docs ne vont pas à Persona via SubmitGovernmentID
+		mockPersonaClient.AssertNotCalled(t, "SubmitGovernmentID",
+			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		mockFileClient.AssertExpectations(t)
+	})
+
+	t.Run("submit - DocumentURL vide → SubmitGovernmentID PAS appelé", func(t *testing.T) {
+		mockFileClient, mockPersonaClient, svc := newTestService()
+		ctx := context.Background()
+
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-sub-008").
+			Return([]*domain.Review{}, nil)
+		// DocumentURL vide (cas legacy ou doc fraîchement créé sans URL générée)
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-pp-008").
+			Return(&domain.DocumentRef{
+				DocumentID:   "doc-pp-008",
+				DocumentType: "passport",
+				OwnerID:      "user-sub-008",
+				DocumentURL:  "",
+			}, nil)
+
+		expiresAt := time.Now().Add(30 * time.Minute).UTC()
+		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-sub-008").
+			Return(&domain.PersonaInquiry{
+				InquiryID:    "inq_pp_008",
+				TemplateID:   testTemplateID,
+				SessionToken: "sess_pp",
+				ExpiresAt:    expiresAt,
+			}, nil)
+
+		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.Anything).
+			Return(&domain.Review{
+				ReviewID:         "review-sub-pp-008",
+				PersonaInquiryID: "inq_pp_008",
+				Status:           "pending",
+				AttemptNumber:    1,
+				CreatedAt:        time.Now().UTC(),
+			}, nil)
+
+		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
+			UserID:       "user-sub-008",
+			DocumentID:   "doc-pp-008",
+			DocumentType: "Passport",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		// Pas d'URL → fallback SDK Android, SubmitGovernmentID non appelé
+		mockPersonaClient.AssertNotCalled(t, "SubmitGovernmentID",
+			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
 }
 
 // =============================================================================
