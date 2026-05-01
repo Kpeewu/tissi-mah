@@ -32,7 +32,7 @@ spec:
           imagePullPolicy: IfNotPresent
           # Appel Java direct — évite /bin/sh (dash dans l'image planetiler)
           # qui ne supporte pas `set -o pipefail`.
-          command: ["java", "-Xmx4g", "-jar", "/app/planetiler.jar"]
+          command: ["java", "-Xmx4g", "-jar", "/data/planetiler.jar"]
           args:
             - "--osm-path=/osm/west-africa.osm.pbf"
             - "--output=/tiles/west-africa.pmtiles"
