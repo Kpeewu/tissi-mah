@@ -1,10 +1,12 @@
-# Config TileServer GL : déclare le dataset west-africa pointant sur le .pmtiles.
-# Le serveur expose alors /data/west-africa/{z}/{x}/{y}.pbf en vector tiles
-# et /data/west-africa.json en TileJSON (utilisable par MapLibre GL).
+# Config TileServer GL : déclare le dataset west-africa pointant sur le .pmtiles
+# et expose les glyph PBFs des fontes pré-chargées par le Job tile-fonts.
+# Le serveur expose alors :
+#   /data/west-africa/{z}/{x}/{y}.pbf            — vector tiles (MVT)
+#   /data/west-africa.json                       — TileJSON metadata
+#   /fonts/{fontstack}/{range}.pbf               — glyphs SDF pour MapLibre
 #
-# On sert UNIQUEMENT des vector tiles ; le rendu (fonts, sprites, styles)
-# est fait côté client mobile MapLibre. On ne déclare donc pas les paths
-# fonts/sprites/styles que TileServer GL v5 exige d'exister sur disque.
+# Sprites et styles ne sont PAS servis : le client mobile bundle son propre
+# style.json et n'utilise pas d'icônes pour le rendu actuel.
 # allowedHosts ferme l'attaque par Host header poisoning (warning v5).
 apiVersion: v1
 kind: ConfigMap
@@ -20,6 +22,7 @@ data:
       "options": {
         "paths": {
           "root": "/data",
+          "fonts": "/data/fonts",
           "mbtiles": "/data"
         },
         "frontPage": false,
