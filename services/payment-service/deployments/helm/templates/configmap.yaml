@@ -21,6 +21,10 @@ data:
   NOSHOW_PASSENGER_DELAY_MINUTES: {{ .Values.config.noshowPassengerDelayMinutes | quote }}
   EXPIRATION_INTERVAL_SECONDS: {{ .Values.config.expirationIntervalSeconds | quote }}
   PAYMENT_TIMEOUT_MINUTES: {{ .Values.config.paymentTimeoutMinutes | quote }}
+  PAYMENT_WINDOW_ENABLED: {{ .Values.config.paymentWindowEnabled | quote }}
+  PAYMENT_WINDOW_TIMEZONE: {{ .Values.config.paymentWindowTimezone | quote }}
+  PAYMENT_WINDOW_START_HOUR: {{ .Values.config.paymentWindowStartHour | quote }}
+  PAYMENT_WINDOW_END_HOUR: {{ .Values.config.paymentWindowEndHour | quote }}
   {{- range $key, $value := .Values.config.extra }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}

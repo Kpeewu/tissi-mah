@@ -22,6 +22,7 @@ type Config struct {
 	RefundWorker      RefundWorkerConfig
 	Expiration        ExpirationConfig
 	Worker            WorkerConfig
+	PaymentWindow     PaymentWindowConfig
 	LogLevel          string
 }
 
@@ -90,6 +91,18 @@ type RefundConfig struct {
 	NoShowPassengerDelayMinutes    int
 }
 
+// PaymentWindowConfig contrôle la fenêtre horaire des batches automatiques
+// (PayoutWorker chauffeurs, RefundWorker passagers). Hors fenêtre, les
+// workers ticker mais ne déclenchent pas leur batch.
+// L'ExpirationWorker, les webhooks FedaPay et le RPC TriggerManualPayout
+// ne sont PAS impactés.
+type PaymentWindowConfig struct {
+	Enabled   bool
+	Timezone  string // ex: "Africa/Lome"
+	StartHour int    // 0-23
+	EndHour   int    // 1-24, exclusif
+}
+
 func Load() (*Config, error) {
 	values, err := sharedconfig.Load("")
 	if err != nil {
@@ -153,6 +166,12 @@ func Load() (*Config, error) {
 			PayoutMaxConcurrent:  getIntOrDefault(values, "PAYOUT_MAX_CONCURRENT", 5),
 			RefundMaxConcurrent:  getIntOrDefault(values, "REFUND_MAX_CONCURRENT", 5),
 		},
+		PaymentWindow: PaymentWindowConfig{
+			Enabled:   getBoolOrDefault(values, "PAYMENT_WINDOW_ENABLED", true),
+			Timezone:  sharedconfig.GetStringOrDefault(values, "PAYMENT_WINDOW_TIMEZONE", "Africa/Lome"),
+			StartHour: getIntOrDefault(values, "PAYMENT_WINDOW_START_HOUR", 0),
+			EndHour:   getIntOrDefault(values, "PAYMENT_WINDOW_END_HOUR", 3),
+		},
 		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
 	}
 
@@ -189,4 +208,11 @@ func getIntOrDefault(v *viper.Viper, key string, defaultVal int) int {
 		return defaultVal
 	}
 	return val
+}
+
+func getBoolOrDefault(v *viper.Viper, key string, defaultVal bool) bool {
+	if !v.IsSet(key) {
+		return defaultVal
+	}
+	return v.GetBool(key)
 }

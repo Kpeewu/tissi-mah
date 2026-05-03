@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/signal"
 	"syscall"
+	"time"
 
 	pkgDatabase "github.com/Kpeewu/tissi-mah/pkg/database"
 	pkgLogger "github.com/Kpeewu/tissi-mah/pkg/logger"
@@ -143,10 +144,24 @@ func run(bootstrapLogger *zap.Logger) error {
 	)
 
 	// --- Workers (background) ---
+	// La PaymentWindow encadre PayoutWorker (chauffeurs) et RefundWorker
+	// (passagers) sur une plage horaire quotidienne (par défaut 0h-3h
+	// Africa/Lome). ExpirationWorker reste 24/7 pour libérer les places
+	// retenues par des paiements pending non confirmés.
 	if impl := service.AsImpl(paymentService); impl != nil {
-		go service.StartPayoutWorker(ctx, impl, cfg.Payout.IntervalSeconds, logger)
+		loc, err := time.LoadLocation(cfg.PaymentWindow.Timezone)
+		if err != nil {
+			return fmt.Errorf("invalid PAYMENT_WINDOW_TIMEZONE %q: %w", cfg.PaymentWindow.Timezone, err)
+		}
+		paymentWindow := service.PaymentWindow{
+			Enabled:   cfg.PaymentWindow.Enabled,
+			Location:  loc,
+			StartHour: cfg.PaymentWindow.StartHour,
+			EndHour:   cfg.PaymentWindow.EndHour,
+		}
+		go service.StartPayoutWorker(ctx, impl, cfg.Payout.IntervalSeconds, paymentWindow, logger)
 		go service.StartExpirationWorker(ctx, impl, cfg.Expiration.IntervalSeconds, cfg.Expiration.PaymentTimeoutMinutes, logger)
-		go service.StartRefundWorker(ctx, impl, cfg.RefundWorker.IntervalSeconds, logger)
+		go service.StartRefundWorker(ctx, impl, cfg.RefundWorker.IntervalSeconds, paymentWindow, logger)
 	}
 
 	// --- gRPC server ---
