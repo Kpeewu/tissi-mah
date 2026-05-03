@@ -18,11 +18,25 @@ import (
 const maxPayoutRetries = 3
 
 // StartPayoutWorker lance le cron worker de payout en background.
-func StartPayoutWorker(ctx context.Context, impl *paymentServiceImpl, intervalSeconds int, logger *zap.Logger) {
+// La PaymentWindow restreint l'exécution des batches à une plage horaire
+// quotidienne (cf. payment_window.go). Hors fenêtre, le ticker continue
+// mais ProcessPayoutBatch n'est pas appelé. TriggerManualPayout (RPC admin)
+// reste actif 24/7 puisqu'il n'utilise pas ce worker.
+func StartPayoutWorker(ctx context.Context, impl *paymentServiceImpl, intervalSeconds int, window PaymentWindow, logger *zap.Logger) {
 	ticker := time.NewTicker(time.Duration(intervalSeconds) * time.Second)
 	defer ticker.Stop()
 
-	logger.Info("payout worker started", zap.Int("intervalSeconds", intervalSeconds))
+	tz := "n/a"
+	if window.Location != nil {
+		tz = window.Location.String()
+	}
+	logger.Info("payout worker started",
+		zap.Int("intervalSeconds", intervalSeconds),
+		zap.Bool("windowEnabled", window.Enabled),
+		zap.String("windowTz", tz),
+		zap.Int("windowStart", window.StartHour),
+		zap.Int("windowEnd", window.EndHour),
+	)
 
 	for {
 		select {
@@ -30,6 +44,10 @@ func StartPayoutWorker(ctx context.Context, impl *paymentServiceImpl, intervalSe
 			logger.Info("payout worker stopped")
 			return
 		case <-ticker.C:
+			if !window.IsOpen(time.Now()) {
+				logger.Debug("payout window closed, skipping tick")
+				continue
+			}
 			if err := impl.ProcessPayoutBatch(ctx); err != nil {
 				logger.Error("payout batch processing failed", zap.Error(err))
 			}

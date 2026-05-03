@@ -54,6 +54,13 @@ config:
   noshowPassengerDelayMinutes: "15"
   expirationIntervalSeconds: "60"
   paymentTimeoutMinutes: "5"
+  # Fenêtre horaire des batches automatiques (PayoutWorker, RefundWorker).
+  # ExpirationWorker, webhooks FedaPay et TriggerManualPayout (admin) restent
+  # 24/7 indépendamment.
+  paymentWindowEnabled: "true"
+  paymentWindowTimezone: "Africa/Lome"
+  paymentWindowStartHour: "0"
+  paymentWindowEndHour: "3"
   extra: {}
 
 # Secrets MUST be provided via AWS Secrets Manager or external secret management

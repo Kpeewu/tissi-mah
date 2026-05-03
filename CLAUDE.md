@@ -21,8 +21,8 @@ tissiMah/
 │   ├── api-gateway/        # API Gateway HTTP→gRPC (grpc-gateway, Firebase JWT, rate limiting, CORS)
 │   ├── auth-service/       # Service d'authentification (PostgreSQL)
 │   ├── user-service/       # Service utilisateur (MongoDB)
-│   └── rating-service/     # Service de notation (PostgreSQL)
-│       # payment-service → TODO
+│   ├── rating-service/     # Service de notation (PostgreSQL)
+│   └── payment-service/    # Service de paiement FedaPay (PostgreSQL + Redis)
 ├── infrastructure/
 │   └── terraform/          # IaC AWS (VPC, EKS, RDS, ElastiCache, DocumentDB)
 ├── scripts/                # DB, deployment, proto generation, utilities
@@ -293,7 +293,7 @@ Nominatim ont leurs propres PVC (cf. `infrastructure/manifests/{osrm,nominatim}/
 | `support-service` | Complet (phase 1 : auth + admin seed) |
 | `geolocation-service` | Complet (phase 1 : OSRM routing + Nominatim geocoding + cache Redis + manifests K8s + tile-prep planetiler) |
 | Tests unitaires + intégration | Structure créée, à compléter |
-| `payment-service` | TODO |
+| `payment-service` | Complet (FedaPay : payment + refund + payout chauffeurs + webhooks ; workers payout/refund fenêtrés 0h-3h Africa/Lome via `PAYMENT_WINDOW_*`) |
 
 ---
 
