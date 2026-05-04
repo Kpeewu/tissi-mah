@@ -186,7 +186,8 @@ func TestE2E_RequestRefund(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.NotEmpty(t, resp.RefundId)
-		assert.Equal(t, "completed", resp.Status)
+		// Le refund est créé en 'pending' : le refund_worker effectue le transfert FedaPay async.
+		assert.Equal(t, "pending", resp.Status)
 		assert.Equal(t, int32(5500), resp.RefundAmount) // 5000 + 500 (frais rembourses)
 	})
 
@@ -311,7 +312,8 @@ func TestE2E_FullPaymentLifecycle(t *testing.T) {
 		CancelledAt:       time.Now().UTC().Format(time.RFC3339),
 	})
 	require.NoError(t, err)
-	assert.Equal(t, "completed", refundResp.Status)
+	// Le refund est créé en 'pending' : le refund_worker effectue le transfert FedaPay async.
+	assert.Equal(t, "pending", refundResp.Status)
 	assert.Equal(t, int32(6600), refundResp.RefundAmount) // 6000 + 600
 
 	// 6. Verifier le statut du paiement → refunded
@@ -326,7 +328,8 @@ func TestE2E_FullPaymentLifecycle(t *testing.T) {
 		RefundId: refundResp.RefundId,
 	})
 	require.NoError(t, err)
-	assert.Equal(t, "completed", refundStatusResp.Status)
+	// Le worker FedaPay n'ayant pas tourné en E2E, le refund reste 'pending'.
+	assert.Equal(t, "pending", refundStatusResp.Status)
 	assert.Equal(t, int32(6600), refundStatusResp.AmountToPassenger)
 	assert.Equal(t, int32(0), refundStatusResp.AmountToDriver)
 }
