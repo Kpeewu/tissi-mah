@@ -95,9 +95,11 @@ spec:
               cpu: 2000m
               memory: 4Gi
           volumeMounts:
+            # Monter directement le data dir Postgres pour ne pas shadow
+            # /var/lib/postgresql/14/main créé par l'install dans l'image
+            # mediagis/nominatim (cf. doc upstream nominatim-docker).
             - name: nominatim-data
-              mountPath: /var/lib/postgresql
-              subPath: postgres
+              mountPath: /var/lib/postgresql/14/main
             - name: osm-data
               mountPath: /osm
               readOnly: true
