@@ -263,17 +263,24 @@ func InsertPayment(ctx context.Context, pool *pgxpool.Pool, p *domain.Payment) e
 // InsertRefund insere un Refund dans la base de donnees de test
 func InsertRefund(ctx context.Context, pool *pgxpool.Pool, r *domain.Refund) error {
 	query := `INSERT INTO refunds (
-		refund_id, refund_reference, payment_id, booking_id, refund_reason,
-		refund_rule_applied, original_amount, refund_percentage, refund_amount,
-		service_fee_refunded, amount_to_passenger, amount_to_driver, amount_to_platform,
-		status, refund_method, processed_at
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`
+		refund_id, refund_reference, payment_id, booking_id,
+		refund_reason, refund_rule_applied, original_amount, refund_percentage,
+		refund_amount, service_fee_refunded, amount_to_passenger, amount_to_driver,
+		amount_to_platform, status, refund_method, processed_at, completed_at, notes,
+		payout_destination, payment_provider, payment_provider_reference
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`
+
+	provider := r.PaymentProvider
+	if provider == "" {
+		provider = "fedapay"
+	}
 
 	_, err := pool.Exec(ctx, query,
-		r.RefundID, r.RefundReference, r.PaymentID, r.BookingID, r.RefundReason,
-		r.RefundRuleApplied, r.OriginalAmount, r.RefundPercentage, r.RefundAmount,
-		r.ServiceFeeRefunded, r.AmountToPassenger, r.AmountToDriver, r.AmountToPlatform,
-		r.Status, r.RefundMethod, r.ProcessedAt,
+		r.RefundID, r.RefundReference, r.PaymentID, r.BookingID,
+		r.RefundReason, r.RefundRuleApplied, r.OriginalAmount, r.RefundPercentage,
+		r.RefundAmount, r.ServiceFeeRefunded, r.AmountToPassenger, r.AmountToDriver,
+		r.AmountToPlatform, r.Status, r.RefundMethod, r.ProcessedAt, r.CompletedAt, r.Notes,
+		r.PayoutDestination, provider, r.PaymentProviderReference,
 	)
 	return err
 }
