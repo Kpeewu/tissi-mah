@@ -46,7 +46,7 @@ type UpdateProfileRequest struct {
 
 type UserService interface {
 	// Inter-service (appelés par auth-service / trips-service)
-	CreateUser(ctx context.Context, authID string, firebaseID string, name string, firstName string, profilePhotoURL string) (*domain.User, error)
+	CreateUser(ctx context.Context, authID string, firebaseID string, name string, firstName string, profilePhotoURL string, birthDate string) (*domain.User, error)
 	GetUserByAuthID(ctx context.Context, authID string) (*domain.User, error)
 	GetUserByFirebaseID(ctx context.Context, firebaseID string) (*domain.User, error)
 	GetUserByUserID(ctx context.Context, userID string) (*domain.User, error)

@@ -35,6 +35,7 @@ type CreateUserRequest struct {
 	FirstName       string                 `protobuf:"bytes,3,opt,name=FirstName,proto3" json:"FirstName,omitempty"`
 	ProfilePhotoURL string                 `protobuf:"bytes,4,opt,name=ProfilePhotoURL,proto3" json:"ProfilePhotoURL,omitempty"` // optionnel
 	FirebaseID      string                 `protobuf:"bytes,5,opt,name=FirebaseID,proto3" json:"FirebaseID,omitempty"`
+	BirthDate       string                 `protobuf:"bytes,6,opt,name=BirthDate,proto3" json:"BirthDate,omitempty"` // optionnel
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -100,6 +101,13 @@ func (x *CreateUserRequest) GetProfilePhotoURL() string {
 func (x *CreateUserRequest) GetFirebaseID() string {
 	if x != nil {
 		return x.FirebaseID
+	}
+	return ""
+}
+
+func (x *CreateUserRequest) GetBirthDate() string {
+	if x != nil {
+		return x.BirthDate
 	}
 	return ""
 }
@@ -1405,7 +1413,7 @@ var File_user_proto protoreflect.FileDescriptor
 const file_user_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"user.proto\x12\x04user\x1a\x1cgoogle/api/annotations.proto\"\xa7\x01\n" +
+	"user.proto\x12\x04user\x1a\x1cgoogle/api/annotations.proto\"\xc5\x01\n" +
 	"\x11CreateUserRequest\x12\x16\n" +
 	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\x12\x12\n" +
 	"\x04Name\x18\x02 \x01(\tR\x04Name\x12\x1c\n" +
@@ -1413,7 +1421,8 @@ const file_user_proto_rawDesc = "" +
 	"\x0fProfilePhotoURL\x18\x04 \x01(\tR\x0fProfilePhotoURL\x12\x1e\n" +
 	"\n" +
 	"FirebaseID\x18\x05 \x01(\tR\n" +
-	"FirebaseID\"0\n" +
+	"FirebaseID\x12\x1c\n" +
+	"\tBirthDate\x18\x06 \x01(\tR\tBirthDate\"0\n" +
 	"\x16GetUserByAuthIDRequest\x12\x16\n" +
 	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\"<\n" +
 	"\x1aGetUserByFirebaseIDRequest\x12\x1e\n" +

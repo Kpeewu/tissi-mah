@@ -38,7 +38,7 @@ func NewUserHandler(service serviceInterfaces.UserService, logger *zap.Logger) *
 func (h *UserHandler) CreateUser(ctx context.Context, req *userpb.CreateUserRequest) (*userpb.UserProfileResponse, error) {
 	h.logger.Debug("CreateUser appelé", zap.String("auth_id", req.AuthID), zap.String("firebase_id", req.FirebaseID))
 
-	user, err := h.service.CreateUser(ctx, req.AuthID, req.FirebaseID, req.Name, req.FirstName, req.ProfilePhotoURL)
+	user, err := h.service.CreateUser(ctx, req.AuthID, req.FirebaseID, req.Name, req.FirstName, req.ProfilePhotoURL, req.BirthDate)
 	if err != nil {
 		h.logger.Error("CreateUser échoué", zap.Error(err), zap.String("auth_id", req.AuthID))
 		return nil, toGRPCError(err)

@@ -33,6 +33,7 @@ message CreateUserRequest {
   string FirstName       = 3;
   string ProfilePhotoURL = 4; // optionnel
   string FirebaseID      = 5;
+  string BirthDate       = 6; // optionnel
 }
 
 message GetUserByAuthIDRequest {

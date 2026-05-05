@@ -118,10 +118,10 @@ func TestRegisterUser(t *testing.T) {
 			FirstName:       "John",
 			ProfilePhotoURL: &photoURL,
 		}
-		mockUserClient.On("CreateUser", mock.Anything, "generated-auth-id", "firebase-register-ok", "Doe", "John", photoURL).
+		mockUserClient.On("CreateUser", mock.Anything, "generated-auth-id", "firebase-register-ok", "Doe", "John", photoURL, "").
 			Return(userPreview, nil)
 
-		result, err := svc.RegisterUser(ctx, "Doe", "John", email, phone, photoURL)
+		result, err := svc.RegisterUser(ctx, "Doe", "John", email, phone, photoURL, "")
 
 		require.NoError(t, err)
 		require.NotNil(t, result)
@@ -156,10 +156,10 @@ func TestRegisterUser(t *testing.T) {
 			Name:      "Koffi",
 			FirstName: "Ama",
 		}
-		mockUserClient.On("CreateUser", mock.Anything, "auth-no-contact", "firebase-no-contact", "Koffi", "Ama", "").
+		mockUserClient.On("CreateUser", mock.Anything, "auth-no-contact", "firebase-no-contact", "Koffi", "Ama", "", "").
 			Return(userPreview, nil)
 
-		result, err := svc.RegisterUser(ctx, "Koffi", "Ama", "", "", "")
+		result, err := svc.RegisterUser(ctx, "Koffi", "Ama", "", "", "", "")
 
 		require.NoError(t, err)
 		require.NotNil(t, result)
@@ -174,7 +174,7 @@ func TestRegisterUser(t *testing.T) {
 		// Contexte sans FirebaseIDKey
 		ctx := context.Background()
 
-		result, err := svc.RegisterUser(ctx, "Doe", "John", "a@b.com", "+22800000000", "")
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "a@b.com", "+22800000000", "", "")
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, authErrors.ErrorInternalServer)
@@ -184,7 +184,7 @@ func TestRegisterUser(t *testing.T) {
 		_, _, _, svc := newTestService()
 		ctx := ctxWithFirebaseID("")
 
-		result, err := svc.RegisterUser(ctx, "Doe", "John", "a@b.com", "+22800000000", "")
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "a@b.com", "+22800000000", "", "")
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, authErrors.ErrorInternalServer)
@@ -197,7 +197,7 @@ func TestRegisterUser(t *testing.T) {
 		mockReadRepo.On("EmailExists", mock.Anything, "taken@example.com").
 			Return(true, authErrors.ErrorEmailNotAvailable)
 
-		result, err := svc.RegisterUser(ctx, "Doe", "John", "taken@example.com", "+22890000001", "")
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "taken@example.com", "+22890000001", "", "")
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, authErrors.ErrorEmailNotAvailable)
@@ -215,7 +215,7 @@ func TestRegisterUser(t *testing.T) {
 		mockReadRepo.On("PhoneNumberExists", mock.Anything, "+22811111111").
 			Return(true, authErrors.ErrorPhoneNumberNotAvailable)
 
-		result, err := svc.RegisterUser(ctx, "Doe", "John", "ok@example.com", "+22811111111", "")
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "ok@example.com", "+22811111111", "", "")
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, authErrors.ErrorPhoneNumberNotAvailable)
@@ -234,7 +234,7 @@ func TestRegisterUser(t *testing.T) {
 		mockWriteRepo.On("Create", mock.Anything, mock.Anything).
 			Return("", createErr)
 
-		result, err := svc.RegisterUser(ctx, "Doe", "John", "e@f.com", "+22822222222", "")
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "e@f.com", "+22822222222", "", "")
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, createErr)
@@ -251,14 +251,14 @@ func TestRegisterUser(t *testing.T) {
 			Return(false, nil)
 		mockWriteRepo.On("Create", mock.Anything, mock.Anything).
 			Return("auth-for-fail", nil)
-		mockUserClient.On("CreateUser", mock.Anything, "auth-for-fail", "firebase-user-client-fail", "Doe", "John", "").
+		mockUserClient.On("CreateUser", mock.Anything, "auth-for-fail", "firebase-user-client-fail", "Doe", "John", "", "").
 			Return(nil, errors.New("user-service unavailable"))
 		// Compensation : writeRepo.Delete doit être appelé pour rollback
 		mockWriteRepo.On("Delete", mock.Anything, mock.MatchedBy(func(a *domain.Auth) bool {
 			return a.FirebaseID == "firebase-user-client-fail"
 		})).Return(nil)
 
-		result, err := svc.RegisterUser(ctx, "Doe", "John", "g@h.com", "+22833333333", "")
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "g@h.com", "+22833333333", "", "")
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, authErrors.ErrorInternalServer)
@@ -276,13 +276,13 @@ func TestRegisterUser(t *testing.T) {
 			Return(false, nil)
 		mockWriteRepo.On("Create", mock.Anything, mock.Anything).
 			Return("auth-double-fail", nil)
-		mockUserClient.On("CreateUser", mock.Anything, "auth-double-fail", "firebase-double-fail", "Doe", "John", "").
+		mockUserClient.On("CreateUser", mock.Anything, "auth-double-fail", "firebase-double-fail", "Doe", "John", "", "").
 			Return(nil, errors.New("user-service unavailable"))
 		// Compensation échoue aussi
 		mockWriteRepo.On("Delete", mock.Anything, mock.Anything).
 			Return(errors.New("delete also failed"))
 
-		result, err := svc.RegisterUser(ctx, "Doe", "John", "x@y.com", "+22844444444", "")
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "x@y.com", "+22844444444", "", "")
 
 		// L'erreur retournée reste ErrorInternalServer même si le rollback échoue
 		assert.Nil(t, result)
@@ -294,7 +294,7 @@ func TestRegisterUser(t *testing.T) {
 		_, _, _, svc := newTestService()
 		ctx := ctxWithFirebaseID("firebase-bad-email")
 
-		result, err := svc.RegisterUser(ctx, "Doe", "John", "not-an-email", "+22890000000", "")
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "not-an-email", "+22890000000", "", "")
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, domain.ErrEmailInvalidFormat)
@@ -304,7 +304,7 @@ func TestRegisterUser(t *testing.T) {
 		_, _, _, svc := newTestService()
 		ctx := ctxWithFirebaseID("firebase-bad-phone")
 
-		result, err := svc.RegisterUser(ctx, "Doe", "John", "ok@example.com", "12345", "")
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "ok@example.com", "12345", "", "")
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, domain.ErrPhoneInvalidFormat)
@@ -325,10 +325,10 @@ func TestRegisterUser(t *testing.T) {
 			AuthID: "auth-normalize", UserID: "user-norm",
 			Name: "Doe", FirstName: "John",
 		}
-		mockUserClient.On("CreateUser", mock.Anything, "auth-normalize", "firebase-normalize", "Doe", "John", "").
+		mockUserClient.On("CreateUser", mock.Anything, "auth-normalize", "firebase-normalize", "Doe", "John", "", "").
 			Return(userPreview, nil)
 
-		result, err := svc.RegisterUser(ctx, "Doe", "John", "UPPER@Example.COM", "", "")
+		result, err := svc.RegisterUser(ctx, "Doe", "John", "UPPER@Example.COM", "", "", "")
 
 		require.NoError(t, err)
 		require.NotNil(t, result)

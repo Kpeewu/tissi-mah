@@ -47,7 +47,7 @@ func (h *AuthHandler) CreateAccount(ctx context.Context, req *authpb.CreateAccou
 		zap.String("email", req.Email),
 		zap.String("phone", req.PhoneNumber),
 	)
-	user, err := h.service.RegisterUser(ctx, req.Name, req.FirstName, req.Email, req.PhoneNumber, req.ProfileImageURL)
+	user, err := h.service.RegisterUser(ctx, req.Name, req.FirstName, req.Email, req.PhoneNumber, req.ProfileImageURL, req.BirthDate)
 	if err != nil {
 		h.logger.Error("handler: CreateAccount failed", zap.Error(err))
 		return nil, toGRPCError(err)

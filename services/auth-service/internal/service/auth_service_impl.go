@@ -54,7 +54,7 @@ func (s *authServiceImpl) GetUserByFirebaseID(ctx context.Context, firebaseID st
 }
 
 // RegisterUser crée un nouveau compte auth et un profil utilisateur dans le user-service
-func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstName string, email string, phoneNumber string, profilePhotoURL string) (*domain.UserPreview, error) {
+func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstName string, email string, phoneNumber string, profilePhotoURL string, birthDate string) (*domain.UserPreview, error) {
 	firebaseID, ok := ctx.Value(middleware.FirebaseIDKey).(string)
 	if !ok || firebaseID == "" {
 		s.logger.Error("firebase ID missing from context")
@@ -133,7 +133,7 @@ func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstNa
 
 	// Création du profil utilisateur dans le user-service
 	// Email et PhoneNumber sont stockés dans auth-service, pas dans user-service
-	userPreview, err := s.userClient.CreateUser(ctx, authID, firebaseID, name, firstName, profilePhotoURL)
+	userPreview, err := s.userClient.CreateUser(ctx, authID, firebaseID, name, firstName, profilePhotoURL, birthDate)
 	if err != nil {
 		s.logger.Error("user-service CreateUser failed, rolling back auth record",
 			zap.Error(err), zap.String("authID", authID))
