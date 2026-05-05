@@ -41,6 +41,7 @@ type UpdateProfileRequest struct {
 	Email             *string
 	PhoneNumber       *string
 	WithdrawNumber    *string
+	Bio               *string
 }
 
 type UserService interface {

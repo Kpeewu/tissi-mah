@@ -139,6 +139,7 @@ message UpdateProfileRequest {
   reserved 7;
   reserved "ProfilePictureURL";
   optional string WithdrawNumber  = 8;
+  optional string Bio             = 9;
 }
 
 message HealthRequest {

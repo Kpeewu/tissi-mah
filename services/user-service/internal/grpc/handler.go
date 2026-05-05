@@ -194,6 +194,10 @@ func (h *UserHandler) UpdateProfile(ctx context.Context, req *userpb.UpdateProfi
 		v := *req.WithdrawNumber
 		updateReq.WithdrawNumber = &v
 	}
+	if req.Bio != nil {
+		v := *req.Bio
+		updateReq.Bio = &v
+	}
 	profile, err := h.service.UpdateProfile(ctx, updateReq)
 	if err != nil {
 		h.logger.Error("UpdateProfile échoué", zap.Error(err), zap.String("profile_id", req.UserID))

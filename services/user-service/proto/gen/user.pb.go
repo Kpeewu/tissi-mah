@@ -429,6 +429,7 @@ type UpdateProfileRequest struct {
 	Email          *string                `protobuf:"bytes,5,opt,name=Email,proto3,oneof" json:"Email,omitempty"`
 	PhoneNumber    *string                `protobuf:"bytes,6,opt,name=PhoneNumber,proto3,oneof" json:"PhoneNumber,omitempty"`
 	WithdrawNumber *string                `protobuf:"bytes,8,opt,name=WithdrawNumber,proto3,oneof" json:"WithdrawNumber,omitempty"`
+	Bio            *string                `protobuf:"bytes,9,opt,name=Bio,proto3,oneof" json:"Bio,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -508,6 +509,13 @@ func (x *UpdateProfileRequest) GetPhoneNumber() string {
 func (x *UpdateProfileRequest) GetWithdrawNumber() string {
 	if x != nil && x.WithdrawNumber != nil {
 		return *x.WithdrawNumber
+	}
+	return ""
+}
+
+func (x *UpdateProfileRequest) GetBio() string {
+	if x != nil && x.Bio != nil {
+		return *x.Bio
 	}
 	return ""
 }
@@ -1422,7 +1430,7 @@ const file_user_proto_rawDesc = "" +
 	"\x13CreateDriverAccount\x18\x02 \x01(\bR\x13CreateDriverAccount\"k\n" +
 	"\x19AddTripPreferencesRequest\x12\x16\n" +
 	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x126\n" +
-	"\vPreferences\x18\x02 \x03(\v2\x14.user.TripPreferenceR\vPreferences\"\xf3\x02\n" +
+	"\vPreferences\x18\x02 \x03(\v2\x14.user.TripPreferenceR\vPreferences\"\x92\x03\n" +
 	"\x14UpdateProfileRequest\x12\x16\n" +
 	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12!\n" +
 	"\tFirstName\x18\x02 \x01(\tH\x00R\tFirstName\x88\x01\x01\x12\x1f\n" +
@@ -1430,7 +1438,8 @@ const file_user_proto_rawDesc = "" +
 	"\tBirthDate\x18\x04 \x01(\tH\x02R\tBirthDate\x88\x01\x01\x12\x19\n" +
 	"\x05Email\x18\x05 \x01(\tH\x03R\x05Email\x88\x01\x01\x12%\n" +
 	"\vPhoneNumber\x18\x06 \x01(\tH\x04R\vPhoneNumber\x88\x01\x01\x12+\n" +
-	"\x0eWithdrawNumber\x18\b \x01(\tH\x05R\x0eWithdrawNumber\x88\x01\x01B\f\n" +
+	"\x0eWithdrawNumber\x18\b \x01(\tH\x05R\x0eWithdrawNumber\x88\x01\x01\x12\x15\n" +
+	"\x03Bio\x18\t \x01(\tH\x06R\x03Bio\x88\x01\x01B\f\n" +
 	"\n" +
 	"_FirstNameB\v\n" +
 	"\t_LastNameB\f\n" +
@@ -1438,7 +1447,8 @@ const file_user_proto_rawDesc = "" +
 	"_BirthDateB\b\n" +
 	"\x06_EmailB\x0e\n" +
 	"\f_PhoneNumberB\x11\n" +
-	"\x0f_WithdrawNumberJ\x04\b\a\x10\bR\x11ProfilePictureURL\"\x0f\n" +
+	"\x0f_WithdrawNumberB\x06\n" +
+	"\x04_BioJ\x04\b\a\x10\bR\x11ProfilePictureURL\"\x0f\n" +
 	"\rHealthRequest\"N\n" +
 	"\x0eTripPreference\x12\x1e\n" +
 	"\n" +
