@@ -39,7 +39,7 @@ func NewUserService(
 }
 
 // CreateUser crée un nouveau profil utilisateur (appelé par auth-service)
-func (s *userServiceImpl) CreateUser(ctx context.Context, authID string, firebaseID string, name string, firstName string, profilePhotoURL string) (*domain.User, error) {
+func (s *userServiceImpl) CreateUser(ctx context.Context, authID string, firebaseID string, name string, firstName string, profilePhotoURL string, birthDate string) (*domain.User, error) {
 	s.logger.Debug("création profil utilisateur",
 		zap.String("auth_id", authID),
 		zap.String("firebase_id", firebaseID),
@@ -55,6 +55,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, authID string, firebas
 		FirstName:       firstName,
 		ProfileImageURL: profilePhotoURL,
 		HasProfileImage: profilePhotoURL != "",
+		DateOfBirth:     birthDate,
 		IsPassenger:     true,
 		CreatedAt:       now,
 		UpdatedAt:       now,

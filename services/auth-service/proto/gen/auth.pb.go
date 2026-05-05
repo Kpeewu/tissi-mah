@@ -35,6 +35,7 @@ type CreateAccountRequest struct {
 	Email           string                 `protobuf:"bytes,3,opt,name=Email,proto3" json:"Email,omitempty"`                     // Optionnel
 	PhoneNumber     string                 `protobuf:"bytes,4,opt,name=PhoneNumber,proto3" json:"PhoneNumber,omitempty"`         // Optionnel
 	ProfileImageURL string                 `protobuf:"bytes,5,opt,name=ProfileImageURL,proto3" json:"ProfileImageURL,omitempty"` // Optionnel
+	BirthDate       string                 `protobuf:"bytes,6,opt,name=BirthDate,proto3" json:"BirthDate,omitempty"`             // Optionnel
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -100,6 +101,13 @@ func (x *CreateAccountRequest) GetPhoneNumber() string {
 func (x *CreateAccountRequest) GetProfileImageURL() string {
 	if x != nil {
 		return x.ProfileImageURL
+	}
+	return ""
+}
+
+func (x *CreateAccountRequest) GetBirthDate() string {
+	if x != nil {
+		return x.BirthDate
 	}
 	return ""
 }
@@ -705,13 +713,14 @@ var File_auth_proto protoreflect.FileDescriptor
 const file_auth_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"auth.proto\x12\x04auth\x1a\x1cgoogle/api/annotations.proto\"\xaa\x01\n" +
+	"auth.proto\x12\x04auth\x1a\x1cgoogle/api/annotations.proto\"\xc8\x01\n" +
 	"\x14CreateAccountRequest\x12\x12\n" +
 	"\x04Name\x18\x01 \x01(\tR\x04Name\x12\x1c\n" +
 	"\tFirstName\x18\x02 \x01(\tR\tFirstName\x12\x14\n" +
 	"\x05Email\x18\x03 \x01(\tR\x05Email\x12 \n" +
 	"\vPhoneNumber\x18\x04 \x01(\tR\vPhoneNumber\x12(\n" +
-	"\x0fProfileImageURL\x18\x05 \x01(\tR\x0fProfileImageURL\";\n" +
+	"\x0fProfileImageURL\x18\x05 \x01(\tR\x0fProfileImageURL\x12\x1c\n" +
+	"\tBirthDate\x18\x06 \x01(\tR\tBirthDate\";\n" +
 	"\x17CheckPhoneNumberRequest\x12 \n" +
 	"\vPhoneNumber\x18\x01 \x01(\tR\vPhoneNumber\")\n" +
 	"\x11CheckEmailRequest\x12\x14\n" +

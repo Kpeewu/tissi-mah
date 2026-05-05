@@ -65,6 +65,7 @@ message CreateAccountRequest {
   string Email = 3; // Optionnel
   string PhoneNumber = 4; // Optionnel
   string ProfileImageURL = 5; // Optionnel
+  string BirthDate = 6; // Optionnel
 }
 
 message CheckPhoneNumberRequest {

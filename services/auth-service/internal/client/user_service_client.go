@@ -42,7 +42,7 @@ func (c *UserServiceClient) Close() error {
 
 // CreateUser crée un profil utilisateur dans user-service après la création du compte auth.
 // Retourne un UserPreview partiel (sans email/phone — ceux-ci appartiennent à auth-service).
-func (c *UserServiceClient) CreateUser(ctx context.Context, authID string, firebaseID string, name string, firstName string, profilePhotoURL string) (*domain.UserPreview, error) {
+func (c *UserServiceClient) CreateUser(ctx context.Context, authID string, firebaseID string, name string, firstName string, profilePhotoURL string, birthDate string) (*domain.UserPreview, error) {
 	c.logger.Debug("client: CreateUser called",
 		zap.String("authID", authID),
 		zap.String("firebaseID", firebaseID),
@@ -54,6 +54,7 @@ func (c *UserServiceClient) CreateUser(ctx context.Context, authID string, fireb
 		FirstName:       firstName,
 		ProfilePhotoURL: profilePhotoURL,
 		FirebaseID:      firebaseID,
+		BirthDate:       birthDate,
 	})
 	if err != nil {
 		c.logger.Error("client: CreateUser failed", zap.Error(err), zap.String("authID", authID))

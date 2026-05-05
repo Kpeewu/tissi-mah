@@ -19,8 +19,8 @@ func (m *MockAuthService) GetUserByFirebaseID(ctx context.Context, firebaseID st
 	return args.Get(0).(*domain.Auth), args.Error(1)
 }
 
-func (m *MockAuthService) RegisterUser(ctx context.Context, name string, firstName string, email string, phoneNumber string, profilePhotoURL string) (*domain.UserPreview, error) {
-	args := m.Called(ctx, name, firstName, email, phoneNumber, profilePhotoURL)
+func (m *MockAuthService) RegisterUser(ctx context.Context, name string, firstName string, email string, phoneNumber string, profilePhotoURL string, birthDate string) (*domain.UserPreview, error) {
+	args := m.Called(ctx, name, firstName, email, phoneNumber, profilePhotoURL, birthDate)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

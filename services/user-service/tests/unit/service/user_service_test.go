@@ -65,7 +65,7 @@ func TestCreateUser(t *testing.T) {
 		mockWriteRepo.On("Create", mock.Anything, mock.AnythingOfType("*domain.User")).
 			Return("inserted-id", nil)
 
-		user, err := svc.CreateUser(context.Background(), "auth-123", "firebase-123", "Doe", "John", "https://img.example.com/photo.jpg")
+		user, err := svc.CreateUser(context.Background(), "auth-123", "firebase-123", "Doe", "John", "https://img.example.com/photo.jpg", "")
 
 		require.NoError(t, err)
 		require.NotNil(t, user)
@@ -93,7 +93,7 @@ func TestCreateUser(t *testing.T) {
 		mockWriteRepo.On("Create", mock.Anything, mock.AnythingOfType("*domain.User")).
 			Return("inserted-id", nil)
 
-		user, err := svc.CreateUser(context.Background(), "auth-456", "firebase-456", "Diop", "Fatou", "")
+		user, err := svc.CreateUser(context.Background(), "auth-456", "firebase-456", "Diop", "Fatou", "", "")
 
 		require.NoError(t, err)
 		require.NotNil(t, user)
@@ -112,7 +112,7 @@ func TestCreateUser(t *testing.T) {
 		mockWriteRepo.On("Create", mock.Anything, mock.AnythingOfType("*domain.User")).
 			Return("", repoErr)
 
-		user, err := svc.CreateUser(context.Background(), "auth-789", "firebase-789", "Ndiaye", "Ousmane", "")
+		user, err := svc.CreateUser(context.Background(), "auth-789", "firebase-789", "Ndiaye", "Ousmane", "", "")
 
 		require.Error(t, err)
 		assert.Nil(t, user)

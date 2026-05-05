@@ -12,8 +12,8 @@ type MockUserService struct {
 	mock.Mock
 }
 
-func (m *MockUserService) CreateUser(ctx context.Context, authID string, firebaseID string, name string, firstName string, profilePhotoURL string) (*domain.User, error) {
-	args := m.Called(ctx, authID, firebaseID, name, firstName, profilePhotoURL)
+func (m *MockUserService) CreateUser(ctx context.Context, authID string, firebaseID string, name string, firstName string, profilePhotoURL string, birthDate string) (*domain.User, error) {
+	args := m.Called(ctx, authID, firebaseID, name, firstName, profilePhotoURL, birthDate)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

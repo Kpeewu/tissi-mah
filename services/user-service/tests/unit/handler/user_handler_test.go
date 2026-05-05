@@ -109,7 +109,7 @@ func TestCreateUser_Success(t *testing.T) {
 	ctx := context.Background()
 	user := newDomainUser()
 
-	mockService.On("CreateUser", ctx, "auth-123", "firebase-456", "Doe", "John", "https://example.com/photo.jpg").
+	mockService.On("CreateUser", ctx, "auth-123", "firebase-456", "Doe", "John", "https://example.com/photo.jpg", "").
 		Return(user, nil)
 
 	req := &userpb.CreateUserRequest{
@@ -150,7 +150,7 @@ func TestCreateUser_ProfileAlreadyExists(t *testing.T) {
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
-	mockService.On("CreateUser", ctx, "auth-123", "firebase-456", "Doe", "John", "").
+	mockService.On("CreateUser", ctx, "auth-123", "firebase-456", "Doe", "John", "", "").
 		Return(nil, userErrors.ErrorProfileAlreadyExists)
 
 	req := &userpb.CreateUserRequest{
@@ -172,7 +172,7 @@ func TestCreateUser_InternalError(t *testing.T) {
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
-	mockService.On("CreateUser", ctx, "auth-123", "firebase-456", "Doe", "John", "").
+	mockService.On("CreateUser", ctx, "auth-123", "firebase-456", "Doe", "John", "", "").
 		Return(nil, userErrors.ErrorInternalServer)
 
 	req := &userpb.CreateUserRequest{
@@ -775,7 +775,7 @@ func TestToGRPCError_ErrorProfileAlreadyExists(t *testing.T) {
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
-	mockService.On("CreateUser", ctx, "a", "f", "n", "fn", "").
+	mockService.On("CreateUser", ctx, "a", "f", "n", "fn", "", "").
 		Return(nil, userErrors.ErrorProfileAlreadyExists)
 
 	_, err := handler.CreateUser(ctx, &userpb.CreateUserRequest{

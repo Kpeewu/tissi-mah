@@ -71,7 +71,7 @@ func TestCreateAccount_Success(t *testing.T) {
 		ProfilePhotoURL: &photo,
 	}
 
-	mockService.On("RegisterUser", mock.Anything, "Toure", "Moussa", email, phone, photo).
+	mockService.On("RegisterUser", mock.Anything, "Toure", "Moussa", email, phone, photo, "").
 		Return(preview, nil)
 
 	// Act
@@ -103,7 +103,7 @@ func TestCreateAccount_EmailNotAvailable(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("RegisterUser", mock.Anything, "Toure", "Moussa", "taken@example.com", "+221780000000", "").
+	mockService.On("RegisterUser", mock.Anything, "Toure", "Moussa", "taken@example.com", "+221780000000", "", "").
 		Return(nil, authErrors.ErrorEmailNotAvailable)
 
 	// Act
@@ -126,7 +126,7 @@ func TestCreateAccount_PhoneNotAvailable(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("RegisterUser", mock.Anything, "Diop", "Awa", "awa@example.com", "+221770000001", "").
+	mockService.On("RegisterUser", mock.Anything, "Diop", "Awa", "awa@example.com", "+221770000001", "", "").
 		Return(nil, authErrors.ErrorPhoneNumberNotAvailable)
 
 	// Act
@@ -149,7 +149,7 @@ func TestCreateAccount_InternalError(t *testing.T) {
 	handler, mockService := newHandler()
 	ctx := context.Background()
 
-	mockService.On("RegisterUser", mock.Anything, "X", "Y", "x@y.com", "+000", "").
+	mockService.On("RegisterUser", mock.Anything, "X", "Y", "x@y.com", "+000", "", "").
 		Return(nil, authErrors.ErrorInternalServer)
 
 	// Act
