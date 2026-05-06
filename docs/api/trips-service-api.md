@@ -1078,7 +1078,7 @@ Searches scheduled trips matching a passenger's origin/destination, time window,
 #### Request
 
 ```http
-GET /trip/passenger/getScheduledTripsPreviews?departure_location_name=Dakar&arrival_location_name=Saint-Louis&trip_start_date=2026-04-15&trip_start_hour=07:00&trip_arrival_hour=14:00&index=0 HTTP/1.1
+GET /trip/passenger/getScheduledTripsPreviews?DepartureLocationName=Dakar&ArrivalLocationName=Saint-Louis&TripStartDate=2026-04-15&TripStartHour=07:00&TripArrivalHour=14:00&Index=0 HTTP/1.1
 Host: api.tissi-mah.com
 ```
 
@@ -1086,15 +1086,15 @@ Host: api.tissi-mah.com
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `departure_location_name` | string | Yes | Fuzzy-matched departure city/area |
-| `arrival_location_name` | string | Yes | Fuzzy-matched arrival city/area |
-| `trip_start_date` | string | Yes | `YYYY-MM-DD` (UTC) |
-| `trip_start_hour` | string | Yes | `HH:MM` (UTC) — lower bound of the departure window |
-| `trip_arrival_hour` | string | Yes | `HH:MM` (UTC) — upper bound of the arrival window |
-| `index` | integer | Yes | Page index (0-based) |
-| `passenger_position_lng` | float | No | Passenger longitude (`0` = not provided) |
-| `passenger_position_lat` | float | No | Passenger latitude (`0` = not provided) |
-| `distance_range` | integer | No | Radius in km around passenger position (default 5 if 0) |
+| `DepartureLocationName` | string | Yes | Fuzzy-matched departure city/area |
+| `ArrivalLocationName` | string | Yes | Fuzzy-matched arrival city/area |
+| `TripStartDate` | string | Yes | `YYYY-MM-DD` (UTC) |
+| `TripStartHour` | string | Yes | `HH:MM` (UTC) — lower bound of the departure window |
+| `TripArrivalHour` | string | Yes | `HH:MM` (UTC) — upper bound of the arrival window |
+| `Index` | integer | Yes | Page index (0-based) |
+| `PassengerPositionLng` | float | No | Passenger longitude (`0` = not provided) |
+| `PassengerPositionLat` | float | No | Passenger latitude (`0` = not provided) |
+| `DistanceRange` | integer | No | Radius in km around passenger position (default 5 if 0) |
 
 #### Response (Success)
 
@@ -1103,7 +1103,7 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-    "trips_previews": [
+    "TripsPreviews": [
         {
             "TripId": "t-550e8400-e29b-41d4-a716-446655440000",
             "DriverId": "550e8400-e29b-41d4-a716-446655440001",
@@ -1125,9 +1125,9 @@ Content-Type: application/json
             "DriverRatingAverage": 4.7
         }
     ],
-    "error_message": "",
-    "next_index": 1,
-    "total_count": 12
+    "ErrorMessage": "",
+    "NextIndex": 1,
+    "TotalCount": 12
 }
 ```
 
@@ -1135,10 +1135,10 @@ Content-Type: application/json
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `trips_previews` | array | Matching trips (see `TripPreview` schema above) |
-| `next_index` | integer | Next page index (`-1` if no more results) |
-| `total_count` | integer | Total number of matches across all pages |
-| `error_message` | string | Error identifier if failed, empty if success |
+| `TripsPreviews` | array | Matching trips (see `TripPreview` schema above) |
+| `NextIndex` | integer | Next page index (`-1` if no more results) |
+| `TotalCount` | integer | Total number of matches across all pages |
+| `ErrorMessage` | string | Error identifier if failed, empty if success |
 
 #### Errors
 
