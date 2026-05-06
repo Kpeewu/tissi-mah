@@ -1,7 +1,7 @@
 # Ingress public pour les tuiles vectorielles.
 #
 # Bypass complet de l'api-gateway (qui ne sait pas servir efficacement du
-# binaire) : le client mobile appelle directement tiles.tissi-mah.com et
+# binaire) : le client mobile appelle directement tiles.tissimah.kpeewu.dev et
 # l'Ingress route vers TileServer GL.
 #
 # Cache HTTP agressif côté Ingress : les tuiles sont quasi-immutables (refresh
@@ -29,10 +29,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - tiles.tissi-mah.com
-      secretName: tiles-tissi-mah-com-tls
+        - tiles.tissimah.kpeewu.dev
+      secretName: tiles-tissimah-kpeewu-dev-tls
   rules:
-    - host: tiles.tissi-mah.com
+    - host: tiles.tissimah.kpeewu.dev
       http:
         paths:
           - path: /

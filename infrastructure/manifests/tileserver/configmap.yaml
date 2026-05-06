@@ -31,7 +31,7 @@ data:
         },
         "frontPage": false,
         "serveAllFonts": true,
-        "allowedHosts": ["tiles.tissi-mah.com", "tiles.tissimah.kpeewu.dev"]
+        "allowedHosts": ["tiles.tissimah.kpeewu.dev"]
       },
       "data": {
         "west-africa": {

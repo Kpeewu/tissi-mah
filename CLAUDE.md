@@ -157,7 +157,7 @@ grpc/handler.go → middleware/interceptor.go (Firebase JWT pour endpoints non-H
 - `GET /api/v1/geolocation/reverse` — Coordonnées → adresse
 - `GET /api/v1/geolocation/health` — Health check (public)
 
-**Tuiles** : `https://tiles.tissi-mah.com/data/west-africa/{z}/{x}/{y}.pbf` — servi par
+**Tuiles** : `https://tiles.tissimah.kpeewu.dev/data/west-africa/{z}/{x}/{y}.pbf` — servi par
 TileServer GL en **bypass complet de l'api-gateway** (Ingress nginx direct).
 
 **Flow d'utilisation pendant la création d'un trajet** :

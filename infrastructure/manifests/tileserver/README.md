@@ -1,7 +1,7 @@
 # TileServer GL
 
 Sert les tuiles vectorielles (vector tiles) au format MapLibre/MBTiles aux
-clients mobile via `https://tiles.tissi-mah.com/data/west-africa/{z}/{x}/{y}.pbf`.
+clients mobile via `https://tiles.tissimah.kpeewu.dev/data/west-africa/{z}/{x}/{y}.pbf`.
 
 Couvre les 4 pays cibles depuis le fichier `west-africa.pmtiles` (~1-3 Gi),
 généré par le Job [tile-prep](../tile-prep/job.yaml) à partir de
@@ -15,7 +15,7 @@ généré par le Job [tile-prep](../tile-prep/job.yaml) à partir de
 | `configmap.yaml` | config TileServer (déclare le dataset west-africa) |
 | `deployment.yaml` | TileServer GL v4.12, 2 réplicas, anti-affinity |
 | `service.yaml` | ClusterIP `tileserver-gl:8080` |
-| `ingress.yaml` | Ingress public `tiles.tissi-mah.com` avec cache HTTP long |
+| `ingress.yaml` | Ingress public `tiles.tissimah.kpeewu.dev` avec cache HTTP long |
 | `hpa.yaml` | HPA 2-4 réplicas (CPU 60%) |
 | `pdb.yaml` | PodDisruptionBudget minAvailable: 1 |
 
@@ -46,10 +46,10 @@ kubectl apply -f infrastructure/manifests/tileserver/configmap.yaml \
 
 ```bash
 # TileJSON metadata
-curl https://tiles.tissi-mah.com/data/west-africa.json
+curl https://tiles.tissimah.kpeewu.dev/data/west-africa.json
 
 # Tuile vectorielle (zoom 13, autour de Lomé)
-curl -I https://tiles.tissi-mah.com/data/west-africa/13/4012/3851.pbf
+curl -I https://tiles.tissimah.kpeewu.dev/data/west-africa/13/4012/3851.pbf
 # Attendu : 200, Content-Type: application/x-protobuf,
 #           Cache-Control: public, max-age=604800, immutable
 ```

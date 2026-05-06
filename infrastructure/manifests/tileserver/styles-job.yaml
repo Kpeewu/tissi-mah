@@ -3,7 +3,7 @@
 # Produit deux styles compatibles OpenMapTiles (schéma planetiler) :
 #   - default.json   : carte vecteur standard (routes, bâtiments, eau, labels)
 #                      basée sur maptiler-basic-gl-style, source et glyphs
-#                      redirigés vers tiles.tissi-mah.com.
+#                      redirigés vers tiles.tissimah.kpeewu.dev.
 #   - satellite.json : fond satellite Esri World Imagery (gratuit, sans clé)
 #                      + overlay routes + labels vectoriels au-dessus.
 #
@@ -47,7 +47,7 @@ spec:
               apk add --no-cache curl python3 >/dev/null
 
               DEST=/tiles/styles
-              TILE_HOST="https://tiles.tissi-mah.com"
+              TILE_HOST="https://tiles.tissimah.kpeewu.dev"
 
               # Si les deux styles existent déjà, on skip (sauf FORCE=1)
               if [ -f "$DEST/default.json" ] && [ -f "$DEST/satellite.json" ] \
@@ -73,7 +73,7 @@ spec:
               import json, copy, os
 
               DEST      = os.environ.get("DEST", "/tiles/styles")
-              TILE_HOST = os.environ.get("TILE_HOST", "https://tiles.tissi-mah.com")
+              TILE_HOST = os.environ.get("TILE_HOST", "https://tiles.tissimah.kpeewu.dev")
 
               with open(f"{DEST}/raw_base.json") as f:
                   base = json.load(f)
@@ -156,7 +156,7 @@ spec:
             - name: DEST
               value: /tiles/styles
             - name: TILE_HOST
-              value: https://tiles.tissi-mah.com
+              value: https://tiles.tissimah.kpeewu.dev
           resources:
             requests:
               cpu: 100m
