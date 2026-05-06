@@ -18,41 +18,41 @@ service PushService {
 }
 
 message SendPushRequest {
-  string title = 1;
-  string body = 2;
-  string fcm_token = 3;
-  map<string, string> data = 4;
+  string              Title    = 1;
+  string              Body     = 2;
+  string              FcmToken = 3;
+  map<string, string> Data     = 4;
 }
 
 message SendPushResponse {
-  bool success = 1;
-  string error_code = 2;
-  string error_message = 3;
+  bool   Success      = 1;
+  string ErrorCode    = 2;
+  string ErrorMessage = 3;
 }
 
 message SendPushMulticastRequest {
-  string title = 1;
-  string body = 2;
-  repeated string fcm_tokens = 3;
-  map<string, string> data = 4;
+  string              Title     = 1;
+  string              Body      = 2;
+  repeated string     FcmTokens = 3;
+  map<string, string> Data      = 4;
 }
 
 message SendPushMulticastResponse {
-  int32 success_count = 1;
-  int32 failure_count = 2;
-  repeated PushResult results = 3;
+  int32              SuccessCount = 1;
+  int32              FailureCount = 2;
+  repeated PushResult Results    = 3;
 }
 
 message PushResult {
-  string fcm_token = 1;
-  bool success = 2;
-  string error_code = 3;
+  string FcmToken  = 1;
+  bool   Success   = 2;
+  string ErrorCode = 3;
 }
 
 message HealthRequest {}
 
 message HealthResponse {
-  string status = 1;
-  string version = 2;
-  string service = 3;
+  string Status  = 1;
+  string Version = 2;
+  string Service = 3;
 }

@@ -1,0 +1,173 @@
+# Job one-shot qui génère les fichiers style JSON sur le PVC tileserver-data.
+#
+# Produit deux styles compatibles OpenMapTiles (schéma planetiler) :
+#   - default.json   : carte vecteur standard (routes, bâtiments, eau, labels)
+#                      basée sur maptiler-basic-gl-style, source et glyphs
+#                      redirigés vers tiles.tissi-mah.com.
+#   - satellite.json : fond satellite Esri World Imagery (gratuit, sans clé)
+#                      + overlay routes + labels vectoriels au-dessus.
+#
+# Pré-requis identiques au job tile-fonts :
+#   Le PVC tileserver-data NE DOIT PAS être monté en ReadOnly par tileserver-gl
+#   pendant l'exécution (Multi-Attach error sur RWO local-path). Scaler
+#   tileserver-gl à 0 avant de lancer ce job :
+#     kubectl scale deploy/tileserver-gl --replicas=0
+#     kubectl apply  -f infrastructure/manifests/tileserver/styles-job.yaml
+#     kubectl wait  --for=condition=complete --timeout=5m job/tile-styles
+#     kubectl scale deploy/tileserver-gl --replicas=2
+#
+# Pour régénérer (ex: mise à jour du style upstream) :
+#     kubectl delete job tile-styles
+#     kubectl apply  -f infrastructure/manifests/tileserver/styles-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tile-styles
+  namespace: default
+  labels:
+    app: tile-styles
+    tier: tiles-prep
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: tile-styles
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: build-styles
+          image: alpine:3.20
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-eu", "-c"]
+          args:
+            - |
+              echo "==> Installing curl + python3"
+              apk add --no-cache curl python3 >/dev/null
+
+              DEST=/tiles/styles
+              TILE_HOST="https://tiles.tissi-mah.com"
+
+              # Si les deux styles existent déjà, on skip (sauf FORCE=1)
+              if [ -f "$DEST/default.json" ] && [ -f "$DEST/satellite.json" ] \
+                  && [ -z "${FORCE:-}" ]; then
+                echo "==> $DEST already populated, skipping (set FORCE=1 to override)"
+                ls "$DEST"
+                exit 0
+              fi
+
+              mkdir -p "$DEST"
+
+              # ---------- Télécharger le style de base OpenMapTiles ----------
+              # maptiler-basic-gl-style v1.9.0 — licence MIT
+              # Utilise le schéma OpenMapTiles (identique à ce que produit
+              # planetiler pour west-africa.pmtiles).
+              echo "==> Downloading maptiler-basic-gl-style..."
+              curl -fsSL \
+                "https://raw.githubusercontent.com/openmaptiles/maptiler-basic-gl-style/v1.10/style.json" \
+                -o "$DEST/raw_base.json"
+
+              # ---------- Patcher et écrire les deux styles ----------
+              python3 - <<'PYEOF'
+              import json, copy, os
+
+              DEST      = os.environ.get("DEST", "/tiles/styles")
+              TILE_HOST = os.environ.get("TILE_HOST", "https://tiles.tissi-mah.com")
+
+              with open(f"{DEST}/raw_base.json") as f:
+                  base = json.load(f)
+
+              # ---- Source vectorielle → notre TileServer GL ----
+              # On garde le nom "openmaptiles" car tous les layers du style
+              # y font référence via "source": "openmaptiles".
+              base["sources"] = {
+                  "openmaptiles": {
+                      "type": "vector",
+                      "url": f"{TILE_HOST}/data/west-africa.json"
+                  }
+              }
+
+              # ---- Glyphs → notre serveur de fontes ----
+              base["glyphs"] = f"{TILE_HOST}/fonts/{{fontstack}}/{{range}}.pbf"
+
+              # ---- Sprite : CDN maptiler (statique, pas de clé API requise) ----
+              base["sprite"] = "https://cdn.maptiler.com/maptiler-basic-gl-style/v1.9.0/sprite"
+
+              # ================================================================
+              # Style DEFAULT : carte vecteur standard — on garde toutes les layers
+              # ================================================================
+              with open(f"{DEST}/default.json", "w") as f:
+                  json.dump(base, f)
+              print(f"  default.json written ({len(base['layers'])} layers)")
+
+              # ================================================================
+              # Style SATELLITE : fond raster Esri + routes + labels vectoriels
+              # ================================================================
+              sat = copy.deepcopy(base)
+
+              # Ajouter la source raster satellite Esri World Imagery
+              # (service public, gratuit, sans authentification)
+              sat["sources"]["satellite"] = {
+                  "type": "raster",
+                  "tiles": [
+                      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                  ],
+                  "tileSize": 256,
+                  "attribution": "Tiles © Esri — Esri, i-cubed, USDA, USGS, AEX, GeoEye",
+                  "maxzoom": 19
+              }
+
+              # Couche raster satellite en fond (index 0)
+              sat_layer = {
+                  "id": "satellite-raster",
+                  "type": "raster",
+                  "source": "satellite",
+                  "minzoom": 0,
+                  "maxzoom": 22
+              }
+
+              # Sur satellite on garde :
+              #   - type "line"   → routes, chemins, frontières
+              #   - type "symbol" → labels (noms de rues, villes, POIs)
+              # On retire les fills (eau, végétation, bâtis) qui
+              # masqueraient l'imagerie sous-jacente.
+              KEEP_TYPES = {"line", "symbol"}
+              overlay_layers = [
+                  l for l in base["layers"]
+                  if l.get("type") in KEEP_TYPES
+              ]
+
+              sat["layers"] = [sat_layer] + overlay_layers
+
+              with open(f"{DEST}/satellite.json", "w") as f:
+                  json.dump(sat, f)
+              print(f"  satellite.json written ({len(sat['layers'])} layers: "
+                    f"1 raster + {len(overlay_layers)} vector overlay)")
+
+              # Nettoyage
+              os.remove(f"{DEST}/raw_base.json")
+              print("Done.")
+              PYEOF
+
+              echo "==> Styles disponibles dans $DEST :"
+              ls -lh "$DEST"
+          env:
+            - name: DEST
+              value: /tiles/styles
+            - name: TILE_HOST
+              value: https://tiles.tissi-mah.com
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: tile-data
+              mountPath: /tiles
+      volumes:
+        - name: tile-data
+          persistentVolumeClaim:
+            claimName: tileserver-data

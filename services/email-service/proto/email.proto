@@ -17,22 +17,22 @@ service EmailService {
 }
 
 message SendEmailRequest {
-  string to = 1;
-  string subject = 2;
-  string body_text = 3;
-  string body_html = 4;
+  string To               = 1;
+  string Subject          = 2;
+  string BodyText         = 3;
+  string BodyHtml         = 4;
 }
 
 message SendEmailResponse {
-  bool success = 1;
-  string provider_message_id = 2;
-  string error_message = 3;
+  bool   Success           = 1;
+  string ProviderMessageId = 2;
+  string ErrorMessage      = 3;
 }
 
 message HealthRequest {}
 
 message HealthResponse {
-  string status = 1;
-  string version = 2;
-  string service = 3;
+  string Status  = 1;
+  string Version = 2;
+  string Service = 3;
 }

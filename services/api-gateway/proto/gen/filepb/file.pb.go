@@ -860,7 +860,7 @@ type UploadUserDocumentRequest_Metadata struct {
 }
 
 type UploadUserDocumentRequest_Chunk struct {
-	Chunk []byte `protobuf:"bytes,2,opt,name=chunk,proto3,oneof"`
+	Chunk []byte `protobuf:"bytes,2,opt,name=Chunk,proto3,oneof"`
 }
 
 func (*UploadUserDocumentRequest_Metadata) isUploadUserDocumentRequest_Data() {}
@@ -1034,7 +1034,7 @@ type UploadVehicleDocumentRequest_Metadata struct {
 }
 
 type UploadVehicleDocumentRequest_Chunk struct {
-	Chunk []byte `protobuf:"bytes,2,opt,name=chunk,proto3,oneof"`
+	Chunk []byte `protobuf:"bytes,2,opt,name=Chunk,proto3,oneof"`
 }
 
 func (*UploadVehicleDocumentRequest_Metadata) isUploadVehicleDocumentRequest_Data() {}
@@ -2824,7 +2824,7 @@ const file_file_proto_rawDesc = "" +
 	"\tDocuments\x18\x03 \x03(\v2\x16.file.UploadedDocumentR\tDocuments\"u\n" +
 	"\x19UploadUserDocumentRequest\x128\n" +
 	"\bmetadata\x18\x01 \x01(\v2\x1a.file.UserDocumentMetadataH\x00R\bmetadata\x12\x16\n" +
-	"\x05chunk\x18\x02 \x01(\fH\x00R\x05chunkB\x06\n" +
+	"\x05Chunk\x18\x02 \x01(\fH\x00R\x05ChunkB\x06\n" +
 	"\x04data\"\x88\x02\n" +
 	"\x14UserDocumentMetadata\x12\x16\n" +
 	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x12\"\n" +
@@ -2836,7 +2836,7 @@ const file_file_proto_rawDesc = "" +
 	"\x0eIssuingCountry\x18\a \x01(\tR\x0eIssuingCountry\"{\n" +
 	"\x1cUploadVehicleDocumentRequest\x12;\n" +
 	"\bmetadata\x18\x01 \x01(\v2\x1d.file.VehicleDocumentMetadataH\x00R\bmetadata\x12\x16\n" +
-	"\x05chunk\x18\x02 \x01(\fH\x00R\x05chunkB\x06\n" +
+	"\x05Chunk\x18\x02 \x01(\fH\x00R\x05ChunkB\x06\n" +
 	"\x04data\"\x95\x02\n" +
 	"\x17VehicleDocumentMetadata\x12\x1c\n" +
 	"\tVehicleId\x18\x01 \x01(\tR\tVehicleId\x12\"\n" +

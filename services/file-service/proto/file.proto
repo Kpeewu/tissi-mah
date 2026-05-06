@@ -204,7 +204,7 @@ message UploadIdDocumentResponse {
 message UploadUserDocumentRequest {
   oneof data {
     UserDocumentMetadata metadata = 1;
-    bytes chunk = 2;
+    bytes Chunk = 2;
   }
 }
 
@@ -221,7 +221,7 @@ message UserDocumentMetadata {
 message UploadVehicleDocumentRequest {
   oneof data {
     VehicleDocumentMetadata metadata = 1;
-    bytes chunk = 2;
+    bytes Chunk = 2;
   }
 }
 

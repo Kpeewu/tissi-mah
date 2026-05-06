@@ -94,51 +94,51 @@ service SupportService {
 }
 
 message LoginRequest {
-  string email = 1;
-  string password = 2;
+  string Email    = 1;
+  string Password = 2;
 }
 
 message LoginResponse {
-  string otp_session_id = 1;
-  int32 expires_in_seconds = 2;
+  string OtpSessionId      = 1;
+  int32  ExpiresInSeconds  = 2;
 }
 
 message VerifyOTPRequest {
-  string otp_session_id = 1;
-  string code = 2;
+  string OtpSessionId = 1;
+  string Code         = 2;
 }
 
 message VerifyOTPResponse {
-  string access_token = 1;
-  int64 access_expires_at = 2;
-  string refresh_token = 3;
-  int64 refresh_expires_at = 4;
-  string role = 5;
-  bool must_change_password = 6;
+  string AccessToken        = 1;
+  int64  AccessExpiresAt    = 2;
+  string RefreshToken       = 3;
+  int64  RefreshExpiresAt   = 4;
+  string Role               = 5;
+  bool   MustChangePassword = 6;
 }
 
 message ResendOTPRequest {
-  string otp_session_id = 1;
+  string OtpSessionId = 1;
 }
 
 message ResendOTPResponse {
-  string otp_session_id = 1;
-  int32 expires_in_seconds = 2;
+  string OtpSessionId     = 1;
+  int32  ExpiresInSeconds = 2;
 }
 
 message RefreshTokenRequest {
-  string refresh_token = 1;
+  string RefreshToken = 1;
 }
 
 message RefreshTokenResponse {
-  string access_token = 1;
-  int64 access_expires_at = 2;
-  string refresh_token = 3;
-  int64 refresh_expires_at = 4;
+  string AccessToken      = 1;
+  int64  AccessExpiresAt  = 2;
+  string RefreshToken     = 3;
+  int64  RefreshExpiresAt = 4;
 }
 
 message LogoutRequest {
-  string refresh_token = 1;
+  string RefreshToken = 1;
 }
 
 message LogoutResponse {}
@@ -146,61 +146,61 @@ message LogoutResponse {}
 message MeRequest {}
 
 message MeResponse {
-  string user_id = 1;
-  string email = 2;
-  string first_name = 3;
-  string last_name = 4;
-  string role = 5;
-  bool must_change_password = 6;
-  int64 created_at = 7;
+  string UserId             = 1;
+  string Email              = 2;
+  string FirstName          = 3;
+  string LastName           = 4;
+  string Role               = 5;
+  bool   MustChangePassword = 6;
+  int64  CreatedAt          = 7;
 }
 
 message ChangeMyPasswordRequest {
-  string current_password = 1;
-  string new_password = 2;
+  string CurrentPassword = 1;
+  string NewPassword     = 2;
 }
 
 message ChangeMyPasswordResponse {}
 
 message ChangeMyEmailRequest {
-  string new_email = 1;
-  string current_password = 2;
+  string NewEmail         = 1;
+  string CurrentPassword  = 2;
 }
 
 message ChangeMyEmailResponse {}
 
 message CreateSupportAgentRequest {
-  string email = 1;
-  string first_name = 2;
-  string last_name = 3;
+  string Email     = 1;
+  string FirstName = 2;
+  string LastName  = 3;
 }
 
 message CreateSupportAgentResponse {
-  string user_id = 1;
+  string UserId = 1;
 }
 
 message ListSupportAgentsRequest {
-  int32 limit = 1;
-  int32 offset = 2;
+  int32 Limit  = 1;
+  int32 Offset = 2;
 }
 
 message SupportAgent {
-  string user_id = 1;
-  string email = 2;
-  string first_name = 3;
-  string last_name = 4;
-  string role = 5;
-  bool is_active = 6;
-  int64 created_at = 7;
+  string UserId     = 1;
+  string Email      = 2;
+  string FirstName  = 3;
+  string LastName   = 4;
+  string Role       = 5;
+  bool   IsActive   = 6;
+  int64  CreatedAt  = 7;
 }
 
 message ListSupportAgentsResponse {
-  repeated SupportAgent agents = 1;
-  int32 total = 2;
+  repeated SupportAgent Agents = 1;
+  int32                 Total  = 2;
 }
 
 message DeactivateSupportAgentRequest {
-  string user_id = 1;
+  string UserId = 1;
 }
 
 message DeactivateSupportAgentResponse {}
@@ -208,19 +208,19 @@ message DeactivateSupportAgentResponse {}
 message HealthRequest {}
 
 message HealthResponse {
-  string status = 1;
-  string version = 2;
-  string service = 3;
+  string Status  = 1;
+  string Version = 2;
+  string Service = 3;
 }
 
 message GetSupportUserByIDRequest {
-  string user_id = 1;
+  string UserId = 1;
 }
 
 message GetSupportUserByIDResponse {
-  string user_id    = 1;
-  string first_name = 2;
-  string last_name  = 3;
-  string role       = 4;
-  bool   is_active  = 5;
+  string UserId    = 1;
+  string FirstName = 2;
+  string LastName  = 3;
+  string Role      = 4;
+  bool   IsActive  = 5;
 }
