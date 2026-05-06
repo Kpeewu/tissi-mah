@@ -24,8 +24,8 @@ const (
 
 type LoginRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
-	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	Email         string                 `protobuf:"bytes,1,opt,name=Email,proto3" json:"Email,omitempty"`
+	Password      string                 `protobuf:"bytes,2,opt,name=Password,proto3" json:"Password,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -76,8 +76,8 @@ func (x *LoginRequest) GetPassword() string {
 
 type LoginResponse struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	OtpSessionId     string                 `protobuf:"bytes,1,opt,name=otp_session_id,json=otpSessionId,proto3" json:"otp_session_id,omitempty"`
-	ExpiresInSeconds int32                  `protobuf:"varint,2,opt,name=expires_in_seconds,json=expiresInSeconds,proto3" json:"expires_in_seconds,omitempty"`
+	OtpSessionId     string                 `protobuf:"bytes,1,opt,name=OtpSessionId,proto3" json:"OtpSessionId,omitempty"`
+	ExpiresInSeconds int32                  `protobuf:"varint,2,opt,name=ExpiresInSeconds,proto3" json:"ExpiresInSeconds,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -128,8 +128,8 @@ func (x *LoginResponse) GetExpiresInSeconds() int32 {
 
 type VerifyOTPRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	OtpSessionId  string                 `protobuf:"bytes,1,opt,name=otp_session_id,json=otpSessionId,proto3" json:"otp_session_id,omitempty"`
-	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	OtpSessionId  string                 `protobuf:"bytes,1,opt,name=OtpSessionId,proto3" json:"OtpSessionId,omitempty"`
+	Code          string                 `protobuf:"bytes,2,opt,name=Code,proto3" json:"Code,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -180,12 +180,12 @@ func (x *VerifyOTPRequest) GetCode() string {
 
 type VerifyOTPResponse struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
-	AccessToken        string                 `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
-	AccessExpiresAt    int64                  `protobuf:"varint,2,opt,name=access_expires_at,json=accessExpiresAt,proto3" json:"access_expires_at,omitempty"`
-	RefreshToken       string                 `protobuf:"bytes,3,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
-	RefreshExpiresAt   int64                  `protobuf:"varint,4,opt,name=refresh_expires_at,json=refreshExpiresAt,proto3" json:"refresh_expires_at,omitempty"`
-	Role               string                 `protobuf:"bytes,5,opt,name=role,proto3" json:"role,omitempty"`
-	MustChangePassword bool                   `protobuf:"varint,6,opt,name=must_change_password,json=mustChangePassword,proto3" json:"must_change_password,omitempty"`
+	AccessToken        string                 `protobuf:"bytes,1,opt,name=AccessToken,proto3" json:"AccessToken,omitempty"`
+	AccessExpiresAt    int64                  `protobuf:"varint,2,opt,name=AccessExpiresAt,proto3" json:"AccessExpiresAt,omitempty"`
+	RefreshToken       string                 `protobuf:"bytes,3,opt,name=RefreshToken,proto3" json:"RefreshToken,omitempty"`
+	RefreshExpiresAt   int64                  `protobuf:"varint,4,opt,name=RefreshExpiresAt,proto3" json:"RefreshExpiresAt,omitempty"`
+	Role               string                 `protobuf:"bytes,5,opt,name=Role,proto3" json:"Role,omitempty"`
+	MustChangePassword bool                   `protobuf:"varint,6,opt,name=MustChangePassword,proto3" json:"MustChangePassword,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -264,7 +264,7 @@ func (x *VerifyOTPResponse) GetMustChangePassword() bool {
 
 type ResendOTPRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	OtpSessionId  string                 `protobuf:"bytes,1,opt,name=otp_session_id,json=otpSessionId,proto3" json:"otp_session_id,omitempty"`
+	OtpSessionId  string                 `protobuf:"bytes,1,opt,name=OtpSessionId,proto3" json:"OtpSessionId,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -308,8 +308,8 @@ func (x *ResendOTPRequest) GetOtpSessionId() string {
 
 type ResendOTPResponse struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	OtpSessionId     string                 `protobuf:"bytes,1,opt,name=otp_session_id,json=otpSessionId,proto3" json:"otp_session_id,omitempty"`
-	ExpiresInSeconds int32                  `protobuf:"varint,2,opt,name=expires_in_seconds,json=expiresInSeconds,proto3" json:"expires_in_seconds,omitempty"`
+	OtpSessionId     string                 `protobuf:"bytes,1,opt,name=OtpSessionId,proto3" json:"OtpSessionId,omitempty"`
+	ExpiresInSeconds int32                  `protobuf:"varint,2,opt,name=ExpiresInSeconds,proto3" json:"ExpiresInSeconds,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -360,7 +360,7 @@ func (x *ResendOTPResponse) GetExpiresInSeconds() int32 {
 
 type RefreshTokenRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RefreshToken  string                 `protobuf:"bytes,1,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	RefreshToken  string                 `protobuf:"bytes,1,opt,name=RefreshToken,proto3" json:"RefreshToken,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -404,10 +404,10 @@ func (x *RefreshTokenRequest) GetRefreshToken() string {
 
 type RefreshTokenResponse struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	AccessToken      string                 `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
-	AccessExpiresAt  int64                  `protobuf:"varint,2,opt,name=access_expires_at,json=accessExpiresAt,proto3" json:"access_expires_at,omitempty"`
-	RefreshToken     string                 `protobuf:"bytes,3,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
-	RefreshExpiresAt int64                  `protobuf:"varint,4,opt,name=refresh_expires_at,json=refreshExpiresAt,proto3" json:"refresh_expires_at,omitempty"`
+	AccessToken      string                 `protobuf:"bytes,1,opt,name=AccessToken,proto3" json:"AccessToken,omitempty"`
+	AccessExpiresAt  int64                  `protobuf:"varint,2,opt,name=AccessExpiresAt,proto3" json:"AccessExpiresAt,omitempty"`
+	RefreshToken     string                 `protobuf:"bytes,3,opt,name=RefreshToken,proto3" json:"RefreshToken,omitempty"`
+	RefreshExpiresAt int64                  `protobuf:"varint,4,opt,name=RefreshExpiresAt,proto3" json:"RefreshExpiresAt,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -472,7 +472,7 @@ func (x *RefreshTokenResponse) GetRefreshExpiresAt() int64 {
 
 type LogoutRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RefreshToken  string                 `protobuf:"bytes,1,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	RefreshToken  string                 `protobuf:"bytes,1,opt,name=RefreshToken,proto3" json:"RefreshToken,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -588,13 +588,13 @@ func (*MeRequest) Descriptor() ([]byte, []int) {
 
 type MeResponse struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
-	UserId             string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Email              string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
-	FirstName          string                 `protobuf:"bytes,3,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
-	LastName           string                 `protobuf:"bytes,4,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
-	Role               string                 `protobuf:"bytes,5,opt,name=role,proto3" json:"role,omitempty"`
-	MustChangePassword bool                   `protobuf:"varint,6,opt,name=must_change_password,json=mustChangePassword,proto3" json:"must_change_password,omitempty"`
-	CreatedAt          int64                  `protobuf:"varint,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UserId             string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"`
+	Email              string                 `protobuf:"bytes,2,opt,name=Email,proto3" json:"Email,omitempty"`
+	FirstName          string                 `protobuf:"bytes,3,opt,name=FirstName,proto3" json:"FirstName,omitempty"`
+	LastName           string                 `protobuf:"bytes,4,opt,name=LastName,proto3" json:"LastName,omitempty"`
+	Role               string                 `protobuf:"bytes,5,opt,name=Role,proto3" json:"Role,omitempty"`
+	MustChangePassword bool                   `protobuf:"varint,6,opt,name=MustChangePassword,proto3" json:"MustChangePassword,omitempty"`
+	CreatedAt          int64                  `protobuf:"varint,7,opt,name=CreatedAt,proto3" json:"CreatedAt,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -680,8 +680,8 @@ func (x *MeResponse) GetCreatedAt() int64 {
 
 type ChangeMyPasswordRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	CurrentPassword string                 `protobuf:"bytes,1,opt,name=current_password,json=currentPassword,proto3" json:"current_password,omitempty"`
-	NewPassword     string                 `protobuf:"bytes,2,opt,name=new_password,json=newPassword,proto3" json:"new_password,omitempty"`
+	CurrentPassword string                 `protobuf:"bytes,1,opt,name=CurrentPassword,proto3" json:"CurrentPassword,omitempty"`
+	NewPassword     string                 `protobuf:"bytes,2,opt,name=NewPassword,proto3" json:"NewPassword,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -768,8 +768,8 @@ func (*ChangeMyPasswordResponse) Descriptor() ([]byte, []int) {
 
 type ChangeMyEmailRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	NewEmail        string                 `protobuf:"bytes,1,opt,name=new_email,json=newEmail,proto3" json:"new_email,omitempty"`
-	CurrentPassword string                 `protobuf:"bytes,2,opt,name=current_password,json=currentPassword,proto3" json:"current_password,omitempty"`
+	NewEmail        string                 `protobuf:"bytes,1,opt,name=NewEmail,proto3" json:"NewEmail,omitempty"`
+	CurrentPassword string                 `protobuf:"bytes,2,opt,name=CurrentPassword,proto3" json:"CurrentPassword,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -856,9 +856,9 @@ func (*ChangeMyEmailResponse) Descriptor() ([]byte, []int) {
 
 type CreateSupportAgentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
-	FirstName     string                 `protobuf:"bytes,2,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
-	LastName      string                 `protobuf:"bytes,3,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
+	Email         string                 `protobuf:"bytes,1,opt,name=Email,proto3" json:"Email,omitempty"`
+	FirstName     string                 `protobuf:"bytes,2,opt,name=FirstName,proto3" json:"FirstName,omitempty"`
+	LastName      string                 `protobuf:"bytes,3,opt,name=LastName,proto3" json:"LastName,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -916,7 +916,7 @@ func (x *CreateSupportAgentRequest) GetLastName() string {
 
 type CreateSupportAgentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -960,8 +960,8 @@ func (x *CreateSupportAgentResponse) GetUserId() string {
 
 type ListSupportAgentsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
-	Offset        int32                  `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	Limit         int32                  `protobuf:"varint,1,opt,name=Limit,proto3" json:"Limit,omitempty"`
+	Offset        int32                  `protobuf:"varint,2,opt,name=Offset,proto3" json:"Offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1012,13 +1012,13 @@ func (x *ListSupportAgentsRequest) GetOffset() int32 {
 
 type SupportAgent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
-	FirstName     string                 `protobuf:"bytes,3,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
-	LastName      string                 `protobuf:"bytes,4,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
-	Role          string                 `protobuf:"bytes,5,opt,name=role,proto3" json:"role,omitempty"`
-	IsActive      bool                   `protobuf:"varint,6,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
-	CreatedAt     int64                  `protobuf:"varint,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"`
+	Email         string                 `protobuf:"bytes,2,opt,name=Email,proto3" json:"Email,omitempty"`
+	FirstName     string                 `protobuf:"bytes,3,opt,name=FirstName,proto3" json:"FirstName,omitempty"`
+	LastName      string                 `protobuf:"bytes,4,opt,name=LastName,proto3" json:"LastName,omitempty"`
+	Role          string                 `protobuf:"bytes,5,opt,name=Role,proto3" json:"Role,omitempty"`
+	IsActive      bool                   `protobuf:"varint,6,opt,name=IsActive,proto3" json:"IsActive,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,7,opt,name=CreatedAt,proto3" json:"CreatedAt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1104,8 +1104,8 @@ func (x *SupportAgent) GetCreatedAt() int64 {
 
 type ListSupportAgentsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Agents        []*SupportAgent        `protobuf:"bytes,1,rep,name=agents,proto3" json:"agents,omitempty"`
-	Total         int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	Agents        []*SupportAgent        `protobuf:"bytes,1,rep,name=Agents,proto3" json:"Agents,omitempty"`
+	Total         int32                  `protobuf:"varint,2,opt,name=Total,proto3" json:"Total,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1156,7 +1156,7 @@ func (x *ListSupportAgentsResponse) GetTotal() int32 {
 
 type DeactivateSupportAgentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1272,9 +1272,9 @@ func (*HealthRequest) Descriptor() ([]byte, []int) {
 
 type HealthResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
-	Service       string                 `protobuf:"bytes,3,opt,name=service,proto3" json:"service,omitempty"`
+	Status        string                 `protobuf:"bytes,1,opt,name=Status,proto3" json:"Status,omitempty"`
+	Version       string                 `protobuf:"bytes,2,opt,name=Version,proto3" json:"Version,omitempty"`
+	Service       string                 `protobuf:"bytes,3,opt,name=Service,proto3" json:"Service,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1332,7 +1332,7 @@ func (x *HealthResponse) GetService() string {
 
 type GetSupportUserByIDRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1376,11 +1376,11 @@ func (x *GetSupportUserByIDRequest) GetUserId() string {
 
 type GetSupportUserByIDResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	FirstName     string                 `protobuf:"bytes,2,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
-	LastName      string                 `protobuf:"bytes,3,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
-	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
-	IsActive      bool                   `protobuf:"varint,5,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"`
+	FirstName     string                 `protobuf:"bytes,2,opt,name=FirstName,proto3" json:"FirstName,omitempty"`
+	LastName      string                 `protobuf:"bytes,3,opt,name=LastName,proto3" json:"LastName,omitempty"`
+	Role          string                 `protobuf:"bytes,4,opt,name=Role,proto3" json:"Role,omitempty"`
+	IsActive      bool                   `protobuf:"varint,5,opt,name=IsActive,proto3" json:"IsActive,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1456,96 +1456,90 @@ const file_support_proto_rawDesc = "" +
 	"\n" +
 	"\rsupport.proto\x12\asupport\x1a\x1cgoogle/api/annotations.proto\"@\n" +
 	"\fLoginRequest\x12\x14\n" +
-	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"c\n" +
-	"\rLoginResponse\x12$\n" +
-	"\x0eotp_session_id\x18\x01 \x01(\tR\fotpSessionId\x12,\n" +
-	"\x12expires_in_seconds\x18\x02 \x01(\x05R\x10expiresInSeconds\"L\n" +
-	"\x10VerifyOTPRequest\x12$\n" +
-	"\x0eotp_session_id\x18\x01 \x01(\tR\fotpSessionId\x12\x12\n" +
-	"\x04code\x18\x02 \x01(\tR\x04code\"\xfb\x01\n" +
-	"\x11VerifyOTPResponse\x12!\n" +
-	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12*\n" +
-	"\x11access_expires_at\x18\x02 \x01(\x03R\x0faccessExpiresAt\x12#\n" +
-	"\rrefresh_token\x18\x03 \x01(\tR\frefreshToken\x12,\n" +
-	"\x12refresh_expires_at\x18\x04 \x01(\x03R\x10refreshExpiresAt\x12\x12\n" +
-	"\x04role\x18\x05 \x01(\tR\x04role\x120\n" +
-	"\x14must_change_password\x18\x06 \x01(\bR\x12mustChangePassword\"8\n" +
-	"\x10ResendOTPRequest\x12$\n" +
-	"\x0eotp_session_id\x18\x01 \x01(\tR\fotpSessionId\"g\n" +
-	"\x11ResendOTPResponse\x12$\n" +
-	"\x0eotp_session_id\x18\x01 \x01(\tR\fotpSessionId\x12,\n" +
-	"\x12expires_in_seconds\x18\x02 \x01(\x05R\x10expiresInSeconds\":\n" +
-	"\x13RefreshTokenRequest\x12#\n" +
-	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"\xb8\x01\n" +
-	"\x14RefreshTokenResponse\x12!\n" +
-	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12*\n" +
-	"\x11access_expires_at\x18\x02 \x01(\x03R\x0faccessExpiresAt\x12#\n" +
-	"\rrefresh_token\x18\x03 \x01(\tR\frefreshToken\x12,\n" +
-	"\x12refresh_expires_at\x18\x04 \x01(\x03R\x10refreshExpiresAt\"4\n" +
-	"\rLogoutRequest\x12#\n" +
-	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"\x10\n" +
+	"\x05Email\x18\x01 \x01(\tR\x05Email\x12\x1a\n" +
+	"\bPassword\x18\x02 \x01(\tR\bPassword\"_\n" +
+	"\rLoginResponse\x12\"\n" +
+	"\fOtpSessionId\x18\x01 \x01(\tR\fOtpSessionId\x12*\n" +
+	"\x10ExpiresInSeconds\x18\x02 \x01(\x05R\x10ExpiresInSeconds\"J\n" +
+	"\x10VerifyOTPRequest\x12\"\n" +
+	"\fOtpSessionId\x18\x01 \x01(\tR\fOtpSessionId\x12\x12\n" +
+	"\x04Code\x18\x02 \x01(\tR\x04Code\"\xf3\x01\n" +
+	"\x11VerifyOTPResponse\x12 \n" +
+	"\vAccessToken\x18\x01 \x01(\tR\vAccessToken\x12(\n" +
+	"\x0fAccessExpiresAt\x18\x02 \x01(\x03R\x0fAccessExpiresAt\x12\"\n" +
+	"\fRefreshToken\x18\x03 \x01(\tR\fRefreshToken\x12*\n" +
+	"\x10RefreshExpiresAt\x18\x04 \x01(\x03R\x10RefreshExpiresAt\x12\x12\n" +
+	"\x04Role\x18\x05 \x01(\tR\x04Role\x12.\n" +
+	"\x12MustChangePassword\x18\x06 \x01(\bR\x12MustChangePassword\"6\n" +
+	"\x10ResendOTPRequest\x12\"\n" +
+	"\fOtpSessionId\x18\x01 \x01(\tR\fOtpSessionId\"c\n" +
+	"\x11ResendOTPResponse\x12\"\n" +
+	"\fOtpSessionId\x18\x01 \x01(\tR\fOtpSessionId\x12*\n" +
+	"\x10ExpiresInSeconds\x18\x02 \x01(\x05R\x10ExpiresInSeconds\"9\n" +
+	"\x13RefreshTokenRequest\x12\"\n" +
+	"\fRefreshToken\x18\x01 \x01(\tR\fRefreshToken\"\xb2\x01\n" +
+	"\x14RefreshTokenResponse\x12 \n" +
+	"\vAccessToken\x18\x01 \x01(\tR\vAccessToken\x12(\n" +
+	"\x0fAccessExpiresAt\x18\x02 \x01(\x03R\x0fAccessExpiresAt\x12\"\n" +
+	"\fRefreshToken\x18\x03 \x01(\tR\fRefreshToken\x12*\n" +
+	"\x10RefreshExpiresAt\x18\x04 \x01(\x03R\x10RefreshExpiresAt\"3\n" +
+	"\rLogoutRequest\x12\"\n" +
+	"\fRefreshToken\x18\x01 \x01(\tR\fRefreshToken\"\x10\n" +
 	"\x0eLogoutResponse\"\v\n" +
-	"\tMeRequest\"\xdc\x01\n" +
+	"\tMeRequest\"\xd6\x01\n" +
 	"\n" +
-	"MeResponse\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
-	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1d\n" +
-	"\n" +
-	"first_name\x18\x03 \x01(\tR\tfirstName\x12\x1b\n" +
-	"\tlast_name\x18\x04 \x01(\tR\blastName\x12\x12\n" +
-	"\x04role\x18\x05 \x01(\tR\x04role\x120\n" +
-	"\x14must_change_password\x18\x06 \x01(\bR\x12mustChangePassword\x12\x1d\n" +
-	"\n" +
-	"created_at\x18\a \x01(\x03R\tcreatedAt\"g\n" +
-	"\x17ChangeMyPasswordRequest\x12)\n" +
-	"\x10current_password\x18\x01 \x01(\tR\x0fcurrentPassword\x12!\n" +
-	"\fnew_password\x18\x02 \x01(\tR\vnewPassword\"\x1a\n" +
-	"\x18ChangeMyPasswordResponse\"^\n" +
-	"\x14ChangeMyEmailRequest\x12\x1b\n" +
-	"\tnew_email\x18\x01 \x01(\tR\bnewEmail\x12)\n" +
-	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\"\x17\n" +
-	"\x15ChangeMyEmailResponse\"m\n" +
+	"MeResponse\x12\x16\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x12\x14\n" +
+	"\x05Email\x18\x02 \x01(\tR\x05Email\x12\x1c\n" +
+	"\tFirstName\x18\x03 \x01(\tR\tFirstName\x12\x1a\n" +
+	"\bLastName\x18\x04 \x01(\tR\bLastName\x12\x12\n" +
+	"\x04Role\x18\x05 \x01(\tR\x04Role\x12.\n" +
+	"\x12MustChangePassword\x18\x06 \x01(\bR\x12MustChangePassword\x12\x1c\n" +
+	"\tCreatedAt\x18\a \x01(\x03R\tCreatedAt\"e\n" +
+	"\x17ChangeMyPasswordRequest\x12(\n" +
+	"\x0fCurrentPassword\x18\x01 \x01(\tR\x0fCurrentPassword\x12 \n" +
+	"\vNewPassword\x18\x02 \x01(\tR\vNewPassword\"\x1a\n" +
+	"\x18ChangeMyPasswordResponse\"\\\n" +
+	"\x14ChangeMyEmailRequest\x12\x1a\n" +
+	"\bNewEmail\x18\x01 \x01(\tR\bNewEmail\x12(\n" +
+	"\x0fCurrentPassword\x18\x02 \x01(\tR\x0fCurrentPassword\"\x17\n" +
+	"\x15ChangeMyEmailResponse\"k\n" +
 	"\x19CreateSupportAgentRequest\x12\x14\n" +
-	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1d\n" +
-	"\n" +
-	"first_name\x18\x02 \x01(\tR\tfirstName\x12\x1b\n" +
-	"\tlast_name\x18\x03 \x01(\tR\blastName\"5\n" +
-	"\x1aCreateSupportAgentResponse\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"H\n" +
+	"\x05Email\x18\x01 \x01(\tR\x05Email\x12\x1c\n" +
+	"\tFirstName\x18\x02 \x01(\tR\tFirstName\x12\x1a\n" +
+	"\bLastName\x18\x03 \x01(\tR\bLastName\"4\n" +
+	"\x1aCreateSupportAgentResponse\x12\x16\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"H\n" +
 	"\x18ListSupportAgentsRequest\x12\x14\n" +
-	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x02 \x01(\x05R\x06offset\"\xc9\x01\n" +
-	"\fSupportAgent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
-	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1d\n" +
-	"\n" +
-	"first_name\x18\x03 \x01(\tR\tfirstName\x12\x1b\n" +
-	"\tlast_name\x18\x04 \x01(\tR\blastName\x12\x12\n" +
-	"\x04role\x18\x05 \x01(\tR\x04role\x12\x1b\n" +
-	"\tis_active\x18\x06 \x01(\bR\bisActive\x12\x1d\n" +
-	"\n" +
-	"created_at\x18\a \x01(\x03R\tcreatedAt\"`\n" +
+	"\x05Limit\x18\x01 \x01(\x05R\x05Limit\x12\x16\n" +
+	"\x06Offset\x18\x02 \x01(\x05R\x06Offset\"\xc4\x01\n" +
+	"\fSupportAgent\x12\x16\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x12\x14\n" +
+	"\x05Email\x18\x02 \x01(\tR\x05Email\x12\x1c\n" +
+	"\tFirstName\x18\x03 \x01(\tR\tFirstName\x12\x1a\n" +
+	"\bLastName\x18\x04 \x01(\tR\bLastName\x12\x12\n" +
+	"\x04Role\x18\x05 \x01(\tR\x04Role\x12\x1a\n" +
+	"\bIsActive\x18\x06 \x01(\bR\bIsActive\x12\x1c\n" +
+	"\tCreatedAt\x18\a \x01(\x03R\tCreatedAt\"`\n" +
 	"\x19ListSupportAgentsResponse\x12-\n" +
-	"\x06agents\x18\x01 \x03(\v2\x15.support.SupportAgentR\x06agents\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x05R\x05total\"8\n" +
-	"\x1dDeactivateSupportAgentRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\" \n" +
+	"\x06Agents\x18\x01 \x03(\v2\x15.support.SupportAgentR\x06Agents\x12\x14\n" +
+	"\x05Total\x18\x02 \x01(\x05R\x05Total\"7\n" +
+	"\x1dDeactivateSupportAgentRequest\x12\x16\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\" \n" +
 	"\x1eDeactivateSupportAgentResponse\"\x0f\n" +
 	"\rHealthRequest\"\\\n" +
 	"\x0eHealthResponse\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\tR\aversion\x12\x18\n" +
-	"\aservice\x18\x03 \x01(\tR\aservice\"4\n" +
-	"\x19GetSupportUserByIDRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xa2\x01\n" +
-	"\x1aGetSupportUserByIDResponse\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
-	"\n" +
-	"first_name\x18\x02 \x01(\tR\tfirstName\x12\x1b\n" +
-	"\tlast_name\x18\x03 \x01(\tR\blastName\x12\x12\n" +
-	"\x04role\x18\x04 \x01(\tR\x04role\x12\x1b\n" +
-	"\tis_active\x18\x05 \x01(\bR\bisActive2\xb9\v\n" +
+	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
+	"\aVersion\x18\x02 \x01(\tR\aVersion\x12\x18\n" +
+	"\aService\x18\x03 \x01(\tR\aService\"3\n" +
+	"\x19GetSupportUserByIDRequest\x12\x16\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"\x9e\x01\n" +
+	"\x1aGetSupportUserByIDResponse\x12\x16\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x12\x1c\n" +
+	"\tFirstName\x18\x02 \x01(\tR\tFirstName\x12\x1a\n" +
+	"\bLastName\x18\x03 \x01(\tR\bLastName\x12\x12\n" +
+	"\x04Role\x18\x04 \x01(\tR\x04Role\x12\x1a\n" +
+	"\bIsActive\x18\x05 \x01(\bR\bIsActive2\xb9\v\n" +
 	"\x0eSupportService\x12X\n" +
 	"\x05Login\x12\x15.support.LoginRequest\x1a\x16.support.LoginResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/api/v1/support/login\x12h\n" +
 	"\tVerifyOTP\x12\x19.support.VerifyOTPRequest\x1a\x1a.support.VerifyOTPResponse\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/api/v1/support/verifyOtp\x12h\n" +
@@ -1604,7 +1598,7 @@ var file_support_proto_goTypes = []any{
 	(*GetSupportUserByIDResponse)(nil),     // 26: support.GetSupportUserByIDResponse
 }
 var file_support_proto_depIdxs = []int32{
-	19, // 0: support.ListSupportAgentsResponse.agents:type_name -> support.SupportAgent
+	19, // 0: support.ListSupportAgentsResponse.Agents:type_name -> support.SupportAgent
 	0,  // 1: support.SupportService.Login:input_type -> support.LoginRequest
 	2,  // 2: support.SupportService.VerifyOTP:input_type -> support.VerifyOTPRequest
 	4,  // 3: support.SupportService.ResendOTP:input_type -> support.ResendOTPRequest

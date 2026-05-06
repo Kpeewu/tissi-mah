@@ -4,7 +4,7 @@
 // 	protoc        v6.33.4
 // source: notification.proto
 
-package notificationpb
+package gen
 
 import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
@@ -24,8 +24,8 @@ const (
 
 type GetInboxRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
-	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	Page          int32                  `protobuf:"varint,1,opt,name=Page,proto3" json:"Page,omitempty"`
+	PageSize      int32                  `protobuf:"varint,2,opt,name=PageSize,proto3" json:"PageSize,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -76,8 +76,8 @@ func (x *GetInboxRequest) GetPageSize() int32 {
 
 type GetInboxResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Entries       []*InboxEntry          `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
-	TotalCount    int32                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	Entries       []*InboxEntry          `protobuf:"bytes,1,rep,name=Entries,proto3" json:"Entries,omitempty"`
+	TotalCount    int32                  `protobuf:"varint,2,opt,name=TotalCount,proto3" json:"TotalCount,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -128,14 +128,14 @@ func (x *GetInboxResponse) GetTotalCount() int32 {
 
 type InboxEntry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	InboxId       string                 `protobuf:"bytes,1,opt,name=inbox_id,json=inboxId,proto3" json:"inbox_id,omitempty"`
-	EventType     string                 `protobuf:"bytes,2,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
-	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	Body          string                 `protobuf:"bytes,4,opt,name=body,proto3" json:"body,omitempty"`
-	ActionType    string                 `protobuf:"bytes,5,opt,name=action_type,json=actionType,proto3" json:"action_type,omitempty"`
-	ActionId      string                 `protobuf:"bytes,6,opt,name=action_id,json=actionId,proto3" json:"action_id,omitempty"`
-	IsRead        bool                   `protobuf:"varint,7,opt,name=is_read,json=isRead,proto3" json:"is_read,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	InboxId       string                 `protobuf:"bytes,1,opt,name=InboxId,proto3" json:"InboxId,omitempty"`
+	EventType     string                 `protobuf:"bytes,2,opt,name=EventType,proto3" json:"EventType,omitempty"`
+	Title         string                 `protobuf:"bytes,3,opt,name=Title,proto3" json:"Title,omitempty"`
+	Body          string                 `protobuf:"bytes,4,opt,name=Body,proto3" json:"Body,omitempty"`
+	ActionType    string                 `protobuf:"bytes,5,opt,name=ActionType,proto3" json:"ActionType,omitempty"`
+	ActionId      string                 `protobuf:"bytes,6,opt,name=ActionId,proto3" json:"ActionId,omitempty"`
+	IsRead        bool                   `protobuf:"varint,7,opt,name=IsRead,proto3" json:"IsRead,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,8,opt,name=CreatedAt,proto3" json:"CreatedAt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -228,7 +228,7 @@ func (x *InboxEntry) GetCreatedAt() string {
 
 type MarkAsReadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	InboxId       string                 `protobuf:"bytes,1,opt,name=inbox_id,json=inboxId,proto3" json:"inbox_id,omitempty"`
+	InboxId       string                 `protobuf:"bytes,1,opt,name=InboxId,proto3" json:"InboxId,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -272,7 +272,7 @@ func (x *MarkAsReadRequest) GetInboxId() string {
 
 type MarkAsReadResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -352,7 +352,7 @@ func (*MarkAllAsReadRequest) Descriptor() ([]byte, []int) {
 
 type MarkAllAsReadResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UpdatedCount  int32                  `protobuf:"varint,1,opt,name=updated_count,json=updatedCount,proto3" json:"updated_count,omitempty"`
+	UpdatedCount  int32                  `protobuf:"varint,1,opt,name=UpdatedCount,proto3" json:"UpdatedCount,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -432,7 +432,7 @@ func (*GetUnreadCountRequest) Descriptor() ([]byte, []int) {
 
 type GetUnreadCountResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Count         int32                  `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	Count         int32                  `protobuf:"varint,1,opt,name=Count,proto3" json:"Count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -512,8 +512,8 @@ func (*GetPreferencesRequest) Descriptor() ([]byte, []int) {
 
 type GetPreferencesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PushEnabled   bool                   `protobuf:"varint,1,opt,name=push_enabled,json=pushEnabled,proto3" json:"push_enabled,omitempty"`
-	EmailEnabled  bool                   `protobuf:"varint,2,opt,name=email_enabled,json=emailEnabled,proto3" json:"email_enabled,omitempty"`
+	PushEnabled   bool                   `protobuf:"varint,1,opt,name=PushEnabled,proto3" json:"PushEnabled,omitempty"`
+	EmailEnabled  bool                   `protobuf:"varint,2,opt,name=EmailEnabled,proto3" json:"EmailEnabled,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -564,8 +564,8 @@ func (x *GetPreferencesResponse) GetEmailEnabled() bool {
 
 type UpdatePreferencesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PushEnabled   bool                   `protobuf:"varint,1,opt,name=push_enabled,json=pushEnabled,proto3" json:"push_enabled,omitempty"`
-	EmailEnabled  bool                   `protobuf:"varint,2,opt,name=email_enabled,json=emailEnabled,proto3" json:"email_enabled,omitempty"`
+	PushEnabled   bool                   `protobuf:"varint,1,opt,name=PushEnabled,proto3" json:"PushEnabled,omitempty"`
+	EmailEnabled  bool                   `protobuf:"varint,2,opt,name=EmailEnabled,proto3" json:"EmailEnabled,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -616,7 +616,7 @@ func (x *UpdatePreferencesRequest) GetEmailEnabled() bool {
 
 type UpdatePreferencesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -660,9 +660,9 @@ func (x *UpdatePreferencesResponse) GetSuccess() bool {
 
 type RegisterDeviceTokenRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	FcmToken      string                 `protobuf:"bytes,1,opt,name=fcm_token,json=fcmToken,proto3" json:"fcm_token,omitempty"`
-	Platform      string                 `protobuf:"bytes,2,opt,name=platform,proto3" json:"platform,omitempty"`
-	DeviceName    string                 `protobuf:"bytes,3,opt,name=device_name,json=deviceName,proto3" json:"device_name,omitempty"`
+	FcmToken      string                 `protobuf:"bytes,1,opt,name=FcmToken,proto3" json:"FcmToken,omitempty"`
+	Platform      string                 `protobuf:"bytes,2,opt,name=Platform,proto3" json:"Platform,omitempty"`
+	DeviceName    string                 `protobuf:"bytes,3,opt,name=DeviceName,proto3" json:"DeviceName,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -720,8 +720,8 @@ func (x *RegisterDeviceTokenRequest) GetDeviceName() string {
 
 type RegisterDeviceTokenResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	TokenId       string                 `protobuf:"bytes,2,opt,name=token_id,json=tokenId,proto3" json:"token_id,omitempty"`
+	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
+	TokenId       string                 `protobuf:"bytes,2,opt,name=TokenId,proto3" json:"TokenId,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -772,7 +772,7 @@ func (x *RegisterDeviceTokenResponse) GetTokenId() string {
 
 type UnregisterDeviceTokenRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	FcmToken      string                 `protobuf:"bytes,1,opt,name=fcm_token,json=fcmToken,proto3" json:"fcm_token,omitempty"`
+	FcmToken      string                 `protobuf:"bytes,1,opt,name=FcmToken,proto3" json:"FcmToken,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -816,7 +816,7 @@ func (x *UnregisterDeviceTokenRequest) GetFcmToken() string {
 
 type UnregisterDeviceTokenResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -858,6 +858,94 @@ func (x *UnregisterDeviceTokenResponse) GetSuccess() bool {
 	return false
 }
 
+type InvalidateDeviceTokenRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FcmToken      string                 `protobuf:"bytes,1,opt,name=FcmToken,proto3" json:"FcmToken,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InvalidateDeviceTokenRequest) Reset() {
+	*x = InvalidateDeviceTokenRequest{}
+	mi := &file_notification_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InvalidateDeviceTokenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InvalidateDeviceTokenRequest) ProtoMessage() {}
+
+func (x *InvalidateDeviceTokenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_notification_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InvalidateDeviceTokenRequest.ProtoReflect.Descriptor instead.
+func (*InvalidateDeviceTokenRequest) Descriptor() ([]byte, []int) {
+	return file_notification_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *InvalidateDeviceTokenRequest) GetFcmToken() string {
+	if x != nil {
+		return x.FcmToken
+	}
+	return ""
+}
+
+type InvalidateDeviceTokenResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InvalidateDeviceTokenResponse) Reset() {
+	*x = InvalidateDeviceTokenResponse{}
+	mi := &file_notification_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InvalidateDeviceTokenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InvalidateDeviceTokenResponse) ProtoMessage() {}
+
+func (x *InvalidateDeviceTokenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_notification_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InvalidateDeviceTokenResponse.ProtoReflect.Descriptor instead.
+func (*InvalidateDeviceTokenResponse) Descriptor() ([]byte, []int) {
+	return file_notification_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *InvalidateDeviceTokenResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
 type HealthRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -866,7 +954,7 @@ type HealthRequest struct {
 
 func (x *HealthRequest) Reset() {
 	*x = HealthRequest{}
-	mi := &file_notification_proto_msgTypes[17]
+	mi := &file_notification_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -878,7 +966,7 @@ func (x *HealthRequest) String() string {
 func (*HealthRequest) ProtoMessage() {}
 
 func (x *HealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_proto_msgTypes[17]
+	mi := &file_notification_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -891,21 +979,21 @@ func (x *HealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthRequest.ProtoReflect.Descriptor instead.
 func (*HealthRequest) Descriptor() ([]byte, []int) {
-	return file_notification_proto_rawDescGZIP(), []int{17}
+	return file_notification_proto_rawDescGZIP(), []int{19}
 }
 
 type HealthResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
-	Service       string                 `protobuf:"bytes,3,opt,name=service,proto3" json:"service,omitempty"`
+	Status        string                 `protobuf:"bytes,1,opt,name=Status,proto3" json:"Status,omitempty"`
+	Version       string                 `protobuf:"bytes,2,opt,name=Version,proto3" json:"Version,omitempty"`
+	Service       string                 `protobuf:"bytes,3,opt,name=Service,proto3" json:"Service,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *HealthResponse) Reset() {
 	*x = HealthResponse{}
-	mi := &file_notification_proto_msgTypes[18]
+	mi := &file_notification_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -917,7 +1005,7 @@ func (x *HealthResponse) String() string {
 func (*HealthResponse) ProtoMessage() {}
 
 func (x *HealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_proto_msgTypes[18]
+	mi := &file_notification_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -930,7 +1018,7 @@ func (x *HealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
 func (*HealthResponse) Descriptor() ([]byte, []int) {
-	return file_notification_proto_rawDescGZIP(), []int{18}
+	return file_notification_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *HealthResponse) GetStatus() string {
@@ -958,74 +1046,81 @@ var File_notification_proto protoreflect.FileDescriptor
 
 const file_notification_proto_rawDesc = "" +
 	"\n" +
-	"\x12notification.proto\x12\fnotification\x1a\x1cgoogle/api/annotations.proto\"B\n" +
+	"\x12notification.proto\x12\fnotification\x1a\x1cgoogle/api/annotations.proto\"A\n" +
 	"\x0fGetInboxRequest\x12\x12\n" +
-	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x1b\n" +
-	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\"g\n" +
+	"\x04Page\x18\x01 \x01(\x05R\x04Page\x12\x1a\n" +
+	"\bPageSize\x18\x02 \x01(\x05R\bPageSize\"f\n" +
 	"\x10GetInboxResponse\x122\n" +
-	"\aentries\x18\x01 \x03(\v2\x18.notification.InboxEntryR\aentries\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x05R\n" +
-	"totalCount\"\xe6\x01\n" +
+	"\aEntries\x18\x01 \x03(\v2\x18.notification.InboxEntryR\aEntries\x12\x1e\n" +
 	"\n" +
-	"InboxEntry\x12\x19\n" +
-	"\binbox_id\x18\x01 \x01(\tR\ainboxId\x12\x1d\n" +
+	"TotalCount\x18\x02 \x01(\x05R\n" +
+	"TotalCount\"\xe0\x01\n" +
 	"\n" +
-	"event_type\x18\x02 \x01(\tR\teventType\x12\x14\n" +
-	"\x05title\x18\x03 \x01(\tR\x05title\x12\x12\n" +
-	"\x04body\x18\x04 \x01(\tR\x04body\x12\x1f\n" +
-	"\vaction_type\x18\x05 \x01(\tR\n" +
-	"actionType\x12\x1b\n" +
-	"\taction_id\x18\x06 \x01(\tR\bactionId\x12\x17\n" +
-	"\ais_read\x18\a \x01(\bR\x06isRead\x12\x1d\n" +
+	"InboxEntry\x12\x18\n" +
+	"\aInboxId\x18\x01 \x01(\tR\aInboxId\x12\x1c\n" +
+	"\tEventType\x18\x02 \x01(\tR\tEventType\x12\x14\n" +
+	"\x05Title\x18\x03 \x01(\tR\x05Title\x12\x12\n" +
+	"\x04Body\x18\x04 \x01(\tR\x04Body\x12\x1e\n" +
 	"\n" +
-	"created_at\x18\b \x01(\tR\tcreatedAt\".\n" +
-	"\x11MarkAsReadRequest\x12\x19\n" +
-	"\binbox_id\x18\x01 \x01(\tR\ainboxId\".\n" +
+	"ActionType\x18\x05 \x01(\tR\n" +
+	"ActionType\x12\x1a\n" +
+	"\bActionId\x18\x06 \x01(\tR\bActionId\x12\x16\n" +
+	"\x06IsRead\x18\a \x01(\bR\x06IsRead\x12\x1c\n" +
+	"\tCreatedAt\x18\b \x01(\tR\tCreatedAt\"-\n" +
+	"\x11MarkAsReadRequest\x12\x18\n" +
+	"\aInboxId\x18\x01 \x01(\tR\aInboxId\".\n" +
 	"\x12MarkAsReadResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\"\x16\n" +
-	"\x14MarkAllAsReadRequest\"<\n" +
-	"\x15MarkAllAsReadResponse\x12#\n" +
-	"\rupdated_count\x18\x01 \x01(\x05R\fupdatedCount\"\x17\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\"\x16\n" +
+	"\x14MarkAllAsReadRequest\";\n" +
+	"\x15MarkAllAsReadResponse\x12\"\n" +
+	"\fUpdatedCount\x18\x01 \x01(\x05R\fUpdatedCount\"\x17\n" +
 	"\x15GetUnreadCountRequest\".\n" +
 	"\x16GetUnreadCountResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x05R\x05count\"\x17\n" +
-	"\x15GetPreferencesRequest\"`\n" +
-	"\x16GetPreferencesResponse\x12!\n" +
-	"\fpush_enabled\x18\x01 \x01(\bR\vpushEnabled\x12#\n" +
-	"\remail_enabled\x18\x02 \x01(\bR\femailEnabled\"b\n" +
-	"\x18UpdatePreferencesRequest\x12!\n" +
-	"\fpush_enabled\x18\x01 \x01(\bR\vpushEnabled\x12#\n" +
-	"\remail_enabled\x18\x02 \x01(\bR\femailEnabled\"5\n" +
+	"\x05Count\x18\x01 \x01(\x05R\x05Count\"\x17\n" +
+	"\x15GetPreferencesRequest\"^\n" +
+	"\x16GetPreferencesResponse\x12 \n" +
+	"\vPushEnabled\x18\x01 \x01(\bR\vPushEnabled\x12\"\n" +
+	"\fEmailEnabled\x18\x02 \x01(\bR\fEmailEnabled\"`\n" +
+	"\x18UpdatePreferencesRequest\x12 \n" +
+	"\vPushEnabled\x18\x01 \x01(\bR\vPushEnabled\x12\"\n" +
+	"\fEmailEnabled\x18\x02 \x01(\bR\fEmailEnabled\"5\n" +
 	"\x19UpdatePreferencesResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\"v\n" +
-	"\x1aRegisterDeviceTokenRequest\x12\x1b\n" +
-	"\tfcm_token\x18\x01 \x01(\tR\bfcmToken\x12\x1a\n" +
-	"\bplatform\x18\x02 \x01(\tR\bplatform\x12\x1f\n" +
-	"\vdevice_name\x18\x03 \x01(\tR\n" +
-	"deviceName\"R\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\"t\n" +
+	"\x1aRegisterDeviceTokenRequest\x12\x1a\n" +
+	"\bFcmToken\x18\x01 \x01(\tR\bFcmToken\x12\x1a\n" +
+	"\bPlatform\x18\x02 \x01(\tR\bPlatform\x12\x1e\n" +
+	"\n" +
+	"DeviceName\x18\x03 \x01(\tR\n" +
+	"DeviceName\"Q\n" +
 	"\x1bRegisterDeviceTokenResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x19\n" +
-	"\btoken_id\x18\x02 \x01(\tR\atokenId\";\n" +
-	"\x1cUnregisterDeviceTokenRequest\x12\x1b\n" +
-	"\tfcm_token\x18\x01 \x01(\tR\bfcmToken\"9\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\x18\n" +
+	"\aTokenId\x18\x02 \x01(\tR\aTokenId\":\n" +
+	"\x1cUnregisterDeviceTokenRequest\x12\x1a\n" +
+	"\bFcmToken\x18\x01 \x01(\tR\bFcmToken\"9\n" +
 	"\x1dUnregisterDeviceTokenResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\"\x0f\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\":\n" +
+	"\x1cInvalidateDeviceTokenRequest\x12\x1a\n" +
+	"\bFcmToken\x18\x01 \x01(\tR\bFcmToken\"9\n" +
+	"\x1dInvalidateDeviceTokenResponse\x12\x18\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\"\x0f\n" +
 	"\rHealthRequest\"\\\n" +
 	"\x0eHealthResponse\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\tR\aversion\x12\x18\n" +
-	"\aservice\x18\x03 \x01(\tR\aservice2\xe8\t\n" +
-	"\x13NotificationService\x12n\n" +
-	"\bGetInbox\x12\x1d.notification.GetInboxRequest\x1a\x1e.notification.GetInboxResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/api/v1/notifications/inbox\x12\x84\x01\n" +
+	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
+	"\aVersion\x18\x02 \x01(\tR\aVersion\x12\x18\n" +
+	"\aService\x18\x03 \x01(\tR\aService2\xd9\n" +
 	"\n" +
-	"MarkAsRead\x12\x1f.notification.MarkAsReadRequest\x1a .notification.MarkAsReadResponse\"3\x82\xd3\xe4\x93\x02-\x1a+/api/v1/notifications/inbox/{inbox_id}/read\x12\x88\x01\n" +
+	"\x13NotificationService\x12n\n" +
+	"\bGetInbox\x12\x1d.notification.GetInboxRequest\x1a\x1e.notification.GetInboxResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/api/v1/notifications/inbox\x12\x83\x01\n" +
+	"\n" +
+	"MarkAsRead\x12\x1f.notification.MarkAsReadRequest\x1a .notification.MarkAsReadResponse\"2\x82\xd3\xe4\x93\x02,\x1a*/api/v1/notifications/inbox/{InboxId}/read\x12\x88\x01\n" +
 	"\rMarkAllAsRead\x12\".notification.MarkAllAsReadRequest\x1a#.notification.MarkAllAsReadResponse\".\x82\xd3\xe4\x93\x02(:\x01*\x1a#/api/v1/notifications/inbox/readAll\x12\x8c\x01\n" +
 	"\x0eGetUnreadCount\x12#.notification.GetUnreadCountRequest\x1a$.notification.GetUnreadCountResponse\"/\x82\xd3\xe4\x93\x02)\x12'/api/v1/notifications/inbox/unreadCount\x12\x86\x01\n" +
 	"\x0eGetPreferences\x12#.notification.GetPreferencesRequest\x1a$.notification.GetPreferencesResponse\")\x82\xd3\xe4\x93\x02#\x12!/api/v1/notifications/preferences\x12\x92\x01\n" +
 	"\x11UpdatePreferences\x12&.notification.UpdatePreferencesRequest\x1a'.notification.UpdatePreferencesResponse\",\x82\xd3\xe4\x93\x02&:\x01*\x1a!/api/v1/notifications/preferences\x12\x98\x01\n" +
 	"\x13RegisterDeviceToken\x12(.notification.RegisterDeviceTokenRequest\x1a).notification.RegisterDeviceTokenResponse\",\x82\xd3\xe4\x93\x02&:\x01*\"!/api/v1/notifications/deviceToken\x12\x9b\x01\n" +
-	"\x15UnregisterDeviceToken\x12*.notification.UnregisterDeviceTokenRequest\x1a+.notification.UnregisterDeviceTokenResponse\")\x82\xd3\xe4\x93\x02#*!/api/v1/notifications/deviceToken\x12i\n" +
-	"\x06Health\x12\x1b.notification.HealthRequest\x1a\x1c.notification.HealthResponse\"$\x82\xd3\xe4\x93\x02\x1e\x12\x1c/api/v1/notifications/healthBZZXgithub.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/notificationpb;notificationpbb\x06proto3"
+	"\x15UnregisterDeviceToken\x12*.notification.UnregisterDeviceTokenRequest\x1a+.notification.UnregisterDeviceTokenResponse\")\x82\xd3\xe4\x93\x02#*!/api/v1/notifications/deviceToken\x12p\n" +
+	"\x15InvalidateDeviceToken\x12*.notification.InvalidateDeviceTokenRequest\x1a+.notification.InvalidateDeviceTokenResponse\x12i\n" +
+	"\x06Health\x12\x1b.notification.HealthRequest\x1a\x1c.notification.HealthResponse\"$\x82\xd3\xe4\x93\x02\x1e\x12\x1c/api/v1/notifications/healthBEZCgithub.com/Kpeewu/tissi-mah/services/notification-service/proto/genb\x06proto3"
 
 var (
 	file_notification_proto_rawDescOnce sync.Once
@@ -1039,7 +1134,7 @@ func file_notification_proto_rawDescGZIP() []byte {
 	return file_notification_proto_rawDescData
 }
 
-var file_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_notification_proto_goTypes = []any{
 	(*GetInboxRequest)(nil),               // 0: notification.GetInboxRequest
 	(*GetInboxResponse)(nil),              // 1: notification.GetInboxResponse
@@ -1058,11 +1153,13 @@ var file_notification_proto_goTypes = []any{
 	(*RegisterDeviceTokenResponse)(nil),   // 14: notification.RegisterDeviceTokenResponse
 	(*UnregisterDeviceTokenRequest)(nil),  // 15: notification.UnregisterDeviceTokenRequest
 	(*UnregisterDeviceTokenResponse)(nil), // 16: notification.UnregisterDeviceTokenResponse
-	(*HealthRequest)(nil),                 // 17: notification.HealthRequest
-	(*HealthResponse)(nil),                // 18: notification.HealthResponse
+	(*InvalidateDeviceTokenRequest)(nil),  // 17: notification.InvalidateDeviceTokenRequest
+	(*InvalidateDeviceTokenResponse)(nil), // 18: notification.InvalidateDeviceTokenResponse
+	(*HealthRequest)(nil),                 // 19: notification.HealthRequest
+	(*HealthResponse)(nil),                // 20: notification.HealthResponse
 }
 var file_notification_proto_depIdxs = []int32{
-	2,  // 0: notification.GetInboxResponse.entries:type_name -> notification.InboxEntry
+	2,  // 0: notification.GetInboxResponse.Entries:type_name -> notification.InboxEntry
 	0,  // 1: notification.NotificationService.GetInbox:input_type -> notification.GetInboxRequest
 	3,  // 2: notification.NotificationService.MarkAsRead:input_type -> notification.MarkAsReadRequest
 	5,  // 3: notification.NotificationService.MarkAllAsRead:input_type -> notification.MarkAllAsReadRequest
@@ -1071,18 +1168,20 @@ var file_notification_proto_depIdxs = []int32{
 	11, // 6: notification.NotificationService.UpdatePreferences:input_type -> notification.UpdatePreferencesRequest
 	13, // 7: notification.NotificationService.RegisterDeviceToken:input_type -> notification.RegisterDeviceTokenRequest
 	15, // 8: notification.NotificationService.UnregisterDeviceToken:input_type -> notification.UnregisterDeviceTokenRequest
-	17, // 9: notification.NotificationService.Health:input_type -> notification.HealthRequest
-	1,  // 10: notification.NotificationService.GetInbox:output_type -> notification.GetInboxResponse
-	4,  // 11: notification.NotificationService.MarkAsRead:output_type -> notification.MarkAsReadResponse
-	6,  // 12: notification.NotificationService.MarkAllAsRead:output_type -> notification.MarkAllAsReadResponse
-	8,  // 13: notification.NotificationService.GetUnreadCount:output_type -> notification.GetUnreadCountResponse
-	10, // 14: notification.NotificationService.GetPreferences:output_type -> notification.GetPreferencesResponse
-	12, // 15: notification.NotificationService.UpdatePreferences:output_type -> notification.UpdatePreferencesResponse
-	14, // 16: notification.NotificationService.RegisterDeviceToken:output_type -> notification.RegisterDeviceTokenResponse
-	16, // 17: notification.NotificationService.UnregisterDeviceToken:output_type -> notification.UnregisterDeviceTokenResponse
-	18, // 18: notification.NotificationService.Health:output_type -> notification.HealthResponse
-	10, // [10:19] is the sub-list for method output_type
-	1,  // [1:10] is the sub-list for method input_type
+	17, // 9: notification.NotificationService.InvalidateDeviceToken:input_type -> notification.InvalidateDeviceTokenRequest
+	19, // 10: notification.NotificationService.Health:input_type -> notification.HealthRequest
+	1,  // 11: notification.NotificationService.GetInbox:output_type -> notification.GetInboxResponse
+	4,  // 12: notification.NotificationService.MarkAsRead:output_type -> notification.MarkAsReadResponse
+	6,  // 13: notification.NotificationService.MarkAllAsRead:output_type -> notification.MarkAllAsReadResponse
+	8,  // 14: notification.NotificationService.GetUnreadCount:output_type -> notification.GetUnreadCountResponse
+	10, // 15: notification.NotificationService.GetPreferences:output_type -> notification.GetPreferencesResponse
+	12, // 16: notification.NotificationService.UpdatePreferences:output_type -> notification.UpdatePreferencesResponse
+	14, // 17: notification.NotificationService.RegisterDeviceToken:output_type -> notification.RegisterDeviceTokenResponse
+	16, // 18: notification.NotificationService.UnregisterDeviceToken:output_type -> notification.UnregisterDeviceTokenResponse
+	18, // 19: notification.NotificationService.InvalidateDeviceToken:output_type -> notification.InvalidateDeviceTokenResponse
+	20, // 20: notification.NotificationService.Health:output_type -> notification.HealthResponse
+	11, // [11:21] is the sub-list for method output_type
+	1,  // [1:11] is the sub-list for method input_type
 	1,  // [1:1] is the sub-list for extension type_name
 	1,  // [1:1] is the sub-list for extension extendee
 	0,  // [0:1] is the sub-list for field type_name
@@ -1099,7 +1198,7 @@ func file_notification_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_notification_proto_rawDesc), len(file_notification_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

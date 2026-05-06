@@ -4,7 +4,7 @@
 // - protoc             v6.33.4
 // source: notification.proto
 
-package notificationpb
+package gen
 
 import (
 	context "context"
@@ -27,6 +27,7 @@ const (
 	NotificationService_UpdatePreferences_FullMethodName     = "/notification.NotificationService/UpdatePreferences"
 	NotificationService_RegisterDeviceToken_FullMethodName   = "/notification.NotificationService/RegisterDeviceToken"
 	NotificationService_UnregisterDeviceToken_FullMethodName = "/notification.NotificationService/UnregisterDeviceToken"
+	NotificationService_InvalidateDeviceToken_FullMethodName = "/notification.NotificationService/InvalidateDeviceToken"
 	NotificationService_Health_FullMethodName                = "/notification.NotificationService/Health"
 )
 
@@ -45,6 +46,8 @@ type NotificationServiceClient interface {
 	// === Device Tokens ===
 	RegisterDeviceToken(ctx context.Context, in *RegisterDeviceTokenRequest, opts ...grpc.CallOption) (*RegisterDeviceTokenResponse, error)
 	UnregisterDeviceToken(ctx context.Context, in *UnregisterDeviceTokenRequest, opts ...grpc.CallOption) (*UnregisterDeviceTokenResponse, error)
+	// === Inter-service ===
+	InvalidateDeviceToken(ctx context.Context, in *InvalidateDeviceTokenRequest, opts ...grpc.CallOption) (*InvalidateDeviceTokenResponse, error)
 	// === Health ===
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -137,6 +140,16 @@ func (c *notificationServiceClient) UnregisterDeviceToken(ctx context.Context, i
 	return out, nil
 }
 
+func (c *notificationServiceClient) InvalidateDeviceToken(ctx context.Context, in *InvalidateDeviceTokenRequest, opts ...grpc.CallOption) (*InvalidateDeviceTokenResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InvalidateDeviceTokenResponse)
+	err := c.cc.Invoke(ctx, NotificationService_InvalidateDeviceToken_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *notificationServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -162,6 +175,8 @@ type NotificationServiceServer interface {
 	// === Device Tokens ===
 	RegisterDeviceToken(context.Context, *RegisterDeviceTokenRequest) (*RegisterDeviceTokenResponse, error)
 	UnregisterDeviceToken(context.Context, *UnregisterDeviceTokenRequest) (*UnregisterDeviceTokenResponse, error)
+	// === Inter-service ===
+	InvalidateDeviceToken(context.Context, *InvalidateDeviceTokenRequest) (*InvalidateDeviceTokenResponse, error)
 	// === Health ===
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedNotificationServiceServer()
@@ -197,6 +212,9 @@ func (UnimplementedNotificationServiceServer) RegisterDeviceToken(context.Contex
 }
 func (UnimplementedNotificationServiceServer) UnregisterDeviceToken(context.Context, *UnregisterDeviceTokenRequest) (*UnregisterDeviceTokenResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UnregisterDeviceToken not implemented")
+}
+func (UnimplementedNotificationServiceServer) InvalidateDeviceToken(context.Context, *InvalidateDeviceTokenRequest) (*InvalidateDeviceTokenResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method InvalidateDeviceToken not implemented")
 }
 func (UnimplementedNotificationServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -366,6 +384,24 @@ func _NotificationService_UnregisterDeviceToken_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NotificationService_InvalidateDeviceToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InvalidateDeviceTokenRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NotificationServiceServer).InvalidateDeviceToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NotificationService_InvalidateDeviceToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NotificationServiceServer).InvalidateDeviceToken(ctx, req.(*InvalidateDeviceTokenRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _NotificationService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -422,6 +458,10 @@ var NotificationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UnregisterDeviceToken",
 			Handler:    _NotificationService_UnregisterDeviceToken_Handler,
+		},
+		{
+			MethodName: "InvalidateDeviceToken",
+			Handler:    _NotificationService_InvalidateDeviceToken_Handler,
 		},
 		{
 			MethodName: "Health",

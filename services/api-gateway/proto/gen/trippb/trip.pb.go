@@ -2658,15 +2658,15 @@ func (x *CancelWaypointResponse) GetErrorMessage() string {
 
 type GetScheduledTripsPreviewsRequest struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
-	PassengerPositionLng  float64                `protobuf:"fixed64,1,opt,name=passenger_position_lng,json=passengerPositionLng,proto3" json:"passenger_position_lng,omitempty"`  // 0 = non renseigné
-	PassengerPositionLat  float64                `protobuf:"fixed64,2,opt,name=passenger_position_lat,json=passengerPositionLat,proto3" json:"passenger_position_lat,omitempty"`  // 0 = non renseigné
-	DistanceRange         int32                  `protobuf:"varint,3,opt,name=distance_range,json=distanceRange,proto3" json:"distance_range,omitempty"`                          // km, défaut 5 si 0
-	DepartureLocationName string                 `protobuf:"bytes,4,opt,name=departure_location_name,json=departureLocationName,proto3" json:"departure_location_name,omitempty"` // recherche floue (obligatoire)
-	ArrivalLocationName   string                 `protobuf:"bytes,5,opt,name=arrival_location_name,json=arrivalLocationName,proto3" json:"arrival_location_name,omitempty"`       // recherche floue (obligatoire)
-	TripStartDate         string                 `protobuf:"bytes,6,opt,name=trip_start_date,json=tripStartDate,proto3" json:"trip_start_date,omitempty"`                         // "YYYY-MM-DD" (UTC)
-	TripStartHour         string                 `protobuf:"bytes,7,opt,name=trip_start_hour,json=tripStartHour,proto3" json:"trip_start_hour,omitempty"`                         // "HH:MM" (UTC)
-	TripArrivalHour       string                 `protobuf:"bytes,8,opt,name=trip_arrival_hour,json=tripArrivalHour,proto3" json:"trip_arrival_hour,omitempty"`                   // "HH:MM" (UTC)
-	Index                 int32                  `protobuf:"varint,9,opt,name=index,proto3" json:"index,omitempty"`                                                               // pagination 0-based
+	PassengerPositionLng  float64                `protobuf:"fixed64,1,opt,name=PassengerPositionLng,proto3" json:"PassengerPositionLng,omitempty"` // 0 = non renseigné
+	PassengerPositionLat  float64                `protobuf:"fixed64,2,opt,name=PassengerPositionLat,proto3" json:"PassengerPositionLat,omitempty"` // 0 = non renseigné
+	DistanceRange         int32                  `protobuf:"varint,3,opt,name=DistanceRange,proto3" json:"DistanceRange,omitempty"`                // km, défaut 5 si 0
+	DepartureLocationName string                 `protobuf:"bytes,4,opt,name=DepartureLocationName,proto3" json:"DepartureLocationName,omitempty"` // recherche floue (obligatoire)
+	ArrivalLocationName   string                 `protobuf:"bytes,5,opt,name=ArrivalLocationName,proto3" json:"ArrivalLocationName,omitempty"`     // recherche floue (obligatoire)
+	TripStartDate         string                 `protobuf:"bytes,6,opt,name=TripStartDate,proto3" json:"TripStartDate,omitempty"`                 // "YYYY-MM-DD" (UTC)
+	TripStartHour         string                 `protobuf:"bytes,7,opt,name=TripStartHour,proto3" json:"TripStartHour,omitempty"`                 // "HH:MM" (UTC)
+	TripArrivalHour       string                 `protobuf:"bytes,8,opt,name=TripArrivalHour,proto3" json:"TripArrivalHour,omitempty"`             // "HH:MM" (UTC)
+	Index                 int32                  `protobuf:"varint,9,opt,name=Index,proto3" json:"Index,omitempty"`                                // pagination 0-based
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -2766,10 +2766,10 @@ func (x *GetScheduledTripsPreviewsRequest) GetIndex() int32 {
 
 type GetScheduledTripsPreviewsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TripsPreviews []*TripPreview         `protobuf:"bytes,1,rep,name=trips_previews,json=tripsPreviews,proto3" json:"trips_previews,omitempty"`
-	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
-	NextIndex     int32                  `protobuf:"varint,3,opt,name=next_index,json=nextIndex,proto3" json:"next_index,omitempty"`    // -1 si plus de résultats
-	TotalCount    int32                  `protobuf:"varint,4,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"` // nombre total de résultats matchant
+	TripsPreviews []*TripPreview         `protobuf:"bytes,1,rep,name=TripsPreviews,proto3" json:"TripsPreviews,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	NextIndex     int32                  `protobuf:"varint,3,opt,name=NextIndex,proto3" json:"NextIndex,omitempty"`   // -1 si plus de résultats
+	TotalCount    int32                  `protobuf:"varint,4,opt,name=TotalCount,proto3" json:"TotalCount,omitempty"` // nombre total de résultats matchant
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4361,24 +4361,24 @@ const file_trip_proto_rawDesc = "" +
 	"\x12CancellationReason\x18\x03 \x01(\tR\x12CancellationReason\"V\n" +
 	"\x16CancelWaypointResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\xb3\x03\n" +
-	" GetScheduledTripsPreviewsRequest\x124\n" +
-	"\x16passenger_position_lng\x18\x01 \x01(\x01R\x14passengerPositionLng\x124\n" +
-	"\x16passenger_position_lat\x18\x02 \x01(\x01R\x14passengerPositionLat\x12%\n" +
-	"\x0edistance_range\x18\x03 \x01(\x05R\rdistanceRange\x126\n" +
-	"\x17departure_location_name\x18\x04 \x01(\tR\x15departureLocationName\x122\n" +
-	"\x15arrival_location_name\x18\x05 \x01(\tR\x13arrivalLocationName\x12&\n" +
-	"\x0ftrip_start_date\x18\x06 \x01(\tR\rtripStartDate\x12&\n" +
-	"\x0ftrip_start_hour\x18\a \x01(\tR\rtripStartHour\x12*\n" +
-	"\x11trip_arrival_hour\x18\b \x01(\tR\x0ftripArrivalHour\x12\x14\n" +
-	"\x05index\x18\t \x01(\x05R\x05index\"\xc2\x01\n" +
-	"!GetScheduledTripsPreviewsResponse\x128\n" +
-	"\x0etrips_previews\x18\x01 \x03(\v2\x11.trip.TripPreviewR\rtripsPreviews\x12#\n" +
-	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage\x12\x1d\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\xa4\x03\n" +
+	" GetScheduledTripsPreviewsRequest\x122\n" +
+	"\x14PassengerPositionLng\x18\x01 \x01(\x01R\x14PassengerPositionLng\x122\n" +
+	"\x14PassengerPositionLat\x18\x02 \x01(\x01R\x14PassengerPositionLat\x12$\n" +
+	"\rDistanceRange\x18\x03 \x01(\x05R\rDistanceRange\x124\n" +
+	"\x15DepartureLocationName\x18\x04 \x01(\tR\x15DepartureLocationName\x120\n" +
+	"\x13ArrivalLocationName\x18\x05 \x01(\tR\x13ArrivalLocationName\x12$\n" +
+	"\rTripStartDate\x18\x06 \x01(\tR\rTripStartDate\x12$\n" +
+	"\rTripStartHour\x18\a \x01(\tR\rTripStartHour\x12(\n" +
+	"\x0fTripArrivalHour\x18\b \x01(\tR\x0fTripArrivalHour\x12\x14\n" +
+	"\x05Index\x18\t \x01(\x05R\x05Index\"\xbe\x01\n" +
+	"!GetScheduledTripsPreviewsResponse\x127\n" +
+	"\rTripsPreviews\x18\x01 \x03(\v2\x11.trip.TripPreviewR\rTripsPreviews\x12\"\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\x12\x1c\n" +
+	"\tNextIndex\x18\x03 \x01(\x05R\tNextIndex\x12\x1e\n" +
 	"\n" +
-	"next_index\x18\x03 \x01(\x05R\tnextIndex\x12\x1f\n" +
-	"\vtotal_count\x18\x04 \x01(\x05R\n" +
-	"totalCount\"\x0f\n" +
+	"TotalCount\x18\x04 \x01(\x05R\n" +
+	"TotalCount\"\x0f\n" +
 	"\rHealthRequest\"`\n" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
@@ -4606,7 +4606,7 @@ var file_trip_proto_depIdxs = []int32{
 	5,  // 3: trip.CreateRecurringTripRequest.TripWaypoints:type_name -> trip.WaypointInput
 	12, // 4: trip.GetTripsPreviewsResponse.TripsPreviews:type_name -> trip.TripPreview
 	15, // 5: trip.GetCompletedTripsPreviewsResponse.TripsPreviews:type_name -> trip.CompletedTripPreview
-	12, // 6: trip.GetScheduledTripsPreviewsResponse.trips_previews:type_name -> trip.TripPreview
+	12, // 6: trip.GetScheduledTripsPreviewsResponse.TripsPreviews:type_name -> trip.TripPreview
 	43, // 7: trip.SyncLegBookedSeatsRequest.Legs:type_name -> trip.LegBookedSeatsEntry
 	47, // 8: trip.GetDriverTripDetailsResponse.Waypoints:type_name -> trip.DriverWaypointDetail
 	49, // 9: trip.GetDriverTripDetailsResponse.Bookings:type_name -> trip.DriverBookingPreview
