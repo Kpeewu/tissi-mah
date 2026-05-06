@@ -26,7 +26,6 @@ data:
         "paths": {
           "root":    "/data",
           "styles":  "/data/styles",
-          "sprites": "/data/sprites",
           "fonts":   "/data/fonts",
           "mbtiles": "/data"
         },
