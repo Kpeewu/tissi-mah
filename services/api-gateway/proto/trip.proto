@@ -537,22 +537,22 @@ message CancelWaypointResponse {
 // =============================================================================
 
 message GetScheduledTripsPreviewsRequest {
-  double passenger_position_lng  = 1;  // 0 = non renseigné
-  double passenger_position_lat  = 2;  // 0 = non renseigné
-  int32  distance_range          = 3;  // km, défaut 5 si 0
-  string departure_location_name = 4;  // recherche floue (obligatoire)
-  string arrival_location_name   = 5;  // recherche floue (obligatoire)
-  string trip_start_date         = 6;  // "YYYY-MM-DD" (UTC)
-  string trip_start_hour         = 7;  // "HH:MM" (UTC)
-  string trip_arrival_hour       = 8;  // "HH:MM" (UTC)
-  int32  index                   = 9;  // pagination 0-based
+  double PassengerPositionLng  = 1;  // 0 = non renseigné
+  double PassengerPositionLat  = 2;  // 0 = non renseigné
+  int32  DistanceRange         = 3;  // km, défaut 5 si 0
+  string DepartureLocationName = 4;  // recherche floue (obligatoire)
+  string ArrivalLocationName   = 5;  // recherche floue (obligatoire)
+  string TripStartDate         = 6;  // "YYYY-MM-DD" (UTC)
+  string TripStartHour         = 7;  // "HH:MM" (UTC)
+  string TripArrivalHour       = 8;  // "HH:MM" (UTC)
+  int32  Index                 = 9;  // pagination 0-based
 }
 
 message GetScheduledTripsPreviewsResponse {
-  repeated TripPreview trips_previews = 1;
-  string error_message                = 2;
-  int32  next_index                   = 3;  // -1 si plus de résultats
-  int32  total_count                  = 4;  // nombre total de résultats matchant
+  repeated TripPreview TripsPreviews = 1;
+  string ErrorMessage                = 2;
+  int32  NextIndex                   = 3;  // -1 si plus de résultats
+  int32  TotalCount                  = 4;  // nombre total de résultats matchant
 }
 
 // =============================================================================

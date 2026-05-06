@@ -15,7 +15,7 @@ service NotificationService {
   }
   rpc MarkAsRead(MarkAsReadRequest) returns (MarkAsReadResponse) {
     option (google.api.http) = {
-      put: "/api/v1/notifications/inbox/{inbox_id}/read"
+      put: "/api/v1/notifications/inbox/{InboxId}/read"
     };
   }
   rpc MarkAllAsRead(MarkAllAsReadRequest) returns (MarkAllAsReadResponse) {
@@ -70,44 +70,44 @@ service NotificationService {
 // === Inbox ===
 
 message GetInboxRequest {
-  int32 page = 1;
-  int32 page_size = 2;
+  int32 Page     = 1;
+  int32 PageSize = 2;
 }
 
 message GetInboxResponse {
-  repeated InboxEntry entries = 1;
-  int32 total_count = 2;
+  repeated InboxEntry Entries    = 1;
+  int32               TotalCount = 2;
 }
 
 message InboxEntry {
-  string inbox_id = 1;
-  string event_type = 2;
-  string title = 3;
-  string body = 4;
-  string action_type = 5;
-  string action_id = 6;
-  bool is_read = 7;
-  string created_at = 8;
+  string InboxId    = 1;
+  string EventType  = 2;
+  string Title      = 3;
+  string Body       = 4;
+  string ActionType = 5;
+  string ActionId   = 6;
+  bool   IsRead     = 7;
+  string CreatedAt  = 8;
 }
 
 message MarkAsReadRequest {
-  string inbox_id = 1;
+  string InboxId = 1;
 }
 
 message MarkAsReadResponse {
-  bool success = 1;
+  bool Success = 1;
 }
 
 message MarkAllAsReadRequest {}
 
 message MarkAllAsReadResponse {
-  int32 updated_count = 1;
+  int32 UpdatedCount = 1;
 }
 
 message GetUnreadCountRequest {}
 
 message GetUnreadCountResponse {
-  int32 count = 1;
+  int32 Count = 1;
 }
 
 // === Preferences ===
@@ -115,48 +115,48 @@ message GetUnreadCountResponse {
 message GetPreferencesRequest {}
 
 message GetPreferencesResponse {
-  bool push_enabled = 1;
-  bool email_enabled = 2;
+  bool PushEnabled  = 1;
+  bool EmailEnabled = 2;
 }
 
 message UpdatePreferencesRequest {
-  bool push_enabled = 1;
-  bool email_enabled = 2;
+  bool PushEnabled  = 1;
+  bool EmailEnabled = 2;
 }
 
 message UpdatePreferencesResponse {
-  bool success = 1;
+  bool Success = 1;
 }
 
 // === Device Tokens ===
 
 message RegisterDeviceTokenRequest {
-  string fcm_token = 1;
-  string platform = 2;
-  string device_name = 3;
+  string FcmToken   = 1;
+  string Platform   = 2;
+  string DeviceName = 3;
 }
 
 message RegisterDeviceTokenResponse {
-  bool success = 1;
-  string token_id = 2;
+  bool   Success = 1;
+  string TokenId = 2;
 }
 
 message UnregisterDeviceTokenRequest {
-  string fcm_token = 1;
+  string FcmToken = 1;
 }
 
 message UnregisterDeviceTokenResponse {
-  bool success = 1;
+  bool Success = 1;
 }
 
 // === Inter-service ===
 
 message InvalidateDeviceTokenRequest {
-  string fcm_token = 1;
+  string FcmToken = 1;
 }
 
 message InvalidateDeviceTokenResponse {
-  bool success = 1;
+  bool Success = 1;
 }
 
 // === Health ===
@@ -164,7 +164,7 @@ message InvalidateDeviceTokenResponse {
 message HealthRequest {}
 
 message HealthResponse {
-  string status = 1;
-  string version = 2;
-  string service = 3;
+  string Status  = 1;
+  string Version = 2;
+  string Service = 3;
 }
