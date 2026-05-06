@@ -1,12 +1,15 @@
-# Config TileServer GL : déclare le dataset west-africa pointant sur le .pmtiles
-# et expose les glyph PBFs des fontes pré-chargées par le Job tile-fonts.
-# Le serveur expose alors :
+# Config TileServer GL : déclare le dataset west-africa pointant sur le .pmtiles,
+# expose les glyphs SDF et les styles vectoriels (default + satellite).
+#
+# Endpoints exposés après déploiement :
 #   /data/west-africa/{z}/{x}/{y}.pbf            — vector tiles (MVT)
 #   /data/west-africa.json                       — TileJSON metadata
-#   /fonts/{fontstack}/{range}.pbf               — glyphs SDF pour MapLibre
+#   /fonts/{fontstack}/{range}.pbf               — glyphs SDF (Noto + Open Sans)
+#   /styles/default/style.json                   — style vecteur standard
+#   /styles/satellite/style.json                 — style satellite (Esri + labels)
 #
-# Sprites et styles ne sont PAS servis : le client mobile bundle son propre
-# style.json et n'utilise pas d'icônes pour le rendu actuel.
+# Les fichiers styles/default.json et styles/satellite.json sont générés par
+# le Job tile-styles (infrastructure/manifests/tileserver/styles-job.yaml).
 # allowedHosts ferme l'attaque par Host header poisoning (warning v5).
 apiVersion: v1
 kind: ConfigMap
@@ -21,8 +24,10 @@ data:
     {
       "options": {
         "paths": {
-          "root": "/data",
-          "fonts": "/data/fonts",
+          "root":    "/data",
+          "styles":  "/data/styles",
+          "sprites": "/data/sprites",
+          "fonts":   "/data/fonts",
           "mbtiles": "/data"
         },
         "frontPage": false,
@@ -33,5 +38,9 @@ data:
         "west-africa": {
           "pmtiles": "west-africa.pmtiles"
         }
+      },
+      "styles": {
+        "default":   { "style": "default.json"   },
+        "satellite": { "style": "satellite.json" }
       }
     }
