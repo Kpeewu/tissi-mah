@@ -72,12 +72,21 @@ func run(bootstrapLogger *zap.Logger) error {
 		return fmt.Errorf("postgres ping: %w", err)
 	}
 
-	// Redis
+	// Redis local (TripCloserWorker subscribe trip.completed, locks)
 	redisClient, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.Redis.URL)
 	if err != nil {
 		return fmt.Errorf("redis: %w", err)
 	}
 	defer redisClient.Close()
+
+	// Redis notification (publication NEW_MESSAGE → push FCM via
+	// notification-service). Distinct du Redis local pour isoler la file
+	// d'événements inter-services.
+	notifRedis, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.NotificationRedis.URL)
+	if err != nil {
+		return fmt.Errorf("notification redis: %w", err)
+	}
+	defer notifRedis.Close()
 
 	// Encrypteur
 	encryptor, err := crypto.NewMessageEncryptor(cfg.Encryption.MasterKeyBase64)
@@ -112,7 +121,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	chatService := service.NewChatService(
 		threadRepo, messageRepo,
 		userClient, bookingClient, tripClient,
-		encryptor, logger,
+		encryptor, notifRedis, logger,
 	)
 
 	// Workers background

@@ -7,17 +7,18 @@ import (
 )
 
 type Config struct {
-	Server          ServerConfig
-	Environment     EnvironmentConfig
-	Database        DatabaseConfig
-	Redis           RedisConfig
-	UserService     ServiceEndpoint
-	BookingService  ServiceEndpoint
-	TripsService    ServiceEndpoint
-	SupportService  ServiceEndpoint
-	Encryption      EncryptionConfig
-	Worker          WorkerConfig
-	LogLevel        string
+	Server            ServerConfig
+	Environment       EnvironmentConfig
+	Database          DatabaseConfig
+	Redis             RedisConfig
+	NotificationRedis RedisConfig
+	UserService       ServiceEndpoint
+	BookingService    ServiceEndpoint
+	TripsService      ServiceEndpoint
+	SupportService    ServiceEndpoint
+	Encryption        EncryptionConfig
+	Worker            WorkerConfig
+	LogLevel          string
 }
 
 type ServerConfig struct {
@@ -81,6 +82,12 @@ func Load() (*Config, error) {
 		},
 		Redis: RedisConfig{
 			URL: sharedconfig.MustGetString(values, "REDIS_URL"),
+		},
+		// NotificationRedis = bus inter-services pour les events
+		// (NEW_MESSAGE consommé par notification-service → push FCM).
+		// Distinct du Redis local qui sert pour les locks et le TripCloserWorker.
+		NotificationRedis: RedisConfig{
+			URL: sharedconfig.MustGetString(values, "NOTIFICATION_REDIS_URL"),
 		},
 		UserService: ServiceEndpoint{
 			Host: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_HOST", "0.0.0.0"),

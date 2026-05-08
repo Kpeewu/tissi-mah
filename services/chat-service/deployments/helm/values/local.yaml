@@ -39,6 +39,9 @@ config:
 secrets:
   databaseUrl: "postgresql://dev:dev123@chat-postgres:5432/chat_db?sslmode=disable"
   redisUrl: "redis://chat-redis:6379/0"
+  # Pointe vers le Redis trips-service (où sont émis trip.completed et
+  # consommés les NEW_MESSAGE par notification-service en local).
+  notificationRedisUrl: "redis://trips-redis:6379/0"
   # Generer en local : openssl rand -base64 32
   chatEncryptionKey: ""
   extra: {}

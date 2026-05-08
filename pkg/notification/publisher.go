@@ -56,6 +56,7 @@ const (
 	RefRefund        = "refund"
 	RefRating        = "rating"
 	RefSupportTicket = "support_ticket"
+	RefChatMessage   = "chat_message"
 )
 
 // Event représente un événement de notification publié dans le Redis Stream.

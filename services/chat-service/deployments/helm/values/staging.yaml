@@ -52,6 +52,7 @@ config:
 secrets:
   databaseUrl: ""
   redisUrl: ""
+  notificationRedisUrl: ""
   chatEncryptionKey: ""
   extra: {}
 

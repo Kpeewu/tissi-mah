@@ -381,10 +381,13 @@ jobs:
               # CHAT_ENCRYPTION_KEY : base64(32 random bytes) — DOIT être
               # identique sur tous les pods + persistant entre rollouts,
               # sinon on perd la lecture des messages chiffrés existants.
+              # notificationRedisUrl est partagé avec les autres services
+              # qui publient des events (NEW_MESSAGE → push FCM).
               data = {
                   'secrets': {
                       'databaseUrl': os.environ.get('CHAT_DATABASE_URL', ''),
                       'redisUrl': os.environ.get('CHAT_REDIS_URL', ''),
+                      'notificationRedisUrl': os.environ.get('NOTIFICATION_REDIS_URL', ''),
                       'chatEncryptionKey': os.environ.get('CHAT_ENCRYPTION_KEY', ''),
                   },
               }

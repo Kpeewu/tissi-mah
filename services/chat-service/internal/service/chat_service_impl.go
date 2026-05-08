@@ -3,11 +3,14 @@ package service
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
+	"github.com/Kpeewu/tissi-mah/pkg/notification"
 	"github.com/Kpeewu/tissi-mah/services/chat-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/chat-service/internal/crypto"
 	"github.com/Kpeewu/tissi-mah/services/chat-service/internal/domain"
@@ -31,7 +34,10 @@ type chatServiceImpl struct {
 	tripClient    client.TripClient
 	encryptor     *crypto.MessageEncryptor
 	piiFilter     *filter.PIIFilter
-	logger        *zap.Logger
+	// notifRedis publie les events NEW_MESSAGE consommés par
+	// notification-service (push FCM quand le destinataire est offline).
+	notifRedis *redis.Client
+	logger     *zap.Logger
 }
 
 func NewChatService(
@@ -41,6 +47,7 @@ func NewChatService(
 	bookingClient client.BookingClient,
 	tripClient client.TripClient,
 	encryptor *crypto.MessageEncryptor,
+	notifRedis *redis.Client,
 	logger *zap.Logger,
 ) svcInterfaces.ChatService {
 	return &chatServiceImpl{
@@ -51,6 +58,7 @@ func NewChatService(
 		tripClient:    tripClient,
 		encryptor:     encryptor,
 		piiFilter:     filter.NewPIIFilter(),
+		notifRedis:    notifRedis,
 		logger:        logger,
 	}
 }
@@ -223,6 +231,36 @@ func (s *chatServiceImpl) SendMessage(ctx context.Context, input svcInterfaces.S
 		zap.String("messageID", created.MessageID),
 		zap.String("threadID", input.ThreadID),
 	)
+
+	// Publication best-effort sur Redis Streams pour qu'un push FCM soit
+	// déclenché côté notification-service quand le destinataire est offline.
+	// Un échec Redis n'invalide pas le message déjà persisté ; le polling
+	// foreground du destinataire le récupèrera de toute façon.
+	recipientID := thread.PassengerID
+	if internalUserID == thread.PassengerID {
+		recipientID = thread.DriverID
+	}
+	if s.notifRedis != nil {
+		if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
+			EventType:     notification.NewMessage,
+			UserID:        recipientID,
+			ReferenceID:   created.MessageID,
+			ReferenceType: notification.RefChatMessage,
+			Payload: map[string]string{
+				// PAS le contenu en clair — la notif est un signal,
+				// le contenu reste chiffré côté serveur.
+				"thread_id":     thread.ThreadID,
+				"sender_role":   string(role),
+				"has_redaction": strconv.FormatBool(hasRedaction),
+			},
+		}); pubErr != nil {
+			s.logger.Warn("chat: publish NEW_MESSAGE event failed",
+				zap.String("messageID", created.MessageID),
+				zap.Error(pubErr),
+			)
+		}
+	}
+
 	return &svcInterfaces.SendMessageResult{
 		Message:      created,
 		HasRedaction: hasRedaction,
