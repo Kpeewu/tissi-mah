@@ -586,7 +586,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_CHAT_PASSWORD:-dev123}
       POSTGRES_DB: ${POSTGRES_CHAT_DB:-chat_db}
     ports:
-      - "5440:5432"
+      - "5442:5432"
     volumes:
       - chat_postgres_data:/var/lib/postgresql/data
     healthcheck:
