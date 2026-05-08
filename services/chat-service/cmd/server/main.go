@@ -3,26 +3,20 @@ package main
 import (
 	"context"
 	"fmt"
-	"net"
 	"os/signal"
 	"syscall"
 
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	"google.golang.org/grpc/health/grpc_health_v1"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	pkgDatabase "github.com/Kpeewu/tissi-mah/pkg/database"
 	pkgLogger "github.com/Kpeewu/tissi-mah/pkg/logger"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/Kpeewu/tissi-mah/services/chat-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/chat-service/internal/config"
 	"github.com/Kpeewu/tissi-mah/services/chat-service/internal/crypto"
 	chatGRPC "github.com/Kpeewu/tissi-mah/services/chat-service/internal/grpc"
-	"github.com/Kpeewu/tissi-mah/services/chat-service/internal/middleware"
 	"github.com/Kpeewu/tissi-mah/services/chat-service/internal/repository/implementations"
 	"github.com/Kpeewu/tissi-mah/services/chat-service/internal/service"
-	chatpb "github.com/Kpeewu/tissi-mah/services/chat-service/proto/gen"
 )
 
 func main() {
@@ -128,30 +122,13 @@ func run(bootstrapLogger *zap.Logger) error {
 	go service.StartTripCloserWorker(ctx, chatService, redisClient, cfg.Worker.TripCloserIntervalSeconds, logger)
 	go service.StartRetentionWorker(ctx, messageRepo, cfg.Worker.MessageRetentionDays, logger)
 
-	// Serveur gRPC
-	handler := chatGRPC.NewChatHandler(chatService, encryptor, logger)
-	srv := grpc.NewServer(
-		grpc.UnaryInterceptor(middleware.ChatInterceptor()),
-	)
-	chatpb.RegisterChatServiceServer(srv, handler)
-
-	healthSrv := health.NewServer()
-	grpc_health_v1.RegisterHealthServer(srv, healthSrv)
-	healthSrv.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
-
-	addr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
-	lis, err := net.Listen("tcp", addr)
+	// Serveur gRPC (TLS self-signed via grpcutil.NewServer)
+	srv, err := chatGRPC.NewChatServer(cfg, chatService, encryptor, logger)
 	if err != nil {
-		return fmt.Errorf("listen %s: %w", addr, err)
+		return fmt.Errorf("grpc server: %w", err)
 	}
 
-	logger.Info("chat-service ready", zap.String("addr", addr))
+	logger.Info("chat-service ready", zap.String("port", cfg.Server.Port))
 
-	go func() {
-		<-ctx.Done()
-		logger.Info("chat-service shutting down")
-		srv.GracefulStop()
-	}()
-
-	return srv.Serve(lis)
+	return srv.Serve(ctx)
 }
