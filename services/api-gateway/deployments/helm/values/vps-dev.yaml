@@ -62,6 +62,8 @@ config:
   supportServicePort: "50063"
   geolocationServiceHost: "geolocation-service"
   geolocationServicePort: "50064"
+  chatServiceHost: "chat-service"
+  chatServicePort: "50065"
   corsAllowedOrigins: "*"
   extra: {}
 

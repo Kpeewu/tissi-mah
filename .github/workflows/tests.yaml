@@ -26,6 +26,7 @@ jobs:
       push-service: ${{ steps.filter.outputs.push-service }}
       notification-service: ${{ steps.filter.outputs.notification-service }}
       geolocation-service: ${{ steps.filter.outputs.geolocation-service }}
+      chat-service: ${{ steps.filter.outputs.chat-service }}
       pkg-notification: ${{ steps.filter.outputs.pkg-notification }}
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +57,8 @@ jobs:
               - 'services/notification-service/**'
             geolocation-service:
               - 'services/geolocation-service/**'
+            chat-service:
+              - 'services/chat-service/**'
             pkg-notification:
               - 'pkg/notification/**'
 
@@ -645,6 +648,38 @@ jobs:
           flags: geolocation-service
           name: geolocation-service-coverage
 
+  # Test Chat Service
+  test-chat-service:
+    name: Test Chat Service
+    needs: detect-changes
+    if: needs.detect-changes.outputs.chat-service == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.work"
+          cache: true
+          cache-dependency-path: services/chat-service/go.sum
+
+      - name: Download dependencies
+        working-directory: services/chat-service
+        run: go mod download
+
+      - name: Run unit tests
+        working-directory: services/chat-service
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./internal/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: services/chat-service/coverage.out
+          flags: chat-service
+          name: chat-service-coverage
+
   # Summary job
   test-summary:
     name: Test Summary
@@ -663,6 +698,7 @@ jobs:
         test-push-service,
         test-notification-service,
         test-geolocation-service,
+        test-chat-service,
       ]
     if: always()
     runs-on: ubuntu-latest
@@ -753,6 +789,13 @@ jobs:
             echo "✅ Geolocation Service: PASSED"
           else
             echo "❌ Geolocation Service: FAILED"
+            exit 1
+          fi
+
+          if [ "${{ needs.test-chat-service.result }}" == "success" ] || [ "${{ needs.detect-changes.outputs.chat-service }}" != "true" ]; then
+            echo "✅ Chat Service: PASSED"
+          else
+            echo "❌ Chat Service: FAILED"
             exit 1
           fi
 

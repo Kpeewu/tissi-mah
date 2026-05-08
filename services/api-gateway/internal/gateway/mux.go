@@ -17,6 +17,7 @@ import (
 	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	authpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/authpb"
 	bookingpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/bookingpb"
+	chatpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/chatpb"
 	paymentpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/paymentpb"
 	filepb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/filepb"
 	geolocationpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/geolocationpb"
@@ -43,6 +44,7 @@ type MuxConfig struct {
 	NotificationServiceAddr string
 	SupportServiceAddr      string
 	GeolocationServiceAddr  string
+	ChatServiceAddr         string
 	Logger                  *zap.Logger
 }
 
@@ -175,6 +177,12 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		return nil, err
 	}
 	cfg.Logger.Info("registered geolocation-service handler", zap.String("endpoint", cfg.GeolocationServiceAddr))
+
+	// Enregistrer chat-service (messagerie passager-chauffeur)
+	if err := chatpb.RegisterChatServiceHandlerFromEndpoint(ctx, mux, cfg.ChatServiceAddr, dialOpts); err != nil {
+		return nil, err
+	}
+	cfg.Logger.Info("registered chat-service handler", zap.String("endpoint", cfg.ChatServiceAddr))
 
 	// Handler brut pour le webhook FedaPay : bypass le transcoding grpc-gateway afin de
 	// conserver les bytes raw du body (nécessaires pour la vérification HMAC-SHA256) et

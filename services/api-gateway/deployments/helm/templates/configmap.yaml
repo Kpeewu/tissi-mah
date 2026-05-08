@@ -32,6 +32,8 @@ data:
   SUPPORT_SERVICE_PORT: {{ .Values.config.supportServicePort | quote }}
   GEOLOCATION_SERVICE_HOST: {{ .Values.config.geolocationServiceHost | quote }}
   GEOLOCATION_SERVICE_PORT: {{ .Values.config.geolocationServicePort | quote }}
+  CHAT_SERVICE_HOST: {{ .Values.config.chatServiceHost | quote }}
+  CHAT_SERVICE_PORT: {{ .Values.config.chatServicePort | quote }}
   CORS_ALLOWED_ORIGINS: {{ .Values.config.corsAllowedOrigins | quote }}
   {{- range $key, $value := .Values.config.extra }}
   {{ $key }}: {{ $value | quote }}

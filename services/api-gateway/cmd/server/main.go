@@ -89,6 +89,7 @@ func run(bootstrapLogger *zap.Logger) error {
 		NotificationServiceAddr: cfg.NotificationService.Address(),
 		SupportServiceAddr:      cfg.SupportService.Address(),
 		GeolocationServiceAddr:  cfg.GeolocationService.Address(),
+		ChatServiceAddr:         cfg.ChatService.Address(),
 		Logger:                  logger,
 	})
 	if err != nil {

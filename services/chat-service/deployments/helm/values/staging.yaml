@@ -1,0 +1,108 @@
+replicaCount: 2
+
+image:
+  registry: ghcr.io
+  repository: kpeewu/tissi-mah/chat-service
+  pullPolicy: Always
+  tag: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: ""  # Set via CI/CD
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 50065
+
+config:
+  environment: "staging"
+  logLevel: "info"
+  bookingServiceHost: "booking-service"
+  bookingServicePort: "50058"
+  tripsServiceHost: "trips-service"
+  tripsServicePort: "50055"
+  supportServiceHost: "support-service"
+  supportServicePort: "50063"
+  tripCloserIntervalSeconds: "30"
+  messageRetentionDays: "180"
+  extra: {}
+
+# Secrets fournis via External Secrets Operator (AWS Secrets Manager)
+secrets:
+  databaseUrl: ""
+  redisUrl: ""
+  notificationRedisUrl: ""
+  chatEncryptionKey: ""
+  extra: {}
+
+probes:
+  enabled: true
+  liveness:
+    initialDelaySeconds: 20
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 15
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 3
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 800m
+    memory: 768Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 75
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+nodeSelector: {}
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - chat-service
+          topologyKey: kubernetes.io/hostname
+
+imagePullSecrets:
+  - name: ghcr-secret

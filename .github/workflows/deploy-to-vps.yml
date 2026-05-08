@@ -74,6 +74,8 @@ jobs:
               - 'services/support-service/**'
             geolocation-service:
               - 'services/geolocation-service/**'
+            chat-service:
+              - 'services/chat-service/**'
             pkg:
               - 'pkg/**'
 
@@ -83,7 +85,7 @@ jobs:
           if [ -n "${{ github.event.inputs.service }}" ]; then
             echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
           else
-            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service","booking-service","kyc-service","payment-service","email-service","push-service","notification-service","support-service","geolocation-service"]' >> $GITHUB_OUTPUT
+            echo 'services=["api-gateway","auth-service","user-service","file-service","rating-service","vehicle-service","trips-service","booking-service","kyc-service","payment-service","email-service","push-service","notification-service","support-service","geolocation-service","chat-service"]' >> $GITHUB_OUTPUT
           fi
 
   run-tests:
@@ -216,6 +218,10 @@ jobs:
           GEOLOCATION_REDIS_URL: ${{ secrets.GEOLOCATION_REDIS_URL }}
           GEOLOCATION_OSRM_URL: ${{ secrets.GEOLOCATION_OSRM_URL }}
           GEOLOCATION_NOMINATIM_URL: ${{ secrets.GEOLOCATION_NOMINATIM_URL }}
+          # chat-service secrets
+          CHAT_DATABASE_URL: ${{ secrets.CHAT_DATABASE_URL }}
+          CHAT_REDIS_URL: ${{ secrets.CHAT_REDIS_URL }}
+          CHAT_ENCRYPTION_KEY: ${{ secrets.CHAT_ENCRYPTION_KEY }}
         run: |
           python3 - <<'PYEOF'
           import yaml, os, json, sys
@@ -371,6 +377,21 @@ jobs:
               if cfg_data:
                   data['config'] = cfg_data
 
+          elif service == "chat-service":
+              # CHAT_ENCRYPTION_KEY : base64(32 random bytes) — DOIT être
+              # identique sur tous les pods + persistant entre rollouts,
+              # sinon on perd la lecture des messages chiffrés existants.
+              # notificationRedisUrl est partagé avec les autres services
+              # qui publient des events (NEW_MESSAGE → push FCM).
+              data = {
+                  'secrets': {
+                      'databaseUrl': os.environ.get('CHAT_DATABASE_URL', ''),
+                      'redisUrl': os.environ.get('CHAT_REDIS_URL', ''),
+                      'notificationRedisUrl': os.environ.get('NOTIFICATION_REDIS_URL', ''),
+                      'chatEncryptionKey': os.environ.get('CHAT_ENCRYPTION_KEY', ''),
+                  },
+              }
+
           else:
               print(f"ERROR: Unknown service '{service}'", file=sys.stderr)
               sys.exit(1)
@@ -482,6 +503,7 @@ jobs:
           HEALTH_ENDPOINTS["kyc-service"]="${BASE_URL}/api/v1/kyc/health"
           HEALTH_ENDPOINTS["notification-service"]="${BASE_URL}/api/v1/notifications/health"
           HEALTH_ENDPOINTS["geolocation-service"]="${BASE_URL}/api/v1/geolocation/health"
+          HEALTH_ENDPOINTS["chat-service"]="${BASE_URL}/api/v1/chat/health"
           # Pas d'endpoint HTTP public pour ces services :
           HEALTH_ENDPOINTS["email-service"]=""
           HEALTH_ENDPOINTS["push-service"]=""
@@ -635,6 +657,14 @@ jobs:
 #      (cf. infrastructure/manifests/{osrm,nominatim,tileserver,osm-data-prep}/),
 #      a deployer en one-shot avant le premier deploy de geolocation-service.
 #
+#  14. Secrets GitHub pour chat-service:
+#      - CHAT_DATABASE_URL    : postgresql://user:pass@host:5440/chat_db
+#      - CHAT_REDIS_URL       : redis://host:6390/0 (Redis Streams trip.completed + locks)
+#      - CHAT_ENCRYPTION_KEY  : base64(32 bytes) — generer une fois avec
+#        `openssl rand -base64 32`. DOIT rester identique entre rollouts
+#        sinon les messages chiffres existants deviennent illisibles.
+#        Rotation = re-chiffrement complet de tous les messages.
+#
 # Architecture:
 #   VPS K3s namespace "default":
 #     |- api-gateway (HTTP LoadBalancer, port 8080)
@@ -648,6 +678,7 @@ jobs:
 #     |- payment-service (gRPC ClusterIP, port 50059)
 #     |- kyc-service (gRPC ClusterIP, port 50057)
 #     |- geolocation-service (gRPC ClusterIP, port 50064)
+#     |- chat-service (gRPC ClusterIP, port 50065)
 #     |- osrm-backend (HTTP ClusterIP interne, port 5000)
 #     |- nominatim-backend (HTTP ClusterIP interne, port 7070)
 #     |- tileserver-gl (HTTP via Ingress public tiles.tissi-mah.com)
