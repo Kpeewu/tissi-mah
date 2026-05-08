@@ -571,7 +571,12 @@ services:
       - tissi-mah-network
 
   # -------------------------------------------------------------------------
-  # Chat Service
+  # Chat Service (messagerie passager-chauffeur)
+  # - Postgres : threads + messages chiffrés AES-GCM (port 5440)
+  # - Redis    : locks + TripCloserWorker (subscribe trip.completed) (port 6390)
+  # NotificationRedis n'est PAS un container dédié : chat-service publie ses
+  # events NEW_MESSAGE sur le Redis trips/notification (existant) consommé
+  # par notification-service.
   # -------------------------------------------------------------------------
   chat-postgres:
     image: postgres:15-alpine
@@ -609,12 +614,21 @@ services:
 
   chat-migrate:
     image: migrate/migrate:v4.17.0
+    container_name: tissi-mah-chat-migrate
     depends_on:
       chat-postgres:
         condition: service_healthy
     volumes:
       - ./services/chat-service/migrations:/migrations
-    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_CHAT_USER:-dev}:${POSTGRES_CHAT_PASSWORD:-dev123}@chat-postgres:5432/${POSTGRES_CHAT_DB:-chat_db}?sslmode=disable", "up"]
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgresql://${POSTGRES_CHAT_USER:-dev}:${POSTGRES_CHAT_PASSWORD:-dev123}@chat-postgres:5432/${POSTGRES_CHAT_DB:-chat_db}?sslmode=disable",
+        "up",
+      ]
+    restart: on-failure
     networks:
       - tissi-mah-network
 
