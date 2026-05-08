@@ -67,8 +67,8 @@ deps-up:
 	@echo "   - Redis (file)      : localhost:6383"
 	@echo "   - Booking PostgreSQL: localhost:5438"
 	@echo "   - Redis (booking)   : localhost:6387"
-	@echo "   - Chat PostgreSQL   : localhost:5440"
-	@echo "   - Redis (chat)      : localhost:6390"
+	@echo "   - Chat PostgreSQL   : localhost:5442"
+	@echo "   - Redis (chat)      : localhost:6392"
 	@echo "   - MinIO (S3)        : localhost:9000 (API) / localhost:9001 (Console)"
 
 deps-down:

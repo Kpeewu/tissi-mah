@@ -572,8 +572,8 @@ services:
 
   # -------------------------------------------------------------------------
   # Chat Service (messagerie passager-chauffeur)
-  # - Postgres : threads + messages chiffrés AES-GCM (port 5440)
-  # - Redis    : locks + TripCloserWorker (subscribe trip.completed) (port 6390)
+  # - Postgres : threads + messages chiffrés AES-GCM (port 5442)
+  # - Redis    : locks + TripCloserWorker (subscribe trip.completed) (port 6392)
   # NotificationRedis n'est PAS un container dédié : chat-service publie ses
   # events NEW_MESSAGE sur le Redis trips/notification (existant) consommé
   # par notification-service.
@@ -601,7 +601,7 @@ services:
     image: redis:7-alpine
     container_name: tissi-mah-chat-redis
     ports:
-      - "6390:6379"
+      - "6392:6379"
     volumes:
       - chat_redis_data:/data
     healthcheck:
