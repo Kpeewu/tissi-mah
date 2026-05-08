@@ -97,6 +97,13 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/geolocation/geocode": true,
 	"/api/v1/geolocation/reverse": true,
 	// geolocation-service — health est public (pas de JWT)
+
+	// chat-service (passager-chauffeur, après réservation acceptée)
+	"/api/v1/chat/threads":                                true, // POST GetOrCreateThread + GET GetUserThreads
+	"/api/v1/chat/threads/{thread_id}/messages":           true, // POST SendMessage + GET GetMessages
+	"/api/v1/chat/threads/{thread_id}/read":               true, // PATCH MarkRead
+	"/api/v1/chat/messages/{message_id}/flag":             true, // POST FlagMessage
+	// chat-service — health public ; GetFlaggedMessageContent côté Support (cf. SupportProtectedRoutes)
 }
 
 // SupportProtectedRoutes liste les routes HTTP qui requièrent un JWT support-service valide
@@ -111,6 +118,9 @@ var SupportProtectedRoutes = map[string]bool{
 
 	// payment-service — actions support
 	"/payment/support/triggerManualPayout": true,
+
+	// chat-service — accès support au contenu déchiffré d'un message signalé
+	"/api/v1/chat/messages/{message_id}/flagged-content": true,
 }
 
 // RateLimitTier identifie le niveau de rate limiting pour une route
@@ -135,4 +145,9 @@ var RouteRateLimitConfig = map[string]RateLimitTier{
 
 	// Opérations sensibles
 	"/api/v1/auth/deleteAccount": TierSensitive,
+
+	// chat-service — POST de messages = anti-spam léger via TierCreateAccount,
+	// flag = sensible (modération support)
+	"/api/v1/chat/threads/{thread_id}/messages": TierCreateAccount,
+	"/api/v1/chat/messages/{message_id}/flag":   TierSensitive,
 }

@@ -1,0 +1,232 @@
+syntax = "proto3";
+
+package chat;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/chatpb;chatpb";
+
+import "google/api/annotations.proto";
+
+service ChatService {
+
+  // Ouvre ou retrouve le thread de conversation lié à une réservation acceptée.
+  // Appelé par le passager ou le chauffeur depuis l'écran de réservation.
+  rpc GetOrCreateThread(GetOrCreateThreadRequest) returns (GetOrCreateThreadResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/chat/threads"
+      body: "*"
+    };
+  }
+
+  // Envoie un message dans un thread. Filtre PII appliqué en pre-save.
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/chat/threads/{ThreadId}/messages"
+      body: "*"
+    };
+  }
+
+  // Récupère les messages d'un thread depuis un curseur (polling).
+  // Si AfterMessageId est vide, retourne les N derniers messages.
+  rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/chat/threads/{ThreadId}/messages"
+    };
+  }
+
+  // Liste les threads de l'utilisateur connecté (passager + chauffeur).
+  rpc GetUserThreads(GetUserThreadsRequest) returns (GetUserThreadsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/chat/threads"
+    };
+  }
+
+  // Marque tous les messages jusqu'à LastReadMessageId comme lus.
+  rpc MarkRead(MarkReadRequest) returns (MarkReadResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/chat/threads/{ThreadId}/read"
+      body: "*"
+    };
+  }
+
+  // Signale un message pour modération par le support.
+  rpc FlagMessage(FlagMessageRequest) returns (FlagMessageResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/chat/messages/{MessageId}/flag"
+      body: "*"
+    };
+  }
+
+  // SUPPORT UNIQUEMENT — retourne le contenu déchiffré d'un message signalé.
+  // Requiert un JWT support (x-support-uid en metadata gRPC).
+  rpc GetFlaggedMessageContent(GetFlaggedMessageContentRequest) returns (GetFlaggedMessageContentResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/chat/messages/{MessageId}/flagged-content"
+    };
+  }
+
+  // Ferme un thread (support uniquement ou event interne trip.completed).
+  rpc CloseThread(CloseThreadRequest) returns (CloseThreadResponse);
+
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/chat/health"
+    };
+  }
+}
+
+// =============================================================================
+// GetOrCreateThread
+// =============================================================================
+
+message GetOrCreateThreadRequest {
+  string BookingId = 1;
+}
+
+message GetOrCreateThreadResponse {
+  string ErrorMessage = 1;
+  ThreadInfo Thread   = 2;
+}
+
+// =============================================================================
+// SendMessage
+// =============================================================================
+
+message SendMessageRequest {
+  string ThreadId = 1;
+  string Content  = 2; // texte brut; filtrage PII appliqué en pre-save
+}
+
+message SendMessageResponse {
+  string      ErrorMessage = 1;
+  MessageInfo Message      = 2;
+  bool        HasRedaction = 3; // true si du contenu PII a été masqué
+}
+
+// =============================================================================
+// GetMessages
+// =============================================================================
+
+message GetMessagesRequest {
+  string ThreadId       = 1;
+  string AfterMessageId = 2; // curseur — vide = retourne les PageSize derniers
+  int32  PageSize       = 3; // max 50, défaut 30
+}
+
+message GetMessagesResponse {
+  string              ErrorMessage = 1;
+  repeated MessageInfo Messages   = 2;
+  bool                HasMore     = 3;
+  int32               UnreadCount = 4;
+}
+
+// =============================================================================
+// GetUserThreads
+// =============================================================================
+
+message GetUserThreadsRequest {
+  int32  PageSize  = 1; // max 20, défaut 10
+  string PageToken = 2; // curseur opaque (thread_id du dernier élément)
+}
+
+message GetUserThreadsResponse {
+  string              ErrorMessage   = 1;
+  repeated ThreadInfo Threads        = 2;
+  string              NextPageToken  = 3;
+}
+
+// =============================================================================
+// MarkRead
+// =============================================================================
+
+message MarkReadRequest {
+  string ThreadId          = 1;
+  string LastReadMessageId = 2;
+}
+
+message MarkReadResponse {
+  string ErrorMessage = 1;
+}
+
+// =============================================================================
+// FlagMessage
+// =============================================================================
+
+message FlagMessageRequest {
+  string MessageId = 1;
+  string Reason    = 2; // optionnel
+}
+
+message FlagMessageResponse {
+  string ErrorMessage = 1;
+}
+
+// =============================================================================
+// GetFlaggedMessageContent (support)
+// =============================================================================
+
+message GetFlaggedMessageContentRequest {
+  string MessageId = 1;
+}
+
+message GetFlaggedMessageContentResponse {
+  string ErrorMessage      = 1;
+  string PlaintextContent  = 2; // déchiffré, uniquement si flagged=true
+  string SenderId          = 3;
+  string SenderRole        = 4;
+  string FlaggedBy         = 5;
+  string FlaggedAt         = 6; // ISO 8601
+  string CreatedAt         = 7; // ISO 8601
+}
+
+// =============================================================================
+// CloseThread (interne / support)
+// =============================================================================
+
+message CloseThreadRequest {
+  string ThreadId = 1;
+  string TripId   = 2; // alternatif : fermer par trip_id
+}
+
+message CloseThreadResponse {
+  string ErrorMessage  = 1;
+  int32  ThreadsClosed = 2;
+}
+
+// =============================================================================
+// Health
+// =============================================================================
+
+message HealthRequest {}
+
+message HealthResponse {
+  string Status = 1; // "ok"
+}
+
+// =============================================================================
+// Shared types
+// =============================================================================
+
+message ThreadInfo {
+  string ThreadId         = 1;
+  string BookingId        = 2;
+  string TripId           = 3;
+  string DriverId         = 4;
+  string PassengerId      = 5;
+  string Status           = 6; // active | closed
+  string CreatedAt        = 7; // ISO 8601
+  string ClosedAt         = 8; // ISO 8601, vide si active
+  int32  UnreadCount      = 9;
+  MessageInfo LastMessage = 10; // dernier message (preview)
+}
+
+message MessageInfo {
+  string MessageId    = 1;
+  string ThreadId     = 2;
+  string SenderId     = 3;
+  string SenderRole   = 4; // driver | passenger
+  string Content      = 5; // déchiffré, PII masqué avec ★★★
+  bool   HasRedaction = 6; // true si du contenu PII a été masqué
+  bool   Flagged      = 7;
+  string CreatedAt    = 8; // ISO 8601
+  string ReadAt       = 9; // ISO 8601, vide si non lu
+}
