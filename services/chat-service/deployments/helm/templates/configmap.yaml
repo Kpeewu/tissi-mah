@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "chat-service.fullname" . }}
+  labels:
+    {{- include "chat-service.labels" . | nindent 4 }}
+data:
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  GRPC_PORT: {{ .Values.service.port | quote }}
+  BOOKING_SERVICE_HOST: {{ .Values.config.bookingServiceHost | quote }}
+  BOOKING_SERVICE_PORT: {{ .Values.config.bookingServicePort | quote }}
+  TRIPS_SERVICE_HOST: {{ .Values.config.tripsServiceHost | quote }}
+  TRIPS_SERVICE_PORT: {{ .Values.config.tripsServicePort | quote }}
+  SUPPORT_SERVICE_HOST: {{ .Values.config.supportServiceHost | quote }}
+  SUPPORT_SERVICE_PORT: {{ .Values.config.supportServicePort | quote }}
+  TRIP_CLOSER_INTERVAL_SECONDS: {{ .Values.config.tripCloserIntervalSeconds | quote }}
+  MESSAGE_RETENTION_DAYS: {{ .Values.config.messageRetentionDays | quote }}
+  {{- range $key, $value := .Values.config.extra }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}

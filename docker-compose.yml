@@ -570,6 +570,54 @@ services:
     networks:
       - tissi-mah-network
 
+  # -------------------------------------------------------------------------
+  # Chat Service
+  # -------------------------------------------------------------------------
+  chat-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-chat-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_CHAT_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_CHAT_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_CHAT_DB:-chat_db}
+    ports:
+      - "5440:5432"
+    volumes:
+      - chat_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_CHAT_USER:-dev} -d ${POSTGRES_CHAT_DB:-chat_db} -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  chat-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-chat-redis
+    ports:
+      - "6390:6379"
+    volumes:
+      - chat_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  chat-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      chat-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/chat-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_CHAT_USER:-dev}:${POSTGRES_CHAT_PASSWORD:-dev123}@chat-postgres:5432/${POSTGRES_CHAT_DB:-chat_db}?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
 volumes:
   auth_postgres_data:
   redis_data:
@@ -594,6 +642,8 @@ volumes:
   support_redis_data:
   geolocation_redis_data:
   minio_data:
+  chat_postgres_data:
+  chat_redis_data:
 
 networks:
   tissi-mah-network:

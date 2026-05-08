@@ -294,6 +294,7 @@ Nominatim ont leurs propres PVC (cf. `infrastructure/manifests/{osrm,nominatim}/
 | `geolocation-service` | Complet (phase 1 : OSRM routing + Nominatim geocoding + cache Redis + manifests K8s + tile-prep planetiler) |
 | Tests unitaires + intégration | Structure créée, à compléter |
 | `payment-service` | Complet (FedaPay : payment + refund + payout chauffeurs + webhooks ; workers payout/refund fenêtrés 0h-3h Africa/Lome via `PAYMENT_WINDOW_*`) |
+| `chat-service` | Complet (messages chiffrés AES-256-GCM, filtre PII, fermeture auto sur trip.completed via Redis Streams) |
 
 ---
 

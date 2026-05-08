@@ -1,0 +1,82 @@
+replicaCount: 1
+
+image:
+  registry: ghcr.io
+  repository: kpeewu/tissi-mah/chat-service
+  pullPolicy: Always
+  tag: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 50065
+
+config:
+  environment: "development"
+  logLevel: "debug"
+  bookingServiceHost: "booking-service"
+  bookingServicePort: "50058"
+  tripsServiceHost: "trips-service"
+  tripsServicePort: "50055"
+  supportServiceHost: "support-service"
+  supportServicePort: "50063"
+  tripCloserIntervalSeconds: "30"
+  messageRetentionDays: "180"
+  extra: {}
+
+# Injectes par le workflow CI via /tmp/secrets-values.yaml
+secrets:
+  databaseUrl: ""
+  redisUrl: ""
+  chatEncryptionKey: ""
+  extra: {}
+
+probes:
+  enabled: false
+  liveness:
+    initialDelaySeconds: 20
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 10
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 3
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+imagePullSecrets:
+  - name: ghcr-secret
