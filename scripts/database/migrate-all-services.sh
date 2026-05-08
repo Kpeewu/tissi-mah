@@ -4,6 +4,15 @@
 #
 # Supports:
 #   - auth-service (PostgreSQL)
+#   - file-service (PostgreSQL)
+#   - rating-service (PostgreSQL)
+#   - vehicle-service (PostgreSQL)
+#   - trips-service (PostgreSQL)
+#   - booking-service (PostgreSQL)
+#   - payment-service (PostgreSQL)
+#   - notification-service (PostgreSQL)
+#   - support-service (PostgreSQL)
+#   - chat-service (PostgreSQL)
 #   - client-service (PostgreSQL) - future
 #   - user-service (MongoDB) - future
 
@@ -92,8 +101,13 @@ SERVICE_DB_URLS["support-service"]="postgresql://${POSTGRES_SUPPORT_USER:-dev}:$
 SERVICE_DB_TYPES["support-service"]="postgres"
 SERVICE_MIGRATIONS_DIRS["support-service"]="$ROOT_DIR/services/support-service/migrations"
 
-# Client Service (PostgreSQL) - future
-SERVICE_DB_URLS["client-service"]="postgresql://${POSTGRES_CLIENT_USER:-dev}:${POSTGRES_CLIENT_PASSWORD:-dev123}@${DB_HOST}:5442/${POSTGRES_CLIENT_DB:-client_db}?sslmode=disable"
+# Chat Service (PostgreSQL — port 5442)
+SERVICE_DB_URLS["chat-service"]="postgresql://${POSTGRES_CHAT_USER:-dev}:${POSTGRES_CHAT_PASSWORD:-dev123}@${DB_HOST}:5442/${POSTGRES_CHAT_DB:-chat_db}?sslmode=disable"
+SERVICE_DB_TYPES["chat-service"]="postgres"
+SERVICE_MIGRATIONS_DIRS["chat-service"]="$ROOT_DIR/services/chat-service/migrations"
+
+# Client Service (PostgreSQL — port 5444) - future
+SERVICE_DB_URLS["client-service"]="postgresql://${POSTGRES_CLIENT_USER:-dev}:${POSTGRES_CLIENT_PASSWORD:-dev123}@${DB_HOST}:5444/${POSTGRES_CLIENT_DB:-client_db}?sslmode=disable"
 SERVICE_DB_TYPES["client-service"]="postgres"
 SERVICE_MIGRATIONS_DIRS["client-service"]="$ROOT_DIR/services/client-service/migrations"
 
@@ -103,7 +117,7 @@ SERVICE_DB_TYPES["user-service"]="mongodb"
 SERVICE_MIGRATIONS_DIRS["user-service"]="$ROOT_DIR/services/user-service/migrations"
 
 # Currently implemented services (PostgreSQL only)
-IMPLEMENTED_SERVICES=("auth-service" "file-service" "rating-service" "vehicle-service" "trips-service" "booking-service" "payment-service" "notification-service" "support-service")
+IMPLEMENTED_SERVICES=("auth-service" "file-service" "rating-service" "vehicle-service" "trips-service" "booking-service" "payment-service" "notification-service" "support-service" "chat-service")
 
 # =============================================================================
 # Functions

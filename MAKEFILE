@@ -5,6 +5,11 @@
 .PHONY: workspace-init workspace-sync workspace-tidy
 .PHONY: migrate migrate-status migrate-down db-backup db-restore
 
+# Détection automatique du compose CLI : binaire `docker-compose` (legacy)
+# en priorité (compat ancien comportement) sinon plugin `docker compose`
+# (Docker CLI moderne, sans tiret).
+DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
+
 # Aide
 help:
 	@echo "$(GREEN)Tissi-Mah - Commandes disponibles$(NC)"
@@ -56,7 +61,7 @@ help:
 
 deps-up:
 	@echo "🚀 Démarrage des bases de données..."
-	@docker-compose up -d
+	@$(DOCKER_COMPOSE) up -d
 	@echo "✅ Bases de données démarrées :"
 	@echo "   - Auth PostgreSQL   : localhost:5433"
 	@echo "   - User MongoDB      : localhost:27018"
@@ -73,15 +78,15 @@ deps-up:
 
 deps-down:
 	@echo "🛑 Arrêt des bases de données..."
-	@docker-compose down
+	@$(DOCKER_COMPOSE) down
 	@echo "✅ Bases de données arrêtées"
 
 deps-logs:
-	@docker-compose logs -f
+	@$(DOCKER_COMPOSE) logs -f
 
 deps-clean:
 	@echo "⚠️  Suppression des volumes de données..."
-	@docker-compose down -v
+	@$(DOCKER_COMPOSE) down -v
 	@echo "✅ Volumes supprimés"
 
 # === SERVICES ===
@@ -274,7 +279,7 @@ migrate-down:
 ifdef SERVICE
 	@./scripts/database/migrate-all-services.sh -f $(SERVICE) down
 else
-	@./scripts/database/migrate-all-services.sh -f down
+	@./scripts/database/migrate-all-services.sh -f "" down
 endif
 
 db-backup:
