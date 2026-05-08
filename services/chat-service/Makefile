@@ -5,8 +5,8 @@ MAIN_PATH := ./cmd/server/main.go
 PROTO_PATH := ./proto
 PROTO_OUT := $(PROTO_PATH)/gen
 
-DATABASE_URL ?= postgresql://dev:dev123@localhost:5440/chat_db?sslmode=disable
-REDIS_URL ?= redis://localhost:6390/0
+DATABASE_URL ?= postgresql://dev:dev123@localhost:5442/chat_db?sslmode=disable
+REDIS_URL ?= redis://localhost:6392/0
 NOTIFICATION_REDIS_URL ?= redis://localhost:6386/0
 LOG_LEVEL ?= debug
 GRPC_PORT ?= 50065

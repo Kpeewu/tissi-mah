@@ -7,6 +7,9 @@
 --
 -- Le routing send_push=true / send_email=false / create_inbox=true est déjà
 -- défini en 000001_create_notification_tables.up.sql.
+-- Note : la table notification_templates n'autorise que les canaux 'push'
+-- et 'email' (CHECK constraint). Les entrées inbox sont générées à la volée
+-- par le dispatcher à partir du payload — pas de template DB nécessaire.
 
 INSERT INTO notification_templates (event_type, channel, language_code, title, subject, body, body_html) VALUES
 ('NEW_MESSAGE', 'push', 'fr',
@@ -19,18 +22,6 @@ INSERT INTO notification_templates (event_type, channel, language_code, title, s
     'New message',
     '',
     'You have received a new message. Open the app to read it.',
-    ''
-),
-('NEW_MESSAGE', 'inbox', 'fr',
-    'Nouveau message',
-    '',
-    'Vous avez reçu un message dans votre conversation.',
-    ''
-),
-('NEW_MESSAGE', 'inbox', 'en',
-    'New message',
-    '',
-    'You have received a message in your conversation.',
     ''
 )
 ON CONFLICT (event_type, channel, language_code) DO NOTHING;
