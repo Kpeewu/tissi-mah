@@ -1,0 +1,20 @@
+# Autorise tous les pods à résoudre les noms DNS internes Kubernetes.
+# Sans cette règle, les pods ne peuvent pas résoudre "user-service",
+# "booking-service", etc. après l'activation du deny-all.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: default
+  labels:
+    app.kubernetes.io/managed-by: tissi-mah
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

@@ -1,0 +1,36 @@
+# Autorise le contrôleur nginx-ingress (namespace ingress-nginx ou kube-system)
+# à atteindre l'api-gateway sur le port 8080.
+# La requête vient du pod ingress-nginx-controller qui porte le label
+# "app.kubernetes.io/name: ingress-nginx".
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-gateway
+  namespace: default
+  labels:
+    app.kubernetes.io/managed-by: tissi-mah
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: api-gateway
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # nginx-ingress dans son namespace dédié
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+        # Cas K3s où nginx est dans kube-system
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080

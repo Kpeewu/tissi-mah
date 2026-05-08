@@ -1,0 +1,26 @@
+# Autorise les appels inter-services (booking→trips, chat→booking, chat→user,
+# payment→booking, kyc→file, etc.) entre pods tissi-mah.
+# Sans cette règle, un pod booking-service ne pourrait pas appeler trips-service
+# même si c'est une communication légitimement orchestrée.
+#
+# Le label app.kubernetes.io/part-of: tissi-mah est posé sur tous les pods
+# tissi-mah par les Helm charts (cf. _helpers.tpl). Seuls ces pods sont
+# autorisés à se parler mutuellement — pas les pods génériques du cluster.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-inter-services
+  namespace: default
+  labels:
+    app.kubernetes.io/managed-by: tissi-mah
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: tissi-mah
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: tissi-mah

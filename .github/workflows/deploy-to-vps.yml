@@ -166,6 +166,10 @@ jobs:
           # api-gateway secrets
           GW_REDIS_URL: ${{ secrets.GW_REDIS_URL }}
           FIREBASE_PROJECT_ID: ${{ secrets.AUTH_FIREBASE_PROJECT_ID }}
+          SUPPORT_JWT_SECRET_GW: ${{ secrets.SUPPORT_JWT_SECRET }}
+          MOBILE_APP_ID_VPS_DEV: ${{ secrets.MOBILE_APP_ID_VPS_DEV }}
+          SUPPORT_APP_ID_VPS_DEV: ${{ secrets.SUPPORT_APP_ID_VPS_DEV }}
+          INTERNAL_HMAC_SECRET: ${{ secrets.INTERNAL_HMAC_SECRET }}
           # auth-service secrets
           AUTH_DATABASE_URL: ${{ secrets.AUTH_DATABASE_URL }}
           AUTH_REDIS_URL: ${{ secrets.AUTH_REDIS_URL }}
@@ -233,6 +237,10 @@ jobs:
                   'secrets': {
                       'redisUrl': os.environ.get('GW_REDIS_URL', ''),
                       'firebaseProjectId': os.environ.get('FIREBASE_PROJECT_ID', ''),
+                      'supportJwtSecret': os.environ.get('SUPPORT_JWT_SECRET_GW', ''),
+                      'mobileAppIds': os.environ.get('MOBILE_APP_ID_VPS_DEV', ''),
+                      'supportAppIds': os.environ.get('SUPPORT_APP_ID_VPS_DEV', ''),
+                      'internalHmacSecret': os.environ.get('INTERNAL_HMAC_SECRET', ''),
                   },
               }
 
@@ -602,7 +610,13 @@ jobs:
 #      - AUTH_FIREBASE_PROJECT_ID  : ID du projet Firebase (seul requis, pas de credentials)
 #
 #   3. Secrets GitHub pour api-gateway:
-#      - GW_REDIS_URL : redis://host:6379
+#      - GW_REDIS_URL            : redis://host:6379
+#      - SUPPORT_JWT_SECRET      : secret HS256 du support-service (idem var support)
+#      - MOBILE_APP_ID_VPS_DEV   : UUID v4 — bundle dans l'app mobile build dev
+#      - SUPPORT_APP_ID_VPS_DEV  : UUID v4 — bundle dans le back-office support
+#      - INTERNAL_HMAC_SECRET    : hex 32 bytes (openssl rand -hex 32) — partagé
+#        entre api-gateway ET tous les services pour signer x-firebase-uid-sig.
+#        DOIT être identique partout ou la vérification de signature échoue.
 #
 #   4. Secrets GitHub pour auth-service:
 #      - AUTH_DATABASE_URL : postgresql://user:pass@host:5432/dbname

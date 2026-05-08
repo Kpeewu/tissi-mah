@@ -35,6 +35,9 @@ data:
   CHAT_SERVICE_HOST: {{ .Values.config.chatServiceHost | quote }}
   CHAT_SERVICE_PORT: {{ .Values.config.chatServicePort | quote }}
   CORS_ALLOWED_ORIGINS: {{ .Values.config.corsAllowedOrigins | quote }}
+  ENABLE_HSTS: {{ .Values.config.enableHsts | quote }}
+  RATELIMIT_FAIL_CLOSED: {{ .Values.config.rateLimitFailClosed | quote }}
+  BODY_SIZE_MAX_BYTES: {{ .Values.config.bodySizeMaxBytes | quote }}
   {{- range $key, $value := .Values.config.extra }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}
