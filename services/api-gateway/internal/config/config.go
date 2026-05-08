@@ -28,7 +28,31 @@ type Config struct {
 	SupportJWTSecret    string
 	CORS                CORSConfig
 	RateLimit      RateLimitConfig
+	AppID          AppIDConfig
+	Security       SecurityConfig
 	LogLevel       string
+}
+
+// AppIDConfig contient les whitelists CSV d'App-IDs par zone cliente.
+// CSV pour rotation sans downtime : "ancien-id,nouveau-id" pendant la fenêtre.
+type AppIDConfig struct {
+	MobileAppIDs  string // MOBILE_APP_IDS — ex: "uuid-dev-1,uuid-dev-2"
+	SupportAppIDs string // SUPPORT_APP_IDS
+}
+
+// SecurityConfig regroupe les toggles de sécurité par environnement.
+type SecurityConfig struct {
+	// EnableHSTS active le header Strict-Transport-Security.
+	// À true uniquement si TLS est terminé en amont (staging, prod).
+	EnableHSTS bool
+	// BodySizeMaxBytes limite la taille du body HTTP (défaut 1 Mo).
+	BodySizeMaxBytes int64
+	// RateLimitFailClosed : si true, bloquer en cas de Redis down au lieu de laisser passer.
+	// Activé en staging/prod pour garantir la protection même en incident.
+	RateLimitFailClosed bool
+	// InternalHMACSecret sert à signer/vérifier x-firebase-uid entre l'api-gateway
+	// et les services internes (propagé via metadata gRPC).
+	InternalHMACSecret string
 }
 
 type ServerConfig struct {
@@ -162,6 +186,16 @@ func Load() (*Config, error) {
 			SensitiveMinute:     getIntOrDefault(values, "RATE_LIMIT_SENSITIVE_MINUTE", 1),
 			SensitiveHour:       getIntOrDefault(values, "RATE_LIMIT_SENSITIVE_HOUR", 5),
 		},
+		AppID: AppIDConfig{
+			MobileAppIDs:  sharedconfig.MustGetString(values, "MOBILE_APP_IDS"),
+			SupportAppIDs: sharedconfig.MustGetString(values, "SUPPORT_APP_IDS"),
+		},
+		Security: SecurityConfig{
+			EnableHSTS:          getBoolOrDefault(values, "ENABLE_HSTS", false),
+			BodySizeMaxBytes:    getInt64OrDefault(values, "BODY_SIZE_MAX_BYTES", 10<<20),
+			RateLimitFailClosed: getBoolOrDefault(values, "RATELIMIT_FAIL_CLOSED", false),
+			InternalHMACSecret:  sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),
+		},
 		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
 	}
 
@@ -182,6 +216,10 @@ func validate(cfg *Config) error {
 	if cfg.Server.Port == "" {
 		return fmt.Errorf("HTTP_PORT is required")
 	}
+	// Un SUPPORT_JWT_SECRET vide accepterait n'importe quel JWT HS256 en back-office.
+	if cfg.Environment.Mode != "local" && cfg.SupportJWTSecret == "" {
+		return fmt.Errorf("SUPPORT_JWT_SECRET is required in %s environment", cfg.Environment.Mode)
+	}
 	return nil
 }
 
@@ -195,4 +233,22 @@ func getIntOrDefault(v *viper.Viper, key string, defaultVal int) int {
 		return defaultVal
 	}
 	return val
+}
+
+func getInt64OrDefault(v *viper.Viper, key string, defaultVal int64) int64 {
+	if !v.IsSet(key) {
+		return defaultVal
+	}
+	val := v.GetInt64(key)
+	if val == 0 {
+		return defaultVal
+	}
+	return val
+}
+
+func getBoolOrDefault(v *viper.Viper, key string, defaultVal bool) bool {
+	if !v.IsSet(key) {
+		return defaultVal
+	}
+	return v.GetBool(key)
 }

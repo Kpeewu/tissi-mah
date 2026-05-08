@@ -90,6 +90,7 @@ func run(bootstrapLogger *zap.Logger) error {
 		SupportServiceAddr:      cfg.SupportService.Address(),
 		GeolocationServiceAddr:  cfg.GeolocationService.Address(),
 		ChatServiceAddr:         cfg.ChatService.Address(),
+		InternalHMACSecret:      cfg.Security.InternalHMACSecret,
 		Logger:                  logger,
 	})
 	if err != nil {
@@ -122,7 +123,19 @@ func run(bootstrapLogger *zap.Logger) error {
 	return srv.Serve(ctx)
 }
 
-// buildHandler construit la chaîne de middlewares HTTP
+// buildHandler construit la chaîne de middlewares HTTP.
+//
+// Ordre d'exécution :
+//  1. PanicRecovery   — intercepte les panics, renvoie 500 JSON
+//  2. RequestID       — génère/propage X-Request-ID
+//  3. SecurityHeaders — HSTS, X-Frame-Options, etc.
+//  4. BodySizeLimit   — limite à 1 Mo par défaut
+//  5. CORS            — gestion des preflight
+//  6. JWT Firebase    — valide Bearer token Firebase (routes protégées mobile)
+//  7. JWT Support     — valide Bearer token support (routes back-office)
+//  8. RateLimit       — sliding window par UID (si authentifié) ou par IP
+//  9. AppID           — vérifie X-App-ID contre whitelist mobile / support
+// 10. mux (grpc-gateway)
 func buildHandler(
 	cfg *config.Config,
 	gwMux http.Handler,
@@ -152,7 +165,19 @@ func buildHandler(
 		Environment:    cfg.Environment.Mode,
 	})
 
-	// Rate limiting
+	// JWT Firebase — maintenant AVANT le rate limit pour que l'UID soit
+	// disponible comme clé de rate limiting.
+	jwtMW := middleware.JWTFirebase(validator, func(path string) bool {
+		return gateway.ProtectedRoutes[path]
+	}, logger)
+
+	// JWT Support (back-office admin / agents) — canal d'auth séparé de Firebase
+	jwtSupportMW := middleware.JWTSupport(cfg.SupportJWTSecret, func(path string) bool {
+		return gateway.SupportProtectedRoutes[path]
+	}, logger)
+
+	// Rate limiting — clé hybride UID (si JWT précédent a setté x-firebase-uid)
+	// ou IP (routes publiques / anonymes).
 	rateLimitMW := middleware.RateLimit(middleware.RateLimitConfig{
 		Tiers: map[string]middleware.RateLimitTierConfig{
 			"global": {
@@ -179,20 +204,34 @@ func buildHandler(
 			}
 			return string(gateway.TierGlobal)
 		},
+		// GetUID lit le header positionné par le middleware JWTFirebase ci-dessus.
+		GetUID: func(r *http.Request) string {
+			return r.Header.Get("x-firebase-uid")
+		},
 		RedisClient: redisClient,
+		FailClosed:  cfg.Security.RateLimitFailClosed,
 		Logger:      logger,
 	})
 
-	// JWT Firebase
-	jwtMW := middleware.JWTFirebase(validator, func(path string) bool {
-		return gateway.ProtectedRoutes[path]
-	}, logger)
+	// AppID — vérifie X-App-ID sur les routes protégées Firebase et Support.
+	mobileIDs := middleware.ParseAppIDs(cfg.AppID.MobileAppIDs)
+	supportIDs := middleware.ParseAppIDs(cfg.AppID.SupportAppIDs)
+	appIDMW := middleware.AppID(
+		mobileIDs,
+		supportIDs,
+		func(path string) bool { return gateway.ProtectedRoutes[path] },
+		func(path string) bool { return gateway.SupportProtectedRoutes[path] },
+		logger,
+	)
 
-	// JWT Support (back-office admin / agents) — canal d'auth séparé de Firebase
-	jwtSupportMW := middleware.JWTSupport(cfg.SupportJWTSecret, func(path string) bool {
-		return gateway.SupportProtectedRoutes[path]
-	}, logger)
-
-	// Chain : CORS → Rate Limit → JWT Firebase → JWT Support → handler
-	return corsMW(rateLimitMW(jwtMW(jwtSupportMW(rootMux))))
+	// Stack complet :
+	// panic → reqID → secHeaders → bodySize → cors → jwt → jwtSupport → rateLimit → appID → mux
+	return middleware.PanicRecovery(logger)(
+		middleware.RequestID()(
+			middleware.SecurityHeaders(cfg.Security.EnableHSTS)(
+				middleware.BodySizeLimit(cfg.Security.BodySizeMaxBytes)(
+					corsMW(
+						jwtMW(jwtSupportMW(
+							rateLimitMW(
+								appIDMW(rootMux)))))))))
 }

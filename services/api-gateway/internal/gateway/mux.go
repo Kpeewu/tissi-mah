@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
+	grpcutil "github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	authpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/authpb"
 	bookingpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/bookingpb"
 	chatpb "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/chatpb"
@@ -45,7 +45,12 @@ type MuxConfig struct {
 	SupportServiceAddr      string
 	GeolocationServiceAddr  string
 	ChatServiceAddr         string
-	Logger                  *zap.Logger
+	// InternalHMACSecret est utilisé pour signer x-firebase-uid-sig dans
+	// le metadataAnnotator gRPC. Les services internes vérifient cette
+	// signature pour garantir que l'UID vient de l'api-gateway.
+	// Vide = signature désactivée (mode dégradé).
+	InternalHMACSecret string
+	Logger             *zap.Logger
 }
 
 // NewGatewayMux crée un runtime.ServeMux configuré avec les handlers
@@ -63,18 +68,28 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		},
 	})
 
-	// Metadata annotator : transmet le header x-firebase-uid
-	// depuis la requête HTTP vers les metadata gRPC
+	// Metadata annotator : transmet les headers d'authentification et de
+	// traçabilité depuis la requête HTTP vers les metadata gRPC.
+	// x-firebase-uid-sig est la signature HMAC-SHA256 de l'UID par
+	// INTERNAL_HMAC_SECRET — permet aux services internes de vérifier
+	// que l'UID vient bien de l'api-gateway et n'a pas été forgé.
+	hmacSecret := []byte(cfg.InternalHMACSecret)
 	metadataAnnotator := runtime.WithMetadata(func(_ context.Context, r *http.Request) grpcMetadata.MD {
 		md := grpcMetadata.MD{}
 		if uid := r.Header.Get("x-firebase-uid"); uid != "" {
 			md.Set("x-firebase-uid", uid)
+			if len(hmacSecret) > 0 {
+				md.Set("x-firebase-uid-sig", grpcutil.SignUID(hmacSecret, uid))
+			}
 		}
 		if uid := r.Header.Get("x-support-uid"); uid != "" {
 			md.Set("x-support-uid", uid)
 		}
 		if role := r.Header.Get("x-support-role"); role != "" {
 			md.Set("x-support-role", role)
+		}
+		if rid := r.Header.Get("x-request-id"); rid != "" {
+			md.Set("x-request-id", rid)
 		}
 		return md
 	})

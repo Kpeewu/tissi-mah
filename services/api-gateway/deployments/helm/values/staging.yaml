@@ -66,11 +66,18 @@ config:
   chatServiceHost: "chat-service"
   chatServicePort: "50065"
   corsAllowedOrigins: "https://staging.tissi-mah.com"
+  enableHsts: "true"
+  rateLimitFailClosed: "true"
+  bodySizeMaxBytes: "10485760"
   extra: {}
 
 secrets:
   redisUrl: ""
   firebaseProjectId: ""
+  supportJwtSecret: ""
+  mobileAppIds: ""
+  supportAppIds: ""
+  internalHmacSecret: ""
   extra: {}
 
 probes:
