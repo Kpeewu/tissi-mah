@@ -25,8 +25,12 @@ import (
 // Types MIME autorisés
 var allowedMimeTypes = map[string]bool{
 	"image/jpeg":      true,
+	"image/jpg":       true, // alias non-standard de image/jpeg
 	"image/png":       true,
 	"image/webp":      true,
+	"image/heic":      true, // iPhone (HEIF single image)
+	"image/heif":      true, // HEIF générique
+	"image/tiff":      true,
 	"application/pdf": true,
 }
 
@@ -557,17 +561,43 @@ func (s *fileServiceImpl) ListDocumentReviews(ctx context.Context, userID string
 
 func extensionFromMimeType(mimeType string) string {
 	switch mimeType {
-	case "image/jpeg":
+	case "image/jpeg", "image/jpg":
 		return ".jpg"
 	case "image/png":
 		return ".png"
 	case "image/webp":
 		return ".webp"
+	case "image/heic":
+		return ".heic"
+	case "image/heif":
+		return ".heif"
+	case "image/tiff":
+		return ".tiff"
 	case "application/pdf":
 		return ".pdf"
 	default:
 		return ""
 	}
+}
+
+// detectMimeType complète http.DetectContentType avec un sniff HEIC/HEIF
+// car la stdlib ne reconnaît pas ces formats (retourne application/octet-stream).
+// Signature ISO/IEC 14496-12 : octets 4-7 = "ftyp", octets 8-11 = brand.
+func detectMimeType(data []byte) string {
+	mime := http.DetectContentType(data)
+	if mime != "application/octet-stream" {
+		return mime
+	}
+	if len(data) < 12 || !bytes.Equal(data[4:8], []byte("ftyp")) {
+		return mime
+	}
+	switch string(data[8:12]) {
+	case "heic", "heix", "hevc", "hevx":
+		return "image/heic"
+	case "mif1", "msf1", "heim", "heis", "hevm", "hevs":
+		return "image/heif"
+	}
+	return mime
 }
 
 // --- Remplacement de document ---
@@ -596,9 +626,13 @@ func (s *fileServiceImpl) ChangeDocument(ctx context.Context, input serviceInter
 		return nil, fileErrors.ErrorDocumentNotFound
 	}
 
-	mimeType := http.DetectContentType(input.NewDocument)
+	mimeType := detectMimeType(input.NewDocument)
 	if !allowedMimeTypes[mimeType] {
-		mimeType = "image/jpeg"
+		s.logger.Error("change document: unsupported mime type",
+			zap.String("fileID", input.FileID),
+			zap.String("detectedMime", mimeType),
+		)
+		return nil, fileErrors.ErrorInvalidMimeType
 	}
 
 	newDoc, err := s.UploadUserDocument(ctx, serviceInterfaces.UploadUserDocumentInput{
@@ -690,9 +724,14 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 	// Upload chaque fichier vers S3 + DB
 	created := make([]*serviceInterfaces.UploadedDocument, 0, len(uploads))
 	for _, u := range uploads {
-		mimeType := http.DetectContentType(u.data)
+		mimeType := detectMimeType(u.data)
 		if !allowedMimeTypes[mimeType] {
-			mimeType = "image/jpeg"
+			s.logger.Error("upload id document: unsupported mime type",
+				zap.String("profileID", input.UserID),
+				zap.String("docType", u.docType),
+				zap.String("detectedMime", mimeType),
+			)
+			return nil, fileErrors.ErrorInvalidMimeType
 		}
 
 		doc, err := s.UploadUserDocument(ctx, serviceInterfaces.UploadUserDocumentInput{
@@ -767,9 +806,14 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 			return nil, fileErrors.ErrorInvalidDocumentType
 		}
 
-		mimeType := http.DetectContentType(u.data)
+		mimeType := detectMimeType(u.data)
 		if !allowedMimeTypes[mimeType] {
-			mimeType = "image/jpeg"
+			s.logger.Error("upload vehicle documents: unsupported mime type",
+				zap.String("vehicleID", input.VehicleID),
+				zap.String("docName", u.docName),
+				zap.String("detectedMime", mimeType),
+			)
+			return nil, fileErrors.ErrorInvalidMimeType
 		}
 
 		doc, err := s.UploadVehicleDocument(ctx, serviceInterfaces.UploadVehicleDocumentInput{

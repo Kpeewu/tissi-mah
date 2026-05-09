@@ -1454,8 +1454,12 @@ func TestFileService_MimeTypeExtensions(t *testing.T) {
 		ext  string
 	}{
 		{"image/jpeg", ".jpg"},
+		{"image/jpg", ".jpg"},
 		{"image/png", ".png"},
 		{"image/webp", ".webp"},
+		{"image/heic", ".heic"},
+		{"image/heif", ".heif"},
+		{"image/tiff", ".tiff"},
 		{"application/pdf", ".pdf"},
 	}
 
@@ -1494,4 +1498,77 @@ func TestFileService_MimeTypeExtensions(t *testing.T) {
 				"expected key %q to end with %q", capturedKey, tc.ext)
 		})
 	}
+}
+
+// fakeHEIC retourne des bytes simulant un fichier HEIC (signature ISO/IEC 14496-12 : ftypheic).
+func fakeHEIC() []byte {
+	b := make([]byte, 64)
+	copy(b[4:8], []byte("ftyp"))
+	copy(b[8:12], []byte("heic"))
+	return b
+}
+
+// TestFileService_ChangeDocument_DetectsHEIC vérifie que ChangeDocument accepte un HEIC
+// (sniff custom car http.DetectContentType ne reconnaît pas HEIC).
+func TestFileService_ChangeDocument_DetectsHEIC(t *testing.T) {
+	userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+	userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
+	storage := &mocks.MockStorageClient{}
+
+	existing := stubUserDoc("doc-1", "user-1", "idCardFront")
+	userDocRead.On("GetByID", mock.Anything, "doc-1").Return(existing, nil)
+	userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "idCardFront").
+		Return(existing, nil)
+	userDocWrite.On("MarkAsReplaced", mock.Anything, "doc-1", mock.AnythingOfType("string")).Return(nil)
+
+	var capturedKey string
+	storage.On("Upload",
+		mock.Anything,
+		mock.AnythingOfType("string"),
+		mock.Anything,
+		"image/heic",
+		mock.AnythingOfType("int64"),
+	).
+		Run(func(args mock.Arguments) {
+			capturedKey = args.String(1)
+		}).
+		Return("https://storage.example.com/heic", nil)
+	userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).Return("new-doc", nil)
+
+	svc := newService(userDocRead, userDocWrite,
+		&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
+		&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+		storage)
+
+	_, err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{
+		UserID:      "user-1",
+		FileID:      "doc-1",
+		NewDocument: fakeHEIC(),
+	})
+
+	require.NoError(t, err)
+	assert.True(t, strings.HasSuffix(capturedKey, ".heic"),
+		"expected key %q to end with .heic", capturedKey)
+}
+
+// TestFileService_ChangeDocument_RejectsUnsupportedMime vérifie que ChangeDocument
+// rejette explicitement un type non autorisé au lieu de l'uploader déguisé en JPEG.
+func TestFileService_ChangeDocument_RejectsUnsupportedMime(t *testing.T) {
+	userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+	existing := stubUserDoc("doc-1", "user-1", "idCardFront")
+	userDocRead.On("GetByID", mock.Anything, "doc-1").Return(existing, nil)
+
+	svc := newService(userDocRead, &mocks.MockUserDocumentRepositoryWrite{},
+		&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
+		&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+		&mocks.MockStorageClient{})
+
+	// Bytes d'un .txt — ni JPEG, ni HEIC, ni rien d'autorisé.
+	_, err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{
+		UserID:      "user-1",
+		FileID:      "doc-1",
+		NewDocument: []byte("Hello, this is plain text content!\nNot an image, not a PDF.\n"),
+	})
+
+	assert.ErrorIs(t, err, fileErrors.ErrorInvalidMimeType)
 }
