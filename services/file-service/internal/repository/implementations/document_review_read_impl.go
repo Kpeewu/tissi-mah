@@ -111,10 +111,16 @@ func (r *documentReviewReadImpl) GetByPersonaInquiryID(ctx context.Context, pers
 func (r *documentReviewReadImpl) GetByUserID(ctx context.Context, userID string) ([]*domain.DocumentReview, error) {
 	r.logger.Debug("récupération des revues par userID", zap.String("userID", userID))
 
+	// Une review pointe soit sur user_document_id (documents d'identité), soit
+	// sur vehicle_document_id (documents véhicule). On joint via les deux tables
+	// pour récupérer toutes les reviews de l'utilisateur.
 	query := `SELECT ` + reviewSelectColumns + `
 	          FROM document_reviews
 	          WHERE user_document_id IN (
 	              SELECT document_id FROM user_documents WHERE user_id = $1
+	          )
+	             OR vehicle_document_id IN (
+	              SELECT document_id FROM vehicle_documents WHERE user_id = $1
 	          )
 	          ORDER BY updated_at DESC`
 
