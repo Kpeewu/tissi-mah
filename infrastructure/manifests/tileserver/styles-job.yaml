@@ -16,9 +16,12 @@
 #     kubectl wait  --for=condition=complete --timeout=5m job/tile-styles
 #     kubectl scale deploy/tileserver-gl --replicas=2
 #
-# Pour régénérer (ex: mise à jour du style upstream) :
+# Pour régénérer (ex: mise à jour du style upstream, migration de domaine) :
+#     kubectl scale deploy/tileserver-gl --replicas=0
 #     kubectl delete job tile-styles
 #     kubectl apply  -f infrastructure/manifests/tileserver/styles-job.yaml
+#     kubectl wait  --for=condition=complete --timeout=5m job/tile-styles
+#     kubectl scale deploy/tileserver-gl --replicas=2
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -48,14 +51,6 @@ spec:
 
               DEST=/tiles/styles
               TILE_HOST="https://tiles.tissimah.kpeewu.dev"
-
-              # Si les deux styles existent déjà, on skip (sauf FORCE=1)
-              if [ -f "$DEST/default.json" ] && [ -f "$DEST/satellite.json" ] \
-                  && [ -z "${FORCE:-}" ]; then
-                echo "==> $DEST already populated, skipping (set FORCE=1 to override)"
-                ls "$DEST"
-                exit 0
-              fi
 
               mkdir -p "$DEST"
 

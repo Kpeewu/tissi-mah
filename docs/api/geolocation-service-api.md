@@ -25,8 +25,8 @@ servir efficacement du binaire) :
 
 | Environment | Tile Server |
 |-------------|-------------|
-| VPS-Dev     | `https://tiles.tissi-mah.com` |
-| Production  | `https://tiles.tissi-mah.com` |
+| VPS-Dev     | `https://tiles.tissimah.kpeewu.dev` |
+| Production  | `https://tiles.tissimah.kpeewu.dev` |
 
 ## Service Discovery (gRPC inter-service)
 

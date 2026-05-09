@@ -190,6 +190,13 @@ sur les 4 pays (Togo, Ghana, Bénin, Burkina Faso).
 | `RATING_SERVICE_HOST` | non (0.0.0.0) | Host rating-service |
 | `RATING_SERVICE_PORT` | non (50054) | Port rating-service |
 | `CORS_ALLOWED_ORIGINS` | non (*) | Origines CORS séparées par virgules |
+| `MOBILE_APP_IDS` | oui | CSV d'UUID — valeur bundlée dans l'app mobile (ex: `uuid-dev`). Rotation sans downtime via CSV `ancien,nouveau` |
+| `SUPPORT_APP_IDS` | oui | CSV d'UUID — valeur bundlée dans le back-office support |
+| `SUPPORT_JWT_SECRET` | oui (non-local) | Secret HS256 partagé avec support-service — fail-fast si vide hors `local` |
+| `ENABLE_HSTS` | non (false) | `true` en staging/prod — active `Strict-Transport-Security` |
+| `RATELIMIT_FAIL_CLOSED` | non (false) | `true` en staging/prod — bloque avec 503 si Redis rate-limit est down |
+| `BODY_SIZE_MAX_BYTES` | non (10485760) | Limite body HTTP (10 Mo par défaut) |
+| `INTERNAL_HMAC_SECRET` | non | Secret hex 32 bytes pour signer `x-firebase-uid-sig` en gRPC metadata — à provisionner sur tous les services pour vérification |
 
 ### auth-service
 
