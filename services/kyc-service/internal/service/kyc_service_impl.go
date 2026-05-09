@@ -312,7 +312,7 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 		SessionExpiresAt:  personaInquiry.ExpiresAt.Format(time.RFC3339),
 		Status:            "pending",
 		AttemptNumber:     attemptNumber,
-		CreatedAt:         createdReview.CreatedAt.Format(time.RFC3339),
+		CreatedAt:         now.Format(time.RFC3339),
 	}, nil
 }
 

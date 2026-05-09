@@ -43,9 +43,12 @@ func NewPersonaClient(apiKey string, logger *zap.Logger) PersonaClient {
 // CreateInquiry
 // =============================================================================
 
-// createInquiryRequest est le body JSON envoyé à POST /inquiries
+// createInquiryRequest est le body JSON envoyé à POST /inquiries.
+// meta.auto-create-inquiry-session: true demande à Persona de générer un
+// session token immédiatement et de le renvoyer dans meta.session-token.
 type createInquiryRequest struct {
 	Data createInquiryData `json:"data"`
+	Meta createInquiryMeta `json:"meta"`
 }
 
 type createInquiryData struct {
@@ -57,18 +60,27 @@ type createInquiryAttributes struct {
 	ReferenceID       string `json:"reference-id"`
 }
 
-// personaInquiryResponse est la réponse JSON de l'API Persona pour une inquiry
+type createInquiryMeta struct {
+	AutoCreateInquirySession bool `json:"auto-create-inquiry-session"`
+}
+
+// personaInquiryResponse est la réponse JSON de l'API Persona pour une inquiry.
+// Le session-token est en top-level meta (convention JSON:API), pas dans
+// data.attributes — vrai pour POST /inquiries (avec auto-create-inquiry-session)
+// et pour POST /inquiries/{id}/resume.
 type personaInquiryResponse struct {
 	Data struct {
 		ID         string `json:"id"`
 		Attributes struct {
-			Status       string `json:"status"`
-			TemplateID   string `json:"inquiry-template-id"`
-			ReferenceID  string `json:"reference-id"`
-			SessionToken string `json:"session-token"`
-			ExpiresAt    string `json:"session-token-expires-at"`
+			Status      string `json:"status"`
+			TemplateID  string `json:"inquiry-template-id"`
+			ReferenceID string `json:"reference-id"`
 		} `json:"attributes"`
 	} `json:"data"`
+	Meta struct {
+		SessionToken string `json:"session-token"`
+		ExpiresAt    string `json:"session-token-expires-at"`
+	} `json:"meta"`
 }
 
 func (c *personaClientImpl) CreateInquiry(ctx context.Context, templateID string, referenceID string) (*domain.PersonaInquiry, error) {
@@ -83,6 +95,9 @@ func (c *personaClientImpl) CreateInquiry(ctx context.Context, templateID string
 				InquiryTemplateID: templateID,
 				ReferenceID:       referenceID,
 			},
+		},
+		Meta: createInquiryMeta{
+			AutoCreateInquirySession: true,
 		},
 	}
 
@@ -118,11 +133,21 @@ func (c *personaClientImpl) CreateInquiry(ctx context.Context, templateID string
 		return nil, fmt.Errorf("persona: decode response: %w", err)
 	}
 
-	expiresAt, err := time.Parse(time.RFC3339, personaResp.Data.Attributes.ExpiresAt)
+	if personaResp.Meta.SessionToken == "" {
+		c.logger.Error("persona: empty session-token in CreateInquiry response — vérifier la config du template ou l'API key",
+			zap.String("inquiryID", personaResp.Data.ID),
+		)
+		return nil, fmt.Errorf("persona: CreateInquiry: empty session-token")
+	}
+
+	expiresAt, err := time.Parse(time.RFC3339, personaResp.Meta.ExpiresAt)
 	if err != nil {
-		// Fallback : session expire dans 24h si le parsing échoue
-		expiresAt = time.Now().UTC().Add(24 * time.Hour)
-		c.logger.Warn("persona: failed to parse session expiry, using default 24h", zap.Error(err))
+		c.logger.Error("persona: failed to parse session-token-expires-at",
+			zap.String("inquiryID", personaResp.Data.ID),
+			zap.String("rawExpiresAt", personaResp.Meta.ExpiresAt),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("persona: CreateInquiry: parse session-token-expires-at: %w", err)
 	}
 
 	c.logger.Info("persona: inquiry created",
@@ -133,7 +158,7 @@ func (c *personaClientImpl) CreateInquiry(ctx context.Context, templateID string
 	return &domain.PersonaInquiry{
 		InquiryID:    personaResp.Data.ID,
 		TemplateID:   templateID,
-		SessionToken: personaResp.Data.Attributes.SessionToken,
+		SessionToken: personaResp.Meta.SessionToken,
 		ExpiresAt:    expiresAt,
 	}, nil
 }
@@ -173,10 +198,21 @@ func (c *personaClientImpl) ResumeInquiry(ctx context.Context, inquiryID string)
 		return nil, fmt.Errorf("persona: decode response: %w", err)
 	}
 
-	expiresAt, err := time.Parse(time.RFC3339, personaResp.Data.Attributes.ExpiresAt)
+	if personaResp.Meta.SessionToken == "" {
+		c.logger.Error("persona: empty session-token in ResumeInquiry response",
+			zap.String("inquiryID", inquiryID),
+		)
+		return nil, fmt.Errorf("persona: ResumeInquiry: empty session-token")
+	}
+
+	expiresAt, err := time.Parse(time.RFC3339, personaResp.Meta.ExpiresAt)
 	if err != nil {
-		expiresAt = time.Now().UTC().Add(24 * time.Hour)
-		c.logger.Warn("persona: failed to parse session expiry, using default 24h", zap.Error(err))
+		c.logger.Error("persona: failed to parse session-token-expires-at",
+			zap.String("inquiryID", inquiryID),
+			zap.String("rawExpiresAt", personaResp.Meta.ExpiresAt),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("persona: ResumeInquiry: parse session-token-expires-at: %w", err)
 	}
 
 	c.logger.Info("persona: inquiry resumed",
@@ -184,7 +220,7 @@ func (c *personaClientImpl) ResumeInquiry(ctx context.Context, inquiryID string)
 	)
 
 	return &domain.PersonaSession{
-		SessionToken: personaResp.Data.Attributes.SessionToken,
+		SessionToken: personaResp.Meta.SessionToken,
 		ExpiresAt:    expiresAt,
 	}, nil
 }
