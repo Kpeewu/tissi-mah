@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 
+	grpcutil "github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -38,7 +39,7 @@ var supportMethods = map[string]bool{
 //  1. Laisse passer les routes publiques et internes (Health, ProcessWebhook, RequestRefund, ReleasePayment)
 //  2. Pour les routes support, extrait x-support-uid et l'injecte via SupportUIDKey
 //  3. Pour les autres routes, extrait le Firebase UID depuis x-firebase-uid et l'injecte via FirebaseIDKey
-func PaymentInterceptor() grpc.UnaryServerInterceptor {
+func PaymentInterceptor(secret []byte) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if publicMethods[info.FullMethod] {
 			return handler(ctx, req)
@@ -61,6 +62,13 @@ func PaymentInterceptor() grpc.UnaryServerInterceptor {
 		uids := md.Get("x-firebase-uid")
 		if len(uids) == 0 || uids[0] == "" {
 			return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
+		}
+
+		sig := md.Get(grpcutil.MetadataUIDSig)
+		if len(sig) > 0 && len(secret) > 0 {
+			if !grpcutil.VerifyUID(secret, uids[0], sig[0]) {
+				return nil, status.Error(codes.Unauthenticated, "invalid uid signature")
+			}
 		}
 
 		ctx = context.WithValue(ctx, FirebaseIDKey, uids[0])

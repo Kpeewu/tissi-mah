@@ -12,8 +12,9 @@ type Config struct {
 	FileService       FileServiceConfig
 	UserService       UserServiceConfig
 	Persona           PersonaConfig
-	NotificationRedis RedisConfig
-	LogLevel          string
+	NotificationRedis  RedisConfig
+	LogLevel           string
+	InternalHMACSecret string
 }
 
 type RedisConfig struct {
@@ -79,7 +80,8 @@ func Load() (*Config, error) {
 		NotificationRedis: RedisConfig{
 			URL: sharedconfig.MustGetString(values, "NOTIFICATION_REDIS_URL"),
 		},
-		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		LogLevel:           sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		InternalHMACSecret: sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),
 	}
 
 	if err := validate(config); err != nil {

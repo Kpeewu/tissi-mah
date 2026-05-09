@@ -36,7 +36,7 @@ func NewKYCServer(
 	srv, err := grpcutil.NewServer(
 		serverCfg,
 		logger,
-		grpc.UnaryInterceptor(middleware.KYCInterceptor()),
+		grpc.UnaryInterceptor(middleware.KYCInterceptor([]byte(cfg.InternalHMACSecret))),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)

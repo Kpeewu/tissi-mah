@@ -92,7 +92,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.BookingInterceptor()))
+	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.BookingInterceptor(nil)))
 	handler := grpcHandler.NewBookingHandler(bookingService, logger)
 	bookingpb.RegisterBookingServiceServer(srv, handler)
 

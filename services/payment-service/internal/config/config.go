@@ -22,8 +22,9 @@ type Config struct {
 	RefundWorker      RefundWorkerConfig
 	Expiration        ExpirationConfig
 	Worker            WorkerConfig
-	PaymentWindow     PaymentWindowConfig
-	LogLevel          string
+	PaymentWindow      PaymentWindowConfig
+	LogLevel           string
+	InternalHMACSecret string
 }
 
 type ServerConfig struct {
@@ -172,7 +173,8 @@ func Load() (*Config, error) {
 			StartHour: getIntOrDefault(values, "PAYMENT_WINDOW_START_HOUR", 0),
 			EndHour:   getIntOrDefault(values, "PAYMENT_WINDOW_END_HOUR", 3),
 		},
-		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		LogLevel:           sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		InternalHMACSecret: sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),
 	}
 
 	return cfg, nil

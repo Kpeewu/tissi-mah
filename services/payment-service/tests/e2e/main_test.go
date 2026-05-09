@@ -113,7 +113,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.PaymentInterceptor()))
+	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.PaymentInterceptor(nil)))
 	handler := grpcHandler.NewPaymentHandler(paymentService, logger)
 	paymentpb.RegisterPaymentServiceServer(srv, handler)
 

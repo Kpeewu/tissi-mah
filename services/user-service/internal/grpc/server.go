@@ -36,7 +36,7 @@ func NewUserServer(
 	srv, err := grpcutil.NewServer(
 		serverCfg,
 		logger,
-		grpc.UnaryInterceptor(middleware.AuthInterceptor()),
+		grpc.UnaryInterceptor(middleware.AuthInterceptor([]byte(cfg.InternalHMACSecret))),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)

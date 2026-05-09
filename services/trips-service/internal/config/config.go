@@ -17,6 +17,7 @@ type Config struct {
 	BookingService      BookingServiceConfig
 	RatingService       RatingServiceConfig
 	LogLevel            string
+	InternalHMACSecret  string
 }
 
 type ServerConfig struct {
@@ -111,7 +112,8 @@ func Load() (*Config, error) {
 			Address: sharedconfig.GetStringOrDefault(values, "RATING_SERVICE_HOST", "0.0.0.0"),
 			Port:    sharedconfig.GetStringOrDefault(values, "RATING_SERVICE_PORT", "50054"),
 		},
-		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		LogLevel:           sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		InternalHMACSecret: sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),
 	}
 
 	if err := validate(cfg); err != nil {

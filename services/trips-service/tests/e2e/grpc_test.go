@@ -98,7 +98,7 @@ func setupServer(t *testing.T) (*grpc.ClientConn, *mocks.MockUserClient, *mocks.
 	handler := grpcHandler.NewTripHandler(svc, logger)
 
 	lis = bufconn.Listen(bufSize)
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(middleware.TripInterceptor()))
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(middleware.TripInterceptor(nil)))
 	trippb.RegisterTripServiceServer(grpcServer, handler)
 
 	go func() {

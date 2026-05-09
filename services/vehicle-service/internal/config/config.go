@@ -12,8 +12,9 @@ type Config struct {
 	Environment EnvironmentConfig
 	Database    DatabaseConfig
 	Redis       RedisConfig
-	FileService FileServiceConfig
-	LogLevel    string
+	FileService        FileServiceConfig
+	LogLevel           string
+	InternalHMACSecret string
 }
 
 // FileServiceConfig contient l'adresse du file-service.
@@ -74,7 +75,8 @@ func Load() (*Config, error) {
 			Host: sharedconfig.GetStringOrDefault(values, "FILE_SERVICE_HOST", "0.0.0.0"),
 			Port: sharedconfig.GetStringOrDefault(values, "FILE_SERVICE_PORT", "50053"),
 		},
-		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		LogLevel:           sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		InternalHMACSecret: sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),
 	}
 
 	if err := validate(config); err != nil {

@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 
+	grpcutil "github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -23,7 +24,7 @@ var publicMethods = map[string]bool{
 }
 
 // NotificationInterceptor vérifie le x-firebase-uid pour les routes protégées.
-func NotificationInterceptor(logger *zap.Logger) grpc.UnaryServerInterceptor {
+func NotificationInterceptor(logger *zap.Logger, secret []byte) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		logger.Debug("grpc request", zap.String("method", info.FullMethod))
 
@@ -40,6 +41,13 @@ func NotificationInterceptor(logger *zap.Logger) grpc.UnaryServerInterceptor {
 		firebaseUIDs := md.Get("x-firebase-uid")
 		if len(firebaseUIDs) == 0 || firebaseUIDs[0] == "" {
 			return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
+		}
+
+		sig := md.Get(grpcutil.MetadataUIDSig)
+		if len(sig) > 0 && len(secret) > 0 {
+			if !grpcutil.VerifyUID(secret, firebaseUIDs[0], sig[0]) {
+				return nil, status.Error(codes.Unauthenticated, "invalid uid signature")
+			}
 		}
 
 		ctx = context.WithValue(ctx, FirebaseIDKey, firebaseUIDs[0])

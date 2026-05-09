@@ -66,7 +66,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.AuthInterceptor()))
+	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.AuthInterceptor(nil)))
 	handler := grpcHandler.NewUserHandler(svc, logger)
 	userpb.RegisterUserServiceServer(srv, handler)
 

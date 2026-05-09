@@ -42,7 +42,7 @@ func newTestGRPCServer(t *testing.T, userClient *mocks.MockUserClient) (authpb.A
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
-	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.AuthInterceptor()))
+	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.AuthInterceptor(nil)))
 	authpb.RegisterAuthServiceServer(srv, handler)
 
 	go func() { _ = srv.Serve(lis) }()
