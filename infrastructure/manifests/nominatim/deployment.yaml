@@ -33,6 +33,7 @@ spec:
       labels:
         app: nominatim-backend
         tier: geocoding
+        app.kubernetes.io/part-of: tissi-mah
     spec:
       containers:
         - name: nominatim
