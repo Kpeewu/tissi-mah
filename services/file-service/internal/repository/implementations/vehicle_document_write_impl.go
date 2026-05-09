@@ -26,16 +26,16 @@ func (r *vehicleDocumentWriteImpl) Create(ctx context.Context, doc *domain.Vehic
 	r.logger.Debug("création d'un document véhicule", zap.String("documentID", doc.DocumentID), zap.String("vehicleID", doc.VehicleID))
 
 	query := `INSERT INTO vehicle_documents
-	          (document_id, vehicle_id, document_name, document_type,
+	          (document_id, user_id, vehicle_id, document_name, document_type,
 	           document_url, file_size_bytes, mime_type,
 	           document_number, issued_at, expire_at, issuing_authority,
 	           status, is_current)
-	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 	          RETURNING document_id`
 
 	var documentID string
 	err := r.pool.QueryRow(ctx, query,
-		doc.DocumentID, doc.VehicleID, doc.DocumentName, doc.DocumentType,
+		doc.DocumentID, doc.UserID, doc.VehicleID, doc.DocumentName, doc.DocumentType,
 		doc.DocumentURL, doc.FileSizeBytes, doc.MimeType,
 		doc.DocumentNumber, doc.IssuedAt, doc.ExpireAt, doc.IssuingAuthority,
 		doc.Status, doc.IsCurrent,
@@ -62,7 +62,7 @@ func (r *vehicleDocumentWriteImpl) Update(ctx context.Context, doc *domain.Vehic
 	          document_number = $5, issued_at = $6, expire_at = $7, issuing_authority = $8,
 	          status = $9
 	          WHERE document_id = $10
-	          RETURNING document_id, vehicle_id, document_name, document_type,
+	          RETURNING document_id, user_id, vehicle_id, document_name, document_type,
 	                    document_url, file_size_bytes, mime_type,
 	                    document_number, issued_at, expire_at, issuing_authority,
 	                    status, is_current, replaced_by,
@@ -73,7 +73,7 @@ func (r *vehicleDocumentWriteImpl) Update(ctx context.Context, doc *domain.Vehic
 		doc.DocumentNumber, doc.IssuedAt, doc.ExpireAt, doc.IssuingAuthority,
 		doc.Status, doc.DocumentID,
 	).Scan(
-		&doc.DocumentID, &doc.VehicleID, &doc.DocumentName, &doc.DocumentType,
+		&doc.DocumentID, &doc.UserID, &doc.VehicleID, &doc.DocumentName, &doc.DocumentType,
 		&doc.DocumentURL, &doc.FileSizeBytes, &doc.MimeType,
 		&doc.DocumentNumber, &doc.IssuedAt, &doc.ExpireAt, &doc.IssuingAuthority,
 		&doc.Status, &doc.IsCurrent, &doc.ReplacedBy,

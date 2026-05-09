@@ -272,6 +272,7 @@ func (s *fileServiceImpl) UploadVehicleDocument(ctx context.Context, input servi
 	now := time.Now().UTC()
 	doc := &domain.VehicleDocument{
 		DocumentID:       documentID,
+		UserID:           input.UserID,
 		VehicleID:        input.VehicleID,
 		DocumentName:     input.DocumentName,
 		DocumentType:     input.DocumentType,
@@ -817,6 +818,7 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 		}
 
 		doc, err := s.UploadVehicleDocument(ctx, serviceInterfaces.UploadVehicleDocumentInput{
+			UserID:        input.UserID,
 			VehicleID:     input.VehicleID,
 			DocumentName:  u.docName,
 			DocumentType:  u.docType,

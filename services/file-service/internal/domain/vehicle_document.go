@@ -11,6 +11,7 @@ var ValidVehicleDocumentTypes = map[string]bool{
 
 type VehicleDocument struct {
 	DocumentID    string
+	UserID        string
 	VehicleID     string
 	DocumentName  string
 	DocumentType  string

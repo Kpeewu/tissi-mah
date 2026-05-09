@@ -88,6 +88,66 @@ func TestDocumentReviewRead_GetByUserDocumentID(t *testing.T) {
 	})
 }
 
+func TestDocumentReviewRead_GetByUserID(t *testing.T) {
+	t.Run("should return reviews for both user and vehicle documents owned by user", func(t *testing.T) {
+		cleanTables(t)
+		userID := "user-rr-getall-1"
+
+		// Document d'identité (user_documents)
+		userDoc := newUserDoc(userID, "idCardFront")
+		insertUserDoc(t, userDoc)
+		userReview := newReviewForUserDoc(userDoc.DocumentID)
+		insertReview(t, userReview)
+
+		// Document véhicule (vehicle_documents) — owned by same user
+		vehicleDoc := newVehicleDoc("vehicle-rr-getall-1", "insurance")
+		vehicleDoc.UserID = userID
+		insertVehicleDoc(t, vehicleDoc)
+		vehicleReview := newReviewForVehicleDoc(vehicleDoc.DocumentID)
+		insertReview(t, vehicleReview)
+
+		results, err := newReviewReadRepo().GetByUserID(context.Background(), userID)
+
+		require.NoError(t, err)
+		assert.Len(t, results, 2, "GetByUserID doit retourner les reviews user ET véhicule")
+
+		var foundUser, foundVehicle bool
+		for _, r := range results {
+			if r.UserDocumentID != nil && *r.UserDocumentID == userDoc.DocumentID {
+				foundUser = true
+			}
+			if r.VehicleDocumentID != nil && *r.VehicleDocumentID == vehicleDoc.DocumentID {
+				foundVehicle = true
+			}
+		}
+		assert.True(t, foundUser, "review du document d'identité manquante")
+		assert.True(t, foundVehicle, "review du document véhicule manquante")
+	})
+
+	t.Run("should not return reviews of vehicle documents owned by other users", func(t *testing.T) {
+		cleanTables(t)
+		callerID := "user-rr-getall-caller"
+		otherID := "user-rr-getall-other"
+
+		ownVehicle := newVehicleDoc("vehicle-own", "insurance")
+		ownVehicle.UserID = callerID
+		insertVehicleDoc(t, ownVehicle)
+		insertReview(t, newReviewForVehicleDoc(ownVehicle.DocumentID))
+
+		foreignVehicle := newVehicleDoc("vehicle-foreign", "insurance")
+		foreignVehicle.UserID = otherID
+		insertVehicleDoc(t, foreignVehicle)
+		insertReview(t, newReviewForVehicleDoc(foreignVehicle.DocumentID))
+
+		results, err := newReviewReadRepo().GetByUserID(context.Background(), callerID)
+
+		require.NoError(t, err)
+		assert.Len(t, results, 1)
+		require.NotNil(t, results[0].VehicleDocumentID)
+		assert.Equal(t, ownVehicle.DocumentID, *results[0].VehicleDocumentID)
+	})
+}
+
 func TestDocumentReviewRead_GetByVehicleDocumentID(t *testing.T) {
 	t.Run("should return all reviews for vehicle document", func(t *testing.T) {
 		cleanTables(t)

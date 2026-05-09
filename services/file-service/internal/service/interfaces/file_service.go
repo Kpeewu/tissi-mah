@@ -19,8 +19,12 @@ type UploadUserDocumentInput struct {
 	IssuingCountry string
 }
 
-// UploadVehicleDocumentInput contient les données nécessaires à l'upload d'un document véhicule
+// UploadVehicleDocumentInput contient les données nécessaires à l'upload d'un document véhicule.
+// UserID est dénormalisé sur vehicle_documents pour permettre la jointure inverse
+// dans GetDocumentReviewsByUserID (file-service n'a pas accès à la table vehicles
+// du user-service).
 type UploadVehicleDocumentInput struct {
+	UserID           string
 	VehicleID        string
 	DocumentName     string
 	DocumentType     string
