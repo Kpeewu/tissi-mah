@@ -486,7 +486,7 @@ rpc UploadUserDocument(stream UploadUserDocumentRequest) returns (UserDocumentRe
 | `user_id` | string | Yes | User profile ID |
 | `document_name` | string | Yes | File name |
 | `document_type` | string | Yes | Document type (see below) |
-| `mime_type` | string | Yes | MIME type (image/jpeg, image/png, application/pdf) |
+| `mime_type` | string | Yes | MIME type — see [Supported MIME Types](#supported-mime-types) |
 | `file_size_bytes` | int64 | Yes | Total file size in bytes (max 10MB) |
 | `document_number` | string | No | Document number |
 | `issuing_country` | string | No | Country code (ISO 3166-1 alpha-2) |
@@ -692,8 +692,19 @@ Example: `idCardFront/8b1d4173/d-550e8400.jpg`
 | MIME Type | Extension |
 |-----------|-----------|
 | `image/jpeg` | .jpg, .jpeg |
+| `image/jpg` | .jpg (alias non-standard de `image/jpeg`) |
 | `image/png` | .png |
+| `image/webp` | .webp |
+| `image/heic` | .heic (photos iPhone) |
+| `image/heif` | .heif |
+| `image/tiff` | .tiff |
 | `application/pdf` | .pdf |
+
+Pour `UploadIdDocument`, `UploadVehicleDocuments` et `ChangeDocument`, le MIME
+type est détecté côté serveur à partir des bytes (signature magique JPEG / PNG /
+WebP / TIFF / PDF via `http.DetectContentType`, signature ISO/IEC 14496-12 pour
+HEIC / HEIF). Un fichier dont le type ne peut pas être identifié comme l'un des
+formats ci-dessus est rejeté avec `ErrorInvalidMimeType`.
 
 ## Limits
 
