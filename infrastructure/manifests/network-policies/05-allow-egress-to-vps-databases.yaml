@@ -1,0 +1,44 @@
+# Autorise tous les pods à atteindre les bases de données Docker qui tournent
+# sur l'hôte VPS (PostgreSQL, Redis, MongoDB) en se connectant via l'IP publique
+# du VPS. Nécessaire car 01-allow-dns.yaml active le contrôle egress pour tous
+# les pods — sans cette règle, toute connexion hors port 53 est bloquée.
+#
+# Ports (mappings docker-compose → hôte VPS) :
+#   PostgreSQL : 5433 (auth) … 5442 (chat)
+#   Redis      : 6379-6392 (gateway 6380, auth 6381, user 6382 … chat 6392)
+#   MongoDB    : 27018 (user-service)
+#
+# Prérequis endPort : Kubernetes ≥ 1.25 (stable). K3s récent supporte cette
+# fonctionnalité.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-to-vps-databases
+  namespace: default
+  labels:
+    app.kubernetes.io/managed-by: tissi-mah
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 152.228.131.103/32
+      ports:
+        - protocol: TCP
+          port: 5433
+          endPort: 5442
+    - to:
+        - ipBlock:
+            cidr: 152.228.131.103/32
+      ports:
+        - protocol: TCP
+          port: 6379
+          endPort: 6392
+    - to:
+        - ipBlock:
+            cidr: 152.228.131.103/32
+      ports:
+        - protocol: TCP
+          port: 27018

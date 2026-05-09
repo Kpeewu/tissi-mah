@@ -1,0 +1,37 @@
+# Autorise deux catégories d'egress pour tous les pods :
+#
+# 1. Trafic intra-cluster (pod → pod, même namespace) :
+#    - geolocation-service → OSRM (:5000) et Nominatim (:7070)
+#    - Tout appel gRPC inter-services initié depuis un pod
+#
+# 2. HTTPS externe vers des IPs non-RFC1918 :
+#    - api-gateway → Firebase Admin SDK (jwks, token validation)
+#    - payment-service → API FedaPay
+#    - Tout autre appel HTTPS vers des services tiers
+#
+# Note : les plages RFC1918 (10/8, 172.16/12, 192.168/16) sont exclues du
+# bloc HTTPS pour ne pas contourner les règles ingress sur les pods internes.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-intra-cluster-and-https
+  namespace: default
+  labels:
+    app.kubernetes.io/managed-by: tissi-mah
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector: {}
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
