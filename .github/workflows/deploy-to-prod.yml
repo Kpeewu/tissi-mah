@@ -235,6 +235,27 @@ jobs:
           echo "${{ secrets.PROD_KUBECONFIG }}" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
 
+      - name: Unstick pending Helm release
+        run: |
+          # Libère le lock si une release précédente est restée en pending-*
+          # (job CI killed, timeout, network glitch). Sans ça, helm upgrade
+          # échoue avec "another operation (install/upgrade/rollback) is in progress".
+          # Sur prod, --atomic devrait normalement éviter ce cas, mais un job killed
+          # avant que helm finisse son rollback laisse la release coincée.
+          helm_output=$(helm status ${{ matrix.service }} -n production 2>/dev/null || true)
+          status=$(echo "$helm_output" | awk '/^STATUS:/ {print $2}')
+          case "$status" in
+            pending-install|pending-upgrade|pending-rollback)
+              echo "Release ${{ matrix.service }} bloquée en $status, libération du lock"
+              if ! helm rollback ${{ matrix.service }} -n production 2>/dev/null; then
+                echo "Rollback impossible (pas de révision deployed), suppression du secret $status"
+                kubectl delete secret -n production \
+                  -l "owner=helm,name=${{ matrix.service }},status=$status" \
+                  --ignore-not-found
+              fi
+              ;;
+          esac
+
       - name: Get current revision
         id: get-revision
         run: |

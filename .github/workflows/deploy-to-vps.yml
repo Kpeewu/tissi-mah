@@ -408,6 +408,25 @@ jobs:
               yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
           PYEOF
 
+      - name: Unstick pending Helm release
+        run: |
+          # Libère le lock si une release précédente est restée en pending-*
+          # (job CI killed, timeout, network glitch). Sans ça, helm upgrade
+          # échoue avec "another operation (install/upgrade/rollback) is in progress".
+          helm_output=$(helm status ${{ matrix.service }} -n ${{ env.DEPLOY_NAMESPACE }} 2>/dev/null || true)
+          status=$(echo "$helm_output" | awk '/^STATUS:/ {print $2}')
+          case "$status" in
+            pending-install|pending-upgrade|pending-rollback)
+              echo "Release ${{ matrix.service }} bloquée en $status, libération du lock"
+              if ! helm rollback ${{ matrix.service }} -n ${{ env.DEPLOY_NAMESPACE }} 2>/dev/null; then
+                echo "Rollback impossible (pas de révision deployed), suppression du secret $status"
+                kubectl delete secret -n ${{ env.DEPLOY_NAMESPACE }} \
+                  -l "owner=helm,name=${{ matrix.service }},status=$status" \
+                  --ignore-not-found
+              fi
+              ;;
+          esac
+
       - name: Deploy with Helm
         run: |
           helm upgrade --install ${{ matrix.service }} \
