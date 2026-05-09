@@ -27,6 +27,7 @@ spec:
       labels:
         app: tileserver-gl
         tier: tiles
+        app.kubernetes.io/part-of: tissi-mah
     spec:
       affinity:
         podAntiAffinity:
