@@ -18,9 +18,10 @@ type Config struct {
 	UserService       ServiceEndpoint
 	PaymentService    ServiceEndpoint
 	ServiceFee        ServiceFeeConfig
-	Reconciliation    ReconciliationConfig
-	Payment           PaymentConfig
-	LogLevel          string
+	Reconciliation     ReconciliationConfig
+	Payment            PaymentConfig
+	LogLevel           string
+	InternalHMACSecret string
 }
 
 // ServerConfig contient la configuration du serveur gRPC.
@@ -117,7 +118,8 @@ func Load() (*Config, error) {
 			ContestationDelaySeconds:     getIntOrDefault(values, "CONTESTATION_DELAY_SECONDS", 7200),
 			ReleaseWorkerIntervalSeconds: getIntOrDefault(values, "RELEASE_WORKER_INTERVAL_SECONDS", 60),
 		},
-		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		LogLevel:           sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		InternalHMACSecret: sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),
 	}
 
 	return config, nil

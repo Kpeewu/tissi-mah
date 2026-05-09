@@ -34,7 +34,7 @@ func NewTripServer(
 	srv, err := grpcutil.NewServer(
 		serverCfg,
 		logger,
-		grpc.UnaryInterceptor(middleware.TripInterceptor()),
+		grpc.UnaryInterceptor(middleware.TripInterceptor([]byte(cfg.InternalHMACSecret))),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)

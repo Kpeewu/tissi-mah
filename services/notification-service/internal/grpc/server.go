@@ -33,7 +33,7 @@ func NewNotificationServer(
 	srv, err := grpcutil.NewServer(
 		serverCfg,
 		logger,
-		grpc.UnaryInterceptor(middleware.NotificationInterceptor(logger)),
+		grpc.UnaryInterceptor(middleware.NotificationInterceptor(logger, []byte(cfg.InternalHMACSecret))),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)

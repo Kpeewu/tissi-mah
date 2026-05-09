@@ -75,7 +75,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.RatingInterceptor()))
+	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.RatingInterceptor(nil)))
 	handler := grpcHandler.NewRatingHandler(ratingService, logger)
 	ratingpb.RegisterRatingServiceServer(srv, handler)
 

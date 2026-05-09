@@ -36,7 +36,7 @@ func NewVehicleServer(
 	srv, err := grpcutil.NewServer(
 		serverCfg,
 		logger,
-		grpc.UnaryInterceptor(middleware.VehicleInterceptor()),
+		grpc.UnaryInterceptor(middleware.VehicleInterceptor([]byte(cfg.InternalHMACSecret))),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)

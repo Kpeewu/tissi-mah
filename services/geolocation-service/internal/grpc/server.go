@@ -36,7 +36,7 @@ func NewGeolocationServer(
 	srv, err := grpcutil.NewServer(
 		serverCfg,
 		logger,
-		grpc.UnaryInterceptor(middleware.GeolocationInterceptor()),
+		grpc.UnaryInterceptor(middleware.GeolocationInterceptor([]byte(cfg.InternalHMACSecret))),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)

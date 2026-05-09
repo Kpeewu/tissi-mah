@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 
+	grpcutil "github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -34,7 +35,7 @@ var publicMethods = map[string]bool{
 //  2. Extrait le Firebase UID depuis la metadata gRPC x-firebase-uid
 //     (injectée par l'api-gateway après validation JWT Firebase)
 //  3. Injecte le Firebase UID dans le contexte via FirebaseIDKey
-func BookingInterceptor() grpc.UnaryServerInterceptor {
+func BookingInterceptor(secret []byte) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if publicMethods[info.FullMethod] {
 			return handler(ctx, req)
@@ -48,6 +49,13 @@ func BookingInterceptor() grpc.UnaryServerInterceptor {
 		uids := md.Get("x-firebase-uid")
 		if len(uids) == 0 || uids[0] == "" {
 			return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
+		}
+
+		sig := md.Get(grpcutil.MetadataUIDSig)
+		if len(sig) > 0 && len(secret) > 0 {
+			if !grpcutil.VerifyUID(secret, uids[0], sig[0]) {
+				return nil, status.Error(codes.Unauthenticated, "invalid uid signature")
+			}
 		}
 
 		ctx = context.WithValue(ctx, FirebaseIDKey, uids[0])

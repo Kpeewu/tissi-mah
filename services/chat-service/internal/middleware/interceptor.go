@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 
+	grpcutil "github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -30,7 +31,7 @@ var supportMethods = map[string]bool{
 }
 
 // ChatInterceptor extrait Firebase UID (ou Support UID) selon la route.
-func ChatInterceptor() grpc.UnaryServerInterceptor {
+func ChatInterceptor(secret []byte) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if publicMethods[info.FullMethod] {
 			return handler(ctx, req)
@@ -56,6 +57,14 @@ func ChatInterceptor() grpc.UnaryServerInterceptor {
 		if len(uids) == 0 || uids[0] == "" {
 			return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
 		}
+
+		sig := md.Get(grpcutil.MetadataUIDSig)
+		if len(sig) > 0 && len(secret) > 0 {
+			if !grpcutil.VerifyUID(secret, uids[0], sig[0]) {
+				return nil, status.Error(codes.Unauthenticated, "invalid uid signature")
+			}
+		}
+
 		ctx = context.WithValue(ctx, FirebaseIDKey, uids[0])
 		return handler(ctx, req)
 	}

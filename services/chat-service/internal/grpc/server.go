@@ -36,7 +36,7 @@ func NewChatServer(
 			EnableReflection:  cfg.Environment.Mode != "prod",
 		},
 		logger,
-		grpc.UnaryInterceptor(middleware.ChatInterceptor()),
+		grpc.UnaryInterceptor(middleware.ChatInterceptor([]byte(cfg.InternalHMACSecret))),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)

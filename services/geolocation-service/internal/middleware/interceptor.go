@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 
+	grpcutil "github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -31,7 +32,7 @@ var publicMethods = map[string]bool{
 // Le service ne fait pas appel au user-service pour résoudre l'UUID interne — il n'en a
 // pas besoin (ComputeRoute/Geocode sont des opérations purement géographiques sans
 // notion d'identité business). Le Firebase UID sert uniquement à journaliser les requêtes.
-func GeolocationInterceptor() grpc.UnaryServerInterceptor {
+func GeolocationInterceptor(secret []byte) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if publicMethods[info.FullMethod] {
 			return handler(ctx, req)
@@ -45,6 +46,13 @@ func GeolocationInterceptor() grpc.UnaryServerInterceptor {
 		uids := md.Get("x-firebase-uid")
 		if len(uids) == 0 || uids[0] == "" {
 			return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
+		}
+
+		sig := md.Get(grpcutil.MetadataUIDSig)
+		if len(sig) > 0 && len(secret) > 0 {
+			if !grpcutil.VerifyUID(secret, uids[0], sig[0]) {
+				return nil, status.Error(codes.Unauthenticated, "invalid uid signature")
+			}
 		}
 
 		ctx = context.WithValue(ctx, FirebaseIDKey, uids[0])

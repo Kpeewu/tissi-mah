@@ -16,9 +16,10 @@ type Config struct {
 	BookingService    ServiceEndpoint
 	TripsService      ServiceEndpoint
 	SupportService    ServiceEndpoint
-	Encryption        EncryptionConfig
-	Worker            WorkerConfig
-	LogLevel          string
+	Encryption         EncryptionConfig
+	Worker             WorkerConfig
+	LogLevel           string
+	InternalHMACSecret string
 }
 
 type ServerConfig struct {
@@ -112,7 +113,8 @@ func Load() (*Config, error) {
 			TripCloserIntervalSeconds: getIntOrDefault(values, "TRIP_CLOSER_INTERVAL_SECONDS", 30),
 			MessageRetentionDays:      getIntOrDefault(values, "MESSAGE_RETENTION_DAYS", 180),
 		},
-		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		LogLevel:           sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		InternalHMACSecret: sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),
 	}, nil
 }
 

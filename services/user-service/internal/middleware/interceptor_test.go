@@ -31,7 +31,7 @@ func TestAuthInterceptor_PublicRoute(t *testing.T) {
 		"/user.UserService/GetMyProfile": true,
 	})
 
-	interceptor := AuthInterceptor()
+	interceptor := AuthInterceptor(nil)
 	info := &grpc.UnaryServerInfo{FullMethod: "/user.UserService/Health"}
 
 	resp, err := interceptor(context.Background(), nil, info, dummyHandler)
@@ -45,7 +45,7 @@ func TestAuthInterceptor_ProtectedRoute_Success(t *testing.T) {
 		"/user.UserService/GetMyProfile": true,
 	})
 
-	interceptor := AuthInterceptor()
+	interceptor := AuthInterceptor(nil)
 	info := &grpc.UnaryServerInfo{FullMethod: "/user.UserService/GetMyProfile"}
 
 	// Créer un contexte avec la metadata x-firebase-uid
@@ -69,7 +69,7 @@ func TestAuthInterceptor_ProtectedRoute_MissingMetadata(t *testing.T) {
 		"/user.UserService/GetMyProfile": true,
 	})
 
-	interceptor := AuthInterceptor()
+	interceptor := AuthInterceptor(nil)
 	info := &grpc.UnaryServerInfo{FullMethod: "/user.UserService/GetMyProfile"}
 
 	// Contexte sans metadata
@@ -88,7 +88,7 @@ func TestAuthInterceptor_ProtectedRoute_MissingUID(t *testing.T) {
 		"/user.UserService/GetMyProfile": true,
 	})
 
-	interceptor := AuthInterceptor()
+	interceptor := AuthInterceptor(nil)
 	info := &grpc.UnaryServerInfo{FullMethod: "/user.UserService/GetMyProfile"}
 
 	// Metadata présente mais sans x-firebase-uid
@@ -110,7 +110,7 @@ func TestAuthInterceptor_ProtectedRoute_EmptyUID(t *testing.T) {
 		"/user.UserService/GetMyProfile": true,
 	})
 
-	interceptor := AuthInterceptor()
+	interceptor := AuthInterceptor(nil)
 	info := &grpc.UnaryServerInfo{FullMethod: "/user.UserService/GetMyProfile"}
 
 	// Metadata avec x-firebase-uid vide

@@ -12,9 +12,10 @@ type Config struct {
 	Database     DatabaseConfig
 	Redis        RedisConfig
 	UserService  ServiceEndpoint
-	PushService  ServiceEndpoint
-	EmailService ServiceEndpoint
-	LogLevel     string
+	PushService        ServiceEndpoint
+	EmailService       ServiceEndpoint
+	LogLevel           string
+	InternalHMACSecret string
 }
 
 type ServerConfig struct {
@@ -75,7 +76,8 @@ func Load() (*Config, error) {
 			Host: sharedconfig.GetStringOrDefault(values, "EMAIL_SERVICE_HOST", "0.0.0.0"),
 			Port: sharedconfig.GetStringOrDefault(values, "EMAIL_SERVICE_PORT", "50061"),
 		},
-		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		LogLevel:           sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		InternalHMACSecret: sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),
 	}
 
 	if err := validate(config); err != nil {

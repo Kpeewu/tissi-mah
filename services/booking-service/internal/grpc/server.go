@@ -34,7 +34,7 @@ func NewBookingServer(
 	srv, err := grpcutil.NewServer(
 		serverCfg,
 		logger,
-		grpc.UnaryInterceptor(middleware.BookingInterceptor()),
+		grpc.UnaryInterceptor(middleware.BookingInterceptor([]byte(cfg.InternalHMACSecret))),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)

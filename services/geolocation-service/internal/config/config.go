@@ -13,8 +13,9 @@ type Config struct {
 	OSRM        OSRMConfig
 	Nominatim   NominatimConfig
 	Redis       RedisConfig
-	Geocode     GeocodeConfig
-	LogLevel    string
+	Geocode            GeocodeConfig
+	LogLevel           string
+	InternalHMACSecret string
 }
 
 type ServerConfig struct {
@@ -70,7 +71,8 @@ func Load() (*Config, error) {
 		Geocode: GeocodeConfig{
 			DefaultCountries: sharedconfig.GetStringOrDefault(values, "GEOCODE_DEFAULT_COUNTRIES", "tg,gh,bj,bf"),
 		},
-		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		LogLevel:           sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		InternalHMACSecret: sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),
 	}
 
 	if err := validate(cfg); err != nil {

@@ -36,7 +36,7 @@ func NewRatingServer(
 	srv, err := grpcutil.NewServer(
 		serverCfg,
 		logger,
-		grpc.UnaryInterceptor(middleware.RatingInterceptor()),
+		grpc.UnaryInterceptor(middleware.RatingInterceptor([]byte(cfg.InternalHMACSecret))),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)
