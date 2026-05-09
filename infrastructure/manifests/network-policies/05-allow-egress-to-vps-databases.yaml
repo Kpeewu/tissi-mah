@@ -3,13 +3,14 @@
 # du VPS. Nécessaire car 01-allow-dns.yaml active le contrôle egress pour tous
 # les pods — sans cette règle, toute connexion hors port 53 est bloquée.
 #
-# Ports (mappings docker-compose → hôte VPS) :
-#   PostgreSQL : 5433 (auth) … 5442 (chat)
-#   Redis      : 6379-6392 (gateway 6380, auth 6381, user 6382 … chat 6392)
-#   MongoDB    : 27018 (user-service)
+# NOTE : K3s/Flannel ne supporte pas endPort dans les NetworkPolicy — le champ
+# est silencieusement ignoré et seul le port de base est retenu. On autorise
+# donc tout le trafic TCP vers l'IP hôte du VPS (infrastructure interne).
 #
-# Prérequis endPort : Kubernetes ≥ 1.25 (stable). K3s récent supporte cette
-# fonctionnalité.
+# Ports Docker sur l'hôte VPS :
+#   PostgreSQL : 5433 (auth) … 5442 (chat)
+#   Redis      : 6380 (gateway) … 6392 (chat)
+#   MongoDB    : 27018 (user-service)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -25,20 +26,3 @@ spec:
     - to:
         - ipBlock:
             cidr: 152.228.131.103/32
-      ports:
-        - protocol: TCP
-          port: 5433
-          endPort: 5442
-    - to:
-        - ipBlock:
-            cidr: 152.228.131.103/32
-      ports:
-        - protocol: TCP
-          port: 6379
-          endPort: 6392
-    - to:
-        - ipBlock:
-            cidr: 152.228.131.103/32
-      ports:
-        - protocol: TCP
-          port: 27018
