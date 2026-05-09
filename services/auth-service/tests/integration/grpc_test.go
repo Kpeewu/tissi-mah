@@ -175,7 +175,7 @@ func TestE2E_CreateAccount(t *testing.T) {
 			mock.Anything,
 			mock.AnythingOfType("string"), // authID généré en interne
 			firebaseUID,
-			"Doe", "John", "",
+			"Doe", "John", "", "",
 		).Return(stubbedUserPreview(uuid.New().String()), nil).Once()
 
 		resp, err := client.CreateAccount(
