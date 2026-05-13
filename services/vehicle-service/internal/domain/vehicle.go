@@ -18,11 +18,12 @@ type Vehicle struct {
 
 // VehiclePreview représente un aperçu réduit d'un véhicule pour les listes.
 type VehiclePreview struct {
-	VehicleID    string
-	Brand        string
-	BrandModel   string
-	LicencePlate string
-	IsVerified   bool
+	VehicleID     string
+	Brand         string
+	BrandModel    string
+	LicencePlate  string
+	IsVerified    bool
+	NumberOfSeats int16
 }
 
 // VehicleDocuments contient les URLs des documents du véhicule (assurance, carte grise).

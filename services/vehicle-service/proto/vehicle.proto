@@ -132,4 +132,5 @@ message VehiclePreview {
   string BrandModel = 3;
   string LicencePlate = 4;
   bool IsVerified = 5;
+  int32 NumberOfSeats = 6;
 }
