@@ -276,7 +276,7 @@ func TestCreateInquiry(t *testing.T) {
 		assert.Contains(t, err.Error(), "empty session-token")
 	})
 
-	t.Run("erreur - session-token-expires-at non parsable", func(t *testing.T) {
+	t.Run("fallback - session-token-expires-at non parsable utilise +24h", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusCreated)
 			_, _ = w.Write([]byte(`{
@@ -287,9 +287,30 @@ func TestCreateInquiry(t *testing.T) {
 		defer server.Close()
 
 		c := newTestPersonaClient(server, "test-api-key")
-		_, err := c.CreateInquiry(context.Background(), "itmpl_xyz", "user_123")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "session-token-expires-at")
+		inquiry, err := c.CreateInquiry(context.Background(), "itmpl_xyz", "user_123")
+		require.NoError(t, err)
+		require.NotNil(t, inquiry)
+		assert.Equal(t, "sess_top_secret", inquiry.SessionToken)
+		assert.WithinDuration(t, time.Now().Add(24*time.Hour), inquiry.ExpiresAt, time.Minute)
+	})
+
+	t.Run("fallback - session-token-expires-at vide utilise +24h", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{
+				"data":{"id":"inq_AqzrEzT4LoG4wBApi2SLd1CHsxJAeX","attributes":{}},
+				"meta":{"session-token":"sess_top_secret","session-token-expires-at":""}
+			}`))
+		}))
+		defer server.Close()
+
+		c := newTestPersonaClient(server, "test-api-key")
+		inquiry, err := c.CreateInquiry(context.Background(), "itmpl_xyz", "user_123")
+		require.NoError(t, err)
+		require.NotNil(t, inquiry)
+		assert.Equal(t, "inq_AqzrEzT4LoG4wBApi2SLd1CHsxJAeX", inquiry.InquiryID)
+		assert.Equal(t, "sess_top_secret", inquiry.SessionToken)
+		assert.WithinDuration(t, time.Now().Add(24*time.Hour), inquiry.ExpiresAt, time.Minute)
 	})
 
 	t.Run("erreur - HTTP 401 retourné par Persona", func(t *testing.T) {
@@ -356,5 +377,41 @@ func TestResumeInquiry(t *testing.T) {
 		_, err := c.ResumeInquiry(context.Background(), "inq_abc")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unexpected status 410")
+	})
+
+	t.Run("fallback - session-token-expires-at non parsable utilise +24h", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{
+				"data":{"id":"inq_abc","attributes":{}},
+				"meta":{"session-token":"sess_resumed","session-token-expires-at":"not-a-date"}
+			}`))
+		}))
+		defer server.Close()
+
+		c := newTestPersonaClient(server, "test-api-key")
+		session, err := c.ResumeInquiry(context.Background(), "inq_abc")
+		require.NoError(t, err)
+		require.NotNil(t, session)
+		assert.Equal(t, "sess_resumed", session.SessionToken)
+		assert.WithinDuration(t, time.Now().Add(24*time.Hour), session.ExpiresAt, time.Minute)
+	})
+
+	t.Run("fallback - session-token-expires-at vide utilise +24h", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{
+				"data":{"id":"inq_abc","attributes":{}},
+				"meta":{"session-token":"sess_resumed","session-token-expires-at":""}
+			}`))
+		}))
+		defer server.Close()
+
+		c := newTestPersonaClient(server, "test-api-key")
+		session, err := c.ResumeInquiry(context.Background(), "inq_abc")
+		require.NoError(t, err)
+		require.NotNil(t, session)
+		assert.Equal(t, "sess_resumed", session.SessionToken)
+		assert.WithinDuration(t, time.Now().Add(24*time.Hour), session.ExpiresAt, time.Minute)
 	})
 }
