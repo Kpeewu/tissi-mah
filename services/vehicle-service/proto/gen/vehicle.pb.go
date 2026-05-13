@@ -860,6 +860,7 @@ type VehiclePreview struct {
 	BrandModel    string                 `protobuf:"bytes,3,opt,name=BrandModel,proto3" json:"BrandModel,omitempty"`
 	LicencePlate  string                 `protobuf:"bytes,4,opt,name=LicencePlate,proto3" json:"LicencePlate,omitempty"`
 	IsVerified    bool                   `protobuf:"varint,5,opt,name=IsVerified,proto3" json:"IsVerified,omitempty"`
+	NumberOfSeats int32                  `protobuf:"varint,6,opt,name=NumberOfSeats,proto3" json:"NumberOfSeats,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -929,6 +930,13 @@ func (x *VehiclePreview) GetIsVerified() bool {
 	return false
 }
 
+func (x *VehiclePreview) GetNumberOfSeats() int32 {
+	if x != nil {
+		return x.NumberOfSeats
+	}
+	return 0
+}
+
 var File_vehicle_proto protoreflect.FileDescriptor
 
 const file_vehicle_proto_rawDesc = "" +
@@ -992,7 +1000,7 @@ const file_vehicle_proto_rawDesc = "" +
 	"\n" +
 	"IsVerified\x18\b \x01(\bR\n" +
 	"IsVerified\x127\n" +
-	"\tDocuments\x18\t \x01(\v2\x19.vehicle.VehicleDocumentsR\tDocuments\"\xa8\x01\n" +
+	"\tDocuments\x18\t \x01(\v2\x19.vehicle.VehicleDocumentsR\tDocuments\"\xce\x01\n" +
 	"\x0eVehiclePreview\x12\x1c\n" +
 	"\tVehicleId\x18\x01 \x01(\tR\tVehicleId\x12\x14\n" +
 	"\x05Brand\x18\x02 \x01(\tR\x05Brand\x12\x1e\n" +
@@ -1002,7 +1010,8 @@ const file_vehicle_proto_rawDesc = "" +
 	"\fLicencePlate\x18\x04 \x01(\tR\fLicencePlate\x12\x1e\n" +
 	"\n" +
 	"IsVerified\x18\x05 \x01(\bR\n" +
-	"IsVerified2\x90\x05\n" +
+	"IsVerified\x12$\n" +
+	"\rNumberOfSeats\x18\x06 \x01(\x05R\rNumberOfSeats2\x90\x05\n" +
 	"\x0eVehicleService\x12^\n" +
 	"\n" +
 	"AddVehicle\x12\x1a.vehicle.AddVehicleRequest\x1a\x1b.vehicle.AddVehicleResponse\"\x17\x82\xd3\xe4\x93\x02\x11:\x01*\"\f/vehicle/add\x12j\n" +

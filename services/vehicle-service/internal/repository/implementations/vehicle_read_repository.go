@@ -65,7 +65,7 @@ func (r *vehicleReadRepositoryImpl) GetByID(ctx context.Context, vehicleID strin
 func (r *vehicleReadRepositoryImpl) GetByUserID(ctx context.Context, userID string) ([]*domain.VehiclePreview, error) {
 	r.logger.Debug("get vehicles by user id", zap.String("userID", userID))
 
-	query := `SELECT vehicle_id, brand, brand_model, licence_plate, is_verified
+	query := `SELECT vehicle_id, brand, brand_model, licence_plate, is_verified, number_of_seats
 	          FROM vehicles WHERE user_id = $1
 	          ORDER BY created_at DESC`
 
@@ -85,6 +85,7 @@ func (r *vehicleReadRepositoryImpl) GetByUserID(ctx context.Context, userID stri
 			&preview.BrandModel,
 			&preview.LicencePlate,
 			&preview.IsVerified,
+			&preview.NumberOfSeats,
 		)
 		if err != nil {
 			r.logger.Error("scan vehicle preview row failed", zap.Error(err))
