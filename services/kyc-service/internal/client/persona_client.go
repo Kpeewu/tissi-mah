@@ -39,6 +39,29 @@ func NewPersonaClient(apiKey string, logger *zap.Logger) PersonaClient {
 	}
 }
 
+// parseSessionExpiresAt parse session-token-expires-at en RFC3339.
+// Persona peut renvoyer une chaîne vide quand la session SDK n'est plus
+// nécessaire (ex: docs déjà soumis via SubmitGovernmentID). On fallback
+// à now+24h plutôt que d'annuler une requête que Persona a acceptée.
+func (c *personaClientImpl) parseSessionExpiresAt(raw, inquiryID string) time.Time {
+	if raw == "" {
+		c.logger.Warn("persona: empty session-token-expires-at, using default 24h",
+			zap.String("inquiryID", inquiryID),
+		)
+		return time.Now().UTC().Add(24 * time.Hour)
+	}
+	expiresAt, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		c.logger.Warn("persona: invalid session-token-expires-at, using default 24h",
+			zap.String("inquiryID", inquiryID),
+			zap.String("rawExpiresAt", raw),
+			zap.Error(err),
+		)
+		return time.Now().UTC().Add(24 * time.Hour)
+	}
+	return expiresAt
+}
+
 // =============================================================================
 // CreateInquiry
 // =============================================================================
@@ -140,15 +163,7 @@ func (c *personaClientImpl) CreateInquiry(ctx context.Context, templateID string
 		return nil, fmt.Errorf("persona: CreateInquiry: empty session-token")
 	}
 
-	expiresAt, err := time.Parse(time.RFC3339, personaResp.Meta.ExpiresAt)
-	if err != nil {
-		c.logger.Error("persona: failed to parse session-token-expires-at",
-			zap.String("inquiryID", personaResp.Data.ID),
-			zap.String("rawExpiresAt", personaResp.Meta.ExpiresAt),
-			zap.Error(err),
-		)
-		return nil, fmt.Errorf("persona: CreateInquiry: parse session-token-expires-at: %w", err)
-	}
+	expiresAt := c.parseSessionExpiresAt(personaResp.Meta.ExpiresAt, personaResp.Data.ID)
 
 	c.logger.Info("persona: inquiry created",
 		zap.String("inquiryID", personaResp.Data.ID),
@@ -205,15 +220,7 @@ func (c *personaClientImpl) ResumeInquiry(ctx context.Context, inquiryID string)
 		return nil, fmt.Errorf("persona: ResumeInquiry: empty session-token")
 	}
 
-	expiresAt, err := time.Parse(time.RFC3339, personaResp.Meta.ExpiresAt)
-	if err != nil {
-		c.logger.Error("persona: failed to parse session-token-expires-at",
-			zap.String("inquiryID", inquiryID),
-			zap.String("rawExpiresAt", personaResp.Meta.ExpiresAt),
-			zap.Error(err),
-		)
-		return nil, fmt.Errorf("persona: ResumeInquiry: parse session-token-expires-at: %w", err)
-	}
+	expiresAt := c.parseSessionExpiresAt(personaResp.Meta.ExpiresAt, inquiryID)
 
 	c.logger.Info("persona: inquiry resumed",
 		zap.String("inquiryID", inquiryID),
