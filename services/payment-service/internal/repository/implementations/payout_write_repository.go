@@ -133,3 +133,22 @@ func (r *payoutWriteRepository) MarkPaymentsAsPaidOut(ctx context.Context, tripI
 	}
 	return nil
 }
+
+// AnonymizeDriverRefs pseudonymise les références du chauffeur dans payouts.
+func (r *payoutWriteRepository) AnonymizeDriverRefs(ctx context.Context, driverID string) error {
+	anon := "deleted_" + driverID[:8]
+	_, err := r.pool.Exec(ctx,
+		`UPDATE payouts
+		 SET driver_id          = $1,
+		     payout_destination = $1,
+		     destination_name   = $1,
+		     updated_at         = NOW()
+		 WHERE driver_id = $2`,
+		anon, driverID,
+	)
+	if err != nil {
+		r.logger.Error("AnonymizeDriverRefs failed", zap.Error(err), zap.String("driverID", driverID))
+		return paymentErrors.ErrorInternalServer
+	}
+	return nil
+}

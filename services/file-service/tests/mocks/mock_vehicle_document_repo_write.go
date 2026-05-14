@@ -33,3 +33,11 @@ func (m *MockVehicleDocumentRepositoryWrite) MarkAsReplaced(ctx context.Context,
 	args := m.Called(ctx, documentID, replacedBy)
 	return args.Error(0)
 }
+
+func (m *MockVehicleDocumentRepositoryWrite) DeleteAllByUserID(ctx context.Context, userID string) ([]string, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}

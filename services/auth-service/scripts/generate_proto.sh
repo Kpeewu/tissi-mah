@@ -75,7 +75,12 @@ fi
 
 # Output directories
 PROTO_OUT_USER="${PROTO_OUT}/userpb"
-mkdir -p ${PROTO_OUT_USER}
+PROTO_OUT_TRIPS="${PROTO_OUT}/tripspb"
+PROTO_OUT_BOOKING="${PROTO_OUT}/bookingpb"
+PROTO_OUT_PAYMENT="${PROTO_OUT}/paymentpb"
+PROTO_OUT_CHAT="${PROTO_OUT}/chatpb"
+PROTO_OUT_FILE="${PROTO_OUT}/filepb"
+mkdir -p ${PROTO_OUT_USER} ${PROTO_OUT_TRIPS} ${PROTO_OUT_BOOKING} ${PROTO_OUT_PAYMENT} ${PROTO_OUT_CHAT} ${PROTO_OUT_FILE}
 
 # Generate auth.proto
 echo ""
@@ -97,6 +102,56 @@ protoc \
   --go-grpc_out=${PROTO_OUT_USER} \
   --go-grpc_opt=paths=source_relative \
   user.proto
+
+# Generate trips.proto (client gRPC vers trips-service)
+echo "Generating Go code from trips.proto..."
+protoc \
+  --proto_path=${PROTO_DIR} \
+  --go_out=${PROTO_OUT_TRIPS} \
+  --go_opt=paths=source_relative \
+  --go-grpc_out=${PROTO_OUT_TRIPS} \
+  --go-grpc_opt=paths=source_relative \
+  trips.proto
+
+# Generate booking.proto (client gRPC vers booking-service)
+echo "Generating Go code from booking.proto..."
+protoc \
+  --proto_path=${PROTO_DIR} \
+  --go_out=${PROTO_OUT_BOOKING} \
+  --go_opt=paths=source_relative \
+  --go-grpc_out=${PROTO_OUT_BOOKING} \
+  --go-grpc_opt=paths=source_relative \
+  booking.proto
+
+# Generate payment.proto (client gRPC vers payment-service)
+echo "Generating Go code from payment.proto..."
+protoc \
+  --proto_path=${PROTO_DIR} \
+  --go_out=${PROTO_OUT_PAYMENT} \
+  --go_opt=paths=source_relative \
+  --go-grpc_out=${PROTO_OUT_PAYMENT} \
+  --go-grpc_opt=paths=source_relative \
+  payment.proto
+
+# Generate chat.proto (client gRPC vers chat-service)
+echo "Generating Go code from chat.proto..."
+protoc \
+  --proto_path=${PROTO_DIR} \
+  --go_out=${PROTO_OUT_CHAT} \
+  --go_opt=paths=source_relative \
+  --go-grpc_out=${PROTO_OUT_CHAT} \
+  --go-grpc_opt=paths=source_relative \
+  chat.proto
+
+# Generate file.proto (client gRPC vers file-service)
+echo "Generating Go code from file.proto..."
+protoc \
+  --proto_path=${PROTO_DIR} \
+  --go_out=${PROTO_OUT_FILE} \
+  --go_opt=paths=source_relative \
+  --go-grpc_out=${PROTO_OUT_FILE} \
+  --go-grpc_opt=paths=source_relative \
+  file.proto
 
 # Check result
 if [ $? -eq 0 ]; then

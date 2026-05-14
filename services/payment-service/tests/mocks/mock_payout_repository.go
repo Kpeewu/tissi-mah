@@ -110,3 +110,13 @@ func (m *MockPayoutRepositoryWrite) MarkPaymentsAsPaidOut(ctx context.Context, t
 	args := m.Called(ctx, tripID)
 	return args.Error(0)
 }
+
+func (m *MockPayoutRepositoryRead) HasActivePayout(ctx context.Context, driverID string) (bool, error) {
+	args := m.Called(ctx, driverID)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockPayoutRepositoryWrite) AnonymizeDriverRefs(ctx context.Context, driverID string) error {
+	args := m.Called(ctx, driverID)
+	return args.Error(0)
+}

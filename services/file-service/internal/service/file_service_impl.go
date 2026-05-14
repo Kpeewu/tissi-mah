@@ -896,3 +896,36 @@ func mapDecisionToStatus(decision string) string {
 		return "pending"
 	}
 }
+
+// DeleteAllUserFiles supprime tous les documents et fichiers S3/MinIO d'un utilisateur.
+func (s *fileServiceImpl) DeleteAllUserFiles(ctx context.Context, userID string) error {
+	if userID == "" {
+		return fileErrors.ErrorInvalidInput
+	}
+
+	// Supprimer user_documents
+	userKeys, err := s.userDocWrite.DeleteAllByUserID(ctx, userID)
+	if err != nil {
+		s.logger.Error("DeleteAllUserFiles: delete user docs failed", zap.Error(err), zap.String("userID", userID))
+		return err
+	}
+	for _, key := range userKeys {
+		if delErr := s.storage.Delete(ctx, key); delErr != nil {
+			s.logger.Warn("DeleteAllUserFiles: S3 delete failed (user doc)", zap.String("key", key), zap.Error(delErr))
+		}
+	}
+
+	// Supprimer vehicle_documents
+	vehicleKeys, err := s.vehicleDocWrite.DeleteAllByUserID(ctx, userID)
+	if err != nil {
+		s.logger.Error("DeleteAllUserFiles: delete vehicle docs failed", zap.Error(err), zap.String("userID", userID))
+		return err
+	}
+	for _, key := range vehicleKeys {
+		if delErr := s.storage.Delete(ctx, key); delErr != nil {
+			s.logger.Warn("DeleteAllUserFiles: S3 delete failed (vehicle doc)", zap.String("key", key), zap.Error(delErr))
+		}
+	}
+
+	return nil
+}

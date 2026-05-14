@@ -1,0 +1,42 @@
+// Booking Service Proto — contrat utilisé par auth-service
+// Définit uniquement les RPCs dont auth-service a besoin (suppression de compte).
+
+syntax = "proto3";
+
+package bookingauth;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/auth-service/proto/gen/bookingpb;bookingpb";
+
+service BookingService {
+  rpc CheckDeletionEligibility(CheckDeletionEligibilityRequest) returns (CheckDeletionEligibilityResponse);
+  rpc AnonymizeUserData(AnonymizeUserDataRequest) returns (AnonymizeUserDataResponse);
+  rpc GetPassengerBookingIDs(GetPassengerBookingIDsRequest) returns (GetPassengerBookingIDsResponse);
+}
+
+message CheckDeletionEligibilityRequest {
+  string UserId = 1;
+}
+
+message CheckDeletionEligibilityResponse {
+  bool   CanDelete      = 1;
+  string BlockingReason = 2;
+  string ErrorMessage   = 3;
+}
+
+message AnonymizeUserDataRequest {
+  string UserId = 1;
+}
+
+message AnonymizeUserDataResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+message GetPassengerBookingIDsRequest {
+  string UserId = 1;
+}
+
+message GetPassengerBookingIDsResponse {
+  repeated string BookingIds = 1;
+  string ErrorMessage        = 2;
+}

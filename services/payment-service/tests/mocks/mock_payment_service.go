@@ -81,3 +81,13 @@ func (m *MockPaymentService) TriggerManualPayout(ctx context.Context, tripID str
 	args := m.Called(ctx, tripID, supportUserID)
 	return args.Int(0), args.Error(1)
 }
+
+func (m *MockPaymentService) CheckDeletionEligibility(ctx context.Context, userID string) (bool, string, error) {
+	args := m.Called(ctx, userID)
+	return args.Bool(0), args.String(1), args.Error(2)
+}
+
+func (m *MockPaymentService) AnonymizeUserData(ctx context.Context, userID string, bookingIDs []string) error {
+	args := m.Called(ctx, userID, bookingIDs)
+	return args.Error(0)
+}

@@ -48,4 +48,8 @@ type BookingRepositoryWrite interface {
 
 	// MarkPaymentReleased marque le paiement d'un booking comme libéré.
 	MarkPaymentReleased(ctx context.Context, bookingID string) error
+
+	// AnonymizeUserRefs pseudonymise passenger_id, driver_id, canceller_id et no_show_reported_by
+	// dans bookings, et changed_by dans bookings_status_history pour l'utilisateur donné.
+	AnonymizeUserRefs(ctx context.Context, userID string) error
 }

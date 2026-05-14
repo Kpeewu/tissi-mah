@@ -1206,6 +1206,102 @@ func (x *MessageInfo) GetReadAt() string {
 	return ""
 }
 
+type AnonymizeChatUserDataRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"` // UserID interne (user-service)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnonymizeChatUserDataRequest) Reset() {
+	*x = AnonymizeChatUserDataRequest{}
+	mi := &file_chat_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnonymizeChatUserDataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnonymizeChatUserDataRequest) ProtoMessage() {}
+
+func (x *AnonymizeChatUserDataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnonymizeChatUserDataRequest.ProtoReflect.Descriptor instead.
+func (*AnonymizeChatUserDataRequest) Descriptor() ([]byte, []int) {
+	return file_chat_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *AnonymizeChatUserDataRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type AnonymizeChatUserDataResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnonymizeChatUserDataResponse) Reset() {
+	*x = AnonymizeChatUserDataResponse{}
+	mi := &file_chat_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnonymizeChatUserDataResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnonymizeChatUserDataResponse) ProtoMessage() {}
+
+func (x *AnonymizeChatUserDataResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnonymizeChatUserDataResponse.ProtoReflect.Descriptor instead.
+func (*AnonymizeChatUserDataResponse) Descriptor() ([]byte, []int) {
+	return file_chat_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *AnonymizeChatUserDataResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *AnonymizeChatUserDataResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
 var File_chat_proto protoreflect.FileDescriptor
 
 const file_chat_proto_rawDesc = "" +
@@ -1295,7 +1391,12 @@ const file_chat_proto_rawDesc = "" +
 	"\fHasRedaction\x18\x06 \x01(\bR\fHasRedaction\x12\x18\n" +
 	"\aFlagged\x18\a \x01(\bR\aFlagged\x12\x1c\n" +
 	"\tCreatedAt\x18\b \x01(\tR\tCreatedAt\x12\x16\n" +
-	"\x06ReadAt\x18\t \x01(\tR\x06ReadAt2\xfe\a\n" +
+	"\x06ReadAt\x18\t \x01(\tR\x06ReadAt\"6\n" +
+	"\x1cAnonymizeChatUserDataRequest\x12\x16\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"]\n" +
+	"\x1dAnonymizeChatUserDataResponse\x12\x18\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\xdc\b\n" +
 	"\vChatService\x12u\n" +
 	"\x11GetOrCreateThread\x12\x1e.chat.GetOrCreateThreadRequest\x1a\x1f.chat.GetOrCreateThreadResponse\"\x1f\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/api/v1/chat/threads\x12w\n" +
 	"\vSendMessage\x12\x18.chat.SendMessageRequest\x1a\x19.chat.SendMessageResponse\"3\x82\xd3\xe4\x93\x02-:\x01*\"(/api/v1/chat/threads/{ThreadId}/messages\x12t\n" +
@@ -1304,7 +1405,8 @@ const file_chat_proto_rawDesc = "" +
 	"\bMarkRead\x12\x15.chat.MarkReadRequest\x1a\x16.chat.MarkReadResponse\"/\x82\xd3\xe4\x93\x02):\x01*2$/api/v1/chat/threads/{ThreadId}/read\x12u\n" +
 	"\vFlagMessage\x12\x18.chat.FlagMessageRequest\x1a\x19.chat.FlagMessageResponse\"1\x82\xd3\xe4\x93\x02+:\x01*\"&/api/v1/chat/messages/{MessageId}/flag\x12\xa4\x01\n" +
 	"\x18GetFlaggedMessageContent\x12%.chat.GetFlaggedMessageContentRequest\x1a&.chat.GetFlaggedMessageContentResponse\"9\x82\xd3\xe4\x93\x023\x121/api/v1/chat/messages/{MessageId}/flagged-content\x12B\n" +
-	"\vCloseThread\x12\x18.chat.CloseThreadRequest\x1a\x19.chat.CloseThreadResponse\x12P\n" +
+	"\vCloseThread\x12\x18.chat.CloseThreadRequest\x1a\x19.chat.CloseThreadResponse\x12\\\n" +
+	"\x11AnonymizeUserData\x12\".chat.AnonymizeChatUserDataRequest\x1a#.chat.AnonymizeChatUserDataResponse\x12P\n" +
 	"\x06Health\x12\x13.chat.HealthRequest\x1a\x14.chat.HealthResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/api/v1/chat/healthBDZBgithub.com/Kpeewu/tissi-mah/services/chat-service/proto/gen;chatpbb\x06proto3"
 
 var (
@@ -1319,7 +1421,7 @@ func file_chat_proto_rawDescGZIP() []byte {
 	return file_chat_proto_rawDescData
 }
 
-var file_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_chat_proto_goTypes = []any{
 	(*GetOrCreateThreadRequest)(nil),         // 0: chat.GetOrCreateThreadRequest
 	(*GetOrCreateThreadResponse)(nil),        // 1: chat.GetOrCreateThreadResponse
@@ -1341,6 +1443,8 @@ var file_chat_proto_goTypes = []any{
 	(*HealthResponse)(nil),                   // 17: chat.HealthResponse
 	(*ThreadInfo)(nil),                       // 18: chat.ThreadInfo
 	(*MessageInfo)(nil),                      // 19: chat.MessageInfo
+	(*AnonymizeChatUserDataRequest)(nil),     // 20: chat.AnonymizeChatUserDataRequest
+	(*AnonymizeChatUserDataResponse)(nil),    // 21: chat.AnonymizeChatUserDataResponse
 }
 var file_chat_proto_depIdxs = []int32{
 	18, // 0: chat.GetOrCreateThreadResponse.Thread:type_name -> chat.ThreadInfo
@@ -1356,18 +1460,20 @@ var file_chat_proto_depIdxs = []int32{
 	10, // 10: chat.ChatService.FlagMessage:input_type -> chat.FlagMessageRequest
 	12, // 11: chat.ChatService.GetFlaggedMessageContent:input_type -> chat.GetFlaggedMessageContentRequest
 	14, // 12: chat.ChatService.CloseThread:input_type -> chat.CloseThreadRequest
-	16, // 13: chat.ChatService.Health:input_type -> chat.HealthRequest
-	1,  // 14: chat.ChatService.GetOrCreateThread:output_type -> chat.GetOrCreateThreadResponse
-	3,  // 15: chat.ChatService.SendMessage:output_type -> chat.SendMessageResponse
-	5,  // 16: chat.ChatService.GetMessages:output_type -> chat.GetMessagesResponse
-	7,  // 17: chat.ChatService.GetUserThreads:output_type -> chat.GetUserThreadsResponse
-	9,  // 18: chat.ChatService.MarkRead:output_type -> chat.MarkReadResponse
-	11, // 19: chat.ChatService.FlagMessage:output_type -> chat.FlagMessageResponse
-	13, // 20: chat.ChatService.GetFlaggedMessageContent:output_type -> chat.GetFlaggedMessageContentResponse
-	15, // 21: chat.ChatService.CloseThread:output_type -> chat.CloseThreadResponse
-	17, // 22: chat.ChatService.Health:output_type -> chat.HealthResponse
-	14, // [14:23] is the sub-list for method output_type
-	5,  // [5:14] is the sub-list for method input_type
+	20, // 13: chat.ChatService.AnonymizeUserData:input_type -> chat.AnonymizeChatUserDataRequest
+	16, // 14: chat.ChatService.Health:input_type -> chat.HealthRequest
+	1,  // 15: chat.ChatService.GetOrCreateThread:output_type -> chat.GetOrCreateThreadResponse
+	3,  // 16: chat.ChatService.SendMessage:output_type -> chat.SendMessageResponse
+	5,  // 17: chat.ChatService.GetMessages:output_type -> chat.GetMessagesResponse
+	7,  // 18: chat.ChatService.GetUserThreads:output_type -> chat.GetUserThreadsResponse
+	9,  // 19: chat.ChatService.MarkRead:output_type -> chat.MarkReadResponse
+	11, // 20: chat.ChatService.FlagMessage:output_type -> chat.FlagMessageResponse
+	13, // 21: chat.ChatService.GetFlaggedMessageContent:output_type -> chat.GetFlaggedMessageContentResponse
+	15, // 22: chat.ChatService.CloseThread:output_type -> chat.CloseThreadResponse
+	21, // 23: chat.ChatService.AnonymizeUserData:output_type -> chat.AnonymizeChatUserDataResponse
+	17, // 24: chat.ChatService.Health:output_type -> chat.HealthResponse
+	15, // [15:25] is the sub-list for method output_type
+	5,  // [5:15] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name
 	5,  // [5:5] is the sub-list for extension extendee
 	0,  // [0:5] is the sub-list for field type_name
@@ -1384,7 +1490,7 @@ func file_chat_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chat_proto_rawDesc), len(file_chat_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

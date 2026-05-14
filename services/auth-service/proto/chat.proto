@@ -1,0 +1,21 @@
+// Chat Service Proto — contrat utilisé par auth-service
+// Définit uniquement les RPCs dont auth-service a besoin (suppression de compte).
+
+syntax = "proto3";
+
+package chatauth;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/auth-service/proto/gen/chatpb;chatpb";
+
+service ChatService {
+  rpc AnonymizeUserData(AnonymizeUserDataRequest) returns (AnonymizeUserDataResponse);
+}
+
+message AnonymizeUserDataRequest {
+  string UserId = 1;
+}
+
+message AnonymizeUserDataResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}

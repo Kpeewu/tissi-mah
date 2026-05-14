@@ -76,8 +76,53 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer userClient.Close() //nolint:errcheck
 	logger.Info("user-service client ready", zap.String("address", userServiceAddr))
 
+	// --- Trips-service gRPC client ---
+	tripsServiceAddr := fmt.Sprintf("%s:%s", cfg.TripsService.Address, cfg.TripsService.Port)
+	tripsClient, err := client.NewTripsServiceClient(tripsServiceAddr, logger)
+	if err != nil {
+		return fmt.Errorf("trips-service client: %w", err)
+	}
+	defer tripsClient.Close() //nolint:errcheck
+	logger.Info("trips-service client ready", zap.String("address", tripsServiceAddr))
+
+	// --- Booking-service gRPC client ---
+	bookingServiceAddr := fmt.Sprintf("%s:%s", cfg.BookingService.Address, cfg.BookingService.Port)
+	bookingClient, err := client.NewBookingServiceClient(bookingServiceAddr, logger)
+	if err != nil {
+		return fmt.Errorf("booking-service client: %w", err)
+	}
+	defer bookingClient.Close() //nolint:errcheck
+	logger.Info("booking-service client ready", zap.String("address", bookingServiceAddr))
+
+	// --- Payment-service gRPC client ---
+	paymentServiceAddr := fmt.Sprintf("%s:%s", cfg.PaymentService.Address, cfg.PaymentService.Port)
+	paymentClient, err := client.NewPaymentServiceClient(paymentServiceAddr, logger)
+	if err != nil {
+		return fmt.Errorf("payment-service client: %w", err)
+	}
+	defer paymentClient.Close() //nolint:errcheck
+	logger.Info("payment-service client ready", zap.String("address", paymentServiceAddr))
+
+	// --- Chat-service gRPC client ---
+	chatServiceAddr := fmt.Sprintf("%s:%s", cfg.ChatService.Address, cfg.ChatService.Port)
+	chatClient, err := client.NewChatServiceClient(chatServiceAddr, logger)
+	if err != nil {
+		return fmt.Errorf("chat-service client: %w", err)
+	}
+	defer chatClient.Close() //nolint:errcheck
+	logger.Info("chat-service client ready", zap.String("address", chatServiceAddr))
+
+	// --- File-service gRPC client ---
+	fileServiceAddr := fmt.Sprintf("%s:%s", cfg.FileService.Address, cfg.FileService.Port)
+	fileClient, err := client.NewFileServiceClient(fileServiceAddr, logger)
+	if err != nil {
+		return fmt.Errorf("file-service client: %w", err)
+	}
+	defer fileClient.Close() //nolint:errcheck
+	logger.Info("file-service client ready", zap.String("address", fileServiceAddr))
+
 	// --- Auth service ---
-	authService := service.NewAuthService(readRepo, writeRepo, userClient, redisClient, logger)
+	authService := service.NewAuthService(readRepo, writeRepo, userClient, tripsClient, bookingClient, paymentClient, chatClient, fileClient, redisClient, logger)
 
 	// --- gRPC server ---
 	srv, err := grpcServer.NewAuthServer(cfg, authService, logger)

@@ -134,3 +134,20 @@ func (r *paymentWriteRepository) SaveWebhookEvent(ctx context.Context, event *do
 
 	return nil
 }
+
+// AnonymizePassengerPhoneNumbers efface passenger_phone_number pour les paiements des bookings donnés.
+func (r *paymentWriteRepository) AnonymizePassengerPhoneNumbers(ctx context.Context, bookingIDs []string) error {
+	if len(bookingIDs) == 0 {
+		return nil
+	}
+	_, err := r.pool.Exec(ctx,
+		`UPDATE payments SET passenger_phone_number = '', updated_at = NOW()
+		 WHERE booking_id = ANY($1)`,
+		bookingIDs,
+	)
+	if err != nil {
+		r.logger.Error("AnonymizePassengerPhoneNumbers failed", zap.Error(err))
+		return paymentErrors.ErrorInternalServer
+	}
+	return nil
+}

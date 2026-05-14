@@ -223,6 +223,25 @@ func (h *PaymentHandler) GetDriverPayouts(ctx context.Context, req *paymentpb.Ge
 	return &paymentpb.GetDriverPayoutsResponse{Payouts: payouts}, nil
 }
 
+// CheckDeletionEligibility vérifie si l'utilisateur peut supprimer son compte côté payment-service.
+func (h *PaymentHandler) CheckDeletionEligibility(ctx context.Context, req *paymentpb.CheckDeletionEligibilityRequest) (*paymentpb.CheckDeletionEligibilityResponse, error) {
+	canDelete, reason, err := h.service.CheckDeletionEligibility(ctx, req.UserId)
+	if err != nil {
+		h.logger.Error("handler: CheckDeletionEligibility failed", zap.Error(err))
+		return &paymentpb.CheckDeletionEligibilityResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+	return &paymentpb.CheckDeletionEligibilityResponse{CanDelete: canDelete, BlockingReason: reason}, nil
+}
+
+// AnonymizeUserData anonymise les données de l'utilisateur dans payment-service.
+func (h *PaymentHandler) AnonymizeUserData(ctx context.Context, req *paymentpb.AnonymizeUserDataRequest) (*paymentpb.AnonymizeUserDataResponse, error) {
+	if err := h.service.AnonymizeUserData(ctx, req.UserId, req.BookingIds); err != nil {
+		h.logger.Error("handler: AnonymizeUserData failed", zap.Error(err))
+		return &paymentpb.AnonymizeUserDataResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+	return &paymentpb.AnonymizeUserDataResponse{Success: true}, nil
+}
+
 // Health retourne l'état de santé du service.
 func (h *PaymentHandler) Health(ctx context.Context, req *paymentpb.HealthRequest) (*paymentpb.HealthResponse, error) {
 	return &paymentpb.HealthResponse{

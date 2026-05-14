@@ -54,6 +54,15 @@ type BookingService interface {
 
 	// GetActivePassengerIDsForTrip retourne les IDs distincts des passagers avec une réservation active.
 	GetActivePassengerIDsForTrip(ctx context.Context, tripID string) ([]string, error)
+
+	// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte côté booking-service.
+	CheckDeletionEligibility(ctx context.Context, userID string) (bool, string, error)
+
+	// AnonymizeUserData pseudonymise les références de l'utilisateur dans booking-service.
+	AnonymizeUserData(ctx context.Context, userID string) error
+
+	// GetPassengerBookingIDs retourne tous les IDs de réservation d'un passager.
+	GetPassengerBookingIDs(ctx context.Context, passengerID string) ([]string, error)
 }
 
 // =============================================================================

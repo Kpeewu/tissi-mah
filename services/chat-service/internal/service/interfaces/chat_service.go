@@ -54,4 +54,8 @@ type ChatService interface {
 	// CloseThreadsByTripID ferme tous les threads actifs d'un trajet.
 	// Appelé par le TripCloserWorker sur event Redis trip.completed.
 	CloseThreadsByTripID(ctx context.Context, tripID string) (int, error)
+
+	// AnonymizeUserData ferme les threads actifs de l'utilisateur et pseudonymise
+	// ses références dans chat_threads et chat_messages.
+	AnonymizeUserData(ctx context.Context, userID string) error
 }

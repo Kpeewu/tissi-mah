@@ -141,3 +141,13 @@ func (m *MockTripService) GetPassengerTripDetails(ctx context.Context, input *se
 
 // compile-time check
 var _ serviceInterfaces.TripService = (*MockTripService)(nil)
+
+func (m *MockTripService) CheckDeletionEligibility(ctx context.Context, userID string) (bool, string, error) {
+	args := m.Called(ctx, userID)
+	return args.Bool(0), args.String(1), args.Error(2)
+}
+
+func (m *MockTripService) AnonymizeUserData(ctx context.Context, userID string) error {
+	args := m.Called(ctx, userID)
+	return args.Error(0)
+}

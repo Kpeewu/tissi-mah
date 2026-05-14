@@ -53,4 +53,8 @@ type TripRepositoryRead interface {
 	// SearchScheduledTripSegments recherche les trajets/segments disponibles avec pagination.
 	// Retourne les segments dont le départ ET l'arrivée matchent les filtres textuels (fuzzy).
 	SearchScheduledTripSegments(ctx context.Context, params *SearchTripsParams) (*SearchTripsResult, error)
+
+	// HasActiveTripAsDriver vérifie si un conducteur a un trajet en cours (status = inProgress).
+	// Utilisé lors de la vérification d'éligibilité à la suppression de compte.
+	HasActiveTripAsDriver(ctx context.Context, driverID string) (bool, error)
 }

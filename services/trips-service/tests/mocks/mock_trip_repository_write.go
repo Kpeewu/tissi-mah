@@ -88,3 +88,8 @@ func (m *MockTripRepositoryWrite) SyncLegBookedSeats(ctx context.Context, tripID
 	args := m.Called(ctx, tripID, legs)
 	return args.Error(0)
 }
+
+func (m *MockTripRepositoryWrite) AnonymizeDriverRefs(ctx context.Context, userID string) error {
+	args := m.Called(ctx, userID)
+	return args.Error(0)
+}

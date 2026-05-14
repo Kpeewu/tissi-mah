@@ -26,14 +26,66 @@ func ctxWithFirebaseID(firebaseID string) context.Context {
 	return context.WithValue(context.Background(), middleware.FirebaseIDKey, firebaseID)
 }
 
-// newTestService crée un triplet (readRepo, writeRepo, userClient) mockés
-// et le service instancié à partir de ces mocks.
+// newTestService crée les mocks nécessaires et retourne le service instancié.
 func newTestService() (*mocks.MockAuthRepositoryRead, *mocks.MockAuthRepositoryWrite, *mocks.MockUserClient, serviceInterfaces.AuthService) {
 	mockReadRepo := new(mocks.MockAuthRepositoryRead)
 	mockWriteRepo := new(mocks.MockAuthRepositoryWrite)
 	mockUserClient := new(mocks.MockUserClient)
-	svc := service.NewAuthService(mockReadRepo, mockWriteRepo, mockUserClient, nil, zap.NewNop())
+	svc := service.NewAuthService(
+		mockReadRepo, mockWriteRepo, mockUserClient,
+		new(mocks.MockTripsClient), new(mocks.MockBookingClient),
+		new(mocks.MockPaymentClient), new(mocks.MockChatClient), new(mocks.MockFileClient),
+		nil, zap.NewNop(),
+	)
 	return mockReadRepo, mockWriteRepo, mockUserClient, svc
+}
+
+// newFullTestService retourne tous les mocks y compris les clients de suppression.
+type fullTestDeps struct {
+	readRepo    *mocks.MockAuthRepositoryRead
+	writeRepo   *mocks.MockAuthRepositoryWrite
+	userClient  *mocks.MockUserClient
+	tripsClient *mocks.MockTripsClient
+	bookingClient *mocks.MockBookingClient
+	paymentClient *mocks.MockPaymentClient
+	chatClient  *mocks.MockChatClient
+	fileClient  *mocks.MockFileClient
+	svc         serviceInterfaces.AuthService
+}
+
+func newFullTestService() *fullTestDeps {
+	d := &fullTestDeps{
+		readRepo:      new(mocks.MockAuthRepositoryRead),
+		writeRepo:     new(mocks.MockAuthRepositoryWrite),
+		userClient:    new(mocks.MockUserClient),
+		tripsClient:   new(mocks.MockTripsClient),
+		bookingClient: new(mocks.MockBookingClient),
+		paymentClient: new(mocks.MockPaymentClient),
+		chatClient:    new(mocks.MockChatClient),
+		fileClient:    new(mocks.MockFileClient),
+	}
+	d.svc = service.NewAuthService(
+		d.readRepo, d.writeRepo, d.userClient,
+		d.tripsClient, d.bookingClient, d.paymentClient, d.chatClient, d.fileClient,
+		nil, zap.NewNop(),
+	)
+	return d
+}
+
+// setupHappyPathDeletion configure les mocks pour un flux de suppression sans blocage.
+func setupHappyPathDeletion(d *fullTestDeps, auth *domain.Auth, userID string) {
+	d.userClient.On("GetUserByAuthID", mock.Anything, auth.AuthID).
+		Return(&domain.UserPreview{UserID: userID}, nil)
+	d.tripsClient.On("CheckDeletionEligibility", mock.Anything, userID).Return(true, "", nil)
+	d.bookingClient.On("CheckDeletionEligibility", mock.Anything, userID).Return(true, "", nil)
+	d.paymentClient.On("CheckDeletionEligibility", mock.Anything, userID).Return(true, "", nil)
+	d.bookingClient.On("GetPassengerBookingIDs", mock.Anything, userID).Return([]string{}, nil)
+	d.chatClient.On("AnonymizeUserData", mock.Anything, userID).Return(nil)
+	d.fileClient.On("DeleteAllUserFiles", mock.Anything, userID).Return(nil)
+	d.bookingClient.On("AnonymizeUserData", mock.Anything, userID).Return(nil)
+	d.paymentClient.On("AnonymizeUserData", mock.Anything, userID, mock.Anything).Return(nil)
+	d.tripsClient.On("AnonymizeUserData", mock.Anything, userID).Return(nil)
+	d.userClient.On("SoftDeleteUser", mock.Anything, auth.AuthID).Return(nil)
 }
 
 // =============================================================================
@@ -500,82 +552,106 @@ func TestGetAuthInfo(t *testing.T) {
 
 func TestDeleteUserAccount(t *testing.T) {
 	t.Run("succès - supprime le compte auth", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, mockUserClient, svc := newTestService()
+		d := newFullTestService()
 		ctx := context.Background()
+		userID := "user-ok-111"
 
 		auth := fixtures.NewTestAuth(fixtures.WithFirebaseID("firebase-delete-ok"))
-		mockReadRepo.On("GetByFirebaseID", mock.Anything, "firebase-delete-ok").
-			Return(auth, nil)
-		mockUserClient.On("SoftDeleteUser", mock.Anything, auth.AuthID).Return(nil)
-		mockWriteRepo.On("Delete", mock.Anything, auth).
-			Return(nil)
+		d.readRepo.On("GetByFirebaseID", mock.Anything, "firebase-delete-ok").Return(auth, nil)
+		setupHappyPathDeletion(d, auth, userID)
+		d.writeRepo.On("Delete", mock.Anything, auth).Return(nil)
 
-		err := svc.DeleteUserAccount(ctx, "firebase-delete-ok")
+		err := d.svc.DeleteUserAccount(ctx, "firebase-delete-ok")
 
 		require.NoError(t, err)
-		mockReadRepo.AssertExpectations(t)
-		mockWriteRepo.AssertExpectations(t)
+		d.readRepo.AssertExpectations(t)
+		d.writeRepo.AssertExpectations(t)
 	})
 
 	t.Run("erreur - firebaseID vide retourne ErrorUserNotFound", func(t *testing.T) {
-		_, _, _, svc := newTestService()
-		ctx := context.Background()
-
-		err := svc.DeleteUserAccount(ctx, "")
-
+		d := newFullTestService()
+		err := d.svc.DeleteUserAccount(context.Background(), "")
 		assert.ErrorIs(t, err, authErrors.ErrorUserNotFound)
 	})
 
 	t.Run("erreur - utilisateur introuvable retourne ErrorUserNotFound", func(t *testing.T) {
-		mockReadRepo, _, _, svc := newTestService()
-		ctx := context.Background()
-
-		mockReadRepo.On("GetByFirebaseID", mock.Anything, "firebase-ghost").
+		d := newFullTestService()
+		d.readRepo.On("GetByFirebaseID", mock.Anything, "firebase-ghost").
 			Return(nil, authErrors.ErrorUserNotFound)
 
-		err := svc.DeleteUserAccount(ctx, "firebase-ghost")
+		err := d.svc.DeleteUserAccount(context.Background(), "firebase-ghost")
 
 		assert.ErrorIs(t, err, authErrors.ErrorUserNotFound)
-		mockReadRepo.AssertExpectations(t)
+		d.readRepo.AssertExpectations(t)
+	})
+
+	t.Run("bloqué - chauffeur avec voyage en cours", func(t *testing.T) {
+		d := newFullTestService()
+		ctx := context.Background()
+		userID := "user-driver-active"
+
+		auth := fixtures.NewTestAuth(fixtures.WithFirebaseID("firebase-driver-active"))
+		d.readRepo.On("GetByFirebaseID", mock.Anything, "firebase-driver-active").Return(auth, nil)
+		d.userClient.On("GetUserByAuthID", mock.Anything, auth.AuthID).
+			Return(&domain.UserPreview{UserID: userID}, nil)
+		d.tripsClient.On("CheckDeletionEligibility", mock.Anything, userID).
+			Return(false, "conducteur avec un trajet en cours", nil)
+
+		err := d.svc.DeleteUserAccount(ctx, "firebase-driver-active")
+
+		assert.ErrorIs(t, err, authErrors.ErrorCantDeleteAccount)
+	})
+
+	t.Run("bloqué - passager avec réservation active", func(t *testing.T) {
+		d := newFullTestService()
+		ctx := context.Background()
+		userID := "user-passenger-active"
+
+		auth := fixtures.NewTestAuth(fixtures.WithFirebaseID("firebase-passenger-active"))
+		d.readRepo.On("GetByFirebaseID", mock.Anything, "firebase-passenger-active").Return(auth, nil)
+		d.userClient.On("GetUserByAuthID", mock.Anything, auth.AuthID).
+			Return(&domain.UserPreview{UserID: userID}, nil)
+		d.tripsClient.On("CheckDeletionEligibility", mock.Anything, userID).Return(true, "", nil)
+		d.bookingClient.On("CheckDeletionEligibility", mock.Anything, userID).
+			Return(false, "passager avec une réservation active", nil)
+
+		err := d.svc.DeleteUserAccount(ctx, "firebase-passenger-active")
+
+		assert.ErrorIs(t, err, authErrors.ErrorCantDeleteAccount)
 	})
 
 	t.Run("succès - writeRepo.Delete échoue puis réussit au retry", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, mockUserClient, svc := newTestService()
+		d := newFullTestService()
 		ctx := context.Background()
+		userID := "user-retry-222"
 
 		auth := fixtures.NewTestAuth(fixtures.WithFirebaseID("firebase-delete-retry"))
-		mockReadRepo.On("GetByFirebaseID", mock.Anything, "firebase-delete-retry").
-			Return(auth, nil)
-		mockUserClient.On("SoftDeleteUser", mock.Anything, auth.AuthID).Return(nil)
-		// Premier appel échoue, deuxième réussit
-		mockWriteRepo.On("Delete", mock.Anything, auth).
-			Return(errors.New("transient error")).Once()
-		mockWriteRepo.On("Delete", mock.Anything, auth).
-			Return(nil).Once()
+		d.readRepo.On("GetByFirebaseID", mock.Anything, "firebase-delete-retry").Return(auth, nil)
+		setupHappyPathDeletion(d, auth, userID)
+		d.writeRepo.On("Delete", mock.Anything, auth).Return(errors.New("transient error")).Once()
+		d.writeRepo.On("Delete", mock.Anything, auth).Return(nil).Once()
 
-		err := svc.DeleteUserAccount(ctx, "firebase-delete-retry")
+		err := d.svc.DeleteUserAccount(ctx, "firebase-delete-retry")
 
 		require.NoError(t, err)
-		mockReadRepo.AssertExpectations(t)
-		mockWriteRepo.AssertExpectations(t)
+		d.readRepo.AssertExpectations(t)
+		d.writeRepo.AssertExpectations(t)
 	})
 
 	t.Run("erreur - writeRepo.Delete échoue deux fois retourne ErrorCantDeleteAccount", func(t *testing.T) {
-		mockReadRepo, mockWriteRepo, mockUserClient, svc := newTestService()
+		d := newFullTestService()
 		ctx := context.Background()
+		userID := "user-fail-333"
 
 		auth := fixtures.NewTestAuth(fixtures.WithFirebaseID("firebase-delete-fail"))
-		mockReadRepo.On("GetByFirebaseID", mock.Anything, "firebase-delete-fail").
-			Return(auth, nil)
-		mockUserClient.On("SoftDeleteUser", mock.Anything, auth.AuthID).Return(nil)
-		// Les deux tentatives échouent
-		mockWriteRepo.On("Delete", mock.Anything, auth).
-			Return(errors.New("persistent error"))
+		d.readRepo.On("GetByFirebaseID", mock.Anything, "firebase-delete-fail").Return(auth, nil)
+		setupHappyPathDeletion(d, auth, userID)
+		d.writeRepo.On("Delete", mock.Anything, auth).Return(errors.New("persistent error"))
 
-		err := svc.DeleteUserAccount(ctx, "firebase-delete-fail")
+		err := d.svc.DeleteUserAccount(ctx, "firebase-delete-fail")
 
 		assert.ErrorIs(t, err, authErrors.ErrorCantDeleteAccount)
-		mockReadRepo.AssertExpectations(t)
-		mockWriteRepo.AssertExpectations(t)
+		d.readRepo.AssertExpectations(t)
+		d.writeRepo.AssertExpectations(t)
 	})
 }

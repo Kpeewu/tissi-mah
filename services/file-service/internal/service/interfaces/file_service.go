@@ -222,4 +222,10 @@ type FileService interface {
 
 	// Liste les revues avec filtres et pagination
 	ListDocumentReviews(ctx context.Context, userID string, status string, decision string, page int32, pageSize int32) ([]*domain.DocumentReview, error)
+
+	// --- Suppression de compte ---
+
+	// DeleteAllUserFiles supprime tous les documents (user + vehicle) d'un utilisateur
+	// ainsi que les fichiers correspondants dans S3/MinIO.
+	DeleteAllUserFiles(ctx context.Context, userID string) error
 }

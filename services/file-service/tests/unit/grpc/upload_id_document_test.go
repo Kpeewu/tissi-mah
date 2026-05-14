@@ -101,6 +101,7 @@ func (s *spyFileService) UpdateDocumentReview(context.Context, *domain.DocumentR
 func (s *spyFileService) ListDocumentReviews(context.Context, string, string, string, int32, int32) ([]*domain.DocumentReview, error) {
 	panic("not implemented")
 }
+func (s *spyFileService) DeleteAllUserFiles(context.Context, string) error { panic("not implemented") }
 
 func ctxWithFirebaseUID(uid string) context.Context {
 	md := metadata.New(map[string]string{"x-firebase-uid": uid})

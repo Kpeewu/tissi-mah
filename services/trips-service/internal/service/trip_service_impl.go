@@ -982,3 +982,26 @@ func (s *tripServiceImpl) SyncLegBookedSeats(ctx context.Context, input *service
 	return s.writeRepo.SyncLegBookedSeats(ctx, input.TripID, repoLegs)
 }
 
+// CheckDeletionEligibility vérifie si le conducteur a un trajet inProgress.
+func (s *tripServiceImpl) CheckDeletionEligibility(ctx context.Context, userID string) (bool, string, error) {
+	if userID == "" {
+		return false, "", tripErrors.ErrorInvalidInput
+	}
+	hasActive, err := s.readRepo.HasActiveTripAsDriver(ctx, userID)
+	if err != nil {
+		return false, "", tripErrors.ErrorInternalServer
+	}
+	if hasActive {
+		return false, "conducteur avec un trajet en cours", nil
+	}
+	return true, "", nil
+}
+
+// AnonymizeUserData pseudonymise les références du chauffeur dans trips-service.
+func (s *tripServiceImpl) AnonymizeUserData(ctx context.Context, userID string) error {
+	if userID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+	return s.writeRepo.AnonymizeDriverRefs(ctx, userID)
+}
+

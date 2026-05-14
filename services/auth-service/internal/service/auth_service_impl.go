@@ -16,26 +16,41 @@ import (
 )
 
 type authServiceImpl struct {
-	readRepo    repoInterfaces.AuthRepositoryRead
-	writeRepo   repoInterfaces.AuthRepositoryWrite
-	userClient  client.UserClient
-	redisClient *redis.Client
-	logger      *zap.Logger
+	readRepo       repoInterfaces.AuthRepositoryRead
+	writeRepo      repoInterfaces.AuthRepositoryWrite
+	userClient     client.UserClient
+	tripsClient    client.TripsClient
+	bookingClient  client.BookingClient
+	paymentClient  client.PaymentClient
+	chatClient     client.ChatClient
+	fileClient     client.FileClient
+	redisClient    *redis.Client
+	logger         *zap.Logger
 }
 
 func NewAuthService(
 	readRepo repoInterfaces.AuthRepositoryRead,
 	writeRepo repoInterfaces.AuthRepositoryWrite,
 	userClient client.UserClient,
+	tripsClient client.TripsClient,
+	bookingClient client.BookingClient,
+	paymentClient client.PaymentClient,
+	chatClient client.ChatClient,
+	fileClient client.FileClient,
 	redisClient *redis.Client,
 	logger *zap.Logger) serviceInterfaces.AuthService {
 
 	return &authServiceImpl{
-		readRepo:    readRepo,
-		writeRepo:   writeRepo,
-		userClient:  userClient,
-		redisClient: redisClient,
-		logger:      logger,
+		readRepo:      readRepo,
+		writeRepo:     writeRepo,
+		userClient:    userClient,
+		tripsClient:   tripsClient,
+		bookingClient: bookingClient,
+		paymentClient: paymentClient,
+		chatClient:    chatClient,
+		fileClient:    fileClient,
+		redisClient:   redisClient,
+		logger:        logger,
 	}
 }
 
@@ -224,7 +239,8 @@ func (s *authServiceImpl) GetAuthInfo(ctx context.Context, authID string) (*doma
 	return auth, nil
 }
 
-// DeleteUserAccount anonymise et supprime le compte d'authentification et le profil utilisateur
+// DeleteUserAccount vérifie les conditions bloquantes, anonymise les données dans tous les services,
+// puis supprime le compte d'authentification.
 func (s *authServiceImpl) DeleteUserAccount(ctx context.Context, firebaseID string) error {
 	if firebaseID == "" {
 		return authErrors.ErrorUserNotFound
@@ -235,23 +251,100 @@ func (s *authServiceImpl) DeleteUserAccount(ctx context.Context, firebaseID stri
 		return authErrors.ErrorUserNotFound
 	}
 
-	// Anonymiser et soft-delete le profil dans user-service
-	if err := s.userClient.SoftDeleteUser(ctx, auth.AuthID); err != nil {
-		s.logger.Error("failed to soft-delete user profile", zap.Error(err), zap.String("authID", auth.AuthID))
+	// Résoudre l'AuthID → UserID interne (user-service)
+	userPreview, err := s.userClient.GetUserByAuthID(ctx, auth.AuthID)
+	if err != nil {
+		s.logger.Error("DeleteUserAccount: cannot resolve userID", zap.Error(err), zap.String("authID", auth.AuthID))
+		return authErrors.ErrorInternalServer
+	}
+	userID := userPreview.UserID
+
+	// =========================================================================
+	// PHASE 1 — Vérifications bloquantes
+	// =========================================================================
+
+	tripsOK, tripsReason, err := s.tripsClient.CheckDeletionEligibility(ctx, userID)
+	if err != nil {
+		s.logger.Error("DeleteUserAccount: trips eligibility check failed", zap.Error(err))
+		return authErrors.ErrorInternalServer
+	}
+	if !tripsOK {
+		s.logger.Info("DeleteUserAccount blocked by trips-service", zap.String("reason", tripsReason))
+		return authErrors.ErrorCantDeleteAccount
+	}
+
+	bookingOK, bookingReason, err := s.bookingClient.CheckDeletionEligibility(ctx, userID)
+	if err != nil {
+		s.logger.Error("DeleteUserAccount: booking eligibility check failed", zap.Error(err))
+		return authErrors.ErrorInternalServer
+	}
+	if !bookingOK {
+		s.logger.Info("DeleteUserAccount blocked by booking-service", zap.String("reason", bookingReason))
+		return authErrors.ErrorCantDeleteAccount
+	}
+
+	paymentOK, paymentReason, err := s.paymentClient.CheckDeletionEligibility(ctx, userID)
+	if err != nil {
+		s.logger.Error("DeleteUserAccount: payment eligibility check failed", zap.Error(err))
+		return authErrors.ErrorInternalServer
+	}
+	if !paymentOK {
+		s.logger.Info("DeleteUserAccount blocked by payment-service", zap.String("reason", paymentReason))
+		return authErrors.ErrorCantDeleteAccount
+	}
+
+	// =========================================================================
+	// PHASE 2 — Anonymisation cross-services
+	// =========================================================================
+
+	// Récupérer les IDs de réservation du passager pour anonymiser passenger_phone_number
+	bookingIDs, err := s.bookingClient.GetPassengerBookingIDs(ctx, userID)
+	if err != nil {
+		s.logger.Error("DeleteUserAccount: cannot fetch passenger booking IDs", zap.Error(err))
 		return authErrors.ErrorInternalServer
 	}
 
-	// Anonymiser et soft-delete l'entrée auth
-	// Retry en cas d'échec car user-service a déjà supprimé le profil
+	if err := s.chatClient.AnonymizeUserData(ctx, userID); err != nil {
+		s.logger.Error("CRITICAL: chat anonymization failed", zap.Error(err), zap.String("userID", userID))
+		return authErrors.ErrorCantDeleteAccount
+	}
+
+	if err := s.fileClient.DeleteAllUserFiles(ctx, userID); err != nil {
+		s.logger.Error("CRITICAL: file deletion failed", zap.Error(err), zap.String("userID", userID))
+		return authErrors.ErrorCantDeleteAccount
+	}
+
+	if err := s.bookingClient.AnonymizeUserData(ctx, userID); err != nil {
+		s.logger.Error("CRITICAL: booking anonymization failed", zap.Error(err), zap.String("userID", userID))
+		return authErrors.ErrorCantDeleteAccount
+	}
+
+	if err := s.paymentClient.AnonymizeUserData(ctx, userID, bookingIDs); err != nil {
+		s.logger.Error("CRITICAL: payment anonymization failed", zap.Error(err), zap.String("userID", userID))
+		return authErrors.ErrorCantDeleteAccount
+	}
+
+	if err := s.tripsClient.AnonymizeUserData(ctx, userID); err != nil {
+		s.logger.Error("CRITICAL: trips anonymization failed", zap.Error(err), zap.String("userID", userID))
+		return authErrors.ErrorCantDeleteAccount
+	}
+
+	// Anonymiser et soft-delete le profil dans user-service
+	if err := s.userClient.SoftDeleteUser(ctx, auth.AuthID); err != nil {
+		s.logger.Error("CRITICAL: user-service soft-delete failed", zap.Error(err), zap.String("authID", auth.AuthID))
+		return authErrors.ErrorCantDeleteAccount
+	}
+
+	// Anonymiser et soft-delete l'entrée auth (avec retry)
 	if err := s.writeRepo.Delete(ctx, auth); err != nil {
 		s.logger.Warn("first attempt to delete auth failed, retrying",
 			zap.Error(err), zap.String("authID", auth.AuthID))
 
 		if retryErr := s.writeRepo.Delete(ctx, auth); retryErr != nil {
-			s.logger.Error("CRITICAL: auth record not deleted after user-service deletion succeeded — manual cleanup required",
+			s.logger.Error("CRITICAL: auth record not deleted after full anonymization — manual cleanup required",
 				zap.Error(retryErr),
 				zap.String("authID", auth.AuthID),
-				zap.String("firebaseID", firebaseID),
+				zap.String("userID", userID),
 			)
 			return authErrors.ErrorCantDeleteAccount
 		}

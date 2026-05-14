@@ -70,3 +70,8 @@ func (m *MockTripRepositoryRead) SearchScheduledTripSegments(ctx context.Context
 
 // compile-time check
 var _ repoInterfaces.TripRepositoryRead = (*MockTripRepositoryRead)(nil)
+
+func (m *MockTripRepositoryRead) HasActiveTripAsDriver(ctx context.Context, driverID string) (bool, error) {
+	args := m.Called(ctx, driverID)
+	return args.Bool(0), args.Error(1)
+}

@@ -115,3 +115,35 @@ func collectThreads(rows pgx.Rows) ([]*domain.ChatThread, error) {
 	}
 	return threads, rows.Err()
 }
+
+// AnonymizeUserRefs ferme les threads actifs de l'utilisateur puis pseudonymise driver_id/passenger_id.
+func (r *chatThreadRepository) AnonymizeUserRefs(ctx context.Context, userID string) error {
+	anon := "deleted_" + userID[:8]
+
+	// Fermer les threads actifs
+	_, err := r.db.Exec(ctx,
+		`UPDATE chat_threads
+		 SET status = 'closed', closed_at = NOW(), updated_at = NOW()
+		 WHERE (driver_id = $1 OR passenger_id = $1) AND status = 'active'`,
+		userID,
+	)
+	if err != nil {
+		r.logger.Error("AnonymizeUserRefs: close active threads failed", zap.Error(err), zap.String("userID", userID))
+		return err
+	}
+
+	// Pseudonymiser les références
+	_, err = r.db.Exec(ctx,
+		`UPDATE chat_threads
+		 SET driver_id    = CASE WHEN driver_id    = $2 THEN $1 ELSE driver_id END,
+		     passenger_id = CASE WHEN passenger_id = $2 THEN $1 ELSE passenger_id END,
+		     updated_at   = NOW()
+		 WHERE driver_id = $2 OR passenger_id = $2`,
+		anon, userID,
+	)
+	if err != nil {
+		r.logger.Error("AnonymizeUserRefs: update thread refs failed", zap.Error(err), zap.String("userID", userID))
+		return err
+	}
+	return nil
+}

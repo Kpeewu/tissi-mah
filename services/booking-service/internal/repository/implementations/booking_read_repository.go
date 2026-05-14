@@ -571,3 +571,63 @@ func (r *bookingReadRepositoryImpl) GetPassengerCompletedBookingsCount(ctx conte
 	}
 	return count, nil
 }
+
+// HasActiveBookingAsPassenger vérifie si un passager a une réservation active (tous trajets confondus).
+func (r *bookingReadRepositoryImpl) HasActiveBookingAsPassenger(ctx context.Context, passengerID string) (bool, error) {
+	query := `
+		SELECT EXISTS (
+			SELECT 1 FROM bookings
+			WHERE passenger_id = $1
+			AND status IN ('created', 'paymentPending', 'pendingApproval', 'approved', 'inProgress')
+			AND deleted_at IS NULL
+		)`
+
+	var exists bool
+	if err := r.pool.QueryRow(ctx, query, passengerID).Scan(&exists); err != nil {
+		r.logger.Error("HasActiveBookingAsPassenger failed", zap.Error(err), zap.String("passengerID", passengerID))
+		return false, bookingErrors.ErrorDataRetrievalFailed
+	}
+	return exists, nil
+}
+
+// HasActiveBookingAsDriver vérifie si un chauffeur a des réservations actives sur ses trajets.
+func (r *bookingReadRepositoryImpl) HasActiveBookingAsDriver(ctx context.Context, driverID string) (bool, error) {
+	query := `
+		SELECT EXISTS (
+			SELECT 1 FROM bookings
+			WHERE driver_id = $1
+			AND status IN ('pendingApproval', 'approved', 'inProgress')
+			AND deleted_at IS NULL
+		)`
+
+	var exists bool
+	if err := r.pool.QueryRow(ctx, query, driverID).Scan(&exists); err != nil {
+		r.logger.Error("HasActiveBookingAsDriver failed", zap.Error(err), zap.String("driverID", driverID))
+		return false, bookingErrors.ErrorDataRetrievalFailed
+	}
+	return exists, nil
+}
+
+// GetPassengerBookingIDs retourne tous les IDs de réservation d'un passager.
+func (r *bookingReadRepositoryImpl) GetPassengerBookingIDs(ctx context.Context, passengerID string) ([]string, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT booking_id FROM bookings WHERE passenger_id = $1 AND deleted_at IS NULL`,
+		passengerID,
+	)
+	if err != nil {
+		r.logger.Error("GetPassengerBookingIDs failed", zap.Error(err), zap.String("passengerID", passengerID))
+		return nil, bookingErrors.ErrorDataRetrievalFailed
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			r.logger.Error("GetPassengerBookingIDs scan failed", zap.Error(err))
+			return nil, bookingErrors.ErrorDataRetrievalFailed
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
