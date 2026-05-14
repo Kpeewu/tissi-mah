@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	userpb "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen"
@@ -79,4 +80,23 @@ func (c *UserServiceClient) IsPassengerVerified(ctx context.Context, userID stri
 	}
 
 	return resp.IsPassengerProfileVerified, nil
+}
+
+// GetPassengerInfo retourne le nom complet et le statut de vérification d'un passager.
+func (c *UserServiceClient) GetPassengerInfo(ctx context.Context, userID string) (string, bool, error) {
+	c.logger.Debug("client: GetPassengerInfo called", zap.String("userID", userID))
+
+	resp, err := c.grpcClient.GetUserByUserID(ctx, &userpb.GetUserByUserIDRequest{
+		UserID: userID,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return "", false, nil
+		}
+		c.logger.Error("client: GetPassengerInfo failed", zap.Error(err), zap.String("userID", userID))
+		return "", false, fmt.Errorf("user-service: GetPassengerInfo failed: %w", err)
+	}
+
+	fullName := strings.TrimSpace(resp.FirstName + " " + resp.Name)
+	return fullName, resp.IsPassengerProfileVerified, nil
 }

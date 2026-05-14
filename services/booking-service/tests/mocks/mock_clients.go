@@ -55,7 +55,27 @@ func (m *MockUserClient) IsPassengerVerified(ctx context.Context, userID string)
 	return args.Bool(0), args.Error(1)
 }
 
+func (m *MockUserClient) GetPassengerInfo(ctx context.Context, userID string) (string, bool, error) {
+	args := m.Called(ctx, userID)
+	return args.String(0), args.Bool(1), args.Error(2)
+}
+
 func (m *MockUserClient) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+// MockRatingClient mock du client rating-service.
+type MockRatingClient struct {
+	mock.Mock
+}
+
+func (m *MockRatingClient) GetUserRatingsAverage(ctx context.Context, userID string) (float64, int32, error) {
+	args := m.Called(ctx, userID)
+	return args.Get(0).(float64), args.Get(1).(int32), args.Error(2)
+}
+
+func (m *MockRatingClient) Close() error {
 	args := m.Called()
 	return args.Error(0)
 }

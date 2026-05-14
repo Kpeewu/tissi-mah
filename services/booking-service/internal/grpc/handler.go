@@ -55,13 +55,15 @@ func (h *BookingHandler) CreateBooking(ctx context.Context, req *bookingpb.Creat
 	}
 
 	input := &serviceInterfaces.CreateBookingInput{
-		PassengerID:       req.PassengerId,
-		TripID:            req.TripId,
-		PickupWaypointID:  req.PickupWaypointId,
-		DropoffWaypointID: req.DropoffWaypointId,
-		SeatsBooked:       int(req.SeatsBooked),
-		PaymentMethod:     req.PaymentMethod,
-		Segments:          segments,
+		PassengerID:        req.PassengerId,
+		TripID:             req.TripId,
+		PickupWaypointID:   req.PickupWaypointId,
+		DropoffWaypointID:  req.DropoffWaypointId,
+		SeatsBooked:        int(req.SeatsBooked),
+		PaymentMethod:      req.PaymentMethod,
+		Segments:           segments,
+		PassengerMessage:   req.PassengerMessage,
+		ExtraMinutesDetour: int(req.ExtraMinutesDetour),
 	}
 
 	result, err := h.service.CreateBooking(ctx, input)
@@ -161,6 +163,7 @@ func (h *BookingHandler) GetBookingDetails(ctx context.Context, req *bookingpb.G
 			UpdatedAt:          result.UpdatedAt,
 			Segments:           pbSegments,
 			History:            pbHistory,
+			PassengerMessage:   result.PassengerMessage,
 		},
 	}, nil
 }
@@ -181,9 +184,9 @@ func (h *BookingHandler) GetPassengerBookings(ctx context.Context, req *bookingp
 	}, nil
 }
 
-// GetDriverTripBookings retourne la liste paginée des réservations d'un trajet conducteur.
+// GetDriverTripBookings retourne les réservations d'un trajet conducteur (enrichies + compteurs).
 func (h *BookingHandler) GetDriverTripBookings(ctx context.Context, req *bookingpb.GetDriverTripBookingsRequest) (*bookingpb.GetDriverTripBookingsResponse, error) {
-	results, err := h.service.GetDriverTripBookings(ctx, &serviceInterfaces.GetDriverTripBookingsInput{
+	result, err := h.service.GetDriverTripBookings(ctx, &serviceInterfaces.GetDriverTripBookingsInput{
 		DriverID:  req.DriverId,
 		TripID:    req.TripId,
 		PageIndex: int(req.Index),
@@ -193,8 +196,49 @@ func (h *BookingHandler) GetDriverTripBookings(ctx context.Context, req *booking
 	}
 
 	return &bookingpb.GetDriverTripBookingsResponse{
-		Bookings: toProtoBookingPreviews(results),
+		Bookings:       toProtoBookingPreviews(result.Bookings),
+		DriverBookings: toProtoDriverBookingPreviews(result.DriverBookings),
+		Counts:         toProtoBookingCounts(result.Counts),
 	}, nil
+}
+
+// GetDriverPendingBookings retourne la liste agrégée des demandes en attente du conducteur.
+func (h *BookingHandler) GetDriverPendingBookings(ctx context.Context, req *bookingpb.GetDriverPendingBookingsRequest) (*bookingpb.GetDriverPendingBookingsResponse, error) {
+	results, err := h.service.GetDriverPendingBookings(ctx, &serviceInterfaces.GetDriverPendingBookingsInput{
+		DriverID:  req.DriverId,
+		PageIndex: int(req.Index),
+	})
+	if err != nil {
+		return &bookingpb.GetDriverPendingBookingsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return &bookingpb.GetDriverPendingBookingsResponse{
+		Bookings: toProtoDriverBookingPreviews(results),
+	}, nil
+}
+
+// GetActivePassengerSummariesForTrip retourne les passagers actifs d'un trajet enrichis.
+func (h *BookingHandler) GetActivePassengerSummariesForTrip(ctx context.Context, req *bookingpb.GetActivePassengerSummariesForTripRequest) (*bookingpb.GetActivePassengerSummariesForTripResponse, error) {
+	results, err := h.service.GetActivePassengerSummariesForTrip(ctx, req.TripId)
+	if err != nil {
+		return &bookingpb.GetActivePassengerSummariesForTripResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	summaries := make([]*bookingpb.PassengerSummary, 0, len(results))
+	for _, r := range results {
+		summaries = append(summaries, &bookingpb.PassengerSummary{
+			PassengerId:   r.PassengerID,
+			PassengerName: r.PassengerName,
+			SeatsBooked:   int32(r.SeatsBooked),
+			PaymentMethod: r.PaymentMethod,
+			PaymentStatus: r.PaymentStatus,
+			Rating:        r.Rating,
+			IsVerified:    r.IsVerified,
+			BookingId:     r.BookingID,
+		})
+	}
+
+	return &bookingpb.GetActivePassengerSummariesForTripResponse{Summaries: summaries}, nil
 }
 
 // ApproveBooking approuve une réservation.
@@ -384,6 +428,45 @@ func toProtoBookingPreviews(results []*serviceInterfaces.BookingPreviewResult) [
 		})
 	}
 	return previews
+}
+
+func toProtoDriverBookingPreviews(results []*serviceInterfaces.DriverBookingPreviewResult) []*bookingpb.DriverBookingPreview {
+	previews := make([]*bookingpb.DriverBookingPreview, 0, len(results))
+	for _, r := range results {
+		previews = append(previews, &bookingpb.DriverBookingPreview{
+			BookingId:           r.BookingID,
+			BookingReference:    r.BookingReference,
+			TripId:              r.TripID,
+			Status:              r.Status,
+			SeatsBooked:         int32(r.SeatsBooked),
+			TotalAmount:         int32(r.TotalAmount),
+			PickupLocationName:  r.PickupLocationName,
+			DropoffLocationName: r.DropoffLocationName,
+			DepartureDate:       r.DepartureDate,
+			DepartureTime:       r.DepartureTime,
+			PassengerName:       r.PassengerName,
+			PassengerRating:     r.PassengerRating,
+			PassengerTripCount:  int32(r.PassengerTripCount),
+			IsPassengerVerified: r.IsPassengerVerified,
+			PassengerMessage:    r.PassengerMessage,
+			PaymentMethod:       r.PaymentMethod,
+			CreatedAt:           r.CreatedAt,
+			ExtraMinutesDetour:  int32(r.ExtraMinutesDetour),
+		})
+	}
+	return previews
+}
+
+func toProtoBookingCounts(c *serviceInterfaces.BookingCountsResult) *bookingpb.BookingCounts {
+	if c == nil {
+		return &bookingpb.BookingCounts{}
+	}
+	return &bookingpb.BookingCounts{
+		Pending:   c.Pending,
+		Approved:  c.Approved,
+		Rejected:  c.Rejected,
+		Cancelled: c.Cancelled,
+	}
 }
 
 // toGRPCError traduit les erreurs domaine en codes de statut gRPC.

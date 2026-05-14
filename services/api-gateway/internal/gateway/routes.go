@@ -47,15 +47,17 @@ var ProtectedRoutes = map[string]bool{
 	// kyc-service — webhook et health sont publics (pas de JWT)
 
 	// booking-service (internal/* et health sont publics)
-	"/booking/createBooking":        true,
-	"/booking/getBookingDetails":    true,
-	"/booking/getPassengerBookings": true,
-	"/booking/getDriverTripBookings": true,
-	"/booking/approveBooking":       true,
-	"/booking/rejectBooking":        true,
-	"/booking/cancelBooking":        true,
-	"/booking/reportNoShow":         true,
-	"/booking/confirmPayment":       true,
+	"/booking/createBooking":              true,
+	"/booking/getBookingDetails":          true,
+	"/booking/getPassengerBookings":       true,
+	"/booking/getDriverTripBookings":      true,
+	"/booking/getDriverPendingBookings":   true,
+	"/booking/getActivePassengerSummaries": true,
+	"/booking/approveBooking":             true,
+	"/booking/rejectBooking":              true,
+	"/booking/cancelBooking":              true,
+	"/booking/reportNoShow":               true,
+	"/booking/confirmPayment":             true,
 
 	// payment-service (protégé)
 	"/payment/createPayment":       true,

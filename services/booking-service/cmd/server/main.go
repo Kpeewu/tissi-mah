@@ -80,6 +80,14 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer paymentClient.Close()
 	logger.Info("payment-service client ready", zap.String("address", cfg.PaymentService.Addr()))
 
+	// --- Rating-service client ---
+	ratingClient, err := client.NewRatingServiceClient(cfg.RatingService.Addr(), logger)
+	if err != nil {
+		return fmt.Errorf("rating-service client: %w", err)
+	}
+	defer ratingClient.Close()
+	logger.Info("rating-service client ready", zap.String("address", cfg.RatingService.Addr()))
+
 	// --- Redis (cache, graceful degradation) ---
 	var bookingCache *cache.BookingCache
 	redisClient, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.Redis.URL)
@@ -106,7 +114,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	// --- Booking service ---
 	bookingService := service.NewBookingService(
 		readRepo, writeRepo,
-		tripClient, userClient, paymentClient,
+		tripClient, userClient, paymentClient, ratingClient,
 		bookingCache,
 		notifRedis,
 		cfg.ServiceFee.Percent,

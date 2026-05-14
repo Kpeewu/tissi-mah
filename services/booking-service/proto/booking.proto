@@ -130,6 +130,22 @@ service BookingService {
     };
   }
 
+  // GetDriverPendingBookings retourne la liste agrégée paginée des demandes en attente du conducteur
+  // tous trajets confondus, enrichie avec les informations passager (nom, note, KYC, message, détour).
+  rpc GetDriverPendingBookings(GetDriverPendingBookingsRequest) returns (GetDriverPendingBookingsResponse) {
+    option (google.api.http) = {
+      get: "/booking/getDriverPendingBookings"
+    };
+  }
+
+  // GetActivePassengerSummariesForTrip retourne les passagers actifs d'un trajet
+  // enrichis avec nom, note, statut paiement — pour l'écran de suivi chauffeur.
+  rpc GetActivePassengerSummariesForTrip(GetActivePassengerSummariesForTripRequest) returns (GetActivePassengerSummariesForTripResponse) {
+    option (google.api.http) = {
+      get: "/booking/getActivePassengerSummaries"
+    };
+  }
+
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -168,6 +184,8 @@ message CreateBookingRequest {
   int32  SeatsBooked        = 5;
   string PaymentMethod      = 6; // mobileMoney | card | paypal | cash
   repeated SegmentInput Segments = 7;
+  string PassengerMessage   = 8; // message optionnel du passager au conducteur
+  int32  ExtraMinutesDetour = 9; // détour en minutes calculé côté client (0 = inconnu)
 }
 
 message CreateBookingResponse {
@@ -249,6 +267,7 @@ message BookingDetail {
   string UpdatedAt          = 27;
   repeated SegmentDetail Segments       = 28;
   repeated StatusHistoryEntry History   = 29;
+  string PassengerMessage               = 30; // message laissé par le passager lors de la réservation
 }
 
 message GetBookingDetailsResponse {
@@ -295,8 +314,10 @@ message GetDriverTripBookingsRequest {
 }
 
 message GetDriverTripBookingsResponse {
-  repeated BookingPreview Bookings = 1;
-  string ErrorMessage              = 2;
+  repeated BookingPreview Bookings             = 1; // liste legacy (backward-compatible)
+  string ErrorMessage                          = 2;
+  repeated DriverBookingPreview DriverBookings = 3; // liste enrichie avec infos passager
+  BookingCounts Counts                         = 4; // compteurs par statut pour ce trajet
 }
 
 // =============================================================================
@@ -469,4 +490,75 @@ message HealthResponse {
   string Status    = 1;
   string Version   = 2;
   int64  Timestamp = 3;
+}
+
+// =============================================================================
+// DriverBookingPreview — vue enrichie d'une réservation pour le conducteur
+// =============================================================================
+
+message DriverBookingPreview {
+  string BookingId           = 1;
+  string BookingReference    = 2;
+  string TripId              = 3;
+  string Status              = 4;
+  int32  SeatsBooked         = 5;
+  int32  TotalAmount         = 6;
+  string PickupLocationName  = 7;
+  string DropoffLocationName = 8;
+  string DepartureDate       = 9;  // YYYY-MM-DD (depuis pickup_scheduled_at du premier segment)
+  string DepartureTime       = 10; // HH:MM
+  string PassengerName       = 11; // depuis user-service
+  double PassengerRating     = 12; // moyenne depuis rating-service (0 si aucune note)
+  int32  PassengerTripCount  = 13; // nombre de trajets complétés (DB booking-service)
+  bool   IsPassengerVerified = 14; // IsPassengerProfileVerified depuis user-service
+  string PassengerMessage    = 15; // message laissé lors de la réservation
+  string PaymentMethod       = 16; // mobileMoney | card | paypal | cash
+  string CreatedAt           = 17; // RFC3339 — pour affichage "il y a N min"
+  int32  ExtraMinutesDetour  = 18; // détour en minutes (0 = inconnu)
+}
+
+// BookingCounts — compteurs de réservations par statut pour un trajet
+message BookingCounts {
+  int32 Pending   = 1; // pendingApproval
+  int32 Approved  = 2;
+  int32 Rejected  = 3;
+  int32 Cancelled = 4;
+}
+
+// =============================================================================
+// GetDriverPendingBookings — liste agrégée tous trajets confondus
+// =============================================================================
+
+message GetDriverPendingBookingsRequest {
+  string DriverId = 1;
+  int32  Index    = 2; // index de page (0-based, 10 items par page)
+}
+
+message GetDriverPendingBookingsResponse {
+  repeated DriverBookingPreview Bookings = 1;
+  string ErrorMessage                    = 2;
+}
+
+// =============================================================================
+// PassengerSummary + GetActivePassengerSummariesForTrip
+// =============================================================================
+
+message PassengerSummary {
+  string PassengerId    = 1;
+  string PassengerName  = 2;
+  int32  SeatsBooked    = 3;
+  string PaymentMethod  = 4;
+  string PaymentStatus  = 5; // "paid" | "pending"
+  double Rating         = 6;
+  bool   IsVerified     = 7;
+  string BookingId      = 8;
+}
+
+message GetActivePassengerSummariesForTripRequest {
+  string TripId = 1;
+}
+
+message GetActivePassengerSummariesForTripResponse {
+  repeated PassengerSummary Summaries = 1;
+  string ErrorMessage                 = 2;
 }
