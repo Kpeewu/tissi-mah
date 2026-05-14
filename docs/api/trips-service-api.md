@@ -7,7 +7,7 @@ This document describes the HTTP/REST API exposed by the trips-service through t
 | Environment | Base URL |
 |-------------|----------|
 | Local | `http://localhost:8080` |
-| VPS-Dev | `https://dev.tissi-mah.com` |
+| VPS-Dev | `https://api.tissimah.kpeewu.dev` |
 | Staging | `https://staging.tissi-mah.com` |
 | Production | `https://api.tissi-mah.com` |
 
@@ -1415,3 +1415,19 @@ scheduled → inProgress → completed
 | `ErrorDepartureAfterArrival` | 400 | INVALID_ARGUMENT (3) | Departure datetime is after arrival datetime | Fix the datetime ordering in the request |
 | `ErrorDataRetrievalFailed` | 500 | INTERNAL (13) | Database query failed | Retry later |
 | `ErrorInternalServer` | 500 | INTERNAL (13) | Internal server error | Retry later |
+
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATABASE_URL` | Yes | — | PostgreSQL connection URL (`trips_db`, port 5437 dev) |
+| `REDIS_URL` | Yes | — | Redis connection URL (port 6386 dev) |
+| `ENVIRONMENT` | Yes | — | `local` / `vps-dev` / `staging` / `prod` |
+| `LOG_LEVEL` | Yes | — | `debug` / `info` / `warn` / `error` |
+| `GRPC_PORT` | No | `50056` | gRPC server port |
+| `USER_SERVICE_HOST` | No | `0.0.0.0` | Host for user-service |
+| `USER_SERVICE_PORT` | No | `50052` | Port for user-service |
+| `VEHICLE_SERVICE_HOST` | No | `0.0.0.0` | Host for vehicle-service |
+| `VEHICLE_SERVICE_PORT` | No | `50055` | Port for vehicle-service |
+| `BOOKING_SERVICE_HOST` | No | `0.0.0.0` | Host for booking-service |
+| `BOOKING_SERVICE_PORT` | No | `50058` | Port for booking-service |

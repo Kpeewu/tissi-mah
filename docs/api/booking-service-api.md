@@ -7,7 +7,7 @@ This document describes the HTTP/REST API exposed by the booking-service through
 | Environment | Base URL |
 |-------------|----------|
 | Local | `http://localhost:8080` |
-| VPS-Dev | `https://dev.tissi-mah.com` |
+| VPS-Dev | `https://api.tissimah.kpeewu.dev` |
 | Staging | `https://staging.tissi-mah.com` |
 | Production | `https://api.tissi-mah.com` |
 
@@ -244,7 +244,7 @@ Content-Type: application/json
 
 ### GET /booking/getDriverTripBookings
 
-Returns the paginated list of bookings for a specific trip, for the driver.
+Returns the paginated list of bookings for a specific trip, enriched with passenger info.
 
 **Authentication:** Firebase JWT required
 
@@ -255,6 +255,62 @@ Returns the paginated list of bookings for a specific trip, for the driver.
 | `DriverId` | string | Yes | Driver's internal user ID |
 | `TripId` | string | Yes | Trip UUID |
 | `Index` | integer | No | Page index (0-based, 10 items/page) |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Bookings": [
+        {
+            "BookingId": "bk-550e8400-e29b-41d4-a716-446655440020",
+            "BookingReference": "TM-2026-0001",
+            "TripId": "t-550e8400-e29b-41d4-a716-446655440000",
+            "Status": "approved",
+            "SeatsBooked": 2,
+            "TotalAmount": 11000,
+            "PickupLocationName": "Gare routière de Dakar",
+            "DropoffLocationName": "Gare de Saint-Louis",
+            "DepartureDate": "2026-04-15",
+            "DepartureTime": "08:00",
+            "PassengerName": "Koffi Asante",
+            "PassengerRating": 4.8,
+            "PassengerTripCount": 12,
+            "IsPassengerVerified": true,
+            "PassengerMessage": "Je serai à l'heure",
+            "PaymentMethod": "mobileMoney",
+            "CreatedAt": "2026-04-14T15:30:00Z",
+            "ExtraMinutesDetour": 0
+        }
+    ],
+    "ErrorMessage": ""
+}
+```
+
+#### Response Fields (`DriverBookingPreview`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `BookingId` | string | Booking UUID |
+| `BookingReference` | string | Human-readable reference (e.g. `TM-2026-0001`) |
+| `TripId` | string | Trip UUID |
+| `Status` | string | Booking status |
+| `SeatsBooked` | integer | Number of seats |
+| `TotalAmount` | integer | Total amount (XOF) |
+| `PickupLocationName` | string | Pickup location name |
+| `DropoffLocationName` | string | Dropoff location name |
+| `DepartureDate` | string | `YYYY-MM-DD` |
+| `DepartureTime` | string | `HH:MM` |
+| `PassengerName` | string | Passenger's full name (from user-service) |
+| `PassengerRating` | float | Passenger rating average (0 if no ratings) |
+| `PassengerTripCount` | integer | Number of trips completed by passenger |
+| `IsPassengerVerified` | boolean | Whether the passenger is KYC-verified |
+| `PassengerMessage` | string | Optional message from passenger |
+| `PaymentMethod` | string | `mobileMoney` \| `card` \| `paypal` \| `cash` |
+| `CreatedAt` | string | ISO 8601 — booking creation datetime |
+| `ExtraMinutesDetour` | integer | Requested detour in minutes (0 = none) |
 
 ---
 
@@ -491,6 +547,196 @@ Health check endpoint.
 
 ---
 
+### GET /booking/getDriverPendingBookings
+
+Returns all bookings awaiting driver approval, across all trips of the driver.
+
+**Authentication:** Firebase JWT required
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `DriverId` | string | Yes | Driver's internal user ID |
+| `Index` | integer | No | Page index (0-based, 10 items/page) |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Bookings": [
+        {
+            "BookingId": "bk-550e8400-e29b-41d4-a716-446655440020",
+            "BookingReference": "TM-2026-0001",
+            "TripId": "t-550e8400-e29b-41d4-a716-446655440000",
+            "Status": "pendingApproval",
+            "SeatsBooked": 1,
+            "TotalAmount": 5500,
+            "PickupLocationName": "Liberté 6",
+            "DropoffLocationName": "Saint-Louis Centre",
+            "DepartureDate": "2026-04-15",
+            "DepartureTime": "08:00",
+            "PassengerName": "Ama Owusu",
+            "PassengerRating": 4.5,
+            "PassengerTripCount": 7,
+            "IsPassengerVerified": true,
+            "PassengerMessage": "",
+            "PaymentMethod": "cash",
+            "CreatedAt": "2026-04-14T20:00:00Z",
+            "ExtraMinutesDetour": 0
+        }
+    ],
+    "ErrorMessage": ""
+}
+```
+
+> Response uses the same `DriverBookingPreview` structure as `getDriverTripBookings`. All items have `Status = "pendingApproval"`.
+
+#### Errors
+
+| Error | HTTP | Description |
+|-------|------|-------------|
+| `ErrorDriverNotFound` | 404 | Driver does not exist |
+| `ErrorInternalServer` | 500 | Internal server error |
+
+---
+
+### GET /booking/getActivePassengerSummaries
+
+Returns real-time summaries of passengers currently on board a trip. Used by the driver's live tracking screen.
+
+**Authentication:** Firebase JWT required
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `TripId` | string | Yes | Trip UUID |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Summaries": [
+        {
+            "PassengerId": "550e8400-e29b-41d4-a716-446655440010",
+            "PassengerName": "Koffi Asante",
+            "SeatsBooked": 2,
+            "PaymentMethod": "mobileMoney",
+            "PaymentStatus": "paid",
+            "Rating": 4.8,
+            "IsVerified": true,
+            "BookingId": "bk-550e8400-e29b-41d4-a716-446655440020"
+        }
+    ],
+    "ErrorMessage": ""
+}
+```
+
+#### Response Fields (`PassengerSummary`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `PassengerId` | string | Passenger's internal user ID |
+| `PassengerName` | string | Full name |
+| `SeatsBooked` | integer | Number of seats |
+| `PaymentMethod` | string | `mobileMoney` \| `card` \| `paypal` \| `cash` |
+| `PaymentStatus` | string | `paid` \| `pending` |
+| `Rating` | float | Passenger rating average |
+| `IsVerified` | boolean | KYC verification status |
+| `BookingId` | string | Booking UUID |
+
+---
+
+### PATCH /booking/internal/cancelBookingsForWaypoint
+
+Cancels all bookings associated with a waypoint that was removed. **Internal route** called by trips-service on `CancelWaypoint`.
+
+**Authentication:** Not required (internal)
+
+#### Request
+
+```json
+{
+    "TripId": "t-550e8400-e29b-41d4-a716-446655440000",
+    "WaypointId": "w-stop-002"
+}
+```
+
+#### Response
+
+```json
+{ "Success": true, "BookingsCount": 2, "ErrorMessage": "" }
+```
+
+---
+
+### PATCH /booking/internal/cancelBookingsForTrip
+
+Cancels all bookings for a trip that was cancelled. **Internal route** called by trips-service on `CancelTrip`.
+
+**Authentication:** Not required (internal)
+
+#### Request
+
+```json
+{ "TripId": "t-550e8400-e29b-41d4-a716-446655440000" }
+```
+
+#### Response
+
+```json
+{ "Success": true, "BookingsCount": 5, "ErrorMessage": "" }
+```
+
+---
+
+### POST /booking/internal/failPayment
+
+Marks a booking's payment as failed. **Internal route** called by payment-service on a failed FedaPay webhook event.
+
+**Authentication:** Not required (internal)
+
+#### Request
+
+```json
+{ "BookingId": "bk-550e8400-e29b-41d4-a716-446655440020", "Reason": "transaction.declined" }
+```
+
+#### Response
+
+```json
+{ "Success": true, "ErrorMessage": "" }
+```
+
+---
+
+### GET /booking/internal/getActivePassengerIDsForTrip
+
+Returns the list of passenger IDs with an `inProgress` booking for a given trip. Used by trips-service and payment-service.
+
+**Authentication:** Not required (internal)
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `TripID` | string | Yes | Trip UUID |
+
+#### Response
+
+```json
+{ "PassengerIDs": ["550e8400-e29b-41d4-a716-446655440010", "550e8400-e29b-41d4-a716-446655440011"] }
+```
+
+---
+
 ## Booking Lifecycle
 
 ```
@@ -548,3 +794,19 @@ TotalAmount = Subtotal + ServiceFee
 | `ErrorBookingNotPending` | 422 | FAILED_PRECONDITION (9) | Booking is not in expected status |
 | `ErrorBookingNotCancellable` | 422 | FAILED_PRECONDITION (9) | Booking cannot be cancelled |
 | `ErrorInternalServer` | 500 | INTERNAL (13) | Internal server error |
+
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATABASE_URL` | Yes | — | PostgreSQL connection URL (`booking_db`, port 5438 dev) |
+| `REDIS_URL` | Yes | — | Redis connection URL (port 6387 dev) |
+| `ENVIRONMENT` | Yes | — | `local` / `vps-dev` / `staging` / `prod` |
+| `LOG_LEVEL` | Yes | — | `debug` / `info` / `warn` / `error` |
+| `GRPC_PORT` | No | `50058` | gRPC server port |
+| `TRIPS_SERVICE_HOST` | No | `0.0.0.0` | Host for trips-service |
+| `TRIPS_SERVICE_PORT` | No | `50056` | Port for trips-service |
+| `USER_SERVICE_HOST` | No | `0.0.0.0` | Host for user-service |
+| `USER_SERVICE_PORT` | No | `50052` | Port for user-service |
+| `SERVICE_FEE_PERCENT` | No | `10` | Platform fee percentage applied to subtotal |
+| `RECONCILIATION_INTERVAL_SECONDS` | No | `300` | Booking reconciliation interval (seconds) |
