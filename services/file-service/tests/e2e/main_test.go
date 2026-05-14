@@ -44,7 +44,8 @@ func TestMain(m *testing.M) {
 	mockStorage.On("Upload", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return("https://storage.example.com/file.jpg", nil)
 	mockStorage.On("Delete", mock.Anything, mock.Anything).Return(nil)
-	mockStorage.On("GenerateURL", mock.Anything).Return("https://storage.example.com/file.jpg")
+	mockStorage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
+		Return("https://storage.example.com/file.jpg", nil)
 
 	// --- Repositories réels ---
 	logger := zap.NewNop()
@@ -72,7 +73,7 @@ func TestMain(m *testing.M) {
 
 	srv := grpc.NewServer()
 	mockUserClient := new(mocks.MockUserClient)
-	handler := grpcHandler.NewFileHandler(svc, mockUserClient, logger)
+	handler := grpcHandler.NewFileHandler(svc, mockUserClient, mockStorage, logger)
 	filepb.RegisterFileServiceServer(srv, handler)
 
 	go func() {
