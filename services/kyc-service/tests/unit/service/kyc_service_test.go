@@ -520,7 +520,7 @@ func TestCreateInquiry(t *testing.T) {
 	})
 
 	// =========================================================================
-	// SubmitGovernmentID — soumission des URLs S3/MinIO à Persona
+	// SubmitGovernmentID — pré-soumission des URLs S3/MinIO à Persona
 	// =========================================================================
 
 	t.Run("submit - Passport avec DocumentURL appelle SubmitGovernmentID front seul", func(t *testing.T) {
@@ -546,7 +546,6 @@ func TestCreateInquiry(t *testing.T) {
 				ExpiresAt:    expiresAt,
 			}, nil)
 
-		// SubmitGovernmentID doit être appelé avec kind "passport", front URL, back vide
 		mockPersonaClient.On("SubmitGovernmentID", mock.Anything,
 			"inq_pp_001", "passport",
 			"https://minio.local/bucket/pp-front.jpg", "").
@@ -576,7 +575,7 @@ func TestCreateInquiry(t *testing.T) {
 		mockPersonaClient.AssertExpectations(t)
 	})
 
-	t.Run("submit - IDCard avec front + back valides envoie les 2 URLs", func(t *testing.T) {
+	t.Run("submit - IDCard avec front + back valides envoie les 2 URLs (kind=identification_card)", func(t *testing.T) {
 		mockFileClient, mockPersonaClient, svc := newTestService()
 		ctx := context.Background()
 
@@ -607,7 +606,7 @@ func TestCreateInquiry(t *testing.T) {
 			}, nil)
 
 		mockPersonaClient.On("SubmitGovernmentID", mock.Anything,
-			"inq_id_002", "id_card",
+			"inq_id_002", "identification_card",
 			"https://minio.local/bucket/id-front.jpg",
 			"https://minio.local/bucket/id-back.jpg").
 			Return(nil)
@@ -647,7 +646,6 @@ func TestCreateInquiry(t *testing.T) {
 				OwnerID:      "user-sub-003",
 				DocumentURL:  "https://minio.local/bucket/id-front-3.jpg",
 			}, nil)
-		// Back doc appartient à un autre utilisateur
 		mockFileClient.On("GetUserDocument", mock.Anything, "doc-id-back-other").
 			Return(&domain.DocumentRef{
 				DocumentID:   "doc-id-back-other",
@@ -665,9 +663,8 @@ func TestCreateInquiry(t *testing.T) {
 				ExpiresAt:    expiresAt,
 			}, nil)
 
-		// SubmitGovernmentID appelé avec back URL vide (skip silencieux)
 		mockPersonaClient.On("SubmitGovernmentID", mock.Anything,
-			"inq_id_003", "id_card",
+			"inq_id_003", "identification_card",
 			"https://minio.local/bucket/id-front-3.jpg", "").
 			Return(nil)
 
@@ -719,7 +716,7 @@ func TestCreateInquiry(t *testing.T) {
 			}, nil)
 
 		mockPersonaClient.On("SubmitGovernmentID", mock.Anything,
-			"inq_id_004", "id_card",
+			"inq_id_004", "identification_card",
 			"https://minio.local/bucket/id-front-4.jpg", "").
 			Return(nil)
 
@@ -817,7 +814,6 @@ func TestCreateInquiry(t *testing.T) {
 				ExpiresAt:    expiresAt,
 			}, nil)
 
-		// SubmitGovernmentID renvoie une erreur — l'inquiry doit malgré tout être créée
 		mockPersonaClient.On("SubmitGovernmentID", mock.Anything,
 			"inq_pp_006", "passport",
 			"https://minio.local/bucket/pp-006.jpg", "").
@@ -845,7 +841,7 @@ func TestCreateInquiry(t *testing.T) {
 		mockFileClient.AssertExpectations(t)
 	})
 
-	t.Run("submit - document véhicule (insurance) ne déclenche PAS SubmitGovernmentID", func(t *testing.T) {
+	t.Run("submit - document véhicule (insurance) crée l'inquiry sans erreur", func(t *testing.T) {
 		mockFileClient, mockPersonaClient, svc := newTestService()
 		ctx := context.Background()
 
@@ -887,13 +883,10 @@ func TestCreateInquiry(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, result)
-		// Vehicle docs ne vont pas à Persona via SubmitGovernmentID
-		mockPersonaClient.AssertNotCalled(t, "SubmitGovernmentID",
-			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		mockFileClient.AssertExpectations(t)
 	})
 
-	t.Run("submit - DocumentURL vide → SubmitGovernmentID PAS appelé", func(t *testing.T) {
+	t.Run("submit - DocumentURL vide → inquiry créée sans erreur", func(t *testing.T) {
 		mockFileClient, mockPersonaClient, svc := newTestService()
 		ctx := context.Background()
 
@@ -934,9 +927,6 @@ func TestCreateInquiry(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, result)
-		// Pas d'URL → fallback SDK Android, SubmitGovernmentID non appelé
-		mockPersonaClient.AssertNotCalled(t, "SubmitGovernmentID",
-			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 }
 

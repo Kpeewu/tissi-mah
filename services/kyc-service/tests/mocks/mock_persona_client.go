@@ -31,3 +31,4 @@ func (m *MockPersonaClient) SubmitGovernmentID(ctx context.Context, inquiryID, k
 	args := m.Called(ctx, inquiryID, kind, frontURL, backURL)
 	return args.Error(0)
 }
+
