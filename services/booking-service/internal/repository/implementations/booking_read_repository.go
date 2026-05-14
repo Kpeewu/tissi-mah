@@ -427,3 +427,147 @@ func (r *bookingReadRepositoryImpl) GetActivePassengerIDsForTrip(ctx context.Con
 	}
 	return ids, nil
 }
+
+// rawDriverBookingsQuery est la requête partagée par GetDriverPendingBookings et GetDriverTripBookingsRaw.
+// Elle retourne les colonnes pour RawDriverBookingPreview avec LATERAL join sur les segments.
+const rawDriverBookingsBaseSelect = `
+	SELECT b.booking_id, b.booking_reference, b.trip_id, b.passenger_id, b.status::text,
+	       b.seats_booked, b.total_amount,
+	       COALESCE(s_pick.pickup_location_name, '') AS pickup_location_name,
+	       COALESCE(s_drop.dropoff_location_name, '') AS dropoff_location_name,
+	       COALESCE(s_pick.pickup_scheduled_at, b.created_at) AS departure_datetime,
+	       b.payment_method::text, b.passenger_message, b.extra_minutes_detour,
+	       b.created_at, b.payment_completed_at
+	FROM bookings b
+	LEFT JOIN LATERAL (
+		SELECT pickup_location_name, pickup_scheduled_at FROM bookings_segments
+		WHERE booking_id = b.booking_id ORDER BY created_at ASC LIMIT 1
+	) s_pick ON true
+	LEFT JOIN LATERAL (
+		SELECT dropoff_location_name FROM bookings_segments
+		WHERE booking_id = b.booking_id ORDER BY created_at DESC LIMIT 1
+	) s_drop ON true`
+
+// scanRawDriverBookingPreviews scanne les résultats en RawDriverBookingPreview.
+func (r *bookingReadRepositoryImpl) scanRawDriverBookingPreviews(rows pgx.Rows) ([]*domain.RawDriverBookingPreview, error) {
+	var results []*domain.RawDriverBookingPreview
+	for rows.Next() {
+		p := &domain.RawDriverBookingPreview{}
+		var statusStr string
+		if err := rows.Scan(
+			&p.BookingID, &p.BookingReference, &p.TripID, &p.PassengerID, &statusStr,
+			&p.SeatsBooked, &p.TotalAmount,
+			&p.PickupLocationName, &p.DropoffLocationName,
+			&p.DepartureDatetime,
+			&p.PaymentMethod, &p.PassengerMessage, &p.ExtraMinutesDetour,
+			&p.CreatedAt, &p.PaymentCompletedAt,
+		); err != nil {
+			r.logger.Error("scanRawDriverBookingPreviews scan failed", zap.Error(err))
+			return nil, bookingErrors.ErrorDataRetrievalFailed
+		}
+		p.Status = domain.BookingStatus(statusStr)
+		results = append(results, p)
+	}
+	return results, nil
+}
+
+// GetDriverPendingBookings retourne la liste paginée des réservations en attente d'un conducteur tous trajets confondus.
+func (r *bookingReadRepositoryImpl) GetDriverPendingBookings(ctx context.Context, driverID string, pageIndex int) ([]*domain.RawDriverBookingPreview, error) {
+	offset := pageIndex * pageSize
+	query := rawDriverBookingsBaseSelect + `
+	WHERE b.driver_id = $1 AND b.status = 'pendingApproval' AND b.deleted_at IS NULL
+	ORDER BY b.created_at DESC
+	LIMIT $2 OFFSET $3`
+
+	rows, err := r.pool.Query(ctx, query, driverID, pageSize, offset)
+	if err != nil {
+		r.logger.Error("GetDriverPendingBookings failed", zap.Error(err), zap.String("driverID", driverID))
+		return nil, bookingErrors.ErrorDataRetrievalFailed
+	}
+	defer rows.Close()
+
+	return r.scanRawDriverBookingPreviews(rows)
+}
+
+// GetDriverTripBookingsRaw retourne les réservations enrichissables d'un trajet du conducteur.
+func (r *bookingReadRepositoryImpl) GetDriverTripBookingsRaw(ctx context.Context, driverID, tripID string, pageIndex int) ([]*domain.RawDriverBookingPreview, error) {
+	offset := pageIndex * pageSize
+	query := rawDriverBookingsBaseSelect + `
+	WHERE b.driver_id = $1 AND b.trip_id = $2 AND b.deleted_at IS NULL
+	ORDER BY b.created_at DESC
+	LIMIT $3 OFFSET $4`
+
+	rows, err := r.pool.Query(ctx, query, driverID, tripID, pageSize, offset)
+	if err != nil {
+		r.logger.Error("GetDriverTripBookingsRaw failed", zap.Error(err), zap.String("driverID", driverID), zap.String("tripID", tripID))
+		return nil, bookingErrors.ErrorDataRetrievalFailed
+	}
+	defer rows.Close()
+
+	return r.scanRawDriverBookingPreviews(rows)
+}
+
+// GetDriverTripBookingCounts retourne les compteurs de réservations par statut pour un trajet.
+func (r *bookingReadRepositoryImpl) GetDriverTripBookingCounts(ctx context.Context, driverID, tripID string) (*domain.BookingCounts, error) {
+	query := `
+		SELECT
+			COUNT(*) FILTER (WHERE status = 'pendingApproval') AS pending,
+			COUNT(*) FILTER (WHERE status = 'approved')        AS approved,
+			COUNT(*) FILTER (WHERE status = 'rejected')        AS rejected,
+			COUNT(*) FILTER (WHERE status = 'cancelled')       AS cancelled
+		FROM bookings
+		WHERE driver_id = $1 AND trip_id = $2 AND deleted_at IS NULL`
+
+	counts := &domain.BookingCounts{}
+	if err := r.pool.QueryRow(ctx, query, driverID, tripID).Scan(
+		&counts.Pending, &counts.Approved, &counts.Rejected, &counts.Cancelled,
+	); err != nil {
+		r.logger.Error("GetDriverTripBookingCounts failed", zap.Error(err), zap.String("tripID", tripID))
+		return nil, bookingErrors.ErrorDataRetrievalFailed
+	}
+
+	return counts, nil
+}
+
+// GetActivePassengerSummariesForTrip retourne les données brutes des passagers actifs d'un trajet.
+func (r *bookingReadRepositoryImpl) GetActivePassengerSummariesForTrip(ctx context.Context, tripID string) ([]*domain.RawPassengerSummary, error) {
+	query := `
+		SELECT passenger_id, booking_id, seats_booked, payment_method::text, payment_completed_at
+		FROM bookings
+		WHERE trip_id = $1
+		  AND status IN ('pendingApproval', 'approved', 'inProgress')
+		  AND deleted_at IS NULL`
+
+	rows, err := r.pool.Query(ctx, query, tripID)
+	if err != nil {
+		r.logger.Error("GetActivePassengerSummariesForTrip failed", zap.Error(err), zap.String("tripID", tripID))
+		return nil, bookingErrors.ErrorDataRetrievalFailed
+	}
+	defer rows.Close()
+
+	var results []*domain.RawPassengerSummary
+	for rows.Next() {
+		s := &domain.RawPassengerSummary{}
+		if err := rows.Scan(&s.PassengerID, &s.BookingID, &s.SeatsBooked, &s.PaymentMethod, &s.PaymentCompletedAt); err != nil {
+			r.logger.Error("GetActivePassengerSummariesForTrip scan failed", zap.Error(err))
+			return nil, bookingErrors.ErrorDataRetrievalFailed
+		}
+		results = append(results, s)
+	}
+	return results, nil
+}
+
+// GetPassengerCompletedBookingsCount retourne le nombre de réservations complétées d'un passager.
+func (r *bookingReadRepositoryImpl) GetPassengerCompletedBookingsCount(ctx context.Context, passengerID string) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM bookings
+		WHERE passenger_id = $1 AND status = 'completed' AND deleted_at IS NULL`
+
+	var count int
+	if err := r.pool.QueryRow(ctx, query, passengerID).Scan(&count); err != nil {
+		r.logger.Error("GetPassengerCompletedBookingsCount failed", zap.Error(err), zap.String("passengerID", passengerID))
+		return 0, bookingErrors.ErrorDataRetrievalFailed
+	}
+	return count, nil
+}

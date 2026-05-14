@@ -50,6 +50,16 @@ type UserClient interface {
 	UserExists(ctx context.Context, userID string) (bool, error)
 	// IsPassengerVerified vérifie qu'un utilisateur existe et que son profil passager est vérifié.
 	IsPassengerVerified(ctx context.Context, userID string) (bool, error)
+	// GetPassengerInfo retourne le nom complet et le statut de vérification d'un passager en un seul appel.
+	GetPassengerInfo(ctx context.Context, userID string) (fullName string, isVerified bool, err error)
+	Close() error
+}
+
+// RatingClient définit le contrat pour appeler rating-service depuis booking-service.
+type RatingClient interface {
+	// GetUserRatingsAverage retourne la moyenne et le nombre total de notes d'un utilisateur.
+	// Retourne (0, 0, nil) si l'utilisateur n'a pas encore de notes.
+	GetUserRatingsAverage(ctx context.Context, userID string) (average float64, totalRatings int32, err error)
 	Close() error
 }
 

@@ -42,4 +42,22 @@ type BookingRepositoryRead interface {
 	// GetActivePassengerIDsForTrip retourne les IDs distincts des passagers avec une réservation active sur un trajet.
 	// Statuts considérés comme actifs : pendingApproval, approved, inProgress.
 	GetActivePassengerIDsForTrip(ctx context.Context, tripID string) ([]string, error)
+
+	// GetDriverPendingBookings retourne la liste paginée (10/page) des réservations en attente
+	// d'un conducteur, tous trajets confondus, triée par created_at DESC.
+	GetDriverPendingBookings(ctx context.Context, driverID string, pageIndex int) ([]*domain.RawDriverBookingPreview, error)
+
+	// GetDriverTripBookingsRaw retourne les réservations d'un trajet du conducteur avec les champs
+	// nécessaires à l'enrichissement (passengerID, paymentMethod, message, détour, created_at).
+	GetDriverTripBookingsRaw(ctx context.Context, driverID, tripID string, pageIndex int) ([]*domain.RawDriverBookingPreview, error)
+
+	// GetDriverTripBookingCounts retourne les compteurs de réservations par statut pour un trajet.
+	GetDriverTripBookingCounts(ctx context.Context, driverID, tripID string) (*domain.BookingCounts, error)
+
+	// GetActivePassengerSummariesForTrip retourne les données brutes des passagers actifs d'un trajet
+	// (statuts : pendingApproval, approved, inProgress).
+	GetActivePassengerSummariesForTrip(ctx context.Context, tripID string) ([]*domain.RawPassengerSummary, error)
+
+	// GetPassengerCompletedBookingsCount retourne le nombre de réservations complétées d'un passager.
+	GetPassengerCompletedBookingsCount(ctx context.Context, passengerID string) (int, error)
 }

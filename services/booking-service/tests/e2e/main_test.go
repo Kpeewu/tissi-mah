@@ -77,9 +77,11 @@ func TestMain(m *testing.M) {
 	readRepo := implementations.NewBookingReadRepository(testPool, logger)
 	writeRepo := implementations.NewBookingWriteRepository(testPool, logger)
 
+	mockRatingClient := new(mocks.MockRatingClient)
+
 	bookingService := service.NewBookingService(
 		readRepo, writeRepo,
-		mockTripClient, mockUserClient, mockPaymentClient,
+		mockTripClient, mockUserClient, mockPaymentClient, mockRatingClient,
 		nil, // cache
 		nil, // notifRedis
 		10,  // serviceFeePercent

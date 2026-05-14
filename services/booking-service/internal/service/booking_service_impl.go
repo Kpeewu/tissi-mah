@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Kpeewu/tissi-mah/pkg/notification"
@@ -27,6 +29,7 @@ type bookingServiceImpl struct {
 	tripClient    client.TripClient
 	userClient    client.UserClient
 	paymentClient client.PaymentClient
+	ratingClient  client.RatingClient
 	cache         *cache.BookingCache
 	notifRedis    *redis.Client
 	serviceFee    int // pourcentage
@@ -39,6 +42,7 @@ func NewBookingService(
 	tripClient client.TripClient,
 	userClient client.UserClient,
 	paymentClient client.PaymentClient,
+	ratingClient client.RatingClient,
 	bookingCache *cache.BookingCache,
 	notifRedis *redis.Client,
 	serviceFeePercent int,
@@ -50,6 +54,7 @@ func NewBookingService(
 		tripClient:    tripClient,
 		userClient:    userClient,
 		paymentClient: paymentClient,
+		ratingClient:  ratingClient,
 		cache:         bookingCache,
 		notifRedis:    notifRedis,
 		serviceFee:    serviceFeePercent,
@@ -166,24 +171,36 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 	}
 
 	// 10. Construire le domaine
+	var passengerMsg *string
+	if input.PassengerMessage != "" {
+		passengerMsg = &input.PassengerMessage
+	}
+	var detourMinutes *int16
+	if input.ExtraMinutesDetour != 0 {
+		v := int16(input.ExtraMinutesDetour)
+		detourMinutes = &v
+	}
+
 	booking := &domain.Booking{
-		BookingID:         bookingID,
-		BookingReference:  bookingRef,
-		TripID:            input.TripID,
-		PassengerID:       input.PassengerID,
-		DriverID:          tripDetails.DriverID,
+		BookingID:             bookingID,
+		BookingReference:      bookingRef,
+		TripID:                input.TripID,
+		PassengerID:           input.PassengerID,
+		DriverID:              tripDetails.DriverID,
 		PickupWaypointID:      input.PickupWaypointID,
 		DropoffWaypointID:     input.DropoffWaypointID,
 		PickupSequencerOrder:  int16(pickupOrder),
 		DropoffSequencerOrder: int16(dropoffOrder),
-		SeatsBooked:       int16(input.SeatsBooked),
-		PricePerSeat:      pricePerSeat,
-		Subtotal:          subtotal,
-		ServiceFee:        serviceFee,
-		TotalAmount:       totalAmount,
-		PaymentMethod:     paymentMethod,
-		Status:            initialStatus,
-		ApprovedAt:        approvedAt,
+		SeatsBooked:           int16(input.SeatsBooked),
+		PricePerSeat:          pricePerSeat,
+		Subtotal:              subtotal,
+		ServiceFee:            serviceFee,
+		TotalAmount:           totalAmount,
+		PaymentMethod:         paymentMethod,
+		Status:                initialStatus,
+		ApprovedAt:            approvedAt,
+		PassengerMessage:      passengerMsg,
+		ExtraMinutesDetour:    detourMinutes,
 	}
 
 	// Construire les segments avec prix calculé côté serveur
@@ -255,6 +272,7 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 	if s.cache != nil {
 		s.cache.InvalidatePassengerBookings(ctx, input.PassengerID)
 		s.cache.InvalidateDriverTripBookings(ctx, tripDetails.DriverID, input.TripID)
+		s.cache.InvalidateDriverPendingBookings(ctx, tripDetails.DriverID)
 	}
 
 	result := &serviceInterfaces.CreateBookingResult{
@@ -272,7 +290,9 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 			ReferenceID:   bookingID,
 			ReferenceType: notification.RefBooking,
 			Payload: map[string]string{
-				"seats": fmt.Sprintf("%d", input.SeatsBooked),
+				"seats":             fmt.Sprintf("%d", input.SeatsBooked),
+				"booking_id":        bookingID,
+				"notification_type": notification.NewBookingRequest,
 			},
 		}); err != nil {
 			s.logger.Error("failed to publish NEW_BOOKING_REQUEST notification", zap.Error(err))
@@ -339,17 +359,77 @@ func (s *bookingServiceImpl) GetPassengerBookings(ctx context.Context, input *se
 // GetDriverTripBookings
 // =============================================================================
 
-func (s *bookingServiceImpl) GetDriverTripBookings(ctx context.Context, input *serviceInterfaces.GetDriverTripBookingsInput) ([]*serviceInterfaces.BookingPreviewResult, error) {
+func (s *bookingServiceImpl) GetDriverTripBookings(ctx context.Context, input *serviceInterfaces.GetDriverTripBookingsInput) (*serviceInterfaces.GetDriverTripBookingsResult, error) {
 	if input.DriverID == "" || input.TripID == "" {
 		return nil, bookingErrors.ErrorInvalidInput
 	}
 
-	previews, err := s.readRepo.GetDriverTripBookings(ctx, input.DriverID, input.TripID, input.PageIndex)
-	if err != nil {
-		return nil, err
+	// Récupération legacy + enrichie + compteurs en parallèle
+	type previewsResult struct {
+		previews []*domain.BookingPreview
+		err      error
+	}
+	type rawResult struct {
+		raw []*domain.RawDriverBookingPreview
+		err error
+	}
+	type countsResult struct {
+		counts *domain.BookingCounts
+		err    error
 	}
 
-	return s.mapPreviewsToResults(previews), nil
+	previewsCh := make(chan previewsResult, 1)
+	rawCh := make(chan rawResult, 1)
+	countsCh := make(chan countsResult, 1)
+
+	go func() {
+		p, err := s.readRepo.GetDriverTripBookings(ctx, input.DriverID, input.TripID, input.PageIndex)
+		previewsCh <- previewsResult{p, err}
+	}()
+	go func() {
+		r, err := s.readRepo.GetDriverTripBookingsRaw(ctx, input.DriverID, input.TripID, input.PageIndex)
+		rawCh <- rawResult{r, err}
+	}()
+	go func() {
+		c, err := s.readRepo.GetDriverTripBookingCounts(ctx, input.DriverID, input.TripID)
+		countsCh <- countsResult{c, err}
+	}()
+
+	pr := <-previewsCh
+	if pr.err != nil {
+		return nil, pr.err
+	}
+
+	rr := <-rawCh
+	var driverBookings []*serviceInterfaces.DriverBookingPreviewResult
+	if rr.err == nil {
+		driverBookings, _ = s.enrichDriverBookings(ctx, rr.raw)
+	} else {
+		s.logger.Warn("GetDriverTripBookingsRaw failed", zap.Error(rr.err))
+		driverBookings = []*serviceInterfaces.DriverBookingPreviewResult{}
+	}
+
+	cr := <-countsCh
+	var counts *serviceInterfaces.BookingCountsResult
+	if cr.err == nil && cr.counts != nil {
+		counts = &serviceInterfaces.BookingCountsResult{
+			Pending:   cr.counts.Pending,
+			Approved:  cr.counts.Approved,
+			Rejected:  cr.counts.Rejected,
+			Cancelled: cr.counts.Cancelled,
+		}
+	} else {
+		if cr.err != nil {
+			s.logger.Warn("GetDriverTripBookingCounts failed", zap.Error(cr.err))
+		}
+		counts = &serviceInterfaces.BookingCountsResult{}
+	}
+
+	return &serviceInterfaces.GetDriverTripBookingsResult{
+		Bookings:       s.mapPreviewsToResults(pr.previews),
+		DriverBookings: driverBookings,
+		Counts:         counts,
+	}, nil
 }
 
 // =============================================================================
@@ -372,6 +452,9 @@ func (s *bookingServiceImpl) ApproveBooking(ctx context.Context, input *serviceI
 	}
 
 	s.invalidateBookingCaches(ctx, input.BookingID)
+	if s.cache != nil {
+		s.cache.InvalidateDriverPendingBookings(ctx, booking.DriverID)
+	}
 
 	// Notifier le passager (non bloquant)
 	if s.notifRedis != nil {
@@ -411,6 +494,7 @@ func (s *bookingServiceImpl) RejectBooking(ctx context.Context, input *serviceIn
 	// Restaurer les places Redis
 	if s.cache != nil {
 		_ = s.cache.RestoreSegmentSeats(ctx, booking.TripID, int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder), int(booking.SeatsBooked))
+		s.cache.InvalidateDriverPendingBookings(ctx, booking.DriverID)
 	}
 
 	// Sync DB trips : décrémenter booked_seats sur les legs
@@ -923,6 +1007,7 @@ func (s *bookingServiceImpl) mapBookingToDetailResult(booking *domain.Booking, s
 		NoShowDescription:  derefString(booking.NoShowDescription),
 		CreatedAt:          booking.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:          booking.UpdatedAt.Format(time.RFC3339),
+		PassengerMessage:   derefString(booking.PassengerMessage),
 	}
 
 	for _, seg := range segments {
@@ -983,6 +1068,221 @@ func (s *bookingServiceImpl) mapPreviewsToResults(previews []*domain.BookingPrev
 	return results
 }
 
+// =============================================================================
+// GetDriverPendingBookings
+// =============================================================================
+
+func (s *bookingServiceImpl) GetDriverPendingBookings(ctx context.Context, input *serviceInterfaces.GetDriverPendingBookingsInput) ([]*serviceInterfaces.DriverBookingPreviewResult, error) {
+	if input.DriverID == "" {
+		return nil, bookingErrors.ErrorInvalidInput
+	}
+
+	// Cache check
+	if s.cache != nil {
+		if cached, _ := s.cache.GetDriverPendingBookings(ctx, input.DriverID, input.PageIndex); cached != nil {
+			var results []*serviceInterfaces.DriverBookingPreviewResult
+			if err := json.Unmarshal(cached, &results); err == nil {
+				return results, nil
+			}
+		}
+	}
+
+	rawBookings, err := s.readRepo.GetDriverPendingBookings(ctx, input.DriverID, input.PageIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := s.enrichDriverBookings(ctx, rawBookings)
+	if err != nil {
+		return nil, err
+	}
+
+	// Cache set (non-bloquant)
+	if s.cache != nil {
+		if data, err := json.Marshal(results); err == nil {
+			go s.cache.SetDriverPendingBookings(context.Background(), input.DriverID, input.PageIndex, data) //nolint:errcheck
+		}
+	}
+
+	return results, nil
+}
+
+// =============================================================================
+// GetActivePassengerSummariesForTrip
+// =============================================================================
+
+func (s *bookingServiceImpl) GetActivePassengerSummariesForTrip(ctx context.Context, tripID string) ([]*serviceInterfaces.PassengerSummaryResult, error) {
+	if tripID == "" {
+		return nil, bookingErrors.ErrorInvalidInput
+	}
+
+	rawSummaries, err := s.readRepo.GetActivePassengerSummariesForTrip(ctx, tripID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(rawSummaries) == 0 {
+		return []*serviceInterfaces.PassengerSummaryResult{}, nil
+	}
+
+	// Collecter les passengerIDs uniques
+	passengerIDs := uniquePassengerIDs(rawSummaries)
+
+	userInfoMap, ratingMap := s.fetchPassengerEnrichmentMaps(ctx, passengerIDs)
+
+	results := make([]*serviceInterfaces.PassengerSummaryResult, 0, len(rawSummaries))
+	for _, raw := range rawSummaries {
+		paymentStatus := "pending"
+		if raw.PaymentCompletedAt != nil {
+			paymentStatus = "paid"
+		}
+		ui := userInfoMap[raw.PassengerID]
+		results = append(results, &serviceInterfaces.PassengerSummaryResult{
+			PassengerID:   raw.PassengerID,
+			PassengerName: ui.name,
+			SeatsBooked:   int(raw.SeatsBooked),
+			PaymentMethod: raw.PaymentMethod,
+			PaymentStatus: paymentStatus,
+			Rating:        ratingMap[raw.PassengerID],
+			IsVerified:    ui.isVerified,
+			BookingID:     raw.BookingID,
+		})
+	}
+	return results, nil
+}
+
+// =============================================================================
+// enrichDriverBookings — enrichissement batch (user, rating, trip count)
+// =============================================================================
+
+type passengerUserInfo struct {
+	name       string
+	isVerified bool
+}
+
+func (s *bookingServiceImpl) enrichDriverBookings(ctx context.Context, rawBookings []*domain.RawDriverBookingPreview) ([]*serviceInterfaces.DriverBookingPreviewResult, error) {
+	if len(rawBookings) == 0 {
+		return []*serviceInterfaces.DriverBookingPreviewResult{}, nil
+	}
+
+	passengerIDs := make([]string, 0)
+	seen := make(map[string]bool)
+	for _, b := range rawBookings {
+		if !seen[b.PassengerID] {
+			passengerIDs = append(passengerIDs, b.PassengerID)
+			seen[b.PassengerID] = true
+		}
+	}
+
+	userInfoMap, ratingMap := s.fetchPassengerEnrichmentMaps(ctx, passengerIDs)
+
+	// Trip count depuis la DB locale (goroutines par passager)
+	tripCountMap := make(map[string]int, len(passengerIDs))
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for _, pid := range passengerIDs {
+		wg.Add(1)
+		go func(id string) {
+			defer wg.Done()
+			count, err := s.readRepo.GetPassengerCompletedBookingsCount(ctx, id)
+			mu.Lock()
+			if err != nil {
+				s.logger.Warn("GetPassengerCompletedBookingsCount failed", zap.String("passengerID", id), zap.Error(err))
+				tripCountMap[id] = 0
+			} else {
+				tripCountMap[id] = count
+			}
+			mu.Unlock()
+		}(pid)
+	}
+	wg.Wait()
+
+	results := make([]*serviceInterfaces.DriverBookingPreviewResult, 0, len(rawBookings))
+	for _, b := range rawBookings {
+		ui := userInfoMap[b.PassengerID]
+		results = append(results, &serviceInterfaces.DriverBookingPreviewResult{
+			BookingID:           b.BookingID,
+			BookingReference:    b.BookingReference,
+			TripID:              b.TripID,
+			Status:              string(b.Status),
+			SeatsBooked:         int(b.SeatsBooked),
+			TotalAmount:         b.TotalAmount,
+			PickupLocationName:  b.PickupLocationName,
+			DropoffLocationName: b.DropoffLocationName,
+			DepartureDate:       b.DepartureDatetime.Format("2006-01-02"),
+			DepartureTime:       b.DepartureDatetime.Format("15:04"),
+			PassengerName:       ui.name,
+			PassengerRating:     ratingMap[b.PassengerID],
+			PassengerTripCount:  tripCountMap[b.PassengerID],
+			IsPassengerVerified: ui.isVerified,
+			PassengerMessage:    derefString(b.PassengerMessage),
+			PaymentMethod:       b.PaymentMethod,
+			CreatedAt:           b.CreatedAt.Format(time.RFC3339),
+			ExtraMinutesDetour:  derefInt16(b.ExtraMinutesDetour),
+		})
+	}
+	return results, nil
+}
+
+// fetchPassengerEnrichmentMaps récupère en parallèle les infos user et les notes.
+func (s *bookingServiceImpl) fetchPassengerEnrichmentMaps(ctx context.Context, passengerIDs []string) (map[string]passengerUserInfo, map[string]float64) {
+	userInfoMap := make(map[string]passengerUserInfo, len(passengerIDs))
+	ratingMap := make(map[string]float64, len(passengerIDs))
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for _, pid := range passengerIDs {
+			name, isVerified, err := s.userClient.GetPassengerInfo(ctx, pid)
+			mu.Lock()
+			if err != nil {
+				s.logger.Warn("GetPassengerInfo failed", zap.String("passengerID", pid), zap.Error(err))
+				userInfoMap[pid] = passengerUserInfo{}
+			} else {
+				userInfoMap[pid] = passengerUserInfo{name: name, isVerified: isVerified}
+			}
+			mu.Unlock()
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if s.ratingClient == nil {
+			return
+		}
+		for _, pid := range passengerIDs {
+			avg, _, err := s.ratingClient.GetUserRatingsAverage(ctx, pid)
+			mu.Lock()
+			if err != nil {
+				s.logger.Warn("GetUserRatingsAverage failed", zap.String("passengerID", pid), zap.Error(err))
+				ratingMap[pid] = 0
+			} else {
+				ratingMap[pid] = avg
+			}
+			mu.Unlock()
+		}
+	}()
+
+	wg.Wait()
+	return userInfoMap, ratingMap
+}
+
+// uniquePassengerIDs extrait les IDs passager uniques depuis les RawPassengerSummary.
+func uniquePassengerIDs(summaries []*domain.RawPassengerSummary) []string {
+	seen := make(map[string]bool, len(summaries))
+	ids := make([]string, 0, len(summaries))
+	for _, s := range summaries {
+		if !seen[s.PassengerID] {
+			seen[s.PassengerID] = true
+			ids = append(ids, s.PassengerID)
+		}
+	}
+	return ids
+}
+
 // generateBookingReference génère une référence unique RES-YYYYMMDD-XXXXXX.
 func generateBookingReference() string {
 	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -1027,6 +1327,13 @@ func derefInt(i *int) int {
 		return 0
 	}
 	return *i
+}
+
+func derefInt16(i *int16) int {
+	if i == nil {
+		return 0
+	}
+	return int(*i)
 }
 
 // =============================================================================

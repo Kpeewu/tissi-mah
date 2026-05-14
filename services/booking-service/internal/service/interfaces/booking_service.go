@@ -13,8 +13,14 @@ type BookingService interface {
 	// GetPassengerBookings retourne la liste paginée des réservations d'un passager.
 	GetPassengerBookings(ctx context.Context, input *GetPassengerBookingsInput) ([]*BookingPreviewResult, error)
 
-	// GetDriverTripBookings retourne la liste paginée des réservations d'un trajet du conducteur.
-	GetDriverTripBookings(ctx context.Context, input *GetDriverTripBookingsInput) ([]*BookingPreviewResult, error)
+	// GetDriverTripBookings retourne les réservations d'un trajet du conducteur (enrichies + compteurs).
+	GetDriverTripBookings(ctx context.Context, input *GetDriverTripBookingsInput) (*GetDriverTripBookingsResult, error)
+
+	// GetDriverPendingBookings retourne la liste agrégée paginée des demandes en attente du conducteur tous trajets confondus.
+	GetDriverPendingBookings(ctx context.Context, input *GetDriverPendingBookingsInput) ([]*DriverBookingPreviewResult, error)
+
+	// GetActivePassengerSummariesForTrip retourne les passagers actifs d'un trajet enrichis de leurs informations.
+	GetActivePassengerSummariesForTrip(ctx context.Context, tripID string) ([]*PassengerSummaryResult, error)
 
 	// ApproveBooking approuve une réservation.
 	ApproveBooking(ctx context.Context, input *ApproveBookingInput) error
@@ -73,13 +79,15 @@ type SegmentInput struct {
 }
 
 type CreateBookingInput struct {
-	PassengerID       string
-	TripID            string
-	PickupWaypointID  string
-	DropoffWaypointID string
-	SeatsBooked       int
-	PaymentMethod     string
-	Segments          []SegmentInput
+	PassengerID        string
+	TripID             string
+	PickupWaypointID   string
+	DropoffWaypointID  string
+	SeatsBooked        int
+	PaymentMethod      string
+	Segments           []SegmentInput
+	PassengerMessage   string
+	ExtraMinutesDetour int
 }
 
 type GetBookingDetailsInput struct {
@@ -96,6 +104,11 @@ type GetPassengerBookingsInput struct {
 type GetDriverTripBookingsInput struct {
 	DriverID  string
 	TripID    string
+	PageIndex int
+}
+
+type GetDriverPendingBookingsInput struct {
+	DriverID  string
 	PageIndex int
 }
 
@@ -225,6 +238,7 @@ type BookingDetailResult struct {
 	UpdatedAt          string
 	Segments           []SegmentDetailResult
 	History            []StatusHistoryResult
+	PassengerMessage   string
 }
 
 type BookingPreviewResult struct {
@@ -238,4 +252,53 @@ type BookingPreviewResult struct {
 	DropoffLocationName string
 	DepartureDate       string
 	DepartureTime       string
+}
+
+// DriverBookingPreviewResult est la vue enrichie d'une réservation pour le conducteur.
+type DriverBookingPreviewResult struct {
+	BookingID           string
+	BookingReference    string
+	TripID              string
+	Status              string
+	SeatsBooked         int
+	TotalAmount         int
+	PickupLocationName  string
+	DropoffLocationName string
+	DepartureDate       string
+	DepartureTime       string
+	PassengerName       string
+	PassengerRating     float64
+	PassengerTripCount  int
+	IsPassengerVerified bool
+	PassengerMessage    string
+	PaymentMethod       string
+	CreatedAt           string
+	ExtraMinutesDetour  int
+}
+
+// BookingCountsResult regroupe les compteurs de réservations par statut.
+type BookingCountsResult struct {
+	Pending   int32
+	Approved  int32
+	Rejected  int32
+	Cancelled int32
+}
+
+// GetDriverTripBookingsResult contient la réponse enrichie de GetDriverTripBookings.
+type GetDriverTripBookingsResult struct {
+	Bookings       []*BookingPreviewResult
+	DriverBookings []*DriverBookingPreviewResult
+	Counts         *BookingCountsResult
+}
+
+// PassengerSummaryResult est la vue enrichie d'un passager actif pour le conducteur.
+type PassengerSummaryResult struct {
+	PassengerID   string
+	PassengerName string
+	SeatsBooked   int
+	PaymentMethod string
+	PaymentStatus string
+	Rating        float64
+	IsVerified    bool
+	BookingID     string
 }

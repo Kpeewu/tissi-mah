@@ -23,6 +23,9 @@ const (
 	// TTL du cache pour la liste paginée des réservations d'un trajet (conducteur)
 	driverTripBookingsTTL = 2 * time.Minute
 
+	// TTL du cache pour la liste agrégée des demandes en attente du conducteur
+	driverPendingBookingsTTL = 60 * time.Second
+
 	// TTL du compteur atomique de places disponibles
 	seatCounterTTL = 24 * time.Hour
 
@@ -166,6 +169,56 @@ func (c *BookingCache) InvalidatePassengerBookings(ctx context.Context, passenge
 
 	if err := c.client.Del(ctx, keys...).Err(); err != nil {
 		c.logger.Warn("cache invalidation failed", zap.Error(err), zap.String("passengerID", passengerID), zap.Int("keys", len(keys)))
+	}
+}
+
+// =============================================================================
+// Driver Pending Bookings cache (liste agrégée toutes trajets)
+// =============================================================================
+
+// GetDriverPendingBookings récupère le JSON sérialisé de la liste depuis le cache.
+// Retourne nil, nil si cache miss.
+func (c *BookingCache) GetDriverPendingBookings(ctx context.Context, driverID string, pageIndex int) ([]byte, error) {
+	key := c.driverPendingBookingsKey(driverID, pageIndex)
+	data, err := c.client.Get(ctx, key).Bytes()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return nil, nil
+		}
+		c.logger.Error("cache get driver pending failed", zap.Error(err), zap.String("key", key))
+		return nil, fmt.Errorf("cache get: %w", err)
+	}
+	return data, nil
+}
+
+// SetDriverPendingBookings stocke le JSON sérialisé de la liste dans le cache.
+func (c *BookingCache) SetDriverPendingBookings(ctx context.Context, driverID string, pageIndex int, data []byte) error {
+	key := c.driverPendingBookingsKey(driverID, pageIndex)
+	if err := c.client.Set(ctx, key, data, driverPendingBookingsTTL).Err(); err != nil {
+		c.logger.Error("cache set driver pending failed", zap.Error(err), zap.String("key", key))
+		return fmt.Errorf("cache set: %w", err)
+	}
+	return nil
+}
+
+// InvalidateDriverPendingBookings supprime toutes les pages de demandes en attente d'un conducteur.
+func (c *BookingCache) InvalidateDriverPendingBookings(ctx context.Context, driverID string) {
+	pattern := keyPrefix + "driver-pending:" + driverID + ":*"
+	var keys []string
+
+	iter := c.client.Scan(ctx, 0, pattern, 100).Iterator()
+	for iter.Next(ctx) {
+		keys = append(keys, iter.Val())
+	}
+	if err := iter.Err(); err != nil {
+		c.logger.Warn("cache scan failed during driver pending invalidation", zap.Error(err), zap.String("driverID", driverID))
+		return
+	}
+	if len(keys) == 0 {
+		return
+	}
+	if err := c.client.Del(ctx, keys...).Err(); err != nil {
+		c.logger.Warn("cache driver pending invalidation failed", zap.Error(err), zap.String("driverID", driverID), zap.Int("keys", len(keys)))
 	}
 }
 
@@ -426,6 +479,10 @@ func (c *BookingCache) passengerBookingsKey(passengerID string, pageIndex int, s
 
 func (c *BookingCache) driverTripBookingsKey(driverID, tripID string, pageIndex int) string {
 	return keyPrefix + "driver-trip:" + driverID + ":" + tripID + ":page:" + strconv.Itoa(pageIndex)
+}
+
+func (c *BookingCache) driverPendingBookingsKey(driverID string, pageIndex int) string {
+	return keyPrefix + "driver-pending:" + driverID + ":page:" + strconv.Itoa(pageIndex)
 }
 
 func (c *BookingCache) seatCounterKey(tripID string) string {

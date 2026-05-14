@@ -91,3 +91,40 @@ func (m *MockBookingRepositoryRead) GetActivePassengerIDsForTrip(ctx context.Con
 	}
 	return args.Get(0).([]string), args.Error(1)
 }
+
+func (m *MockBookingRepositoryRead) GetDriverPendingBookings(ctx context.Context, driverID string, pageIndex int) ([]*domain.RawDriverBookingPreview, error) {
+	args := m.Called(ctx, driverID, pageIndex)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.RawDriverBookingPreview), args.Error(1)
+}
+
+func (m *MockBookingRepositoryRead) GetDriverTripBookingsRaw(ctx context.Context, driverID, tripID string, pageIndex int) ([]*domain.RawDriverBookingPreview, error) {
+	args := m.Called(ctx, driverID, tripID, pageIndex)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.RawDriverBookingPreview), args.Error(1)
+}
+
+func (m *MockBookingRepositoryRead) GetDriverTripBookingCounts(ctx context.Context, driverID, tripID string) (*domain.BookingCounts, error) {
+	args := m.Called(ctx, driverID, tripID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.BookingCounts), args.Error(1)
+}
+
+func (m *MockBookingRepositoryRead) GetActivePassengerSummariesForTrip(ctx context.Context, tripID string) ([]*domain.RawPassengerSummary, error) {
+	args := m.Called(ctx, tripID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.RawPassengerSummary), args.Error(1)
+}
+
+func (m *MockBookingRepositoryRead) GetPassengerCompletedBookingsCount(ctx context.Context, passengerID string) (int, error) {
+	args := m.Called(ctx, passengerID)
+	return args.Int(0), args.Error(1)
+}

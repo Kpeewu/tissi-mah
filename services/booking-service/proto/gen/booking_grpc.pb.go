@@ -19,22 +19,24 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	BookingService_CreateBooking_FullMethodName                = "/booking.BookingService/CreateBooking"
-	BookingService_GetBookingDetails_FullMethodName            = "/booking.BookingService/GetBookingDetails"
-	BookingService_GetPassengerBookings_FullMethodName         = "/booking.BookingService/GetPassengerBookings"
-	BookingService_GetDriverTripBookings_FullMethodName        = "/booking.BookingService/GetDriverTripBookings"
-	BookingService_ApproveBooking_FullMethodName               = "/booking.BookingService/ApproveBooking"
-	BookingService_RejectBooking_FullMethodName                = "/booking.BookingService/RejectBooking"
-	BookingService_CancelBooking_FullMethodName                = "/booking.BookingService/CancelBooking"
-	BookingService_StartBookingsForWaypoint_FullMethodName     = "/booking.BookingService/StartBookingsForWaypoint"
-	BookingService_CompleteBookingsForWaypoint_FullMethodName  = "/booking.BookingService/CompleteBookingsForWaypoint"
-	BookingService_CancelBookingsForWaypoint_FullMethodName    = "/booking.BookingService/CancelBookingsForWaypoint"
-	BookingService_CancelBookingsForTrip_FullMethodName        = "/booking.BookingService/CancelBookingsForTrip"
-	BookingService_ReportNoShow_FullMethodName                 = "/booking.BookingService/ReportNoShow"
-	BookingService_ConfirmPayment_FullMethodName               = "/booking.BookingService/ConfirmPayment"
-	BookingService_FailPayment_FullMethodName                  = "/booking.BookingService/FailPayment"
-	BookingService_GetActivePassengerIDsForTrip_FullMethodName = "/booking.BookingService/GetActivePassengerIDsForTrip"
-	BookingService_Health_FullMethodName                       = "/booking.BookingService/Health"
+	BookingService_CreateBooking_FullMethodName                      = "/booking.BookingService/CreateBooking"
+	BookingService_GetBookingDetails_FullMethodName                  = "/booking.BookingService/GetBookingDetails"
+	BookingService_GetPassengerBookings_FullMethodName               = "/booking.BookingService/GetPassengerBookings"
+	BookingService_GetDriverTripBookings_FullMethodName              = "/booking.BookingService/GetDriverTripBookings"
+	BookingService_ApproveBooking_FullMethodName                     = "/booking.BookingService/ApproveBooking"
+	BookingService_RejectBooking_FullMethodName                      = "/booking.BookingService/RejectBooking"
+	BookingService_CancelBooking_FullMethodName                      = "/booking.BookingService/CancelBooking"
+	BookingService_StartBookingsForWaypoint_FullMethodName           = "/booking.BookingService/StartBookingsForWaypoint"
+	BookingService_CompleteBookingsForWaypoint_FullMethodName        = "/booking.BookingService/CompleteBookingsForWaypoint"
+	BookingService_CancelBookingsForWaypoint_FullMethodName          = "/booking.BookingService/CancelBookingsForWaypoint"
+	BookingService_CancelBookingsForTrip_FullMethodName              = "/booking.BookingService/CancelBookingsForTrip"
+	BookingService_ReportNoShow_FullMethodName                       = "/booking.BookingService/ReportNoShow"
+	BookingService_ConfirmPayment_FullMethodName                     = "/booking.BookingService/ConfirmPayment"
+	BookingService_FailPayment_FullMethodName                        = "/booking.BookingService/FailPayment"
+	BookingService_GetActivePassengerIDsForTrip_FullMethodName       = "/booking.BookingService/GetActivePassengerIDsForTrip"
+	BookingService_GetDriverPendingBookings_FullMethodName           = "/booking.BookingService/GetDriverPendingBookings"
+	BookingService_GetActivePassengerSummariesForTrip_FullMethodName = "/booking.BookingService/GetActivePassengerSummariesForTrip"
+	BookingService_Health_FullMethodName                             = "/booking.BookingService/Health"
 )
 
 // BookingServiceClient is the client API for BookingService service.
@@ -79,6 +81,12 @@ type BookingServiceClient interface {
 	// GetActivePassengerIDsForTrip retourne les IDs des passagers ayant une réservation active sur un trajet.
 	// Route interne appelée par trips-service lors d'une modification de trajet (TRIP_MODIFIED).
 	GetActivePassengerIDsForTrip(ctx context.Context, in *GetActivePassengerIDsForTripRequest, opts ...grpc.CallOption) (*GetActivePassengerIDsForTripResponse, error)
+	// GetDriverPendingBookings retourne la liste agrégée paginée des demandes en attente du conducteur
+	// tous trajets confondus, enrichie avec les informations passager (nom, note, KYC, message, détour).
+	GetDriverPendingBookings(ctx context.Context, in *GetDriverPendingBookingsRequest, opts ...grpc.CallOption) (*GetDriverPendingBookingsResponse, error)
+	// GetActivePassengerSummariesForTrip retourne les passagers actifs d'un trajet
+	// enrichis avec nom, note, statut paiement — pour l'écran de suivi chauffeur.
+	GetActivePassengerSummariesForTrip(ctx context.Context, in *GetActivePassengerSummariesForTripRequest, opts ...grpc.CallOption) (*GetActivePassengerSummariesForTripResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -241,6 +249,26 @@ func (c *bookingServiceClient) GetActivePassengerIDsForTrip(ctx context.Context,
 	return out, nil
 }
 
+func (c *bookingServiceClient) GetDriverPendingBookings(ctx context.Context, in *GetDriverPendingBookingsRequest, opts ...grpc.CallOption) (*GetDriverPendingBookingsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDriverPendingBookingsResponse)
+	err := c.cc.Invoke(ctx, BookingService_GetDriverPendingBookings_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bookingServiceClient) GetActivePassengerSummariesForTrip(ctx context.Context, in *GetActivePassengerSummariesForTripRequest, opts ...grpc.CallOption) (*GetActivePassengerSummariesForTripResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetActivePassengerSummariesForTripResponse)
+	err := c.cc.Invoke(ctx, BookingService_GetActivePassengerSummariesForTrip_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *bookingServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -293,6 +321,12 @@ type BookingServiceServer interface {
 	// GetActivePassengerIDsForTrip retourne les IDs des passagers ayant une réservation active sur un trajet.
 	// Route interne appelée par trips-service lors d'une modification de trajet (TRIP_MODIFIED).
 	GetActivePassengerIDsForTrip(context.Context, *GetActivePassengerIDsForTripRequest) (*GetActivePassengerIDsForTripResponse, error)
+	// GetDriverPendingBookings retourne la liste agrégée paginée des demandes en attente du conducteur
+	// tous trajets confondus, enrichie avec les informations passager (nom, note, KYC, message, détour).
+	GetDriverPendingBookings(context.Context, *GetDriverPendingBookingsRequest) (*GetDriverPendingBookingsResponse, error)
+	// GetActivePassengerSummariesForTrip retourne les passagers actifs d'un trajet
+	// enrichis avec nom, note, statut paiement — pour l'écran de suivi chauffeur.
+	GetActivePassengerSummariesForTrip(context.Context, *GetActivePassengerSummariesForTripRequest) (*GetActivePassengerSummariesForTripResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedBookingServiceServer()
@@ -349,6 +383,12 @@ func (UnimplementedBookingServiceServer) FailPayment(context.Context, *FailPayme
 }
 func (UnimplementedBookingServiceServer) GetActivePassengerIDsForTrip(context.Context, *GetActivePassengerIDsForTripRequest) (*GetActivePassengerIDsForTripResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetActivePassengerIDsForTrip not implemented")
+}
+func (UnimplementedBookingServiceServer) GetDriverPendingBookings(context.Context, *GetDriverPendingBookingsRequest) (*GetDriverPendingBookingsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDriverPendingBookings not implemented")
+}
+func (UnimplementedBookingServiceServer) GetActivePassengerSummariesForTrip(context.Context, *GetActivePassengerSummariesForTripRequest) (*GetActivePassengerSummariesForTripResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetActivePassengerSummariesForTrip not implemented")
 }
 func (UnimplementedBookingServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -644,6 +684,42 @@ func _BookingService_GetActivePassengerIDsForTrip_Handler(srv interface{}, ctx c
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BookingService_GetDriverPendingBookings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDriverPendingBookingsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).GetDriverPendingBookings(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_GetDriverPendingBookings_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).GetDriverPendingBookings(ctx, req.(*GetDriverPendingBookingsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BookingService_GetActivePassengerSummariesForTrip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetActivePassengerSummariesForTripRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).GetActivePassengerSummariesForTrip(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_GetActivePassengerSummariesForTrip_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).GetActivePassengerSummariesForTrip(ctx, req.(*GetActivePassengerSummariesForTripRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BookingService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -728,6 +804,14 @@ var BookingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetActivePassengerIDsForTrip",
 			Handler:    _BookingService_GetActivePassengerIDsForTrip_Handler,
+		},
+		{
+			MethodName: "GetDriverPendingBookings",
+			Handler:    _BookingService_GetDriverPendingBookings_Handler,
+		},
+		{
+			MethodName: "GetActivePassengerSummariesForTrip",
+			Handler:    _BookingService_GetActivePassengerSummariesForTrip_Handler,
 		},
 		{
 			MethodName: "Health",

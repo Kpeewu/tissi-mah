@@ -25,6 +25,7 @@ type testDeps struct {
 	tripClient    *mocks.MockTripClient
 	userClient    *mocks.MockUserClient
 	paymentClient *mocks.MockPaymentClient
+	ratingClient  *mocks.MockRatingClient
 	svc           serviceInterfaces.BookingService
 }
 
@@ -35,6 +36,7 @@ func newTestService() *testDeps {
 		tripClient:    new(mocks.MockTripClient),
 		userClient:    new(mocks.MockUserClient),
 		paymentClient: new(mocks.MockPaymentClient),
+		ratingClient:  new(mocks.MockRatingClient),
 	}
 	logger := zap.NewNop()
 	d.svc = service.NewBookingService(
@@ -43,6 +45,7 @@ func newTestService() *testDeps {
 		d.tripClient,
 		d.userClient,
 		d.paymentClient,
+		d.ratingClient,
 		nil, // cache
 		nil, // notifRedis
 		10,  // serviceFeePercent
@@ -57,6 +60,7 @@ func (d *testDeps) assertExpectations(t *testing.T) {
 	d.tripClient.AssertExpectations(t)
 	d.userClient.AssertExpectations(t)
 	d.paymentClient.AssertExpectations(t)
+	d.ratingClient.AssertExpectations(t)
 }
 
 // =============================================================================

@@ -17,6 +17,7 @@ type Config struct {
 	TripService       ServiceEndpoint
 	UserService       ServiceEndpoint
 	PaymentService    ServiceEndpoint
+	RatingService     ServiceEndpoint
 	ServiceFee        ServiceFeeConfig
 	Reconciliation     ReconciliationConfig
 	Payment            PaymentConfig
@@ -103,6 +104,10 @@ func Load() (*Config, error) {
 		UserService: ServiceEndpoint{
 			Host: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_HOST", "0.0.0.0"),
 			Port: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_PORT", "50052"),
+		},
+		RatingService: ServiceEndpoint{
+			Host: sharedconfig.GetStringOrDefault(values, "RATING_SERVICE_HOST", "0.0.0.0"),
+			Port: sharedconfig.GetStringOrDefault(values, "RATING_SERVICE_PORT", "50054"),
 		},
 		ServiceFee: ServiceFeeConfig{
 			Percent: getIntOrDefault(values, "SERVICE_FEE_PERCENT", 10),
