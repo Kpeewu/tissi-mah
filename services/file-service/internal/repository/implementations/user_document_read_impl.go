@@ -26,7 +26,7 @@ func (r *userDocumentReadImpl) GetByID(ctx context.Context, documentID string) (
 	r.logger.Debug("récupération du document utilisateur par ID", zap.String("documentID", documentID))
 
 	query := `SELECT document_id, user_id, document_name, document_type,
-	                 document_url, file_size_bytes, mime_type,
+	                 document_key, file_size_bytes, mime_type,
 	                 document_number, issued_at, expire_at, issuing_country,
 	                 status, is_current, replaced_by,
 	                 uploaded_at, updated_at
@@ -35,7 +35,7 @@ func (r *userDocumentReadImpl) GetByID(ctx context.Context, documentID string) (
 	doc := &domain.UserDocument{}
 	err := r.pool.QueryRow(ctx, query, documentID).Scan(
 		&doc.DocumentID, &doc.UserID, &doc.DocumentName, &doc.DocumentType,
-		&doc.DocumentURL, &doc.FileSizeBytes, &doc.MimeType,
+		&doc.DocumentKey, &doc.FileSizeBytes, &doc.MimeType,
 		&doc.DocumentNumber, &doc.IssuedAt, &doc.ExpireAt, &doc.IssuingCountry,
 		&doc.Status, &doc.IsCurrent, &doc.ReplacedBy,
 		&doc.UploadedAt, &doc.UpdatedAt,
@@ -55,7 +55,7 @@ func (r *userDocumentReadImpl) GetByUserID(ctx context.Context, userID string) (
 	r.logger.Debug("récupération des documents utilisateur par userID", zap.String("userID", userID))
 
 	query := `SELECT document_id, user_id, document_name, document_type,
-	                 document_url, file_size_bytes, mime_type,
+	                 document_key, file_size_bytes, mime_type,
 	                 document_number, issued_at, expire_at, issuing_country,
 	                 status, is_current, replaced_by,
 	                 uploaded_at, updated_at
@@ -74,7 +74,7 @@ func (r *userDocumentReadImpl) GetByUserID(ctx context.Context, userID string) (
 		doc := &domain.UserDocument{}
 		err := rows.Scan(
 			&doc.DocumentID, &doc.UserID, &doc.DocumentName, &doc.DocumentType,
-			&doc.DocumentURL, &doc.FileSizeBytes, &doc.MimeType,
+			&doc.DocumentKey, &doc.FileSizeBytes, &doc.MimeType,
 			&doc.DocumentNumber, &doc.IssuedAt, &doc.ExpireAt, &doc.IssuingCountry,
 			&doc.Status, &doc.IsCurrent, &doc.ReplacedBy,
 			&doc.UploadedAt, &doc.UpdatedAt,
@@ -95,7 +95,7 @@ func (r *userDocumentReadImpl) GetCurrentByUserIDAndType(ctx context.Context, us
 	)
 
 	query := `SELECT document_id, user_id, document_name, document_type,
-	                 document_url, file_size_bytes, mime_type,
+	                 document_key, file_size_bytes, mime_type,
 	                 document_number, issued_at, expire_at, issuing_country,
 	                 status, is_current, replaced_by,
 	                 uploaded_at, updated_at
@@ -105,7 +105,7 @@ func (r *userDocumentReadImpl) GetCurrentByUserIDAndType(ctx context.Context, us
 	doc := &domain.UserDocument{}
 	err := r.pool.QueryRow(ctx, query, userID, documentType).Scan(
 		&doc.DocumentID, &doc.UserID, &doc.DocumentName, &doc.DocumentType,
-		&doc.DocumentURL, &doc.FileSizeBytes, &doc.MimeType,
+		&doc.DocumentKey, &doc.FileSizeBytes, &doc.MimeType,
 		&doc.DocumentNumber, &doc.IssuedAt, &doc.ExpireAt, &doc.IssuingCountry,
 		&doc.Status, &doc.IsCurrent, &doc.ReplacedBy,
 		&doc.UploadedAt, &doc.UpdatedAt,

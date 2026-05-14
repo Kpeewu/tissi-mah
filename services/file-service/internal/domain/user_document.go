@@ -17,7 +17,7 @@ type UserDocument struct {
 	UserID        string
 	DocumentName  string
 	DocumentType  string
-	DocumentURL   string
+	DocumentKey   string
 	FileSizeBytes int64
 	MimeType      string
 

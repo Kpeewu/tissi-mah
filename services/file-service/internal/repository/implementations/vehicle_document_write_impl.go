@@ -27,7 +27,7 @@ func (r *vehicleDocumentWriteImpl) Create(ctx context.Context, doc *domain.Vehic
 
 	query := `INSERT INTO vehicle_documents
 	          (document_id, user_id, vehicle_id, document_name, document_type,
-	           document_url, file_size_bytes, mime_type,
+	           document_key, file_size_bytes, mime_type,
 	           document_number, issued_at, expire_at, issuing_authority,
 	           status, is_current)
 	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
@@ -36,7 +36,7 @@ func (r *vehicleDocumentWriteImpl) Create(ctx context.Context, doc *domain.Vehic
 	var documentID string
 	err := r.pool.QueryRow(ctx, query,
 		doc.DocumentID, doc.UserID, doc.VehicleID, doc.DocumentName, doc.DocumentType,
-		doc.DocumentURL, doc.FileSizeBytes, doc.MimeType,
+		doc.DocumentKey, doc.FileSizeBytes, doc.MimeType,
 		doc.DocumentNumber, doc.IssuedAt, doc.ExpireAt, doc.IssuingAuthority,
 		doc.Status, doc.IsCurrent,
 	).Scan(&documentID)
@@ -58,23 +58,23 @@ func (r *vehicleDocumentWriteImpl) Update(ctx context.Context, doc *domain.Vehic
 	r.logger.Debug("mise à jour du document véhicule", zap.String("documentID", doc.DocumentID))
 
 	query := `UPDATE vehicle_documents SET
-	          document_name = $1, document_url = $2, file_size_bytes = $3, mime_type = $4,
+	          document_name = $1, document_key = $2, file_size_bytes = $3, mime_type = $4,
 	          document_number = $5, issued_at = $6, expire_at = $7, issuing_authority = $8,
 	          status = $9
 	          WHERE document_id = $10
 	          RETURNING document_id, user_id, vehicle_id, document_name, document_type,
-	                    document_url, file_size_bytes, mime_type,
+	                    document_key, file_size_bytes, mime_type,
 	                    document_number, issued_at, expire_at, issuing_authority,
 	                    status, is_current, replaced_by,
 	                    uploaded_at, updated_at`
 
 	err := r.pool.QueryRow(ctx, query,
-		doc.DocumentName, doc.DocumentURL, doc.FileSizeBytes, doc.MimeType,
+		doc.DocumentName, doc.DocumentKey, doc.FileSizeBytes, doc.MimeType,
 		doc.DocumentNumber, doc.IssuedAt, doc.ExpireAt, doc.IssuingAuthority,
 		doc.Status, doc.DocumentID,
 	).Scan(
 		&doc.DocumentID, &doc.UserID, &doc.VehicleID, &doc.DocumentName, &doc.DocumentType,
-		&doc.DocumentURL, &doc.FileSizeBytes, &doc.MimeType,
+		&doc.DocumentKey, &doc.FileSizeBytes, &doc.MimeType,
 		&doc.DocumentNumber, &doc.IssuedAt, &doc.ExpireAt, &doc.IssuingAuthority,
 		&doc.Status, &doc.IsCurrent, &doc.ReplacedBy,
 		&doc.UploadedAt, &doc.UpdatedAt,

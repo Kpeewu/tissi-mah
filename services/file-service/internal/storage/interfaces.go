@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"io"
+	"time"
 )
 
 // StorageClient définit l'interface pour les opérations de stockage de fichiers.
@@ -14,6 +15,7 @@ type StorageClient interface {
 	// Delete supprime un fichier du stockage
 	Delete(ctx context.Context, key string) error
 
-	// GenerateURL retourne l'URL publique d'un fichier
-	GenerateURL(key string) string
+	// GeneratePresignedURL génère une URL signée à durée de vie limitée pour accéder à un fichier privé.
+	// Compatible S3 (virtual-hosted style) et MinIO (path style).
+	GeneratePresignedURL(ctx context.Context, key string, ttl time.Duration) (string, error)
 }

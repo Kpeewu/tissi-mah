@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -16,10 +17,11 @@ import (
 )
 
 type s3Client struct {
-	client   *s3.Client
-	bucket   string
-	endpoint string
-	logger   *zap.Logger
+	client        *s3.Client
+	presignClient *s3.PresignClient
+	bucket        string
+	endpoint      string
+	logger        *zap.Logger
 }
 
 // NewS3Client crée un client S3 compatible MinIO/AWS.
@@ -52,10 +54,11 @@ func NewS3Client(ctx context.Context, cfg fileconfig.S3Config, logger *zap.Logge
 	client := s3.NewFromConfig(awsCfg, s3Opts...)
 
 	return &s3Client{
-		client:   client,
-		bucket:   cfg.Bucket,
-		endpoint: cfg.Endpoint,
-		logger:   logger,
+		client:        client,
+		presignClient: s3.NewPresignClient(client),
+		bucket:        cfg.Bucket,
+		endpoint:      cfg.Endpoint,
+		logger:        logger,
 	}, nil
 }
 
@@ -88,7 +91,7 @@ func (s *s3Client) Upload(ctx context.Context, key string, data io.Reader, conte
 		return "", fmt.Errorf("failed to upload to S3: %w", err)
 	}
 
-	url := s.GenerateURL(key)
+	url := s.generateURL(key)
 	s.logger.Info("S3 upload success", zap.String("key", key), zap.String("url", url))
 	return url, nil
 }
@@ -112,12 +115,23 @@ func (s *s3Client) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
-// GenerateURL retourne l'URL publique d'un fichier
-func (s *s3Client) GenerateURL(key string) string {
+// generateURL retourne l'URL publique d'un fichier (usage interne uniquement).
+func (s *s3Client) generateURL(key string) string {
 	if s.endpoint != "" {
-		// MinIO : http://localhost:9000/bucket/key
 		return fmt.Sprintf("%s/%s/%s", s.endpoint, s.bucket, key)
 	}
-	// AWS S3 : https://bucket.s3.region.amazonaws.com/key
 	return fmt.Sprintf("https://%s.s3.amazonaws.com/%s", s.bucket, key)
+}
+
+// GeneratePresignedURL génère une URL signée à durée de vie limitée (bucket privé).
+func (s *s3Client) GeneratePresignedURL(ctx context.Context, key string, ttl time.Duration) (string, error) {
+	req, err := s.presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	}, s3.WithPresignExpires(ttl))
+	if err != nil {
+		s.logger.Error("presign URL failed", zap.String("key", key), zap.Error(err))
+		return "", fmt.Errorf("presign failed: %w", err)
+	}
+	return req.URL, nil
 }

@@ -3,6 +3,7 @@ package mocks
 import (
 	"context"
 	"io"
+	"time"
 
 	"github.com/stretchr/testify/mock"
 )
@@ -21,7 +22,7 @@ func (m *MockStorageClient) Delete(ctx context.Context, key string) error {
 	return args.Error(0)
 }
 
-func (m *MockStorageClient) GenerateURL(key string) string {
-	args := m.Called(key)
-	return args.String(0)
+func (m *MockStorageClient) GeneratePresignedURL(ctx context.Context, key string, ttl time.Duration) (string, error) {
+	args := m.Called(ctx, key, ttl)
+	return args.String(0), args.Error(1)
 }

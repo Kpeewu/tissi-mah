@@ -179,16 +179,18 @@ func (x *SegmentInput) GetSegmentPrice() int32 {
 }
 
 type CreateBookingRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	PassengerId       string                 `protobuf:"bytes,1,opt,name=PassengerId,proto3" json:"PassengerId,omitempty"`
-	TripId            string                 `protobuf:"bytes,2,opt,name=TripId,proto3" json:"TripId,omitempty"`
-	PickupWaypointId  string                 `protobuf:"bytes,3,opt,name=PickupWaypointId,proto3" json:"PickupWaypointId,omitempty"`
-	DropoffWaypointId string                 `protobuf:"bytes,4,opt,name=DropoffWaypointId,proto3" json:"DropoffWaypointId,omitempty"`
-	SeatsBooked       int32                  `protobuf:"varint,5,opt,name=SeatsBooked,proto3" json:"SeatsBooked,omitempty"`
-	PaymentMethod     string                 `protobuf:"bytes,6,opt,name=PaymentMethod,proto3" json:"PaymentMethod,omitempty"` // mobileMoney | card | paypal | cash
-	Segments          []*SegmentInput        `protobuf:"bytes,7,rep,name=Segments,proto3" json:"Segments,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	PassengerId        string                 `protobuf:"bytes,1,opt,name=PassengerId,proto3" json:"PassengerId,omitempty"`
+	TripId             string                 `protobuf:"bytes,2,opt,name=TripId,proto3" json:"TripId,omitempty"`
+	PickupWaypointId   string                 `protobuf:"bytes,3,opt,name=PickupWaypointId,proto3" json:"PickupWaypointId,omitempty"`
+	DropoffWaypointId  string                 `protobuf:"bytes,4,opt,name=DropoffWaypointId,proto3" json:"DropoffWaypointId,omitempty"`
+	SeatsBooked        int32                  `protobuf:"varint,5,opt,name=SeatsBooked,proto3" json:"SeatsBooked,omitempty"`
+	PaymentMethod      string                 `protobuf:"bytes,6,opt,name=PaymentMethod,proto3" json:"PaymentMethod,omitempty"` // mobileMoney | card | paypal | cash
+	Segments           []*SegmentInput        `protobuf:"bytes,7,rep,name=Segments,proto3" json:"Segments,omitempty"`
+	PassengerMessage   string                 `protobuf:"bytes,8,opt,name=PassengerMessage,proto3" json:"PassengerMessage,omitempty"`      // message optionnel du passager au conducteur
+	ExtraMinutesDetour int32                  `protobuf:"varint,9,opt,name=ExtraMinutesDetour,proto3" json:"ExtraMinutesDetour,omitempty"` // détour en minutes calculé côté client (0 = inconnu)
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *CreateBookingRequest) Reset() {
@@ -268,6 +270,20 @@ func (x *CreateBookingRequest) GetSegments() []*SegmentInput {
 		return x.Segments
 	}
 	return nil
+}
+
+func (x *CreateBookingRequest) GetPassengerMessage() string {
+	if x != nil {
+		return x.PassengerMessage
+	}
+	return ""
+}
+
+func (x *CreateBookingRequest) GetExtraMinutesDetour() int32 {
+	if x != nil {
+		return x.ExtraMinutesDetour
+	}
+	return 0
 }
 
 type CreateBookingResponse struct {
@@ -709,6 +725,7 @@ type BookingDetail struct {
 	UpdatedAt          string                 `protobuf:"bytes,27,opt,name=UpdatedAt,proto3" json:"UpdatedAt,omitempty"`
 	Segments           []*SegmentDetail       `protobuf:"bytes,28,rep,name=Segments,proto3" json:"Segments,omitempty"`
 	History            []*StatusHistoryEntry  `protobuf:"bytes,29,rep,name=History,proto3" json:"History,omitempty"`
+	PassengerMessage   string                 `protobuf:"bytes,30,opt,name=PassengerMessage,proto3" json:"PassengerMessage,omitempty"` // message laissé par le passager lors de la réservation
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -944,6 +961,13 @@ func (x *BookingDetail) GetHistory() []*StatusHistoryEntry {
 		return x.History
 	}
 	return nil
+}
+
+func (x *BookingDetail) GetPassengerMessage() string {
+	if x != nil {
+		return x.PassengerMessage
+	}
+	return ""
 }
 
 type GetBookingDetailsResponse struct {
@@ -1287,11 +1311,13 @@ func (x *GetDriverTripBookingsRequest) GetIndex() int32 {
 }
 
 type GetDriverTripBookingsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Bookings      []*BookingPreview      `protobuf:"bytes,1,rep,name=Bookings,proto3" json:"Bookings,omitempty"`
-	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState  `protogen:"open.v1"`
+	Bookings       []*BookingPreview       `protobuf:"bytes,1,rep,name=Bookings,proto3" json:"Bookings,omitempty"` // liste legacy (backward-compatible)
+	ErrorMessage   string                  `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	DriverBookings []*DriverBookingPreview `protobuf:"bytes,3,rep,name=DriverBookings,proto3" json:"DriverBookings,omitempty"` // liste enrichie avec infos passager
+	Counts         *BookingCounts          `protobuf:"bytes,4,opt,name=Counts,proto3" json:"Counts,omitempty"`                 // compteurs par statut pour ce trajet
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetDriverTripBookingsResponse) Reset() {
@@ -1336,6 +1362,20 @@ func (x *GetDriverTripBookingsResponse) GetErrorMessage() string {
 		return x.ErrorMessage
 	}
 	return ""
+}
+
+func (x *GetDriverTripBookingsResponse) GetDriverBookings() []*DriverBookingPreview {
+	if x != nil {
+		return x.DriverBookings
+	}
+	return nil
+}
+
+func (x *GetDriverTripBookingsResponse) GetCounts() *BookingCounts {
+	if x != nil {
+		return x.Counts
+	}
+	return nil
 }
 
 type ApproveBookingRequest struct {
@@ -2626,6 +2666,555 @@ func (x *HealthResponse) GetTimestamp() int64 {
 	return 0
 }
 
+type DriverBookingPreview struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	BookingId           string                 `protobuf:"bytes,1,opt,name=BookingId,proto3" json:"BookingId,omitempty"`
+	BookingReference    string                 `protobuf:"bytes,2,opt,name=BookingReference,proto3" json:"BookingReference,omitempty"`
+	TripId              string                 `protobuf:"bytes,3,opt,name=TripId,proto3" json:"TripId,omitempty"`
+	Status              string                 `protobuf:"bytes,4,opt,name=Status,proto3" json:"Status,omitempty"`
+	SeatsBooked         int32                  `protobuf:"varint,5,opt,name=SeatsBooked,proto3" json:"SeatsBooked,omitempty"`
+	TotalAmount         int32                  `protobuf:"varint,6,opt,name=TotalAmount,proto3" json:"TotalAmount,omitempty"`
+	PickupLocationName  string                 `protobuf:"bytes,7,opt,name=PickupLocationName,proto3" json:"PickupLocationName,omitempty"`
+	DropoffLocationName string                 `protobuf:"bytes,8,opt,name=DropoffLocationName,proto3" json:"DropoffLocationName,omitempty"`
+	DepartureDate       string                 `protobuf:"bytes,9,opt,name=DepartureDate,proto3" json:"DepartureDate,omitempty"`               // YYYY-MM-DD (depuis pickup_scheduled_at du premier segment)
+	DepartureTime       string                 `protobuf:"bytes,10,opt,name=DepartureTime,proto3" json:"DepartureTime,omitempty"`              // HH:MM
+	PassengerName       string                 `protobuf:"bytes,11,opt,name=PassengerName,proto3" json:"PassengerName,omitempty"`              // depuis user-service
+	PassengerRating     float64                `protobuf:"fixed64,12,opt,name=PassengerRating,proto3" json:"PassengerRating,omitempty"`        // moyenne depuis rating-service (0 si aucune note)
+	PassengerTripCount  int32                  `protobuf:"varint,13,opt,name=PassengerTripCount,proto3" json:"PassengerTripCount,omitempty"`   // nombre de trajets complétés (DB booking-service)
+	IsPassengerVerified bool                   `protobuf:"varint,14,opt,name=IsPassengerVerified,proto3" json:"IsPassengerVerified,omitempty"` // IsPassengerProfileVerified depuis user-service
+	PassengerMessage    string                 `protobuf:"bytes,15,opt,name=PassengerMessage,proto3" json:"PassengerMessage,omitempty"`        // message laissé lors de la réservation
+	PaymentMethod       string                 `protobuf:"bytes,16,opt,name=PaymentMethod,proto3" json:"PaymentMethod,omitempty"`              // mobileMoney | card | paypal | cash
+	CreatedAt           string                 `protobuf:"bytes,17,opt,name=CreatedAt,proto3" json:"CreatedAt,omitempty"`                      // RFC3339 — pour affichage "il y a N min"
+	ExtraMinutesDetour  int32                  `protobuf:"varint,18,opt,name=ExtraMinutesDetour,proto3" json:"ExtraMinutesDetour,omitempty"`   // détour en minutes (0 = inconnu)
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *DriverBookingPreview) Reset() {
+	*x = DriverBookingPreview{}
+	mi := &file_booking_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DriverBookingPreview) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DriverBookingPreview) ProtoMessage() {}
+
+func (x *DriverBookingPreview) ProtoReflect() protoreflect.Message {
+	mi := &file_booking_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DriverBookingPreview.ProtoReflect.Descriptor instead.
+func (*DriverBookingPreview) Descriptor() ([]byte, []int) {
+	return file_booking_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *DriverBookingPreview) GetBookingId() string {
+	if x != nil {
+		return x.BookingId
+	}
+	return ""
+}
+
+func (x *DriverBookingPreview) GetBookingReference() string {
+	if x != nil {
+		return x.BookingReference
+	}
+	return ""
+}
+
+func (x *DriverBookingPreview) GetTripId() string {
+	if x != nil {
+		return x.TripId
+	}
+	return ""
+}
+
+func (x *DriverBookingPreview) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *DriverBookingPreview) GetSeatsBooked() int32 {
+	if x != nil {
+		return x.SeatsBooked
+	}
+	return 0
+}
+
+func (x *DriverBookingPreview) GetTotalAmount() int32 {
+	if x != nil {
+		return x.TotalAmount
+	}
+	return 0
+}
+
+func (x *DriverBookingPreview) GetPickupLocationName() string {
+	if x != nil {
+		return x.PickupLocationName
+	}
+	return ""
+}
+
+func (x *DriverBookingPreview) GetDropoffLocationName() string {
+	if x != nil {
+		return x.DropoffLocationName
+	}
+	return ""
+}
+
+func (x *DriverBookingPreview) GetDepartureDate() string {
+	if x != nil {
+		return x.DepartureDate
+	}
+	return ""
+}
+
+func (x *DriverBookingPreview) GetDepartureTime() string {
+	if x != nil {
+		return x.DepartureTime
+	}
+	return ""
+}
+
+func (x *DriverBookingPreview) GetPassengerName() string {
+	if x != nil {
+		return x.PassengerName
+	}
+	return ""
+}
+
+func (x *DriverBookingPreview) GetPassengerRating() float64 {
+	if x != nil {
+		return x.PassengerRating
+	}
+	return 0
+}
+
+func (x *DriverBookingPreview) GetPassengerTripCount() int32 {
+	if x != nil {
+		return x.PassengerTripCount
+	}
+	return 0
+}
+
+func (x *DriverBookingPreview) GetIsPassengerVerified() bool {
+	if x != nil {
+		return x.IsPassengerVerified
+	}
+	return false
+}
+
+func (x *DriverBookingPreview) GetPassengerMessage() string {
+	if x != nil {
+		return x.PassengerMessage
+	}
+	return ""
+}
+
+func (x *DriverBookingPreview) GetPaymentMethod() string {
+	if x != nil {
+		return x.PaymentMethod
+	}
+	return ""
+}
+
+func (x *DriverBookingPreview) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *DriverBookingPreview) GetExtraMinutesDetour() int32 {
+	if x != nil {
+		return x.ExtraMinutesDetour
+	}
+	return 0
+}
+
+// BookingCounts — compteurs de réservations par statut pour un trajet
+type BookingCounts struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Pending       int32                  `protobuf:"varint,1,opt,name=Pending,proto3" json:"Pending,omitempty"` // pendingApproval
+	Approved      int32                  `protobuf:"varint,2,opt,name=Approved,proto3" json:"Approved,omitempty"`
+	Rejected      int32                  `protobuf:"varint,3,opt,name=Rejected,proto3" json:"Rejected,omitempty"`
+	Cancelled     int32                  `protobuf:"varint,4,opt,name=Cancelled,proto3" json:"Cancelled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BookingCounts) Reset() {
+	*x = BookingCounts{}
+	mi := &file_booking_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BookingCounts) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BookingCounts) ProtoMessage() {}
+
+func (x *BookingCounts) ProtoReflect() protoreflect.Message {
+	mi := &file_booking_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BookingCounts.ProtoReflect.Descriptor instead.
+func (*BookingCounts) Descriptor() ([]byte, []int) {
+	return file_booking_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *BookingCounts) GetPending() int32 {
+	if x != nil {
+		return x.Pending
+	}
+	return 0
+}
+
+func (x *BookingCounts) GetApproved() int32 {
+	if x != nil {
+		return x.Approved
+	}
+	return 0
+}
+
+func (x *BookingCounts) GetRejected() int32 {
+	if x != nil {
+		return x.Rejected
+	}
+	return 0
+}
+
+func (x *BookingCounts) GetCancelled() int32 {
+	if x != nil {
+		return x.Cancelled
+	}
+	return 0
+}
+
+type GetDriverPendingBookingsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      string                 `protobuf:"bytes,1,opt,name=DriverId,proto3" json:"DriverId,omitempty"`
+	Index         int32                  `protobuf:"varint,2,opt,name=Index,proto3" json:"Index,omitempty"` // index de page (0-based, 10 items par page)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDriverPendingBookingsRequest) Reset() {
+	*x = GetDriverPendingBookingsRequest{}
+	mi := &file_booking_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDriverPendingBookingsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDriverPendingBookingsRequest) ProtoMessage() {}
+
+func (x *GetDriverPendingBookingsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_booking_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDriverPendingBookingsRequest.ProtoReflect.Descriptor instead.
+func (*GetDriverPendingBookingsRequest) Descriptor() ([]byte, []int) {
+	return file_booking_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *GetDriverPendingBookingsRequest) GetDriverId() string {
+	if x != nil {
+		return x.DriverId
+	}
+	return ""
+}
+
+func (x *GetDriverPendingBookingsRequest) GetIndex() int32 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
+}
+
+type GetDriverPendingBookingsResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Bookings      []*DriverBookingPreview `protobuf:"bytes,1,rep,name=Bookings,proto3" json:"Bookings,omitempty"`
+	ErrorMessage  string                  `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDriverPendingBookingsResponse) Reset() {
+	*x = GetDriverPendingBookingsResponse{}
+	mi := &file_booking_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDriverPendingBookingsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDriverPendingBookingsResponse) ProtoMessage() {}
+
+func (x *GetDriverPendingBookingsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_booking_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDriverPendingBookingsResponse.ProtoReflect.Descriptor instead.
+func (*GetDriverPendingBookingsResponse) Descriptor() ([]byte, []int) {
+	return file_booking_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *GetDriverPendingBookingsResponse) GetBookings() []*DriverBookingPreview {
+	if x != nil {
+		return x.Bookings
+	}
+	return nil
+}
+
+func (x *GetDriverPendingBookingsResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+type PassengerSummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PassengerId   string                 `protobuf:"bytes,1,opt,name=PassengerId,proto3" json:"PassengerId,omitempty"`
+	PassengerName string                 `protobuf:"bytes,2,opt,name=PassengerName,proto3" json:"PassengerName,omitempty"`
+	SeatsBooked   int32                  `protobuf:"varint,3,opt,name=SeatsBooked,proto3" json:"SeatsBooked,omitempty"`
+	PaymentMethod string                 `protobuf:"bytes,4,opt,name=PaymentMethod,proto3" json:"PaymentMethod,omitempty"`
+	PaymentStatus string                 `protobuf:"bytes,5,opt,name=PaymentStatus,proto3" json:"PaymentStatus,omitempty"` // "paid" | "pending"
+	Rating        float64                `protobuf:"fixed64,6,opt,name=Rating,proto3" json:"Rating,omitempty"`
+	IsVerified    bool                   `protobuf:"varint,7,opt,name=IsVerified,proto3" json:"IsVerified,omitempty"`
+	BookingId     string                 `protobuf:"bytes,8,opt,name=BookingId,proto3" json:"BookingId,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PassengerSummary) Reset() {
+	*x = PassengerSummary{}
+	mi := &file_booking_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PassengerSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PassengerSummary) ProtoMessage() {}
+
+func (x *PassengerSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_booking_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PassengerSummary.ProtoReflect.Descriptor instead.
+func (*PassengerSummary) Descriptor() ([]byte, []int) {
+	return file_booking_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *PassengerSummary) GetPassengerId() string {
+	if x != nil {
+		return x.PassengerId
+	}
+	return ""
+}
+
+func (x *PassengerSummary) GetPassengerName() string {
+	if x != nil {
+		return x.PassengerName
+	}
+	return ""
+}
+
+func (x *PassengerSummary) GetSeatsBooked() int32 {
+	if x != nil {
+		return x.SeatsBooked
+	}
+	return 0
+}
+
+func (x *PassengerSummary) GetPaymentMethod() string {
+	if x != nil {
+		return x.PaymentMethod
+	}
+	return ""
+}
+
+func (x *PassengerSummary) GetPaymentStatus() string {
+	if x != nil {
+		return x.PaymentStatus
+	}
+	return ""
+}
+
+func (x *PassengerSummary) GetRating() float64 {
+	if x != nil {
+		return x.Rating
+	}
+	return 0
+}
+
+func (x *PassengerSummary) GetIsVerified() bool {
+	if x != nil {
+		return x.IsVerified
+	}
+	return false
+}
+
+func (x *PassengerSummary) GetBookingId() string {
+	if x != nil {
+		return x.BookingId
+	}
+	return ""
+}
+
+type GetActivePassengerSummariesForTripRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TripId        string                 `protobuf:"bytes,1,opt,name=TripId,proto3" json:"TripId,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetActivePassengerSummariesForTripRequest) Reset() {
+	*x = GetActivePassengerSummariesForTripRequest{}
+	mi := &file_booking_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetActivePassengerSummariesForTripRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetActivePassengerSummariesForTripRequest) ProtoMessage() {}
+
+func (x *GetActivePassengerSummariesForTripRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_booking_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetActivePassengerSummariesForTripRequest.ProtoReflect.Descriptor instead.
+func (*GetActivePassengerSummariesForTripRequest) Descriptor() ([]byte, []int) {
+	return file_booking_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *GetActivePassengerSummariesForTripRequest) GetTripId() string {
+	if x != nil {
+		return x.TripId
+	}
+	return ""
+}
+
+type GetActivePassengerSummariesForTripResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Summaries     []*PassengerSummary    `protobuf:"bytes,1,rep,name=Summaries,proto3" json:"Summaries,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetActivePassengerSummariesForTripResponse) Reset() {
+	*x = GetActivePassengerSummariesForTripResponse{}
+	mi := &file_booking_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetActivePassengerSummariesForTripResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetActivePassengerSummariesForTripResponse) ProtoMessage() {}
+
+func (x *GetActivePassengerSummariesForTripResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_booking_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetActivePassengerSummariesForTripResponse.ProtoReflect.Descriptor instead.
+func (*GetActivePassengerSummariesForTripResponse) Descriptor() ([]byte, []int) {
+	return file_booking_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *GetActivePassengerSummariesForTripResponse) GetSummaries() []*PassengerSummary {
+	if x != nil {
+		return x.Summaries
+	}
+	return nil
+}
+
+func (x *GetActivePassengerSummariesForTripResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
 var File_booking_proto protoreflect.FileDescriptor
 
 const file_booking_proto_rawDesc = "" +
@@ -2653,7 +3242,7 @@ const file_booking_proto_rawDesc = "" +
 	"\x12DropoffScheduledAt\x18\f \x01(\tR\x12DropoffScheduledAt\x124\n" +
 	"\x15SegmentDistanceMeters\x18\r \x01(\x05R\x15SegmentDistanceMeters\x126\n" +
 	"\x16SegmentDurationMinutes\x18\x0e \x01(\x05R\x16SegmentDurationMinutes\x12\"\n" +
-	"\fSegmentPrice\x18\x0f \x01(\x05R\fSegmentPrice\"\xa5\x02\n" +
+	"\fSegmentPrice\x18\x0f \x01(\x05R\fSegmentPrice\"\x81\x03\n" +
 	"\x14CreateBookingRequest\x12 \n" +
 	"\vPassengerId\x18\x01 \x01(\tR\vPassengerId\x12\x16\n" +
 	"\x06TripId\x18\x02 \x01(\tR\x06TripId\x12*\n" +
@@ -2661,7 +3250,9 @@ const file_booking_proto_rawDesc = "" +
 	"\x11DropoffWaypointId\x18\x04 \x01(\tR\x11DropoffWaypointId\x12 \n" +
 	"\vSeatsBooked\x18\x05 \x01(\x05R\vSeatsBooked\x12$\n" +
 	"\rPaymentMethod\x18\x06 \x01(\tR\rPaymentMethod\x121\n" +
-	"\bSegments\x18\a \x03(\v2\x15.booking.SegmentInputR\bSegments\"\xbf\x01\n" +
+	"\bSegments\x18\a \x03(\v2\x15.booking.SegmentInputR\bSegments\x12*\n" +
+	"\x10PassengerMessage\x18\b \x01(\tR\x10PassengerMessage\x12.\n" +
+	"\x12ExtraMinutesDetour\x18\t \x01(\x05R\x12ExtraMinutesDetour\"\xbf\x01\n" +
 	"\x15CreateBookingResponse\x12\x1c\n" +
 	"\tBookingId\x18\x01 \x01(\tR\tBookingId\x12*\n" +
 	"\x10BookingReference\x18\x02 \x01(\tR\x10BookingReference\x12\x16\n" +
@@ -2705,7 +3296,7 @@ const file_booking_proto_rawDesc = "" +
 	"\rChangedByType\x18\x05 \x01(\tR\rChangedByType\x12\"\n" +
 	"\fChangeReason\x18\x06 \x01(\tR\fChangeReason\x12\x1a\n" +
 	"\bMetadata\x18\a \x01(\tR\bMetadata\x12\x1c\n" +
-	"\tCreatedAt\x18\b \x01(\tR\tCreatedAt\"\xbe\b\n" +
+	"\tCreatedAt\x18\b \x01(\tR\tCreatedAt\"\xea\b\n" +
 	"\rBookingDetail\x12\x1c\n" +
 	"\tBookingId\x18\x01 \x01(\tR\tBookingId\x12*\n" +
 	"\x10BookingReference\x18\x02 \x01(\tR\x10BookingReference\x12\x16\n" +
@@ -2744,7 +3335,8 @@ const file_booking_proto_rawDesc = "" +
 	"\tCreatedAt\x18\x1a \x01(\tR\tCreatedAt\x12\x1c\n" +
 	"\tUpdatedAt\x18\x1b \x01(\tR\tUpdatedAt\x122\n" +
 	"\bSegments\x18\x1c \x03(\v2\x16.booking.SegmentDetailR\bSegments\x125\n" +
-	"\aHistory\x18\x1d \x03(\v2\x1b.booking.StatusHistoryEntryR\aHistory\"q\n" +
+	"\aHistory\x18\x1d \x03(\v2\x1b.booking.StatusHistoryEntryR\aHistory\x12*\n" +
+	"\x10PassengerMessage\x18\x1e \x01(\tR\x10PassengerMessage\"q\n" +
 	"\x19GetBookingDetailsResponse\x120\n" +
 	"\aBooking\x18\x01 \x01(\v2\x16.booking.BookingDetailR\aBooking\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"y\n" +
@@ -2770,10 +3362,12 @@ const file_booking_proto_rawDesc = "" +
 	"\x1cGetDriverTripBookingsRequest\x12\x1a\n" +
 	"\bDriverId\x18\x01 \x01(\tR\bDriverId\x12\x16\n" +
 	"\x06TripId\x18\x02 \x01(\tR\x06TripId\x12\x14\n" +
-	"\x05Index\x18\x03 \x01(\x05R\x05Index\"x\n" +
+	"\x05Index\x18\x03 \x01(\x05R\x05Index\"\xef\x01\n" +
 	"\x1dGetDriverTripBookingsResponse\x123\n" +
 	"\bBookings\x18\x01 \x03(\v2\x17.booking.BookingPreviewR\bBookings\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"Q\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\x12E\n" +
+	"\x0eDriverBookings\x18\x03 \x03(\v2\x1d.booking.DriverBookingPreviewR\x0eDriverBookings\x12.\n" +
+	"\x06Counts\x18\x04 \x01(\v2\x16.booking.BookingCountsR\x06Counts\"Q\n" +
 	"\x15ApproveBookingRequest\x12\x1a\n" +
 	"\bDriverId\x18\x01 \x01(\tR\bDriverId\x12\x1c\n" +
 	"\tBookingId\x18\x02 \x01(\tR\tBookingId\"V\n" +
@@ -2860,7 +3454,54 @@ const file_booking_proto_rawDesc = "" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
 	"\aVersion\x18\x02 \x01(\tR\aVersion\x12\x1c\n" +
-	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp2\x8a\x11\n" +
+	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp\"\xd4\x05\n" +
+	"\x14DriverBookingPreview\x12\x1c\n" +
+	"\tBookingId\x18\x01 \x01(\tR\tBookingId\x12*\n" +
+	"\x10BookingReference\x18\x02 \x01(\tR\x10BookingReference\x12\x16\n" +
+	"\x06TripId\x18\x03 \x01(\tR\x06TripId\x12\x16\n" +
+	"\x06Status\x18\x04 \x01(\tR\x06Status\x12 \n" +
+	"\vSeatsBooked\x18\x05 \x01(\x05R\vSeatsBooked\x12 \n" +
+	"\vTotalAmount\x18\x06 \x01(\x05R\vTotalAmount\x12.\n" +
+	"\x12PickupLocationName\x18\a \x01(\tR\x12PickupLocationName\x120\n" +
+	"\x13DropoffLocationName\x18\b \x01(\tR\x13DropoffLocationName\x12$\n" +
+	"\rDepartureDate\x18\t \x01(\tR\rDepartureDate\x12$\n" +
+	"\rDepartureTime\x18\n" +
+	" \x01(\tR\rDepartureTime\x12$\n" +
+	"\rPassengerName\x18\v \x01(\tR\rPassengerName\x12(\n" +
+	"\x0fPassengerRating\x18\f \x01(\x01R\x0fPassengerRating\x12.\n" +
+	"\x12PassengerTripCount\x18\r \x01(\x05R\x12PassengerTripCount\x120\n" +
+	"\x13IsPassengerVerified\x18\x0e \x01(\bR\x13IsPassengerVerified\x12*\n" +
+	"\x10PassengerMessage\x18\x0f \x01(\tR\x10PassengerMessage\x12$\n" +
+	"\rPaymentMethod\x18\x10 \x01(\tR\rPaymentMethod\x12\x1c\n" +
+	"\tCreatedAt\x18\x11 \x01(\tR\tCreatedAt\x12.\n" +
+	"\x12ExtraMinutesDetour\x18\x12 \x01(\x05R\x12ExtraMinutesDetour\"\x7f\n" +
+	"\rBookingCounts\x12\x18\n" +
+	"\aPending\x18\x01 \x01(\x05R\aPending\x12\x1a\n" +
+	"\bApproved\x18\x02 \x01(\x05R\bApproved\x12\x1a\n" +
+	"\bRejected\x18\x03 \x01(\x05R\bRejected\x12\x1c\n" +
+	"\tCancelled\x18\x04 \x01(\x05R\tCancelled\"S\n" +
+	"\x1fGetDriverPendingBookingsRequest\x12\x1a\n" +
+	"\bDriverId\x18\x01 \x01(\tR\bDriverId\x12\x14\n" +
+	"\x05Index\x18\x02 \x01(\x05R\x05Index\"\x81\x01\n" +
+	" GetDriverPendingBookingsResponse\x129\n" +
+	"\bBookings\x18\x01 \x03(\v2\x1d.booking.DriverBookingPreviewR\bBookings\x12\"\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\x9e\x02\n" +
+	"\x10PassengerSummary\x12 \n" +
+	"\vPassengerId\x18\x01 \x01(\tR\vPassengerId\x12$\n" +
+	"\rPassengerName\x18\x02 \x01(\tR\rPassengerName\x12 \n" +
+	"\vSeatsBooked\x18\x03 \x01(\x05R\vSeatsBooked\x12$\n" +
+	"\rPaymentMethod\x18\x04 \x01(\tR\rPaymentMethod\x12$\n" +
+	"\rPaymentStatus\x18\x05 \x01(\tR\rPaymentStatus\x12\x16\n" +
+	"\x06Rating\x18\x06 \x01(\x01R\x06Rating\x12\x1e\n" +
+	"\n" +
+	"IsVerified\x18\a \x01(\bR\n" +
+	"IsVerified\x12\x1c\n" +
+	"\tBookingId\x18\b \x01(\tR\tBookingId\"C\n" +
+	")GetActivePassengerSummariesForTripRequest\x12\x16\n" +
+	"\x06TripId\x18\x01 \x01(\tR\x06TripId\"\x89\x01\n" +
+	"*GetActivePassengerSummariesForTripResponse\x127\n" +
+	"\tSummaries\x18\x01 \x03(\v2\x19.booking.PassengerSummaryR\tSummaries\x12\"\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\xe5\x13\n" +
 	"\x0eBookingService\x12q\n" +
 	"\rCreateBooking\x12\x1d.booking.CreateBookingRequest\x1a\x1e.booking.CreateBookingResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/booking/createBooking\x12~\n" +
 	"\x11GetBookingDetails\x12!.booking.GetBookingDetailsRequest\x1a\".booking.GetBookingDetailsResponse\"\"\x82\xd3\xe4\x93\x02\x1c\x12\x1a/booking/getBookingDetails\x12\x8a\x01\n" +
@@ -2876,7 +3517,9 @@ const file_booking_proto_rawDesc = "" +
 	"\fReportNoShow\x12\x1c.booking.ReportNoShowRequest\x1a\x1d.booking.ReportNoShowResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/booking/reportNoShow\x12u\n" +
 	"\x0eConfirmPayment\x12\x1e.booking.ConfirmPaymentRequest\x1a\x1f.booking.ConfirmPaymentResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/booking/confirmPayment\x12r\n" +
 	"\vFailPayment\x12\x1b.booking.FailPaymentRequest\x1a\x1c.booking.FailPaymentResponse\"(\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/booking/internal/failPayment\x12\xb3\x01\n" +
-	"\x1cGetActivePassengerIDsForTrip\x12,.booking.GetActivePassengerIDsForTripRequest\x1a-.booking.GetActivePassengerIDsForTripResponse\"6\x82\xd3\xe4\x93\x020\x12./booking/internal/getActivePassengerIDsForTrip\x12R\n" +
+	"\x1cGetActivePassengerIDsForTrip\x12,.booking.GetActivePassengerIDsForTripRequest\x1a-.booking.GetActivePassengerIDsForTripResponse\"6\x82\xd3\xe4\x93\x020\x12./booking/internal/getActivePassengerIDsForTrip\x12\x9a\x01\n" +
+	"\x18GetDriverPendingBookings\x12(.booking.GetDriverPendingBookingsRequest\x1a).booking.GetDriverPendingBookingsResponse\")\x82\xd3\xe4\x93\x02#\x12!/booking/getDriverPendingBookings\x12\xbb\x01\n" +
+	"\"GetActivePassengerSummariesForTrip\x122.booking.GetActivePassengerSummariesForTripRequest\x1a3.booking.GetActivePassengerSummariesForTripResponse\",\x82\xd3\xe4\x93\x02&\x12$/booking/getActivePassengerSummaries\x12R\n" +
 	"\x06Health\x12\x16.booking.HealthRequest\x1a\x17.booking.HealthResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/booking/healthBPZNgithub.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/bookingpb;bookingpbb\x06proto3"
 
 var (
@@ -2891,45 +3534,52 @@ func file_booking_proto_rawDescGZIP() []byte {
 	return file_booking_proto_rawDescData
 }
 
-var file_booking_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
+var file_booking_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
 var file_booking_proto_goTypes = []any{
-	(*SegmentInput)(nil),                         // 0: booking.SegmentInput
-	(*CreateBookingRequest)(nil),                 // 1: booking.CreateBookingRequest
-	(*CreateBookingResponse)(nil),                // 2: booking.CreateBookingResponse
-	(*GetBookingDetailsRequest)(nil),             // 3: booking.GetBookingDetailsRequest
-	(*SegmentDetail)(nil),                        // 4: booking.SegmentDetail
-	(*StatusHistoryEntry)(nil),                   // 5: booking.StatusHistoryEntry
-	(*BookingDetail)(nil),                        // 6: booking.BookingDetail
-	(*GetBookingDetailsResponse)(nil),            // 7: booking.GetBookingDetailsResponse
-	(*GetPassengerBookingsRequest)(nil),          // 8: booking.GetPassengerBookingsRequest
-	(*BookingPreview)(nil),                       // 9: booking.BookingPreview
-	(*GetPassengerBookingsResponse)(nil),         // 10: booking.GetPassengerBookingsResponse
-	(*GetDriverTripBookingsRequest)(nil),         // 11: booking.GetDriverTripBookingsRequest
-	(*GetDriverTripBookingsResponse)(nil),        // 12: booking.GetDriverTripBookingsResponse
-	(*ApproveBookingRequest)(nil),                // 13: booking.ApproveBookingRequest
-	(*ApproveBookingResponse)(nil),               // 14: booking.ApproveBookingResponse
-	(*RejectBookingRequest)(nil),                 // 15: booking.RejectBookingRequest
-	(*RejectBookingResponse)(nil),                // 16: booking.RejectBookingResponse
-	(*CancelBookingRequest)(nil),                 // 17: booking.CancelBookingRequest
-	(*CancelBookingResponse)(nil),                // 18: booking.CancelBookingResponse
-	(*StartBookingsForWaypointRequest)(nil),      // 19: booking.StartBookingsForWaypointRequest
-	(*StartBookingsForWaypointResponse)(nil),     // 20: booking.StartBookingsForWaypointResponse
-	(*CompleteBookingsForWaypointRequest)(nil),   // 21: booking.CompleteBookingsForWaypointRequest
-	(*CompleteBookingsForWaypointResponse)(nil),  // 22: booking.CompleteBookingsForWaypointResponse
-	(*CancelBookingsForWaypointRequest)(nil),     // 23: booking.CancelBookingsForWaypointRequest
-	(*CancelBookingsForWaypointResponse)(nil),    // 24: booking.CancelBookingsForWaypointResponse
-	(*CancelBookingsForTripRequest)(nil),         // 25: booking.CancelBookingsForTripRequest
-	(*CancelBookingsForTripResponse)(nil),        // 26: booking.CancelBookingsForTripResponse
-	(*ReportNoShowRequest)(nil),                  // 27: booking.ReportNoShowRequest
-	(*ReportNoShowResponse)(nil),                 // 28: booking.ReportNoShowResponse
-	(*ConfirmPaymentRequest)(nil),                // 29: booking.ConfirmPaymentRequest
-	(*ConfirmPaymentResponse)(nil),               // 30: booking.ConfirmPaymentResponse
-	(*FailPaymentRequest)(nil),                   // 31: booking.FailPaymentRequest
-	(*FailPaymentResponse)(nil),                  // 32: booking.FailPaymentResponse
-	(*GetActivePassengerIDsForTripRequest)(nil),  // 33: booking.GetActivePassengerIDsForTripRequest
-	(*GetActivePassengerIDsForTripResponse)(nil), // 34: booking.GetActivePassengerIDsForTripResponse
-	(*HealthRequest)(nil),                        // 35: booking.HealthRequest
-	(*HealthResponse)(nil),                       // 36: booking.HealthResponse
+	(*SegmentInput)(nil),                               // 0: booking.SegmentInput
+	(*CreateBookingRequest)(nil),                       // 1: booking.CreateBookingRequest
+	(*CreateBookingResponse)(nil),                      // 2: booking.CreateBookingResponse
+	(*GetBookingDetailsRequest)(nil),                   // 3: booking.GetBookingDetailsRequest
+	(*SegmentDetail)(nil),                              // 4: booking.SegmentDetail
+	(*StatusHistoryEntry)(nil),                         // 5: booking.StatusHistoryEntry
+	(*BookingDetail)(nil),                              // 6: booking.BookingDetail
+	(*GetBookingDetailsResponse)(nil),                  // 7: booking.GetBookingDetailsResponse
+	(*GetPassengerBookingsRequest)(nil),                // 8: booking.GetPassengerBookingsRequest
+	(*BookingPreview)(nil),                             // 9: booking.BookingPreview
+	(*GetPassengerBookingsResponse)(nil),               // 10: booking.GetPassengerBookingsResponse
+	(*GetDriverTripBookingsRequest)(nil),               // 11: booking.GetDriverTripBookingsRequest
+	(*GetDriverTripBookingsResponse)(nil),              // 12: booking.GetDriverTripBookingsResponse
+	(*ApproveBookingRequest)(nil),                      // 13: booking.ApproveBookingRequest
+	(*ApproveBookingResponse)(nil),                     // 14: booking.ApproveBookingResponse
+	(*RejectBookingRequest)(nil),                       // 15: booking.RejectBookingRequest
+	(*RejectBookingResponse)(nil),                      // 16: booking.RejectBookingResponse
+	(*CancelBookingRequest)(nil),                       // 17: booking.CancelBookingRequest
+	(*CancelBookingResponse)(nil),                      // 18: booking.CancelBookingResponse
+	(*StartBookingsForWaypointRequest)(nil),            // 19: booking.StartBookingsForWaypointRequest
+	(*StartBookingsForWaypointResponse)(nil),           // 20: booking.StartBookingsForWaypointResponse
+	(*CompleteBookingsForWaypointRequest)(nil),         // 21: booking.CompleteBookingsForWaypointRequest
+	(*CompleteBookingsForWaypointResponse)(nil),        // 22: booking.CompleteBookingsForWaypointResponse
+	(*CancelBookingsForWaypointRequest)(nil),           // 23: booking.CancelBookingsForWaypointRequest
+	(*CancelBookingsForWaypointResponse)(nil),          // 24: booking.CancelBookingsForWaypointResponse
+	(*CancelBookingsForTripRequest)(nil),               // 25: booking.CancelBookingsForTripRequest
+	(*CancelBookingsForTripResponse)(nil),              // 26: booking.CancelBookingsForTripResponse
+	(*ReportNoShowRequest)(nil),                        // 27: booking.ReportNoShowRequest
+	(*ReportNoShowResponse)(nil),                       // 28: booking.ReportNoShowResponse
+	(*ConfirmPaymentRequest)(nil),                      // 29: booking.ConfirmPaymentRequest
+	(*ConfirmPaymentResponse)(nil),                     // 30: booking.ConfirmPaymentResponse
+	(*FailPaymentRequest)(nil),                         // 31: booking.FailPaymentRequest
+	(*FailPaymentResponse)(nil),                        // 32: booking.FailPaymentResponse
+	(*GetActivePassengerIDsForTripRequest)(nil),        // 33: booking.GetActivePassengerIDsForTripRequest
+	(*GetActivePassengerIDsForTripResponse)(nil),       // 34: booking.GetActivePassengerIDsForTripResponse
+	(*HealthRequest)(nil),                              // 35: booking.HealthRequest
+	(*HealthResponse)(nil),                             // 36: booking.HealthResponse
+	(*DriverBookingPreview)(nil),                       // 37: booking.DriverBookingPreview
+	(*BookingCounts)(nil),                              // 38: booking.BookingCounts
+	(*GetDriverPendingBookingsRequest)(nil),            // 39: booking.GetDriverPendingBookingsRequest
+	(*GetDriverPendingBookingsResponse)(nil),           // 40: booking.GetDriverPendingBookingsResponse
+	(*PassengerSummary)(nil),                           // 41: booking.PassengerSummary
+	(*GetActivePassengerSummariesForTripRequest)(nil),  // 42: booking.GetActivePassengerSummariesForTripRequest
+	(*GetActivePassengerSummariesForTripResponse)(nil), // 43: booking.GetActivePassengerSummariesForTripResponse
 }
 var file_booking_proto_depIdxs = []int32{
 	0,  // 0: booking.CreateBookingRequest.Segments:type_name -> booking.SegmentInput
@@ -2938,43 +3588,51 @@ var file_booking_proto_depIdxs = []int32{
 	6,  // 3: booking.GetBookingDetailsResponse.Booking:type_name -> booking.BookingDetail
 	9,  // 4: booking.GetPassengerBookingsResponse.Bookings:type_name -> booking.BookingPreview
 	9,  // 5: booking.GetDriverTripBookingsResponse.Bookings:type_name -> booking.BookingPreview
-	1,  // 6: booking.BookingService.CreateBooking:input_type -> booking.CreateBookingRequest
-	3,  // 7: booking.BookingService.GetBookingDetails:input_type -> booking.GetBookingDetailsRequest
-	8,  // 8: booking.BookingService.GetPassengerBookings:input_type -> booking.GetPassengerBookingsRequest
-	11, // 9: booking.BookingService.GetDriverTripBookings:input_type -> booking.GetDriverTripBookingsRequest
-	13, // 10: booking.BookingService.ApproveBooking:input_type -> booking.ApproveBookingRequest
-	15, // 11: booking.BookingService.RejectBooking:input_type -> booking.RejectBookingRequest
-	17, // 12: booking.BookingService.CancelBooking:input_type -> booking.CancelBookingRequest
-	19, // 13: booking.BookingService.StartBookingsForWaypoint:input_type -> booking.StartBookingsForWaypointRequest
-	21, // 14: booking.BookingService.CompleteBookingsForWaypoint:input_type -> booking.CompleteBookingsForWaypointRequest
-	23, // 15: booking.BookingService.CancelBookingsForWaypoint:input_type -> booking.CancelBookingsForWaypointRequest
-	25, // 16: booking.BookingService.CancelBookingsForTrip:input_type -> booking.CancelBookingsForTripRequest
-	27, // 17: booking.BookingService.ReportNoShow:input_type -> booking.ReportNoShowRequest
-	29, // 18: booking.BookingService.ConfirmPayment:input_type -> booking.ConfirmPaymentRequest
-	31, // 19: booking.BookingService.FailPayment:input_type -> booking.FailPaymentRequest
-	33, // 20: booking.BookingService.GetActivePassengerIDsForTrip:input_type -> booking.GetActivePassengerIDsForTripRequest
-	35, // 21: booking.BookingService.Health:input_type -> booking.HealthRequest
-	2,  // 22: booking.BookingService.CreateBooking:output_type -> booking.CreateBookingResponse
-	7,  // 23: booking.BookingService.GetBookingDetails:output_type -> booking.GetBookingDetailsResponse
-	10, // 24: booking.BookingService.GetPassengerBookings:output_type -> booking.GetPassengerBookingsResponse
-	12, // 25: booking.BookingService.GetDriverTripBookings:output_type -> booking.GetDriverTripBookingsResponse
-	14, // 26: booking.BookingService.ApproveBooking:output_type -> booking.ApproveBookingResponse
-	16, // 27: booking.BookingService.RejectBooking:output_type -> booking.RejectBookingResponse
-	18, // 28: booking.BookingService.CancelBooking:output_type -> booking.CancelBookingResponse
-	20, // 29: booking.BookingService.StartBookingsForWaypoint:output_type -> booking.StartBookingsForWaypointResponse
-	22, // 30: booking.BookingService.CompleteBookingsForWaypoint:output_type -> booking.CompleteBookingsForWaypointResponse
-	24, // 31: booking.BookingService.CancelBookingsForWaypoint:output_type -> booking.CancelBookingsForWaypointResponse
-	26, // 32: booking.BookingService.CancelBookingsForTrip:output_type -> booking.CancelBookingsForTripResponse
-	28, // 33: booking.BookingService.ReportNoShow:output_type -> booking.ReportNoShowResponse
-	30, // 34: booking.BookingService.ConfirmPayment:output_type -> booking.ConfirmPaymentResponse
-	32, // 35: booking.BookingService.FailPayment:output_type -> booking.FailPaymentResponse
-	34, // 36: booking.BookingService.GetActivePassengerIDsForTrip:output_type -> booking.GetActivePassengerIDsForTripResponse
-	36, // 37: booking.BookingService.Health:output_type -> booking.HealthResponse
-	22, // [22:38] is the sub-list for method output_type
-	6,  // [6:22] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	37, // 6: booking.GetDriverTripBookingsResponse.DriverBookings:type_name -> booking.DriverBookingPreview
+	38, // 7: booking.GetDriverTripBookingsResponse.Counts:type_name -> booking.BookingCounts
+	37, // 8: booking.GetDriverPendingBookingsResponse.Bookings:type_name -> booking.DriverBookingPreview
+	41, // 9: booking.GetActivePassengerSummariesForTripResponse.Summaries:type_name -> booking.PassengerSummary
+	1,  // 10: booking.BookingService.CreateBooking:input_type -> booking.CreateBookingRequest
+	3,  // 11: booking.BookingService.GetBookingDetails:input_type -> booking.GetBookingDetailsRequest
+	8,  // 12: booking.BookingService.GetPassengerBookings:input_type -> booking.GetPassengerBookingsRequest
+	11, // 13: booking.BookingService.GetDriverTripBookings:input_type -> booking.GetDriverTripBookingsRequest
+	13, // 14: booking.BookingService.ApproveBooking:input_type -> booking.ApproveBookingRequest
+	15, // 15: booking.BookingService.RejectBooking:input_type -> booking.RejectBookingRequest
+	17, // 16: booking.BookingService.CancelBooking:input_type -> booking.CancelBookingRequest
+	19, // 17: booking.BookingService.StartBookingsForWaypoint:input_type -> booking.StartBookingsForWaypointRequest
+	21, // 18: booking.BookingService.CompleteBookingsForWaypoint:input_type -> booking.CompleteBookingsForWaypointRequest
+	23, // 19: booking.BookingService.CancelBookingsForWaypoint:input_type -> booking.CancelBookingsForWaypointRequest
+	25, // 20: booking.BookingService.CancelBookingsForTrip:input_type -> booking.CancelBookingsForTripRequest
+	27, // 21: booking.BookingService.ReportNoShow:input_type -> booking.ReportNoShowRequest
+	29, // 22: booking.BookingService.ConfirmPayment:input_type -> booking.ConfirmPaymentRequest
+	31, // 23: booking.BookingService.FailPayment:input_type -> booking.FailPaymentRequest
+	33, // 24: booking.BookingService.GetActivePassengerIDsForTrip:input_type -> booking.GetActivePassengerIDsForTripRequest
+	39, // 25: booking.BookingService.GetDriverPendingBookings:input_type -> booking.GetDriverPendingBookingsRequest
+	42, // 26: booking.BookingService.GetActivePassengerSummariesForTrip:input_type -> booking.GetActivePassengerSummariesForTripRequest
+	35, // 27: booking.BookingService.Health:input_type -> booking.HealthRequest
+	2,  // 28: booking.BookingService.CreateBooking:output_type -> booking.CreateBookingResponse
+	7,  // 29: booking.BookingService.GetBookingDetails:output_type -> booking.GetBookingDetailsResponse
+	10, // 30: booking.BookingService.GetPassengerBookings:output_type -> booking.GetPassengerBookingsResponse
+	12, // 31: booking.BookingService.GetDriverTripBookings:output_type -> booking.GetDriverTripBookingsResponse
+	14, // 32: booking.BookingService.ApproveBooking:output_type -> booking.ApproveBookingResponse
+	16, // 33: booking.BookingService.RejectBooking:output_type -> booking.RejectBookingResponse
+	18, // 34: booking.BookingService.CancelBooking:output_type -> booking.CancelBookingResponse
+	20, // 35: booking.BookingService.StartBookingsForWaypoint:output_type -> booking.StartBookingsForWaypointResponse
+	22, // 36: booking.BookingService.CompleteBookingsForWaypoint:output_type -> booking.CompleteBookingsForWaypointResponse
+	24, // 37: booking.BookingService.CancelBookingsForWaypoint:output_type -> booking.CancelBookingsForWaypointResponse
+	26, // 38: booking.BookingService.CancelBookingsForTrip:output_type -> booking.CancelBookingsForTripResponse
+	28, // 39: booking.BookingService.ReportNoShow:output_type -> booking.ReportNoShowResponse
+	30, // 40: booking.BookingService.ConfirmPayment:output_type -> booking.ConfirmPaymentResponse
+	32, // 41: booking.BookingService.FailPayment:output_type -> booking.FailPaymentResponse
+	34, // 42: booking.BookingService.GetActivePassengerIDsForTrip:output_type -> booking.GetActivePassengerIDsForTripResponse
+	40, // 43: booking.BookingService.GetDriverPendingBookings:output_type -> booking.GetDriverPendingBookingsResponse
+	43, // 44: booking.BookingService.GetActivePassengerSummariesForTrip:output_type -> booking.GetActivePassengerSummariesForTripResponse
+	36, // 45: booking.BookingService.Health:output_type -> booking.HealthResponse
+	28, // [28:46] is the sub-list for method output_type
+	10, // [10:28] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_booking_proto_init() }
@@ -2988,7 +3646,7 @@ func file_booking_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_booking_proto_rawDesc), len(file_booking_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   37,
+			NumMessages:   44,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
