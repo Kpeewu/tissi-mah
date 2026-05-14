@@ -53,10 +53,10 @@ type PersonaClient interface {
 	// Renouvelle le session token pour une inquiry existante
 	ResumeInquiry(ctx context.Context, inquiryID string) (*domain.PersonaSession, error)
 
-	// Soumet un document d'identité (recto + verso optionnel) à une inquiry
-	// existante via les URLs S3/MinIO de notre file-service.
-	// kind doit être une valeur Persona : "id_card", "passport", "driver_license".
-	// Évite la re-capture côté SDK Android.
+	// Soumet un document d'identité (recto + verso optionnel) à une inquiry existante
+	// via les URLs S3/MinIO de notre file-service (POST /api/v1/government-ids).
+	// kind doit être : "identification_card", "passport" ou "driver_license".
+	// Permet au SDK Persona de sauter l'étape capture et d'aller directement au selfie.
 	SubmitGovernmentID(ctx context.Context, inquiryID string, kind string, frontURL string, backURL string) error
 }
 

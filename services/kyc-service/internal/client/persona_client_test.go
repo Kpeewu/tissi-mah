@@ -38,35 +38,45 @@ func TestSubmitGovernmentID(t *testing.T) {
 			capturedContentType = r.Header.Get("Content-Type")
 			capturedBody, _ = io.ReadAll(r.Body)
 			w.WriteHeader(http.StatusCreated)
-			_, _ = w.Write([]byte(`{"data":{"id":"gid_xxx"}}`))
+			_, _ = w.Write([]byte(`{"data":{"type":"government-id","id":"gid_xxx"}}`))
 		}))
 		defer server.Close()
 
 		c := newTestPersonaClient(server, "test-api-key")
 
-		err := c.SubmitGovernmentID(context.Background(), "inq_abc", "id_card",
+		err := c.SubmitGovernmentID(context.Background(), "inq_abc", "identification_card",
 			"https://minio.local/bucket/front.jpg",
 			"https://minio.local/bucket/back.jpg",
 		)
 		require.NoError(t, err)
 
 		assert.Equal(t, http.MethodPost, capturedMethod)
-		assert.Equal(t, "/government-id-documents", capturedPath)
+		assert.Equal(t, "/government-ids", capturedPath)
 		assert.Equal(t, "Bearer test-api-key", capturedAuth)
 		assert.Equal(t, personaAPIVersion, capturedVersion)
 		assert.Equal(t, "application/json", capturedContentType)
 
-		// Vérifier le format JSON-API du body
+		// Vérifier le payload JSON:API
 		var body map[string]any
 		require.NoError(t, json.Unmarshal(capturedBody, &body))
 		data, ok := body["data"].(map[string]any)
 		require.True(t, ok, "data field missing")
+		assert.Equal(t, "government-id", data["type"])
+
 		attrs, ok := data["attributes"].(map[string]any)
 		require.True(t, ok, "attributes field missing")
-		assert.Equal(t, "inq_abc", attrs["inquiry-id"])
-		assert.Equal(t, "id_card", attrs["kind"])
+		assert.Equal(t, "identification_card", attrs["kind"])
 		assert.Equal(t, "https://minio.local/bucket/front.jpg", attrs["front-photo-url"])
 		assert.Equal(t, "https://minio.local/bucket/back.jpg", attrs["back-photo-url"])
+
+		rels, ok := data["relationships"].(map[string]any)
+		require.True(t, ok, "relationships field missing")
+		inqRel, ok := rels["inquiry"].(map[string]any)
+		require.True(t, ok, "relationships.inquiry missing")
+		inqData, ok := inqRel["data"].(map[string]any)
+		require.True(t, ok, "relationships.inquiry.data missing")
+		assert.Equal(t, "inquiry", inqData["type"])
+		assert.Equal(t, "inq_abc", inqData["id"])
 	})
 
 	t.Run("succès - 200 OK accepté aussi", func(t *testing.T) {
@@ -81,7 +91,7 @@ func TestSubmitGovernmentID(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("succès - sans backURL, le champ back-photo-url est omis du JSON", func(t *testing.T) {
+	t.Run("succès - sans backURL, back-photo-url absent du JSON", func(t *testing.T) {
 		var capturedBody []byte
 
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -100,7 +110,6 @@ func TestSubmitGovernmentID(t *testing.T) {
 		attrs := body["data"].(map[string]any)["attributes"].(map[string]any)
 		_, hasBack := attrs["back-photo-url"]
 		assert.False(t, hasBack, "back-photo-url should be omitted when empty")
-		assert.Equal(t, "https://minio.local/bucket/front.jpg", attrs["front-photo-url"])
 	})
 
 	t.Run("erreur - inquiryID vide, aucun appel HTTP", func(t *testing.T) {
@@ -112,11 +121,11 @@ func TestSubmitGovernmentID(t *testing.T) {
 		defer server.Close()
 
 		c := newTestPersonaClient(server, "test-api-key")
-		err := c.SubmitGovernmentID(context.Background(), "", "id_card",
+		err := c.SubmitGovernmentID(context.Background(), "", "identification_card",
 			"https://minio.local/bucket/front.jpg", "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "inquiryID required")
-		assert.False(t, called, "no HTTP request should be made")
+		assert.False(t, called)
 	})
 
 	t.Run("erreur - frontURL vide, aucun appel HTTP", func(t *testing.T) {
@@ -128,10 +137,10 @@ func TestSubmitGovernmentID(t *testing.T) {
 		defer server.Close()
 
 		c := newTestPersonaClient(server, "test-api-key")
-		err := c.SubmitGovernmentID(context.Background(), "inq_abc", "id_card", "", "")
+		err := c.SubmitGovernmentID(context.Background(), "inq_abc", "identification_card", "", "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "frontURL required")
-		assert.False(t, called, "no HTTP request should be made")
+		assert.False(t, called)
 	})
 
 	t.Run("erreur - HTTP 400 retourné par Persona", func(t *testing.T) {
@@ -142,7 +151,7 @@ func TestSubmitGovernmentID(t *testing.T) {
 		defer server.Close()
 
 		c := newTestPersonaClient(server, "test-api-key")
-		err := c.SubmitGovernmentID(context.Background(), "inq_abc", "id_card",
+		err := c.SubmitGovernmentID(context.Background(), "inq_abc", "identification_card",
 			"https://minio.local/bucket/front.jpg", "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unexpected status 400")
@@ -155,19 +164,18 @@ func TestSubmitGovernmentID(t *testing.T) {
 		defer server.Close()
 
 		c := newTestPersonaClient(server, "test-api-key")
-		err := c.SubmitGovernmentID(context.Background(), "inq_abc", "id_card",
+		err := c.SubmitGovernmentID(context.Background(), "inq_abc", "identification_card",
 			"https://minio.local/bucket/front.jpg", "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unexpected status 500")
 	})
 
 	t.Run("erreur - réseau injoignable", func(t *testing.T) {
-		// Server fermé immédiatement → la requête échouera au niveau transport
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 		server.Close()
 
 		c := newTestPersonaClient(server, "test-api-key")
-		err := c.SubmitGovernmentID(context.Background(), "inq_abc", "id_card",
+		err := c.SubmitGovernmentID(context.Background(), "inq_abc", "identification_card",
 			"https://minio.local/bucket/front.jpg", "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "SubmitGovernmentID")

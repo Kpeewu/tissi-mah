@@ -40,8 +40,7 @@ func NewPersonaClient(apiKey string, logger *zap.Logger) PersonaClient {
 }
 
 // parseSessionExpiresAt parse session-token-expires-at en RFC3339.
-// Persona peut renvoyer une chaîne vide quand la session SDK n'est plus
-// nécessaire (ex: docs déjà soumis via SubmitGovernmentID). On fallback
+// Persona peut renvoyer une chaîne vide dans certains cas — on fallback
 // à now+24h plutôt que d'annuler une requête que Persona a acceptée.
 func (c *personaClientImpl) parseSessionExpiresAt(raw, inquiryID string) time.Time {
 	if raw == "" {
@@ -235,25 +234,36 @@ func (c *personaClientImpl) ResumeInquiry(ctx context.Context, inquiryID string)
 // =============================================================================
 // SubmitGovernmentID
 // =============================================================================
-// Soumet un document d'identité (recto + verso optionnel) à Persona via les
-// URLs S3/MinIO de notre file-service. Évite la re-capture côté SDK Android.
-//
-// API Persona : POST /api/v1/government-id-documents
-// https://docs.withpersona.com/reference/create-a-government-id
+// POST /api/v1/government-ids — crée un government-id rattaché à une inquiry.
+// Permet au SDK Persona de sauter l'étape capture et d'aller directement au selfie.
 
-type submitGovernmentIDRequest struct {
-	Data submitGovernmentIDData `json:"data"`
+type submitGovIDRequest struct {
+	Data submitGovIDData `json:"data"`
 }
 
-type submitGovernmentIDData struct {
-	Attributes submitGovernmentIDAttributes `json:"attributes"`
+type submitGovIDData struct {
+	Type          string                  `json:"type"`
+	Attributes    submitGovIDAttributes   `json:"attributes"`
+	Relationships submitGovIDRelationships `json:"relationships"`
 }
 
-type submitGovernmentIDAttributes struct {
-	InquiryID     string `json:"inquiry-id"`
+type submitGovIDAttributes struct {
 	Kind          string `json:"kind,omitempty"`
 	FrontPhotoURL string `json:"front-photo-url"`
 	BackPhotoURL  string `json:"back-photo-url,omitempty"`
+}
+
+type submitGovIDRelationships struct {
+	Inquiry submitGovIDInquiryRel `json:"inquiry"`
+}
+
+type submitGovIDInquiryRel struct {
+	Data submitGovIDInquiryData `json:"data"`
+}
+
+type submitGovIDInquiryData struct {
+	Type string `json:"type"`
+	ID   string `json:"id"`
 }
 
 func (c *personaClientImpl) SubmitGovernmentID(ctx context.Context, inquiryID, kind, frontURL, backURL string) error {
@@ -270,13 +280,21 @@ func (c *personaClientImpl) SubmitGovernmentID(ctx context.Context, inquiryID, k
 		return fmt.Errorf("persona: SubmitGovernmentID: frontURL required")
 	}
 
-	reqBody := submitGovernmentIDRequest{
-		Data: submitGovernmentIDData{
-			Attributes: submitGovernmentIDAttributes{
-				InquiryID:     inquiryID,
+	reqBody := submitGovIDRequest{
+		Data: submitGovIDData{
+			Type: "government-id",
+			Attributes: submitGovIDAttributes{
 				Kind:          kind,
 				FrontPhotoURL: frontURL,
 				BackPhotoURL:  backURL,
+			},
+			Relationships: submitGovIDRelationships{
+				Inquiry: submitGovIDInquiryRel{
+					Data: submitGovIDInquiryData{
+						Type: "inquiry",
+						ID:   inquiryID,
+					},
+				},
 			},
 		},
 	}
@@ -286,7 +304,7 @@ func (c *personaClientImpl) SubmitGovernmentID(ctx context.Context, inquiryID, k
 		return fmt.Errorf("persona: marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/government-id-documents", bytes.NewReader(bodyJSON))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/government-ids", bytes.NewReader(bodyJSON))
 	if err != nil {
 		return fmt.Errorf("persona: create request: %w", err)
 	}
