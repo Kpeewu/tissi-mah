@@ -43,11 +43,12 @@ type GetDocumentInput struct {
 	SupportID string // Optionnel — accès support sans vérification de propriété
 }
 
-// GetDocumentResult contient le document récupéré.
+// GetDocumentResult contient le document récupéré avec une URL présignée.
 type GetDocumentResult struct {
-	FileID   string
-	FileURL  string
-	FileType string
+	FileID                string
+	FileURL               string // URL présignée (30 min)
+	FileType              string
+	PresignedURLExpiresAt string // ISO 8601
 }
 
 // DeleteFileInput contient les données pour supprimer un fichier avec vérification de propriété.

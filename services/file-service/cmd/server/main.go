@@ -92,7 +92,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	)
 
 	// --- gRPC server ---
-	srv, err := grpcServer.NewFileServer(cfg, fileService, userClient, logger)
+	srv, err := grpcServer.NewFileServer(cfg, fileService, userClient, storageClient, logger)
 	if err != nil {
 		return fmt.Errorf("grpc server: %w", err)
 	}

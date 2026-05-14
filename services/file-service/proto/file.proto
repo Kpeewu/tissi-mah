@@ -144,9 +144,10 @@ message GetDocumentRequest {
 }
 
 message DocumentFile {
-  string FileID   = 1;
-  string FileURL  = 2;
-  string FileType = 3;
+  string FileID                = 1;
+  string FileURL               = 2;  // URL présignée (30 min)
+  string FileType              = 3;
+  string PresignedUrlExpiresAt = 4;  // ISO 8601
 }
 
 message GetDocumentResponse {
@@ -244,7 +245,8 @@ message GetUserDocumentsRequest {
 }
 
 message GetDocumentByIDRequest {
-  string DocumentId = 1;
+  string DocumentId    = 1;
+  int64  PresignTTLSecs = 2;  // 0 = défaut 30 min ; 86400 pour Persona (KYC)
 }
 
 message GetCurrentUserDocumentRequest {

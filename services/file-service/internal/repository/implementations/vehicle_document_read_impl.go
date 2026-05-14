@@ -26,7 +26,7 @@ func (r *vehicleDocumentReadImpl) GetByID(ctx context.Context, documentID string
 	r.logger.Debug("récupération du document véhicule par ID", zap.String("documentID", documentID))
 
 	query := `SELECT document_id, user_id, vehicle_id, document_name, document_type,
-	                 document_url, file_size_bytes, mime_type,
+	                 document_key, file_size_bytes, mime_type,
 	                 document_number, issued_at, expire_at, issuing_authority,
 	                 status, is_current, replaced_by,
 	                 uploaded_at, updated_at
@@ -35,7 +35,7 @@ func (r *vehicleDocumentReadImpl) GetByID(ctx context.Context, documentID string
 	doc := &domain.VehicleDocument{}
 	err := r.pool.QueryRow(ctx, query, documentID).Scan(
 		&doc.DocumentID, &doc.UserID, &doc.VehicleID, &doc.DocumentName, &doc.DocumentType,
-		&doc.DocumentURL, &doc.FileSizeBytes, &doc.MimeType,
+		&doc.DocumentKey, &doc.FileSizeBytes, &doc.MimeType,
 		&doc.DocumentNumber, &doc.IssuedAt, &doc.ExpireAt, &doc.IssuingAuthority,
 		&doc.Status, &doc.IsCurrent, &doc.ReplacedBy,
 		&doc.UploadedAt, &doc.UpdatedAt,
@@ -55,7 +55,7 @@ func (r *vehicleDocumentReadImpl) GetByVehicleID(ctx context.Context, vehicleID 
 	r.logger.Debug("récupération des documents véhicule par vehicleID", zap.String("vehicleID", vehicleID))
 
 	query := `SELECT document_id, user_id, vehicle_id, document_name, document_type,
-	                 document_url, file_size_bytes, mime_type,
+	                 document_key, file_size_bytes, mime_type,
 	                 document_number, issued_at, expire_at, issuing_authority,
 	                 status, is_current, replaced_by,
 	                 uploaded_at, updated_at
@@ -74,7 +74,7 @@ func (r *vehicleDocumentReadImpl) GetByVehicleID(ctx context.Context, vehicleID 
 		doc := &domain.VehicleDocument{}
 		err := rows.Scan(
 			&doc.DocumentID, &doc.UserID, &doc.VehicleID, &doc.DocumentName, &doc.DocumentType,
-			&doc.DocumentURL, &doc.FileSizeBytes, &doc.MimeType,
+			&doc.DocumentKey, &doc.FileSizeBytes, &doc.MimeType,
 			&doc.DocumentNumber, &doc.IssuedAt, &doc.ExpireAt, &doc.IssuingAuthority,
 			&doc.Status, &doc.IsCurrent, &doc.ReplacedBy,
 			&doc.UploadedAt, &doc.UpdatedAt,

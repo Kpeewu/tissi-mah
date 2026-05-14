@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 	"unicode"
@@ -99,9 +98,8 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 	ext := extensionFromMimeType(input.MimeType)
 	s3Key := fmt.Sprintf("%s/%s/%s%s", input.DocumentType, input.UserID, documentID, ext)
 
-	documentURL, err := s.storage.Upload(ctx, s3Key, input.Data, input.MimeType, input.FileSizeBytes)
-	if err != nil {
-		s.logger.Error("S3 upload failed", zap.Error(err), zap.String("key", s3Key))
+	if _, uploadErr := s.storage.Upload(ctx, s3Key, input.Data, input.MimeType, input.FileSizeBytes); uploadErr != nil {
+		s.logger.Error("S3 upload failed", zap.Error(uploadErr), zap.String("key", s3Key))
 		return nil, fileErrors.ErrorUploadFailed
 	}
 
@@ -114,7 +112,7 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 		UserID:         input.UserID,
 		DocumentName:   input.DocumentName,
 		DocumentType:   input.DocumentType,
-		DocumentURL:    documentURL,
+		DocumentKey:    s3Key,
 		FileSizeBytes:  input.FileSizeBytes,
 		MimeType:       input.MimeType,
 		DocumentNumber: input.DocumentNumber,
@@ -125,7 +123,7 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 		UpdatedAt:      now,
 	}
 
-	_, err = s.userDocWrite.Create(ctx, doc)
+	_, err := s.userDocWrite.Create(ctx, doc)
 	if err != nil {
 		s.logger.Error("create user document record failed", zap.Error(err), zap.String("documentID", documentID))
 		return nil, fileErrors.ErrorInternalServer
@@ -187,11 +185,18 @@ func (s *fileServiceImpl) GetDocument(ctx context.Context, input serviceInterfac
 		}
 	}
 
+	presignedURL, err := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, 30*time.Minute)
+	if err != nil {
+		s.logger.Error("get document: presign failed", zap.Error(err), zap.String("fileID", input.FileID))
+		return nil, fileErrors.ErrorUploadFailed
+	}
+
 	s.logger.Info("get document: success", zap.String("fileID", input.FileID))
 	return &serviceInterfaces.GetDocumentResult{
-		FileID:   doc.DocumentID,
-		FileURL:  doc.DocumentURL,
-		FileType: doc.DocumentType,
+		FileID:                doc.DocumentID,
+		FileURL:               presignedURL,
+		FileType:              doc.DocumentType,
+		PresignedURLExpiresAt: time.Now().UTC().Add(30 * time.Minute).Format(time.RFC3339),
 	}, nil
 }
 
@@ -224,8 +229,7 @@ func (s *fileServiceImpl) DeleteUserDocument(ctx context.Context, documentID str
 		return err
 	}
 
-	s3Key := s3KeyFromURL(doc.DocumentURL, doc.DocumentType, doc.UserID, doc.DocumentID)
-	_ = s.storage.Delete(ctx, s3Key)
+	_ = s.storage.Delete(ctx, doc.DocumentKey)
 
 	if err := s.userDocWrite.Delete(ctx, documentID); err != nil {
 		s.logger.Error("delete user document: db delete failed", zap.Error(err), zap.String("documentID", documentID))
@@ -263,9 +267,8 @@ func (s *fileServiceImpl) UploadVehicleDocument(ctx context.Context, input servi
 	ext := extensionFromMimeType(input.MimeType)
 	s3Key := fmt.Sprintf("%s/%s/%s%s", input.DocumentType, input.VehicleID, documentID, ext)
 
-	documentURL, err := s.storage.Upload(ctx, s3Key, input.Data, input.MimeType, input.FileSizeBytes)
-	if err != nil {
-		s.logger.Error("S3 upload failed for vehicle doc", zap.Error(err), zap.String("key", s3Key))
+	if _, uploadErr := s.storage.Upload(ctx, s3Key, input.Data, input.MimeType, input.FileSizeBytes); uploadErr != nil {
+		s.logger.Error("S3 upload failed for vehicle doc", zap.Error(uploadErr), zap.String("key", s3Key))
 		return nil, fileErrors.ErrorUploadFailed
 	}
 
@@ -276,7 +279,7 @@ func (s *fileServiceImpl) UploadVehicleDocument(ctx context.Context, input servi
 		VehicleID:        input.VehicleID,
 		DocumentName:     input.DocumentName,
 		DocumentType:     input.DocumentType,
-		DocumentURL:      documentURL,
+		DocumentKey:      s3Key,
 		FileSizeBytes:    input.FileSizeBytes,
 		MimeType:         input.MimeType,
 		DocumentNumber:   input.DocumentNumber,
@@ -287,8 +290,7 @@ func (s *fileServiceImpl) UploadVehicleDocument(ctx context.Context, input servi
 		UpdatedAt:        now,
 	}
 
-	_, err = s.vehicleDocWrite.Create(ctx, doc)
-	if err != nil {
+	if _, err := s.vehicleDocWrite.Create(ctx, doc); err != nil {
 		s.logger.Error("create vehicle document record failed", zap.Error(err), zap.String("documentID", documentID))
 		return nil, fileErrors.ErrorInternalServer
 	}
@@ -315,8 +317,7 @@ func (s *fileServiceImpl) DeleteVehicleDocument(ctx context.Context, documentID 
 		return err
 	}
 
-	s3Key := s3KeyFromURL(doc.DocumentURL, doc.DocumentType, doc.VehicleID, doc.DocumentID)
-	_ = s.storage.Delete(ctx, s3Key)
+	_ = s.storage.Delete(ctx, doc.DocumentKey)
 
 	if err := s.vehicleDocWrite.Delete(ctx, documentID); err != nil {
 		s.logger.Error("delete vehicle document: db delete failed", zap.Error(err), zap.String("documentID", documentID))
@@ -651,6 +652,8 @@ func (s *fileServiceImpl) ChangeDocument(ctx context.Context, input serviceInter
 		return nil, err
 	}
 
+	presignedURL, _ := s.storage.GeneratePresignedURL(ctx, newDoc.DocumentKey, 30*time.Minute)
+
 	s.logger.Info("document changed",
 		zap.String("oldFileID", input.FileID),
 		zap.String("newFileID", newDoc.DocumentID),
@@ -658,7 +661,7 @@ func (s *fileServiceImpl) ChangeDocument(ctx context.Context, input serviceInter
 	)
 	return &serviceInterfaces.UploadedDocument{
 		DocumentID:   newDoc.DocumentID,
-		DocumentURL:  newDoc.DocumentURL,
+		DocumentURL:  presignedURL,
 		DocumentType: newDoc.DocumentType,
 		DocumentName: newDoc.DocumentName,
 	}, nil
@@ -756,9 +759,10 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 			zap.String("docType", u.docType),
 			zap.String("documentID", doc.DocumentID),
 		)
+		presignedURL, _ := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, 30*time.Minute)
 		created = append(created, &serviceInterfaces.UploadedDocument{
 			DocumentID:   doc.DocumentID,
-			DocumentURL:  doc.DocumentURL,
+			DocumentURL:  presignedURL,
 			DocumentType: doc.DocumentType,
 			DocumentName: doc.DocumentName,
 		})
@@ -839,25 +843,16 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 			zap.String("docType", u.docType),
 			zap.String("documentID", doc.DocumentID),
 		)
+		presignedURL, _ := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, 30*time.Minute)
 		created = append(created, &serviceInterfaces.UploadedDocument{
 			DocumentID:   doc.DocumentID,
-			DocumentURL:  doc.DocumentURL,
+			DocumentURL:  presignedURL,
 			DocumentType: doc.DocumentType,
 			DocumentName: doc.DocumentName,
 		})
 	}
 
 	return created, nil
-}
-
-func s3KeyFromURL(documentURL string, documentType string, ownerID string, documentID string) string {
-	ext := filepath.Ext(documentURL)
-	if ext == "" {
-		ext = ".jpg"
-	}
-	// Enlever le point initial si nécessaire pour reconstruire
-	ext = strings.TrimPrefix(ext, "?")
-	return fmt.Sprintf("%s/%s/%s%s", documentType, ownerID, documentID, ext)
 }
 
 // sanitizeForDocName normalise un nom ou prénom pour composer un docName safe :

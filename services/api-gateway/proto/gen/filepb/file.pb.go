@@ -398,12 +398,13 @@ func (x *GetDocumentRequest) GetSupportID() string {
 }
 
 type DocumentFile struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FileID        string                 `protobuf:"bytes,1,opt,name=FileID,proto3" json:"FileID,omitempty"`
-	FileURL       string                 `protobuf:"bytes,2,opt,name=FileURL,proto3" json:"FileURL,omitempty"`
-	FileType      string                 `protobuf:"bytes,3,opt,name=FileType,proto3" json:"FileType,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	FileID                string                 `protobuf:"bytes,1,opt,name=FileID,proto3" json:"FileID,omitempty"`
+	FileURL               string                 `protobuf:"bytes,2,opt,name=FileURL,proto3" json:"FileURL,omitempty"` // URL présignée (30 min)
+	FileType              string                 `protobuf:"bytes,3,opt,name=FileType,proto3" json:"FileType,omitempty"`
+	PresignedUrlExpiresAt string                 `protobuf:"bytes,4,opt,name=PresignedUrlExpiresAt,proto3" json:"PresignedUrlExpiresAt,omitempty"` // ISO 8601
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *DocumentFile) Reset() {
@@ -453,6 +454,13 @@ func (x *DocumentFile) GetFileURL() string {
 func (x *DocumentFile) GetFileType() string {
 	if x != nil {
 		return x.FileType
+	}
+	return ""
+}
+
+func (x *DocumentFile) GetPresignedUrlExpiresAt() string {
+	if x != nil {
+		return x.PresignedUrlExpiresAt
 	}
 	return ""
 }
@@ -1178,10 +1186,11 @@ func (x *GetUserDocumentsRequest) GetUserId() string {
 }
 
 type GetDocumentByIDRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	DocumentId    string                 `protobuf:"bytes,1,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId     string                 `protobuf:"bytes,1,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`
+	PresignTTLSecs int64                  `protobuf:"varint,2,opt,name=PresignTTLSecs,proto3" json:"PresignTTLSecs,omitempty"` // 0 = défaut 30 min ; 86400 pour Persona (KYC)
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetDocumentByIDRequest) Reset() {
@@ -1219,6 +1228,13 @@ func (x *GetDocumentByIDRequest) GetDocumentId() string {
 		return x.DocumentId
 	}
 	return ""
+}
+
+func (x *GetDocumentByIDRequest) GetPresignTTLSecs() int64 {
+	if x != nil {
+		return x.PresignTTLSecs
+	}
+	return 0
 }
 
 type GetCurrentUserDocumentRequest struct {
@@ -2794,11 +2810,12 @@ const file_file_proto_rawDesc = "" +
 	"\x12GetDocumentRequest\x12\x16\n" +
 	"\x06FileID\x18\x01 \x01(\tR\x06FileID\x12\x16\n" +
 	"\x06UserID\x18\x02 \x01(\tR\x06UserID\x12\x1c\n" +
-	"\tSupportID\x18\x03 \x01(\tR\tSupportID\"\\\n" +
+	"\tSupportID\x18\x03 \x01(\tR\tSupportID\"\x92\x01\n" +
 	"\fDocumentFile\x12\x16\n" +
 	"\x06FileID\x18\x01 \x01(\tR\x06FileID\x12\x18\n" +
 	"\aFileURL\x18\x02 \x01(\tR\aFileURL\x12\x1a\n" +
-	"\bFileType\x18\x03 \x01(\tR\bFileType\"a\n" +
+	"\bFileType\x18\x03 \x01(\tR\bFileType\x124\n" +
+	"\x15PresignedUrlExpiresAt\x18\x04 \x01(\tR\x15PresignedUrlExpiresAt\"a\n" +
 	"\x13GetDocumentResponse\x12\"\n" +
 	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12&\n" +
 	"\x04File\x18\x02 \x01(\v2\x12.file.DocumentFileR\x04File\"i\n" +
@@ -2847,11 +2864,12 @@ const file_file_proto_rawDesc = "" +
 	"\x0eDocumentNumber\x18\x06 \x01(\tR\x0eDocumentNumber\x12*\n" +
 	"\x10IssuingAuthority\x18\a \x01(\tR\x10IssuingAuthority\"1\n" +
 	"\x17GetUserDocumentsRequest\x12\x16\n" +
-	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"8\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"`\n" +
 	"\x16GetDocumentByIDRequest\x12\x1e\n" +
 	"\n" +
 	"DocumentId\x18\x01 \x01(\tR\n" +
-	"DocumentId\"[\n" +
+	"DocumentId\x12&\n" +
+	"\x0ePresignTTLSecs\x18\x02 \x01(\x03R\x0ePresignTTLSecs\"[\n" +
 	"\x1dGetCurrentUserDocumentRequest\x12\x16\n" +
 	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x12\"\n" +
 	"\fDocumentType\x18\x02 \x01(\tR\fDocumentType\":\n" +

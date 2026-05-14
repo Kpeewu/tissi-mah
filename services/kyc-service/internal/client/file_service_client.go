@@ -71,7 +71,8 @@ func (c *fileServiceClientImpl) GetUserDocument(ctx context.Context, documentID 
 	c.logger.Debug("client: GetUserDocument", zap.String("documentID", documentID))
 
 	resp, err := c.grpcClient.GetUserDocument(ctx, &filepb.GetDocumentByIDRequest{
-		DocumentId: documentID,
+		DocumentId:   documentID,
+		PresignTTLSecs: 86400, // 24h — Persona doit pouvoir fetcher le document
 	})
 	if err != nil {
 		c.logger.Error("client: GetUserDocument failed", zap.Error(err))
@@ -90,7 +91,8 @@ func (c *fileServiceClientImpl) GetVehicleDocument(ctx context.Context, document
 	c.logger.Debug("client: GetVehicleDocument", zap.String("documentID", documentID))
 
 	resp, err := c.grpcClient.GetVehicleDocument(ctx, &filepb.GetDocumentByIDRequest{
-		DocumentId: documentID,
+		DocumentId:   documentID,
+		PresignTTLSecs: 86400, // 24h — Persona doit pouvoir fetcher le document
 	})
 	if err != nil {
 		c.logger.Error("client: GetVehicleDocument failed", zap.Error(err))

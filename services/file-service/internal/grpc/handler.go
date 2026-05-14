@@ -10,6 +10,7 @@ import (
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/domain"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/file-service/internal/service/interfaces"
+	"github.com/Kpeewu/tissi-mah/services/file-service/internal/storage"
 	fileErrors "github.com/Kpeewu/tissi-mah/services/file-service/pkg/errors"
 	filepb "github.com/Kpeewu/tissi-mah/services/file-service/proto/gen"
 	"go.uber.org/zap"
@@ -20,16 +21,20 @@ import (
 
 const serviceVersion = "1.0.0"
 
+const defaultPresignTTL = 30 * time.Minute
+const maxPresignTTL = 24 * time.Hour
+
 // FileHandler implémente filepb.FileServiceServer.
 type FileHandler struct {
 	filepb.UnimplementedFileServiceServer
 	service    serviceInterfaces.FileService
 	userClient client.UserClient
+	storage    storage.StorageClient
 	logger     *zap.Logger
 }
 
-func NewFileHandler(service serviceInterfaces.FileService, userClient client.UserClient, logger *zap.Logger) *FileHandler {
-	return &FileHandler{service: service, userClient: userClient, logger: logger}
+func NewFileHandler(service serviceInterfaces.FileService, userClient client.UserClient, storageClient storage.StorageClient, logger *zap.Logger) *FileHandler {
+	return &FileHandler{service: service, userClient: userClient, storage: storageClient, logger: logger}
 }
 
 // --- Upload streaming : documents utilisateur ---
@@ -88,8 +93,9 @@ func (h *FileHandler) UploadUserDocument(stream filepb.FileService_UploadUserDoc
 		return toGRPCError(err)
 	}
 
+	presignedURL, _ := h.storage.GeneratePresignedURL(stream.Context(), doc.DocumentKey, defaultPresignTTL)
 	h.logger.Info("handler: UploadUserDocument success", zap.String("documentID", doc.DocumentID))
-	return stream.SendAndClose(toProtoUserDocument(doc))
+	return stream.SendAndClose(toProtoUserDocument(doc, presignedURL))
 }
 
 // --- Suppression document (HTTP via api-gateway) ---
@@ -141,9 +147,10 @@ func (h *FileHandler) GetDocument(ctx context.Context, req *filepb.GetDocumentRe
 	h.logger.Info("handler: GetDocument success", zap.String("fileID", req.FileID))
 	return &filepb.GetDocumentResponse{
 		File: &filepb.DocumentFile{
-			FileID:   result.FileID,
-			FileURL:  result.FileURL,
-			FileType: result.FileType,
+			FileID:                result.FileID,
+			FileURL:               result.FileURL,
+			FileType:              result.FileType,
+			PresignedUrlExpiresAt: result.PresignedURLExpiresAt,
 		},
 	}, nil
 }
@@ -382,8 +389,9 @@ func (h *FileHandler) UploadVehicleDocument(stream filepb.FileService_UploadVehi
 		return toGRPCError(err)
 	}
 
+	presignedURL, _ := h.storage.GeneratePresignedURL(stream.Context(), doc.DocumentKey, defaultPresignTTL)
 	h.logger.Info("handler: UploadVehicleDocument success", zap.String("documentID", doc.DocumentID))
-	return stream.SendAndClose(toProtoVehicleDocument(doc))
+	return stream.SendAndClose(toProtoVehicleDocument(doc, presignedURL))
 }
 
 // --- Lecture ---
@@ -398,7 +406,8 @@ func (h *FileHandler) GetUserDocuments(ctx context.Context, req *filepb.GetUserD
 
 	var protoDocs []*filepb.UserDocumentResponse
 	for _, doc := range docs {
-		protoDocs = append(protoDocs, toProtoUserDocument(doc))
+		presignedURL, _ := h.storage.GeneratePresignedURL(ctx, doc.DocumentKey, defaultPresignTTL)
+		protoDocs = append(protoDocs, toProtoUserDocument(doc, presignedURL))
 	}
 	return &filepb.GetUserDocumentsResponse{Documents: protoDocs}, nil
 }
@@ -410,7 +419,9 @@ func (h *FileHandler) GetUserDocument(ctx context.Context, req *filepb.GetDocume
 		h.logger.Error("handler: GetUserDocument failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
-	return toProtoUserDocument(doc), nil
+	ttl := presignTTLFromRequest(req.PresignTTLSecs)
+	presignedURL, _ := h.storage.GeneratePresignedURL(ctx, doc.DocumentKey, ttl)
+	return toProtoUserDocument(doc, presignedURL), nil
 }
 
 func (h *FileHandler) GetCurrentUserDocument(ctx context.Context, req *filepb.GetCurrentUserDocumentRequest) (*filepb.UserDocumentResponse, error) {
@@ -420,7 +431,8 @@ func (h *FileHandler) GetCurrentUserDocument(ctx context.Context, req *filepb.Ge
 		h.logger.Error("handler: GetCurrentUserDocument failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
-	return toProtoUserDocument(doc), nil
+	presignedURL, _ := h.storage.GeneratePresignedURL(ctx, doc.DocumentKey, defaultPresignTTL)
+	return toProtoUserDocument(doc, presignedURL), nil
 }
 
 func (h *FileHandler) GetVehicleDocuments(ctx context.Context, req *filepb.GetVehicleDocumentsRequest) (*filepb.GetVehicleDocumentsResponse, error) {
@@ -433,7 +445,8 @@ func (h *FileHandler) GetVehicleDocuments(ctx context.Context, req *filepb.GetVe
 
 	var protoDocs []*filepb.VehicleDocumentResponse
 	for _, doc := range docs {
-		protoDocs = append(protoDocs, toProtoVehicleDocument(doc))
+		presignedURL, _ := h.storage.GeneratePresignedURL(ctx, doc.DocumentKey, defaultPresignTTL)
+		protoDocs = append(protoDocs, toProtoVehicleDocument(doc, presignedURL))
 	}
 	return &filepb.GetVehicleDocumentsResponse{Documents: protoDocs}, nil
 }
@@ -445,7 +458,9 @@ func (h *FileHandler) GetVehicleDocument(ctx context.Context, req *filepb.GetDoc
 		h.logger.Error("handler: GetVehicleDocument failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
-	return toProtoVehicleDocument(doc), nil
+	ttl := presignTTLFromRequest(req.PresignTTLSecs)
+	presignedURL, _ := h.storage.GeneratePresignedURL(ctx, doc.DocumentKey, ttl)
+	return toProtoVehicleDocument(doc, presignedURL), nil
 }
 
 // --- Suppression ---
@@ -707,13 +722,13 @@ func toProtoUploadedDocuments(docs []*serviceInterfaces.UploadedDocument) []*fil
 	return out
 }
 
-func toProtoUserDocument(doc *domain.UserDocument) *filepb.UserDocumentResponse {
+func toProtoUserDocument(doc *domain.UserDocument, presignedURL string) *filepb.UserDocumentResponse {
 	return &filepb.UserDocumentResponse{
 		DocumentId:     doc.DocumentID,
 		UserId:         doc.UserID,
 		DocumentName:   doc.DocumentName,
 		DocumentType:   doc.DocumentType,
-		DocumentUrl:    doc.DocumentURL,
+		DocumentUrl:    presignedURL,
 		FileSizeBytes:  doc.FileSizeBytes,
 		MimeType:       doc.MimeType,
 		DocumentNumber: doc.DocumentNumber,
@@ -726,13 +741,13 @@ func toProtoUserDocument(doc *domain.UserDocument) *filepb.UserDocumentResponse 
 	}
 }
 
-func toProtoVehicleDocument(doc *domain.VehicleDocument) *filepb.VehicleDocumentResponse {
+func toProtoVehicleDocument(doc *domain.VehicleDocument, presignedURL string) *filepb.VehicleDocumentResponse {
 	return &filepb.VehicleDocumentResponse{
 		DocumentId:       doc.DocumentID,
 		VehicleId:        doc.VehicleID,
 		DocumentName:     doc.DocumentName,
 		DocumentType:     doc.DocumentType,
-		DocumentUrl:      doc.DocumentURL,
+		DocumentUrl:      presignedURL,
 		FileSizeBytes:    doc.FileSizeBytes,
 		MimeType:         doc.MimeType,
 		DocumentNumber:   doc.DocumentNumber,
@@ -742,6 +757,18 @@ func toProtoVehicleDocument(doc *domain.VehicleDocument) *filepb.VehicleDocument
 		UploadedAt:       doc.UploadedAt.Format(time.RFC3339),
 		UpdatedAt:        doc.UpdatedAt.Format(time.RFC3339),
 	}
+}
+
+// presignTTLFromRequest retourne le TTL à utiliser pour la présignature, plafonné à 24h.
+func presignTTLFromRequest(secs int64) time.Duration {
+	if secs <= 0 {
+		return defaultPresignTTL
+	}
+	ttl := time.Duration(secs) * time.Second
+	if ttl > maxPresignTTL {
+		return maxPresignTTL
+	}
+	return ttl
 }
 
 func toProtoDocumentReview(review *domain.DocumentReview) *filepb.DocumentReviewResponse {

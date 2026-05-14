@@ -27,7 +27,7 @@ func (r *userDocumentWriteImpl) Create(ctx context.Context, doc *domain.UserDocu
 
 	query := `INSERT INTO user_documents
 	          (document_id, user_id, document_name, document_type,
-	           document_url, file_size_bytes, mime_type,
+	           document_key, file_size_bytes, mime_type,
 	           document_number, issued_at, expire_at, issuing_country,
 	           status, is_current)
 	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
@@ -36,7 +36,7 @@ func (r *userDocumentWriteImpl) Create(ctx context.Context, doc *domain.UserDocu
 	var documentID string
 	err := r.pool.QueryRow(ctx, query,
 		doc.DocumentID, doc.UserID, doc.DocumentName, doc.DocumentType,
-		doc.DocumentURL, doc.FileSizeBytes, doc.MimeType,
+		doc.DocumentKey, doc.FileSizeBytes, doc.MimeType,
 		doc.DocumentNumber, doc.IssuedAt, doc.ExpireAt, doc.IssuingCountry,
 		doc.Status, doc.IsCurrent,
 	).Scan(&documentID)
@@ -58,23 +58,23 @@ func (r *userDocumentWriteImpl) Update(ctx context.Context, doc *domain.UserDocu
 	r.logger.Debug("mise à jour du document utilisateur", zap.String("documentID", doc.DocumentID))
 
 	query := `UPDATE user_documents SET
-	          document_name = $1, document_url = $2, file_size_bytes = $3, mime_type = $4,
+	          document_name = $1, document_key = $2, file_size_bytes = $3, mime_type = $4,
 	          document_number = $5, issued_at = $6, expire_at = $7, issuing_country = $8,
 	          status = $9
 	          WHERE document_id = $10
 	          RETURNING document_id, user_id, document_name, document_type,
-	                    document_url, file_size_bytes, mime_type,
+	                    document_key, file_size_bytes, mime_type,
 	                    document_number, issued_at, expire_at, issuing_country,
 	                    status, is_current, replaced_by,
 	                    uploaded_at, updated_at`
 
 	err := r.pool.QueryRow(ctx, query,
-		doc.DocumentName, doc.DocumentURL, doc.FileSizeBytes, doc.MimeType,
+		doc.DocumentName, doc.DocumentKey, doc.FileSizeBytes, doc.MimeType,
 		doc.DocumentNumber, doc.IssuedAt, doc.ExpireAt, doc.IssuingCountry,
 		doc.Status, doc.DocumentID,
 	).Scan(
 		&doc.DocumentID, &doc.UserID, &doc.DocumentName, &doc.DocumentType,
-		&doc.DocumentURL, &doc.FileSizeBytes, &doc.MimeType,
+		&doc.DocumentKey, &doc.FileSizeBytes, &doc.MimeType,
 		&doc.DocumentNumber, &doc.IssuedAt, &doc.ExpireAt, &doc.IssuingCountry,
 		&doc.Status, &doc.IsCurrent, &doc.ReplacedBy,
 		&doc.UploadedAt, &doc.UpdatedAt,

@@ -472,6 +472,76 @@ func local_request_BookingService_GetActivePassengerIDsForTrip_0(ctx context.Con
 	return msg, metadata, err
 }
 
+var filter_BookingService_GetDriverPendingBookings_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+
+func request_BookingService_GetDriverPendingBookings_0(ctx context.Context, marshaler runtime.Marshaler, client BookingServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq GetDriverPendingBookingsRequest
+		metadata runtime.ServerMetadata
+	)
+	if req.Body != nil {
+		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_BookingService_GetDriverPendingBookings_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	msg, err := client.GetDriverPendingBookings(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+}
+
+func local_request_BookingService_GetDriverPendingBookings_0(ctx context.Context, marshaler runtime.Marshaler, server BookingServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq GetDriverPendingBookingsRequest
+		metadata runtime.ServerMetadata
+	)
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_BookingService_GetDriverPendingBookings_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	msg, err := server.GetDriverPendingBookings(ctx, &protoReq)
+	return msg, metadata, err
+}
+
+var filter_BookingService_GetActivePassengerSummariesForTrip_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+
+func request_BookingService_GetActivePassengerSummariesForTrip_0(ctx context.Context, marshaler runtime.Marshaler, client BookingServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq GetActivePassengerSummariesForTripRequest
+		metadata runtime.ServerMetadata
+	)
+	if req.Body != nil {
+		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_BookingService_GetActivePassengerSummariesForTrip_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	msg, err := client.GetActivePassengerSummariesForTrip(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+}
+
+func local_request_BookingService_GetActivePassengerSummariesForTrip_0(ctx context.Context, marshaler runtime.Marshaler, server BookingServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq GetActivePassengerSummariesForTripRequest
+		metadata runtime.ServerMetadata
+	)
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_BookingService_GetActivePassengerSummariesForTrip_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	msg, err := server.GetActivePassengerSummariesForTrip(ctx, &protoReq)
+	return msg, metadata, err
+}
+
 func request_BookingService_Health_0(ctx context.Context, marshaler runtime.Marshaler, client BookingServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
 		protoReq HealthRequest
@@ -799,6 +869,46 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		}
 		forward_BookingService_GetActivePassengerIDsForTrip_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodGet, pattern_BookingService_GetDriverPendingBookings_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/GetDriverPendingBookings", runtime.WithHTTPPathPattern("/booking/getDriverPendingBookings"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_BookingService_GetDriverPendingBookings_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_BookingService_GetDriverPendingBookings_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
+	mux.Handle(http.MethodGet, pattern_BookingService_GetActivePassengerSummariesForTrip_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/GetActivePassengerSummariesForTrip", runtime.WithHTTPPathPattern("/booking/getActivePassengerSummaries"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_BookingService_GetActivePassengerSummariesForTrip_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_BookingService_GetActivePassengerSummariesForTrip_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodGet, pattern_BookingService_Health_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -1114,6 +1224,40 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		}
 		forward_BookingService_GetActivePassengerIDsForTrip_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodGet, pattern_BookingService_GetDriverPendingBookings_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/GetDriverPendingBookings", runtime.WithHTTPPathPattern("/booking/getDriverPendingBookings"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_BookingService_GetDriverPendingBookings_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_BookingService_GetDriverPendingBookings_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
+	mux.Handle(http.MethodGet, pattern_BookingService_GetActivePassengerSummariesForTrip_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/GetActivePassengerSummariesForTrip", runtime.WithHTTPPathPattern("/booking/getActivePassengerSummaries"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_BookingService_GetActivePassengerSummariesForTrip_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_BookingService_GetActivePassengerSummariesForTrip_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodGet, pattern_BookingService_Health_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -1135,39 +1279,43 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 }
 
 var (
-	pattern_BookingService_CreateBooking_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "createBooking"}, ""))
-	pattern_BookingService_GetBookingDetails_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "getBookingDetails"}, ""))
-	pattern_BookingService_GetPassengerBookings_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "getPassengerBookings"}, ""))
-	pattern_BookingService_GetDriverTripBookings_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "getDriverTripBookings"}, ""))
-	pattern_BookingService_ApproveBooking_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "approveBooking"}, ""))
-	pattern_BookingService_RejectBooking_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "rejectBooking"}, ""))
-	pattern_BookingService_CancelBooking_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "cancelBooking"}, ""))
-	pattern_BookingService_StartBookingsForWaypoint_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "startBookingsForWaypoint"}, ""))
-	pattern_BookingService_CompleteBookingsForWaypoint_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "completeBookingsForWaypoint"}, ""))
-	pattern_BookingService_CancelBookingsForWaypoint_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "cancelBookingsForWaypoint"}, ""))
-	pattern_BookingService_CancelBookingsForTrip_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "cancelBookingsForTrip"}, ""))
-	pattern_BookingService_ReportNoShow_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "reportNoShow"}, ""))
-	pattern_BookingService_ConfirmPayment_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "confirmPayment"}, ""))
-	pattern_BookingService_FailPayment_0                  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "failPayment"}, ""))
-	pattern_BookingService_GetActivePassengerIDsForTrip_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "getActivePassengerIDsForTrip"}, ""))
-	pattern_BookingService_Health_0                       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "health"}, ""))
+	pattern_BookingService_CreateBooking_0                      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "createBooking"}, ""))
+	pattern_BookingService_GetBookingDetails_0                  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "getBookingDetails"}, ""))
+	pattern_BookingService_GetPassengerBookings_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "getPassengerBookings"}, ""))
+	pattern_BookingService_GetDriverTripBookings_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "getDriverTripBookings"}, ""))
+	pattern_BookingService_ApproveBooking_0                     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "approveBooking"}, ""))
+	pattern_BookingService_RejectBooking_0                      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "rejectBooking"}, ""))
+	pattern_BookingService_CancelBooking_0                      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "cancelBooking"}, ""))
+	pattern_BookingService_StartBookingsForWaypoint_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "startBookingsForWaypoint"}, ""))
+	pattern_BookingService_CompleteBookingsForWaypoint_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "completeBookingsForWaypoint"}, ""))
+	pattern_BookingService_CancelBookingsForWaypoint_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "cancelBookingsForWaypoint"}, ""))
+	pattern_BookingService_CancelBookingsForTrip_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "cancelBookingsForTrip"}, ""))
+	pattern_BookingService_ReportNoShow_0                       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "reportNoShow"}, ""))
+	pattern_BookingService_ConfirmPayment_0                     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "confirmPayment"}, ""))
+	pattern_BookingService_FailPayment_0                        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "failPayment"}, ""))
+	pattern_BookingService_GetActivePassengerIDsForTrip_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "getActivePassengerIDsForTrip"}, ""))
+	pattern_BookingService_GetDriverPendingBookings_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "getDriverPendingBookings"}, ""))
+	pattern_BookingService_GetActivePassengerSummariesForTrip_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "getActivePassengerSummaries"}, ""))
+	pattern_BookingService_Health_0                             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "health"}, ""))
 )
 
 var (
-	forward_BookingService_CreateBooking_0                = runtime.ForwardResponseMessage
-	forward_BookingService_GetBookingDetails_0            = runtime.ForwardResponseMessage
-	forward_BookingService_GetPassengerBookings_0         = runtime.ForwardResponseMessage
-	forward_BookingService_GetDriverTripBookings_0        = runtime.ForwardResponseMessage
-	forward_BookingService_ApproveBooking_0               = runtime.ForwardResponseMessage
-	forward_BookingService_RejectBooking_0                = runtime.ForwardResponseMessage
-	forward_BookingService_CancelBooking_0                = runtime.ForwardResponseMessage
-	forward_BookingService_StartBookingsForWaypoint_0     = runtime.ForwardResponseMessage
-	forward_BookingService_CompleteBookingsForWaypoint_0  = runtime.ForwardResponseMessage
-	forward_BookingService_CancelBookingsForWaypoint_0    = runtime.ForwardResponseMessage
-	forward_BookingService_CancelBookingsForTrip_0        = runtime.ForwardResponseMessage
-	forward_BookingService_ReportNoShow_0                 = runtime.ForwardResponseMessage
-	forward_BookingService_ConfirmPayment_0               = runtime.ForwardResponseMessage
-	forward_BookingService_FailPayment_0                  = runtime.ForwardResponseMessage
-	forward_BookingService_GetActivePassengerIDsForTrip_0 = runtime.ForwardResponseMessage
-	forward_BookingService_Health_0                       = runtime.ForwardResponseMessage
+	forward_BookingService_CreateBooking_0                      = runtime.ForwardResponseMessage
+	forward_BookingService_GetBookingDetails_0                  = runtime.ForwardResponseMessage
+	forward_BookingService_GetPassengerBookings_0               = runtime.ForwardResponseMessage
+	forward_BookingService_GetDriverTripBookings_0              = runtime.ForwardResponseMessage
+	forward_BookingService_ApproveBooking_0                     = runtime.ForwardResponseMessage
+	forward_BookingService_RejectBooking_0                      = runtime.ForwardResponseMessage
+	forward_BookingService_CancelBooking_0                      = runtime.ForwardResponseMessage
+	forward_BookingService_StartBookingsForWaypoint_0           = runtime.ForwardResponseMessage
+	forward_BookingService_CompleteBookingsForWaypoint_0        = runtime.ForwardResponseMessage
+	forward_BookingService_CancelBookingsForWaypoint_0          = runtime.ForwardResponseMessage
+	forward_BookingService_CancelBookingsForTrip_0              = runtime.ForwardResponseMessage
+	forward_BookingService_ReportNoShow_0                       = runtime.ForwardResponseMessage
+	forward_BookingService_ConfirmPayment_0                     = runtime.ForwardResponseMessage
+	forward_BookingService_FailPayment_0                        = runtime.ForwardResponseMessage
+	forward_BookingService_GetActivePassengerIDsForTrip_0       = runtime.ForwardResponseMessage
+	forward_BookingService_GetDriverPendingBookings_0           = runtime.ForwardResponseMessage
+	forward_BookingService_GetActivePassengerSummariesForTrip_0 = runtime.ForwardResponseMessage
+	forward_BookingService_Health_0                             = runtime.ForwardResponseMessage
 )
