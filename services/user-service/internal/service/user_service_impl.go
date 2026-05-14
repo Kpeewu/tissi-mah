@@ -57,6 +57,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, authID string, firebas
 		HasProfileImage: profilePhotoURL != "",
 		DateOfBirth:     birthDate,
 		IsPassenger:     true,
+		IsDriver:        false,
 		CreatedAt:       now,
 		UpdatedAt:       now,
 	}
