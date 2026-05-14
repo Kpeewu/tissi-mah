@@ -354,13 +354,16 @@ func TestFileService_GetCurrentUserDocument(t *testing.T) {
 func TestFileService_GetDocument(t *testing.T) {
 	t.Run("should return document for owner", func(t *testing.T) {
 		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+		storage := &mocks.MockStorageClient{}
 		doc := stubUserDoc("doc-1", "user-1", "idCardFront")
 		userDocRead.On("GetByID", mock.Anything, "doc-1").Return(doc, nil)
+		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
+			Return("https://presigned.example.com/doc-1", nil)
 
 		svc := newService(userDocRead, &mocks.MockUserDocumentRepositoryWrite{},
 			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
-			&mocks.MockStorageClient{})
+			storage)
 
 		result, err := svc.GetDocument(context.Background(), serviceInterfaces.GetDocumentInput{
 			FileID: "doc-1",
@@ -374,13 +377,16 @@ func TestFileService_GetDocument(t *testing.T) {
 
 	t.Run("should return document for support without ownership check", func(t *testing.T) {
 		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+		storage := &mocks.MockStorageClient{}
 		doc := stubUserDoc("doc-1", "user-1", "idCardFront")
 		userDocRead.On("GetByID", mock.Anything, "doc-1").Return(doc, nil)
+		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
+			Return("https://presigned.example.com/doc-1", nil)
 
 		svc := newService(userDocRead, &mocks.MockUserDocumentRepositoryWrite{},
 			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
-			&mocks.MockStorageClient{})
+			storage)
 
 		result, err := svc.GetDocument(context.Background(), serviceInterfaces.GetDocumentInput{
 			FileID:    "doc-1",
@@ -720,6 +726,8 @@ func TestFileService_ChangeDocument(t *testing.T) {
 		userDocWrite.On("MarkAsReplaced", mock.Anything, "doc-1", mock.AnythingOfType("string")).Return(nil)
 		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
 			Return("https://storage.example.com/idCardFront/user-1/new.jpg", nil)
+		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
+			Return("https://presigned.example.com/doc", nil)
 		userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).Return("new-doc", nil)
 
 		svc := newService(userDocRead, userDocWrite,
@@ -801,6 +809,8 @@ func TestFileService_UploadIdDocument(t *testing.T) {
 
 		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
 			Return("https://storage.example.com/idCardFront/user-1/doc.jpg", nil)
+		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
+			Return("https://presigned.example.com/doc", nil)
 		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
 		userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).
@@ -830,6 +840,8 @@ func TestFileService_UploadIdDocument(t *testing.T) {
 
 		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
 			Return("https://storage.example.com/passport/user-1/doc.jpg", nil)
+		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
+			Return("https://presigned.example.com/doc", nil)
 		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
 		userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).
@@ -902,6 +914,8 @@ func TestFileService_UploadIdDocument(t *testing.T) {
 		storage := &mocks.MockStorageClient{}
 		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
 			Return("https://storage.example.com/file.jpg", nil)
+		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
+			Return("https://presigned.example.com/doc", nil)
 		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
 
@@ -940,6 +954,8 @@ func TestFileService_UploadIdDocument(t *testing.T) {
 		storage := &mocks.MockStorageClient{}
 		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
 			Return("https://storage.example.com/file.jpg", nil)
+		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
+			Return("https://presigned.example.com/doc", nil)
 		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
 
@@ -982,6 +998,8 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 
 		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
 			Return("https://storage.example.com/insurance/vehicle-1/doc.jpg", nil)
+		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
+			Return("https://presigned.example.com/doc", nil)
 		vehicleDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).
 			Return("vdoc-id", nil)
 
@@ -1038,6 +1056,8 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		storage := &mocks.MockStorageClient{}
 		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
 			Return("https://storage.example.com/file.jpg", nil)
+		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
+			Return("https://presigned.example.com/doc", nil)
 
 		captured := make([]*domain.VehicleDocument, 0, 3)
 		vehicleDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).
@@ -1083,6 +1103,8 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		storage := &mocks.MockStorageClient{}
 		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
 			Return("https://storage.example.com/file.jpg", nil)
+		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
+			Return("https://presigned.example.com/doc", nil)
 
 		captured := make([]*domain.VehicleDocument, 0, 3)
 		vehicleDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).
@@ -1120,6 +1142,8 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		storage := &mocks.MockStorageClient{}
 		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
 			Return("https://storage.example.com/file.jpg", nil)
+		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
+			Return("https://presigned.example.com/doc", nil)
 
 		captured := make([]*domain.VehicleDocument, 0, 3)
 		vehicleDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).
@@ -1533,6 +1557,8 @@ func TestFileService_ChangeDocument_DetectsHEIC(t *testing.T) {
 			capturedKey = args.String(1)
 		}).
 		Return("https://storage.example.com/heic", nil)
+	storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
+		Return("https://presigned.example.com/doc", nil)
 	userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).Return("new-doc", nil)
 
 	svc := newService(userDocRead, userDocWrite,
