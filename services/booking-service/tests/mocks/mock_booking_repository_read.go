@@ -128,3 +128,21 @@ func (m *MockBookingRepositoryRead) GetPassengerCompletedBookingsCount(ctx conte
 	args := m.Called(ctx, passengerID)
 	return args.Int(0), args.Error(1)
 }
+
+func (m *MockBookingRepositoryRead) HasActiveBookingAsPassenger(ctx context.Context, passengerID string) (bool, error) {
+	args := m.Called(ctx, passengerID)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockBookingRepositoryRead) HasActiveBookingAsDriver(ctx context.Context, driverID string) (bool, error) {
+	args := m.Called(ctx, driverID)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockBookingRepositoryRead) GetPassengerBookingIDs(ctx context.Context, passengerID string) ([]string, error) {
+	args := m.Called(ctx, passengerID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}

@@ -91,6 +91,13 @@ type TripService interface {
 	// SyncLegBookedSeats force la valeur de booked_seats pour chaque leg (réconciliation).
 	// Appelé par le job de réconciliation du booking-service.
 	SyncLegBookedSeats(ctx context.Context, input *SyncLegBookedSeatsInput) error
+
+	// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte côté trips-service.
+	// Retourne (false, raison) si le conducteur a un trajet inProgress.
+	CheckDeletionEligibility(ctx context.Context, userID string) (bool, string, error)
+
+	// AnonymizeUserData pseudonymise les références de l'utilisateur dans trips et recurring_patterns.
+	AnonymizeUserData(ctx context.Context, userID string) error
 }
 
 // GetTripsPreviewsInput contient les paramètres de la requête de liste.

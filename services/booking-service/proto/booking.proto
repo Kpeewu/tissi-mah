@@ -152,6 +152,19 @@ service BookingService {
       get: "/booking/health"
     };
   }
+
+  // CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
+  // Interne uniquement — appelé par auth-service lors d'une demande de suppression de compte.
+  // Bloquant si le passager a une réservation active ou si le chauffeur a des réservations actives sur ses trajets.
+  rpc CheckDeletionEligibility(CheckDeletionEligibilityRequest) returns (CheckDeletionEligibilityResponse);
+
+  // AnonymizeUserData anonymise les références de l'utilisateur dans booking-service.
+  // Interne uniquement — appelé par auth-service lors de la suppression de compte.
+  rpc AnonymizeUserData(AnonymizeUserDataRequest) returns (AnonymizeUserDataResponse);
+
+  // GetPassengerBookingIDs retourne tous les IDs de réservation d'un passager.
+  // Interne uniquement — utilisé par auth-service pour passer les IDs à payment-service.
+  rpc GetPassengerBookingIDs(GetPassengerBookingIDsRequest) returns (GetPassengerBookingIDsResponse);
 }
 
 // =============================================================================
@@ -561,4 +574,36 @@ message GetActivePassengerSummariesForTripRequest {
 message GetActivePassengerSummariesForTripResponse {
   repeated PassengerSummary Summaries = 1;
   string ErrorMessage                 = 2;
+}
+
+// =============================================================================
+// CheckDeletionEligibility / AnonymizeUserData / GetPassengerBookingIDs — suppression de compte
+// =============================================================================
+
+message CheckDeletionEligibilityRequest {
+  string UserId = 1; // UserID interne (user-service)
+}
+
+message CheckDeletionEligibilityResponse {
+  bool   CanDelete      = 1;
+  string BlockingReason = 2; // vide si CanDelete = true
+  string ErrorMessage   = 3;
+}
+
+message AnonymizeUserDataRequest {
+  string UserId = 1; // UserID interne (user-service)
+}
+
+message AnonymizeUserDataResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+message GetPassengerBookingIDsRequest {
+  string UserId = 1; // UserID interne (user-service)
+}
+
+message GetPassengerBookingIDsResponse {
+  repeated string BookingIds = 1;
+  string ErrorMessage        = 2;
 }

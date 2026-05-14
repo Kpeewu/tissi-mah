@@ -428,3 +428,17 @@ func (r *tripReadRepositoryImpl) GetTripIDByWaypointID(ctx context.Context, wayp
 	}
 	return tripID, nil
 }
+
+// HasActiveTripAsDriver vérifie si un conducteur a un trajet en cours (status = inProgress).
+func (r *tripReadRepositoryImpl) HasActiveTripAsDriver(ctx context.Context, driverID string) (bool, error) {
+	var exists bool
+	err := r.pool.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM trips WHERE driver_id = $1 AND status = 'inProgress' AND deleted_at IS NULL)`,
+		driverID,
+	).Scan(&exists)
+	if err != nil {
+		r.logger.Error("HasActiveTripAsDriver failed", zap.Error(err), zap.String("driverID", driverID))
+		return false, tripErrors.ErrorInternalServer
+	}
+	return exists, nil
+}

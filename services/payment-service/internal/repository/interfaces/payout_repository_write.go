@@ -15,4 +15,8 @@ type PayoutRepositoryWrite interface {
 	CreateBatch(ctx context.Context, batch *domain.PayoutBatch) error
 	UpdateBatch(ctx context.Context, batch *domain.PayoutBatch) error
 	MarkPaymentsAsPaidOut(ctx context.Context, tripID string) error
+
+	// AnonymizeDriverRefs pseudonymise driver_id, payout_destination et destination_name
+	// dans payouts pour l'utilisateur donné.
+	AnonymizeDriverRefs(ctx context.Context, driverID string) error
 }

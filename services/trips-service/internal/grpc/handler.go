@@ -654,6 +654,25 @@ func (h *TripHandler) CancelWaypoint(ctx context.Context, req *trippb.CancelWayp
 	return &trippb.CancelWaypointResponse{Success: true}, nil
 }
 
+// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte côté trips-service.
+func (h *TripHandler) CheckDeletionEligibility(ctx context.Context, req *trippb.CheckDeletionEligibilityRequest) (*trippb.CheckDeletionEligibilityResponse, error) {
+	canDelete, reason, err := h.service.CheckDeletionEligibility(ctx, req.UserId)
+	if err != nil {
+		h.logger.Error("handler: CheckDeletionEligibility failed", zap.Error(err))
+		return &trippb.CheckDeletionEligibilityResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+	return &trippb.CheckDeletionEligibilityResponse{CanDelete: canDelete, BlockingReason: reason}, nil
+}
+
+// AnonymizeUserData anonymise les références de l'utilisateur dans trips-service.
+func (h *TripHandler) AnonymizeUserData(ctx context.Context, req *trippb.AnonymizeUserDataRequest) (*trippb.AnonymizeUserDataResponse, error) {
+	if err := h.service.AnonymizeUserData(ctx, req.UserId); err != nil {
+		h.logger.Error("handler: AnonymizeUserData failed", zap.Error(err))
+		return &trippb.AnonymizeUserDataResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+	return &trippb.AnonymizeUserDataResponse{Success: true}, nil
+}
+
 // Health retourne l'état de santé du service.
 func (h *TripHandler) Health(_ context.Context, _ *trippb.HealthRequest) (*trippb.HealthResponse, error) {
 	return &trippb.HealthResponse{

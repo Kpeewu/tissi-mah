@@ -18,6 +18,10 @@ type ChatThreadRepository interface {
 	UpdateStatus(ctx context.Context, threadID string, status domain.ThreadStatus, closedAt *time.Time) error
 	// CloseByTripID ferme tous les threads actifs d'un trajet donné.
 	CloseByTripID(ctx context.Context, tripID string) (int, error)
+
+	// AnonymizeUserRefs pseudonymise driver_id et passenger_id pour les threads de l'utilisateur.
+	// Les threads actifs de l'utilisateur sont d'abord fermés.
+	AnonymizeUserRefs(ctx context.Context, userID string) error
 }
 
 // ChatMessageRepository gère la persistance des messages chiffrés.
@@ -38,4 +42,7 @@ type ChatMessageRepository interface {
 	// DeleteOlderThan supprime les messages non signalés plus vieux que cutoff
 	// (pour le CronJob de rétention 6 mois).
 	DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
+
+	// AnonymizeUserRefs pseudonymise sender_id pour les messages de l'utilisateur.
+	AnonymizeUserRefs(ctx context.Context, userID string) error
 }

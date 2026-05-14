@@ -37,6 +37,9 @@ const (
 	BookingService_GetDriverPendingBookings_FullMethodName           = "/booking.BookingService/GetDriverPendingBookings"
 	BookingService_GetActivePassengerSummariesForTrip_FullMethodName = "/booking.BookingService/GetActivePassengerSummariesForTrip"
 	BookingService_Health_FullMethodName                             = "/booking.BookingService/Health"
+	BookingService_CheckDeletionEligibility_FullMethodName           = "/booking.BookingService/CheckDeletionEligibility"
+	BookingService_AnonymizeUserData_FullMethodName                  = "/booking.BookingService/AnonymizeUserData"
+	BookingService_GetPassengerBookingIDs_FullMethodName             = "/booking.BookingService/GetPassengerBookingIDs"
 )
 
 // BookingServiceClient is the client API for BookingService service.
@@ -89,6 +92,16 @@ type BookingServiceClient interface {
 	GetActivePassengerSummariesForTrip(ctx context.Context, in *GetActivePassengerSummariesForTripRequest, opts ...grpc.CallOption) (*GetActivePassengerSummariesForTripResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
+	// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
+	// Interne uniquement — appelé par auth-service lors d'une demande de suppression de compte.
+	// Bloquant si le passager a une réservation active ou si le chauffeur a des réservations actives sur ses trajets.
+	CheckDeletionEligibility(ctx context.Context, in *CheckDeletionEligibilityRequest, opts ...grpc.CallOption) (*CheckDeletionEligibilityResponse, error)
+	// AnonymizeUserData anonymise les références de l'utilisateur dans booking-service.
+	// Interne uniquement — appelé par auth-service lors de la suppression de compte.
+	AnonymizeUserData(ctx context.Context, in *AnonymizeUserDataRequest, opts ...grpc.CallOption) (*AnonymizeUserDataResponse, error)
+	// GetPassengerBookingIDs retourne tous les IDs de réservation d'un passager.
+	// Interne uniquement — utilisé par auth-service pour passer les IDs à payment-service.
+	GetPassengerBookingIDs(ctx context.Context, in *GetPassengerBookingIDsRequest, opts ...grpc.CallOption) (*GetPassengerBookingIDsResponse, error)
 }
 
 type bookingServiceClient struct {
@@ -279,6 +292,36 @@ func (c *bookingServiceClient) Health(ctx context.Context, in *HealthRequest, op
 	return out, nil
 }
 
+func (c *bookingServiceClient) CheckDeletionEligibility(ctx context.Context, in *CheckDeletionEligibilityRequest, opts ...grpc.CallOption) (*CheckDeletionEligibilityResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CheckDeletionEligibilityResponse)
+	err := c.cc.Invoke(ctx, BookingService_CheckDeletionEligibility_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bookingServiceClient) AnonymizeUserData(ctx context.Context, in *AnonymizeUserDataRequest, opts ...grpc.CallOption) (*AnonymizeUserDataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AnonymizeUserDataResponse)
+	err := c.cc.Invoke(ctx, BookingService_AnonymizeUserData_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bookingServiceClient) GetPassengerBookingIDs(ctx context.Context, in *GetPassengerBookingIDsRequest, opts ...grpc.CallOption) (*GetPassengerBookingIDsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPassengerBookingIDsResponse)
+	err := c.cc.Invoke(ctx, BookingService_GetPassengerBookingIDs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BookingServiceServer is the server API for BookingService service.
 // All implementations must embed UnimplementedBookingServiceServer
 // for forward compatibility.
@@ -329,6 +372,16 @@ type BookingServiceServer interface {
 	GetActivePassengerSummariesForTrip(context.Context, *GetActivePassengerSummariesForTripRequest) (*GetActivePassengerSummariesForTripResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
+	// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
+	// Interne uniquement — appelé par auth-service lors d'une demande de suppression de compte.
+	// Bloquant si le passager a une réservation active ou si le chauffeur a des réservations actives sur ses trajets.
+	CheckDeletionEligibility(context.Context, *CheckDeletionEligibilityRequest) (*CheckDeletionEligibilityResponse, error)
+	// AnonymizeUserData anonymise les références de l'utilisateur dans booking-service.
+	// Interne uniquement — appelé par auth-service lors de la suppression de compte.
+	AnonymizeUserData(context.Context, *AnonymizeUserDataRequest) (*AnonymizeUserDataResponse, error)
+	// GetPassengerBookingIDs retourne tous les IDs de réservation d'un passager.
+	// Interne uniquement — utilisé par auth-service pour passer les IDs à payment-service.
+	GetPassengerBookingIDs(context.Context, *GetPassengerBookingIDsRequest) (*GetPassengerBookingIDsResponse, error)
 	mustEmbedUnimplementedBookingServiceServer()
 }
 
@@ -392,6 +445,15 @@ func (UnimplementedBookingServiceServer) GetActivePassengerSummariesForTrip(cont
 }
 func (UnimplementedBookingServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
+}
+func (UnimplementedBookingServiceServer) CheckDeletionEligibility(context.Context, *CheckDeletionEligibilityRequest) (*CheckDeletionEligibilityResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CheckDeletionEligibility not implemented")
+}
+func (UnimplementedBookingServiceServer) AnonymizeUserData(context.Context, *AnonymizeUserDataRequest) (*AnonymizeUserDataResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AnonymizeUserData not implemented")
+}
+func (UnimplementedBookingServiceServer) GetPassengerBookingIDs(context.Context, *GetPassengerBookingIDsRequest) (*GetPassengerBookingIDsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPassengerBookingIDs not implemented")
 }
 func (UnimplementedBookingServiceServer) mustEmbedUnimplementedBookingServiceServer() {}
 func (UnimplementedBookingServiceServer) testEmbeddedByValue()                        {}
@@ -738,6 +800,60 @@ func _BookingService_Health_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BookingService_CheckDeletionEligibility_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckDeletionEligibilityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).CheckDeletionEligibility(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_CheckDeletionEligibility_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).CheckDeletionEligibility(ctx, req.(*CheckDeletionEligibilityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BookingService_AnonymizeUserData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AnonymizeUserDataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).AnonymizeUserData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_AnonymizeUserData_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).AnonymizeUserData(ctx, req.(*AnonymizeUserDataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BookingService_GetPassengerBookingIDs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPassengerBookingIDsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).GetPassengerBookingIDs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_GetPassengerBookingIDs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).GetPassengerBookingIDs(ctx, req.(*GetPassengerBookingIDsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BookingService_ServiceDesc is the grpc.ServiceDesc for BookingService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -816,6 +932,18 @@ var BookingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Health",
 			Handler:    _BookingService_Health_Handler,
+		},
+		{
+			MethodName: "CheckDeletionEligibility",
+			Handler:    _BookingService_CheckDeletionEligibility_Handler,
+		},
+		{
+			MethodName: "AnonymizeUserData",
+			Handler:    _BookingService_AnonymizeUserData_Handler,
+		},
+		{
+			MethodName: "GetPassengerBookingIDs",
+			Handler:    _BookingService_GetPassengerBookingIDs_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

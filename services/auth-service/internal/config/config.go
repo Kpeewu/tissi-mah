@@ -13,6 +13,11 @@ type Config struct {
 	Redis              RedisConfig
 	NotificationRedis  RedisConfig
 	UserService        UserServiceConfig
+	TripsService       ServiceConfig
+	BookingService     ServiceConfig
+	PaymentService     ServiceConfig
+	ChatService        ServiceConfig
+	FileService        ServiceConfig
 	LogLevel           string
 	InternalHMACSecret string
 }
@@ -35,6 +40,11 @@ type RedisConfig struct {
 }
 
 type UserServiceConfig struct {
+	Address string
+	Port    string
+}
+
+type ServiceConfig struct {
 	Address string
 	Port    string
 }
@@ -66,6 +76,26 @@ func Load() (*Config, error) {
 		UserService: UserServiceConfig{
 			Address: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_HOST", "0.0.0.0"),
 			Port:    sharedconfig.GetStringOrDefault(values, "USER_SERVICE_PORT", "50052"),
+		},
+		TripsService: ServiceConfig{
+			Address: sharedconfig.GetStringOrDefault(values, "TRIPS_SERVICE_HOST", "0.0.0.0"),
+			Port:    sharedconfig.GetStringOrDefault(values, "TRIPS_SERVICE_PORT", "50053"),
+		},
+		BookingService: ServiceConfig{
+			Address: sharedconfig.GetStringOrDefault(values, "BOOKING_SERVICE_HOST", "0.0.0.0"),
+			Port:    sharedconfig.GetStringOrDefault(values, "BOOKING_SERVICE_PORT", "50055"),
+		},
+		PaymentService: ServiceConfig{
+			Address: sharedconfig.GetStringOrDefault(values, "PAYMENT_SERVICE_HOST", "0.0.0.0"),
+			Port:    sharedconfig.GetStringOrDefault(values, "PAYMENT_SERVICE_PORT", "50056"),
+		},
+		ChatService: ServiceConfig{
+			Address: sharedconfig.GetStringOrDefault(values, "CHAT_SERVICE_HOST", "0.0.0.0"),
+			Port:    sharedconfig.GetStringOrDefault(values, "CHAT_SERVICE_PORT", "50057"),
+		},
+		FileService: ServiceConfig{
+			Address: sharedconfig.GetStringOrDefault(values, "FILE_SERVICE_HOST", "0.0.0.0"),
+			Port:    sharedconfig.GetStringOrDefault(values, "FILE_SERVICE_PORT", "50058"),
 		},
 		LogLevel:           sharedconfig.MustGetString(values, "LOG_LEVEL"),
 		InternalHMACSecret: sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),

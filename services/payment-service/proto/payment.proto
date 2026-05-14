@@ -93,6 +93,14 @@ service PaymentService {
       get: "/payment/health"
     };
   }
+
+  // CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
+  // Interne uniquement — bloquant si le chauffeur a un payout en attente (pending/scheduled/processing).
+  rpc CheckDeletionEligibility(CheckDeletionEligibilityRequest) returns (CheckDeletionEligibilityResponse);
+
+  // AnonymizeUserData anonymise les données liées à l'utilisateur dans payment-service.
+  // Interne uniquement — appelé par auth-service lors de la suppression de compte.
+  rpc AnonymizeUserData(AnonymizeUserDataRequest) returns (AnonymizeUserDataResponse);
 }
 
 // =============================================================================
@@ -263,4 +271,28 @@ message HealthResponse {
   string Status    = 1;
   string Version   = 2;
   int64  Timestamp = 3;
+}
+
+// =============================================================================
+// CheckDeletionEligibility / AnonymizeUserData — suppression de compte
+// =============================================================================
+
+message CheckDeletionEligibilityRequest {
+  string UserId = 1; // UserID interne (user-service)
+}
+
+message CheckDeletionEligibilityResponse {
+  bool   CanDelete      = 1;
+  string BlockingReason = 2; // vide si CanDelete = true
+  string ErrorMessage   = 3;
+}
+
+message AnonymizeUserDataRequest {
+  string UserId              = 1; // UserID interne (user-service)
+  repeated string BookingIds = 2; // IDs des réservations du passager (pour anonymiser passenger_phone_number)
+}
+
+message AnonymizeUserDataResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
 }

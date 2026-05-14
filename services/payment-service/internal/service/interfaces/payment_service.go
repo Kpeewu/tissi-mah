@@ -14,6 +14,14 @@ type PaymentService interface {
 	GetPayoutStatus(ctx context.Context, payoutID string) (*PayoutStatusResult, error)
 	GetDriverPayouts(ctx context.Context, driverID string, pageIndex int) ([]*PayoutPreviewResult, error)
 	TriggerManualPayout(ctx context.Context, tripID string, supportUserID string) (int, error)
+
+	// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte côté payment-service.
+	// Bloquant si le chauffeur a un payout en attente (pending/scheduled/processing).
+	CheckDeletionEligibility(ctx context.Context, userID string) (bool, string, error)
+
+	// AnonymizeUserData anonymise les données liées à l'utilisateur dans payment-service.
+	// bookingIDs contient les IDs des réservations du passager pour anonymiser passenger_phone_number.
+	AnonymizeUserData(ctx context.Context, userID string, bookingIDs []string) error
 }
 
 // =============================================================================

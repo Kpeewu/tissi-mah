@@ -130,3 +130,27 @@ func (r *userDocumentWriteImpl) MarkAsReplaced(ctx context.Context, documentID s
 	r.logger.Info("document utilisateur marqué comme remplacé", zap.String("documentID", documentID), zap.String("replacedBy", replacedBy))
 	return nil
 }
+
+// DeleteAllByUserID supprime tous les documents d'un utilisateur et retourne leurs clés S3.
+func (r *userDocumentWriteImpl) DeleteAllByUserID(ctx context.Context, userID string) ([]string, error) {
+	rows, err := r.pool.Query(ctx,
+		`DELETE FROM user_documents WHERE user_id = $1 RETURNING document_key`,
+		userID,
+	)
+	if err != nil {
+		r.logger.Error("DeleteAllByUserID failed", zap.Error(err), zap.String("userID", userID))
+		return nil, fileErrors.ErrorInternalServer
+	}
+	defer rows.Close()
+
+	var keys []string
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			r.logger.Error("DeleteAllByUserID scan failed", zap.Error(err))
+			return nil, fileErrors.ErrorInternalServer
+		}
+		keys = append(keys, key)
+	}
+	return keys, nil
+}

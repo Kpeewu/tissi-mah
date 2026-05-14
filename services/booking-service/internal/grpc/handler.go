@@ -398,6 +398,35 @@ func (h *BookingHandler) GetActivePassengerIDsForTrip(ctx context.Context, req *
 	return &bookingpb.GetActivePassengerIDsForTripResponse{PassengerIDs: ids}, nil
 }
 
+// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte côté booking-service.
+func (h *BookingHandler) CheckDeletionEligibility(ctx context.Context, req *bookingpb.CheckDeletionEligibilityRequest) (*bookingpb.CheckDeletionEligibilityResponse, error) {
+	canDelete, reason, err := h.service.CheckDeletionEligibility(ctx, req.UserId)
+	if err != nil {
+		h.logger.Error("handler: CheckDeletionEligibility failed", zap.Error(err))
+		return &bookingpb.CheckDeletionEligibilityResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+	return &bookingpb.CheckDeletionEligibilityResponse{CanDelete: canDelete, BlockingReason: reason}, nil
+}
+
+// AnonymizeUserData anonymise les références de l'utilisateur dans booking-service.
+func (h *BookingHandler) AnonymizeUserData(ctx context.Context, req *bookingpb.AnonymizeUserDataRequest) (*bookingpb.AnonymizeUserDataResponse, error) {
+	if err := h.service.AnonymizeUserData(ctx, req.UserId); err != nil {
+		h.logger.Error("handler: AnonymizeUserData failed", zap.Error(err))
+		return &bookingpb.AnonymizeUserDataResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+	return &bookingpb.AnonymizeUserDataResponse{Success: true}, nil
+}
+
+// GetPassengerBookingIDs retourne tous les IDs de réservation d'un passager.
+func (h *BookingHandler) GetPassengerBookingIDs(ctx context.Context, req *bookingpb.GetPassengerBookingIDsRequest) (*bookingpb.GetPassengerBookingIDsResponse, error) {
+	ids, err := h.service.GetPassengerBookingIDs(ctx, req.UserId)
+	if err != nil {
+		h.logger.Error("handler: GetPassengerBookingIDs failed", zap.Error(err))
+		return &bookingpb.GetPassengerBookingIDsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+	return &bookingpb.GetPassengerBookingIDsResponse{BookingIds: ids}, nil
+}
+
 // Health retourne l'état de santé du service.
 func (h *BookingHandler) Health(ctx context.Context, req *bookingpb.HealthRequest) (*bookingpb.HealthResponse, error) {
 	return &bookingpb.HealthResponse{

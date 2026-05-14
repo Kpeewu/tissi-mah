@@ -18,4 +18,7 @@ type VehicleDocumentRepositoryWrite interface {
 
 	// Marque un document comme remplacé (is_current = false)
 	MarkAsReplaced(ctx context.Context, documentID string, replacedBy string) error
+
+	// DeleteAllByUserID supprime tous les documents véhicule d'un utilisateur et retourne leurs document_key.
+	DeleteAllByUserID(ctx context.Context, userID string) ([]string, error)
 }

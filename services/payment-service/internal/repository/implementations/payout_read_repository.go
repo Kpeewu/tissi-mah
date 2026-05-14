@@ -217,3 +217,20 @@ func (r *payoutReadRepository) scanPayout(ctx context.Context, query string, arg
 	}
 	return p, nil
 }
+
+// HasActivePayout vérifie si un chauffeur a un payout en attente.
+func (r *payoutReadRepository) HasActivePayout(ctx context.Context, driverID string) (bool, error) {
+	var exists bool
+	err := r.pool.QueryRow(ctx,
+		`SELECT EXISTS (
+			SELECT 1 FROM payouts
+			WHERE driver_id = $1 AND status IN ('pending','scheduled','processing')
+		)`,
+		driverID,
+	).Scan(&exists)
+	if err != nil {
+		r.logger.Error("HasActivePayout failed", zap.Error(err), zap.String("driverID", driverID))
+		return false, paymentErrors.ErrorInternalServer
+	}
+	return exists, nil
+}

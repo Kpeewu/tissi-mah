@@ -783,3 +783,34 @@ func formatOptionalTime(t *time.Time) string {
 	}
 	return t.Format(time.RFC3339)
 }
+
+// CheckDeletionEligibility vérifie si le chauffeur a un payout en attente.
+func (s *paymentServiceImpl) CheckDeletionEligibility(ctx context.Context, userID string) (bool, string, error) {
+	if userID == "" {
+		return false, "", paymentErrors.ErrorInvalidInput
+	}
+	hasActive, err := s.payoutReadRepo.HasActivePayout(ctx, userID)
+	if err != nil {
+		return false, "", paymentErrors.ErrorInternalServer
+	}
+	if hasActive {
+		return false, "chauffeur avec un versement en attente de traitement", nil
+	}
+	return true, "", nil
+}
+
+// AnonymizeUserData anonymise les données liées à l'utilisateur dans payment-service.
+func (s *paymentServiceImpl) AnonymizeUserData(ctx context.Context, userID string, bookingIDs []string) error {
+	if userID == "" {
+		return paymentErrors.ErrorInvalidInput
+	}
+	if err := s.payoutWriteRepo.AnonymizeDriverRefs(ctx, userID); err != nil {
+		return err
+	}
+	if len(bookingIDs) > 0 {
+		if err := s.paymentWriteRepo.AnonymizePassengerPhoneNumbers(ctx, bookingIDs); err != nil {
+			return err
+		}
+	}
+	return nil
+}

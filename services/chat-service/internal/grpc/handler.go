@@ -32,6 +32,15 @@ func (h *ChatHandler) Health(ctx context.Context, _ *chatpb.HealthRequest) (*cha
 	return &chatpb.HealthResponse{Status: "ok"}, nil
 }
 
+// AnonymizeUserData ferme les threads actifs de l'utilisateur et pseudonymise ses références.
+func (h *ChatHandler) AnonymizeUserData(ctx context.Context, req *chatpb.AnonymizeChatUserDataRequest) (*chatpb.AnonymizeChatUserDataResponse, error) {
+	if err := h.service.AnonymizeUserData(ctx, req.UserId); err != nil {
+		h.logger.Error("handler: AnonymizeUserData failed", zap.Error(err))
+		return &chatpb.AnonymizeChatUserDataResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+	return &chatpb.AnonymizeChatUserDataResponse{Success: true}, nil
+}
+
 // =============================================================================
 // GetOrCreateThread
 // =============================================================================

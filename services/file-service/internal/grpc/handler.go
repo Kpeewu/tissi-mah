@@ -681,6 +681,16 @@ func (h *FileHandler) ListDocumentReviews(ctx context.Context, req *filepb.ListD
 	return &filepb.GetDocumentReviewsResponse{Reviews: protoReviews}, nil
 }
 
+// --- Suppression de compte ---
+
+func (h *FileHandler) DeleteAllUserFiles(ctx context.Context, req *filepb.DeleteAllUserFilesRequest) (*filepb.DeleteAllUserFilesResponse, error) {
+	if err := h.service.DeleteAllUserFiles(ctx, req.UserID); err != nil {
+		h.logger.Error("handler: DeleteAllUserFiles failed", zap.Error(err))
+		return &filepb.DeleteAllUserFilesResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+	return &filepb.DeleteAllUserFilesResponse{Success: true}, nil
+}
+
 // --- Health ---
 
 func (h *FileHandler) Health(_ context.Context, _ *filepb.HealthRequest) (*filepb.HealthResponse, error) {

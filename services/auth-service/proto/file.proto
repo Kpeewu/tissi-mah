@@ -1,0 +1,21 @@
+// File Service Proto — contrat utilisé par auth-service
+// Définit uniquement les RPCs dont auth-service a besoin (suppression de compte).
+
+syntax = "proto3";
+
+package fileauth;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/auth-service/proto/gen/filepb;filepb";
+
+service FileService {
+  rpc DeleteAllUserFiles(DeleteAllUserFilesRequest) returns (DeleteAllUserFilesResponse);
+}
+
+message DeleteAllUserFilesRequest {
+  string UserID = 1;
+}
+
+message DeleteAllUserFilesResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}

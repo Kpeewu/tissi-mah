@@ -60,4 +60,15 @@ type BookingRepositoryRead interface {
 
 	// GetPassengerCompletedBookingsCount retourne le nombre de réservations complétées d'un passager.
 	GetPassengerCompletedBookingsCount(ctx context.Context, passengerID string) (int, error)
+
+	// HasActiveBookingAsPassenger vérifie si un passager a une réservation active (tous trajets confondus).
+	// Statuts bloquants : created, paymentPending, pendingApproval, approved, inProgress.
+	HasActiveBookingAsPassenger(ctx context.Context, passengerID string) (bool, error)
+
+	// HasActiveBookingAsDriver vérifie si un chauffeur a des réservations actives sur ses trajets.
+	// Statuts bloquants : pendingApproval, approved, inProgress.
+	HasActiveBookingAsDriver(ctx context.Context, driverID string) (bool, error)
+
+	// GetPassengerBookingIDs retourne tous les IDs de réservation d'un passager.
+	GetPassengerBookingIDs(ctx context.Context, passengerID string) ([]string, error)
 }

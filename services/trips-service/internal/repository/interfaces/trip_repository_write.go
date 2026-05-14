@@ -96,6 +96,11 @@ type TripRepositoryWrite interface {
 	// SyncLegBookedSeats force la valeur de booked_seats pour chaque leg et met à jour
 	// t.available_seats (cache dénormalisé) dans une transaction unique.
 	SyncLegBookedSeats(ctx context.Context, tripID string, legs []LegBookedSeats) error
+
+	// AnonymizeDriverRefs remplace driver_id et canceller_id par une valeur pseudonymisée
+	// dans les tables trips et recurring_patterns pour l'utilisateur donné.
+	// Utilisé lors de la suppression de compte.
+	AnonymizeDriverRefs(ctx context.Context, userID string) error
 }
 
 // LegBookedSeats contient le nombre de places réservées pour un leg donné.

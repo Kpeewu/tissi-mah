@@ -778,3 +778,46 @@ func (r *bookingWriteRepositoryImpl) MarkPaymentReleased(ctx context.Context, bo
 
 	return nil
 }
+
+// AnonymizeUserRefs pseudonymise les références d'un utilisateur dans bookings et bookings_status_history.
+func (r *bookingWriteRepositoryImpl) AnonymizeUserRefs(ctx context.Context, userID string) error {
+	anon := "deleted_" + userID[:8]
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		r.logger.Error("AnonymizeUserRefs: begin tx failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	_, err = tx.Exec(ctx, `
+		UPDATE bookings SET
+			passenger_id          = CASE WHEN passenger_id          = $2 THEN $1 ELSE passenger_id END,
+			driver_id             = CASE WHEN driver_id             = $2 THEN $1 ELSE driver_id END,
+			canceller_id          = CASE WHEN canceller_id          = $2 THEN $1 ELSE canceller_id END,
+			no_show_reported_by   = CASE WHEN no_show_reported_by   = $2 THEN $1 ELSE no_show_reported_by END,
+			updated_at            = NOW()
+		WHERE (passenger_id = $2 OR driver_id = $2 OR canceller_id = $2 OR no_show_reported_by = $2)
+		  AND deleted_at IS NULL`,
+		anon, userID,
+	)
+	if err != nil {
+		r.logger.Error("AnonymizeUserRefs: update bookings failed", zap.Error(err), zap.String("userID", userID))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	_, err = tx.Exec(ctx,
+		`UPDATE bookings_status_history SET changed_by = $1 WHERE changed_by = $2`,
+		anon, userID,
+	)
+	if err != nil {
+		r.logger.Error("AnonymizeUserRefs: update status_history failed", zap.Error(err), zap.String("userID", userID))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		r.logger.Error("AnonymizeUserRefs: commit failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+	return nil
+}

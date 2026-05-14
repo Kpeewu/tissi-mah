@@ -16,4 +16,7 @@ type PayoutRepositoryRead interface {
 	GetReleasedPaymentsForTrip(ctx context.Context, tripID string) ([]*domain.Payment, error)
 	IsTripReadyForPayout(ctx context.Context, tripID string) (bool, error)
 	GetByProviderReference(ctx context.Context, providerReference string) (*domain.Payout, error)
+
+	// HasActivePayout vérifie si un chauffeur a un payout en attente (pending/scheduled/processing).
+	HasActivePayout(ctx context.Context, driverID string) (bool, error)
 }

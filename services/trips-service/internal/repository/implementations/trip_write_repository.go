@@ -875,3 +875,43 @@ func (r *tripWriteRepositoryImpl) SyncLegBookedSeats(ctx context.Context, tripID
 
 	return nil
 }
+
+// AnonymizeDriverRefs pseudonymise driver_id et canceller_id dans trips et recurring_patterns.
+func (r *tripWriteRepositoryImpl) AnonymizeDriverRefs(ctx context.Context, userID string) error {
+	anon := "deleted_" + userID[:8]
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		r.logger.Error("AnonymizeDriverRefs: begin tx failed", zap.Error(err))
+		return tripErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	_, err = tx.Exec(ctx,
+		`UPDATE trips
+		 SET driver_id = $1,
+		     canceller_id = CASE WHEN canceller_id = $2 THEN $1 ELSE canceller_id END,
+		     updated_at  = NOW()
+		 WHERE driver_id = $2 AND deleted_at IS NULL`,
+		anon, userID,
+	)
+	if err != nil {
+		r.logger.Error("AnonymizeDriverRefs: update trips failed", zap.Error(err), zap.String("userID", userID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	_, err = tx.Exec(ctx,
+		`UPDATE recurring_patterns SET driver_id = $1, updated_at = NOW() WHERE driver_id = $2`,
+		anon, userID,
+	)
+	if err != nil {
+		r.logger.Error("AnonymizeDriverRefs: update recurring_patterns failed", zap.Error(err), zap.String("userID", userID))
+		return tripErrors.ErrorInternalServer
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		r.logger.Error("AnonymizeDriverRefs: commit failed", zap.Error(err))
+		return tripErrors.ErrorInternalServer
+	}
+	return nil
+}

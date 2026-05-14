@@ -1493,6 +1493,47 @@ func AsImpl(svc serviceInterfaces.BookingService) *bookingServiceImpl {
 	return impl
 }
 
+// CheckDeletionEligibility vérifie si l'utilisateur a des réservations bloquantes.
+func (s *bookingServiceImpl) CheckDeletionEligibility(ctx context.Context, userID string) (bool, string, error) {
+	if userID == "" {
+		return false, "", bookingErrors.ErrorInvalidInput
+	}
+
+	hasAsPassenger, err := s.readRepo.HasActiveBookingAsPassenger(ctx, userID)
+	if err != nil {
+		return false, "", bookingErrors.ErrorInternalServer
+	}
+	if hasAsPassenger {
+		return false, "passager avec une réservation active", nil
+	}
+
+	hasAsDriver, err := s.readRepo.HasActiveBookingAsDriver(ctx, userID)
+	if err != nil {
+		return false, "", bookingErrors.ErrorInternalServer
+	}
+	if hasAsDriver {
+		return false, "chauffeur avec des réservations passagers en cours", nil
+	}
+
+	return true, "", nil
+}
+
+// AnonymizeUserData pseudonymise les références de l'utilisateur dans booking-service.
+func (s *bookingServiceImpl) AnonymizeUserData(ctx context.Context, userID string) error {
+	if userID == "" {
+		return bookingErrors.ErrorInvalidInput
+	}
+	return s.writeRepo.AnonymizeUserRefs(ctx, userID)
+}
+
+// GetPassengerBookingIDs retourne tous les IDs de réservation d'un passager.
+func (s *bookingServiceImpl) GetPassengerBookingIDs(ctx context.Context, passengerID string) ([]string, error) {
+	if passengerID == "" {
+		return nil, bookingErrors.ErrorInvalidInput
+	}
+	return s.readRepo.GetPassengerBookingIDs(ctx, passengerID)
+}
+
 // GetServiceFeePercent est un helper utilisé dans le handler pour les calculs.
 func GetServiceFeePercent(svc serviceInterfaces.BookingService) int {
 	impl, ok := svc.(*bookingServiceImpl)
