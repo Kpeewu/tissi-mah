@@ -38,8 +38,9 @@ config:
 # ou via External Secrets Operator (staging / prod).
 secrets:
   databaseUrl: ""
-  perspectiveApiKey: ""      # Optionnel — graceful degradation si absent
-  googleAppCredentials: ""   # Optionnel — graceful degradation si absent
+  openaiApiKey: ""           # Optionnel — graceful degradation si absent
+  sightengineApiUser: ""     # Optionnel — graceful degradation si absent
+  sightengineApiSecret: ""   # Optionnel — graceful degradation si absent
   extra: {}
 
 probes:

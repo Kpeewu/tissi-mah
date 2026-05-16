@@ -49,13 +49,14 @@ config:
   failClosed: "true"
   extra: {}
 
-# GOOGLE_APPLICATION_CREDENTIALS et PERSPECTIVE_API_KEY
+# OPENAI_API_KEY, SIGHTENGINE_API_USER et SIGHTENGINE_API_SECRET
 # DOIVENT être provisionnés via AWS Secrets Manager (External Secrets).
-# Sans ces clés, seul le filtre local est actif.
+# Sans ces clés, seul le filtre local FR/EN/DE/IT/ES est actif.
 secrets:
   databaseUrl: ""
-  perspectiveApiKey: ""
-  googleAppCredentials: ""
+  openaiApiKey: ""
+  sightengineApiUser: ""
+  sightengineApiSecret: ""
   extra: {}
 
 probes:

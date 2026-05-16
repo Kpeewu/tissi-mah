@@ -51,8 +51,9 @@ config:
 # Secrets fournis via External Secrets Operator (AWS Secrets Manager)
 secrets:
   databaseUrl: ""
-  perspectiveApiKey: ""
-  googleAppCredentials: ""
+  openaiApiKey: ""
+  sightengineApiUser: ""
+  sightengineApiSecret: ""
   extra: {}
 
 probes:

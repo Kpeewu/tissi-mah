@@ -40,8 +40,9 @@ type ModerationConfig struct {
 	TextBlockedThreshold float64
 	TextFlaggedThreshold float64
 	// Clés API externes (optionnelles — graceful degradation si vides)
-	PerspectiveAPIKey  string
-	GoogleAppCreds     string // GOOGLE_APPLICATION_CREDENTIALS (JSON path ou contenu)
+	OpenAIAPIKey        string // OpenAI Moderation API (texte)
+	SightengineAPIUser  string // Sightengine user ID (images)
+	SightengineAPISecret string // Sightengine secret (images)
 	// Comportement en cas d'indisponibilité du service externe
 	FailClosed bool
 }
@@ -75,8 +76,9 @@ func Load() (*Config, error) {
 		Moderation: ModerationConfig{
 			TextBlockedThreshold: getFloat64OrDefault(values, "TEXT_BLOCKED_THRESHOLD", 0.90),
 			TextFlaggedThreshold: getFloat64OrDefault(values, "TEXT_FLAGGED_THRESHOLD", 0.70),
-			PerspectiveAPIKey:    sharedconfig.GetStringOrDefault(values, "PERSPECTIVE_API_KEY", ""),
-			GoogleAppCreds:       sharedconfig.GetStringOrDefault(values, "GOOGLE_APPLICATION_CREDENTIALS", ""),
+			OpenAIAPIKey:         sharedconfig.GetStringOrDefault(values, "OPENAI_API_KEY", ""),
+			SightengineAPIUser:   sharedconfig.GetStringOrDefault(values, "SIGHTENGINE_API_USER", ""),
+			SightengineAPISecret: sharedconfig.GetStringOrDefault(values, "SIGHTENGINE_API_SECRET", ""),
 			FailClosed:           getBoolOrDefault(values, "MODERATION_FAIL_CLOSED", false),
 		},
 	}

@@ -11,8 +11,8 @@ import (
 	"github.com/Kpeewu/tissi-mah/services/moderation-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/moderation-service/internal/config"
 	grpcServer "github.com/Kpeewu/tissi-mah/services/moderation-service/internal/grpc"
-	"github.com/Kpeewu/tissi-mah/services/moderation-service/internal/provider/perspective"
-	"github.com/Kpeewu/tissi-mah/services/moderation-service/internal/provider/vision"
+	"github.com/Kpeewu/tissi-mah/services/moderation-service/internal/provider/openai"
+	"github.com/Kpeewu/tissi-mah/services/moderation-service/internal/provider/sightengine"
 	"github.com/Kpeewu/tissi-mah/services/moderation-service/internal/repository/implementations"
 	"github.com/Kpeewu/tissi-mah/services/moderation-service/internal/service"
 	"go.uber.org/zap"
@@ -58,9 +58,9 @@ func run(bootstrapLogger *zap.Logger) error {
 	logRepo := implementations.NewModerationLogRepository(pool, logger)
 	violationRepo := implementations.NewViolationRepository(pool, logger)
 
-	// --- Providers externes (optionnels) ---
-	var textProvider = perspective.NewClient(cfg.Moderation.PerspectiveAPIKey, logger)
-	var imageProvider = vision.NewClient(cfg.Moderation.GoogleAppCreds, logger)
+	// --- Providers externes (optionnels — graceful degradation si clés absentes) ---
+	var textProvider = openai.NewClient(cfg.Moderation.OpenAIAPIKey, logger)
+	var imageProvider = sightengine.NewClient(cfg.Moderation.SightengineAPIUser, cfg.Moderation.SightengineAPISecret, logger)
 
 	// --- Clients inter-services ---
 	userServiceAddr := fmt.Sprintf("%s:%s", cfg.UserService.Address, cfg.UserService.Port)

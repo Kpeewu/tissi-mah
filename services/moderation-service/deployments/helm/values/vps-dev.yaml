@@ -38,8 +38,9 @@ config:
 # Injectés par le workflow CI via /tmp/secrets-values.yaml
 secrets:
   databaseUrl: ""
-  perspectiveApiKey: ""
-  googleAppCredentials: ""
+  openaiApiKey: ""
+  sightengineApiUser: ""
+  sightengineApiSecret: ""
   extra: {}
 
 probes:

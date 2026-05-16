@@ -230,8 +230,9 @@ jobs:
           CHAT_ENCRYPTION_KEY: ${{ secrets.CHAT_ENCRYPTION_KEY }}
           # moderation-service secrets
           MODERATION_DATABASE_URL: ${{ secrets.MODERATION_DATABASE_URL }}
-          MODERATION_PERSPECTIVE_API_KEY: ${{ secrets.MODERATION_PERSPECTIVE_API_KEY }}
-          MODERATION_GOOGLE_APP_CREDENTIALS: ${{ secrets.MODERATION_GOOGLE_APP_CREDENTIALS }}
+          MODERATION_OPENAI_API_KEY: ${{ secrets.MODERATION_OPENAI_API_KEY }}
+          MODERATION_SIGHTENGINE_API_USER: ${{ secrets.MODERATION_SIGHTENGINE_API_USER }}
+          MODERATION_SIGHTENGINE_API_SECRET: ${{ secrets.MODERATION_SIGHTENGINE_API_SECRET }}
         run: |
           python3 - <<'PYEOF'
           import yaml, os, json, sys
@@ -407,15 +408,17 @@ jobs:
               }
 
           elif service == "moderation-service":
-              # perspectiveApiKey et googleAppCredentials sont optionnels :
+              # openaiApiKey, sightengineApiUser, sightengineApiSecret sont optionnels :
               # si absents, le service dégrade gracieusement sur le filtre local uniquement.
               secrets_data = {
                   'databaseUrl': os.environ.get('MODERATION_DATABASE_URL', ''),
               }
-              if os.environ.get('MODERATION_PERSPECTIVE_API_KEY'):
-                  secrets_data['perspectiveApiKey'] = os.environ['MODERATION_PERSPECTIVE_API_KEY']
-              if os.environ.get('MODERATION_GOOGLE_APP_CREDENTIALS'):
-                  secrets_data['googleAppCredentials'] = os.environ['MODERATION_GOOGLE_APP_CREDENTIALS']
+              if os.environ.get('MODERATION_OPENAI_API_KEY'):
+                  secrets_data['openaiApiKey'] = os.environ['MODERATION_OPENAI_API_KEY']
+              if os.environ.get('MODERATION_SIGHTENGINE_API_USER'):
+                  secrets_data['sightengineApiUser'] = os.environ['MODERATION_SIGHTENGINE_API_USER']
+              if os.environ.get('MODERATION_SIGHTENGINE_API_SECRET'):
+                  secrets_data['sightengineApiSecret'] = os.environ['MODERATION_SIGHTENGINE_API_SECRET']
               data = {'secrets': secrets_data}
 
           else:
@@ -719,10 +722,11 @@ jobs:
 #
 #  15. Secrets GitHub pour moderation-service:
 #      - MODERATION_DATABASE_URL           : postgresql://user:pass@host:5443/moderation_db
-#      - MODERATION_PERSPECTIVE_API_KEY    : (optionnel) cle Google Perspective API — si absent,
-#        seul le filtre local FR/EN/DE/IT/ES est actif (graceful degradation).
-#      - MODERATION_GOOGLE_APP_CREDENTIALS : (optionnel) JSON credentials Google Cloud Vision
-#        pour la moderation d'images SafeSearch — si absent, photos non filrees par Vision.
+#      - MODERATION_OPENAI_API_KEY         : (optionnel) cle API OpenAI Moderation (texte)
+#        si absent, seul le filtre local FR/EN/DE/IT/ES est actif (graceful degradation).
+#      - MODERATION_SIGHTENGINE_API_USER   : (optionnel) Sightengine user ID (images)
+#      - MODERATION_SIGHTENGINE_API_SECRET : (optionnel) Sightengine secret (images)
+#        si absents, les photos de profil ne sont pas filrees par Sightengine.
 #
 #        Si les deux cles API sont absentes et MODERATION_FAIL_CLOSED=false (defaut),
 #        le service approuve tout contenu non bloque par le filtre local.
