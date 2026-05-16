@@ -40,6 +40,8 @@ const (
 	TripService_GetScheduledTripsPreviews_FullMethodName = "/trip.TripService/GetScheduledTripsPreviews"
 	TripService_IncrementLegBookedSeats_FullMethodName   = "/trip.TripService/IncrementLegBookedSeats"
 	TripService_SyncLegBookedSeats_FullMethodName        = "/trip.TripService/SyncLegBookedSeats"
+	TripService_CheckDeletionEligibility_FullMethodName  = "/trip.TripService/CheckDeletionEligibility"
+	TripService_AnonymizeUserData_FullMethodName         = "/trip.TripService/AnonymizeUserData"
 	TripService_Health_FullMethodName                    = "/trip.TripService/Health"
 )
 
@@ -105,6 +107,13 @@ type TripServiceClient interface {
 	// SyncLegBookedSeats force la valeur de booked_seats pour chaque leg (réconciliation).
 	// Appelé par le job de réconciliation du booking-service.
 	SyncLegBookedSeats(ctx context.Context, in *SyncLegBookedSeatsRequest, opts ...grpc.CallOption) (*SyncLegBookedSeatsResponse, error)
+	// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
+	// Interne uniquement — appelé par auth-service lors d'une demande de suppression de compte.
+	// Bloquant si le conducteur a un trajet inProgress.
+	CheckDeletionEligibility(ctx context.Context, in *CheckDeletionEligibilityRequest, opts ...grpc.CallOption) (*CheckDeletionEligibilityResponse, error)
+	// AnonymizeUserData anonymise les références de l'utilisateur dans trips-service.
+	// Interne uniquement — appelé par auth-service lors de la suppression de compte.
+	AnonymizeUserData(ctx context.Context, in *AnonymizeUserDataRequest, opts ...grpc.CallOption) (*AnonymizeUserDataResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -327,6 +336,26 @@ func (c *tripServiceClient) SyncLegBookedSeats(ctx context.Context, in *SyncLegB
 	return out, nil
 }
 
+func (c *tripServiceClient) CheckDeletionEligibility(ctx context.Context, in *CheckDeletionEligibilityRequest, opts ...grpc.CallOption) (*CheckDeletionEligibilityResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CheckDeletionEligibilityResponse)
+	err := c.cc.Invoke(ctx, TripService_CheckDeletionEligibility_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tripServiceClient) AnonymizeUserData(ctx context.Context, in *AnonymizeUserDataRequest, opts ...grpc.CallOption) (*AnonymizeUserDataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AnonymizeUserDataResponse)
+	err := c.cc.Invoke(ctx, TripService_AnonymizeUserData_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *tripServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -399,6 +428,13 @@ type TripServiceServer interface {
 	// SyncLegBookedSeats force la valeur de booked_seats pour chaque leg (réconciliation).
 	// Appelé par le job de réconciliation du booking-service.
 	SyncLegBookedSeats(context.Context, *SyncLegBookedSeatsRequest) (*SyncLegBookedSeatsResponse, error)
+	// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
+	// Interne uniquement — appelé par auth-service lors d'une demande de suppression de compte.
+	// Bloquant si le conducteur a un trajet inProgress.
+	CheckDeletionEligibility(context.Context, *CheckDeletionEligibilityRequest) (*CheckDeletionEligibilityResponse, error)
+	// AnonymizeUserData anonymise les références de l'utilisateur dans trips-service.
+	// Interne uniquement — appelé par auth-service lors de la suppression de compte.
+	AnonymizeUserData(context.Context, *AnonymizeUserDataRequest) (*AnonymizeUserDataResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedTripServiceServer()
@@ -473,6 +509,12 @@ func (UnimplementedTripServiceServer) IncrementLegBookedSeats(context.Context, *
 }
 func (UnimplementedTripServiceServer) SyncLegBookedSeats(context.Context, *SyncLegBookedSeatsRequest) (*SyncLegBookedSeatsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SyncLegBookedSeats not implemented")
+}
+func (UnimplementedTripServiceServer) CheckDeletionEligibility(context.Context, *CheckDeletionEligibilityRequest) (*CheckDeletionEligibilityResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CheckDeletionEligibility not implemented")
+}
+func (UnimplementedTripServiceServer) AnonymizeUserData(context.Context, *AnonymizeUserDataRequest) (*AnonymizeUserDataResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AnonymizeUserData not implemented")
 }
 func (UnimplementedTripServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -876,6 +918,42 @@ func _TripService_SyncLegBookedSeats_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TripService_CheckDeletionEligibility_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckDeletionEligibilityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).CheckDeletionEligibility(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_CheckDeletionEligibility_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).CheckDeletionEligibility(ctx, req.(*CheckDeletionEligibilityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TripService_AnonymizeUserData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AnonymizeUserDataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).AnonymizeUserData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_AnonymizeUserData_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).AnonymizeUserData(ctx, req.(*AnonymizeUserDataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _TripService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -984,6 +1062,14 @@ var TripService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SyncLegBookedSeats",
 			Handler:    _TripService_SyncLegBookedSeats_Handler,
+		},
+		{
+			MethodName: "CheckDeletionEligibility",
+			Handler:    _TripService_CheckDeletionEligibility_Handler,
+		},
+		{
+			MethodName: "AnonymizeUserData",
+			Handler:    _TripService_AnonymizeUserData_Handler,
 		},
 		{
 			MethodName: "Health",

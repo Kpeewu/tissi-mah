@@ -27,8 +27,4 @@ func (m *MockPersonaClient) ResumeInquiry(ctx context.Context, inquiryID string)
 	return args.Get(0).(*domain.PersonaSession), args.Error(1)
 }
 
-func (m *MockPersonaClient) SubmitGovernmentID(ctx context.Context, inquiryID, kind, frontURL, backURL string) error {
-	args := m.Called(ctx, inquiryID, kind, frontURL, backURL)
-	return args.Error(0)
-}
 
