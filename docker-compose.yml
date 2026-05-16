@@ -632,6 +632,49 @@ services:
     networks:
       - tissi-mah-network
 
+  # -------------------------------------------------------------------------
+  # moderation-service
+  # - Postgres : logs de modération + violations (port 5443)
+  # -------------------------------------------------------------------------
+  moderation-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-moderation-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_MODERATION_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_MODERATION_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_MODERATION_DB:-moderation_db}
+    ports:
+      - "5443:5432"
+    volumes:
+      - moderation_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_MODERATION_USER:-dev} -d ${POSTGRES_MODERATION_DB:-moderation_db} -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  moderation-migrate:
+    image: migrate/migrate:v4.17.0
+    container_name: tissi-mah-moderation-migrate
+    depends_on:
+      moderation-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/moderation-service/migrations:/migrations
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgresql://${POSTGRES_MODERATION_USER:-dev}:${POSTGRES_MODERATION_PASSWORD:-dev123}@moderation-postgres:5432/${POSTGRES_MODERATION_DB:-moderation_db}?sslmode=disable",
+        "up",
+      ]
+    restart: on-failure
+    networks:
+      - tissi-mah-network
+
 volumes:
   auth_postgres_data:
   redis_data:
@@ -658,6 +701,7 @@ volumes:
   minio_data:
   chat_postgres_data:
   chat_redis_data:
+  moderation_postgres_data:
 
 networks:
   tissi-mah-network:
