@@ -9,4 +9,5 @@ var (
 	ErrorPhoneNumberNotAvailable = errors.New("ErrorPhoneNumberNotAvailable")
 	ErrorDataRetrievalFailed     = errors.New("ErrorDataRetrievalFailed")
 	ErrorCantDeleteAccount       = errors.New("ErrorCantDeleteAccount")
+	ErrorAccountBanned           = errors.New("ErrorAccountBanned")
 )

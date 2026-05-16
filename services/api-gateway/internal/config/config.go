@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	Server         ServerConfig
-	Environment    EnvironmentConfig
-	Redis          RedisConfig
+	Server          ServerConfig
+	Environment     EnvironmentConfig
+	Redis           RedisConfig
+	SuspensionRedis RedisConfig
 	Firebase       FirebaseConfig
 	AuthService    ServiceEndpoint
 	UserService    ServiceEndpoint
@@ -115,6 +116,9 @@ func Load() (*Config, error) {
 		},
 		Redis: RedisConfig{
 			URL: sharedconfig.MustGetString(values, "REDIS_URL"),
+		},
+		SuspensionRedis: RedisConfig{
+			URL: sharedconfig.GetStringOrDefault(values, "SUSPENSION_REDIS_URL", ""),
 		},
 		Firebase: FirebaseConfig{
 			ProjectID: sharedconfig.MustGetString(values, "FIREBASE_PROJECT_ID"),

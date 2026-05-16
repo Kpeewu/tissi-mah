@@ -852,6 +852,9 @@ func toGRPCError(err error) error {
 	case errors.Is(err, fileErrors.ErrorUnauthorized):
 		return status.Error(codes.PermissionDenied, err.Error())
 
+	case errors.Is(err, fileErrors.ErrorContentBlocked):
+		return status.Error(codes.InvalidArgument, err.Error())
+
 	case errors.Is(err, fileErrors.ErrorFileTooLarge):
 		return status.Error(codes.ResourceExhausted, err.Error())
 

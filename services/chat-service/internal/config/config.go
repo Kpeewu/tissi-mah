@@ -15,7 +15,10 @@ type Config struct {
 	UserService       ServiceEndpoint
 	BookingService    ServiceEndpoint
 	TripsService      ServiceEndpoint
-	SupportService    ServiceEndpoint
+	SupportService      ServiceEndpoint
+	ModerationService   ServiceEndpoint
+	ModerationEnabled   bool
+	ModerationFailClosed bool
 	Encryption         EncryptionConfig
 	Worker             WorkerConfig
 	LogLevel           string
@@ -106,6 +109,12 @@ func Load() (*Config, error) {
 			Host: sharedconfig.GetStringOrDefault(values, "SUPPORT_SERVICE_HOST", "0.0.0.0"),
 			Port: sharedconfig.GetStringOrDefault(values, "SUPPORT_SERVICE_PORT", "50063"),
 		},
+		ModerationService: ServiceEndpoint{
+			Host: sharedconfig.GetStringOrDefault(values, "MODERATION_SERVICE_HOST", "0.0.0.0"),
+			Port: sharedconfig.GetStringOrDefault(values, "MODERATION_SERVICE_PORT", "50066"),
+		},
+		ModerationEnabled:    getBoolOrDefault(values, "MODERATION_ENABLED", true),
+		ModerationFailClosed: getBoolOrDefault(values, "MODERATION_FAIL_CLOSED", false),
 		Encryption: EncryptionConfig{
 			MasterKeyBase64: sharedconfig.MustGetString(values, "CHAT_ENCRYPTION_KEY"),
 		},
@@ -116,6 +125,13 @@ func Load() (*Config, error) {
 		LogLevel:           sharedconfig.MustGetString(values, "LOG_LEVEL"),
 		InternalHMACSecret: sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),
 	}, nil
+}
+
+func getBoolOrDefault(v interface{ GetBool(string) bool; IsSet(string) bool }, key string, def bool) bool {
+	if !v.IsSet(key) {
+		return def
+	}
+	return v.GetBool(key)
 }
 
 func getIntOrDefault(v interface{ GetInt(string) int; IsSet(string) bool }, key string, def int) int {

@@ -27,6 +27,7 @@ jobs:
       notification-service: ${{ steps.filter.outputs.notification-service }}
       geolocation-service: ${{ steps.filter.outputs.geolocation-service }}
       chat-service: ${{ steps.filter.outputs.chat-service }}
+      moderation-service: ${{ steps.filter.outputs.moderation-service }}
       pkg-notification: ${{ steps.filter.outputs.pkg-notification }}
     steps:
       - uses: actions/checkout@v4
@@ -59,6 +60,8 @@ jobs:
               - 'services/geolocation-service/**'
             chat-service:
               - 'services/chat-service/**'
+            moderation-service:
+              - 'services/moderation-service/**'
             pkg-notification:
               - 'pkg/notification/**'
 
@@ -648,6 +651,61 @@ jobs:
           flags: geolocation-service
           name: geolocation-service-coverage
 
+  # Test Moderation Service
+  # Requiert PostgreSQL pour les tables moderation_logs et user_violations.
+  # Le filtre local (text_filter) ne nécessite aucune infrastructure externe.
+  test-moderation-service:
+    name: Test Moderation Service
+    needs: detect-changes
+    if: needs.detect-changes.outputs.moderation-service == 'true'
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.work"
+          cache: true
+          cache-dependency-path: services/moderation-service/go.sum
+
+      - name: Download dependencies
+        working-directory: services/moderation-service
+        run: go mod download
+
+      - name: Run unit tests
+        working-directory: services/moderation-service
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
+          ENVIRONMENT: local
+          LOG_LEVEL: debug
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./internal/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          file: services/moderation-service/coverage.out
+          flags: moderation-service
+          name: moderation-service-coverage
+
   # Test Chat Service
   test-chat-service:
     name: Test Chat Service
@@ -698,6 +756,7 @@ jobs:
         test-push-service,
         test-notification-service,
         test-geolocation-service,
+        test-moderation-service,
         test-chat-service,
       ]
     if: always()
@@ -789,6 +848,13 @@ jobs:
             echo "✅ Geolocation Service: PASSED"
           else
             echo "❌ Geolocation Service: FAILED"
+            exit 1
+          fi
+
+          if [ "${{ needs.test-moderation-service.result }}" == "success" ] || [ "${{ needs.detect-changes.outputs.moderation-service }}" != "true" ]; then
+            echo "✅ Moderation Service: PASSED"
+          else
+            echo "❌ Moderation Service: FAILED"
             exit 1
           fi
 

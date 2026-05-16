@@ -12,9 +12,10 @@ type GetOrCreateThreadInput struct {
 }
 
 type SendMessageInput struct {
-	UserID   string // Firebase UID de l'expéditeur
-	ThreadID string
-	Content  string // texte brut; le filtre PII est appliqué dans la couche service
+	UserID      string // Firebase UID de l'expéditeur
+	ThreadID    string
+	Content     string // texte brut; le filtre PII est appliqué dans la couche service
+	ForceFlagged bool  // true si la modération a signalé le message
 }
 
 type SendMessageResult struct {

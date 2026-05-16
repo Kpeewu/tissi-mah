@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/pkg/notification"
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/client"
@@ -16,16 +17,17 @@ import (
 )
 
 type authServiceImpl struct {
-	readRepo       repoInterfaces.AuthRepositoryRead
-	writeRepo      repoInterfaces.AuthRepositoryWrite
-	userClient     client.UserClient
-	tripsClient    client.TripsClient
-	bookingClient  client.BookingClient
-	paymentClient  client.PaymentClient
-	chatClient     client.ChatClient
-	fileClient     client.FileClient
-	redisClient    *redis.Client
-	logger         *zap.Logger
+	readRepo        repoInterfaces.AuthRepositoryRead
+	writeRepo       repoInterfaces.AuthRepositoryWrite
+	userClient      client.UserClient
+	tripsClient     client.TripsClient
+	bookingClient   client.BookingClient
+	paymentClient   client.PaymentClient
+	chatClient      client.ChatClient
+	fileClient      client.FileClient
+	redisClient     *redis.Client
+	suspensionRedis *redis.Client
+	logger          *zap.Logger
 }
 
 func NewAuthService(
@@ -38,19 +40,21 @@ func NewAuthService(
 	chatClient client.ChatClient,
 	fileClient client.FileClient,
 	redisClient *redis.Client,
+	suspensionRedis *redis.Client,
 	logger *zap.Logger) serviceInterfaces.AuthService {
 
 	return &authServiceImpl{
-		readRepo:      readRepo,
-		writeRepo:     writeRepo,
-		userClient:    userClient,
-		tripsClient:   tripsClient,
-		bookingClient: bookingClient,
-		paymentClient: paymentClient,
-		chatClient:    chatClient,
-		fileClient:    fileClient,
-		redisClient:   redisClient,
-		logger:        logger,
+		readRepo:        readRepo,
+		writeRepo:       writeRepo,
+		userClient:      userClient,
+		tripsClient:     tripsClient,
+		bookingClient:   bookingClient,
+		paymentClient:   paymentClient,
+		chatClient:      chatClient,
+		fileClient:      fileClient,
+		redisClient:     redisClient,
+		suspensionRedis: suspensionRedis,
+		logger:          logger,
 	}
 }
 
@@ -223,6 +227,43 @@ func (s *authServiceImpl) CheckPhoneNumber(ctx context.Context, phoneNumber stri
 	}
 
 	return !exists, nil
+}
+
+// SuspendAccount suspend ou bannit définitivement un compte.
+// Écrit aussi une clé Redis "suspended:{firebaseUID}" consommée par l'api-gateway.
+func (s *authServiceImpl) SuspendAccount(ctx context.Context, authID string, suspendedUntil *time.Time, isBanned bool) error {
+	if authID == "" {
+		return authErrors.ErrorUserNotFound
+	}
+
+	auth, err := s.readRepo.GetByAuthID(ctx, authID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.Suspend(ctx, authID, suspendedUntil, isBanned); err != nil {
+		return err
+	}
+
+	if s.suspensionRedis != nil {
+		key := "suspended:" + auth.FirebaseID
+		if isBanned {
+			// Ban permanent : clé sans TTL
+			if err := s.suspensionRedis.Set(ctx, key, "banned", 0).Err(); err != nil {
+				s.logger.Error("failed to write permanent ban to Redis", zap.Error(err), zap.String("authID", authID))
+			}
+		} else if suspendedUntil != nil {
+			ttl := time.Until(*suspendedUntil)
+			if ttl > 0 {
+				if err := s.suspensionRedis.Set(ctx, key, "suspended", ttl).Err(); err != nil {
+					s.logger.Error("failed to write suspension to Redis", zap.Error(err), zap.String("authID", authID))
+				}
+			}
+		}
+	}
+
+	s.logger.Info("account suspended", zap.String("authID", authID), zap.Bool("isBanned", isBanned))
+	return nil
 }
 
 // GetAuthInfo récupère les données d'authentification par AuthID (inter-service)
