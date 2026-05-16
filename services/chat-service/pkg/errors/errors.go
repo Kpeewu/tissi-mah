@@ -18,4 +18,5 @@ var (
 	ErrUnauthorized              = errors.New("not authorized to access this conversation")
 	ErrBookingServiceUnavailable = errors.New("booking service unavailable")
 	ErrTripServiceUnavailable    = errors.New("trips service unavailable")
+	ErrMessageBlocked            = errors.New("message_rejected_by_moderation")
 )

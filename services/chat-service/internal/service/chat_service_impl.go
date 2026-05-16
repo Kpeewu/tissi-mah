@@ -27,17 +27,16 @@ const (
 )
 
 type chatServiceImpl struct {
-	threadRepo    repoInterfaces.ChatThreadRepository
-	messageRepo   repoInterfaces.ChatMessageRepository
-	userClient    client.UserClient
-	bookingClient client.BookingClient
-	tripClient    client.TripClient
-	encryptor     *crypto.MessageEncryptor
-	piiFilter     *filter.PIIFilter
-	// notifRedis publie les events NEW_MESSAGE consommés par
-	// notification-service (push FCM quand le destinataire est offline).
-	notifRedis *redis.Client
-	logger     *zap.Logger
+	threadRepo        repoInterfaces.ChatThreadRepository
+	messageRepo       repoInterfaces.ChatMessageRepository
+	userClient        client.UserClient
+	bookingClient     client.BookingClient
+	tripClient        client.TripClient
+	moderationClient  client.ModerationClient // nil si désactivé
+	encryptor         *crypto.MessageEncryptor
+	piiFilter         *filter.PIIFilter
+	notifRedis        *redis.Client
+	logger            *zap.Logger
 }
 
 func NewChatService(
@@ -46,20 +45,22 @@ func NewChatService(
 	userClient client.UserClient,
 	bookingClient client.BookingClient,
 	tripClient client.TripClient,
+	moderationClient client.ModerationClient,
 	encryptor *crypto.MessageEncryptor,
 	notifRedis *redis.Client,
 	logger *zap.Logger,
 ) svcInterfaces.ChatService {
 	return &chatServiceImpl{
-		threadRepo:    threadRepo,
-		messageRepo:   messageRepo,
-		userClient:    userClient,
-		bookingClient: bookingClient,
-		tripClient:    tripClient,
-		encryptor:     encryptor,
-		piiFilter:     filter.NewPIIFilter(),
-		notifRedis:    notifRedis,
-		logger:        logger,
+		threadRepo:       threadRepo,
+		messageRepo:      messageRepo,
+		userClient:       userClient,
+		bookingClient:    bookingClient,
+		tripClient:       tripClient,
+		moderationClient: moderationClient,
+		encryptor:        encryptor,
+		piiFilter:        filter.NewPIIFilter(),
+		notifRedis:       notifRedis,
+		logger:           logger,
 	}
 }
 
@@ -205,6 +206,30 @@ func (s *chatServiceImpl) SendMessage(ctx context.Context, input svcInterfaces.S
 		)
 	}
 
+	// Modération du contenu (après PII filter, avant chiffrement).
+	if s.moderationClient != nil {
+		msgID := uuid.New().String() // ID préalloué pour le log de modération
+		modResult, modErr := s.moderationClient.ModerateText(ctx, msgID, filtered, internalUserID)
+		if modErr == nil {
+			switch modResult.Decision {
+			case client.ModerationBlocked:
+				s.logger.Info("chat: message blocked by moderation",
+					zap.String("threadID", input.ThreadID),
+					zap.String("senderID", internalUserID),
+					zap.String("reason", modResult.Reason),
+				)
+				return nil, chatErrors.ErrMessageBlocked
+			case client.ModerationFlagged:
+				// Le message est autorisé mais sera marqué flagged en base.
+				input.ForceFlagged = true
+				s.logger.Info("chat: message flagged by moderation",
+					zap.String("threadID", input.ThreadID),
+					zap.String("senderID", internalUserID),
+				)
+			}
+		}
+	}
+
 	// Chiffrer le contenu filtré (celui qui sera livré aux participants).
 	ciphertext, nonce, err := s.encryptor.Encrypt([]byte(filtered), input.ThreadID)
 	if err != nil {
@@ -221,6 +246,7 @@ func (s *chatServiceImpl) SendMessage(ctx context.Context, input svcInterfaces.S
 		ContentEncrypted: ciphertext,
 		ContentNonce:     nonce,
 		HasRedaction:     hasRedaction,
+		Flagged:          input.ForceFlagged,
 	}
 	created, err := s.messageRepo.Create(ctx, msg)
 	if err != nil {

@@ -29,7 +29,7 @@ func (r *authReadRepositoryImpl) GetByAuthID(ctx context.Context, authID string)
 	r.logger.Debug("get auth by authID", zap.String("authID", authID))
 
 	query := `SELECT auth_id, firebase_id, email, phone_number,
-            		 is_active, is_suspended, suspension_end_date,
+            		 is_active, is_suspended, is_banned, suspension_end_date,
                 	 created_at, updated_at, deleted_at
 			  FROM auth WHERE auth_id = $1 AND deleted_at IS NULL`
 
@@ -42,6 +42,7 @@ func (r *authReadRepositoryImpl) GetByAuthID(ctx context.Context, authID string)
 		&auth.PhoneNumber,
 		&auth.IsActive,
 		&auth.IsSuspended,
+		&auth.IsBanned,
 		&auth.SuspensionEndDate,
 		&auth.CreatedAt,
 		&auth.UpdatedAt,
@@ -65,7 +66,7 @@ func (r *authReadRepositoryImpl) GetByFirebaseID(ctx context.Context, firebaseID
 	r.logger.Debug("get auth by firebaseID", zap.String("firebaseID", firebaseID))
 
 	query := `SELECT auth_id, firebase_id, email, phone_number,
-            		 is_active, is_suspended, suspension_end_date,
+            		 is_active, is_suspended, is_banned, suspension_end_date,
                 	 created_at, updated_at, deleted_at
 			  FROM auth WHERE firebase_id = $1 AND deleted_at IS NULL`
 
@@ -78,6 +79,7 @@ func (r *authReadRepositoryImpl) GetByFirebaseID(ctx context.Context, firebaseID
 		&auth.PhoneNumber,
 		&auth.IsActive,
 		&auth.IsSuspended,
+		&auth.IsBanned,
 		&auth.SuspensionEndDate,
 		&auth.CreatedAt,
 		&auth.UpdatedAt,
@@ -101,7 +103,7 @@ func (r *authReadRepositoryImpl) GetByEmail(ctx context.Context, email string) (
 	r.logger.Debug("get auth by email", zap.String("email", email))
 
 	query := `SELECT auth_id, firebase_id, email, phone_number,
-            		 is_active, is_suspended, suspension_end_date,
+            		 is_active, is_suspended, is_banned, suspension_end_date,
                 	 created_at, updated_at, deleted_at
 			  FROM auth WHERE email = $1 AND deleted_at IS NULL`
 
@@ -114,6 +116,7 @@ func (r *authReadRepositoryImpl) GetByEmail(ctx context.Context, email string) (
 		&auth.PhoneNumber,
 		&auth.IsActive,
 		&auth.IsSuspended,
+		&auth.IsBanned,
 		&auth.SuspensionEndDate,
 		&auth.CreatedAt,
 		&auth.UpdatedAt,
@@ -137,7 +140,7 @@ func (r *authReadRepositoryImpl) GetByPhoneNumber(ctx context.Context, phoneNumb
 	r.logger.Debug("get auth by phone", zap.String("phone", phoneNumber))
 
 	query := `SELECT auth_id, firebase_id, email, phone_number,
-            		 is_active, is_suspended, suspension_end_date,
+            		 is_active, is_suspended, is_banned, suspension_end_date,
                 	 created_at, updated_at, deleted_at
 			  FROM auth WHERE phone_number = $1 AND deleted_at IS NULL`
 
@@ -150,6 +153,7 @@ func (r *authReadRepositoryImpl) GetByPhoneNumber(ctx context.Context, phoneNumb
 		&auth.PhoneNumber,
 		&auth.IsActive,
 		&auth.IsSuspended,
+		&auth.IsBanned,
 		&auth.SuspensionEndDate,
 		&auth.CreatedAt,
 		&auth.UpdatedAt,

@@ -1,0 +1,83 @@
+replicaCount: 1
+
+image:
+  registry: ghcr.io
+  repository: kpeewu/tissi-mah/moderation-service
+  pullPolicy: Always
+  tag: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 50066
+
+config:
+  environment: "production"
+  logLevel: "info"
+  userServiceHost: "user-service"
+  userServicePort: "50052"
+  authServiceHost: "auth-service"
+  authServicePort: "50051"
+  textBlockedThreshold: "0.90"
+  textFlaggedThreshold: "0.70"
+  failClosed: "false"
+  extra: {}
+
+# Injectés par le workflow CI via /tmp/secrets-values.yaml (vps-dev)
+# ou via External Secrets Operator (staging / prod).
+secrets:
+  databaseUrl: ""
+  openaiApiKey: ""           # Optionnel — graceful degradation si absent
+  sightengineApiUser: ""     # Optionnel — graceful degradation si absent
+  sightengineApiSecret: ""   # Optionnel — graceful degradation si absent
+  extra: {}
+
+probes:
+  enabled: false
+  liveness:
+    initialDelaySeconds: 20
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 10
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 3
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 384Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 75
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+imagePullSecrets:
+  - name: ghcr-secret

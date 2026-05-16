@@ -131,6 +131,7 @@ func (h *AuthHandler) GetAuthInfo(ctx context.Context, req *authpb.GetAuthInfoRe
 		AuthID:      auth.AuthID,
 		IsActive:    auth.IsActive,
 		IsSuspended: auth.IsSuspended,
+		IsBanned:    auth.IsBanned,
 	}
 
 	if auth.Email != nil {
@@ -145,6 +146,35 @@ func (h *AuthHandler) GetAuthInfo(ctx context.Context, req *authpb.GetAuthInfoRe
 
 	h.logger.Debug("handler: GetAuthInfo success", zap.String("authID", req.AuthID))
 	return resp, nil
+}
+
+// SuspendAccount suspend ou bannit un compte (inter-service, appelé par moderation-service).
+func (h *AuthHandler) SuspendAccount(ctx context.Context, req *authpb.SuspendAccountRequest) (*authpb.SuspendAccountResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
+	defer cancel()
+
+	h.logger.Debug("handler: SuspendAccount called", zap.String("authID", req.AuthID), zap.Bool("isBanned", req.IsBanned))
+
+	if req.AuthID == "" {
+		return nil, status.Error(codes.InvalidArgument, "auth_id is required")
+	}
+
+	var suspendedUntil *time.Time
+	if req.SuspendedUntil != "" {
+		t, err := time.Parse(time.RFC3339, req.SuspendedUntil)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "suspended_until must be RFC3339")
+		}
+		suspendedUntil = &t
+	}
+
+	if err := h.service.SuspendAccount(ctx, req.AuthID, suspendedUntil, req.IsBanned); err != nil {
+		h.logger.Error("handler: SuspendAccount failed", zap.Error(err), zap.String("authID", req.AuthID))
+		return nil, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: SuspendAccount success", zap.String("authID", req.AuthID))
+	return &authpb.SuspendAccountResponse{Success: true}, nil
 }
 
 // toGRPCError traduit les erreurs domaine en codes de statut gRPC.
@@ -166,6 +196,8 @@ func toGRPCError(err error) error {
 		return status.Error(codes.AlreadyExists, err.Error())
 	case errors.Is(err, authErrors.ErrorCantDeleteAccount):
 		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, authErrors.ErrorAccountBanned):
+		return status.Error(codes.PermissionDenied, err.Error())
 	case errors.Is(err, authErrors.ErrorDataRetrievalFailed),
 		errors.Is(err, authErrors.ErrorInternalServer):
 		return status.Error(codes.Internal, err.Error())

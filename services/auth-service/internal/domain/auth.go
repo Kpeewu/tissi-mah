@@ -12,6 +12,7 @@ type Auth struct {
 	PhoneNumber       *string
 	IsActive          bool
 	IsSuspended       bool
+	IsBanned          bool
 	SuspensionEndDate *time.Time
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
@@ -49,20 +50,29 @@ func (a *Auth) IsDeleted() bool {
 	return a.DeletedAt != nil
 }
 
-// Verify if the user account is actually suspended
+// Verify if the user account is actually suspended or banned
 func (a *Auth) IsSuspendedNow() bool {
-	// Si pas marqué comme suspendu, retour immédiat
+	if a.IsBanned {
+		return true
+	}
+
 	if !a.IsSuspended {
 		return false
 	}
 
-	// Si suspendu mais pas de date de fin, suspendu indéfiniment
 	if a.SuspensionEndDate == nil {
 		return true
 	}
 
-	// Vérifier si la date de fin est dépassée
 	return time.Now().UTC().Before(*a.SuspensionEndDate)
+}
+
+// Ban permanently bans the account
+func (a *Auth) Ban() {
+	a.IsBanned = true
+	a.IsSuspended = true
+	a.SuspensionEndDate = nil
+	a.UpdatedAt = time.Now().UTC()
 }
 
 // Verify if the user can login

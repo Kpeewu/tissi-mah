@@ -1,0 +1,31 @@
+// Moderation Service Proto — contrat utilisé par chat-service
+// Définit uniquement ModerateText dont chat-service a besoin.
+
+syntax = "proto3";
+
+package moderation;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/chat-service/proto/gen/moderationpb;moderationpb";
+
+enum ModerationDecision {
+  APPROVED = 0;
+  FLAGGED  = 1;
+  BLOCKED  = 2;
+}
+
+service ModerationService {
+  rpc ModerateText(ModerateTextRequest) returns (ModerateTextResponse);
+}
+
+message ModerateTextRequest {
+  string ContentId   = 1;
+  string ContentType = 2;
+  string Text        = 3;
+  string AuthorId    = 4;
+}
+
+message ModerateTextResponse {
+  ModerationDecision Decision    = 1;
+  float              Score       = 2;
+  string             Reason      = 3;
+}

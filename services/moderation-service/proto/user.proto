@@ -1,0 +1,21 @@
+// User Service Proto — contrat utilisé par moderation-service
+// Définit uniquement GetUserByUserID dont moderation-service a besoin.
+
+syntax = "proto3";
+
+package user;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/moderation-service/proto/gen/userpb;userpb";
+
+service UserService {
+  rpc GetUserByUserID(GetUserByUserIDRequest) returns (UserProfileResponse);
+}
+
+message GetUserByUserIDRequest {
+  string UserID = 1;
+}
+
+message UserProfileResponse {
+  string UserID  = 1;
+  string AuthID  = 2;
+}

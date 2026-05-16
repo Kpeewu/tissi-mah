@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/text/unicode/norm"
 
+	fileClient "github.com/Kpeewu/tissi-mah/services/file-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/domain"
 	repoInterfaces "github.com/Kpeewu/tissi-mah/services/file-service/internal/repository/interfaces"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/file-service/internal/service/interfaces"
@@ -37,14 +39,15 @@ var allowedMimeTypes = map[string]bool{
 const maxFileSize int64 = 10 * 1024 * 1024
 
 type fileServiceImpl struct {
-	userDocRead     repoInterfaces.UserDocumentRepositoryRead
-	userDocWrite    repoInterfaces.UserDocumentRepositoryWrite
-	vehicleDocRead  repoInterfaces.VehicleDocumentRepositoryRead
-	vehicleDocWrite repoInterfaces.VehicleDocumentRepositoryWrite
-	reviewRead      repoInterfaces.DocumentReviewRepositoryRead
-	reviewWrite     repoInterfaces.DocumentReviewRepositoryWrite
-	storage         storage.StorageClient
-	logger          *zap.Logger
+	userDocRead       repoInterfaces.UserDocumentRepositoryRead
+	userDocWrite      repoInterfaces.UserDocumentRepositoryWrite
+	vehicleDocRead    repoInterfaces.VehicleDocumentRepositoryRead
+	vehicleDocWrite   repoInterfaces.VehicleDocumentRepositoryWrite
+	reviewRead        repoInterfaces.DocumentReviewRepositoryRead
+	reviewWrite       repoInterfaces.DocumentReviewRepositoryWrite
+	storage           storage.StorageClient
+	moderationClient  fileClient.ModerationClient // nil si désactivé
+	logger            *zap.Logger
 }
 
 func NewFileService(
@@ -55,17 +58,19 @@ func NewFileService(
 	reviewRead repoInterfaces.DocumentReviewRepositoryRead,
 	reviewWrite repoInterfaces.DocumentReviewRepositoryWrite,
 	storageClient storage.StorageClient,
+	moderationClient fileClient.ModerationClient,
 	logger *zap.Logger,
 ) serviceInterfaces.FileService {
 	return &fileServiceImpl{
-		userDocRead:     userDocRead,
-		userDocWrite:    userDocWrite,
-		vehicleDocRead:  vehicleDocRead,
-		vehicleDocWrite: vehicleDocWrite,
-		reviewRead:      reviewRead,
-		reviewWrite:     reviewWrite,
-		storage:         storageClient,
-		logger:          logger,
+		userDocRead:      userDocRead,
+		userDocWrite:     userDocWrite,
+		vehicleDocRead:   vehicleDocRead,
+		vehicleDocWrite:  vehicleDocWrite,
+		reviewRead:       reviewRead,
+		reviewWrite:      reviewWrite,
+		storage:          storageClient,
+		moderationClient: moderationClient,
+		logger:           logger,
 	}
 }
 
@@ -97,6 +102,26 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 	documentID := uuid.New().String()
 	ext := extensionFromMimeType(input.MimeType)
 	s3Key := fmt.Sprintf("%s/%s/%s%s", input.DocumentType, input.UserID, documentID, ext)
+
+	// Modération synchrone pour les photos de profil (avant upload S3).
+	if input.DocumentType == "profilePicture" && s.moderationClient != nil {
+		imageData, readErr := io.ReadAll(input.Data)
+		if readErr != nil {
+			s.logger.Error("failed to read image data for moderation", zap.Error(readErr))
+			return nil, fileErrors.ErrorInternalServer
+		}
+		// Remettre les données dans le reader pour l'upload S3 qui suit.
+		input.Data = bytes.NewReader(imageData)
+
+		modResult, modErr := s.moderationClient.ModerateImage(ctx, documentID, input.UserID, imageData, input.MimeType)
+		if modErr == nil && modResult.Decision == fileClient.ModerationBlocked {
+			s.logger.Info("profile picture blocked by moderation",
+				zap.String("userID", input.UserID),
+				zap.String("reason", modResult.Reason),
+			)
+			return nil, fileErrors.ErrorContentBlocked
+		}
+	}
 
 	if _, uploadErr := s.storage.Upload(ctx, s3Key, input.Data, input.MimeType, input.FileSizeBytes); uploadErr != nil {
 		s.logger.Error("S3 upload failed", zap.Error(uploadErr), zap.String("key", s3Key))

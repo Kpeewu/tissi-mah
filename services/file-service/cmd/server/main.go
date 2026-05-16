@@ -82,12 +82,26 @@ func run(bootstrapLogger *zap.Logger) error {
 	reviewRead := implementations.NewDocumentReviewReadRepository(pool, logger)
 	reviewWrite := implementations.NewDocumentReviewWriteRepository(pool, logger)
 
+	// --- Moderation client (optionnel) ---
+	var moderationClient client.ModerationClient
+	if cfg.ModerationEnabled {
+		mc, err := client.NewModerationServiceClient(cfg.ModerationService.Addr(), cfg.ModerationFailClosed, logger)
+		if err != nil {
+			logger.Warn("moderation-service client init failed, moderation disabled", zap.Error(err))
+		} else {
+			moderationClient = mc
+			defer mc.Close() //nolint:errcheck
+			logger.Info("moderation-service client ready", zap.String("address", cfg.ModerationService.Addr()))
+		}
+	}
+
 	// --- File service ---
 	fileService := service.NewFileService(
 		userDocRead, userDocWrite,
 		vehicleDocRead, vehicleDocWrite,
 		reviewRead, reviewWrite,
 		storageClient,
+		moderationClient,
 		logger,
 	)
 

@@ -53,6 +53,10 @@ service AuthService {
   // Retourne les données auth d'un utilisateur pour enrichissement par d'autres services
   rpc GetAuthInfo(GetAuthInfoRequest) returns (GetAuthInfoResponse);
 
+  // SuspendAccount - Inter-service RPC (appelé par moderation-service)
+  // Suspend ou bannit définitivement un compte. suspendedUntil vide + isBanned=true = ban permanent.
+  rpc SuspendAccount(SuspendAccountRequest) returns (SuspendAccountResponse);
+
 }
 
 // =============================================================================
@@ -87,6 +91,16 @@ message GetAuthInfoRequest {
   string AuthID = 1;
 }
 
+message SuspendAccountRequest {
+  string AuthID        = 1;
+  string SuspendedUntil = 2; // ISO 8601, vide si ban permanent
+  bool   IsBanned      = 3; // true = ban permanent
+}
+
+message SuspendAccountResponse {
+  bool Success = 1;
+}
+
 // =============================================================================
 // Response Messages
 // =============================================================================
@@ -114,12 +128,13 @@ message AuthServerResponse {
 }
 
 message GetAuthInfoResponse {
-  string AuthID = 1;
-  string Email = 2;
-  string PhoneNumber = 3;
-  bool IsActive = 4;
-  bool IsSuspended = 5;
+  string AuthID          = 1;
+  string Email           = 2;
+  string PhoneNumber     = 3;
+  bool   IsActive        = 4;
+  bool   IsSuspended     = 5;
   string SuspensionEndDate = 6;
+  bool   IsBanned        = 7;
 }
 
 // =============================================================================

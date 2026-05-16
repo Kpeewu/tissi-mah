@@ -63,6 +63,14 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer redisClient.Close()
 	logger.Info("connected to notification redis")
 
+	// --- Suspension Redis (clés suspended:{firebaseUID} lues par l'api-gateway) ---
+	suspensionRedis, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.Redis.URL)
+	if err != nil {
+		return fmt.Errorf("suspension redis: %w", err)
+	}
+	defer suspensionRedis.Close()
+	logger.Info("connected to suspension redis")
+
 	// --- Repositories ---
 	readRepo := implementations.NewAuthReadRepository(pool, logger)
 	writeRepo := implementations.NewAuthWriteRepository(pool, logger)
@@ -122,7 +130,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	logger.Info("file-service client ready", zap.String("address", fileServiceAddr))
 
 	// --- Auth service ---
-	authService := service.NewAuthService(readRepo, writeRepo, userClient, tripsClient, bookingClient, paymentClient, chatClient, fileClient, redisClient, logger)
+	authService := service.NewAuthService(readRepo, writeRepo, userClient, tripsClient, bookingClient, paymentClient, chatClient, fileClient, redisClient, suspensionRedis, logger)
 
 	// --- gRPC server ---
 	srv, err := grpcServer.NewAuthServer(cfg, authService, logger)

@@ -3,6 +3,7 @@ package implementations
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/domain"
 	i "github.com/Kpeewu/tissi-mah/services/auth-service/internal/repository/interfaces"
@@ -60,17 +61,18 @@ func (r *authWriteRepositoryImpl) Update(ctx context.Context, auth *domain.Auth)
 	r.logger.Debug("updating auth record", zap.String("authID", auth.AuthID))
 
 	query := `UPDATE auth SET
-					email = $1, phone_number = $2, is_active = $3, is_suspended = $4, suspension_end_date = $5
-				WHERE auth_id = $6
-				RETURNING auth_id, firebase_id, email, phone_number, is_active, is_suspended, suspension_end_date, created_at, updated_at, deleted_at`
+					email = $1, phone_number = $2, is_active = $3, is_suspended = $4, is_banned = $5, suspension_end_date = $6
+				WHERE auth_id = $7
+				RETURNING auth_id, firebase_id, email, phone_number, is_active, is_suspended, is_banned, suspension_end_date, created_at, updated_at, deleted_at`
 
-	err := r.pool.QueryRow(ctx, query, auth.Email, auth.PhoneNumber, auth.IsActive, auth.IsSuspended, auth.SuspensionEndDate, auth.AuthID).Scan(
+	err := r.pool.QueryRow(ctx, query, auth.Email, auth.PhoneNumber, auth.IsActive, auth.IsSuspended, auth.IsBanned, auth.SuspensionEndDate, auth.AuthID).Scan(
 		&auth.AuthID,
 		&auth.FirebaseID,
 		&auth.Email,
 		&auth.PhoneNumber,
 		&auth.IsActive,
 		&auth.IsSuspended,
+		&auth.IsBanned,
 		&auth.SuspensionEndDate,
 		&auth.CreatedAt,
 		&auth.UpdatedAt,
@@ -87,6 +89,25 @@ func (r *authWriteRepositoryImpl) Update(ctx context.Context, auth *domain.Auth)
 
 	r.logger.Info("auth record updated", zap.String("authID", auth.AuthID))
 	return auth, nil
+}
+
+// Suspend met à jour le statut de suspension/bannissement d'un compte.
+func (r *authWriteRepositoryImpl) Suspend(ctx context.Context, authID string, suspendedUntil *time.Time, isBanned bool) error {
+	r.logger.Debug("suspending auth record", zap.String("authID", authID), zap.Bool("isBanned", isBanned))
+
+	query := `UPDATE auth SET is_suspended = true, is_banned = $1, suspension_end_date = $2 WHERE auth_id = $3 AND deleted_at IS NULL`
+
+	tag, err := r.pool.Exec(ctx, query, isBanned, suspendedUntil, authID)
+	if err != nil {
+		r.logger.Error("suspend auth failed", zap.Error(err), zap.String("authID", authID))
+		return authErrors.ErrorInternalServer
+	}
+	if tag.RowsAffected() == 0 {
+		return authErrors.ErrorUserNotFound
+	}
+
+	r.logger.Info("auth record suspended", zap.String("authID", authID), zap.Bool("isBanned", isBanned))
+	return nil
 }
 
 // delete user auth informations

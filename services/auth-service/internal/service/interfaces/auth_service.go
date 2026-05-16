@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/domain"
 )
@@ -13,4 +14,6 @@ type AuthService interface {
 	CheckPhoneNumber(ctx context.Context, phoneNumber string) (bool, error)
 	DeleteUserAccount(ctx context.Context, firebaseID string) error
 	GetAuthInfo(ctx context.Context, authID string) (*domain.Auth, error)
+	// SuspendAccount suspend ou bannit un compte. suspendedUntil=nil + isBanned=true = ban permanent.
+	SuspendAccount(ctx context.Context, authID string, suspendedUntil *time.Time, isBanned bool) error
 }

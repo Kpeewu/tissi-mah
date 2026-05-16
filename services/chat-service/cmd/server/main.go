@@ -107,6 +107,20 @@ func run(bootstrapLogger *zap.Logger) error {
 	}
 	defer tripClient.Close()
 
+	// Client moderation (optionnel — nil si MODERATION_ENABLED=false)
+	var moderationClient client.ModerationClient
+	if cfg.ModerationEnabled {
+		moderationAddr := cfg.ModerationService.Addr()
+		mc, err := client.NewModerationServiceClient(moderationAddr, cfg.ModerationFailClosed, logger)
+		if err != nil {
+			logger.Warn("moderation-service client init failed, moderation disabled", zap.Error(err))
+		} else {
+			moderationClient = mc
+			defer mc.Close() //nolint:errcheck
+			logger.Info("moderation-service client ready", zap.String("address", moderationAddr))
+		}
+	}
+
 	// Repositories
 	threadRepo := implementations.NewChatThreadRepository(db, logger)
 	messageRepo := implementations.NewChatMessageRepository(db, logger)
@@ -115,6 +129,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	chatService := service.NewChatService(
 		threadRepo, messageRepo,
 		userClient, bookingClient, tripClient,
+		moderationClient,
 		encryptor, notifRedis, logger,
 	)
 

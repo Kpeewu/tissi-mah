@@ -61,11 +61,27 @@ func run(bootstrapLogger *zap.Logger) error {
 	redisClient := redis.NewClient(redisOpts)
 	defer redisClient.Close()
 
-	// Vérifier la connexion Redis
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		logger.Warn("redis not reachable, rate limiting will be fault-tolerant", zap.Error(err))
 	} else {
 		logger.Info("connected to redis for rate limiting")
+	}
+
+	// --- Redis suspension (optionnel, pointe vers le Redis de auth-service) ---
+	var suspensionRedis *redis.Client
+	if cfg.SuspensionRedis.URL != "" {
+		suspOpts, err := redis.ParseURL(cfg.SuspensionRedis.URL)
+		if err != nil {
+			return fmt.Errorf("suspension redis url parse: %w", err)
+		}
+		suspensionRedis = redis.NewClient(suspOpts)
+		defer suspensionRedis.Close()
+		if err := suspensionRedis.Ping(ctx).Err(); err != nil {
+			logger.Warn("suspension redis not reachable, account suspension checks disabled", zap.Error(err))
+			suspensionRedis = nil
+		} else {
+			logger.Info("connected to suspension redis")
+		}
 	}
 
 	// --- Firebase JWT validator ---
@@ -99,7 +115,7 @@ func run(bootstrapLogger *zap.Logger) error {
 
 	// --- Middleware chain ---
 	// Ordre : CORS → Rate Limit → JWT Firebase → grpc-gateway mux
-	handler := buildHandler(cfg, gwMux, validator, redisClient, logger)
+	handler := buildHandler(cfg, gwMux, validator, redisClient, suspensionRedis, logger)
 
 	// --- HTTP server ---
 	srv := server.New(server.Config{
@@ -141,6 +157,7 @@ func buildHandler(
 	gwMux http.Handler,
 	validator *firebaseValidator.JWTValidator,
 	redisClient *redis.Client,
+	suspensionRedis *redis.Client,
 	logger *zap.Logger,
 ) http.Handler {
 	// Mux principal avec health check direct (non proxié vers les services)
@@ -169,7 +186,7 @@ func buildHandler(
 	// disponible comme clé de rate limiting.
 	jwtMW := middleware.JWTFirebase(validator, func(path string) bool {
 		return gateway.ProtectedRoutes[path]
-	}, logger)
+	}, suspensionRedis, logger)
 
 	// JWT Support (back-office admin / agents) — canal d'auth séparé de Firebase
 	jwtSupportMW := middleware.JWTSupport(cfg.SupportJWTSecret, func(path string) bool {

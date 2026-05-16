@@ -20,4 +20,5 @@ var (
 	ErrorInvalidReasonRejection    = errors.New("ErrorInvalidReasonRejection")
 	ErrorUserServiceUnavailable    = errors.New("ErrorUserServiceUnavailable")
 	ErrorInvalidInput              = errors.New("ErrorInvalidInput")
+	ErrorContentBlocked            = errors.New("ErrorContentBlocked")
 )

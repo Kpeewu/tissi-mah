@@ -1,5 +1,5 @@
 .PHONY: help deps-up deps-down deps-logs deps-clean
-.PHONY: run-auth run-user run-gateway run-client run-file run-booking run-payment run-support run-chat
+.PHONY: run-auth run-user run-gateway run-client run-file run-booking run-payment run-support run-chat run-moderation
 .PHONY: proto proto-auth proto-user proto-file proto-trips proto-booking proto-payment proto-support proto-chat proto-gateway proto-sync test test-all lint fmt
 .PHONY: install-deps update-deps sync-deps
 .PHONY: workspace-init workspace-sync workspace-tidy
@@ -131,12 +131,20 @@ run-chat: deps-up
 	@echo "🚀 Démarrage chat-service..."
 	@cd services/chat-service && $(MAKE) run
 
+run-moderation: deps-up
+	@echo "🚀 Démarrage moderation-service..."
+	@cd services/moderation-service && $(MAKE) run
+
 # === PROTOBUF ===
 
 proto:
 	@echo "🔧 Génération de tous les fichiers proto..."
 	@./scripts/development/generate-all-protos.sh
 	@echo "✅ Fichiers proto générés"
+
+proto-moderation:
+	@echo "🔧 Génération proto moderation-service..."
+	@cd services/moderation-service && $(MAKE) proto
 
 proto-auth:
 	@echo "🔧 Génération proto auth-service..."

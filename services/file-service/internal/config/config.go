@@ -7,13 +7,25 @@ import (
 )
 
 type Config struct {
-	Server      ServerConfig
-	Environment EnvironmentConfig
-	Database    DatabaseConfig
-	Redis       RedisConfig
-	S3          S3Config
-	UserService UserServiceConfig
-	LogLevel    string
+	Server             ServerConfig
+	Environment        EnvironmentConfig
+	Database           DatabaseConfig
+	Redis              RedisConfig
+	S3                 S3Config
+	UserService        UserServiceConfig
+	ModerationService  ServiceConfig
+	ModerationEnabled  bool
+	ModerationFailClosed bool
+	LogLevel           string
+}
+
+type ServiceConfig struct {
+	Address string
+	Port    string
+}
+
+func (s ServiceConfig) Addr() string {
+	return fmt.Sprintf("%s:%s", s.Address, s.Port)
 }
 
 type ServerConfig struct {
@@ -84,6 +96,12 @@ func Load() (*Config, error) {
 			Address: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_HOST", "0.0.0.0"),
 			Port:    sharedconfig.GetStringOrDefault(values, "USER_SERVICE_PORT", "50052"),
 		},
+		ModerationService: ServiceConfig{
+			Address: sharedconfig.GetStringOrDefault(values, "MODERATION_SERVICE_HOST", "0.0.0.0"),
+			Port:    sharedconfig.GetStringOrDefault(values, "MODERATION_SERVICE_PORT", "50066"),
+		},
+		ModerationEnabled:    getBoolOrDefault(values, "MODERATION_ENABLED", true),
+		ModerationFailClosed: getBoolOrDefault(values, "MODERATION_FAIL_CLOSED", false),
 		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
 	}
 
@@ -92,6 +110,13 @@ func Load() (*Config, error) {
 	}
 
 	return config, nil
+}
+
+func getBoolOrDefault(v interface{ GetBool(string) bool; IsSet(string) bool }, key string, def bool) bool {
+	if !v.IsSet(key) {
+		return def
+	}
+	return v.GetBool(key)
 }
 
 func validate(cfg *Config) error {

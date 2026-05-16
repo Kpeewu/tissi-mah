@@ -14,6 +14,7 @@ use (
 	./services/file-service
 	./services/geolocation-service
 	./services/kyc-service
+	./services/moderation-service
 	./services/notification-service
 	./services/payment-service
 	./services/push-service
