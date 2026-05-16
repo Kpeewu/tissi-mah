@@ -6,6 +6,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -717,12 +719,46 @@ func (s *kycServiceImpl) ProcessWebhook(ctx context.Context, input serviceInterf
 	return nil
 }
 
-// verifyWebhookSignature valide la signature HMAC-SHA256 du webhook
-func (s *kycServiceImpl) verifyWebhookSignature(signature string, payload []byte) bool {
+// verifyWebhookSignature valide la signature HMAC-SHA256 du webhook Persona.
+// Le header a la forme "t=<unix>,v1=<hex>[,v1=<hex2>...]".
+// Le HMAC est calculé sur "<timestamp>.<body>" (spec Persona).
+// Fenêtre anti-replay : 5 minutes.
+func (s *kycServiceImpl) verifyWebhookSignature(signatureHeader string, payload []byte) bool {
+	var timestamp string
+	var signatures []string
+	for _, part := range strings.Split(signatureHeader, ",") {
+		kv := strings.SplitN(strings.TrimSpace(part), "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		switch kv[0] {
+		case "t":
+			timestamp = kv[1]
+		case "v1":
+			signatures = append(signatures, kv[1])
+		}
+	}
+	if timestamp == "" || len(signatures) == 0 {
+		return false
+	}
+
+	ts, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil || time.Since(time.Unix(ts, 0)) > 5*time.Minute {
+		return false
+	}
+
 	mac := hmac.New(sha256.New, []byte(s.webhookSecret))
+	mac.Write([]byte(timestamp))
+	mac.Write([]byte("."))
 	mac.Write(payload)
-	expectedMAC := hex.EncodeToString(mac.Sum(nil))
-	return hmac.Equal([]byte(signature), []byte(expectedMAC))
+	expected := hex.EncodeToString(mac.Sum(nil))
+
+	for _, sig := range signatures {
+		if hmac.Equal([]byte(sig), []byte(expected)) {
+			return true
+		}
+	}
+	return false
 }
 
 // =============================================================================

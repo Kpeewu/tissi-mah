@@ -243,5 +243,64 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 	}
 	cfg.Logger.Info("registered fedapay webhook raw handler", zap.String("endpoint", cfg.PaymentServiceAddr))
 
+	// Handler brut pour le webhook Persona : même raison que FedaPay — grpc-gateway ne peut
+	// pas lire le header Persona-Signature ni conserver le body raw pour la vérification HMAC.
+	// Enregistré APRÈS RegisterKYCServiceHandlerFromEndpoint pour prendre la priorité.
+	kycConn, err := grpc.NewClient(cfg.KYCServiceAddr, dialOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("dial kyc-service for webhook handler: %w", err)
+	}
+	kycClient := kycpb.NewKYCServiceClient(kycConn)
+
+	if err := mux.HandlePath("POST", "/api/v1/kyc/webhooks/persona", func(w http.ResponseWriter, r *http.Request, _ map[string]string) {
+		rawBody, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"ErrorMessage": "failed to read request body"}) //nolint:errcheck
+			return
+		}
+
+		signature := r.Header.Get("Persona-Signature")
+
+		// Parser une fois pour extraire PersonaInquiryId et WebhookEventType
+		var p struct {
+			Data struct {
+				Attributes struct {
+					Name    string `json:"name"`
+					Payload struct {
+						Data struct {
+							ID string `json:"id"`
+						} `json:"data"`
+					} `json:"payload"`
+				} `json:"attributes"`
+			} `json:"data"`
+		}
+		_ = json.Unmarshal(rawBody, &p)
+
+		resp, err := kycClient.ProcessWebhook(r.Context(), &kycpb.ProcessWebhookRequest{
+			Signature:         signature,
+			PersonaInquiryId:  p.Data.Attributes.Payload.Data.ID,
+			WebhookEventType:  p.Data.Attributes.Name,
+			PersonaRawPayload: rawBody,
+		})
+		if err != nil {
+			s, _ := status.FromError(err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(runtime.HTTPStatusFromCode(s.Code()))
+			json.NewEncoder(w).Encode(map[string]string{"ErrorMessage": s.Message()}) //nolint:errcheck
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if !resp.Success {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+		}
+		json.NewEncoder(w).Encode(resp) //nolint:errcheck
+	}); err != nil {
+		return nil, fmt.Errorf("register persona webhook handler: %w", err)
+	}
+	cfg.Logger.Info("registered persona webhook raw handler", zap.String("endpoint", cfg.KYCServiceAddr))
+
 	return mux, nil
 }

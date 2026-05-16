@@ -6,6 +6,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -1348,17 +1351,20 @@ func TestResumeInquiry(t *testing.T) {
 // ProcessWebhook
 // =============================================================================
 
-// computeHMAC calcule la signature HMAC-SHA256 pour les tests de webhook
-func computeHMAC(payload []byte) string {
+// computePersonaSignature génère un header Persona-Signature valide pour les tests.
+// Produit "t=<ts>,v1=<hmac_sha256(secret, timestamp.body)>" comme Persona l'envoie.
+func computePersonaSignature(ts int64, payload []byte) string {
 	mac := hmac.New(sha256.New, []byte(testWebhookSecret))
+	mac.Write([]byte(strconv.FormatInt(ts, 10)))
+	mac.Write([]byte("."))
 	mac.Write(payload)
-	return hex.EncodeToString(mac.Sum(nil))
+	return fmt.Sprintf("t=%d,v1=%s", ts, hex.EncodeToString(mac.Sum(nil)))
 }
 
 func TestProcessWebhook(t *testing.T) {
 	now := time.Now().UTC()
 	payload := []byte(`{"data":{"id":"inq_wh_001"}}`)
-	validSignature := computeHMAC(payload)
+	validSignature := computePersonaSignature(now.Unix(), payload)
 
 	// Crée une copie fraîche pour éviter les mutations inter-tests
 	newWebhookReview := func() *domain.Review {
@@ -1520,7 +1526,7 @@ func TestProcessWebhook(t *testing.T) {
 		ctx := context.Background()
 
 		err := svc.ProcessWebhook(ctx, serviceInterfaces.WebhookInput{
-			Signature:         computeHMAC(payload),
+			Signature:         computePersonaSignature(time.Now().Unix(), payload),
 			PersonaInquiryID:  "",
 			WebhookEventType:  "inquiry.approved",
 			PersonaRawPayload: payload,
@@ -1536,7 +1542,7 @@ func TestProcessWebhook(t *testing.T) {
 			Return(nil, errors.New("not found"))
 
 		err := svc.ProcessWebhook(ctx, serviceInterfaces.WebhookInput{
-			Signature:         computeHMAC(payload),
+			Signature:         computePersonaSignature(time.Now().Unix(), payload),
 			PersonaInquiryID:  "inq_unknown",
 			WebhookEventType:  "inquiry.approved",
 			PersonaRawPayload: payload,
@@ -1567,7 +1573,7 @@ func TestProcessWebhook(t *testing.T) {
 		ctx := context.Background()
 
 		customPayload := []byte(`{"custom":"data","nested":{"key":"value"}}`)
-		customSig := computeHMAC(customPayload)
+		customSig := computePersonaSignature(time.Now().Unix(), customPayload)
 
 		mockFileClient.On("GetDocumentReviewByPersonaInquiryID", mock.Anything, "inq_wh_001").
 			Return(newWebhookReview(), nil)
@@ -1580,6 +1586,53 @@ func TestProcessWebhook(t *testing.T) {
 			PersonaInquiryID:  "inq_wh_001",
 			WebhookEventType:  "inquiry.completed",
 			PersonaRawPayload: customPayload,
+		})
+		assert.NoError(t, err)
+		mockFileClient.AssertExpectations(t)
+	})
+
+	t.Run("erreur - header signature vide (pas de t= ni v1=)", func(t *testing.T) {
+		_, _, svc := newTestService()
+
+		err := svc.ProcessWebhook(context.Background(), serviceInterfaces.WebhookInput{
+			Signature:         "",
+			PersonaInquiryID:  "inq_wh_001",
+			WebhookEventType:  "inquiry.approved",
+			PersonaRawPayload: payload,
+		})
+		assert.ErrorIs(t, err, kycErrors.ErrorInvalidWebhookSignature)
+	})
+
+	t.Run("erreur - timestamp expiré (> 5 minutes)", func(t *testing.T) {
+		_, _, svc := newTestService()
+		expiredSig := computePersonaSignature(time.Now().Unix()-600, payload)
+
+		err := svc.ProcessWebhook(context.Background(), serviceInterfaces.WebhookInput{
+			Signature:         expiredSig,
+			PersonaInquiryID:  "inq_wh_001",
+			WebhookEventType:  "inquiry.approved",
+			PersonaRawPayload: payload,
+		})
+		assert.ErrorIs(t, err, kycErrors.ErrorInvalidWebhookSignature)
+	})
+
+	t.Run("succès - plusieurs v1= (rotation de secret, deuxième valide)", func(t *testing.T) {
+		mockFileClient, _, svc := newTestService()
+		ts := time.Now().Unix()
+		validSig := computePersonaSignature(ts, payload)
+		// Header avec un v1= invalide suivi du v1= correct (simule rotation de secret)
+		header := strings.Replace(validSig, "v1=", "v1=deadbeef,v1=", 1)
+
+		mockFileClient.On("GetDocumentReviewByPersonaInquiryID", mock.Anything, "inq_wh_001").
+			Return(newWebhookReview(), nil)
+		mockFileClient.On("UpdateDocumentReview", mock.Anything, mock.AnythingOfType("*domain.Review")).
+			Return(newWebhookReview(), nil)
+
+		err := svc.ProcessWebhook(context.Background(), serviceInterfaces.WebhookInput{
+			Signature:         header,
+			PersonaInquiryID:  "inq_wh_001",
+			WebhookEventType:  "inquiry.approved",
+			PersonaRawPayload: payload,
 		})
 		assert.NoError(t, err)
 		mockFileClient.AssertExpectations(t)
