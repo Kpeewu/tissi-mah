@@ -89,6 +89,11 @@ service FileService {
 
   // --- Health ---
   rpc Health(HealthRequest) returns (HealthResponse);
+
+  // --- Suppression compte (inter-service) ---
+  // Supprime tous les documents (user + vehicle) d'un utilisateur ainsi que les fichiers S3/MinIO.
+  // Interne uniquement — appelé par auth-service lors de la suppression de compte.
+  rpc DeleteAllUserFiles(DeleteAllUserFilesRequest) returns (DeleteAllUserFilesResponse);
 }
 
 // =============================================================================
@@ -453,4 +458,17 @@ message HealthResponse {
   string Status = 1;
   string Version = 2;
   int64 Timestamp = 3;
+}
+
+// =============================================================================
+// DeleteAllUserFiles — suppression de compte
+// =============================================================================
+
+message DeleteAllUserFilesRequest {
+  string UserID = 1; // UserID interne (user-service)
+}
+
+message DeleteAllUserFilesResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
 }

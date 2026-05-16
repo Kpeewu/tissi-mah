@@ -170,6 +170,15 @@ service TripService {
   // Appelé par le job de réconciliation du booking-service.
   rpc SyncLegBookedSeats(SyncLegBookedSeatsRequest) returns (SyncLegBookedSeatsResponse);
 
+  // CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
+  // Interne uniquement — appelé par auth-service lors d'une demande de suppression de compte.
+  // Bloquant si le conducteur a un trajet inProgress.
+  rpc CheckDeletionEligibility(CheckDeletionEligibilityRequest) returns (CheckDeletionEligibilityResponse);
+
+  // AnonymizeUserData anonymise les références de l'utilisateur dans trips-service.
+  // Interne uniquement — appelé par auth-service lors de la suppression de compte.
+  rpc AnonymizeUserData(AnonymizeUserDataRequest) returns (AnonymizeUserDataResponse);
+
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -714,4 +723,27 @@ message GetPassengerTripDetailsResponse {
   string ErrorMessage                        = 23;
   string RoutePolyline                       = 24; // Google encoded polyline du tracé
   int32  EstimatedDistanceMeters             = 25;
+}
+
+// =============================================================================
+// CheckDeletionEligibility / AnonymizeUserData — suppression de compte
+// =============================================================================
+
+message CheckDeletionEligibilityRequest {
+  string UserId = 1; // UserID interne (user-service)
+}
+
+message CheckDeletionEligibilityResponse {
+  bool   CanDelete       = 1;
+  string BlockingReason  = 2; // vide si CanDelete = true
+  string ErrorMessage    = 3;
+}
+
+message AnonymizeUserDataRequest {
+  string UserId = 1; // UserID interne (user-service)
+}
+
+message AnonymizeUserDataResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
 }

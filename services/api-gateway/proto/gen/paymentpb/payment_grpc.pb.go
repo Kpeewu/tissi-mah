@@ -19,17 +19,19 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PaymentService_CreatePayment_FullMethodName       = "/payment.PaymentService/CreatePayment"
-	PaymentService_GetPaymentStatus_FullMethodName    = "/payment.PaymentService/GetPaymentStatus"
-	PaymentService_GetPaymentByBooking_FullMethodName = "/payment.PaymentService/GetPaymentByBooking"
-	PaymentService_ProcessWebhook_FullMethodName      = "/payment.PaymentService/ProcessWebhook"
-	PaymentService_RequestRefund_FullMethodName       = "/payment.PaymentService/RequestRefund"
-	PaymentService_GetRefundStatus_FullMethodName     = "/payment.PaymentService/GetRefundStatus"
-	PaymentService_ReleasePayment_FullMethodName      = "/payment.PaymentService/ReleasePayment"
-	PaymentService_GetPayoutStatus_FullMethodName     = "/payment.PaymentService/GetPayoutStatus"
-	PaymentService_GetDriverPayouts_FullMethodName    = "/payment.PaymentService/GetDriverPayouts"
-	PaymentService_TriggerManualPayout_FullMethodName = "/payment.PaymentService/TriggerManualPayout"
-	PaymentService_Health_FullMethodName              = "/payment.PaymentService/Health"
+	PaymentService_CreatePayment_FullMethodName            = "/payment.PaymentService/CreatePayment"
+	PaymentService_GetPaymentStatus_FullMethodName         = "/payment.PaymentService/GetPaymentStatus"
+	PaymentService_GetPaymentByBooking_FullMethodName      = "/payment.PaymentService/GetPaymentByBooking"
+	PaymentService_ProcessWebhook_FullMethodName           = "/payment.PaymentService/ProcessWebhook"
+	PaymentService_RequestRefund_FullMethodName            = "/payment.PaymentService/RequestRefund"
+	PaymentService_GetRefundStatus_FullMethodName          = "/payment.PaymentService/GetRefundStatus"
+	PaymentService_ReleasePayment_FullMethodName           = "/payment.PaymentService/ReleasePayment"
+	PaymentService_GetPayoutStatus_FullMethodName          = "/payment.PaymentService/GetPayoutStatus"
+	PaymentService_GetDriverPayouts_FullMethodName         = "/payment.PaymentService/GetDriverPayouts"
+	PaymentService_TriggerManualPayout_FullMethodName      = "/payment.PaymentService/TriggerManualPayout"
+	PaymentService_Health_FullMethodName                   = "/payment.PaymentService/Health"
+	PaymentService_CheckDeletionEligibility_FullMethodName = "/payment.PaymentService/CheckDeletionEligibility"
+	PaymentService_AnonymizeUserData_FullMethodName        = "/payment.PaymentService/AnonymizeUserData"
 )
 
 // PaymentServiceClient is the client API for PaymentService service.
@@ -58,6 +60,12 @@ type PaymentServiceClient interface {
 	TriggerManualPayout(ctx context.Context, in *TriggerManualPayoutRequest, opts ...grpc.CallOption) (*TriggerManualPayoutResponse, error)
 	// Health vérifie l'état du service
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
+	// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
+	// Interne uniquement — bloquant si le chauffeur a un payout en attente (pending/scheduled/processing).
+	CheckDeletionEligibility(ctx context.Context, in *CheckDeletionEligibilityRequest, opts ...grpc.CallOption) (*CheckDeletionEligibilityResponse, error)
+	// AnonymizeUserData anonymise les données liées à l'utilisateur dans payment-service.
+	// Interne uniquement — appelé par auth-service lors de la suppression de compte.
+	AnonymizeUserData(ctx context.Context, in *AnonymizeUserDataRequest, opts ...grpc.CallOption) (*AnonymizeUserDataResponse, error)
 }
 
 type paymentServiceClient struct {
@@ -178,6 +186,26 @@ func (c *paymentServiceClient) Health(ctx context.Context, in *HealthRequest, op
 	return out, nil
 }
 
+func (c *paymentServiceClient) CheckDeletionEligibility(ctx context.Context, in *CheckDeletionEligibilityRequest, opts ...grpc.CallOption) (*CheckDeletionEligibilityResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CheckDeletionEligibilityResponse)
+	err := c.cc.Invoke(ctx, PaymentService_CheckDeletionEligibility_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *paymentServiceClient) AnonymizeUserData(ctx context.Context, in *AnonymizeUserDataRequest, opts ...grpc.CallOption) (*AnonymizeUserDataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AnonymizeUserDataResponse)
+	err := c.cc.Invoke(ctx, PaymentService_AnonymizeUserData_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PaymentServiceServer is the server API for PaymentService service.
 // All implementations must embed UnimplementedPaymentServiceServer
 // for forward compatibility.
@@ -204,6 +232,12 @@ type PaymentServiceServer interface {
 	TriggerManualPayout(context.Context, *TriggerManualPayoutRequest) (*TriggerManualPayoutResponse, error)
 	// Health vérifie l'état du service
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
+	// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
+	// Interne uniquement — bloquant si le chauffeur a un payout en attente (pending/scheduled/processing).
+	CheckDeletionEligibility(context.Context, *CheckDeletionEligibilityRequest) (*CheckDeletionEligibilityResponse, error)
+	// AnonymizeUserData anonymise les données liées à l'utilisateur dans payment-service.
+	// Interne uniquement — appelé par auth-service lors de la suppression de compte.
+	AnonymizeUserData(context.Context, *AnonymizeUserDataRequest) (*AnonymizeUserDataResponse, error)
 	mustEmbedUnimplementedPaymentServiceServer()
 }
 
@@ -246,6 +280,12 @@ func (UnimplementedPaymentServiceServer) TriggerManualPayout(context.Context, *T
 }
 func (UnimplementedPaymentServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
+}
+func (UnimplementedPaymentServiceServer) CheckDeletionEligibility(context.Context, *CheckDeletionEligibilityRequest) (*CheckDeletionEligibilityResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CheckDeletionEligibility not implemented")
+}
+func (UnimplementedPaymentServiceServer) AnonymizeUserData(context.Context, *AnonymizeUserDataRequest) (*AnonymizeUserDataResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AnonymizeUserData not implemented")
 }
 func (UnimplementedPaymentServiceServer) mustEmbedUnimplementedPaymentServiceServer() {}
 func (UnimplementedPaymentServiceServer) testEmbeddedByValue()                        {}
@@ -466,6 +506,42 @@ func _PaymentService_Health_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PaymentService_CheckDeletionEligibility_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckDeletionEligibilityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaymentServiceServer).CheckDeletionEligibility(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PaymentService_CheckDeletionEligibility_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaymentServiceServer).CheckDeletionEligibility(ctx, req.(*CheckDeletionEligibilityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PaymentService_AnonymizeUserData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AnonymizeUserDataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaymentServiceServer).AnonymizeUserData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PaymentService_AnonymizeUserData_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaymentServiceServer).AnonymizeUserData(ctx, req.(*AnonymizeUserDataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PaymentService_ServiceDesc is the grpc.ServiceDesc for PaymentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -516,6 +592,14 @@ var PaymentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Health",
 			Handler:    _PaymentService_Health_Handler,
+		},
+		{
+			MethodName: "CheckDeletionEligibility",
+			Handler:    _PaymentService_CheckDeletionEligibility_Handler,
+		},
+		{
+			MethodName: "AnonymizeUserData",
+			Handler:    _PaymentService_AnonymizeUserData_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

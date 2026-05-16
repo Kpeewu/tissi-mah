@@ -67,6 +67,11 @@ service ChatService {
   // Ferme un thread (support uniquement ou event interne trip.completed).
   rpc CloseThread(CloseThreadRequest) returns (CloseThreadResponse);
 
+  // AnonymizeUserData anonymise les références de l'utilisateur dans chat-service.
+  // Interne uniquement — appelé par auth-service lors de la suppression de compte.
+  // Les threads actifs de l'utilisateur sont fermés avant anonymisation.
+  rpc AnonymizeUserData(AnonymizeChatUserDataRequest) returns (AnonymizeChatUserDataResponse);
+
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
       get: "/api/v1/chat/health"
@@ -229,4 +234,17 @@ message MessageInfo {
   bool   Flagged      = 7;
   string CreatedAt    = 8; // ISO 8601
   string ReadAt       = 9; // ISO 8601, vide si non lu
+}
+
+// =============================================================================
+// AnonymizeUserData — suppression de compte
+// =============================================================================
+
+message AnonymizeChatUserDataRequest {
+  string UserId = 1; // UserID interne (user-service)
+}
+
+message AnonymizeChatUserDataResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
 }

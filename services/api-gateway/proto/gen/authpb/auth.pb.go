@@ -316,6 +316,110 @@ func (x *GetAuthInfoRequest) GetAuthID() string {
 	return ""
 }
 
+type SuspendAccountRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	AuthID         string                 `protobuf:"bytes,1,opt,name=AuthID,proto3" json:"AuthID,omitempty"`
+	SuspendedUntil string                 `protobuf:"bytes,2,opt,name=SuspendedUntil,proto3" json:"SuspendedUntil,omitempty"` // ISO 8601, vide si ban permanent
+	IsBanned       bool                   `protobuf:"varint,3,opt,name=IsBanned,proto3" json:"IsBanned,omitempty"`            // true = ban permanent
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SuspendAccountRequest) Reset() {
+	*x = SuspendAccountRequest{}
+	mi := &file_auth_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SuspendAccountRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SuspendAccountRequest) ProtoMessage() {}
+
+func (x *SuspendAccountRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SuspendAccountRequest.ProtoReflect.Descriptor instead.
+func (*SuspendAccountRequest) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *SuspendAccountRequest) GetAuthID() string {
+	if x != nil {
+		return x.AuthID
+	}
+	return ""
+}
+
+func (x *SuspendAccountRequest) GetSuspendedUntil() string {
+	if x != nil {
+		return x.SuspendedUntil
+	}
+	return ""
+}
+
+func (x *SuspendAccountRequest) GetIsBanned() bool {
+	if x != nil {
+		return x.IsBanned
+	}
+	return false
+}
+
+type SuspendAccountResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SuspendAccountResponse) Reset() {
+	*x = SuspendAccountResponse{}
+	mi := &file_auth_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SuspendAccountResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SuspendAccountResponse) ProtoMessage() {}
+
+func (x *SuspendAccountResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SuspendAccountResponse.ProtoReflect.Descriptor instead.
+func (*SuspendAccountResponse) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SuspendAccountResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
 type CreateAccountResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ErrorMessage  string                 `protobuf:"bytes,1,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
@@ -326,7 +430,7 @@ type CreateAccountResponse struct {
 
 func (x *CreateAccountResponse) Reset() {
 	*x = CreateAccountResponse{}
-	mi := &file_auth_proto_msgTypes[6]
+	mi := &file_auth_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -338,7 +442,7 @@ func (x *CreateAccountResponse) String() string {
 func (*CreateAccountResponse) ProtoMessage() {}
 
 func (x *CreateAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[6]
+	mi := &file_auth_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -351,7 +455,7 @@ func (x *CreateAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAccountResponse.ProtoReflect.Descriptor instead.
 func (*CreateAccountResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{6}
+	return file_auth_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CreateAccountResponse) GetErrorMessage() string {
@@ -379,7 +483,7 @@ type HealthResponse struct {
 
 func (x *HealthResponse) Reset() {
 	*x = HealthResponse{}
-	mi := &file_auth_proto_msgTypes[7]
+	mi := &file_auth_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -391,7 +495,7 @@ func (x *HealthResponse) String() string {
 func (*HealthResponse) ProtoMessage() {}
 
 func (x *HealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[7]
+	mi := &file_auth_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -404,7 +508,7 @@ func (x *HealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
 func (*HealthResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{7}
+	return file_auth_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *HealthResponse) GetStatus() string {
@@ -438,7 +542,7 @@ type CheckPhoneOrEmailResponse struct {
 
 func (x *CheckPhoneOrEmailResponse) Reset() {
 	*x = CheckPhoneOrEmailResponse{}
-	mi := &file_auth_proto_msgTypes[8]
+	mi := &file_auth_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -450,7 +554,7 @@ func (x *CheckPhoneOrEmailResponse) String() string {
 func (*CheckPhoneOrEmailResponse) ProtoMessage() {}
 
 func (x *CheckPhoneOrEmailResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[8]
+	mi := &file_auth_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -463,7 +567,7 @@ func (x *CheckPhoneOrEmailResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckPhoneOrEmailResponse.ProtoReflect.Descriptor instead.
 func (*CheckPhoneOrEmailResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{8}
+	return file_auth_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CheckPhoneOrEmailResponse) GetErrorMessage() string {
@@ -490,7 +594,7 @@ type AuthServerResponse struct {
 
 func (x *AuthServerResponse) Reset() {
 	*x = AuthServerResponse{}
-	mi := &file_auth_proto_msgTypes[9]
+	mi := &file_auth_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -502,7 +606,7 @@ func (x *AuthServerResponse) String() string {
 func (*AuthServerResponse) ProtoMessage() {}
 
 func (x *AuthServerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[9]
+	mi := &file_auth_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -515,7 +619,7 @@ func (x *AuthServerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthServerResponse.ProtoReflect.Descriptor instead.
 func (*AuthServerResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{9}
+	return file_auth_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AuthServerResponse) GetErrorMessage() string {
@@ -540,13 +644,14 @@ type GetAuthInfoResponse struct {
 	IsActive          bool                   `protobuf:"varint,4,opt,name=IsActive,proto3" json:"IsActive,omitempty"`
 	IsSuspended       bool                   `protobuf:"varint,5,opt,name=IsSuspended,proto3" json:"IsSuspended,omitempty"`
 	SuspensionEndDate string                 `protobuf:"bytes,6,opt,name=SuspensionEndDate,proto3" json:"SuspensionEndDate,omitempty"`
+	IsBanned          bool                   `protobuf:"varint,7,opt,name=IsBanned,proto3" json:"IsBanned,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GetAuthInfoResponse) Reset() {
 	*x = GetAuthInfoResponse{}
-	mi := &file_auth_proto_msgTypes[10]
+	mi := &file_auth_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -558,7 +663,7 @@ func (x *GetAuthInfoResponse) String() string {
 func (*GetAuthInfoResponse) ProtoMessage() {}
 
 func (x *GetAuthInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[10]
+	mi := &file_auth_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -571,7 +676,7 @@ func (x *GetAuthInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAuthInfoResponse.ProtoReflect.Descriptor instead.
 func (*GetAuthInfoResponse) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{10}
+	return file_auth_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetAuthInfoResponse) GetAuthID() string {
@@ -616,6 +721,13 @@ func (x *GetAuthInfoResponse) GetSuspensionEndDate() string {
 	return ""
 }
 
+func (x *GetAuthInfoResponse) GetIsBanned() bool {
+	if x != nil {
+		return x.IsBanned
+	}
+	return false
+}
+
 type UserPreview struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	AuthID          string                 `protobuf:"bytes,1,opt,name=AuthID,proto3" json:"AuthID,omitempty"`
@@ -631,7 +743,7 @@ type UserPreview struct {
 
 func (x *UserPreview) Reset() {
 	*x = UserPreview{}
-	mi := &file_auth_proto_msgTypes[11]
+	mi := &file_auth_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -643,7 +755,7 @@ func (x *UserPreview) String() string {
 func (*UserPreview) ProtoMessage() {}
 
 func (x *UserPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_proto_msgTypes[11]
+	mi := &file_auth_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -656,7 +768,7 @@ func (x *UserPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserPreview.ProtoReflect.Descriptor instead.
 func (*UserPreview) Descriptor() ([]byte, []int) {
-	return file_auth_proto_rawDescGZIP(), []int{11}
+	return file_auth_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *UserPreview) GetAuthID() string {
@@ -728,7 +840,13 @@ const file_auth_proto_rawDesc = "" +
 	"\x14DeleteAccountRequest\"\x0f\n" +
 	"\rHealthRequest\",\n" +
 	"\x12GetAuthInfoRequest\x12\x16\n" +
-	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\"b\n" +
+	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\"s\n" +
+	"\x15SuspendAccountRequest\x12\x16\n" +
+	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\x12&\n" +
+	"\x0eSuspendedUntil\x18\x02 \x01(\tR\x0eSuspendedUntil\x12\x1a\n" +
+	"\bIsBanned\x18\x03 \x01(\bR\bIsBanned\"2\n" +
+	"\x16SuspendAccountResponse\x12\x18\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\"b\n" +
 	"\x15CreateAccountResponse\x12\"\n" +
 	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12%\n" +
 	"\x04User\x18\x02 \x01(\v2\x11.auth.UserPreviewR\x04User\"`\n" +
@@ -741,14 +859,15 @@ const file_auth_proto_rawDesc = "" +
 	"\vIsAvailable\x18\x02 \x01(\bR\vIsAvailable\"R\n" +
 	"\x12AuthServerResponse\x12\"\n" +
 	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12\x18\n" +
-	"\aSuccess\x18\x02 \x01(\bR\aSuccess\"\xd1\x01\n" +
+	"\aSuccess\x18\x02 \x01(\bR\aSuccess\"\xed\x01\n" +
 	"\x13GetAuthInfoResponse\x12\x16\n" +
 	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\x12\x14\n" +
 	"\x05Email\x18\x02 \x01(\tR\x05Email\x12 \n" +
 	"\vPhoneNumber\x18\x03 \x01(\tR\vPhoneNumber\x12\x1a\n" +
 	"\bIsActive\x18\x04 \x01(\bR\bIsActive\x12 \n" +
 	"\vIsSuspended\x18\x05 \x01(\bR\vIsSuspended\x12,\n" +
-	"\x11SuspensionEndDate\x18\x06 \x01(\tR\x11SuspensionEndDate\"\xd1\x01\n" +
+	"\x11SuspensionEndDate\x18\x06 \x01(\tR\x11SuspensionEndDate\x12\x1a\n" +
+	"\bIsBanned\x18\a \x01(\bR\bIsBanned\"\xd1\x01\n" +
 	"\vUserPreview\x12\x16\n" +
 	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\x12\x16\n" +
 	"\x06UserID\x18\x02 \x01(\tR\x06UserID\x12\x12\n" +
@@ -756,7 +875,7 @@ const file_auth_proto_rawDesc = "" +
 	"\tFirstName\x18\x04 \x01(\tR\tFirstName\x12\x14\n" +
 	"\x05Email\x18\x05 \x01(\tR\x05Email\x12 \n" +
 	"\vPhoneNumber\x18\x06 \x01(\tR\vPhoneNumber\x12(\n" +
-	"\x0fProfileImageURL\x18\a \x01(\tR\x0fProfileImageURL2\xe3\x04\n" +
+	"\x0fProfileImageURL\x18\a \x01(\tR\x0fProfileImageURL2\xb0\x05\n" +
 	"\vAuthService\x12o\n" +
 	"\rCreateAccount\x12\x1a.auth.CreateAccountRequest\x1a\x1b.auth.CreateAccountResponse\"%\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/api/v1/auth/createAccount\x12y\n" +
 	"\x10CheckPhoneNumber\x12\x1d.auth.CheckPhoneNumberRequest\x1a\x1f.auth.CheckPhoneOrEmailResponse\"%\x82\xd3\xe4\x93\x02\x1f\x12\x1d/api/v1/auth/checkPhoneNumber\x12g\n" +
@@ -764,7 +883,8 @@ const file_auth_proto_rawDesc = "" +
 	"CheckEmail\x12\x17.auth.CheckEmailRequest\x1a\x1f.auth.CheckPhoneOrEmailResponse\"\x1f\x82\xd3\xe4\x93\x02\x19\x12\x17/api/v1/auth/checkEmail\x12i\n" +
 	"\rDeleteAccount\x12\x1a.auth.DeleteAccountRequest\x1a\x18.auth.AuthServerResponse\"\"\x82\xd3\xe4\x93\x02\x1c*\x1a/api/v1/auth/deleteAccount\x12P\n" +
 	"\x06Health\x12\x13.auth.HealthRequest\x1a\x14.auth.HealthResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/api/v1/auth/health\x12B\n" +
-	"\vGetAuthInfo\x12\x18.auth.GetAuthInfoRequest\x1a\x19.auth.GetAuthInfoResponseBBZ@github.com/Kpeewu/tissi-mah/services/auth-service/proto/gen;authb\x06proto3"
+	"\vGetAuthInfo\x12\x18.auth.GetAuthInfoRequest\x1a\x19.auth.GetAuthInfoResponse\x12K\n" +
+	"\x0eSuspendAccount\x12\x1b.auth.SuspendAccountRequest\x1a\x1c.auth.SuspendAccountResponseBBZ@github.com/Kpeewu/tissi-mah/services/auth-service/proto/gen;authb\x06proto3"
 
 var (
 	file_auth_proto_rawDescOnce sync.Once
@@ -778,7 +898,7 @@ func file_auth_proto_rawDescGZIP() []byte {
 	return file_auth_proto_rawDescData
 }
 
-var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_auth_proto_goTypes = []any{
 	(*CreateAccountRequest)(nil),      // 0: auth.CreateAccountRequest
 	(*CheckPhoneNumberRequest)(nil),   // 1: auth.CheckPhoneNumberRequest
@@ -786,29 +906,33 @@ var file_auth_proto_goTypes = []any{
 	(*DeleteAccountRequest)(nil),      // 3: auth.DeleteAccountRequest
 	(*HealthRequest)(nil),             // 4: auth.HealthRequest
 	(*GetAuthInfoRequest)(nil),        // 5: auth.GetAuthInfoRequest
-	(*CreateAccountResponse)(nil),     // 6: auth.CreateAccountResponse
-	(*HealthResponse)(nil),            // 7: auth.HealthResponse
-	(*CheckPhoneOrEmailResponse)(nil), // 8: auth.CheckPhoneOrEmailResponse
-	(*AuthServerResponse)(nil),        // 9: auth.AuthServerResponse
-	(*GetAuthInfoResponse)(nil),       // 10: auth.GetAuthInfoResponse
-	(*UserPreview)(nil),               // 11: auth.UserPreview
+	(*SuspendAccountRequest)(nil),     // 6: auth.SuspendAccountRequest
+	(*SuspendAccountResponse)(nil),    // 7: auth.SuspendAccountResponse
+	(*CreateAccountResponse)(nil),     // 8: auth.CreateAccountResponse
+	(*HealthResponse)(nil),            // 9: auth.HealthResponse
+	(*CheckPhoneOrEmailResponse)(nil), // 10: auth.CheckPhoneOrEmailResponse
+	(*AuthServerResponse)(nil),        // 11: auth.AuthServerResponse
+	(*GetAuthInfoResponse)(nil),       // 12: auth.GetAuthInfoResponse
+	(*UserPreview)(nil),               // 13: auth.UserPreview
 }
 var file_auth_proto_depIdxs = []int32{
-	11, // 0: auth.CreateAccountResponse.User:type_name -> auth.UserPreview
+	13, // 0: auth.CreateAccountResponse.User:type_name -> auth.UserPreview
 	0,  // 1: auth.AuthService.CreateAccount:input_type -> auth.CreateAccountRequest
 	1,  // 2: auth.AuthService.CheckPhoneNumber:input_type -> auth.CheckPhoneNumberRequest
 	2,  // 3: auth.AuthService.CheckEmail:input_type -> auth.CheckEmailRequest
 	3,  // 4: auth.AuthService.DeleteAccount:input_type -> auth.DeleteAccountRequest
 	4,  // 5: auth.AuthService.Health:input_type -> auth.HealthRequest
 	5,  // 6: auth.AuthService.GetAuthInfo:input_type -> auth.GetAuthInfoRequest
-	6,  // 7: auth.AuthService.CreateAccount:output_type -> auth.CreateAccountResponse
-	8,  // 8: auth.AuthService.CheckPhoneNumber:output_type -> auth.CheckPhoneOrEmailResponse
-	8,  // 9: auth.AuthService.CheckEmail:output_type -> auth.CheckPhoneOrEmailResponse
-	9,  // 10: auth.AuthService.DeleteAccount:output_type -> auth.AuthServerResponse
-	7,  // 11: auth.AuthService.Health:output_type -> auth.HealthResponse
-	10, // 12: auth.AuthService.GetAuthInfo:output_type -> auth.GetAuthInfoResponse
-	7,  // [7:13] is the sub-list for method output_type
-	1,  // [1:7] is the sub-list for method input_type
+	6,  // 7: auth.AuthService.SuspendAccount:input_type -> auth.SuspendAccountRequest
+	8,  // 8: auth.AuthService.CreateAccount:output_type -> auth.CreateAccountResponse
+	10, // 9: auth.AuthService.CheckPhoneNumber:output_type -> auth.CheckPhoneOrEmailResponse
+	10, // 10: auth.AuthService.CheckEmail:output_type -> auth.CheckPhoneOrEmailResponse
+	11, // 11: auth.AuthService.DeleteAccount:output_type -> auth.AuthServerResponse
+	9,  // 12: auth.AuthService.Health:output_type -> auth.HealthResponse
+	12, // 13: auth.AuthService.GetAuthInfo:output_type -> auth.GetAuthInfoResponse
+	7,  // 14: auth.AuthService.SuspendAccount:output_type -> auth.SuspendAccountResponse
+	8,  // [8:15] is the sub-list for method output_type
+	1,  // [1:8] is the sub-list for method input_type
 	1,  // [1:1] is the sub-list for extension type_name
 	1,  // [1:1] is the sub-list for extension extendee
 	0,  // [0:1] is the sub-list for field type_name
@@ -825,7 +949,7 @@ func file_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_proto_rawDesc), len(file_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

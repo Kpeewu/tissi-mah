@@ -81,20 +81,6 @@ func mapToFileDocumentType(docType string) string {
 	}
 }
 
-// mapToPersonaKind convertit le type de document interne vers la valeur kind
-// attendue par l'API Persona (POST /api/v1/government-ids).
-func mapToPersonaKind(docType string) string {
-	switch docType {
-	case "IDCard":
-		return "identification_card"
-	case "Passport":
-		return "passport"
-	case "DriverLicence":
-		return "driver_license"
-	default:
-		return ""
-	}
-}
 
 // =============================================================================
 // CreateInquiry
@@ -153,7 +139,6 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 	// requêtes incohérentes (ex : DocumentID d'un permis avec DocumentType "Passport").
 	var userDocumentID string
 	var vehicleDocumentID string
-	var frontDocURL string
 	var previousReviewID string
 	var attemptNumber int32 = 1
 
@@ -214,7 +199,6 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 			return nil, kycErrors.ErrorDocumentMismatch
 		}
 		userDocumentID = doc.DocumentID
-		frontDocURL = doc.DocumentURL
 	}
 
 	// Calculer l'attempt_number et le previous_review_id à partir des revues existantes
@@ -235,38 +219,6 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 	if err != nil {
 		s.logger.Error("failed to create persona inquiry", zap.Error(err))
 		return nil, kycErrors.ErrorPersonaUnavailable
-	}
-
-	// Pré-soumettre le document d'identité à Persona pour que le SDK saute la capture
-	// et aille directement au selfie. Uniquement pour les documents utilisateur
-	// (passport, IDCard, DriverLicence) — pas pour les documents véhicule.
-	personaKind := mapToPersonaKind(input.DocumentType)
-	if personaKind != "" && frontDocURL != "" {
-		backDocURL := ""
-		if input.DocumentIDBack != "" {
-			backDoc, backErr := s.fileClient.GetUserDocument(ctx, input.DocumentIDBack)
-			if backErr != nil {
-				s.logger.Warn("kyc: back document fetch failed, submitting front only",
-					zap.String("documentIDBack", input.DocumentIDBack),
-					zap.Error(backErr),
-				)
-			} else if backDoc.OwnerID != internalUserID {
-				s.logger.Warn("kyc: back document does not belong to caller, skipping",
-					zap.String("documentIDBack", input.DocumentIDBack),
-				)
-			} else {
-				backDocURL = backDoc.DocumentURL
-			}
-		}
-		// Dégradation gracieuse : si la pré-soumission échoue (qualité refusée, etc.),
-		// le SDK Persona demandera la capture standard — pas de régression UX.
-		if subErr := s.personaClient.SubmitGovernmentID(ctx, personaInquiry.InquiryID, personaKind, frontDocURL, backDocURL); subErr != nil {
-			s.logger.Info("kyc: SubmitGovernmentID failed, fallback to SDK capture",
-				zap.String("inquiryID", personaInquiry.InquiryID),
-				zap.String("kind", personaKind),
-				zap.Error(subErr),
-			)
-		}
 	}
 
 	// Créer la review dans le file-service

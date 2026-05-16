@@ -1602,6 +1602,214 @@ func (x *HealthResponse) GetTimestamp() int64 {
 	return 0
 }
 
+type CheckDeletionEligibilityRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"` // UserID interne (user-service)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CheckDeletionEligibilityRequest) Reset() {
+	*x = CheckDeletionEligibilityRequest{}
+	mi := &file_payment_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckDeletionEligibilityRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckDeletionEligibilityRequest) ProtoMessage() {}
+
+func (x *CheckDeletionEligibilityRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_payment_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckDeletionEligibilityRequest.ProtoReflect.Descriptor instead.
+func (*CheckDeletionEligibilityRequest) Descriptor() ([]byte, []int) {
+	return file_payment_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *CheckDeletionEligibilityRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type CheckDeletionEligibilityResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	CanDelete      bool                   `protobuf:"varint,1,opt,name=CanDelete,proto3" json:"CanDelete,omitempty"`
+	BlockingReason string                 `protobuf:"bytes,2,opt,name=BlockingReason,proto3" json:"BlockingReason,omitempty"` // vide si CanDelete = true
+	ErrorMessage   string                 `protobuf:"bytes,3,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CheckDeletionEligibilityResponse) Reset() {
+	*x = CheckDeletionEligibilityResponse{}
+	mi := &file_payment_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckDeletionEligibilityResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckDeletionEligibilityResponse) ProtoMessage() {}
+
+func (x *CheckDeletionEligibilityResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_payment_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckDeletionEligibilityResponse.ProtoReflect.Descriptor instead.
+func (*CheckDeletionEligibilityResponse) Descriptor() ([]byte, []int) {
+	return file_payment_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *CheckDeletionEligibilityResponse) GetCanDelete() bool {
+	if x != nil {
+		return x.CanDelete
+	}
+	return false
+}
+
+func (x *CheckDeletionEligibilityResponse) GetBlockingReason() string {
+	if x != nil {
+		return x.BlockingReason
+	}
+	return ""
+}
+
+func (x *CheckDeletionEligibilityResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+type AnonymizeUserDataRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"`         // UserID interne (user-service)
+	BookingIds    []string               `protobuf:"bytes,2,rep,name=BookingIds,proto3" json:"BookingIds,omitempty"` // IDs des réservations du passager (pour anonymiser passenger_phone_number)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnonymizeUserDataRequest) Reset() {
+	*x = AnonymizeUserDataRequest{}
+	mi := &file_payment_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnonymizeUserDataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnonymizeUserDataRequest) ProtoMessage() {}
+
+func (x *AnonymizeUserDataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_payment_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnonymizeUserDataRequest.ProtoReflect.Descriptor instead.
+func (*AnonymizeUserDataRequest) Descriptor() ([]byte, []int) {
+	return file_payment_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *AnonymizeUserDataRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *AnonymizeUserDataRequest) GetBookingIds() []string {
+	if x != nil {
+		return x.BookingIds
+	}
+	return nil
+}
+
+type AnonymizeUserDataResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnonymizeUserDataResponse) Reset() {
+	*x = AnonymizeUserDataResponse{}
+	mi := &file_payment_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnonymizeUserDataResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnonymizeUserDataResponse) ProtoMessage() {}
+
+func (x *AnonymizeUserDataResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_payment_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnonymizeUserDataResponse.ProtoReflect.Descriptor instead.
+func (*AnonymizeUserDataResponse) Descriptor() ([]byte, []int) {
+	return file_payment_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *AnonymizeUserDataResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *AnonymizeUserDataResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
 var File_payment_proto protoreflect.FileDescriptor
 
 const file_payment_proto_rawDesc = "" +
@@ -1733,8 +1941,21 @@ const file_payment_proto_rawDesc = "" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
 	"\aVersion\x18\x02 \x01(\tR\aVersion\x12\x1c\n" +
-	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp2\xd1\n" +
+	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp\"9\n" +
+	"\x1fCheckDeletionEligibilityRequest\x12\x16\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"\x8c\x01\n" +
+	" CheckDeletionEligibilityResponse\x12\x1c\n" +
+	"\tCanDelete\x18\x01 \x01(\bR\tCanDelete\x12&\n" +
+	"\x0eBlockingReason\x18\x02 \x01(\tR\x0eBlockingReason\x12\"\n" +
+	"\fErrorMessage\x18\x03 \x01(\tR\fErrorMessage\"R\n" +
+	"\x18AnonymizeUserDataRequest\x12\x16\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x12\x1e\n" +
 	"\n" +
+	"BookingIds\x18\x02 \x03(\tR\n" +
+	"BookingIds\"Y\n" +
+	"\x19AnonymizeUserDataResponse\x12\x18\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\x9e\f\n" +
 	"\x0ePaymentService\x12q\n" +
 	"\rCreatePayment\x12\x1d.payment.CreatePaymentRequest\x1a\x1e.payment.CreatePaymentResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/payment/createPayment\x12z\n" +
 	"\x10GetPaymentStatus\x12 .payment.GetPaymentStatusRequest\x1a!.payment.GetPaymentStatusResponse\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/payment/getPaymentStatus\x12\x86\x01\n" +
@@ -1746,7 +1967,9 @@ const file_payment_proto_rawDesc = "" +
 	"\x0fGetPayoutStatus\x12\x1f.payment.GetPayoutStatusRequest\x1a .payment.GetPayoutStatusResponse\" \x82\xd3\xe4\x93\x02\x1a\x12\x18/payment/getPayoutStatus\x12z\n" +
 	"\x10GetDriverPayouts\x12 .payment.GetDriverPayoutsRequest\x1a!.payment.GetDriverPayoutsResponse\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/payment/getDriverPayouts\x12\x91\x01\n" +
 	"\x13TriggerManualPayout\x12#.payment.TriggerManualPayoutRequest\x1a$.payment.TriggerManualPayoutResponse\"/\x82\xd3\xe4\x93\x02):\x01*\"$/payment/support/triggerManualPayout\x12R\n" +
-	"\x06Health\x12\x16.payment.HealthRequest\x1a\x17.payment.HealthResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/payment/healthBPZNgithub.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/paymentpb;paymentpbb\x06proto3"
+	"\x06Health\x12\x16.payment.HealthRequest\x1a\x17.payment.HealthResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/payment/health\x12o\n" +
+	"\x18CheckDeletionEligibility\x12(.payment.CheckDeletionEligibilityRequest\x1a).payment.CheckDeletionEligibilityResponse\x12Z\n" +
+	"\x11AnonymizeUserData\x12!.payment.AnonymizeUserDataRequest\x1a\".payment.AnonymizeUserDataResponseBPZNgithub.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/paymentpb;paymentpbb\x06proto3"
 
 var (
 	file_payment_proto_rawDescOnce sync.Once
@@ -1760,31 +1983,35 @@ func file_payment_proto_rawDescGZIP() []byte {
 	return file_payment_proto_rawDescData
 }
 
-var file_payment_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_payment_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_payment_proto_goTypes = []any{
-	(*CreatePaymentRequest)(nil),        // 0: payment.CreatePaymentRequest
-	(*GetPaymentStatusRequest)(nil),     // 1: payment.GetPaymentStatusRequest
-	(*GetPaymentByBookingRequest)(nil),  // 2: payment.GetPaymentByBookingRequest
-	(*ProcessWebhookRequest)(nil),       // 3: payment.ProcessWebhookRequest
-	(*RequestRefundRequest)(nil),        // 4: payment.RequestRefundRequest
-	(*GetRefundStatusRequest)(nil),      // 5: payment.GetRefundStatusRequest
-	(*ReleasePaymentRequest)(nil),       // 6: payment.ReleasePaymentRequest
-	(*GetPayoutStatusRequest)(nil),      // 7: payment.GetPayoutStatusRequest
-	(*GetDriverPayoutsRequest)(nil),     // 8: payment.GetDriverPayoutsRequest
-	(*TriggerManualPayoutRequest)(nil),  // 9: payment.TriggerManualPayoutRequest
-	(*HealthRequest)(nil),               // 10: payment.HealthRequest
-	(*CreatePaymentResponse)(nil),       // 11: payment.CreatePaymentResponse
-	(*GetPaymentStatusResponse)(nil),    // 12: payment.GetPaymentStatusResponse
-	(*GetPaymentByBookingResponse)(nil), // 13: payment.GetPaymentByBookingResponse
-	(*ProcessWebhookResponse)(nil),      // 14: payment.ProcessWebhookResponse
-	(*RequestRefundResponse)(nil),       // 15: payment.RequestRefundResponse
-	(*GetRefundStatusResponse)(nil),     // 16: payment.GetRefundStatusResponse
-	(*ReleasePaymentResponse)(nil),      // 17: payment.ReleasePaymentResponse
-	(*GetPayoutStatusResponse)(nil),     // 18: payment.GetPayoutStatusResponse
-	(*GetDriverPayoutsResponse)(nil),    // 19: payment.GetDriverPayoutsResponse
-	(*PayoutPreview)(nil),               // 20: payment.PayoutPreview
-	(*TriggerManualPayoutResponse)(nil), // 21: payment.TriggerManualPayoutResponse
-	(*HealthResponse)(nil),              // 22: payment.HealthResponse
+	(*CreatePaymentRequest)(nil),             // 0: payment.CreatePaymentRequest
+	(*GetPaymentStatusRequest)(nil),          // 1: payment.GetPaymentStatusRequest
+	(*GetPaymentByBookingRequest)(nil),       // 2: payment.GetPaymentByBookingRequest
+	(*ProcessWebhookRequest)(nil),            // 3: payment.ProcessWebhookRequest
+	(*RequestRefundRequest)(nil),             // 4: payment.RequestRefundRequest
+	(*GetRefundStatusRequest)(nil),           // 5: payment.GetRefundStatusRequest
+	(*ReleasePaymentRequest)(nil),            // 6: payment.ReleasePaymentRequest
+	(*GetPayoutStatusRequest)(nil),           // 7: payment.GetPayoutStatusRequest
+	(*GetDriverPayoutsRequest)(nil),          // 8: payment.GetDriverPayoutsRequest
+	(*TriggerManualPayoutRequest)(nil),       // 9: payment.TriggerManualPayoutRequest
+	(*HealthRequest)(nil),                    // 10: payment.HealthRequest
+	(*CreatePaymentResponse)(nil),            // 11: payment.CreatePaymentResponse
+	(*GetPaymentStatusResponse)(nil),         // 12: payment.GetPaymentStatusResponse
+	(*GetPaymentByBookingResponse)(nil),      // 13: payment.GetPaymentByBookingResponse
+	(*ProcessWebhookResponse)(nil),           // 14: payment.ProcessWebhookResponse
+	(*RequestRefundResponse)(nil),            // 15: payment.RequestRefundResponse
+	(*GetRefundStatusResponse)(nil),          // 16: payment.GetRefundStatusResponse
+	(*ReleasePaymentResponse)(nil),           // 17: payment.ReleasePaymentResponse
+	(*GetPayoutStatusResponse)(nil),          // 18: payment.GetPayoutStatusResponse
+	(*GetDriverPayoutsResponse)(nil),         // 19: payment.GetDriverPayoutsResponse
+	(*PayoutPreview)(nil),                    // 20: payment.PayoutPreview
+	(*TriggerManualPayoutResponse)(nil),      // 21: payment.TriggerManualPayoutResponse
+	(*HealthResponse)(nil),                   // 22: payment.HealthResponse
+	(*CheckDeletionEligibilityRequest)(nil),  // 23: payment.CheckDeletionEligibilityRequest
+	(*CheckDeletionEligibilityResponse)(nil), // 24: payment.CheckDeletionEligibilityResponse
+	(*AnonymizeUserDataRequest)(nil),         // 25: payment.AnonymizeUserDataRequest
+	(*AnonymizeUserDataResponse)(nil),        // 26: payment.AnonymizeUserDataResponse
 }
 var file_payment_proto_depIdxs = []int32{
 	20, // 0: payment.GetDriverPayoutsResponse.Payouts:type_name -> payment.PayoutPreview
@@ -1799,19 +2026,23 @@ var file_payment_proto_depIdxs = []int32{
 	8,  // 9: payment.PaymentService.GetDriverPayouts:input_type -> payment.GetDriverPayoutsRequest
 	9,  // 10: payment.PaymentService.TriggerManualPayout:input_type -> payment.TriggerManualPayoutRequest
 	10, // 11: payment.PaymentService.Health:input_type -> payment.HealthRequest
-	11, // 12: payment.PaymentService.CreatePayment:output_type -> payment.CreatePaymentResponse
-	12, // 13: payment.PaymentService.GetPaymentStatus:output_type -> payment.GetPaymentStatusResponse
-	13, // 14: payment.PaymentService.GetPaymentByBooking:output_type -> payment.GetPaymentByBookingResponse
-	14, // 15: payment.PaymentService.ProcessWebhook:output_type -> payment.ProcessWebhookResponse
-	15, // 16: payment.PaymentService.RequestRefund:output_type -> payment.RequestRefundResponse
-	16, // 17: payment.PaymentService.GetRefundStatus:output_type -> payment.GetRefundStatusResponse
-	17, // 18: payment.PaymentService.ReleasePayment:output_type -> payment.ReleasePaymentResponse
-	18, // 19: payment.PaymentService.GetPayoutStatus:output_type -> payment.GetPayoutStatusResponse
-	19, // 20: payment.PaymentService.GetDriverPayouts:output_type -> payment.GetDriverPayoutsResponse
-	21, // 21: payment.PaymentService.TriggerManualPayout:output_type -> payment.TriggerManualPayoutResponse
-	22, // 22: payment.PaymentService.Health:output_type -> payment.HealthResponse
-	12, // [12:23] is the sub-list for method output_type
-	1,  // [1:12] is the sub-list for method input_type
+	23, // 12: payment.PaymentService.CheckDeletionEligibility:input_type -> payment.CheckDeletionEligibilityRequest
+	25, // 13: payment.PaymentService.AnonymizeUserData:input_type -> payment.AnonymizeUserDataRequest
+	11, // 14: payment.PaymentService.CreatePayment:output_type -> payment.CreatePaymentResponse
+	12, // 15: payment.PaymentService.GetPaymentStatus:output_type -> payment.GetPaymentStatusResponse
+	13, // 16: payment.PaymentService.GetPaymentByBooking:output_type -> payment.GetPaymentByBookingResponse
+	14, // 17: payment.PaymentService.ProcessWebhook:output_type -> payment.ProcessWebhookResponse
+	15, // 18: payment.PaymentService.RequestRefund:output_type -> payment.RequestRefundResponse
+	16, // 19: payment.PaymentService.GetRefundStatus:output_type -> payment.GetRefundStatusResponse
+	17, // 20: payment.PaymentService.ReleasePayment:output_type -> payment.ReleasePaymentResponse
+	18, // 21: payment.PaymentService.GetPayoutStatus:output_type -> payment.GetPayoutStatusResponse
+	19, // 22: payment.PaymentService.GetDriverPayouts:output_type -> payment.GetDriverPayoutsResponse
+	21, // 23: payment.PaymentService.TriggerManualPayout:output_type -> payment.TriggerManualPayoutResponse
+	22, // 24: payment.PaymentService.Health:output_type -> payment.HealthResponse
+	24, // 25: payment.PaymentService.CheckDeletionEligibility:output_type -> payment.CheckDeletionEligibilityResponse
+	26, // 26: payment.PaymentService.AnonymizeUserData:output_type -> payment.AnonymizeUserDataResponse
+	14, // [14:27] is the sub-list for method output_type
+	1,  // [1:14] is the sub-list for method input_type
 	1,  // [1:1] is the sub-list for extension type_name
 	1,  // [1:1] is the sub-list for extension extendee
 	0,  // [0:1] is the sub-list for field type_name
@@ -1828,7 +2059,7 @@ func file_payment_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_payment_proto_rawDesc), len(file_payment_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

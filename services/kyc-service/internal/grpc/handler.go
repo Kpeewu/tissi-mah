@@ -59,11 +59,10 @@ func (h *KYCHandler) CreateInquiry(ctx context.Context, req *kycpb.CreateInquiry
 	)
 
 	result, err := h.service.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
-		UserID:         userID,
-		DocumentID:     req.DocumentId,
-		DocumentIDBack: req.DocumentIdBack,
-		DocumentType:   req.DocumentType,
-		VehicleID:      req.VehicleId,
+		UserID:       userID,
+		DocumentID:   req.DocumentId,
+		DocumentType: req.DocumentType,
+		VehicleID:    req.VehicleId,
 	})
 	if err != nil {
 		h.logger.Error("handler: CreateInquiry failed", zap.Error(err))

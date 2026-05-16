@@ -31,6 +31,7 @@ const (
 	AuthService_DeleteAccount_FullMethodName    = "/auth.AuthService/DeleteAccount"
 	AuthService_Health_FullMethodName           = "/auth.AuthService/Health"
 	AuthService_GetAuthInfo_FullMethodName      = "/auth.AuthService/GetAuthInfo"
+	AuthService_SuspendAccount_FullMethodName   = "/auth.AuthService/SuspendAccount"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -46,6 +47,9 @@ type AuthServiceClient interface {
 	// GetAuthInfo - Inter-service RPC (no auth required)
 	// Retourne les données auth d'un utilisateur pour enrichissement par d'autres services
 	GetAuthInfo(ctx context.Context, in *GetAuthInfoRequest, opts ...grpc.CallOption) (*GetAuthInfoResponse, error)
+	// SuspendAccount - Inter-service RPC (appelé par moderation-service)
+	// Suspend ou bannit définitivement un compte. suspendedUntil vide + isBanned=true = ban permanent.
+	SuspendAccount(ctx context.Context, in *SuspendAccountRequest, opts ...grpc.CallOption) (*SuspendAccountResponse, error)
 }
 
 type authServiceClient struct {
@@ -116,6 +120,16 @@ func (c *authServiceClient) GetAuthInfo(ctx context.Context, in *GetAuthInfoRequ
 	return out, nil
 }
 
+func (c *authServiceClient) SuspendAccount(ctx context.Context, in *SuspendAccountRequest, opts ...grpc.CallOption) (*SuspendAccountResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SuspendAccountResponse)
+	err := c.cc.Invoke(ctx, AuthService_SuspendAccount_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility.
@@ -129,6 +143,9 @@ type AuthServiceServer interface {
 	// GetAuthInfo - Inter-service RPC (no auth required)
 	// Retourne les données auth d'un utilisateur pour enrichissement par d'autres services
 	GetAuthInfo(context.Context, *GetAuthInfoRequest) (*GetAuthInfoResponse, error)
+	// SuspendAccount - Inter-service RPC (appelé par moderation-service)
+	// Suspend ou bannit définitivement un compte. suspendedUntil vide + isBanned=true = ban permanent.
+	SuspendAccount(context.Context, *SuspendAccountRequest) (*SuspendAccountResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -156,6 +173,9 @@ func (UnimplementedAuthServiceServer) Health(context.Context, *HealthRequest) (*
 }
 func (UnimplementedAuthServiceServer) GetAuthInfo(context.Context, *GetAuthInfoRequest) (*GetAuthInfoResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAuthInfo not implemented")
+}
+func (UnimplementedAuthServiceServer) SuspendAccount(context.Context, *SuspendAccountRequest) (*SuspendAccountResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SuspendAccount not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
 func (UnimplementedAuthServiceServer) testEmbeddedByValue()                     {}
@@ -286,6 +306,24 @@ func _AuthService_GetAuthInfo_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_SuspendAccount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SuspendAccountRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).SuspendAccount(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_SuspendAccount_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).SuspendAccount(ctx, req.(*SuspendAccountRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -316,6 +354,10 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAuthInfo",
 			Handler:    _AuthService_GetAuthInfo_Handler,
+		},
+		{
+			MethodName: "SuspendAccount",
+			Handler:    _AuthService_SuspendAccount_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

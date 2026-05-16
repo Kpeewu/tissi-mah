@@ -29,13 +29,12 @@ const (
 )
 
 type CreateInquiryRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	DocumentType   string                 `protobuf:"bytes,1,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"`     // IDCard | Passport | DriverLicence (user) | driverLicence | insurance | registrationCard (vehicle)
-	VehicleId      string                 `protobuf:"bytes,2,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"`           // Optionnel : si renseigné, document véhicule
-	DocumentId     string                 `protobuf:"bytes,3,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`         // Identifiant du document à vérifier (recto/front pour IDCard et DriverLicence)
-	DocumentIdBack string                 `protobuf:"bytes,4,opt,name=DocumentIdBack,proto3" json:"DocumentIdBack,omitempty"` // Optionnel — identifiant du verso pour IDCard et DriverLicence (vide pour Passport et docs véhicule)
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DocumentType  string                 `protobuf:"bytes,1,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"` // IDCard | Passport | DriverLicence (user) | driverLicence | insurance | registrationCard (vehicle)
+	VehicleId     string                 `protobuf:"bytes,2,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"`       // Optionnel : si renseigné, document véhicule
+	DocumentId    string                 `protobuf:"bytes,3,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`     // Identifiant du document à vérifier (recto/front)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateInquiryRequest) Reset() {
@@ -85,13 +84,6 @@ func (x *CreateInquiryRequest) GetVehicleId() string {
 func (x *CreateInquiryRequest) GetDocumentId() string {
 	if x != nil {
 		return x.DocumentId
-	}
-	return ""
-}
-
-func (x *CreateInquiryRequest) GetDocumentIdBack() string {
-	if x != nil {
-		return x.DocumentIdBack
 	}
 	return ""
 }
@@ -1868,14 +1860,13 @@ var File_kyc_proto protoreflect.FileDescriptor
 
 const file_kyc_proto_rawDesc = "" +
 	"\n" +
-	"\tkyc.proto\x12\x03kyc\x1a\x1cgoogle/api/annotations.proto\"\xa0\x01\n" +
+	"\tkyc.proto\x12\x03kyc\x1a\x1cgoogle/api/annotations.proto\"\x8e\x01\n" +
 	"\x14CreateInquiryRequest\x12\"\n" +
 	"\fDocumentType\x18\x01 \x01(\tR\fDocumentType\x12\x1c\n" +
 	"\tVehicleId\x18\x02 \x01(\tR\tVehicleId\x12\x1e\n" +
 	"\n" +
 	"DocumentId\x18\x03 \x01(\tR\n" +
-	"DocumentId\x12&\n" +
-	"\x0eDocumentIdBack\x18\x04 \x01(\tR\x0eDocumentIdBack\"?\n" +
+	"DocumentIdJ\x04\b\x04\x10\x05R\x0eDocumentIdBack\"?\n" +
 	"\x11GetInquiryRequest\x12*\n" +
 	"\x10PersonaInquiryId\x18\x01 \x01(\tR\x10PersonaInquiryId\"\x15\n" +
 	"\x13GetKYCStatusRequest\"B\n" +
