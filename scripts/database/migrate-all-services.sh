@@ -13,6 +13,7 @@
 #   - notification-service (PostgreSQL)
 #   - support-service (PostgreSQL)
 #   - chat-service (PostgreSQL)
+#   - moderation-service (PostgreSQL)
 #   - client-service (PostgreSQL) - future
 #   - user-service (MongoDB) - future
 
@@ -106,6 +107,11 @@ SERVICE_DB_URLS["chat-service"]="postgresql://${POSTGRES_CHAT_USER:-dev}:${POSTG
 SERVICE_DB_TYPES["chat-service"]="postgres"
 SERVICE_MIGRATIONS_DIRS["chat-service"]="$ROOT_DIR/services/chat-service/migrations"
 
+# Moderation Service (PostgreSQL — port 5443)
+SERVICE_DB_URLS["moderation-service"]="postgresql://${POSTGRES_MODERATION_USER:-dev}:${POSTGRES_MODERATION_PASSWORD:-dev123}@${DB_HOST}:5443/${POSTGRES_MODERATION_DB:-moderation_db}?sslmode=disable"
+SERVICE_DB_TYPES["moderation-service"]="postgres"
+SERVICE_MIGRATIONS_DIRS["moderation-service"]="$ROOT_DIR/services/moderation-service/migrations"
+
 # Client Service (PostgreSQL — port 5444) - future
 SERVICE_DB_URLS["client-service"]="postgresql://${POSTGRES_CLIENT_USER:-dev}:${POSTGRES_CLIENT_PASSWORD:-dev123}@${DB_HOST}:5444/${POSTGRES_CLIENT_DB:-client_db}?sslmode=disable"
 SERVICE_DB_TYPES["client-service"]="postgres"
@@ -117,7 +123,7 @@ SERVICE_DB_TYPES["user-service"]="mongodb"
 SERVICE_MIGRATIONS_DIRS["user-service"]="$ROOT_DIR/services/user-service/migrations"
 
 # Currently implemented services (PostgreSQL only)
-IMPLEMENTED_SERVICES=("auth-service" "file-service" "rating-service" "vehicle-service" "trips-service" "booking-service" "payment-service" "notification-service" "support-service" "chat-service")
+IMPLEMENTED_SERVICES=("auth-service" "file-service" "rating-service" "vehicle-service" "trips-service" "booking-service" "payment-service" "notification-service" "support-service" "chat-service" "moderation-service")
 
 # =============================================================================
 # Functions
