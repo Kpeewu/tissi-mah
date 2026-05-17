@@ -36,6 +36,7 @@ func newService(
 		reviewRead,
 		reviewWrite,
 		storage,
+		nil, // moderationClient désactivé pour les tests unitaires
 		zap.NewNop(),
 	)
 }
@@ -1201,6 +1202,8 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 			&mocks.MockStorageClient{})
 
 		result, err := svc.CreateDocumentReview(context.Background(), serviceInterfaces.CreateReviewInput{
+			UserID:         "user-1",
+			DocumentType:   "idCardFront",
 			UserDocumentID: "doc-1",
 			Decision:       "approved",
 			ReviewType:     "manual",
@@ -1213,7 +1216,7 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 		assert.Equal(t, "pending", result.Status) // défaut
 	})
 
-	t.Run("should return ErrorMissingDocumentReference when no document ID", func(t *testing.T) {
+	t.Run("should return ErrorMissingUserID when user_id absent (Persona 100% requirement)", func(t *testing.T) {
 		svc := newService(&mocks.MockUserDocumentRepositoryRead{}, &mocks.MockUserDocumentRepositoryWrite{},
 			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
@@ -1224,7 +1227,7 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 			ReviewType: "manual",
 		})
 
-		assert.ErrorIs(t, err, fileErrors.ErrorMissingDocumentReference)
+		assert.ErrorIs(t, err, fileErrors.ErrorMissingUserID)
 	})
 
 	t.Run("should return ErrorMultipleDocumentReference when both IDs provided", func(t *testing.T) {
@@ -1234,6 +1237,8 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 			&mocks.MockStorageClient{})
 
 		_, err := svc.CreateDocumentReview(context.Background(), serviceInterfaces.CreateReviewInput{
+			UserID:            "user-1",
+			DocumentType:      "idCardFront",
 			UserDocumentID:    "doc-1",
 			VehicleDocumentID: "vdoc-1",
 			Decision:          "approved",
@@ -1250,6 +1255,8 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 			&mocks.MockStorageClient{})
 
 		_, err := svc.CreateDocumentReview(context.Background(), serviceInterfaces.CreateReviewInput{
+			UserID:         "user-1",
+			DocumentType:   "idCardFront",
 			UserDocumentID: "doc-1",
 			Decision:       "invalid_decision",
 			ReviewType:     "manual",
@@ -1265,6 +1272,8 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 			&mocks.MockStorageClient{})
 
 		_, err := svc.CreateDocumentReview(context.Background(), serviceInterfaces.CreateReviewInput{
+			UserID:         "user-1",
+			DocumentType:   "idCardFront",
 			UserDocumentID: "doc-1",
 			Decision:       "approved",
 			ReviewType:     "robot", // invalide
@@ -1280,6 +1289,8 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 			&mocks.MockStorageClient{})
 
 		_, err := svc.CreateDocumentReview(context.Background(), serviceInterfaces.CreateReviewInput{
+			UserID:         "user-1",
+			DocumentType:   "idCardFront",
 			UserDocumentID: "doc-1",
 			Decision:       "approved",
 			ReviewType:     "manual",
@@ -1296,6 +1307,8 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 			&mocks.MockStorageClient{})
 
 		_, err := svc.CreateDocumentReview(context.Background(), serviceInterfaces.CreateReviewInput{
+			UserID:          "user-1",
+			DocumentType:    "idCardFront",
 			UserDocumentID:  "doc-1",
 			Decision:        "approved",
 			ReviewType:      "manual",
@@ -1315,6 +1328,8 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 			&mocks.MockStorageClient{})
 
 		_, err := svc.CreateDocumentReview(context.Background(), serviceInterfaces.CreateReviewInput{
+			UserID:         "user-1",
+			DocumentType:   "idCardFront",
 			UserDocumentID: "missing",
 			Decision:       "approved",
 			ReviewType:     "manual",
@@ -1334,6 +1349,8 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 			&mocks.MockStorageClient{})
 
 		_, err := svc.CreateDocumentReview(context.Background(), serviceInterfaces.CreateReviewInput{
+			UserID:           "user-1",
+			DocumentType:     "idCardFront",
 			UserDocumentID:   "doc-1",
 			Decision:         "approved",
 			ReviewType:       "manual",
@@ -1366,6 +1383,8 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 			&mocks.MockStorageClient{})
 
 		_, err := svc.CreateDocumentReview(context.Background(), serviceInterfaces.CreateReviewInput{
+			UserID:          "user-1",
+			DocumentType:    "idCardFront",
 			UserDocumentID:  "doc-1",
 			Decision:        "rejected",
 			ReviewType:      "manual",
@@ -1400,6 +1419,8 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 			&mocks.MockStorageClient{})
 
 		_, err := svc.CreateDocumentReview(context.Background(), serviceInterfaces.CreateReviewInput{
+			UserID:         "user-1",
+			DocumentType:   "idCardFront",
 			UserDocumentID: "doc-1",
 			Decision:       "approved",
 			ReviewType:     "manual",
@@ -1408,6 +1429,37 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, int16(1), capturedReview.AttemptNumber)
+	})
+
+	t.Run("should create review Persona 100% (sans FK doc)", func(t *testing.T) {
+		reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+
+		var capturedReview *domain.DocumentReview
+		reviewWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.DocumentReview")).
+			Run(func(args mock.Arguments) {
+				capturedReview = args.Get(1).(*domain.DocumentReview)
+			}).
+			Return("review-persona", nil)
+
+		svc := newService(&mocks.MockUserDocumentRepositoryRead{}, &mocks.MockUserDocumentRepositoryWrite{},
+			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
+			&mocks.MockDocumentReviewRepositoryRead{}, reviewWrite,
+			&mocks.MockStorageClient{})
+
+		result, err := svc.CreateDocumentReview(context.Background(), serviceInterfaces.CreateReviewInput{
+			UserID:       "user-persona",
+			DocumentType: "passport",
+			Decision:     "pending",
+			ReviewType:   "automatic",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, capturedReview)
+		assert.Equal(t, "user-persona", capturedReview.UserID)
+		assert.Equal(t, "passport", capturedReview.DocumentType)
+		assert.Nil(t, capturedReview.UserDocumentID)
+		assert.Nil(t, capturedReview.VehicleDocumentID)
+		assert.NotEmpty(t, result.ReviewID)
 	})
 }
 
