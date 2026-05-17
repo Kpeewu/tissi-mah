@@ -73,6 +73,14 @@ func (m *MockKYCService) OverrideReview(ctx context.Context, input serviceInterf
 	return args.Get(0).(*serviceInterfaces.OverrideResult), args.Error(1)
 }
 
+func (m *MockKYCService) ValidateDocument(ctx context.Context, input serviceInterfaces.ValidateDocumentInput) (*serviceInterfaces.ValidateDocumentResult, error) {
+	args := m.Called(ctx, input)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.ValidateDocumentResult), args.Error(1)
+}
+
 // Compile-time check
 var _ serviceInterfaces.KYCService = (*MockKYCService)(nil)
 var _ = (*MockKYCService)(nil)

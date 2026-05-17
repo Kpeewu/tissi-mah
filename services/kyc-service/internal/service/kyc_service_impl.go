@@ -109,6 +109,10 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 		s.logger.Error("document_id is required")
 		return nil, kycErrors.ErrorMissingDocumentID
 	}
+	if input.VehicleID != "" {
+		s.logger.Error("vehicle documents must be validated manually", zap.String("vehicleID", input.VehicleID))
+		return nil, kycErrors.ErrorVehicleDocumentNotAllowed
+	}
 
 	// Résoudre le Firebase UID reçu en UserID interne MongoDB.
 	// Le file-service stocke les documents avec l'UserID interne.
@@ -952,5 +956,98 @@ func (s *kycServiceImpl) OverrideReview(ctx context.Context, input serviceInterf
 		ReviewedAt:       updatedReview.ReviewedAt.Format(time.RFC3339),
 		Notes:            updatedReview.Notes,
 		UpdatedAt:        updatedReview.UpdatedAt.Format(time.RFC3339),
+	}, nil
+}
+
+// =============================================================================
+// ValidateDocument
+// =============================================================================
+
+func (s *kycServiceImpl) ValidateDocument(ctx context.Context, input serviceInterfaces.ValidateDocumentInput) (*serviceInterfaces.ValidateDocumentResult, error) {
+	s.logger.Debug("validate document manually",
+		zap.String("supportAgentID", input.SupportAgentID),
+		zap.String("documentID", input.DocumentID),
+		zap.String("vehicleID", input.VehicleID),
+		zap.String("decision", input.Decision),
+	)
+
+	if input.SupportAgentID == "" {
+		s.logger.Error("support_agent_id is required")
+		return nil, kycErrors.ErrorMissingUserID
+	}
+	if input.DocumentID == "" {
+		s.logger.Error("document_id is required")
+		return nil, kycErrors.ErrorMissingDocumentID
+	}
+	if !domain.IsValidDecision(input.Decision) {
+		s.logger.Error("invalid decision", zap.String("decision", input.Decision))
+		return nil, kycErrors.ErrorInvalidDecision
+	}
+	if input.Decision == "rejected" && input.ReasonRejection == "" {
+		s.logger.Error("reason_rejection is required when decision is rejected")
+		return nil, kycErrors.ErrorInvalidDecision
+	}
+
+	// Récupérer le document pour vérifier qu'il existe
+	var userDocumentID string
+	var vehicleDocumentID string
+
+	if input.VehicleID != "" {
+		doc, err := s.fileClient.GetVehicleDocument(ctx, input.DocumentID)
+		if err != nil {
+			s.logger.Error("failed to get vehicle document", zap.String("documentID", input.DocumentID), zap.Error(err))
+			return nil, kycErrors.ErrorFileServiceUnavailable
+		}
+		if doc.OwnerID != input.VehicleID {
+			s.logger.Warn("vehicle document does not belong to provided vehicleID",
+				zap.String("documentID", input.DocumentID),
+				zap.String("vehicleID", input.VehicleID),
+			)
+			return nil, kycErrors.ErrorDocumentMismatch
+		}
+		vehicleDocumentID = doc.DocumentID
+	} else {
+		doc, err := s.fileClient.GetUserDocument(ctx, input.DocumentID)
+		if err != nil {
+			s.logger.Error("failed to get user document", zap.String("documentID", input.DocumentID), zap.Error(err))
+			return nil, kycErrors.ErrorFileServiceUnavailable
+		}
+		userDocumentID = doc.DocumentID
+	}
+
+	now := time.Now().UTC()
+	review := &domain.Review{
+		PersonaInquiryID:  "",
+		ReviewType:        "manual",
+		Status:            "completed",
+		Decision:          input.Decision,
+		ReasonRejection:   input.ReasonRejection,
+		RejectionDetails:  input.RejectionDetails,
+		Notes:             input.Notes,
+		ReviewedBy:        input.SupportAgentID,
+		ReviewedAt:        &now,
+		UserDocumentID:    userDocumentID,
+		VehicleDocumentID: vehicleDocumentID,
+	}
+
+	created, err := s.fileClient.CreateDocumentReview(ctx, review)
+	if err != nil {
+		s.logger.Error("failed to create manual document review", zap.Error(err))
+		return nil, kycErrors.ErrorFileServiceUnavailable
+	}
+
+	s.logger.Info("document validated manually",
+		zap.String("reviewID", created.ReviewID),
+		zap.String("decision", created.Decision),
+		zap.String("supportAgentID", input.SupportAgentID),
+	)
+
+	return &serviceInterfaces.ValidateDocumentResult{
+		ReviewID:   created.ReviewID,
+		Decision:   created.Decision,
+		ReviewedBy: created.ReviewedBy,
+		ReviewType: created.ReviewType,
+		ReviewedAt: created.ReviewedAt.Format(time.RFC3339),
+		Notes:      created.Notes,
 	}, nil
 }

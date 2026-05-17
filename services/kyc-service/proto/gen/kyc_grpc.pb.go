@@ -25,15 +25,16 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	KYCService_CreateInquiry_FullMethodName   = "/kyc.KYCService/CreateInquiry"
-	KYCService_GetInquiry_FullMethodName      = "/kyc.KYCService/GetInquiry"
-	KYCService_GetKYCStatus_FullMethodName    = "/kyc.KYCService/GetKYCStatus"
-	KYCService_ResumeInquiry_FullMethodName   = "/kyc.KYCService/ResumeInquiry"
-	KYCService_ProcessWebhook_FullMethodName  = "/kyc.KYCService/ProcessWebhook"
-	KYCService_GetAdminReviews_FullMethodName = "/kyc.KYCService/GetAdminReviews"
-	KYCService_GetAdminReview_FullMethodName  = "/kyc.KYCService/GetAdminReview"
-	KYCService_OverrideReview_FullMethodName  = "/kyc.KYCService/OverrideReview"
-	KYCService_Health_FullMethodName          = "/kyc.KYCService/Health"
+	KYCService_CreateInquiry_FullMethodName    = "/kyc.KYCService/CreateInquiry"
+	KYCService_GetInquiry_FullMethodName       = "/kyc.KYCService/GetInquiry"
+	KYCService_GetKYCStatus_FullMethodName     = "/kyc.KYCService/GetKYCStatus"
+	KYCService_ResumeInquiry_FullMethodName    = "/kyc.KYCService/ResumeInquiry"
+	KYCService_ProcessWebhook_FullMethodName   = "/kyc.KYCService/ProcessWebhook"
+	KYCService_GetAdminReviews_FullMethodName  = "/kyc.KYCService/GetAdminReviews"
+	KYCService_GetAdminReview_FullMethodName   = "/kyc.KYCService/GetAdminReview"
+	KYCService_OverrideReview_FullMethodName   = "/kyc.KYCService/OverrideReview"
+	KYCService_ValidateDocument_FullMethodName = "/kyc.KYCService/ValidateDocument"
+	KYCService_Health_FullMethodName           = "/kyc.KYCService/Health"
 )
 
 // KYCServiceClient is the client API for KYCService service.
@@ -56,6 +57,9 @@ type KYCServiceClient interface {
 	GetAdminReview(ctx context.Context, in *GetAdminReviewRequest, opts ...grpc.CallOption) (*GetAdminReviewResponse, error)
 	// OverrideReview - Override manuel d'une revue par un agent de support
 	OverrideReview(ctx context.Context, in *OverrideReviewRequest, opts ...grpc.CallOption) (*OverrideReviewResponse, error)
+	// ValidateDocument - Validation manuelle directe d'un document par un agent support (sans Persona)
+	// Obligatoire pour les documents véhicule (insurance, registrationCard, driverLicence avec VehicleId)
+	ValidateDocument(ctx context.Context, in *ValidateDocumentRequest, opts ...grpc.CallOption) (*ValidateDocumentResponse, error)
 	// Health - Health check endpoint (no auth required)
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -148,6 +152,16 @@ func (c *kYCServiceClient) OverrideReview(ctx context.Context, in *OverrideRevie
 	return out, nil
 }
 
+func (c *kYCServiceClient) ValidateDocument(ctx context.Context, in *ValidateDocumentRequest, opts ...grpc.CallOption) (*ValidateDocumentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ValidateDocumentResponse)
+	err := c.cc.Invoke(ctx, KYCService_ValidateDocument_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *kYCServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -178,6 +192,9 @@ type KYCServiceServer interface {
 	GetAdminReview(context.Context, *GetAdminReviewRequest) (*GetAdminReviewResponse, error)
 	// OverrideReview - Override manuel d'une revue par un agent de support
 	OverrideReview(context.Context, *OverrideReviewRequest) (*OverrideReviewResponse, error)
+	// ValidateDocument - Validation manuelle directe d'un document par un agent support (sans Persona)
+	// Obligatoire pour les documents véhicule (insurance, registrationCard, driverLicence avec VehicleId)
+	ValidateDocument(context.Context, *ValidateDocumentRequest) (*ValidateDocumentResponse, error)
 	// Health - Health check endpoint (no auth required)
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedKYCServiceServer()
@@ -213,6 +230,9 @@ func (UnimplementedKYCServiceServer) GetAdminReview(context.Context, *GetAdminRe
 }
 func (UnimplementedKYCServiceServer) OverrideReview(context.Context, *OverrideReviewRequest) (*OverrideReviewResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method OverrideReview not implemented")
+}
+func (UnimplementedKYCServiceServer) ValidateDocument(context.Context, *ValidateDocumentRequest) (*ValidateDocumentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ValidateDocument not implemented")
 }
 func (UnimplementedKYCServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -382,6 +402,24 @@ func _KYCService_OverrideReview_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _KYCService_ValidateDocument_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidateDocumentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KYCServiceServer).ValidateDocument(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: KYCService_ValidateDocument_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KYCServiceServer).ValidateDocument(ctx, req.(*ValidateDocumentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _KYCService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -438,6 +476,10 @@ var KYCService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "OverrideReview",
 			Handler:    _KYCService_OverrideReview_Handler,
+		},
+		{
+			MethodName: "ValidateDocument",
+			Handler:    _KYCService_ValidateDocument_Handler,
 		},
 		{
 			MethodName: "Health",

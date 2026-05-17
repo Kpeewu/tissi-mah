@@ -16,6 +16,10 @@ type contextKey string
 // injecté par l'api-gateway via la metadata gRPC x-firebase-uid.
 const FirebaseIDKey contextKey = "firebaseID"
 
+// SupportIDKey est la clé du contexte gRPC où est stocké l'UID de l'agent support,
+// injecté par l'api-gateway via la metadata gRPC x-support-uid.
+const SupportIDKey contextKey = "supportID"
+
 // Routes gRPC publiques (pas de JWT requis)
 var publicMethods = map[string]bool{
 	"/kyc.KYCService/Health":          true,
@@ -24,12 +28,18 @@ var publicMethods = map[string]bool{
 	"/grpc.health.v1.Health/Watch":    true, // Liveness probe Kubernetes
 }
 
+// Méthodes réservées aux agents support (JWT support, pas Firebase)
+var adminMethods = map[string]bool{
+	"/kyc.KYCService/GetAdminReviews":  true,
+	"/kyc.KYCService/GetAdminReview":   true,
+	"/kyc.KYCService/OverrideReview":   true,
+	"/kyc.KYCService/ValidateDocument": true,
+}
+
 // KYCInterceptor retourne un intercepteur gRPC unaire qui :
 //  1. Laisse passer les routes publiques (Health, ProcessWebhook)
-//  2. Extrait le Firebase UID depuis la metadata gRPC x-firebase-uid
-//     (injectée par l'api-gateway après validation JWT Firebase)
-//  3. Injecte le Firebase UID dans le contexte via FirebaseIDKey
-//
+//  2. Pour les méthodes admin : extrait x-support-uid → SupportIDKey
+//  3. Pour les autres méthodes : extrait x-firebase-uid → FirebaseIDKey
 func KYCInterceptor(secret []byte) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if publicMethods[info.FullMethod] {
@@ -39,6 +49,15 @@ func KYCInterceptor(secret []byte) grpc.UnaryServerInterceptor {
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
 			return nil, status.Error(codes.Unauthenticated, "missing metadata")
+		}
+
+		if adminMethods[info.FullMethod] {
+			uids := md.Get("x-support-uid")
+			if len(uids) == 0 || uids[0] == "" {
+				return nil, status.Error(codes.Unauthenticated, "missing support uid")
+			}
+			ctx = context.WithValue(ctx, SupportIDKey, uids[0])
+			return handler(ctx, req)
 		}
 
 		uids := md.Get("x-firebase-uid")
