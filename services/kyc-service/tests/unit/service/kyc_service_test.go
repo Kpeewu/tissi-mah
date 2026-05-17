@@ -50,17 +50,13 @@ func newTestService() (*mocks.MockFileServiceClient, *mocks.MockPersonaClient, s
 // =============================================================================
 
 func TestCreateInquiry(t *testing.T) {
-	t.Run("succès - crée une inquiry pour un document utilisateur", func(t *testing.T) {
+	t.Run("succès - crée une inquiry Persona 100% (sans GetUserDocument)", func(t *testing.T) {
 		mockFileClient, mockPersonaClient, svc := newTestService()
 		ctx := context.Background()
 
 		// Pas de review active
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-001").
 			Return([]*domain.Review{}, nil)
-
-		// Document utilisateur trouvé par ID, owner = caller
-		mockFileClient.On("GetUserDocument", mock.Anything, "doc-passport-001").
-			Return(&domain.DocumentRef{DocumentID: "doc-passport-001", DocumentType: "passport", OwnerID: "user-001"}, nil)
 
 		// Persona crée l'inquiry
 		expiresAt := time.Now().Add(30 * time.Minute).UTC()
@@ -72,10 +68,13 @@ func TestCreateInquiry(t *testing.T) {
 				ExpiresAt:    expiresAt,
 			}, nil)
 
-		// File-service crée la review
+		// File-service crée la review avec UserID + DocumentType dénormalisés,
+		// pas de FK doc (Persona 100%).
 		now := time.Now().UTC()
 		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.MatchedBy(func(r *domain.Review) bool {
-			return r.UserDocumentID == "doc-passport-001" &&
+			return r.UserID == "user-001" &&
+				r.DocumentType == "passport" &&
+				r.UserDocumentID == "" &&
 				r.VehicleDocumentID == "" &&
 				r.PersonaInquiryID == "inq_abc123" &&
 				r.PersonaTemplateID == testTemplateID &&
@@ -86,7 +85,8 @@ func TestCreateInquiry(t *testing.T) {
 				r.PreviousReviewID == ""
 		})).Return(&domain.Review{
 			ReviewID:          "review-001",
-			UserDocumentID:    "doc-passport-001",
+			UserID:            "user-001",
+			DocumentType:      "passport",
 			PersonaInquiryID:  "inq_abc123",
 			PersonaTemplateID: testTemplateID,
 			Status:            "pending",
@@ -96,7 +96,6 @@ func TestCreateInquiry(t *testing.T) {
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-001",
-			DocumentID:   "doc-passport-001",
 			DocumentType: "passport",
 		})
 
@@ -113,78 +112,36 @@ func TestCreateInquiry(t *testing.T) {
 		mockPersonaClient.AssertExpectations(t)
 	})
 
-	t.Run("succès - crée une inquiry pour un document véhicule", func(t *testing.T) {
-		mockFileClient, mockPersonaClient, svc := newTestService()
+	t.Run("erreur - VehicleID fourni → ErrorVehicleDocumentNotAllowed", func(t *testing.T) {
+		_, _, svc := newTestService()
 		ctx := context.Background()
-
-		// Pas de review active
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-002").
-			Return([]*domain.Review{}, nil)
-
-		// Document véhicule trouvé par ID
-		mockFileClient.On("GetVehicleDocument", mock.Anything, "vdoc-insurance-001").
-			Return(&domain.DocumentRef{DocumentID: "vdoc-insurance-001", DocumentType: "insurance", OwnerID: "vehicle-001"}, nil)
-
-		expiresAt := time.Now().Add(30 * time.Minute).UTC()
-		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-002").
-			Return(&domain.PersonaInquiry{
-				InquiryID:    "inq_vehicle_123",
-				TemplateID:   testTemplateID,
-				SessionToken: "sess_vehicle_token",
-				ExpiresAt:    expiresAt,
-			}, nil)
-
-		now := time.Now().UTC()
-		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.MatchedBy(func(r *domain.Review) bool {
-			return r.VehicleDocumentID == "vdoc-insurance-001" &&
-				r.UserDocumentID == "" &&
-				r.PersonaInquiryID == "inq_vehicle_123" &&
-				r.Status == "pending" &&
-				r.AttemptNumber == 1
-		})).Return(&domain.Review{
-			ReviewID:          "review-vehicle-001",
-			VehicleDocumentID: "vdoc-insurance-001",
-			PersonaInquiryID:  "inq_vehicle_123",
-			Status:            "pending",
-			AttemptNumber:     1,
-			CreatedAt:         now,
-		}, nil)
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-002",
-			DocumentID:   "vdoc-insurance-001",
 			DocumentType: "insurance",
 			VehicleID:    "vehicle-001",
 		})
 
-		require.NoError(t, err)
-		require.NotNil(t, result)
-		assert.Equal(t, "review-vehicle-001", result.ReviewID)
-		assert.Equal(t, "inq_vehicle_123", result.PersonaInquiryID)
-		assert.Equal(t, int32(1), result.AttemptNumber)
-
-		mockFileClient.AssertExpectations(t)
-		mockPersonaClient.AssertExpectations(t)
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, kycErrors.ErrorVehicleDocumentNotAllowed)
 	})
 
-	t.Run("succès - incrémente attempt_number sur un retry", func(t *testing.T) {
+	t.Run("succès - incrémente attempt_number sur un retry du même DocumentType", func(t *testing.T) {
 		mockFileClient, mockPersonaClient, svc := newTestService()
 		ctx := context.Background()
 
-		// Review précédente terminée (completed) pour le même document
+		// Review précédente terminée pour le même type (idCardFront)
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-003").
 			Return([]*domain.Review{
 				{
-					ReviewID:       "review-old-001",
-					UserDocumentID: "doc-id-front-003",
-					Status:         "completed",
-					Decision:       "rejected",
-					AttemptNumber:  2,
+					ReviewID:      "review-old-001",
+					UserID:        "user-003",
+					DocumentType:  "idCardFront",
+					Status:        "completed",
+					Decision:      "rejected",
+					AttemptNumber: 2,
 				},
 			}, nil)
-
-		mockFileClient.On("GetUserDocument", mock.Anything, "doc-id-front-003").
-			Return(&domain.DocumentRef{DocumentID: "doc-id-front-003", DocumentType: "idCardFront", OwnerID: "user-003"}, nil)
 
 		expiresAt := time.Now().Add(30 * time.Minute).UTC()
 		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-003").
@@ -198,10 +155,12 @@ func TestCreateInquiry(t *testing.T) {
 		now := time.Now().UTC()
 		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.MatchedBy(func(r *domain.Review) bool {
 			return r.AttemptNumber == 3 &&
-				r.PreviousReviewID == "review-old-001"
+				r.PreviousReviewID == "review-old-001" &&
+				r.DocumentType == "idCardFront"
 		})).Return(&domain.Review{
 			ReviewID:         "review-retry-001",
-			UserDocumentID:   "doc-id-front-003",
+			UserID:           "user-003",
+			DocumentType:     "idCardFront",
 			PersonaInquiryID: "inq_retry_123",
 			Status:           "pending",
 			AttemptNumber:    3,
@@ -210,7 +169,6 @@ func TestCreateInquiry(t *testing.T) {
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-003",
-			DocumentID:   "doc-id-front-003",
 			DocumentType: "idCardFront",
 		})
 
@@ -316,117 +274,18 @@ func TestCreateInquiry(t *testing.T) {
 		mockFileClient.AssertExpectations(t)
 	})
 
-	t.Run("erreur - document utilisateur introuvable", func(t *testing.T) {
-		mockFileClient, _, svc := newTestService()
-		ctx := context.Background()
-
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-007").
-			Return([]*domain.Review{}, nil)
-		mockFileClient.On("GetUserDocument", mock.Anything, "doc-missing-007").
-			Return(nil, errors.New("document not found"))
-
-		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
-			UserID:       "user-007",
-			DocumentID:   "doc-missing-007",
-			DocumentType: "passport",
-		})
-
-		assert.Nil(t, result)
-		assert.ErrorIs(t, err, kycErrors.ErrorFileServiceUnavailable)
-		mockFileClient.AssertExpectations(t)
-	})
-
-	t.Run("erreur - document véhicule trouve mais type ne matche pas", func(t *testing.T) {
-		mockFileClient, _, svc := newTestService()
-		ctx := context.Background()
-
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-008").
-			Return([]*domain.Review{}, nil)
-		// Document existe mais le type ne correspond pas a la demande
-		mockFileClient.On("GetVehicleDocument", mock.Anything, "vdoc-001").
-			Return(&domain.DocumentRef{DocumentID: "vdoc-001", DocumentType: "insurance", OwnerID: "vehicle-002"}, nil)
-
-		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
-			UserID:       "user-008",
-			DocumentID:   "vdoc-001",
-			DocumentType: "registrationCard",
-			VehicleID:    "vehicle-002",
-		})
-
-		assert.Nil(t, result)
-		assert.ErrorIs(t, err, kycErrors.ErrorDocumentMismatch)
-		mockFileClient.AssertExpectations(t)
-	})
-
-	t.Run("erreur - document véhicule appartient a un autre véhicule", func(t *testing.T) {
-		mockFileClient, _, svc := newTestService()
-		ctx := context.Background()
-
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-008b").
-			Return([]*domain.Review{}, nil)
-		mockFileClient.On("GetVehicleDocument", mock.Anything, "vdoc-other").
-			Return(&domain.DocumentRef{DocumentID: "vdoc-other", DocumentType: "insurance", OwnerID: "vehicle-OTHER"}, nil)
-
-		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
-			UserID:       "user-008b",
-			DocumentID:   "vdoc-other",
-			DocumentType: "insurance",
-			VehicleID:    "vehicle-002",
-		})
-
-		assert.Nil(t, result)
-		assert.ErrorIs(t, err, kycErrors.ErrorUnauthorized)
-		mockFileClient.AssertExpectations(t)
-	})
-
-	t.Run("erreur - document utilisateur appartient a un autre user", func(t *testing.T) {
-		mockFileClient, _, svc := newTestService()
-		ctx := context.Background()
-
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-008c").
-			Return([]*domain.Review{}, nil)
-		mockFileClient.On("GetUserDocument", mock.Anything, "doc-of-other").
-			Return(&domain.DocumentRef{DocumentID: "doc-of-other", DocumentType: "passport", OwnerID: "user-OTHER"}, nil)
-
-		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
-			UserID:       "user-008c",
-			DocumentID:   "doc-of-other",
-			DocumentType: "passport",
-		})
-
-		assert.Nil(t, result)
-		assert.ErrorIs(t, err, kycErrors.ErrorUnauthorized)
-		mockFileClient.AssertExpectations(t)
-	})
-
-	t.Run("erreur - document_id vide retourne ErrorMissingDocumentID", func(t *testing.T) {
-		_, _, svc := newTestService()
-		ctx := context.Background()
-
-		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
-			UserID:       "user-008d",
-			DocumentType: "passport",
-		})
-
-		assert.Nil(t, result)
-		assert.ErrorIs(t, err, kycErrors.ErrorMissingDocumentID)
-	})
-
 	t.Run("erreur - API Persona indisponible", func(t *testing.T) {
 		mockFileClient, mockPersonaClient, svc := newTestService()
 		ctx := context.Background()
 
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-009").
 			Return([]*domain.Review{}, nil)
-		mockFileClient.On("GetUserDocument", mock.Anything, "doc-009").
-			Return(&domain.DocumentRef{DocumentID: "doc-009", DocumentType: "passport", OwnerID: "user-009"}, nil)
 
 		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-009").
 			Return(nil, errors.New("persona API timeout"))
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-009",
-			DocumentID:   "doc-009",
 			DocumentType: "passport",
 		})
 
@@ -442,8 +301,6 @@ func TestCreateInquiry(t *testing.T) {
 
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-010").
 			Return([]*domain.Review{}, nil)
-		mockFileClient.On("GetUserDocument", mock.Anything, "doc-010").
-			Return(&domain.DocumentRef{DocumentID: "doc-010", DocumentType: "passport", OwnerID: "user-010"}, nil)
 
 		expiresAt := time.Now().Add(30 * time.Minute).UTC()
 		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-010").
@@ -459,7 +316,6 @@ func TestCreateInquiry(t *testing.T) {
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-010",
-			DocumentID:   "doc-010",
 			DocumentType: "passport",
 		})
 
@@ -477,16 +333,14 @@ func TestCreateInquiry(t *testing.T) {
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-011").
 			Return([]*domain.Review{
 				{
-					ReviewID:       "review-completed-001",
-					UserDocumentID: "doc-011",
-					Status:         "completed",
-					Decision:       "approved",
-					AttemptNumber:  1,
+					ReviewID:      "review-completed-001",
+					UserID:        "user-011",
+					DocumentType:  "passport",
+					Status:        "completed",
+					Decision:      "approved",
+					AttemptNumber: 1,
 				},
 			}, nil)
-
-		mockFileClient.On("GetUserDocument", mock.Anything, "doc-011-new").
-			Return(&domain.DocumentRef{DocumentID: "doc-011-new", DocumentType: "passport", OwnerID: "user-011"}, nil)
 
 		expiresAt := time.Now().Add(30 * time.Minute).UTC()
 		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-011").
@@ -503,13 +357,12 @@ func TestCreateInquiry(t *testing.T) {
 				ReviewID:         "review-011",
 				PersonaInquiryID: "inq_011",
 				Status:           "pending",
-				AttemptNumber:    1,
+				AttemptNumber:    2,
 				CreatedAt:        now,
 			}, nil)
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
 			UserID:       "user-011",
-			DocumentID:   "doc-011-new",
 			DocumentType: "passport",
 		})
 
@@ -522,96 +375,43 @@ func TestCreateInquiry(t *testing.T) {
 		mockPersonaClient.AssertExpectations(t)
 	})
 
-	// =========================================================================
-	// Documents véhicule
-	// =========================================================================
-
-	t.Run("submit - document véhicule (insurance) crée l'inquiry sans erreur", func(t *testing.T) {
+	t.Run("normalisation - DocumentType haut-niveau persisté en type file-service", func(t *testing.T) {
 		mockFileClient, mockPersonaClient, svc := newTestService()
 		ctx := context.Background()
 
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-sub-007").
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-norm").
 			Return([]*domain.Review{}, nil)
-		mockFileClient.On("GetVehicleDocument", mock.Anything, "vdoc-ins-007").
-			Return(&domain.DocumentRef{
-				DocumentID:   "vdoc-ins-007",
-				DocumentType: "insurance",
-				OwnerID:      "vehicle-007",
-				DocumentURL:  "https://minio.local/bucket/insurance.jpg",
-			}, nil)
 
 		expiresAt := time.Now().Add(30 * time.Minute).UTC()
-		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-sub-007").
+		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-norm").
 			Return(&domain.PersonaInquiry{
-				InquiryID:    "inq_ins_007",
+				InquiryID:    "inq_norm",
 				TemplateID:   testTemplateID,
-				SessionToken: "sess_ins",
+				SessionToken: "sess_norm",
 				ExpiresAt:    expiresAt,
 			}, nil)
 
-		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.Anything).
-			Return(&domain.Review{
-				ReviewID:          "review-sub-ins-007",
-				VehicleDocumentID: "vdoc-ins-007",
-				PersonaInquiryID:  "inq_ins_007",
-				Status:            "pending",
-				AttemptNumber:     1,
-				CreatedAt:         time.Now().UTC(),
-			}, nil)
+		// L'input "DriverLicence" est normalisé en "driverLicenceFront"
+		// pour rester cohérent avec identityDocumentTypes/driverDocumentTypes.
+		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.MatchedBy(func(r *domain.Review) bool {
+			return r.DocumentType == "driverLicenceFront"
+		})).Return(&domain.Review{
+			ReviewID:         "review-norm",
+			DocumentType:     "driverLicenceFront",
+			PersonaInquiryID: "inq_norm",
+			Status:           "pending",
+			AttemptNumber:    1,
+			CreatedAt:        time.Now().UTC(),
+		}, nil)
 
 		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
-			UserID:       "user-sub-007",
-			DocumentID:   "vdoc-ins-007",
-			DocumentType: "insurance",
-			VehicleID:    "vehicle-007",
+			UserID:       "user-norm",
+			DocumentType: "DriverLicence",
 		})
 
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		mockFileClient.AssertExpectations(t)
-	})
-
-	t.Run("submit - DocumentURL vide → inquiry créée sans erreur", func(t *testing.T) {
-		mockFileClient, mockPersonaClient, svc := newTestService()
-		ctx := context.Background()
-
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-sub-008").
-			Return([]*domain.Review{}, nil)
-		// DocumentURL vide (cas legacy ou doc fraîchement créé sans URL générée)
-		mockFileClient.On("GetUserDocument", mock.Anything, "doc-pp-008").
-			Return(&domain.DocumentRef{
-				DocumentID:   "doc-pp-008",
-				DocumentType: "passport",
-				OwnerID:      "user-sub-008",
-				DocumentURL:  "",
-			}, nil)
-
-		expiresAt := time.Now().Add(30 * time.Minute).UTC()
-		mockPersonaClient.On("CreateInquiry", mock.Anything, testTemplateID, "user-sub-008").
-			Return(&domain.PersonaInquiry{
-				InquiryID:    "inq_pp_008",
-				TemplateID:   testTemplateID,
-				SessionToken: "sess_pp",
-				ExpiresAt:    expiresAt,
-			}, nil)
-
-		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.Anything).
-			Return(&domain.Review{
-				ReviewID:         "review-sub-pp-008",
-				PersonaInquiryID: "inq_pp_008",
-				Status:           "pending",
-				AttemptNumber:    1,
-				CreatedAt:        time.Now().UTC(),
-			}, nil)
-
-		result, err := svc.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
-			UserID:       "user-sub-008",
-			DocumentID:   "doc-pp-008",
-			DocumentType: "Passport",
-		})
-
-		require.NoError(t, err)
-		require.NotNil(t, result)
 	})
 }
 
@@ -620,7 +420,7 @@ func TestCreateInquiry(t *testing.T) {
 // =============================================================================
 
 func TestGetInquiry(t *testing.T) {
-	t.Run("succès - retourne le détail d'une inquiry utilisateur", func(t *testing.T) {
+	t.Run("succès - retourne le détail d'une inquiry (Persona 100%)", func(t *testing.T) {
 		mockFileClient, _, svc := newTestService()
 		ctx := context.Background()
 
@@ -628,7 +428,8 @@ func TestGetInquiry(t *testing.T) {
 		reviewedAt := now.Add(-1 * time.Hour)
 		review := &domain.Review{
 			ReviewID:          "review-get-001",
-			UserDocumentID:    "doc-passport-get",
+			UserID:            "user-get-001",
+			DocumentType:      "passport",
 			PersonaInquiryID:  "inq_get_001",
 			PersonaTemplateID: testTemplateID,
 			Status:            "completed",
@@ -643,17 +444,12 @@ func TestGetInquiry(t *testing.T) {
 		mockFileClient.On("GetDocumentReviewByPersonaInquiryID", mock.Anything, "inq_get_001").
 			Return(review, nil)
 
-		// Ownership check — la review est dans les reviews de l'utilisateur
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-get-001").
-			Return([]*domain.Review{review}, nil)
-
 		result, err := svc.GetInquiry(ctx, "user-get-001", "inq_get_001")
 
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Equal(t, "review-get-001", result.ReviewID)
 		assert.Equal(t, "inq_get_001", result.PersonaInquiryID)
-		assert.Equal(t, "doc-passport-get", result.UserDocumentID)
 		assert.Equal(t, "completed", result.Status)
 		assert.Equal(t, "approved", result.Decision)
 		assert.Equal(t, int32(1), result.AttemptNumber)
@@ -661,40 +457,6 @@ func TestGetInquiry(t *testing.T) {
 		assert.NotEmpty(t, result.ReviewedAt)
 		assert.NotEmpty(t, result.CreatedAt)
 		assert.NotEmpty(t, result.UpdatedAt)
-
-		mockFileClient.AssertExpectations(t)
-	})
-
-	t.Run("succès - retourne une inquiry véhicule", func(t *testing.T) {
-		mockFileClient, _, svc := newTestService()
-		ctx := context.Background()
-
-		now := time.Now().UTC()
-		review := &domain.Review{
-			ReviewID:          "review-vehicle-get",
-			VehicleDocumentID: "vdoc-insurance-get",
-			PersonaInquiryID:  "inq_vehicle_get",
-			PersonaTemplateID: testTemplateID,
-			Status:            "pending",
-			AttemptNumber:     1,
-			ReviewType:        "automatic",
-			CreatedAt:         now,
-			UpdatedAt:         now,
-		}
-
-		mockFileClient.On("GetDocumentReviewByPersonaInquiryID", mock.Anything, "inq_vehicle_get").
-			Return(review, nil)
-
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-vehicle-get").
-			Return([]*domain.Review{review}, nil)
-
-		result, err := svc.GetInquiry(ctx, "user-vehicle-get", "inq_vehicle_get")
-
-		require.NoError(t, err)
-		require.NotNil(t, result)
-		assert.Equal(t, "vdoc-insurance-get", result.VehicleDocumentID)
-		assert.Empty(t, result.UserDocumentID)
-		assert.Empty(t, result.ReviewedAt) // pas encore reviewé
 
 		mockFileClient.AssertExpectations(t)
 	})
@@ -733,14 +495,15 @@ func TestGetInquiry(t *testing.T) {
 		mockFileClient.AssertExpectations(t)
 	})
 
-	t.Run("erreur 403 - inquiry n'appartient pas à l'utilisateur", func(t *testing.T) {
+	t.Run("erreur 403 - inquiry appartient à un autre utilisateur", func(t *testing.T) {
 		mockFileClient, _, svc := newTestService()
 		ctx := context.Background()
 
 		now := time.Now().UTC()
 		review := &domain.Review{
 			ReviewID:         "review-other-user",
-			UserDocumentID:   "doc-other-user",
+			UserID:           "user-owner", // pas l'appelant
+			DocumentType:     "passport",
 			PersonaInquiryID: "inq_other_user",
 			Status:           "pending",
 			AttemptNumber:    1,
@@ -751,41 +514,10 @@ func TestGetInquiry(t *testing.T) {
 		mockFileClient.On("GetDocumentReviewByPersonaInquiryID", mock.Anything, "inq_other_user").
 			Return(review, nil)
 
-		// L'utilisateur n'a pas cette review
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-impostor").
-			Return([]*domain.Review{}, nil)
-
 		result, err := svc.GetInquiry(ctx, "user-impostor", "inq_other_user")
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, kycErrors.ErrorUnauthorized)
-		mockFileClient.AssertExpectations(t)
-	})
-
-	t.Run("erreur - file-service indisponible lors du ownership check", func(t *testing.T) {
-		mockFileClient, _, svc := newTestService()
-		ctx := context.Background()
-
-		now := time.Now().UTC()
-		review := &domain.Review{
-			ReviewID:         "review-fs-fail",
-			UserDocumentID:   "doc-fs-fail",
-			PersonaInquiryID: "inq_fs_fail",
-			Status:           "pending",
-			CreatedAt:        now,
-			UpdatedAt:        now,
-		}
-
-		mockFileClient.On("GetDocumentReviewByPersonaInquiryID", mock.Anything, "inq_fs_fail").
-			Return(review, nil)
-
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-fs-fail").
-			Return(nil, errors.New("connection refused"))
-
-		result, err := svc.GetInquiry(ctx, "user-fs-fail", "inq_fs_fail")
-
-		assert.Nil(t, result)
-		assert.ErrorIs(t, err, kycErrors.ErrorFileServiceUnavailable)
 		mockFileClient.AssertExpectations(t)
 	})
 }
@@ -806,7 +538,8 @@ func TestGetKYCStatus(t *testing.T) {
 			Return([]*domain.Review{
 				{
 					ReviewID:         "review-approved-id",
-					UserDocumentID:   "doc-passport-001",
+					UserID:           "user-status-001",
+					DocumentType:     "passport",
 					PersonaInquiryID: "inq_passport",
 					Status:           "completed",
 					Decision:         "approved",
@@ -816,11 +549,6 @@ func TestGetKYCStatus(t *testing.T) {
 					CreatedAt:        now,
 					UpdatedAt:        now,
 				},
-			}, nil)
-
-		mockFileClient.On("GetUserDocuments", mock.Anything, "user-status-001").
-			Return([]*domain.DocumentRef{
-				{DocumentID: "doc-passport-001", DocumentType: "passport"},
 			}, nil)
 
 		result, err := svc.GetKYCStatus(ctx, "user-status-001")
@@ -845,33 +573,29 @@ func TestGetKYCStatus(t *testing.T) {
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-status-002").
 			Return([]*domain.Review{
 				{
-					ReviewID:       "review-id-approved",
-					UserDocumentID: "doc-idfront-002",
-					Status:         "completed",
-					Decision:       "approved",
-					ReviewType:     "automatic",
-					ReviewedAt:     &reviewedAt,
-					AttemptNumber:  1,
-					CreatedAt:      now,
-					UpdatedAt:      now,
+					ReviewID:      "review-id-approved",
+					UserID:        "user-status-002",
+					DocumentType:  "idCardFront",
+					Status:        "completed",
+					Decision:      "approved",
+					ReviewType:    "automatic",
+					ReviewedAt:    &reviewedAt,
+					AttemptNumber: 1,
+					CreatedAt:     now,
+					UpdatedAt:     now,
 				},
 				{
-					ReviewID:       "review-dl-approved",
-					UserDocumentID: "doc-dlfront-002",
-					Status:         "completed",
-					Decision:       "approved",
-					ReviewType:     "automatic",
-					ReviewedAt:     &reviewedAt,
-					AttemptNumber:  1,
-					CreatedAt:      now,
-					UpdatedAt:      now,
+					ReviewID:      "review-dl-approved",
+					UserID:        "user-status-002",
+					DocumentType:  "driverLicenceFront",
+					Status:        "completed",
+					Decision:      "approved",
+					ReviewType:    "automatic",
+					ReviewedAt:    &reviewedAt,
+					AttemptNumber: 1,
+					CreatedAt:     now,
+					UpdatedAt:     now,
 				},
-			}, nil)
-
-		mockFileClient.On("GetUserDocuments", mock.Anything, "user-status-002").
-			Return([]*domain.DocumentRef{
-				{DocumentID: "doc-idfront-002", DocumentType: "idCardFront"},
-				{DocumentID: "doc-dlfront-002", DocumentType: "driverLicenceFront"},
 			}, nil)
 
 		result, err := svc.GetKYCStatus(ctx, "user-status-002")
@@ -894,21 +618,17 @@ func TestGetKYCStatus(t *testing.T) {
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-status-003").
 			Return([]*domain.Review{
 				{
-					ReviewID:       "review-dl-only",
-					UserDocumentID: "doc-dl-003",
-					Status:         "completed",
-					Decision:       "approved",
-					ReviewType:     "automatic",
-					ReviewedAt:     &reviewedAt,
-					AttemptNumber:  1,
-					CreatedAt:      now,
-					UpdatedAt:      now,
+					ReviewID:      "review-dl-only",
+					UserID:        "user-status-003",
+					DocumentType:  "driverLicenceFront",
+					Status:        "completed",
+					Decision:      "approved",
+					ReviewType:    "automatic",
+					ReviewedAt:    &reviewedAt,
+					AttemptNumber: 1,
+					CreatedAt:     now,
+					UpdatedAt:     now,
 				},
-			}, nil)
-
-		mockFileClient.On("GetUserDocuments", mock.Anything, "user-status-003").
-			Return([]*domain.DocumentRef{
-				{DocumentID: "doc-dl-003", DocumentType: "driverLicenceFront"},
 			}, nil)
 
 		result, err := svc.GetKYCStatus(ctx, "user-status-003")
@@ -931,7 +651,8 @@ func TestGetKYCStatus(t *testing.T) {
 			Return([]*domain.Review{
 				{
 					ReviewID:         "review-pending-001",
-					UserDocumentID:   "doc-pending-004",
+					UserID:           "user-status-004",
+					DocumentType:     "passport",
 					PersonaInquiryID: "inq_pending",
 					Status:           "pending",
 					AttemptNumber:    1,
@@ -941,7 +662,8 @@ func TestGetKYCStatus(t *testing.T) {
 				},
 				{
 					ReviewID:         "review-submitted-001",
-					UserDocumentID:   "doc-submitted-004",
+					UserID:           "user-status-004",
+					DocumentType:     "idCardFront",
 					PersonaInquiryID: "inq_submitted",
 					Status:           "submitted",
 					AttemptNumber:    2,
@@ -949,9 +671,6 @@ func TestGetKYCStatus(t *testing.T) {
 					UpdatedAt:        now,
 				},
 			}, nil)
-
-		mockFileClient.On("GetUserDocuments", mock.Anything, "user-status-004").
-			Return([]*domain.DocumentRef{}, nil)
 
 		result, err := svc.GetKYCStatus(ctx, "user-status-004")
 
@@ -977,7 +696,8 @@ func TestGetKYCStatus(t *testing.T) {
 			Return([]*domain.Review{
 				{
 					ReviewID:         "review-rejected-old",
-					UserDocumentID:   "doc-005",
+					UserID:           "user-status-005",
+					DocumentType:     "passport",
 					Status:           "completed",
 					Decision:         "rejected",
 					ReasonRejection:  "document_expired",
@@ -990,7 +710,8 @@ func TestGetKYCStatus(t *testing.T) {
 				},
 				{
 					ReviewID:         "review-rejected-new",
-					UserDocumentID:   "doc-005",
+					UserID:           "user-status-005",
+					DocumentType:     "passport",
 					Status:           "completed",
 					Decision:         "rejected",
 					ReasonRejection:  "photo_missmatch",
@@ -1002,9 +723,6 @@ func TestGetKYCStatus(t *testing.T) {
 					UpdatedAt:        now,
 				},
 			}, nil)
-
-		mockFileClient.On("GetUserDocuments", mock.Anything, "user-status-005").
-			Return([]*domain.DocumentRef{}, nil)
 
 		result, err := svc.GetKYCStatus(ctx, "user-status-005")
 
@@ -1024,8 +742,6 @@ func TestGetKYCStatus(t *testing.T) {
 
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-status-006").
 			Return([]*domain.Review{}, nil)
-		mockFileClient.On("GetUserDocuments", mock.Anything, "user-status-006").
-			Return([]*domain.DocumentRef{}, nil)
 
 		result, err := svc.GetKYCStatus(ctx, "user-status-006")
 
@@ -1074,7 +790,8 @@ func TestResumeInquiry(t *testing.T) {
 	// Review de base réutilisable pour les tests
 	baseReview := &domain.Review{
 		ReviewID:            "review-resume-001",
-		UserDocumentID:      "doc-001",
+		UserID:              "user-001",
+		DocumentType:        "passport",
 		PersonaInquiryID:    "inq_resume_001",
 		PersonaTemplateID:   testTemplateID,
 		PersonaSessionToken: "old-token",
@@ -1091,8 +808,6 @@ func TestResumeInquiry(t *testing.T) {
 
 		mockFileClient.On("GetDocumentReviewByPersonaInquiryID", mock.Anything, "inq_resume_001").
 			Return(baseReview, nil)
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-001").
-			Return([]*domain.Review{baseReview}, nil)
 		mockPersonaClient.On("ResumeInquiry", mock.Anything, "inq_resume_001").
 			Return(&domain.PersonaSession{SessionToken: "new-token", ExpiresAt: newExpiry}, nil)
 		mockFileClient.On("UpdateDocumentReview", mock.Anything, mock.AnythingOfType("*domain.Review")).
@@ -1122,7 +837,8 @@ func TestResumeInquiry(t *testing.T) {
 
 		inProgressReview := &domain.Review{
 			ReviewID:         "review-resume-002",
-			UserDocumentID:   "doc-001",
+			UserID:           "user-001",
+			DocumentType:     "passport",
 			PersonaInquiryID: "inq_resume_002",
 			Status:           "inProgress",
 			AttemptNumber:    2,
@@ -1132,8 +848,6 @@ func TestResumeInquiry(t *testing.T) {
 
 		mockFileClient.On("GetDocumentReviewByPersonaInquiryID", mock.Anything, "inq_resume_002").
 			Return(inProgressReview, nil)
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-001").
-			Return([]*domain.Review{inProgressReview}, nil)
 		mockPersonaClient.On("ResumeInquiry", mock.Anything, "inq_resume_002").
 			Return(&domain.PersonaSession{SessionToken: "renewed-token", ExpiresAt: newExpiry}, nil)
 		mockFileClient.On("UpdateDocumentReview", mock.Anything, mock.AnythingOfType("*domain.Review")).
@@ -1157,7 +871,8 @@ func TestResumeInquiry(t *testing.T) {
 
 		submittedReview := &domain.Review{
 			ReviewID:         "review-resume-003",
-			UserDocumentID:   "doc-001",
+			UserID:           "user-001",
+			DocumentType:     "passport",
 			PersonaInquiryID: "inq_resume_003",
 			Status:           "submitted",
 			AttemptNumber:    1,
@@ -1167,8 +882,6 @@ func TestResumeInquiry(t *testing.T) {
 
 		mockFileClient.On("GetDocumentReviewByPersonaInquiryID", mock.Anything, "inq_resume_003").
 			Return(submittedReview, nil)
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-001").
-			Return([]*domain.Review{submittedReview}, nil)
 		mockPersonaClient.On("ResumeInquiry", mock.Anything, "inq_resume_003").
 			Return(&domain.PersonaSession{SessionToken: "sub-token", ExpiresAt: newExpiry}, nil)
 		mockFileClient.On("UpdateDocumentReview", mock.Anything, mock.AnythingOfType("*domain.Review")).
@@ -1220,9 +933,6 @@ func TestResumeInquiry(t *testing.T) {
 
 		mockFileClient.On("GetDocumentReviewByPersonaInquiryID", mock.Anything, "inq_resume_001").
 			Return(baseReview, nil)
-		// L'utilisateur n'a pas cette review
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-other").
-			Return([]*domain.Review{}, nil)
 
 		result, err := svc.ResumeInquiry(ctx, "user-other", "inq_resume_001")
 		assert.Nil(t, result)
@@ -1235,7 +945,8 @@ func TestResumeInquiry(t *testing.T) {
 
 		completedReview := &domain.Review{
 			ReviewID:         "review-completed",
-			UserDocumentID:   "doc-001",
+			UserID:           "user-001",
+			DocumentType:     "passport",
 			PersonaInquiryID: "inq_completed",
 			Status:           "completed",
 			CreatedAt:        now,
@@ -1244,8 +955,6 @@ func TestResumeInquiry(t *testing.T) {
 
 		mockFileClient.On("GetDocumentReviewByPersonaInquiryID", mock.Anything, "inq_completed").
 			Return(completedReview, nil)
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-001").
-			Return([]*domain.Review{completedReview}, nil)
 
 		result, err := svc.ResumeInquiry(ctx, "user-001", "inq_completed")
 		assert.Nil(t, result)
@@ -1258,7 +967,8 @@ func TestResumeInquiry(t *testing.T) {
 
 		expiredReview := &domain.Review{
 			ReviewID:         "review-expired",
-			UserDocumentID:   "doc-001",
+			UserID:           "user-001",
+			DocumentType:     "passport",
 			PersonaInquiryID: "inq_expired",
 			Status:           "expired",
 			CreatedAt:        now,
@@ -1267,8 +977,6 @@ func TestResumeInquiry(t *testing.T) {
 
 		mockFileClient.On("GetDocumentReviewByPersonaInquiryID", mock.Anything, "inq_expired").
 			Return(expiredReview, nil)
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-001").
-			Return([]*domain.Review{expiredReview}, nil)
 
 		result, err := svc.ResumeInquiry(ctx, "user-001", "inq_expired")
 		assert.Nil(t, result)
@@ -1281,7 +989,8 @@ func TestResumeInquiry(t *testing.T) {
 
 		failedReview := &domain.Review{
 			ReviewID:         "review-failed",
-			UserDocumentID:   "doc-001",
+			UserID:           "user-001",
+			DocumentType:     "passport",
 			PersonaInquiryID: "inq_failed",
 			Status:           "failed",
 			CreatedAt:        now,
@@ -1290,8 +999,6 @@ func TestResumeInquiry(t *testing.T) {
 
 		mockFileClient.On("GetDocumentReviewByPersonaInquiryID", mock.Anything, "inq_failed").
 			Return(failedReview, nil)
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-001").
-			Return([]*domain.Review{failedReview}, nil)
 
 		result, err := svc.ResumeInquiry(ctx, "user-001", "inq_failed")
 		assert.Nil(t, result)
@@ -1304,8 +1011,6 @@ func TestResumeInquiry(t *testing.T) {
 
 		mockFileClient.On("GetDocumentReviewByPersonaInquiryID", mock.Anything, "inq_resume_001").
 			Return(baseReview, nil)
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-001").
-			Return([]*domain.Review{baseReview}, nil)
 		mockPersonaClient.On("ResumeInquiry", mock.Anything, "inq_resume_001").
 			Return(nil, errors.New("persona down"))
 
@@ -1320,25 +1025,9 @@ func TestResumeInquiry(t *testing.T) {
 
 		mockFileClient.On("GetDocumentReviewByPersonaInquiryID", mock.Anything, "inq_resume_001").
 			Return(baseReview, nil)
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-001").
-			Return([]*domain.Review{baseReview}, nil)
 		mockPersonaClient.On("ResumeInquiry", mock.Anything, "inq_resume_001").
 			Return(&domain.PersonaSession{SessionToken: "new-token", ExpiresAt: newExpiry}, nil)
 		mockFileClient.On("UpdateDocumentReview", mock.Anything, mock.AnythingOfType("*domain.Review")).
-			Return(nil, errors.New("file-service down"))
-
-		result, err := svc.ResumeInquiry(ctx, "user-001", "inq_resume_001")
-		assert.Nil(t, result)
-		assert.ErrorIs(t, err, kycErrors.ErrorFileServiceUnavailable)
-	})
-
-	t.Run("erreur - file-service indisponible lors du ownership check", func(t *testing.T) {
-		mockFileClient, _, svc := newTestService()
-		ctx := context.Background()
-
-		mockFileClient.On("GetDocumentReviewByPersonaInquiryID", mock.Anything, "inq_resume_001").
-			Return(baseReview, nil)
-		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-001").
 			Return(nil, errors.New("file-service down"))
 
 		result, err := svc.ResumeInquiry(ctx, "user-001", "inq_resume_001")

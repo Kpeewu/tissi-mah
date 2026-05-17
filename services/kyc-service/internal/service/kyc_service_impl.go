@@ -136,47 +136,23 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 		}
 	}
 
-	// Récupérer le document par ID, vérifier qu'il existe et qu'il appartient à l'appelant.
-	// Le DocumentType reçu est validé contre celui stocké en DB pour détecter les
-	// requêtes incohérentes (ex : DocumentID d'un permis avec DocumentType "Passport").
-	var userDocumentID string
+	// En Persona 100%, l'app n'upload plus la pièce d'identité localement.
+	// DocumentID arrive vide dans la requête et le file-service n'a aucun document
+	// utilisateur à récupérer — Persona collecte et stocke la pièce directement.
+	// On normalise le type haut-niveau ("IDCard", "DriverLicence") vers le type
+	// concret stocké côté file-service ("idCardFront", "driverLicenceFront"),
+	// pour rester cohérent avec ValidateDocument (qui persiste doc.DocumentType
+	// déjà au format file-service) et avec identityDocumentTypes/driverDocumentTypes.
+	storedDocumentType := mapToFileDocumentType(input.DocumentType)
+
 	var previousReviewID string
 	var attemptNumber int32 = 1
 
-	// Document utilisateur : récupérer par ID + vérifier qu'il appartient à l'appelant.
-	doc, err := s.fileClient.GetUserDocument(ctx, input.DocumentID)
-	if err != nil {
-		s.logger.Error("failed to get user document by ID",
-			zap.String("documentID", input.DocumentID),
-			zap.Error(err),
-		)
-		return nil, kycErrors.ErrorFileServiceUnavailable
-	}
-	if doc.OwnerID != internalUserID {
-		s.logger.Warn("user document does not belong to the caller",
-			zap.String("documentID", input.DocumentID),
-			zap.String("docOwnerID", doc.OwnerID),
-			zap.String("callerUserID", internalUserID),
-		)
-		return nil, kycErrors.ErrorUnauthorized
-	}
-	// Pour les types haut-niveau (IDCard, DriverLicence), le document est stocké
-	// sous un sous-type concret côté file-service (idCardFront, driverLicenceFront).
-	expectedFileType := mapToFileDocumentType(input.DocumentType)
-	if doc.DocumentType != expectedFileType && doc.DocumentType != input.DocumentType {
-		s.logger.Warn("user document type mismatch",
-			zap.String("documentID", input.DocumentID),
-			zap.String("docType", doc.DocumentType),
-			zap.String("requestedType", input.DocumentType),
-		)
-		return nil, kycErrors.ErrorDocumentMismatch
-	}
-	userDocumentID = doc.DocumentID
-
-	// Calculer l'attempt_number et le previous_review_id à partir des revues existantes
+	// Calculer l'attempt_number et le previous_review_id en regroupant par
+	// DocumentType : une nouvelle inquiry sur un type donné incrémente la chaîne
+	// des tentatives passées sur ce même type.
 	for _, review := range existingReviews {
-		matchesDoc := userDocumentID != "" && review.UserDocumentID == userDocumentID
-		if matchesDoc && review.AttemptNumber >= attemptNumber {
+		if review.DocumentType == storedDocumentType && review.AttemptNumber >= attemptNumber {
 			attemptNumber = review.AttemptNumber + 1
 			previousReviewID = review.ReviewID
 		}
@@ -195,7 +171,8 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 	// Créer la review dans le file-service
 	now := time.Now().UTC()
 	review := &domain.Review{
-		UserDocumentID: userDocumentID,
+		UserID:       internalUserID,
+		DocumentType: storedDocumentType,
 
 		PersonaInquiryID:    personaInquiry.InquiryID,
 		PersonaTemplateID:   personaInquiry.TemplateID,
@@ -273,37 +250,9 @@ func (s *kycServiceImpl) GetInquiry(ctx context.Context, userID string, personaI
 		return nil, kycErrors.ErrorInquiryNotFound
 	}
 
-	// Vérifier que la review appartient bien à l'utilisateur
-	ownershipValid := false
-	if review.UserDocumentID != "" {
-		// Récupérer les reviews de l'utilisateur pour vérifier la propriété
-		reviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, internalUserID)
-		if err != nil {
-			s.logger.Error("failed to verify ownership", zap.Error(err))
-			return nil, kycErrors.ErrorFileServiceUnavailable
-		}
-		for _, r := range reviews {
-			if r.ReviewID == review.ReviewID {
-				ownershipValid = true
-				break
-			}
-		}
-	}
-	if review.VehicleDocumentID != "" && !ownershipValid {
-		reviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, internalUserID)
-		if err != nil {
-			s.logger.Error("failed to verify ownership", zap.Error(err))
-			return nil, kycErrors.ErrorFileServiceUnavailable
-		}
-		for _, r := range reviews {
-			if r.ReviewID == review.ReviewID {
-				ownershipValid = true
-				break
-			}
-		}
-	}
-
-	if !ownershipValid {
+	// Ownership : depuis migration 000008, user_id est dénormalisé directement
+	// sur document_reviews — comparaison directe sans round-trip GetByUserID.
+	if review.UserID != internalUserID {
 		s.logger.Warn("unauthorized access to inquiry",
 			zap.String("userID", internalUserID),
 			zap.String("personaInquiryID", personaInquiryID),
@@ -381,16 +330,8 @@ func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serv
 	var pendingReviews []*domain.PendingReview
 	var latestRejection *domain.LatestRejection
 
-	// Mapper document_id → document_type via le file-service
-	docTypeByID := make(map[string]string)
-	userDocs, err := s.fileClient.GetUserDocuments(ctx, internalUserID)
-	if err == nil {
-		for _, doc := range userDocs {
-			docTypeByID[doc.DocumentID] = doc.DocumentType
-		}
-	}
-
-	// Analyser les reviews
+	// Analyser les reviews — review.DocumentType est dénormalisé depuis la
+	// migration 000008, plus besoin de joindre avec user_documents.
 	for _, review := range reviews {
 		// Pending reviews (pending, inProgress, submitted)
 		if review.Status == "pending" || review.Status == "inProgress" || review.Status == "submitted" {
@@ -403,18 +344,11 @@ func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serv
 			})
 		}
 
-		// Identity verified : approved sur un document d'identité
-		if review.Decision == "approved" && review.UserDocumentID != "" {
-			docType := docTypeByID[review.UserDocumentID]
-			if identityDocumentTypes[docType] {
+		if review.Decision == "approved" {
+			if identityDocumentTypes[review.DocumentType] {
 				identityVerified = true
 			}
-		}
-
-		// Driver verified : approved sur un document permis (si identity déjà vérifiée)
-		if review.Decision == "approved" && review.UserDocumentID != "" {
-			docType := docTypeByID[review.UserDocumentID]
-			if driverDocumentTypes[docType] {
+			if driverDocumentTypes[review.DocumentType] {
 				driverVerified = true
 			}
 		}
@@ -492,20 +426,8 @@ func (s *kycServiceImpl) ResumeInquiry(ctx context.Context, userID string, perso
 		return nil, kycErrors.ErrorInquiryNotFound
 	}
 
-	// Vérifier l'ownership
-	ownershipValid := false
-	reviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, internalUserID)
-	if err != nil {
-		s.logger.Error("failed to verify ownership", zap.Error(err))
-		return nil, kycErrors.ErrorFileServiceUnavailable
-	}
-	for _, r := range reviews {
-		if r.ReviewID == review.ReviewID {
-			ownershipValid = true
-			break
-		}
-	}
-	if !ownershipValid {
+	// Ownership : depuis migration 000008, user_id est dénormalisé sur la review.
+	if review.UserID != internalUserID {
 		s.logger.Warn("unauthorized access to inquiry",
 			zap.String("userID", internalUserID),
 			zap.String("personaInquiryID", personaInquiryID),
@@ -952,9 +874,12 @@ func (s *kycServiceImpl) ValidateDocument(ctx context.Context, input serviceInte
 		return nil, kycErrors.ErrorInvalidDecision
 	}
 
-	// Récupérer le document pour vérifier qu'il existe
+	// Récupérer le document pour vérifier qu'il existe et lire user_id + type
+	// (dénormalisés sur la review depuis migration 000008).
 	var userDocumentID string
 	var vehicleDocumentID string
+	var ownerUserID string
+	var documentType string
 
 	if input.VehicleID != "" {
 		doc, err := s.fileClient.GetVehicleDocument(ctx, input.DocumentID)
@@ -970,6 +895,8 @@ func (s *kycServiceImpl) ValidateDocument(ctx context.Context, input serviceInte
 			return nil, kycErrors.ErrorDocumentMismatch
 		}
 		vehicleDocumentID = doc.DocumentID
+		ownerUserID = doc.UserID // exposé par le proto VehicleDocumentResponse depuis migration 000005
+		documentType = doc.DocumentType
 	} else {
 		doc, err := s.fileClient.GetUserDocument(ctx, input.DocumentID)
 		if err != nil {
@@ -977,10 +904,14 @@ func (s *kycServiceImpl) ValidateDocument(ctx context.Context, input serviceInte
 			return nil, kycErrors.ErrorFileServiceUnavailable
 		}
 		userDocumentID = doc.DocumentID
+		ownerUserID = doc.OwnerID // pour user docs, OwnerID = user_id directement
+		documentType = doc.DocumentType
 	}
 
 	now := time.Now().UTC()
 	review := &domain.Review{
+		UserID:            ownerUserID,
+		DocumentType:      documentType,
 		PersonaInquiryID:  "",
 		ReviewType:        "manual",
 		Status:            "completed",

@@ -495,6 +495,8 @@ func (h *FileHandler) CreateDocumentReview(ctx context.Context, req *filepb.Crea
 	)
 
 	input := serviceInterfaces.CreateReviewInput{
+		UserID:            req.UserId,
+		DocumentType:      req.DocumentType,
 		UserDocumentID:    req.UserDocumentId,
 		VehicleDocumentID: req.VehicleDocumentId,
 
@@ -755,6 +757,7 @@ func toProtoVehicleDocument(doc *domain.VehicleDocument, presignedURL string) *f
 	return &filepb.VehicleDocumentResponse{
 		DocumentId:       doc.DocumentID,
 		VehicleId:        doc.VehicleID,
+		UserId:           doc.UserID,
 		DocumentName:     doc.DocumentName,
 		DocumentType:     doc.DocumentType,
 		DocumentUrl:      presignedURL,
@@ -783,7 +786,9 @@ func presignTTLFromRequest(secs int64) time.Duration {
 
 func toProtoDocumentReview(review *domain.DocumentReview) *filepb.DocumentReviewResponse {
 	resp := &filepb.DocumentReviewResponse{
-		ReviewId: review.ReviewID,
+		ReviewId:     review.ReviewID,
+		UserId:       review.UserID,
+		DocumentType: review.DocumentType,
 
 		PersonaInquiryId:    review.PersonaInquiryID,
 		PersonaTemplateId:   review.PersonaTemplateID,
@@ -842,6 +847,7 @@ func toGRPCError(err error) error {
 	case errors.Is(err, fileErrors.ErrorInvalidDocumentType),
 		errors.Is(err, fileErrors.ErrorInvalidMimeType),
 		errors.Is(err, fileErrors.ErrorInvalidReviewDecision),
+		errors.Is(err, fileErrors.ErrorMissingUserID),
 		errors.Is(err, fileErrors.ErrorMissingDocumentReference),
 		errors.Is(err, fileErrors.ErrorMultipleDocumentReference),
 		errors.Is(err, fileErrors.ErrorInvalidReviewStatus),

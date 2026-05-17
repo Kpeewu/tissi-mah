@@ -104,6 +104,7 @@ func (c *fileServiceClientImpl) GetVehicleDocument(ctx context.Context, document
 		DocumentType: resp.DocumentType,
 		OwnerID:      resp.VehicleId,
 		DocumentURL:  resp.DocumentUrl,
+		UserID:       resp.UserId,
 	}, nil
 }
 
@@ -153,6 +154,8 @@ func (c *fileServiceClientImpl) CreateDocumentReview(ctx context.Context, review
 	c.logger.Debug("client: CreateDocumentReview")
 
 	req := &filepb.CreateDocumentReviewRequest{
+		UserId:              review.UserID,
+		DocumentType:        review.DocumentType,
 		UserDocumentId:      review.UserDocumentID,
 		VehicleDocumentId:   review.VehicleDocumentID,
 		PersonaInquiryId:    review.PersonaInquiryID,
@@ -307,6 +310,8 @@ func (c *fileServiceClientImpl) ListDocumentReviews(ctx context.Context, userID 
 func protoToReview(r *filepb.DocumentReviewResponse) *domain.Review {
 	review := &domain.Review{
 		ReviewID:          r.ReviewId,
+		UserID:            r.UserId,
+		DocumentType:      r.DocumentType,
 		UserDocumentID:    r.UserDocumentId,
 		VehicleDocumentID: r.VehicleDocumentId,
 

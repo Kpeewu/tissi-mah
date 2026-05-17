@@ -272,8 +272,8 @@ message DeleteDocumentRequest {
 // =============================================================================
 
 message CreateDocumentReviewRequest {
-  string UserDocumentId = 1; // Optionnel (l'un des deux)
-  string VehicleDocumentId = 2; // Optionnel (l'un des deux)
+  string UserDocumentId = 1; // Optionnel — peut être vide (Persona 100%)
+  string VehicleDocumentId = 2; // Optionnel — peut être vide (Persona 100%)
 
   // Persona
   string PersonaInquiryId = 3; // Optionnel
@@ -305,6 +305,10 @@ message CreateDocumentReviewRequest {
 
   // Timestamps
   string SubmittedAt = 20; // Optionnel (ISO 8601)
+
+  // Dénormalisation (migration 000008) — toujours fournis par kyc-service
+  string UserId = 21; // Obligatoire — propriétaire de la review
+  string DocumentType = 22; // Type de document (idCardFront, driverLicenceFront, ...)
 }
 
 message GetDocumentReviewsRequest {
@@ -397,6 +401,7 @@ message VehicleDocumentResponse {
   bool IsCurrent = 11;
   string UploadedAt = 12;
   string UpdatedAt = 13;
+  string UserId = 14; // Propriétaire (driver) — dénormalisation migration 000005
 }
 
 message GetUserDocumentsResponse {
@@ -448,6 +453,10 @@ message DocumentReviewResponse {
   // Timestamps
   string SubmittedAt = 22; // ISO 8601
   string UpdatedAt = 23; // ISO 8601
+
+  // Dénormalisation (migration 000008) — toujours présents
+  string UserId = 24; // Propriétaire de la review
+  string DocumentType = 25; // Type de document
 }
 
 message GetDocumentReviewsResponse {

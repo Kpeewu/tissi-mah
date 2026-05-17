@@ -1379,8 +1379,8 @@ func (x *DeleteDocumentRequest) GetDocumentId() string {
 
 type CreateDocumentReviewRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	UserDocumentId    string                 `protobuf:"bytes,1,opt,name=UserDocumentId,proto3" json:"UserDocumentId,omitempty"`       // Optionnel (l'un des deux)
-	VehicleDocumentId string                 `protobuf:"bytes,2,opt,name=VehicleDocumentId,proto3" json:"VehicleDocumentId,omitempty"` // Optionnel (l'un des deux)
+	UserDocumentId    string                 `protobuf:"bytes,1,opt,name=UserDocumentId,proto3" json:"UserDocumentId,omitempty"`       // Optionnel — peut être vide (Persona 100%)
+	VehicleDocumentId string                 `protobuf:"bytes,2,opt,name=VehicleDocumentId,proto3" json:"VehicleDocumentId,omitempty"` // Optionnel — peut être vide (Persona 100%)
 	// Persona
 	PersonaInquiryId    string `protobuf:"bytes,3,opt,name=PersonaInquiryId,proto3" json:"PersonaInquiryId,omitempty"`       // Optionnel
 	PersonaTemplateId   string `protobuf:"bytes,4,opt,name=PersonaTemplateId,proto3" json:"PersonaTemplateId,omitempty"`     // Optionnel
@@ -1404,7 +1404,10 @@ type CreateDocumentReviewRequest struct {
 	Notes         string `protobuf:"bytes,18,opt,name=Notes,proto3" json:"Notes,omitempty"`                 // Optionnel
 	ExtractedData []byte `protobuf:"bytes,19,opt,name=ExtractedData,proto3" json:"ExtractedData,omitempty"` // Optionnel (JSON)
 	// Timestamps
-	SubmittedAt   string `protobuf:"bytes,20,opt,name=SubmittedAt,proto3" json:"SubmittedAt,omitempty"` // Optionnel (ISO 8601)
+	SubmittedAt string `protobuf:"bytes,20,opt,name=SubmittedAt,proto3" json:"SubmittedAt,omitempty"` // Optionnel (ISO 8601)
+	// Dénormalisation (migration 000008) — toujours fournis par kyc-service
+	UserId        string `protobuf:"bytes,21,opt,name=UserId,proto3" json:"UserId,omitempty"`             // Obligatoire — propriétaire de la review
+	DocumentType  string `protobuf:"bytes,22,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"` // Type de document (idCardFront, driverLicenceFront, ...)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1575,6 +1578,20 @@ func (x *CreateDocumentReviewRequest) GetExtractedData() []byte {
 func (x *CreateDocumentReviewRequest) GetSubmittedAt() string {
 	if x != nil {
 		return x.SubmittedAt
+	}
+	return ""
+}
+
+func (x *CreateDocumentReviewRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *CreateDocumentReviewRequest) GetDocumentType() string {
+	if x != nil {
+		return x.DocumentType
 	}
 	return ""
 }
@@ -2191,6 +2208,7 @@ type VehicleDocumentResponse struct {
 	IsCurrent        bool                   `protobuf:"varint,11,opt,name=IsCurrent,proto3" json:"IsCurrent,omitempty"`
 	UploadedAt       string                 `protobuf:"bytes,12,opt,name=UploadedAt,proto3" json:"UploadedAt,omitempty"`
 	UpdatedAt        string                 `protobuf:"bytes,13,opt,name=UpdatedAt,proto3" json:"UpdatedAt,omitempty"`
+	UserId           string                 `protobuf:"bytes,14,opt,name=UserId,proto3" json:"UserId,omitempty"` // Propriétaire (driver) — dénormalisation migration 000005
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -2312,6 +2330,13 @@ func (x *VehicleDocumentResponse) GetUploadedAt() string {
 func (x *VehicleDocumentResponse) GetUpdatedAt() string {
 	if x != nil {
 		return x.UpdatedAt
+	}
+	return ""
+}
+
+func (x *VehicleDocumentResponse) GetUserId() string {
+	if x != nil {
+		return x.UserId
 	}
 	return ""
 }
@@ -2477,8 +2502,11 @@ type DocumentReviewResponse struct {
 	Notes         string `protobuf:"bytes,20,opt,name=Notes,proto3" json:"Notes,omitempty"`
 	ExtractedData []byte `protobuf:"bytes,21,opt,name=ExtractedData,proto3" json:"ExtractedData,omitempty"` // JSON
 	// Timestamps
-	SubmittedAt   string `protobuf:"bytes,22,opt,name=SubmittedAt,proto3" json:"SubmittedAt,omitempty"` // ISO 8601
-	UpdatedAt     string `protobuf:"bytes,23,opt,name=UpdatedAt,proto3" json:"UpdatedAt,omitempty"`     // ISO 8601
+	SubmittedAt string `protobuf:"bytes,22,opt,name=SubmittedAt,proto3" json:"SubmittedAt,omitempty"` // ISO 8601
+	UpdatedAt   string `protobuf:"bytes,23,opt,name=UpdatedAt,proto3" json:"UpdatedAt,omitempty"`     // ISO 8601
+	// Dénormalisation (migration 000008) — toujours présents
+	UserId        string `protobuf:"bytes,24,opt,name=UserId,proto3" json:"UserId,omitempty"`             // Propriétaire de la review
+	DocumentType  string `protobuf:"bytes,25,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"` // Type de document
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2670,6 +2698,20 @@ func (x *DocumentReviewResponse) GetSubmittedAt() string {
 func (x *DocumentReviewResponse) GetUpdatedAt() string {
 	if x != nil {
 		return x.UpdatedAt
+	}
+	return ""
+}
+
+func (x *DocumentReviewResponse) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *DocumentReviewResponse) GetDocumentType() string {
+	if x != nil {
+		return x.DocumentType
 	}
 	return ""
 }
@@ -2974,7 +3016,7 @@ const file_file_proto_rawDesc = "" +
 	"\x15DeleteDocumentRequest\x12\x1e\n" +
 	"\n" +
 	"DocumentId\x18\x01 \x01(\tR\n" +
-	"DocumentId\"\xad\x06\n" +
+	"DocumentId\"\xe9\x06\n" +
 	"\x1bCreateDocumentReviewRequest\x12&\n" +
 	"\x0eUserDocumentId\x18\x01 \x01(\tR\x0eUserDocumentId\x12,\n" +
 	"\x11VehicleDocumentId\x18\x02 \x01(\tR\x11VehicleDocumentId\x12*\n" +
@@ -3000,7 +3042,9 @@ const file_file_proto_rawDesc = "" +
 	"ReviewType\x12\x14\n" +
 	"\x05Notes\x18\x12 \x01(\tR\x05Notes\x12$\n" +
 	"\rExtractedData\x18\x13 \x01(\fR\rExtractedData\x12 \n" +
-	"\vSubmittedAt\x18\x14 \x01(\tR\vSubmittedAt\"q\n" +
+	"\vSubmittedAt\x18\x14 \x01(\tR\vSubmittedAt\x12\x16\n" +
+	"\x06UserId\x18\x15 \x01(\tR\x06UserId\x12\"\n" +
+	"\fDocumentType\x18\x16 \x01(\tR\fDocumentType\"q\n" +
 	"\x19GetDocumentReviewsRequest\x12&\n" +
 	"\x0eUserDocumentId\x18\x01 \x01(\tR\x0eUserDocumentId\x12,\n" +
 	"\x11VehicleDocumentId\x18\x02 \x01(\tR\x11VehicleDocumentId\":\n" +
@@ -3056,7 +3100,7 @@ const file_file_proto_rawDesc = "" +
 	"UploadedAt\x18\f \x01(\tR\n" +
 	"UploadedAt\x12\x1c\n" +
 	"\tUpdatedAt\x18\r \x01(\tR\tUpdatedAt\x12\x1c\n" +
-	"\tExpiredAt\x18\x0e \x01(\tR\tExpiredAt\"\xcb\x03\n" +
+	"\tExpiredAt\x18\x0e \x01(\tR\tExpiredAt\"\xe3\x03\n" +
 	"\x17VehicleDocumentResponse\x12\x1e\n" +
 	"\n" +
 	"DocumentId\x18\x01 \x01(\tR\n" +
@@ -3075,13 +3119,14 @@ const file_file_proto_rawDesc = "" +
 	"\n" +
 	"UploadedAt\x18\f \x01(\tR\n" +
 	"UploadedAt\x12\x1c\n" +
-	"\tUpdatedAt\x18\r \x01(\tR\tUpdatedAt\"T\n" +
+	"\tUpdatedAt\x18\r \x01(\tR\tUpdatedAt\x12\x16\n" +
+	"\x06UserId\x18\x0e \x01(\tR\x06UserId\"T\n" +
 	"\x18GetUserDocumentsResponse\x128\n" +
 	"\tdocuments\x18\x01 \x03(\v2\x1a.file.UserDocumentResponseR\tdocuments\"Z\n" +
 	"\x1bGetVehicleDocumentsResponse\x12;\n" +
 	"\tdocuments\x18\x01 \x03(\v2\x1d.file.VehicleDocumentResponseR\tdocuments\"-\n" +
 	"\x11OperationResponse\x12\x18\n" +
-	"\aSuccess\x18\x01 \x01(\bR\aSuccess\"\x82\a\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\"\xbe\a\n" +
 	"\x16DocumentReviewResponse\x12\x1a\n" +
 	"\bReviewId\x18\x01 \x01(\tR\bReviewId\x12&\n" +
 	"\x0eUserDocumentId\x18\x02 \x01(\tR\x0eUserDocumentId\x12,\n" +
@@ -3112,7 +3157,9 @@ const file_file_proto_rawDesc = "" +
 	"\x05Notes\x18\x14 \x01(\tR\x05Notes\x12$\n" +
 	"\rExtractedData\x18\x15 \x01(\fR\rExtractedData\x12 \n" +
 	"\vSubmittedAt\x18\x16 \x01(\tR\vSubmittedAt\x12\x1c\n" +
-	"\tUpdatedAt\x18\x17 \x01(\tR\tUpdatedAt\"T\n" +
+	"\tUpdatedAt\x18\x17 \x01(\tR\tUpdatedAt\x12\x16\n" +
+	"\x06UserId\x18\x18 \x01(\tR\x06UserId\x12\"\n" +
+	"\fDocumentType\x18\x19 \x01(\tR\fDocumentType\"T\n" +
 	"\x1aGetDocumentReviewsResponse\x126\n" +
 	"\aReviews\x18\x01 \x03(\v2\x1c.file.DocumentReviewResponseR\aReviews\"`\n" +
 	"\x0eHealthResponse\x12\x16\n" +

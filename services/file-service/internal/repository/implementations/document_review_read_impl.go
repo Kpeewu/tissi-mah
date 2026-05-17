@@ -23,7 +23,7 @@ func NewDocumentReviewReadRepository(pool *pgxpool.Pool, logger *zap.Logger) i.D
 	return &documentReviewReadImpl{pool: pool, logger: logger}
 }
 
-const reviewSelectColumns = `review_id, user_document_id, vehicle_document_id,
+const reviewSelectColumns = `review_id, user_id, document_type, user_document_id, vehicle_document_id,
 	persona_inquiry_id, persona_template_id, persona_session_token, session_expires_at,
 	webhook_event_type, webhook_received_at, persona_raw_payload,
 	attempt_number, previous_review_id,
@@ -111,17 +111,12 @@ func (r *documentReviewReadImpl) GetByPersonaInquiryID(ctx context.Context, pers
 func (r *documentReviewReadImpl) GetByUserID(ctx context.Context, userID string) ([]*domain.DocumentReview, error) {
 	r.logger.Debug("récupération des revues par userID", zap.String("userID", userID))
 
-	// Une review pointe soit sur user_document_id (documents d'identité), soit
-	// sur vehicle_document_id (documents véhicule). On joint via les deux tables
-	// pour récupérer toutes les reviews de l'utilisateur.
+	// user_id est dénormalisé directement sur document_reviews depuis la
+	// migration 000008 : plus besoin de joindre via les FK doc (qui sont NULL
+	// pour les reviews Persona 100%).
 	query := `SELECT ` + reviewSelectColumns + `
 	          FROM document_reviews
-	          WHERE user_document_id IN (
-	              SELECT document_id FROM user_documents WHERE user_id = $1
-	          )
-	             OR vehicle_document_id IN (
-	              SELECT document_id FROM vehicle_documents WHERE user_id = $1
-	          )
+	          WHERE user_id = $1
 	          ORDER BY updated_at DESC`
 
 	return r.queryReviews(ctx, query, userID)
@@ -141,7 +136,7 @@ func (r *documentReviewReadImpl) List(ctx context.Context, userID string, status
 	argIdx := 1
 
 	if userID != "" {
-		query += fmt.Sprintf(` AND user_document_id IN (SELECT document_id FROM user_documents WHERE user_id = $%d)`, argIdx)
+		query += fmt.Sprintf(` AND user_id = $%d`, argIdx)
 		args = append(args, userID)
 		argIdx++
 	}
@@ -171,7 +166,7 @@ func (r *documentReviewReadImpl) List(ctx context.Context, userID string, status
 	for rows.Next() {
 		review := &domain.DocumentReview{}
 		err := rows.Scan(
-			&review.ReviewID, &review.UserDocumentID, &review.VehicleDocumentID,
+			&review.ReviewID, &review.UserID, &review.DocumentType, &review.UserDocumentID, &review.VehicleDocumentID,
 			&review.PersonaInquiryID, &review.PersonaTemplateID, &review.PersonaSessionToken, &review.SessionExpiresAt,
 			&review.WebhookEventType, &review.WebhookReceivedAt, &review.PersonaRawPayload,
 			&review.AttemptNumber, &review.PreviousReviewID,
@@ -203,7 +198,7 @@ func (r *documentReviewReadImpl) queryReviews(ctx context.Context, query string,
 	for rows.Next() {
 		review := &domain.DocumentReview{}
 		err := rows.Scan(
-			&review.ReviewID, &review.UserDocumentID, &review.VehicleDocumentID,
+			&review.ReviewID, &review.UserID, &review.DocumentType, &review.UserDocumentID, &review.VehicleDocumentID,
 			&review.PersonaInquiryID, &review.PersonaTemplateID, &review.PersonaSessionToken, &review.SessionExpiresAt,
 			&review.WebhookEventType, &review.WebhookReceivedAt, &review.PersonaRawPayload,
 			&review.AttemptNumber, &review.PreviousReviewID,

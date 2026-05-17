@@ -108,6 +108,8 @@ type UploadedDocument struct {
 
 // CreateReviewInput contient les données nécessaires à la création d'une revue
 type CreateReviewInput struct {
+	UserID            string
+	DocumentType      string
 	UserDocumentID    string
 	VehicleDocumentID string
 
