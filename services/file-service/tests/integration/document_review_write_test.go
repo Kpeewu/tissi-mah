@@ -14,7 +14,7 @@ func TestDocumentReviewWrite_Create(t *testing.T) {
 		userDoc := newUserDoc("user-review-1", "idCardFront")
 		insertUserDoc(t, userDoc)
 
-		review := newReviewForUserDoc(userDoc.DocumentID)
+		review := newReviewForUserDoc(userDoc)
 
 		reviewID, err := newReviewWriteRepo().Create(context.Background(), review)
 
@@ -37,7 +37,7 @@ func TestDocumentReviewWrite_Create(t *testing.T) {
 		vehicleDoc := newVehicleDoc("vehicle-review-1", "insurance")
 		insertVehicleDoc(t, vehicleDoc)
 
-		review := newReviewForVehicleDoc(vehicleDoc.DocumentID)
+		review := newReviewForVehicleDoc(vehicleDoc)
 
 		reviewID, err := newReviewWriteRepo().Create(context.Background(), review)
 
@@ -56,7 +56,7 @@ func TestDocumentReviewWrite_Create(t *testing.T) {
 		cleanTables(t)
 		userDoc := newUserDoc("user-review-2", "passport")
 		insertUserDoc(t, userDoc)
-		review := newReviewForUserDoc(userDoc.DocumentID)
+		review := newReviewForUserDoc(userDoc)
 		insertReview(t, review)
 
 		_, err := newReviewWriteRepo().Create(context.Background(), review)

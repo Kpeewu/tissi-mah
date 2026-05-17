@@ -14,7 +14,7 @@ func TestDocumentReviewRead_GetByID(t *testing.T) {
 		cleanTables(t)
 		userDoc := newUserDoc("user-rr-1", "idCardFront")
 		insertUserDoc(t, userDoc)
-		review := newReviewForUserDoc(userDoc.DocumentID)
+		review := newReviewForUserDoc(userDoc)
 		insertReview(t, review)
 
 		result, err := newReviewReadRepo().GetByID(context.Background(), review.ReviewID)
@@ -45,8 +45,8 @@ func TestDocumentReviewRead_GetByUserDocumentID(t *testing.T) {
 		cleanTables(t)
 		userDoc := newUserDoc("user-rr-2", "idCardFront")
 		insertUserDoc(t, userDoc)
-		review1 := newReviewForUserDoc(userDoc.DocumentID)
-		review2 := newReviewForUserDoc(userDoc.DocumentID)
+		review1 := newReviewForUserDoc(userDoc)
+		review2 := newReviewForUserDoc(userDoc)
 		insertReview(t, review1)
 		insertReview(t, review2)
 
@@ -77,8 +77,8 @@ func TestDocumentReviewRead_GetByUserDocumentID(t *testing.T) {
 		docB := newUserDoc("user-rr-4", "passport")
 		insertUserDoc(t, docA)
 		insertUserDoc(t, docB)
-		insertReview(t, newReviewForUserDoc(docA.DocumentID))
-		insertReview(t, newReviewForUserDoc(docB.DocumentID))
+		insertReview(t, newReviewForUserDoc(docA))
+		insertReview(t, newReviewForUserDoc(docB))
 
 		results, err := newReviewReadRepo().GetByUserDocumentID(context.Background(), docA.DocumentID)
 
@@ -96,14 +96,14 @@ func TestDocumentReviewRead_GetByUserID(t *testing.T) {
 		// Document d'identité (user_documents)
 		userDoc := newUserDoc(userID, "idCardFront")
 		insertUserDoc(t, userDoc)
-		userReview := newReviewForUserDoc(userDoc.DocumentID)
+		userReview := newReviewForUserDoc(userDoc)
 		insertReview(t, userReview)
 
 		// Document véhicule (vehicle_documents) — owned by same user
 		vehicleDoc := newVehicleDoc("vehicle-rr-getall-1", "insurance")
 		vehicleDoc.UserID = userID
 		insertVehicleDoc(t, vehicleDoc)
-		vehicleReview := newReviewForVehicleDoc(vehicleDoc.DocumentID)
+		vehicleReview := newReviewForVehicleDoc(vehicleDoc)
 		insertReview(t, vehicleReview)
 
 		results, err := newReviewReadRepo().GetByUserID(context.Background(), userID)
@@ -132,12 +132,12 @@ func TestDocumentReviewRead_GetByUserID(t *testing.T) {
 		ownVehicle := newVehicleDoc("vehicle-own", "insurance")
 		ownVehicle.UserID = callerID
 		insertVehicleDoc(t, ownVehicle)
-		insertReview(t, newReviewForVehicleDoc(ownVehicle.DocumentID))
+		insertReview(t, newReviewForVehicleDoc(ownVehicle))
 
 		foreignVehicle := newVehicleDoc("vehicle-foreign", "insurance")
 		foreignVehicle.UserID = otherID
 		insertVehicleDoc(t, foreignVehicle)
-		insertReview(t, newReviewForVehicleDoc(foreignVehicle.DocumentID))
+		insertReview(t, newReviewForVehicleDoc(foreignVehicle))
 
 		results, err := newReviewReadRepo().GetByUserID(context.Background(), callerID)
 
@@ -153,8 +153,8 @@ func TestDocumentReviewRead_GetByVehicleDocumentID(t *testing.T) {
 		cleanTables(t)
 		vehicleDoc := newVehicleDoc("vehicle-rr-1", "insurance")
 		insertVehicleDoc(t, vehicleDoc)
-		review1 := newReviewForVehicleDoc(vehicleDoc.DocumentID)
-		review2 := newReviewForVehicleDoc(vehicleDoc.DocumentID)
+		review1 := newReviewForVehicleDoc(vehicleDoc)
+		review2 := newReviewForVehicleDoc(vehicleDoc)
 		insertReview(t, review1)
 		insertReview(t, review2)
 
