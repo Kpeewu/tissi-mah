@@ -40,7 +40,7 @@ func (r *documentReviewReadImpl) GetByID(ctx context.Context, reviewID string) (
 
 	review := &domain.DocumentReview{}
 	err := r.pool.QueryRow(ctx, query, reviewID).Scan(
-		&review.ReviewID, &review.UserDocumentID, &review.VehicleDocumentID,
+		&review.ReviewID, &review.UserID, &review.DocumentType, &review.UserDocumentID, &review.VehicleDocumentID,
 		&review.PersonaInquiryID, &review.PersonaTemplateID, &review.PersonaSessionToken, &review.SessionExpiresAt,
 		&review.WebhookEventType, &review.WebhookReceivedAt, &review.PersonaRawPayload,
 		&review.AttemptNumber, &review.PreviousReviewID,
@@ -88,7 +88,7 @@ func (r *documentReviewReadImpl) GetByPersonaInquiryID(ctx context.Context, pers
 
 	review := &domain.DocumentReview{}
 	err := r.pool.QueryRow(ctx, query, personaInquiryID).Scan(
-		&review.ReviewID, &review.UserDocumentID, &review.VehicleDocumentID,
+		&review.ReviewID, &review.UserID, &review.DocumentType, &review.UserDocumentID, &review.VehicleDocumentID,
 		&review.PersonaInquiryID, &review.PersonaTemplateID, &review.PersonaSessionToken, &review.SessionExpiresAt,
 		&review.WebhookEventType, &review.WebhookReceivedAt, &review.PersonaRawPayload,
 		&review.AttemptNumber, &review.PreviousReviewID,
