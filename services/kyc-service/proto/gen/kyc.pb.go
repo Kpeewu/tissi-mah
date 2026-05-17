@@ -476,6 +476,90 @@ func (x *OverrideReviewRequest) GetNotes() string {
 	return ""
 }
 
+type ValidateDocumentRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId       string                 `protobuf:"bytes,1,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`             // ID du document (user ou vehicle)
+	VehicleId        string                 `protobuf:"bytes,2,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"`               // Requis pour documents véhicule
+	Decision         string                 `protobuf:"bytes,3,opt,name=Decision,proto3" json:"Decision,omitempty"`                 // approved | rejected | resubmission
+	ReasonRejection  string                 `protobuf:"bytes,4,opt,name=ReasonRejection,proto3" json:"ReasonRejection,omitempty"`   // Requis si Decision = "rejected"
+	RejectionDetails string                 `protobuf:"bytes,5,opt,name=RejectionDetails,proto3" json:"RejectionDetails,omitempty"` // Optionnel
+	Notes            string                 `protobuf:"bytes,6,opt,name=Notes,proto3" json:"Notes,omitempty"`                       // Optionnel
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ValidateDocumentRequest) Reset() {
+	*x = ValidateDocumentRequest{}
+	mi := &file_kyc_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateDocumentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateDocumentRequest) ProtoMessage() {}
+
+func (x *ValidateDocumentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kyc_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateDocumentRequest.ProtoReflect.Descriptor instead.
+func (*ValidateDocumentRequest) Descriptor() ([]byte, []int) {
+	return file_kyc_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ValidateDocumentRequest) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *ValidateDocumentRequest) GetVehicleId() string {
+	if x != nil {
+		return x.VehicleId
+	}
+	return ""
+}
+
+func (x *ValidateDocumentRequest) GetDecision() string {
+	if x != nil {
+		return x.Decision
+	}
+	return ""
+}
+
+func (x *ValidateDocumentRequest) GetReasonRejection() string {
+	if x != nil {
+		return x.ReasonRejection
+	}
+	return ""
+}
+
+func (x *ValidateDocumentRequest) GetRejectionDetails() string {
+	if x != nil {
+		return x.RejectionDetails
+	}
+	return ""
+}
+
+func (x *ValidateDocumentRequest) GetNotes() string {
+	if x != nil {
+		return x.Notes
+	}
+	return ""
+}
+
 type HealthRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -484,7 +568,7 @@ type HealthRequest struct {
 
 func (x *HealthRequest) Reset() {
 	*x = HealthRequest{}
-	mi := &file_kyc_proto_msgTypes[8]
+	mi := &file_kyc_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -496,7 +580,7 @@ func (x *HealthRequest) String() string {
 func (*HealthRequest) ProtoMessage() {}
 
 func (x *HealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[8]
+	mi := &file_kyc_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -509,7 +593,7 @@ func (x *HealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthRequest.ProtoReflect.Descriptor instead.
 func (*HealthRequest) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{8}
+	return file_kyc_proto_rawDescGZIP(), []int{9}
 }
 
 type CreateInquiryResponse struct {
@@ -529,7 +613,7 @@ type CreateInquiryResponse struct {
 
 func (x *CreateInquiryResponse) Reset() {
 	*x = CreateInquiryResponse{}
-	mi := &file_kyc_proto_msgTypes[9]
+	mi := &file_kyc_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -541,7 +625,7 @@ func (x *CreateInquiryResponse) String() string {
 func (*CreateInquiryResponse) ProtoMessage() {}
 
 func (x *CreateInquiryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[9]
+	mi := &file_kyc_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -554,7 +638,7 @@ func (x *CreateInquiryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInquiryResponse.ProtoReflect.Descriptor instead.
 func (*CreateInquiryResponse) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{9}
+	return file_kyc_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CreateInquiryResponse) GetErrorMessage() string {
@@ -630,7 +714,7 @@ type GetInquiryResponse struct {
 
 func (x *GetInquiryResponse) Reset() {
 	*x = GetInquiryResponse{}
-	mi := &file_kyc_proto_msgTypes[10]
+	mi := &file_kyc_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -642,7 +726,7 @@ func (x *GetInquiryResponse) String() string {
 func (*GetInquiryResponse) ProtoMessage() {}
 
 func (x *GetInquiryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[10]
+	mi := &file_kyc_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -655,7 +739,7 @@ func (x *GetInquiryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInquiryResponse.ProtoReflect.Descriptor instead.
 func (*GetInquiryResponse) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{10}
+	return file_kyc_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetInquiryResponse) GetErrorMessage() string {
@@ -685,7 +769,7 @@ type GetKYCStatusResponse struct {
 
 func (x *GetKYCStatusResponse) Reset() {
 	*x = GetKYCStatusResponse{}
-	mi := &file_kyc_proto_msgTypes[11]
+	mi := &file_kyc_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -697,7 +781,7 @@ func (x *GetKYCStatusResponse) String() string {
 func (*GetKYCStatusResponse) ProtoMessage() {}
 
 func (x *GetKYCStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[11]
+	mi := &file_kyc_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -710,7 +794,7 @@ func (x *GetKYCStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetKYCStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetKYCStatusResponse) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{11}
+	return file_kyc_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetKYCStatusResponse) GetErrorMessage() string {
@@ -763,7 +847,7 @@ type ResumeInquiryResponse struct {
 
 func (x *ResumeInquiryResponse) Reset() {
 	*x = ResumeInquiryResponse{}
-	mi := &file_kyc_proto_msgTypes[12]
+	mi := &file_kyc_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -775,7 +859,7 @@ func (x *ResumeInquiryResponse) String() string {
 func (*ResumeInquiryResponse) ProtoMessage() {}
 
 func (x *ResumeInquiryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[12]
+	mi := &file_kyc_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -788,7 +872,7 @@ func (x *ResumeInquiryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeInquiryResponse.ProtoReflect.Descriptor instead.
 func (*ResumeInquiryResponse) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{12}
+	return file_kyc_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ResumeInquiryResponse) GetErrorMessage() string {
@@ -850,7 +934,7 @@ type ProcessWebhookResponse struct {
 
 func (x *ProcessWebhookResponse) Reset() {
 	*x = ProcessWebhookResponse{}
-	mi := &file_kyc_proto_msgTypes[13]
+	mi := &file_kyc_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -862,7 +946,7 @@ func (x *ProcessWebhookResponse) String() string {
 func (*ProcessWebhookResponse) ProtoMessage() {}
 
 func (x *ProcessWebhookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[13]
+	mi := &file_kyc_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -875,7 +959,7 @@ func (x *ProcessWebhookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessWebhookResponse.ProtoReflect.Descriptor instead.
 func (*ProcessWebhookResponse) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{13}
+	return file_kyc_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ProcessWebhookResponse) GetErrorMessage() string {
@@ -902,7 +986,7 @@ type GetAdminReviewsResponse struct {
 
 func (x *GetAdminReviewsResponse) Reset() {
 	*x = GetAdminReviewsResponse{}
-	mi := &file_kyc_proto_msgTypes[14]
+	mi := &file_kyc_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -914,7 +998,7 @@ func (x *GetAdminReviewsResponse) String() string {
 func (*GetAdminReviewsResponse) ProtoMessage() {}
 
 func (x *GetAdminReviewsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[14]
+	mi := &file_kyc_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -927,7 +1011,7 @@ func (x *GetAdminReviewsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAdminReviewsResponse.ProtoReflect.Descriptor instead.
 func (*GetAdminReviewsResponse) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{14}
+	return file_kyc_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetAdminReviewsResponse) GetErrorMessage() string {
@@ -954,7 +1038,7 @@ type GetAdminReviewResponse struct {
 
 func (x *GetAdminReviewResponse) Reset() {
 	*x = GetAdminReviewResponse{}
-	mi := &file_kyc_proto_msgTypes[15]
+	mi := &file_kyc_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -966,7 +1050,7 @@ func (x *GetAdminReviewResponse) String() string {
 func (*GetAdminReviewResponse) ProtoMessage() {}
 
 func (x *GetAdminReviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[15]
+	mi := &file_kyc_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -979,7 +1063,7 @@ func (x *GetAdminReviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAdminReviewResponse.ProtoReflect.Descriptor instead.
 func (*GetAdminReviewResponse) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{15}
+	return file_kyc_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetAdminReviewResponse) GetErrorMessage() string {
@@ -1015,7 +1099,7 @@ type OverrideReviewResponse struct {
 
 func (x *OverrideReviewResponse) Reset() {
 	*x = OverrideReviewResponse{}
-	mi := &file_kyc_proto_msgTypes[16]
+	mi := &file_kyc_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1027,7 +1111,7 @@ func (x *OverrideReviewResponse) String() string {
 func (*OverrideReviewResponse) ProtoMessage() {}
 
 func (x *OverrideReviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[16]
+	mi := &file_kyc_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1040,7 +1124,7 @@ func (x *OverrideReviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverrideReviewResponse.ProtoReflect.Descriptor instead.
 func (*OverrideReviewResponse) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{16}
+	return file_kyc_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *OverrideReviewResponse) GetErrorMessage() string {
@@ -1120,6 +1204,98 @@ func (x *OverrideReviewResponse) GetUpdatedAt() string {
 	return ""
 }
 
+type ValidateDocumentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ErrorMessage  string                 `protobuf:"bytes,1,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	ReviewId      string                 `protobuf:"bytes,2,opt,name=ReviewId,proto3" json:"ReviewId,omitempty"`
+	Decision      string                 `protobuf:"bytes,3,opt,name=Decision,proto3" json:"Decision,omitempty"`
+	ReviewedBy    string                 `protobuf:"bytes,4,opt,name=ReviewedBy,proto3" json:"ReviewedBy,omitempty"`
+	ReviewType    string                 `protobuf:"bytes,5,opt,name=ReviewType,proto3" json:"ReviewType,omitempty"`
+	ReviewedAt    string                 `protobuf:"bytes,6,opt,name=ReviewedAt,proto3" json:"ReviewedAt,omitempty"` // ISO 8601
+	Notes         string                 `protobuf:"bytes,7,opt,name=Notes,proto3" json:"Notes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateDocumentResponse) Reset() {
+	*x = ValidateDocumentResponse{}
+	mi := &file_kyc_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateDocumentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateDocumentResponse) ProtoMessage() {}
+
+func (x *ValidateDocumentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kyc_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateDocumentResponse.ProtoReflect.Descriptor instead.
+func (*ValidateDocumentResponse) Descriptor() ([]byte, []int) {
+	return file_kyc_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ValidateDocumentResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *ValidateDocumentResponse) GetReviewId() string {
+	if x != nil {
+		return x.ReviewId
+	}
+	return ""
+}
+
+func (x *ValidateDocumentResponse) GetDecision() string {
+	if x != nil {
+		return x.Decision
+	}
+	return ""
+}
+
+func (x *ValidateDocumentResponse) GetReviewedBy() string {
+	if x != nil {
+		return x.ReviewedBy
+	}
+	return ""
+}
+
+func (x *ValidateDocumentResponse) GetReviewType() string {
+	if x != nil {
+		return x.ReviewType
+	}
+	return ""
+}
+
+func (x *ValidateDocumentResponse) GetReviewedAt() string {
+	if x != nil {
+		return x.ReviewedAt
+	}
+	return ""
+}
+
+func (x *ValidateDocumentResponse) GetNotes() string {
+	if x != nil {
+		return x.Notes
+	}
+	return ""
+}
+
 type HealthResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Status        string                 `protobuf:"bytes,1,opt,name=Status,proto3" json:"Status,omitempty"`
@@ -1131,7 +1307,7 @@ type HealthResponse struct {
 
 func (x *HealthResponse) Reset() {
 	*x = HealthResponse{}
-	mi := &file_kyc_proto_msgTypes[17]
+	mi := &file_kyc_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1143,7 +1319,7 @@ func (x *HealthResponse) String() string {
 func (*HealthResponse) ProtoMessage() {}
 
 func (x *HealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[17]
+	mi := &file_kyc_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1156,7 +1332,7 @@ func (x *HealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
 func (*HealthResponse) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{17}
+	return file_kyc_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *HealthResponse) GetStatus() string {
@@ -1203,7 +1379,7 @@ type InquiryDetail struct {
 
 func (x *InquiryDetail) Reset() {
 	*x = InquiryDetail{}
-	mi := &file_kyc_proto_msgTypes[18]
+	mi := &file_kyc_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1215,7 +1391,7 @@ func (x *InquiryDetail) String() string {
 func (*InquiryDetail) ProtoMessage() {}
 
 func (x *InquiryDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[18]
+	mi := &file_kyc_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1228,7 +1404,7 @@ func (x *InquiryDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InquiryDetail.ProtoReflect.Descriptor instead.
 func (*InquiryDetail) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{18}
+	return file_kyc_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *InquiryDetail) GetReviewId() string {
@@ -1349,7 +1525,7 @@ type PendingReviewItem struct {
 
 func (x *PendingReviewItem) Reset() {
 	*x = PendingReviewItem{}
-	mi := &file_kyc_proto_msgTypes[19]
+	mi := &file_kyc_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1361,7 +1537,7 @@ func (x *PendingReviewItem) String() string {
 func (*PendingReviewItem) ProtoMessage() {}
 
 func (x *PendingReviewItem) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[19]
+	mi := &file_kyc_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1374,7 +1550,7 @@ func (x *PendingReviewItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PendingReviewItem.ProtoReflect.Descriptor instead.
 func (*PendingReviewItem) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{19}
+	return file_kyc_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *PendingReviewItem) GetReviewId() string {
@@ -1425,7 +1601,7 @@ type LatestRejectionItem struct {
 
 func (x *LatestRejectionItem) Reset() {
 	*x = LatestRejectionItem{}
-	mi := &file_kyc_proto_msgTypes[20]
+	mi := &file_kyc_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1437,7 +1613,7 @@ func (x *LatestRejectionItem) String() string {
 func (*LatestRejectionItem) ProtoMessage() {}
 
 func (x *LatestRejectionItem) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[20]
+	mi := &file_kyc_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1450,7 +1626,7 @@ func (x *LatestRejectionItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LatestRejectionItem.ProtoReflect.Descriptor instead.
 func (*LatestRejectionItem) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{20}
+	return file_kyc_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *LatestRejectionItem) GetReviewId() string {
@@ -1512,7 +1688,7 @@ type AdminReviewItem struct {
 
 func (x *AdminReviewItem) Reset() {
 	*x = AdminReviewItem{}
-	mi := &file_kyc_proto_msgTypes[21]
+	mi := &file_kyc_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1524,7 +1700,7 @@ func (x *AdminReviewItem) String() string {
 func (*AdminReviewItem) ProtoMessage() {}
 
 func (x *AdminReviewItem) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[21]
+	mi := &file_kyc_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1537,7 +1713,7 @@ func (x *AdminReviewItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminReviewItem.ProtoReflect.Descriptor instead.
 func (*AdminReviewItem) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{21}
+	return file_kyc_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *AdminReviewItem) GetReviewId() string {
@@ -1681,7 +1857,7 @@ type AdminReviewDetail struct {
 
 func (x *AdminReviewDetail) Reset() {
 	*x = AdminReviewDetail{}
-	mi := &file_kyc_proto_msgTypes[22]
+	mi := &file_kyc_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1693,7 +1869,7 @@ func (x *AdminReviewDetail) String() string {
 func (*AdminReviewDetail) ProtoMessage() {}
 
 func (x *AdminReviewDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[22]
+	mi := &file_kyc_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1706,7 +1882,7 @@ func (x *AdminReviewDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminReviewDetail.ProtoReflect.Descriptor instead.
 func (*AdminReviewDetail) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{22}
+	return file_kyc_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *AdminReviewDetail) GetReviewId() string {
@@ -1892,7 +2068,16 @@ const file_kyc_proto_rawDesc = "" +
 	"\bDecision\x18\x02 \x01(\tR\bDecision\x12(\n" +
 	"\x0fReasonRejection\x18\x03 \x01(\tR\x0fReasonRejection\x12*\n" +
 	"\x10RejectionDetails\x18\x04 \x01(\tR\x10RejectionDetails\x12\x14\n" +
-	"\x05Notes\x18\x05 \x01(\tR\x05Notes\"\x0f\n" +
+	"\x05Notes\x18\x05 \x01(\tR\x05Notes\"\xdf\x01\n" +
+	"\x17ValidateDocumentRequest\x12\x1e\n" +
+	"\n" +
+	"DocumentId\x18\x01 \x01(\tR\n" +
+	"DocumentId\x12\x1c\n" +
+	"\tVehicleId\x18\x02 \x01(\tR\tVehicleId\x12\x1a\n" +
+	"\bDecision\x18\x03 \x01(\tR\bDecision\x12(\n" +
+	"\x0fReasonRejection\x18\x04 \x01(\tR\x0fReasonRejection\x12*\n" +
+	"\x10RejectionDetails\x18\x05 \x01(\tR\x10RejectionDetails\x12\x14\n" +
+	"\x05Notes\x18\x06 \x01(\tR\x05Notes\"\x0f\n" +
 	"\rHealthRequest\"\xdd\x02\n" +
 	"\x15CreateInquiryResponse\x12\"\n" +
 	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12\x1a\n" +
@@ -1948,7 +2133,21 @@ const file_kyc_proto_rawDesc = "" +
 	"ReviewedAt\x12\x14\n" +
 	"\x05Notes\x18\n" +
 	" \x01(\tR\x05Notes\x12\x1c\n" +
-	"\tUpdatedAt\x18\v \x01(\tR\tUpdatedAt\"`\n" +
+	"\tUpdatedAt\x18\v \x01(\tR\tUpdatedAt\"\xec\x01\n" +
+	"\x18ValidateDocumentResponse\x12\"\n" +
+	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12\x1a\n" +
+	"\bReviewId\x18\x02 \x01(\tR\bReviewId\x12\x1a\n" +
+	"\bDecision\x18\x03 \x01(\tR\bDecision\x12\x1e\n" +
+	"\n" +
+	"ReviewedBy\x18\x04 \x01(\tR\n" +
+	"ReviewedBy\x12\x1e\n" +
+	"\n" +
+	"ReviewType\x18\x05 \x01(\tR\n" +
+	"ReviewType\x12\x1e\n" +
+	"\n" +
+	"ReviewedAt\x18\x06 \x01(\tR\n" +
+	"ReviewedAt\x12\x14\n" +
+	"\x05Notes\x18\a \x01(\tR\x05Notes\"`\n" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
 	"\aVersion\x18\x02 \x01(\tR\aVersion\x12\x1c\n" +
@@ -2040,7 +2239,7 @@ const file_kyc_proto_rawDesc = "" +
 	"\x10PreviousReviewId\x18\x12 \x01(\tR\x10PreviousReviewId\x12*\n" +
 	"\x10SessionExpiresAt\x18\x13 \x01(\tR\x10SessionExpiresAt\x12\x1c\n" +
 	"\tCreatedAt\x18\x14 \x01(\tR\tCreatedAt\x12\x1c\n" +
-	"\tUpdatedAt\x18\x15 \x01(\tR\tUpdatedAt2\xec\a\n" +
+	"\tUpdatedAt\x18\x15 \x01(\tR\tUpdatedAt2\xec\b\n" +
 	"\n" +
 	"KYCService\x12l\n" +
 	"\rCreateInquiry\x12\x19.kyc.CreateInquiryRequest\x1a\x1a.kyc.CreateInquiryResponse\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/api/v1/kyc/inquiries/add\x12g\n" +
@@ -2051,7 +2250,8 @@ const file_kyc_proto_rawDesc = "" +
 	"\x0eProcessWebhook\x12\x1a.kyc.ProcessWebhookRequest\x1a\x1b.kyc.ProcessWebhookResponse\"'\x82\xd3\xe4\x93\x02!:\x01*\"\x1c/api/v1/kyc/webhooks/persona\x12z\n" +
 	"\x0fGetAdminReviews\x12\x1b.kyc.GetAdminReviewsRequest\x1a\x1c.kyc.GetAdminReviewsResponse\",\x82\xd3\xe4\x93\x02&\x12$/api/v1/kyc/admin/reviews/getReviews\x12v\n" +
 	"\x0eGetAdminReview\x12\x1a.kyc.GetAdminReviewRequest\x1a\x1b.kyc.GetAdminReviewResponse\"+\x82\xd3\xe4\x93\x02%\x12#/api/v1/kyc/admin/reviews/getReview\x12x\n" +
-	"\x0eOverrideReview\x12\x1a.kyc.OverrideReviewRequest\x1a\x1b.kyc.OverrideReviewResponse\"-\x82\xd3\xe4\x93\x02':\x01*\"\"/api/v1/kyc/admin/reviews/override\x12M\n" +
+	"\x0eOverrideReview\x12\x1a.kyc.OverrideReviewRequest\x1a\x1b.kyc.OverrideReviewResponse\"-\x82\xd3\xe4\x93\x02':\x01*\"\"/api/v1/kyc/admin/reviews/override\x12~\n" +
+	"\x10ValidateDocument\x12\x1c.kyc.ValidateDocumentRequest\x1a\x1d.kyc.ValidateDocumentResponse\"-\x82\xd3\xe4\x93\x02':\x01*\"\"/api/v1/kyc/admin/validateDocument\x12M\n" +
 	"\x06Health\x12\x12.kyc.HealthRequest\x1a\x13.kyc.HealthResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/api/v1/kyc/healthB@Z>github.com/Kpeewu/tissi-mah/services/kyc-service/proto/gen;kycb\x06proto3"
 
 var (
@@ -2066,38 +2266,40 @@ func file_kyc_proto_rawDescGZIP() []byte {
 	return file_kyc_proto_rawDescData
 }
 
-var file_kyc_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_kyc_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_kyc_proto_goTypes = []any{
-	(*CreateInquiryRequest)(nil),    // 0: kyc.CreateInquiryRequest
-	(*GetInquiryRequest)(nil),       // 1: kyc.GetInquiryRequest
-	(*GetKYCStatusRequest)(nil),     // 2: kyc.GetKYCStatusRequest
-	(*ResumeInquiryRequest)(nil),    // 3: kyc.ResumeInquiryRequest
-	(*ProcessWebhookRequest)(nil),   // 4: kyc.ProcessWebhookRequest
-	(*GetAdminReviewsRequest)(nil),  // 5: kyc.GetAdminReviewsRequest
-	(*GetAdminReviewRequest)(nil),   // 6: kyc.GetAdminReviewRequest
-	(*OverrideReviewRequest)(nil),   // 7: kyc.OverrideReviewRequest
-	(*HealthRequest)(nil),           // 8: kyc.HealthRequest
-	(*CreateInquiryResponse)(nil),   // 9: kyc.CreateInquiryResponse
-	(*GetInquiryResponse)(nil),      // 10: kyc.GetInquiryResponse
-	(*GetKYCStatusResponse)(nil),    // 11: kyc.GetKYCStatusResponse
-	(*ResumeInquiryResponse)(nil),   // 12: kyc.ResumeInquiryResponse
-	(*ProcessWebhookResponse)(nil),  // 13: kyc.ProcessWebhookResponse
-	(*GetAdminReviewsResponse)(nil), // 14: kyc.GetAdminReviewsResponse
-	(*GetAdminReviewResponse)(nil),  // 15: kyc.GetAdminReviewResponse
-	(*OverrideReviewResponse)(nil),  // 16: kyc.OverrideReviewResponse
-	(*HealthResponse)(nil),          // 17: kyc.HealthResponse
-	(*InquiryDetail)(nil),           // 18: kyc.InquiryDetail
-	(*PendingReviewItem)(nil),       // 19: kyc.PendingReviewItem
-	(*LatestRejectionItem)(nil),     // 20: kyc.LatestRejectionItem
-	(*AdminReviewItem)(nil),         // 21: kyc.AdminReviewItem
-	(*AdminReviewDetail)(nil),       // 22: kyc.AdminReviewDetail
+	(*CreateInquiryRequest)(nil),     // 0: kyc.CreateInquiryRequest
+	(*GetInquiryRequest)(nil),        // 1: kyc.GetInquiryRequest
+	(*GetKYCStatusRequest)(nil),      // 2: kyc.GetKYCStatusRequest
+	(*ResumeInquiryRequest)(nil),     // 3: kyc.ResumeInquiryRequest
+	(*ProcessWebhookRequest)(nil),    // 4: kyc.ProcessWebhookRequest
+	(*GetAdminReviewsRequest)(nil),   // 5: kyc.GetAdminReviewsRequest
+	(*GetAdminReviewRequest)(nil),    // 6: kyc.GetAdminReviewRequest
+	(*OverrideReviewRequest)(nil),    // 7: kyc.OverrideReviewRequest
+	(*ValidateDocumentRequest)(nil),  // 8: kyc.ValidateDocumentRequest
+	(*HealthRequest)(nil),            // 9: kyc.HealthRequest
+	(*CreateInquiryResponse)(nil),    // 10: kyc.CreateInquiryResponse
+	(*GetInquiryResponse)(nil),       // 11: kyc.GetInquiryResponse
+	(*GetKYCStatusResponse)(nil),     // 12: kyc.GetKYCStatusResponse
+	(*ResumeInquiryResponse)(nil),    // 13: kyc.ResumeInquiryResponse
+	(*ProcessWebhookResponse)(nil),   // 14: kyc.ProcessWebhookResponse
+	(*GetAdminReviewsResponse)(nil),  // 15: kyc.GetAdminReviewsResponse
+	(*GetAdminReviewResponse)(nil),   // 16: kyc.GetAdminReviewResponse
+	(*OverrideReviewResponse)(nil),   // 17: kyc.OverrideReviewResponse
+	(*ValidateDocumentResponse)(nil), // 18: kyc.ValidateDocumentResponse
+	(*HealthResponse)(nil),           // 19: kyc.HealthResponse
+	(*InquiryDetail)(nil),            // 20: kyc.InquiryDetail
+	(*PendingReviewItem)(nil),        // 21: kyc.PendingReviewItem
+	(*LatestRejectionItem)(nil),      // 22: kyc.LatestRejectionItem
+	(*AdminReviewItem)(nil),          // 23: kyc.AdminReviewItem
+	(*AdminReviewDetail)(nil),        // 24: kyc.AdminReviewDetail
 }
 var file_kyc_proto_depIdxs = []int32{
-	18, // 0: kyc.GetInquiryResponse.Inquiry:type_name -> kyc.InquiryDetail
-	19, // 1: kyc.GetKYCStatusResponse.PendingReviews:type_name -> kyc.PendingReviewItem
-	20, // 2: kyc.GetKYCStatusResponse.LatestRejection:type_name -> kyc.LatestRejectionItem
-	21, // 3: kyc.GetAdminReviewsResponse.Reviews:type_name -> kyc.AdminReviewItem
-	22, // 4: kyc.GetAdminReviewResponse.Review:type_name -> kyc.AdminReviewDetail
+	20, // 0: kyc.GetInquiryResponse.Inquiry:type_name -> kyc.InquiryDetail
+	21, // 1: kyc.GetKYCStatusResponse.PendingReviews:type_name -> kyc.PendingReviewItem
+	22, // 2: kyc.GetKYCStatusResponse.LatestRejection:type_name -> kyc.LatestRejectionItem
+	23, // 3: kyc.GetAdminReviewsResponse.Reviews:type_name -> kyc.AdminReviewItem
+	24, // 4: kyc.GetAdminReviewResponse.Review:type_name -> kyc.AdminReviewDetail
 	0,  // 5: kyc.KYCService.CreateInquiry:input_type -> kyc.CreateInquiryRequest
 	1,  // 6: kyc.KYCService.GetInquiry:input_type -> kyc.GetInquiryRequest
 	2,  // 7: kyc.KYCService.GetKYCStatus:input_type -> kyc.GetKYCStatusRequest
@@ -2106,18 +2308,20 @@ var file_kyc_proto_depIdxs = []int32{
 	5,  // 10: kyc.KYCService.GetAdminReviews:input_type -> kyc.GetAdminReviewsRequest
 	6,  // 11: kyc.KYCService.GetAdminReview:input_type -> kyc.GetAdminReviewRequest
 	7,  // 12: kyc.KYCService.OverrideReview:input_type -> kyc.OverrideReviewRequest
-	8,  // 13: kyc.KYCService.Health:input_type -> kyc.HealthRequest
-	9,  // 14: kyc.KYCService.CreateInquiry:output_type -> kyc.CreateInquiryResponse
-	10, // 15: kyc.KYCService.GetInquiry:output_type -> kyc.GetInquiryResponse
-	11, // 16: kyc.KYCService.GetKYCStatus:output_type -> kyc.GetKYCStatusResponse
-	12, // 17: kyc.KYCService.ResumeInquiry:output_type -> kyc.ResumeInquiryResponse
-	13, // 18: kyc.KYCService.ProcessWebhook:output_type -> kyc.ProcessWebhookResponse
-	14, // 19: kyc.KYCService.GetAdminReviews:output_type -> kyc.GetAdminReviewsResponse
-	15, // 20: kyc.KYCService.GetAdminReview:output_type -> kyc.GetAdminReviewResponse
-	16, // 21: kyc.KYCService.OverrideReview:output_type -> kyc.OverrideReviewResponse
-	17, // 22: kyc.KYCService.Health:output_type -> kyc.HealthResponse
-	14, // [14:23] is the sub-list for method output_type
-	5,  // [5:14] is the sub-list for method input_type
+	8,  // 13: kyc.KYCService.ValidateDocument:input_type -> kyc.ValidateDocumentRequest
+	9,  // 14: kyc.KYCService.Health:input_type -> kyc.HealthRequest
+	10, // 15: kyc.KYCService.CreateInquiry:output_type -> kyc.CreateInquiryResponse
+	11, // 16: kyc.KYCService.GetInquiry:output_type -> kyc.GetInquiryResponse
+	12, // 17: kyc.KYCService.GetKYCStatus:output_type -> kyc.GetKYCStatusResponse
+	13, // 18: kyc.KYCService.ResumeInquiry:output_type -> kyc.ResumeInquiryResponse
+	14, // 19: kyc.KYCService.ProcessWebhook:output_type -> kyc.ProcessWebhookResponse
+	15, // 20: kyc.KYCService.GetAdminReviews:output_type -> kyc.GetAdminReviewsResponse
+	16, // 21: kyc.KYCService.GetAdminReview:output_type -> kyc.GetAdminReviewResponse
+	17, // 22: kyc.KYCService.OverrideReview:output_type -> kyc.OverrideReviewResponse
+	18, // 23: kyc.KYCService.ValidateDocument:output_type -> kyc.ValidateDocumentResponse
+	19, // 24: kyc.KYCService.Health:output_type -> kyc.HealthResponse
+	15, // [15:25] is the sub-list for method output_type
+	5,  // [5:15] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name
 	5,  // [5:5] is the sub-list for extension extendee
 	0,  // [0:5] is the sub-list for field type_name
@@ -2134,7 +2338,7 @@ func file_kyc_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_kyc_proto_rawDesc), len(file_kyc_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

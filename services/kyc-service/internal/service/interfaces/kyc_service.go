@@ -152,6 +152,27 @@ type OverrideResult struct {
 	UpdatedAt        string // ISO 8601
 }
 
+// ValidateDocumentInput contient les données pour valider manuellement un document
+type ValidateDocumentInput struct {
+	SupportAgentID   string
+	DocumentID       string
+	VehicleID        string // Optionnel — si renseigné, document véhicule
+	Decision         string // approved | rejected | resubmission
+	ReasonRejection  string // Requis si Decision = "rejected"
+	RejectionDetails string
+	Notes            string
+}
+
+// ValidateDocumentResult contient la réponse d'une validation manuelle
+type ValidateDocumentResult struct {
+	ReviewID   string
+	Decision   string
+	ReviewedBy string
+	ReviewType string
+	ReviewedAt string // ISO 8601
+	Notes      string
+}
+
 // KYCService définit les opérations du service KYC
 type KYCService interface {
 	// Démarre une nouvelle vérification d'identité
@@ -177,4 +198,7 @@ type KYCService interface {
 
 	// Override manuel d'une revue par un agent de support
 	OverrideReview(ctx context.Context, input OverrideReviewInput) (*OverrideResult, error)
+
+	// Validation manuelle directe d'un document par un agent support (sans Persona)
+	ValidateDocument(ctx context.Context, input ValidateDocumentInput) (*ValidateDocumentResult, error)
 }

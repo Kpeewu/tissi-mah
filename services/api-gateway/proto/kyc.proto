@@ -77,6 +77,15 @@ service KYCService {
     };
   }
 
+  // ValidateDocument - Validation manuelle directe d'un document par un agent support (sans Persona)
+  // Obligatoire pour les documents véhicule (insurance, registrationCard, driverLicence avec VehicleId)
+  rpc ValidateDocument(ValidateDocumentRequest) returns (ValidateDocumentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/kyc/admin/validateDocument"
+      body: "*"
+    };
+  }
+
   // Health - Health check endpoint (no auth required)
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -134,6 +143,15 @@ message OverrideReviewRequest {
   string ReasonRejection = 3;  // Requis si Decision = "rejected"
   string RejectionDetails = 4; // Optionnel
   string Notes = 5;            // Optionnel
+}
+
+message ValidateDocumentRequest {
+  string DocumentId       = 1; // ID du document (user ou vehicle)
+  string VehicleId        = 2; // Requis pour documents véhicule
+  string Decision         = 3; // approved | rejected | resubmission
+  string ReasonRejection  = 4; // Requis si Decision = "rejected"
+  string RejectionDetails = 5; // Optionnel
+  string Notes            = 6; // Optionnel
 }
 
 message HealthRequest {
@@ -206,6 +224,16 @@ message OverrideReviewResponse {
   string ReviewedAt = 9;  // ISO 8601
   string Notes = 10;
   string UpdatedAt = 11;  // ISO 8601
+}
+
+message ValidateDocumentResponse {
+  string ErrorMessage = 1;
+  string ReviewId     = 2;
+  string Decision     = 3;
+  string ReviewedBy   = 4;
+  string ReviewType   = 5;
+  string ReviewedAt   = 6; // ISO 8601
+  string Notes        = 7;
 }
 
 message HealthResponse {

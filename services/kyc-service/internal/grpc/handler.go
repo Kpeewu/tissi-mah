@@ -41,6 +41,15 @@ func getUserID(ctx context.Context) (string, error) {
 	return uid, nil
 }
 
+// getSupportID extrait l'UID de l'agent support depuis le contexte gRPC.
+func getSupportID(ctx context.Context) (string, error) {
+	uid, ok := ctx.Value(middleware.SupportIDKey).(string)
+	if !ok || uid == "" {
+		return "", status.Error(codes.Unauthenticated, "missing support ID in context")
+	}
+	return uid, nil
+}
+
 // =============================================================================
 // CreateInquiry
 // =============================================================================
@@ -51,11 +60,14 @@ func (h *KYCHandler) CreateInquiry(ctx context.Context, req *kycpb.CreateInquiry
 		return nil, err
 	}
 
+	if req.VehicleId != "" {
+		return nil, status.Error(codes.InvalidArgument, "vehicle documents must be validated manually via ValidateDocument")
+	}
+
 	h.logger.Debug("handler: CreateInquiry called",
 		zap.String("userID", userID),
 		zap.String("documentType", req.DocumentType),
 		zap.String("documentID", req.DocumentId),
-		zap.String("vehicleID", req.VehicleId),
 	)
 
 	result, err := h.service.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
@@ -223,8 +235,7 @@ func (h *KYCHandler) ProcessWebhook(ctx context.Context, req *kycpb.ProcessWebho
 // =============================================================================
 
 func (h *KYCHandler) GetAdminReviews(ctx context.Context, req *kycpb.GetAdminReviewsRequest) (*kycpb.GetAdminReviewsResponse, error) {
-	// L'admin est authentifié mais on utilise le filtre UserId de la requête
-	_, err := getUserID(ctx)
+	_, err := getSupportID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +271,7 @@ func (h *KYCHandler) GetAdminReviews(ctx context.Context, req *kycpb.GetAdminRev
 // =============================================================================
 
 func (h *KYCHandler) GetAdminReview(ctx context.Context, req *kycpb.GetAdminReviewRequest) (*kycpb.GetAdminReviewResponse, error) {
-	userID, err := getUserID(ctx)
+	supportID, err := getSupportID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +280,7 @@ func (h *KYCHandler) GetAdminReview(ctx context.Context, req *kycpb.GetAdminRevi
 		zap.String("reviewID", req.ReviewId),
 	)
 
-	detail, err := h.service.GetAdminReview(ctx, userID, req.ReviewId)
+	detail, err := h.service.GetAdminReview(ctx, supportID, req.ReviewId)
 	if err != nil {
 		h.logger.Error("handler: GetAdminReview failed", zap.Error(err))
 		return nil, toGRPCError(err)
@@ -285,7 +296,7 @@ func (h *KYCHandler) GetAdminReview(ctx context.Context, req *kycpb.GetAdminRevi
 // =============================================================================
 
 func (h *KYCHandler) OverrideReview(ctx context.Context, req *kycpb.OverrideReviewRequest) (*kycpb.OverrideReviewResponse, error) {
-	userID, err := getUserID(ctx)
+	supportID, err := getSupportID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -296,7 +307,7 @@ func (h *KYCHandler) OverrideReview(ctx context.Context, req *kycpb.OverrideRevi
 	)
 
 	result, err := h.service.OverrideReview(ctx, serviceInterfaces.OverrideReviewInput{
-		UserID:           userID,
+		UserID:           supportID,
 		ReviewID:         req.ReviewId,
 		Decision:         req.Decision,
 		ReasonRejection:  req.ReasonRejection,
@@ -319,6 +330,51 @@ func (h *KYCHandler) OverrideReview(ctx context.Context, req *kycpb.OverrideRevi
 		ReviewedAt:       result.ReviewedAt,
 		Notes:            result.Notes,
 		UpdatedAt:        result.UpdatedAt,
+	}, nil
+}
+
+// =============================================================================
+// ValidateDocument
+// =============================================================================
+
+func (h *KYCHandler) ValidateDocument(ctx context.Context, req *kycpb.ValidateDocumentRequest) (*kycpb.ValidateDocumentResponse, error) {
+	supportID, err := getSupportID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	h.logger.Debug("handler: ValidateDocument called",
+		zap.String("supportID", supportID),
+		zap.String("documentID", req.DocumentId),
+		zap.String("vehicleID", req.VehicleId),
+		zap.String("decision", req.Decision),
+	)
+
+	result, err := h.service.ValidateDocument(ctx, serviceInterfaces.ValidateDocumentInput{
+		SupportAgentID:   supportID,
+		DocumentID:       req.DocumentId,
+		VehicleID:        req.VehicleId,
+		Decision:         req.Decision,
+		ReasonRejection:  req.ReasonRejection,
+		RejectionDetails: req.RejectionDetails,
+		Notes:            req.Notes,
+	})
+	if err != nil {
+		h.logger.Error("handler: ValidateDocument failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: ValidateDocument success",
+		zap.String("reviewID", result.ReviewID),
+		zap.String("decision", result.Decision),
+	)
+	return &kycpb.ValidateDocumentResponse{
+		ReviewId:   result.ReviewID,
+		Decision:   result.Decision,
+		ReviewedBy: result.ReviewedBy,
+		ReviewType: result.ReviewType,
+		ReviewedAt: result.ReviewedAt,
+		Notes:      result.Notes,
 	}, nil
 }
 
@@ -348,7 +404,8 @@ func toGRPCError(err error) error {
 		errors.Is(err, kycErrors.ErrorDocumentMismatch),
 		errors.Is(err, kycErrors.ErrorMissingInquiryID),
 		errors.Is(err, kycErrors.ErrorMissingReviewID),
-		errors.Is(err, kycErrors.ErrorInvalidDecision):
+		errors.Is(err, kycErrors.ErrorInvalidDecision),
+		errors.Is(err, kycErrors.ErrorVehicleDocumentNotAllowed):
 		return status.Error(codes.InvalidArgument, err.Error())
 
 	// 5 - NOT_FOUND

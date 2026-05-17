@@ -40,11 +40,8 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/kyc/inquiries/getInquiry": true,
 	"/api/v1/kyc/me/getStatus":         true,
 	"/api/v1/kyc/inquiries/resume":     true,
-	// kyc-service (admin)
-	"/api/v1/kyc/admin/reviews/getReviews": true,
-	"/api/v1/kyc/admin/reviews/getReview":  true,
-	"/api/v1/kyc/admin/reviews/override":   true,
 	// kyc-service — webhook et health sont publics (pas de JWT)
+	// kyc-service admin → SupportProtectedRoutes
 
 	// booking-service (internal/* et health sont publics)
 	"/booking/createBooking":              true,
@@ -123,6 +120,12 @@ var SupportProtectedRoutes = map[string]bool{
 
 	// chat-service — accès support au contenu déchiffré d'un message signalé
 	"/api/v1/chat/messages/{message_id}/flagged-content": true,
+
+	// kyc-service — validation et consultation des revues de documents (réservé support)
+	"/api/v1/kyc/admin/reviews/getReviews":  true,
+	"/api/v1/kyc/admin/reviews/getReview":   true,
+	"/api/v1/kyc/admin/reviews/override":    true,
+	"/api/v1/kyc/admin/validateDocument":    true,
 }
 
 // RateLimitTier identifie le niveau de rate limiting pour une route
