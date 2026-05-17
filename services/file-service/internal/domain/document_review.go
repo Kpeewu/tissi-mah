@@ -44,6 +44,8 @@ var ValidReasonRejections = map[string]bool{
 
 type DocumentReview struct {
 	ReviewID          string
+	UserID            string
+	DocumentType      string
 	UserDocumentID    *string
 	VehicleDocumentID *string
 

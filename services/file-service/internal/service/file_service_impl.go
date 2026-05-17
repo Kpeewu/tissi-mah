@@ -357,16 +357,21 @@ func (s *fileServiceImpl) DeleteVehicleDocument(ctx context.Context, documentID 
 
 func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input serviceInterfaces.CreateReviewInput) (*domain.DocumentReview, error) {
 	s.logger.Debug("create document review",
+		zap.String("userID", input.UserID),
+		zap.String("documentType", input.DocumentType),
 		zap.String("userDocID", input.UserDocumentID),
 		zap.String("vehicleDocID", input.VehicleDocumentID),
 		zap.String("decision", input.Decision),
 	)
 
-	// Vérification : exactement un des deux document IDs doit être fourni
-	if input.UserDocumentID == "" && input.VehicleDocumentID == "" {
-		s.logger.Error("review must reference either a user document or a vehicle document")
-		return nil, fileErrors.ErrorMissingDocumentReference
+	// user_id est obligatoire (dénormalisé depuis la migration 000008 pour
+	// permettre les reviews Persona 100% sans FK doc).
+	if input.UserID == "" {
+		s.logger.Error("review must include user_id")
+		return nil, fileErrors.ErrorMissingUserID
 	}
+
+	// Les FK doc sont désormais optionnelles. Seule contrainte : pas les deux.
 	if input.UserDocumentID != "" && input.VehicleDocumentID != "" {
 		s.logger.Error("review must reference only one document, not both")
 		return nil, fileErrors.ErrorMultipleDocumentReference
@@ -470,6 +475,8 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 	now := time.Now().UTC()
 	review := &domain.DocumentReview{
 		ReviewID:          reviewID,
+		UserID:            input.UserID,
+		DocumentType:      input.DocumentType,
 		UserDocumentID:    userDocID,
 		VehicleDocumentID: vehicleDocID,
 

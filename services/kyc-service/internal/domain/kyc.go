@@ -43,6 +43,8 @@ func IsActiveStatus(status string) bool {
 // Review représente une revue de document telle que retournée par le file-service
 type Review struct {
 	ReviewID          string
+	UserID            string
+	DocumentType      string
 	UserDocumentID    string
 	VehicleDocumentID string
 
@@ -99,6 +101,9 @@ type DocumentRef struct {
 	DocumentType string
 	OwnerID      string
 	DocumentURL  string
+	// UserID est renseigné uniquement pour les documents véhicule, où OwnerID
+	// est le vehicle_id. Pour les documents utilisateur OwnerID est déjà le user_id.
+	UserID string
 }
 
 // PendingReview est une vue allégée pour le statut KYC
