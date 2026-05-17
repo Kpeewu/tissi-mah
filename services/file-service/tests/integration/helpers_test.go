@@ -82,8 +82,12 @@ func insertUserDoc(t *testing.T, doc *domain.UserDocument) {
 func newVehicleDoc(vehicleID, docType string) *domain.VehicleDocument {
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	return &domain.VehicleDocument{
-		DocumentID:    uuid.New().String(),
-		VehicleID:     vehicleID,
+		DocumentID: uuid.New().String(),
+		VehicleID:  vehicleID,
+		// UserID par défaut dérivé du vehicleID : les tests qui ont besoin d'un
+		// utilisateur spécifique peuvent écraser ce champ après l'appel.
+		// Indispensable depuis migration 000008 où document_reviews.user_id est NOT NULL.
+		UserID:        "owner-" + vehicleID,
 		DocumentName:  docType + "_doc",
 		DocumentType:  docType,
 		DocumentKey:   docType + "/" + vehicleID + "/doc.jpg",
@@ -105,11 +109,17 @@ func insertVehicleDoc(t *testing.T, doc *domain.VehicleDocument) {
 
 // --- Fixtures : DocumentReview ---
 
-func newReviewForUserDoc(userDocID string) *domain.DocumentReview {
+// newReviewForUserDoc construit une review attachée à un user document.
+// UserID et DocumentType sont dénormalisés depuis migration 000008 (NOT NULL),
+// donc on prend le doc complet pour les récupérer.
+func newReviewForUserDoc(doc *domain.UserDocument) *domain.DocumentReview {
 	now := time.Now().UTC().Truncate(time.Millisecond)
+	docID := doc.DocumentID
 	return &domain.DocumentReview{
 		ReviewID:       uuid.New().String(),
-		UserDocumentID: &userDocID,
+		UserID:         doc.UserID,
+		DocumentType:   doc.DocumentType,
+		UserDocumentID: &docID,
 		Status:         "pending",
 		Decision:       "approved",
 		ReviewedBy:     "admin-1",
@@ -120,11 +130,16 @@ func newReviewForUserDoc(userDocID string) *domain.DocumentReview {
 	}
 }
 
-func newReviewForVehicleDoc(vehicleDocID string) *domain.DocumentReview {
+// newReviewForVehicleDoc construit une review attachée à un vehicle document.
+// Idem : UserID (= UserID du véhicule, migration 000005) + DocumentType dénormalisés.
+func newReviewForVehicleDoc(doc *domain.VehicleDocument) *domain.DocumentReview {
 	now := time.Now().UTC().Truncate(time.Millisecond)
+	docID := doc.DocumentID
 	return &domain.DocumentReview{
 		ReviewID:          uuid.New().String(),
-		VehicleDocumentID: &vehicleDocID,
+		UserID:            doc.UserID,
+		DocumentType:      doc.DocumentType,
+		VehicleDocumentID: &docID,
 		Status:            "completed",
 		Decision:          "rejected",
 		ReasonRejection:   "document_expired",
