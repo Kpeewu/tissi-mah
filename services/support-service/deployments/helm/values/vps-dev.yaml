@@ -67,10 +67,10 @@ probes:
 resources:
   limits:
     cpu: 200m
-    memory: 128Mi
+    memory: 256Mi
   requests:
     cpu: 50m
-    memory: 64Mi
+    memory: 128Mi
 
 autoscaling:
   enabled: false
