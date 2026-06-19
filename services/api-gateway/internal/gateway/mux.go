@@ -213,6 +213,7 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 	if err := mux.HandlePath("POST", "/api/v1/payment/webhooks/fedapay", func(w http.ResponseWriter, r *http.Request, _ map[string]string) {
 		rawBody, err := io.ReadAll(r.Body)
 		if err != nil {
+			cfg.Logger.Error("fedapay webhook: failed to read request body", zap.Error(err))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]string{"ErrorMessage": "failed to read request body"}) //nolint:errcheck
@@ -227,6 +228,10 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		})
 		if err != nil {
 			s, _ := status.FromError(err)
+			cfg.Logger.Error("fedapay webhook: payment-service call failed",
+				zap.String("grpc_code", s.Code().String()),
+				zap.String("message", s.Message()),
+			)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(runtime.HTTPStatusFromCode(s.Code()))
 			json.NewEncoder(w).Encode(map[string]string{"ErrorMessage": s.Message()}) //nolint:errcheck
@@ -235,6 +240,7 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 
 		w.Header().Set("Content-Type", "application/json")
 		if !resp.Success {
+			cfg.Logger.Warn("fedapay webhook: payment-service returned non-success")
 			w.WriteHeader(http.StatusUnprocessableEntity)
 		}
 		json.NewEncoder(w).Encode(resp) //nolint:errcheck
@@ -255,6 +261,7 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 	if err := mux.HandlePath("POST", "/api/v1/kyc/webhooks/persona", func(w http.ResponseWriter, r *http.Request, _ map[string]string) {
 		rawBody, err := io.ReadAll(r.Body)
 		if err != nil {
+			cfg.Logger.Error("persona webhook: failed to read request body", zap.Error(err))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]string{"ErrorMessage": "failed to read request body"}) //nolint:errcheck
@@ -286,6 +293,12 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		})
 		if err != nil {
 			s, _ := status.FromError(err)
+			cfg.Logger.Error("persona webhook: kyc-service call failed",
+				zap.String("grpc_code", s.Code().String()),
+				zap.String("message", s.Message()),
+				zap.String("event_type", p.Data.Attributes.Name),
+				zap.String("inquiry_id", p.Data.Attributes.Payload.Data.ID),
+			)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(runtime.HTTPStatusFromCode(s.Code()))
 			json.NewEncoder(w).Encode(map[string]string{"ErrorMessage": s.Message()}) //nolint:errcheck
@@ -294,6 +307,10 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 
 		w.Header().Set("Content-Type", "application/json")
 		if !resp.Success {
+			cfg.Logger.Warn("persona webhook: kyc-service returned non-success",
+				zap.String("event_type", p.Data.Attributes.Name),
+				zap.String("inquiry_id", p.Data.Attributes.Payload.Data.ID),
+			)
 			w.WriteHeader(http.StatusUnprocessableEntity)
 		}
 		json.NewEncoder(w).Encode(resp) //nolint:errcheck
