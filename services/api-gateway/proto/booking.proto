@@ -11,7 +11,7 @@ service BookingService {
   // CreateBooking crée une nouvelle réservation pour un passager.
   rpc CreateBooking(CreateBookingRequest) returns (CreateBookingResponse) {
     option (google.api.http) = {
-      post: "/booking/createBooking"
+      post: "/api/v1/booking/createBooking"
       body: "*"
     };
   }
@@ -19,28 +19,28 @@ service BookingService {
   // GetBookingDetails retourne les détails complets d'une réservation.
   rpc GetBookingDetails(GetBookingDetailsRequest) returns (GetBookingDetailsResponse) {
     option (google.api.http) = {
-      get: "/booking/getBookingDetails"
+      get: "/api/v1/booking/getBookingDetails"
     };
   }
 
   // GetPassengerBookings retourne la liste paginée des réservations d'un passager.
   rpc GetPassengerBookings(GetPassengerBookingsRequest) returns (GetPassengerBookingsResponse) {
     option (google.api.http) = {
-      get: "/booking/getPassengerBookings"
+      get: "/api/v1/booking/getPassengerBookings"
     };
   }
 
   // GetDriverTripBookings retourne la liste paginée des réservations pour un trajet du conducteur.
   rpc GetDriverTripBookings(GetDriverTripBookingsRequest) returns (GetDriverTripBookingsResponse) {
     option (google.api.http) = {
-      get: "/booking/getDriverTripBookings"
+      get: "/api/v1/booking/getDriverTripBookings"
     };
   }
 
   // ApproveBooking permet au conducteur d'approuver une réservation en attente.
   rpc ApproveBooking(ApproveBookingRequest) returns (ApproveBookingResponse) {
     option (google.api.http) = {
-      patch: "/booking/approveBooking"
+      patch: "/api/v1/booking/approveBooking"
       body: "*"
     };
   }
@@ -48,7 +48,7 @@ service BookingService {
   // RejectBooking permet au conducteur de rejeter une réservation en attente.
   rpc RejectBooking(RejectBookingRequest) returns (RejectBookingResponse) {
     option (google.api.http) = {
-      patch: "/booking/rejectBooking"
+      patch: "/api/v1/booking/rejectBooking"
       body: "*"
     };
   }
@@ -56,7 +56,7 @@ service BookingService {
   // CancelBooking permet au passager ou au conducteur d'annuler une réservation.
   rpc CancelBooking(CancelBookingRequest) returns (CancelBookingResponse) {
     option (google.api.http) = {
-      patch: "/booking/cancelBooking"
+      patch: "/api/v1/booking/cancelBooking"
       body: "*"
     };
   }
@@ -65,7 +65,7 @@ service BookingService {
   // Route interne appelée par trips-service lors de StartTrip ou ConfirmWaypointDeparture.
   rpc StartBookingsForWaypoint(StartBookingsForWaypointRequest) returns (StartBookingsForWaypointResponse) {
     option (google.api.http) = {
-      patch: "/booking/internal/startBookingsForWaypoint"
+      patch: "/api/v1/booking/internal/startBookingsForWaypoint"
       body: "*"
     };
   }
@@ -74,7 +74,7 @@ service BookingService {
   // Route interne appelée par trips-service lors de EndTrip ou ConfirmWaypointArrival.
   rpc CompleteBookingsForWaypoint(CompleteBookingsForWaypointRequest) returns (CompleteBookingsForWaypointResponse) {
     option (google.api.http) = {
-      patch: "/booking/internal/completeBookingsForWaypoint"
+      patch: "/api/v1/booking/internal/completeBookingsForWaypoint"
       body: "*"
     };
   }
@@ -83,7 +83,7 @@ service BookingService {
   // Route interne appelée par trips-service lors de CancelWaypoint.
   rpc CancelBookingsForWaypoint(CancelBookingsForWaypointRequest) returns (CancelBookingsForWaypointResponse) {
     option (google.api.http) = {
-      patch: "/booking/internal/cancelBookingsForWaypoint"
+      patch: "/api/v1/booking/internal/cancelBookingsForWaypoint"
       body: "*"
     };
   }
@@ -92,7 +92,7 @@ service BookingService {
   // Route interne appelée par trips-service lors de CancelTrip.
   rpc CancelBookingsForTrip(CancelBookingsForTripRequest) returns (CancelBookingsForTripResponse) {
     option (google.api.http) = {
-      patch: "/booking/internal/cancelBookingsForTrip"
+      patch: "/api/v1/booking/internal/cancelBookingsForTrip"
       body: "*"
     };
   }
@@ -100,7 +100,7 @@ service BookingService {
   // ReportNoShow signale l'absence d'un passager ou d'un conducteur.
   rpc ReportNoShow(ReportNoShowRequest) returns (ReportNoShowResponse) {
     option (google.api.http) = {
-      post: "/booking/reportNoShow"
+      post: "/api/v1/booking/reportNoShow"
       body: "*"
     };
   }
@@ -108,7 +108,7 @@ service BookingService {
   // ConfirmPayment confirme le paiement d'une réservation (callback paiement).
   rpc ConfirmPayment(ConfirmPaymentRequest) returns (ConfirmPaymentResponse) {
     option (google.api.http) = {
-      post: "/booking/confirmPayment"
+      post: "/api/v1/booking/confirmPayment"
       body: "*"
     };
   }
@@ -117,7 +117,7 @@ service BookingService {
   // Route interne appelée par payment-service lors d'un webhook d'échec FedaPay.
   rpc FailPayment(FailPaymentRequest) returns (FailPaymentResponse) {
     option (google.api.http) = {
-      post: "/booking/internal/failPayment"
+      post: "/api/v1/booking/internal/failPayment"
       body: "*"
     };
   }
@@ -126,7 +126,7 @@ service BookingService {
   // Route interne appelée par trips-service lors d'une modification de trajet (TRIP_MODIFIED).
   rpc GetActivePassengerIDsForTrip(GetActivePassengerIDsForTripRequest) returns (GetActivePassengerIDsForTripResponse) {
     option (google.api.http) = {
-      get: "/booking/internal/getActivePassengerIDsForTrip"
+      get: "/api/v1/booking/internal/getActivePassengerIDsForTrip"
     };
   }
 
@@ -134,7 +134,7 @@ service BookingService {
   // tous trajets confondus, enrichie avec les informations passager (nom, note, KYC, message, détour).
   rpc GetDriverPendingBookings(GetDriverPendingBookingsRequest) returns (GetDriverPendingBookingsResponse) {
     option (google.api.http) = {
-      get: "/booking/getDriverPendingBookings"
+      get: "/api/v1/booking/getDriverPendingBookings"
     };
   }
 
@@ -142,14 +142,14 @@ service BookingService {
   // enrichis avec nom, note, statut paiement — pour l'écran de suivi chauffeur.
   rpc GetActivePassengerSummariesForTrip(GetActivePassengerSummariesForTripRequest) returns (GetActivePassengerSummariesForTripResponse) {
     option (google.api.http) = {
-      get: "/booking/getActivePassengerSummaries"
+      get: "/api/v1/booking/getActivePassengerSummaries"
     };
   }
 
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
-      get: "/booking/health"
+      get: "/api/v1/booking/health"
     };
   }
 

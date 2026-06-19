@@ -15,7 +15,7 @@ service PaymentService {
   // CreatePayment crée un paiement pour une réservation et initie la transaction FedaPay
   rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse) {
     option (google.api.http) = {
-      post: "/payment/createPayment"
+      post: "/api/v1/payment/createPayment"
       body: "*"
     };
   }
@@ -23,21 +23,21 @@ service PaymentService {
   // GetPaymentStatus retourne le statut d'un paiement
   rpc GetPaymentStatus(GetPaymentStatusRequest) returns (GetPaymentStatusResponse) {
     option (google.api.http) = {
-      get: "/payment/getPaymentStatus"
+      get: "/api/v1/payment/getPaymentStatus"
     };
   }
 
   // GetPaymentByBooking retourne le paiement associé à une réservation
   rpc GetPaymentByBooking(GetPaymentByBookingRequest) returns (GetPaymentByBookingResponse) {
     option (google.api.http) = {
-      get: "/payment/getPaymentByBooking"
+      get: "/api/v1/payment/getPaymentByBooking"
     };
   }
 
   // ProcessWebhook traite les webhooks FedaPay (public, vérifié par HMAC)
   rpc ProcessWebhook(ProcessWebhookRequest) returns (ProcessWebhookResponse) {
     option (google.api.http) = {
-      post: "/payment/webhooks/fedapay"
+      post: "/api/v1/payment/webhooks/fedapay"
       body: "*"
     };
   }
@@ -45,7 +45,7 @@ service PaymentService {
   // RequestRefund crée un remboursement (interne — appelé par booking-service)
   rpc RequestRefund(RequestRefundRequest) returns (RequestRefundResponse) {
     option (google.api.http) = {
-      post: "/payment/internal/requestRefund"
+      post: "/api/v1/payment/internal/requestRefund"
       body: "*"
     };
   }
@@ -53,14 +53,14 @@ service PaymentService {
   // GetRefundStatus retourne le statut d'un remboursement
   rpc GetRefundStatus(GetRefundStatusRequest) returns (GetRefundStatusResponse) {
     option (google.api.http) = {
-      get: "/payment/getRefundStatus"
+      get: "/api/v1/payment/getRefundStatus"
     };
   }
 
   // ReleasePayment libère un paiement held après le délai de contestation (interne)
   rpc ReleasePayment(ReleasePaymentRequest) returns (ReleasePaymentResponse) {
     option (google.api.http) = {
-      post: "/payment/internal/releasePayment"
+      post: "/api/v1/payment/internal/releasePayment"
       body: "*"
     };
   }
@@ -68,21 +68,21 @@ service PaymentService {
   // GetPayoutStatus retourne le statut d'un payout chauffeur
   rpc GetPayoutStatus(GetPayoutStatusRequest) returns (GetPayoutStatusResponse) {
     option (google.api.http) = {
-      get: "/payment/getPayoutStatus"
+      get: "/api/v1/payment/getPayoutStatus"
     };
   }
 
   // GetDriverPayouts retourne les payouts d'un chauffeur
   rpc GetDriverPayouts(GetDriverPayoutsRequest) returns (GetDriverPayoutsResponse) {
     option (google.api.http) = {
-      get: "/payment/getDriverPayouts"
+      get: "/api/v1/payment/getDriverPayouts"
     };
   }
 
   // TriggerManualPayout permet à un agent support de lancer manuellement un payout pour un trajet
   rpc TriggerManualPayout(TriggerManualPayoutRequest) returns (TriggerManualPayoutResponse) {
     option (google.api.http) = {
-      post: "/payment/support/triggerManualPayout"
+      post: "/api/v1/payment/support/triggerManualPayout"
       body: "*"
     };
   }
@@ -90,7 +90,7 @@ service PaymentService {
   // Health vérifie l'état du service
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
-      get: "/payment/health"
+      get: "/api/v1/payment/health"
     };
   }
 

@@ -7,27 +7,27 @@ import "google/api/annotations.proto";
 service VehicleService {
   // AddVehicle crée un nouveau véhicule pour un utilisateur.
   rpc AddVehicle(AddVehicleRequest) returns (AddVehicleResponse) {
-    option (google.api.http) = { post: "/vehicle/add" body: "*" };
+    option (google.api.http) = { post: "/api/v1/vehicle/add" body: "*" };
   }
   // UpdateVehicle met à jour les informations modifiables d'un véhicule.
   rpc UpdateVehicle(UpdateVehicleRequest) returns (UpdateVehicleResponse) {
-    option (google.api.http) = { patch: "/vehicle/update" body: "*" };
+    option (google.api.http) = { patch: "/api/v1/vehicle/update" body: "*" };
   }
   // DeleteVehicle supprime un véhicule.
   rpc DeleteVehicle(DeleteVehicleRequest) returns (DeleteVehicleResponse) {
-    option (google.api.http) = { post: "/vehicle/delete" body: "*" };
+    option (google.api.http) = { post: "/api/v1/vehicle/delete" body: "*" };
   }
   // GetVehicleDetails retourne les détails complets d'un véhicule.
   rpc GetVehicleDetails(GetVehicleDetailsRequest) returns (GetVehicleDetailsResponse) {
-    option (google.api.http) = { post: "/vehicle/details" body: "*" };
+    option (google.api.http) = { post: "/api/v1/vehicle/details" body: "*" };
   }
   // GetUserVehicles retourne la liste des véhicules d'un utilisateur.
   rpc GetUserVehicles(GetUserVehiclesRequest) returns (GetUserVehiclesResponse) {
-    option (google.api.http) = { post: "/vehicle/getUserVehicles" body: "*" };
+    option (google.api.http) = { post: "/api/v1/vehicle/getUserVehicles" body: "*" };
   }
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
-    option (google.api.http) = { get: "/vehicle/health" };
+    option (google.api.http) = { get: "/api/v1/vehicle/health" };
   }
 }
 
