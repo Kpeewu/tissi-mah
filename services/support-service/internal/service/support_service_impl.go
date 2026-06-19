@@ -73,9 +73,11 @@ func (s *supportServiceImpl) Login(ctx context.Context, email, plain string) (*s
 
 	locked, err := s.otpStore.IsLocked(ctx, email, s.cfg.RateLimit.FailThreshold)
 	if err != nil {
+		s.logger.Error("login: redis lock check failed", zap.String("email", email), zap.Error(err))
 		return nil, supportErrors.ErrInternal
 	}
 	if locked {
+		s.logger.Warn("login: account locked", zap.String("email", email))
 		return nil, supportErrors.ErrAccountLocked
 	}
 
@@ -92,6 +94,7 @@ func (s *supportServiceImpl) Login(ctx context.Context, email, plain string) (*s
 
 	ok, err := password.Verify(user.PasswordHash, plain)
 	if err != nil || !ok {
+		s.logger.Warn("login: invalid credentials", zap.String("email", email))
 		_, _ = s.otpStore.IncrFail(ctx, email)
 		return nil, supportErrors.ErrInvalidCredentials
 	}
@@ -106,10 +109,12 @@ func (s *supportServiceImpl) Login(ctx context.Context, email, plain string) (*s
 func (s *supportServiceImpl) startOTPSession(ctx context.Context, user *domain.SupportUser) (*svcIfaces.LoginResult, error) {
 	code, err := otp.Generate()
 	if err != nil {
+		s.logger.Error("startOTPSession: OTP generation failed", zap.String("userID", user.UserID), zap.Error(err))
 		return nil, supportErrors.ErrInternal
 	}
 	codeHash, err := password.Hash(code)
 	if err != nil {
+		s.logger.Error("startOTPSession: OTP hash failed", zap.String("userID", user.UserID), zap.Error(err))
 		return nil, supportErrors.ErrInternal
 	}
 	sessionID := uuid.NewString()
@@ -122,6 +127,7 @@ func (s *supportServiceImpl) startOTPSession(ctx context.Context, user *domain.S
 		CreatedAt: time.Now().Unix(),
 	}
 	if err := s.otpStore.SaveSession(ctx, sessionID, sess); err != nil {
+		s.logger.Error("startOTPSession: save session failed", zap.String("userID", user.UserID), zap.Error(err))
 		return nil, supportErrors.ErrInternal
 	}
 
@@ -137,6 +143,7 @@ func (s *supportServiceImpl) startOTPSession(ctx context.Context, user *domain.S
 		}
 	}(user.Email, code)
 
+	s.logger.Info("OTP session started", zap.String("userID", user.UserID))
 	return &svcIfaces.LoginResult{
 		OTPSessionID:     sessionID,
 		ExpiresInSeconds: s.cfg.OTP.TTLSeconds,
@@ -156,10 +163,12 @@ func (s *supportServiceImpl) VerifyOTP(ctx context.Context, sessionID, code stri
 
 	locked, _ := s.otpStore.IsLocked(ctx, sess.Email, s.cfg.RateLimit.FailThreshold)
 	if locked {
+		s.logger.Warn("verifyOTP: account locked", zap.String("email", sess.Email))
 		return nil, supportErrors.ErrAccountLocked
 	}
 
 	if sess.Attempts >= s.cfg.OTP.MaxAttempts {
+		s.logger.Warn("verifyOTP: max attempts reached", zap.String("email", sess.Email), zap.Int("attempts", sess.Attempts))
 		_ = s.otpStore.DeleteSession(ctx, sessionID)
 		_, _ = s.otpStore.IncrFail(ctx, sess.Email)
 		return nil, supportErrors.ErrOTPTooManyAttempts
@@ -167,6 +176,7 @@ func (s *supportServiceImpl) VerifyOTP(ctx context.Context, sessionID, code stri
 
 	ok, err := password.Verify(sess.CodeHash, code)
 	if err != nil || !ok {
+		s.logger.Warn("verifyOTP: invalid code", zap.String("email", sess.Email), zap.Int("attempt", sess.Attempts+1))
 		_ = s.otpStore.IncrSessionAttempts(ctx, sessionID, sess)
 		_, _ = s.otpStore.IncrFail(ctx, sess.Email)
 		return nil, supportErrors.ErrOTPInvalid
@@ -183,13 +193,16 @@ func (s *supportServiceImpl) VerifyOTP(ctx context.Context, sessionID, code stri
 
 	access, accessExp, err := s.jwtSigner.Sign(user.UserID, user.Role, user.MustChangePassword)
 	if err != nil {
+		s.logger.Error("verifyOTP: JWT signing failed", zap.String("userID", user.UserID), zap.Error(err))
 		return nil, supportErrors.ErrInternal
 	}
 	refresh, _, refreshExp, err := s.refreshStore.Issue(ctx, user.UserID, user.Role, "")
 	if err != nil {
+		s.logger.Error("verifyOTP: refresh token issue failed", zap.String("userID", user.UserID), zap.Error(err))
 		return nil, supportErrors.ErrInternal
 	}
 
+	s.logger.Info("verifyOTP: authentication success", zap.String("userID", user.UserID))
 	return &svcIfaces.VerifyOTPResult{
 		AccessToken:        access,
 		AccessExpiresAt:    accessExp,
@@ -212,6 +225,7 @@ func (s *supportServiceImpl) ResendOTP(ctx context.Context, sessionID string) (*
 	}
 	locked, _ := s.otpStore.IsLocked(ctx, sess.Email, s.cfg.RateLimit.FailThreshold)
 	if locked {
+		s.logger.Warn("resendOTP: account locked", zap.String("email", sess.Email))
 		return nil, supportErrors.ErrAccountLocked
 	}
 	if err := s.otpStore.MarkResendCooldown(ctx, sess.Email); err != nil {
@@ -225,10 +239,12 @@ func (s *supportServiceImpl) ResendOTP(ctx context.Context, sessionID string) (*
 
 	code, err := otp.Generate()
 	if err != nil {
+		s.logger.Error("resendOTP: OTP generation failed", zap.String("userID", sess.UserID), zap.Error(err))
 		return nil, supportErrors.ErrInternal
 	}
 	codeHash, err := password.Hash(code)
 	if err != nil {
+		s.logger.Error("resendOTP: OTP hash failed", zap.String("userID", sess.UserID), zap.Error(err))
 		return nil, supportErrors.ErrInternal
 	}
 	newSess := &otp.Session{
@@ -240,19 +256,23 @@ func (s *supportServiceImpl) ResendOTP(ctx context.Context, sessionID string) (*
 		CreatedAt: time.Now().Unix(),
 	}
 	if err := s.otpStore.SaveSession(ctx, sessionID, newSess); err != nil {
+		s.logger.Error("resendOTP: save session failed", zap.String("userID", sess.UserID), zap.Error(err))
 		return nil, supportErrors.ErrInternal
 	}
 
 	go func(to, code string) {
 		bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		_ = s.emailClient.SendEmail(bgCtx, to,
+		if err := s.emailClient.SendEmail(bgCtx, to,
 			"Votre nouveau code de connexion TissiMah Support",
 			"Votre nouveau code est : "+code+"\nIl expire dans 5 minutes.",
 			"<p>Votre nouveau code est : <strong>"+code+"</strong></p>",
-		)
+		); err != nil {
+			s.logger.Error("resendOTP: email send failed", zap.Error(err))
+		}
 	}(sess.Email, code)
 
+	s.logger.Debug("resendOTP: new OTP session saved", zap.String("userID", sess.UserID))
 	return &svcIfaces.LoginResult{
 		OTPSessionID:     sessionID,
 		ExpiresInSeconds: s.cfg.OTP.TTLSeconds,
@@ -272,14 +292,17 @@ func (s *supportServiceImpl) RefreshToken(ctx context.Context, raw string) (*svc
 	user, err := s.readRepo.GetByID(ctx, rec.UserID)
 	if err != nil || !user.IsActive {
 		_ = s.refreshStore.RevokeFamily(ctx, rec.FamilyID)
+		s.logger.Warn("refreshToken: account inactive or not found, family revoked", zap.String("userID", rec.UserID))
 		return nil, supportErrors.ErrAccountInactive
 	}
 	newRefresh, refreshExp, err := s.refreshStore.Rotate(ctx, raw, rec)
 	if err != nil {
+		s.logger.Error("refreshToken: token rotation failed", zap.String("userID", rec.UserID), zap.Error(err))
 		return nil, supportErrors.ErrInternal
 	}
 	access, accessExp, err := s.jwtSigner.Sign(user.UserID, user.Role, user.MustChangePassword)
 	if err != nil {
+		s.logger.Error("refreshToken: JWT signing failed", zap.String("userID", user.UserID), zap.Error(err))
 		return nil, supportErrors.ErrInternal
 	}
 	return &svcIfaces.RefreshResult{
@@ -324,9 +347,14 @@ func (s *supportServiceImpl) ChangeMyPassword(ctx context.Context, userID, curre
 	}
 	hash, err := password.Hash(newPwd)
 	if err != nil {
+		s.logger.Error("changeMyPassword: hash failed", zap.String("userID", userID), zap.Error(err))
 		return supportErrors.ErrInternal
 	}
-	return s.writeRepo.UpdatePassword(ctx, userID, hash, false)
+	if err := s.writeRepo.UpdatePassword(ctx, userID, hash, false); err != nil {
+		return err
+	}
+	s.logger.Info("changeMyPassword: success", zap.String("userID", userID))
+	return nil
 }
 
 // ─── ChangeMyEmail ───────────────────────────────────────────────────────────
@@ -345,6 +373,7 @@ func (s *supportServiceImpl) ChangeMyEmail(ctx context.Context, userID, newEmail
 		return supportErrors.ErrInvalidCredentials
 	}
 	if user.EmailChangedAt != nil && time.Since(*user.EmailChangedAt) < emailChangeCooldown {
+		s.logger.Warn("changeMyEmail: cooldown not elapsed", zap.String("userID", userID))
 		return supportErrors.ErrEmailChangeCooldown
 	}
 	exists, err := s.readRepo.ExistsByEmail(ctx, newEmail)
@@ -354,7 +383,11 @@ func (s *supportServiceImpl) ChangeMyEmail(ctx context.Context, userID, newEmail
 	if exists {
 		return supportErrors.ErrEmailAlreadyExists
 	}
-	return s.writeRepo.UpdateEmail(ctx, userID, newEmail)
+	if err := s.writeRepo.UpdateEmail(ctx, userID, newEmail); err != nil {
+		return err
+	}
+	s.logger.Info("changeMyEmail: success", zap.String("userID", userID))
+	return nil
 }
 
 // ─── CreateSupportAgent ──────────────────────────────────────────────────────
@@ -373,10 +406,12 @@ func (s *supportServiceImpl) CreateSupportAgent(ctx context.Context, email, firs
 	}
 	temp, err := password.GenerateTemporary()
 	if err != nil {
+		s.logger.Error("createSupportAgent: temp password generation failed", zap.String("email", email), zap.Error(err))
 		return "", supportErrors.ErrInternal
 	}
 	hash, err := password.Hash(temp)
 	if err != nil {
+		s.logger.Error("createSupportAgent: password hash failed", zap.String("email", email), zap.Error(err))
 		return "", supportErrors.ErrInternal
 	}
 	user := &domain.SupportUser{
@@ -390,19 +425,23 @@ func (s *supportServiceImpl) CreateSupportAgent(ctx context.Context, email, firs
 		MustChangePassword: true,
 	}
 	if err := s.writeRepo.Create(ctx, user); err != nil {
+		s.logger.Error("createSupportAgent: DB create failed", zap.String("email", email), zap.Error(err))
 		return "", err
 	}
 
 	go func(to, temp string) {
 		bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		_ = s.emailClient.SendEmail(bgCtx, to,
+		if err := s.emailClient.SendEmail(bgCtx, to,
 			"Votre compte support TissiMah",
 			"Votre mot de passe provisoire : "+temp+"\nVous devrez le changer à la première connexion.",
 			"<p>Votre mot de passe provisoire : <strong>"+temp+"</strong></p><p>Vous devrez le changer à la première connexion.</p>",
-		)
+		); err != nil {
+			s.logger.Error("createSupportAgent: welcome email send failed", zap.String("email", to), zap.Error(err))
+		}
 	}(email, temp)
 
+	s.logger.Info("createSupportAgent: support agent created", zap.String("userID", user.UserID), zap.String("email", email))
 	return user.UserID, nil
 }
 
@@ -418,5 +457,9 @@ func (s *supportServiceImpl) DeactivateSupportAgent(ctx context.Context, userID 
 	if userID == "" {
 		return supportErrors.ErrInvalidInput
 	}
-	return s.writeRepo.Deactivate(ctx, userID)
+	if err := s.writeRepo.Deactivate(ctx, userID); err != nil {
+		return err
+	}
+	s.logger.Info("deactivateSupportAgent: success", zap.String("userID", userID))
+	return nil
 }

@@ -61,6 +61,9 @@ func JWTSupport(secret string, isProtected ProtectedRoutes, logger *zap.Logger) 
 			}
 			c, ok := parsed.Claims.(*supportClaims)
 			if !ok || c.Subject == "" {
+				logger.Warn("support jwt: invalid token claims",
+					zap.String("path", r.URL.Path),
+				)
 				writeJSONError(w, http.StatusUnauthorized, "invalid support token claims")
 				return
 			}

@@ -66,8 +66,16 @@ func JWTFirebase(validator *firebaseValidator.JWTValidator, isProtected Protecte
 				if redisErr == nil {
 					// Clé présente → compte suspendu ou banni
 					if val == "banned" {
+						logger.Warn("blocked request: account banned",
+							zap.String("uid", uid),
+							zap.String("path", r.URL.Path),
+						)
 						writeJSONError(w, http.StatusForbidden, "account_banned")
 					} else {
+						logger.Warn("blocked request: account suspended",
+							zap.String("uid", uid),
+							zap.String("path", r.URL.Path),
+						)
 						writeJSONError(w, http.StatusForbidden, "account_suspended")
 					}
 					return

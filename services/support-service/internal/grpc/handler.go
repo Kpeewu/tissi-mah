@@ -94,10 +94,13 @@ func (h *SupportHandler) gateMustChange(ctx context.Context, allowed bool) error
 }
 
 func (h *SupportHandler) Login(ctx context.Context, req *supportpb.LoginRequest) (*supportpb.LoginResponse, error) {
+	h.logger.Debug("handler: Login called", zap.String("email", req.GetEmail()))
 	res, err := h.svc.Login(ctx, req.GetEmail(), req.GetPassword())
 	if err != nil {
+		h.logger.Error("handler: Login failed", zap.String("email", req.GetEmail()), zap.Error(err))
 		return nil, toGRPCError(err)
 	}
+	h.logger.Info("handler: Login success - OTP session started", zap.String("email", req.GetEmail()))
 	return &supportpb.LoginResponse{
 		OtpSessionId:     res.OTPSessionID,
 		ExpiresInSeconds: int32(res.ExpiresInSeconds),
@@ -105,10 +108,13 @@ func (h *SupportHandler) Login(ctx context.Context, req *supportpb.LoginRequest)
 }
 
 func (h *SupportHandler) VerifyOTP(ctx context.Context, req *supportpb.VerifyOTPRequest) (*supportpb.VerifyOTPResponse, error) {
+	h.logger.Debug("handler: VerifyOTP called", zap.String("sessionID", req.GetOtpSessionId()))
 	res, err := h.svc.VerifyOTP(ctx, req.GetOtpSessionId(), req.GetCode())
 	if err != nil {
+		h.logger.Error("handler: VerifyOTP failed", zap.String("sessionID", req.GetOtpSessionId()), zap.Error(err))
 		return nil, toGRPCError(err)
 	}
+	h.logger.Info("handler: VerifyOTP success", zap.String("sessionID", req.GetOtpSessionId()))
 	return &supportpb.VerifyOTPResponse{
 		AccessToken:        res.AccessToken,
 		AccessExpiresAt:    res.AccessExpiresAt,
@@ -120,10 +126,13 @@ func (h *SupportHandler) VerifyOTP(ctx context.Context, req *supportpb.VerifyOTP
 }
 
 func (h *SupportHandler) ResendOTP(ctx context.Context, req *supportpb.ResendOTPRequest) (*supportpb.ResendOTPResponse, error) {
+	h.logger.Debug("handler: ResendOTP called", zap.String("sessionID", req.GetOtpSessionId()))
 	res, err := h.svc.ResendOTP(ctx, req.GetOtpSessionId())
 	if err != nil {
+		h.logger.Error("handler: ResendOTP failed", zap.String("sessionID", req.GetOtpSessionId()), zap.Error(err))
 		return nil, toGRPCError(err)
 	}
+	h.logger.Debug("handler: ResendOTP success", zap.String("sessionID", req.GetOtpSessionId()))
 	return &supportpb.ResendOTPResponse{
 		OtpSessionId:     res.OTPSessionID,
 		ExpiresInSeconds: int32(res.ExpiresInSeconds),
@@ -131,10 +140,13 @@ func (h *SupportHandler) ResendOTP(ctx context.Context, req *supportpb.ResendOTP
 }
 
 func (h *SupportHandler) RefreshToken(ctx context.Context, req *supportpb.RefreshTokenRequest) (*supportpb.RefreshTokenResponse, error) {
+	h.logger.Debug("handler: RefreshToken called")
 	res, err := h.svc.RefreshToken(ctx, req.GetRefreshToken())
 	if err != nil {
+		h.logger.Error("handler: RefreshToken failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
+	h.logger.Debug("handler: RefreshToken success")
 	return &supportpb.RefreshTokenResponse{
 		AccessToken:      res.AccessToken,
 		AccessExpiresAt:  res.AccessExpiresAt,
@@ -144,19 +156,25 @@ func (h *SupportHandler) RefreshToken(ctx context.Context, req *supportpb.Refres
 }
 
 func (h *SupportHandler) Logout(ctx context.Context, req *supportpb.LogoutRequest) (*supportpb.LogoutResponse, error) {
+	h.logger.Debug("handler: Logout called")
 	if err := h.svc.Logout(ctx, req.GetRefreshToken()); err != nil {
+		h.logger.Error("handler: Logout failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
+	h.logger.Debug("handler: Logout success")
 	return &supportpb.LogoutResponse{}, nil
 }
 
 func (h *SupportHandler) Me(ctx context.Context, _ *supportpb.MeRequest) (*supportpb.MeResponse, error) {
 	uid, ok := middleware.UIDFromContext(ctx)
 	if !ok {
+		h.logger.Error("handler: Me - missing support UID in context")
 		return nil, toGRPCError(supportErrors.ErrUnauthenticated)
 	}
+	h.logger.Debug("handler: Me called", zap.String("uid", uid))
 	u, err := h.svc.Me(ctx, uid)
 	if err != nil {
+		h.logger.Error("handler: Me failed", zap.String("uid", uid), zap.Error(err))
 		return nil, toGRPCError(err)
 	}
 	return &supportpb.MeResponse{
@@ -173,51 +191,66 @@ func (h *SupportHandler) Me(ctx context.Context, _ *supportpb.MeRequest) (*suppo
 func (h *SupportHandler) ChangeMyPassword(ctx context.Context, req *supportpb.ChangeMyPasswordRequest) (*supportpb.ChangeMyPasswordResponse, error) {
 	uid, ok := middleware.UIDFromContext(ctx)
 	if !ok {
+		h.logger.Error("handler: ChangeMyPassword - missing support UID in context")
 		return nil, toGRPCError(supportErrors.ErrUnauthenticated)
 	}
+	h.logger.Debug("handler: ChangeMyPassword called", zap.String("uid", uid))
 	if err := h.svc.ChangeMyPassword(ctx, uid, req.GetCurrentPassword(), req.GetNewPassword()); err != nil {
+		h.logger.Error("handler: ChangeMyPassword failed", zap.String("uid", uid), zap.Error(err))
 		return nil, toGRPCError(err)
 	}
+	h.logger.Info("handler: ChangeMyPassword success", zap.String("uid", uid))
 	return &supportpb.ChangeMyPasswordResponse{}, nil
 }
 
 func (h *SupportHandler) ChangeMyEmail(ctx context.Context, req *supportpb.ChangeMyEmailRequest) (*supportpb.ChangeMyEmailResponse, error) {
 	uid, ok := middleware.UIDFromContext(ctx)
 	if !ok {
+		h.logger.Error("handler: ChangeMyEmail - missing support UID in context")
 		return nil, toGRPCError(supportErrors.ErrUnauthenticated)
 	}
+	h.logger.Debug("handler: ChangeMyEmail called", zap.String("uid", uid))
 	if err := h.gateMustChange(ctx, false); err != nil {
 		return nil, toGRPCError(err)
 	}
 	if err := h.svc.ChangeMyEmail(ctx, uid, req.GetNewEmail(), req.GetCurrentPassword()); err != nil {
+		h.logger.Error("handler: ChangeMyEmail failed", zap.String("uid", uid), zap.Error(err))
 		return nil, toGRPCError(err)
 	}
+	h.logger.Info("handler: ChangeMyEmail success", zap.String("uid", uid))
 	return &supportpb.ChangeMyEmailResponse{}, nil
 }
 
 func (h *SupportHandler) CreateSupportAgent(ctx context.Context, req *supportpb.CreateSupportAgentRequest) (*supportpb.CreateSupportAgentResponse, error) {
 	if err := requireAdmin(ctx); err != nil {
+		h.logger.Warn("handler: CreateSupportAgent - insufficient role", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
 	if err := h.gateMustChange(ctx, false); err != nil {
 		return nil, toGRPCError(err)
 	}
+	h.logger.Debug("handler: CreateSupportAgent called", zap.String("email", req.GetEmail()))
 	id, err := h.svc.CreateSupportAgent(ctx, req.GetEmail(), req.GetFirstName(), req.GetLastName())
 	if err != nil {
+		h.logger.Error("handler: CreateSupportAgent failed", zap.String("email", req.GetEmail()), zap.Error(err))
 		return nil, toGRPCError(err)
 	}
+	h.logger.Info("handler: CreateSupportAgent success", zap.String("email", req.GetEmail()), zap.String("userID", id))
 	return &supportpb.CreateSupportAgentResponse{UserId: id}, nil
 }
 
 func (h *SupportHandler) ListSupportAgents(ctx context.Context, req *supportpb.ListSupportAgentsRequest) (*supportpb.ListSupportAgentsResponse, error) {
 	if err := requireAdmin(ctx); err != nil {
+		h.logger.Warn("handler: ListSupportAgents - insufficient role", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
 	if err := h.gateMustChange(ctx, false); err != nil {
 		return nil, toGRPCError(err)
 	}
+	h.logger.Debug("handler: ListSupportAgents called", zap.Int32("limit", req.GetLimit()), zap.Int32("offset", req.GetOffset()))
 	users, total, err := h.svc.ListSupportAgents(ctx, int(req.GetLimit()), int(req.GetOffset()))
 	if err != nil {
+		h.logger.Error("handler: ListSupportAgents failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
 	out := make([]*supportpb.SupportAgent, 0, len(users))
@@ -232,19 +265,24 @@ func (h *SupportHandler) ListSupportAgents(ctx context.Context, req *supportpb.L
 			CreatedAt: u.CreatedAt.Unix(),
 		})
 	}
+	h.logger.Debug("handler: ListSupportAgents success", zap.Int("count", len(out)), zap.Int32("total", int32(total)))
 	return &supportpb.ListSupportAgentsResponse{Agents: out, Total: int32(total)}, nil
 }
 
 func (h *SupportHandler) DeactivateSupportAgent(ctx context.Context, req *supportpb.DeactivateSupportAgentRequest) (*supportpb.DeactivateSupportAgentResponse, error) {
 	if err := requireAdmin(ctx); err != nil {
+		h.logger.Warn("handler: DeactivateSupportAgent - insufficient role", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
 	if err := h.gateMustChange(ctx, false); err != nil {
 		return nil, toGRPCError(err)
 	}
+	h.logger.Debug("handler: DeactivateSupportAgent called", zap.String("userID", req.GetUserId()))
 	if err := h.svc.DeactivateSupportAgent(ctx, req.GetUserId()); err != nil {
+		h.logger.Error("handler: DeactivateSupportAgent failed", zap.String("userID", req.GetUserId()), zap.Error(err))
 		return nil, toGRPCError(err)
 	}
+	h.logger.Info("handler: DeactivateSupportAgent success", zap.String("userID", req.GetUserId()))
 	return &supportpb.DeactivateSupportAgentResponse{}, nil
 }
 
@@ -259,10 +297,13 @@ func (h *SupportHandler) Health(_ context.Context, _ *supportpb.HealthRequest) (
 // GetSupportUserByID est un RPC inter-service appelé par payment-service pour vérifier
 // l'identité et l'habilitation d'un agent support avant d'exécuter un payout manuel.
 func (h *SupportHandler) GetSupportUserByID(ctx context.Context, req *supportpb.GetSupportUserByIDRequest) (*supportpb.GetSupportUserByIDResponse, error) {
+	h.logger.Debug("handler: GetSupportUserByID called", zap.String("userID", req.GetUserId()))
 	u, err := h.svc.Me(ctx, req.GetUserId())
 	if err != nil {
+		h.logger.Error("handler: GetSupportUserByID failed", zap.String("userID", req.GetUserId()), zap.Error(err))
 		return nil, toGRPCError(err)
 	}
+	h.logger.Debug("handler: GetSupportUserByID success", zap.String("userID", req.GetUserId()))
 	return &supportpb.GetSupportUserByIDResponse{
 		UserId:    u.UserID,
 		FirstName: u.FirstName,
