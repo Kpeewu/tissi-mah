@@ -210,7 +210,7 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 	}
 	paymentClient := paymentpb.NewPaymentServiceClient(paymentConn)
 
-	if err := mux.HandlePath("POST", "/payment/webhooks/fedapay", func(w http.ResponseWriter, r *http.Request, _ map[string]string) {
+	if err := mux.HandlePath("POST", "/api/v1/payment/webhooks/fedapay", func(w http.ResponseWriter, r *http.Request, _ map[string]string) {
 		rawBody, err := io.ReadAll(r.Body)
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")

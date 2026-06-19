@@ -22,18 +22,18 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/ratings/updateRating":                true,
 
 	// file-service
-	"/file/uploadIdDocument":       true,
-	"/file/uploadVehicleDocuments": true,
-	"/file/changeDocument":         true,
-	"/file/getDocument":            true,
-	"/file/deleteFile":             true,
+	"/api/v1/file/uploadIdDocument":       true,
+	"/api/v1/file/uploadVehicleDocuments": true,
+	"/api/v1/file/changeDocument":         true,
+	"/api/v1/file/getDocument":            true,
+	"/api/v1/file/deleteFile":             true,
 
 	// vehicle-service
-	"/vehicle/add":             true,
-	"/vehicle/update":          true,
-	"/vehicle/delete":          true,
-	"/vehicle/details":         true,
-	"/vehicle/getUserVehicles": true,
+	"/api/v1/vehicle/add":             true,
+	"/api/v1/vehicle/update":          true,
+	"/api/v1/vehicle/delete":          true,
+	"/api/v1/vehicle/details":         true,
+	"/api/v1/vehicle/getUserVehicles": true,
 
 	// kyc-service (user-facing)
 	"/api/v1/kyc/inquiries/add":        true,
@@ -44,43 +44,43 @@ var ProtectedRoutes = map[string]bool{
 	// kyc-service admin → SupportProtectedRoutes
 
 	// booking-service (internal/* et health sont publics)
-	"/booking/createBooking":              true,
-	"/booking/getBookingDetails":          true,
-	"/booking/getPassengerBookings":       true,
-	"/booking/getDriverTripBookings":      true,
-	"/booking/getDriverPendingBookings":   true,
-	"/booking/getActivePassengerSummaries": true,
-	"/booking/approveBooking":             true,
-	"/booking/rejectBooking":              true,
-	"/booking/cancelBooking":              true,
-	"/booking/reportNoShow":               true,
-	"/booking/confirmPayment":             true,
+	"/api/v1/booking/createBooking":              true,
+	"/api/v1/booking/getBookingDetails":          true,
+	"/api/v1/booking/getPassengerBookings":       true,
+	"/api/v1/booking/getDriverTripBookings":      true,
+	"/api/v1/booking/getDriverPendingBookings":   true,
+	"/api/v1/booking/getActivePassengerSummaries": true,
+	"/api/v1/booking/approveBooking":             true,
+	"/api/v1/booking/rejectBooking":              true,
+	"/api/v1/booking/cancelBooking":              true,
+	"/api/v1/booking/reportNoShow":               true,
+	"/api/v1/booking/confirmPayment":             true,
 
 	// payment-service (protégé)
-	"/payment/createPayment":       true,
-	"/payment/getPaymentStatus":    true,
-	"/payment/getPaymentByBooking": true,
-	"/payment/getRefundStatus":     true,
-	"/payment/getPayoutStatus":     true,
-	"/payment/getDriverPayouts":    true,
+	"/api/v1/payment/createPayment":       true,
+	"/api/v1/payment/getPaymentStatus":    true,
+	"/api/v1/payment/getPaymentByBooking": true,
+	"/api/v1/payment/getRefundStatus":     true,
+	"/api/v1/payment/getPayoutStatus":     true,
+	"/api/v1/payment/getDriverPayouts":    true,
 	// payment-service — webhooks, internal et health sont publics
 
 	// trips-service
-	"/trip/driver/createTrip":                true,
-	"/trip/driver/createRecurringTrip":       true,
-	"/trip/driver/getTripsPreviews":          true,
-	"/trip/driver/getCompletedTripsPreviews": true,
-	"/trip/driver/changeTripDateAndTime":     true,
-	"/trip/driver/changeTripVehicle":         true,
-	"/trip/driver/changeTripAllowances":      true,
-	"/trip/driver/activeAutoApprouve":        true,
-	"/trip/driver/startTrip":                 true,
-	"/trip/driver/endTrip":                   true,
-	"/trip/driver/confirmWaypointArrival":    true,
-	"/trip/driver/confirmWaypointDeparture":  true,
-	"/trip/driver/cancelWaypoint":            true,
-	"/trip/driver/cancelTrip":               true,
-	"/trip/driver/getTripDetails":            true,
+	"/api/v1/trip/driver/createTrip":                true,
+	"/api/v1/trip/driver/createRecurringTrip":       true,
+	"/api/v1/trip/driver/getTripsPreviews":          true,
+	"/api/v1/trip/driver/getCompletedTripsPreviews": true,
+	"/api/v1/trip/driver/changeTripDateAndTime":     true,
+	"/api/v1/trip/driver/changeTripVehicle":         true,
+	"/api/v1/trip/driver/changeTripAllowances":      true,
+	"/api/v1/trip/driver/activeAutoApprouve":        true,
+	"/api/v1/trip/driver/startTrip":                 true,
+	"/api/v1/trip/driver/endTrip":                   true,
+	"/api/v1/trip/driver/confirmWaypointArrival":    true,
+	"/api/v1/trip/driver/confirmWaypointDeparture":  true,
+	"/api/v1/trip/driver/cancelWaypoint":            true,
+	"/api/v1/trip/driver/cancelTrip":                true,
+	"/api/v1/trip/driver/getTripDetails":            true,
 
 	// notification-service
 	"/api/v1/notifications/inbox":                 true,
@@ -116,7 +116,7 @@ var SupportProtectedRoutes = map[string]bool{
 	"/api/v1/support/admin/agents/deactivate": true,
 
 	// payment-service — actions support
-	"/payment/support/triggerManualPayout": true,
+	"/api/v1/payment/support/triggerManualPayout": true,
 
 	// chat-service — accès support au contenu déchiffré d'un message signalé
 	"/api/v1/chat/messages/{message_id}/flagged-content": true,

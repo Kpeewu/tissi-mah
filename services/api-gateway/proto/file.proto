@@ -25,7 +25,7 @@ service FileService {
   // Les fichiers sont uploadés dans S3/MinIO et les URLs stockées en base
   rpc UploadIdDocument(UploadIdDocumentRequest) returns (UploadIdDocumentResponse) {
     option (google.api.http) = {
-      post: "/file/uploadIdDocument"
+      post: "/api/v1/file/uploadIdDocument"
       body: "*"
     };
   }
@@ -35,7 +35,7 @@ service FileService {
   // Les fichiers sont uploadés dans S3/MinIO et les URLs stockées en base
   rpc UploadVehicleDocuments(UploadVehicleDocumentsRequest) returns (UploadVehicleDocumentsResponse) {
     option (google.api.http) = {
-      post: "/file/uploadVehicleDocuments"
+      post: "/api/v1/file/uploadVehicleDocuments"
       body: "*"
     };
   }
@@ -44,7 +44,7 @@ service FileService {
   // Remplace le fichier d'un document existant par un nouveau (base64 dans JSON)
   rpc ChangeDocument(ChangeDocumentRequest) returns (ChangeDocumentResponse) {
     option (google.api.http) = {
-      patch: "/file/changeDocument"
+      patch: "/api/v1/file/changeDocument"
       body: "*"
     };
   }
@@ -54,7 +54,7 @@ service FileService {
   // Si UserID fourni : vérifie la propriété. Si SupportID fourni : accès direct.
   rpc GetDocument(GetDocumentRequest) returns (GetDocumentResponse) {
     option (google.api.http) = {
-      get: "/file/getDocument"
+      get: "/api/v1/file/getDocument"
     };
   }
 
@@ -69,7 +69,7 @@ service FileService {
   // Supprime un fichier après vérification de la propriété (UserID doit être propriétaire)
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse) {
     option (google.api.http) = {
-      post: "/file/deleteFile"
+      post: "/api/v1/file/deleteFile"
       body: "*"
     };
   }
