@@ -269,13 +269,21 @@ jobs:
           echo "Current revision: $REVISION"
 
       - name: Deploy with Helm (atomic)
+        env:
+          EMAIL_SMTP_USERNAME: ${{ secrets.EMAIL_SMTP_USERNAME }}
+          EMAIL_SMTP_PASSWORD: ${{ secrets.EMAIL_SMTP_PASSWORD }}
         run: |
+          EXTRA_SETS=""
+          if [ "${{ matrix.service }}" = "email-service" ]; then
+            EXTRA_SETS="--set secrets.smtpUsername=${EMAIL_SMTP_USERNAME} --set secrets.smtpPassword=${EMAIL_SMTP_PASSWORD} --set config.emailFrom=${EMAIL_SMTP_USERNAME}"
+          fi
           helm upgrade --install ${{ matrix.service }} \
             services/${{ matrix.service }}/deployments/helm \
             -f services/${{ matrix.service }}/deployments/helm/values/prod.yaml \
             --namespace production \
             --create-namespace \
             --set image.tag=${{ needs.detect-changes.outputs.version }} \
+            ${EXTRA_SETS} \
             --atomic \
             --wait \
             --timeout 10m

@@ -39,13 +39,13 @@ service:
 config:
   environment: "development"
   logLevel: "debug"
-  emailFrom: ""      
+  emailFrom: ""
   smtpHost: "ssl0.ovh.net"
   smtpPort: "465"
   extra: {}
 
 secrets:
-  smtpUsername: ""  
+  smtpUsername: ""
   smtpPassword: ""
   extra: {}
 
