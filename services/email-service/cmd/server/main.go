@@ -44,17 +44,12 @@ func run(bootstrapLogger *zap.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// --- Email provider (selon l'environnement) ---
-	var emailProvider provider.EmailProvider
-	switch cfg.Environment.Mode {
-	case "prod":
-		emailProvider, err = provider.NewSESProvider(ctx, cfg.AWS.Region, cfg.Email.From, logger)
-		if err != nil {
-			return fmt.Errorf("ses provider: %w", err)
-		}
-	default:
-		emailProvider = provider.NewSendGridProvider(cfg.SendGrid.APIKey, cfg.Email.From, logger)
-	}
+	// --- Email provider ---
+	emailProvider := provider.NewSMTPProvider(
+		cfg.SMTP.Host, cfg.SMTP.Port,
+		cfg.SMTP.Username, cfg.SMTP.Password,
+		cfg.Email.From, logger,
+	)
 
 	logger.Info("email provider initialized", zap.String("provider", emailProvider.Name()))
 

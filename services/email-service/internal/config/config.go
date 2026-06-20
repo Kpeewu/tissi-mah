@@ -9,8 +9,7 @@ import (
 type Config struct {
 	Server      ServerConfig
 	Environment EnvironmentConfig
-	SendGrid    SendGridConfig
-	AWS         AWSConfig
+	SMTP        SMTPConfig
 	Email       EmailConfig
 	LogLevel    string
 }
@@ -24,12 +23,11 @@ type EnvironmentConfig struct {
 	Mode string
 }
 
-type SendGridConfig struct {
-	APIKey string
-}
-
-type AWSConfig struct {
-	Region string
+type SMTPConfig struct {
+	Host     string
+	Port     string
+	Username string
+	Password string
 }
 
 type EmailConfig struct {
@@ -50,11 +48,11 @@ func Load() (*Config, error) {
 		Environment: EnvironmentConfig{
 			Mode: sharedconfig.MustGetString(values, "ENVIRONMENT"),
 		},
-		SendGrid: SendGridConfig{
-			APIKey: sharedconfig.GetStringOrDefault(values, "SENDGRID_API_KEY", ""),
-		},
-		AWS: AWSConfig{
-			Region: sharedconfig.GetStringOrDefault(values, "AWS_REGION", "eu-west-1"),
+		SMTP: SMTPConfig{
+			Host:     sharedconfig.GetStringOrDefault(values, "SMTP_HOST", "ssl0.ovh.net"),
+			Port:     sharedconfig.GetStringOrDefault(values, "SMTP_PORT", "465"),
+			Username: sharedconfig.GetStringOrDefault(values, "SMTP_USERNAME", ""),
+			Password: sharedconfig.GetStringOrDefault(values, "SMTP_PASSWORD", ""),
 		},
 		Email: EmailConfig{
 			From: sharedconfig.GetStringOrDefault(values, "EMAIL_FROM", "noreply@tissimah.com"),
@@ -73,11 +71,11 @@ func validate(cfg *Config) error {
 	if cfg.Server.Port == "" {
 		return fmt.Errorf("GRPC_PORT is required")
 	}
-	if cfg.Environment.Mode == "prod" && cfg.AWS.Region == "" {
-		return fmt.Errorf("AWS_REGION is required in production")
+	if cfg.SMTP.Username == "" {
+		return fmt.Errorf("SMTP_USERNAME is required")
 	}
-	if cfg.Environment.Mode != "prod" && cfg.SendGrid.APIKey == "" {
-		return fmt.Errorf("SENDGRID_API_KEY is required in non-production environments")
+	if cfg.SMTP.Password == "" {
+		return fmt.Errorf("SMTP_PASSWORD is required")
 	}
 	return nil
 }
