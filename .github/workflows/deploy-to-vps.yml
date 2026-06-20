@@ -210,7 +210,8 @@ jobs:
           KYC_PERSONA_WEBHOOK_SECRET: ${{ secrets.KYC_PERSONA_WEBHOOK_SECRET }}
           KYC_PERSONA_TEMPLATE_ID: ${{ secrets.KYC_PERSONA_TEMPLATE_ID }}
           # email-service secrets
-          EMAIL_SENDGRID_API_KEY: ${{ secrets.EMAIL_SENDGRID_API_KEY }}
+          EMAIL_SMTP_USERNAME: ${{ secrets.EMAIL_SMTP_USERNAME }}
+          EMAIL_SMTP_PASSWORD: ${{ secrets.EMAIL_SMTP_PASSWORD }}
           # push-service secrets
           PUSH_FIREBASE_CREDENTIALS: ${{ secrets.PUSH_FIREBASE_CREDENTIALS }}
           # notification-service secrets
@@ -345,8 +346,12 @@ jobs:
 
           elif service == "email-service":
               data = {
+                  'config': {
+                      'emailFrom': os.environ.get('EMAIL_SMTP_USERNAME', ''),
+                  },
                   'secrets': {
-                      'sendgridApiKey': os.environ.get('EMAIL_SENDGRID_API_KEY', ''),
+                      'smtpUsername': os.environ.get('EMAIL_SMTP_USERNAME', ''),
+                      'smtpPassword': os.environ.get('EMAIL_SMTP_PASSWORD', ''),
                   },
               }
 
