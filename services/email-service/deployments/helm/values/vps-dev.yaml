@@ -39,14 +39,13 @@ service:
 config:
   environment: "development"
   logLevel: "debug"
-  emailFrom: ""      # adresse email OVH — doit être identique à secrets.smtpUsername
+  emailFrom: "toure-ydaou.teouri@kpeeewu.dev"      
   smtpHost: "ssl0.ovh.net"
   smtpPort: "465"
   extra: {}
 
 secrets:
-  smtpUsername: ""   # adresse email OVH complète (ex: prenom.nom@domain.tld)
-  smtpPassword: ""   # mot de passe du compte OVH
+  smtpUsername: ""   # mot de passe du compte OVH
   extra: {}
 
 probes:
