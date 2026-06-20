@@ -7,7 +7,7 @@ INSERT INTO support_users (
     is_active, must_change_password, password_changed_at, created_at, updated_at
 ) VALUES (
     '00000000-0000-0000-0000-000000000001',
-    'admin@tissimah.local',
+    'ttoureydaou@gmail.com',
     '$argon2id$v=19$m=65536,t=1,p=4$nc8mg+FVBJ3LkX7wwSBIIQ$anav5pg1A88NhpB9au5V+gM/e8cYl7qvXplrQNSitPw',
     'Admin',
     'TissiMah',

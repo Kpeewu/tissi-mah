@@ -1,1 +1,1 @@
-DELETE FROM support_users WHERE email = 'admin@tissimah.local';
+DELETE FROM support_users WHERE email = 'ttoureydaou@gmail.com';
