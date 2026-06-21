@@ -124,6 +124,8 @@ func newE2E(t *testing.T) *e2eDeps {
 			FailThreshold:     5,
 			FailWindowSeconds: 86400,
 		},
+		PasswordReset: config.PasswordResetConfig{TTLSeconds: 3600},
+		FrontendURL:   "https://support.test",
 	}
 
 	readRepo := implementations.NewSupportUserReadRepository(testPool, zap.NewNop())
@@ -136,9 +138,10 @@ func newE2E(t *testing.T) *e2eDeps {
 	)
 	jwtSig := token.NewJWTSigner(cfg.JWT.Secret, cfg.JWT.AccessTTLHours)
 	refresh := token.NewRefreshStore(testRedis, cfg.JWT.RefreshTTLHours)
+	reset := token.NewResetStore(testRedis, time.Duration(cfg.PasswordReset.TTLSeconds)*time.Second)
 	email := mocks.NewSpyEmailSender()
 
-	svc := service.NewSupportService(cfg, readRepo, writeRepo, otpStore, jwtSig, refresh, email, zap.NewNop())
+	svc := service.NewSupportService(cfg, readRepo, writeRepo, otpStore, jwtSig, refresh, reset, email, zap.NewNop())
 	handler := grpcsrv.NewSupportHandler(svc, zap.NewNop())
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")

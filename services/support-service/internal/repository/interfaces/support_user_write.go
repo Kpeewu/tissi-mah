@@ -16,4 +16,10 @@ type SupportUserWriteRepository interface {
 	Activate(ctx context.Context, userID string) error
 	// SoftDelete marque le compte comme supprimé (deleted_at = NOW()).
 	SoftDelete(ctx context.Context, userID string) error
+	SetPasswordResetRequested(ctx context.Context, userID string) error
+	ClearPasswordResetRequested(ctx context.Context, userID string) error
+	// ClaimPasswordResetRequest efface le flag de demande de façon atomique, mais
+	// seulement s'il était présent. Renvoie ErrResetAlreadyProcessed si la demande
+	// a déjà été traitée (course entre deux admins).
+	ClaimPasswordResetRequest(ctx context.Context, userID string) error
 }

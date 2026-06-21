@@ -62,3 +62,5 @@ docker-compose-*.yaml
 
 # Bruno
 api-collection
+CLAUDE.md
+.claude

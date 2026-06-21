@@ -19,22 +19,26 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SupportService_Login_FullMethodName                  = "/support.SupportService/Login"
-	SupportService_VerifyOTP_FullMethodName              = "/support.SupportService/VerifyOTP"
-	SupportService_ResendOTP_FullMethodName              = "/support.SupportService/ResendOTP"
-	SupportService_RefreshToken_FullMethodName           = "/support.SupportService/RefreshToken"
-	SupportService_Logout_FullMethodName                 = "/support.SupportService/Logout"
-	SupportService_Me_FullMethodName                     = "/support.SupportService/Me"
-	SupportService_ChangeMyPassword_FullMethodName       = "/support.SupportService/ChangeMyPassword"
-	SupportService_UpdateMyProfile_FullMethodName        = "/support.SupportService/UpdateMyProfile"
-	SupportService_CreateSupportAgent_FullMethodName     = "/support.SupportService/CreateSupportAgent"
-	SupportService_ListSupportAgents_FullMethodName      = "/support.SupportService/ListSupportAgents"
-	SupportService_DeactivateSupportAgent_FullMethodName = "/support.SupportService/DeactivateSupportAgent"
-	SupportService_ActivateSupportAgent_FullMethodName   = "/support.SupportService/ActivateSupportAgent"
-	SupportService_DeleteSupportAgent_FullMethodName     = "/support.SupportService/DeleteSupportAgent"
-	SupportService_UpdateSupportAgent_FullMethodName     = "/support.SupportService/UpdateSupportAgent"
-	SupportService_Health_FullMethodName                 = "/support.SupportService/Health"
-	SupportService_GetSupportUserByID_FullMethodName     = "/support.SupportService/GetSupportUserByID"
+	SupportService_Login_FullMethodName                     = "/support.SupportService/Login"
+	SupportService_VerifyOTP_FullMethodName                 = "/support.SupportService/VerifyOTP"
+	SupportService_ResendOTP_FullMethodName                 = "/support.SupportService/ResendOTP"
+	SupportService_RefreshToken_FullMethodName              = "/support.SupportService/RefreshToken"
+	SupportService_Logout_FullMethodName                    = "/support.SupportService/Logout"
+	SupportService_Me_FullMethodName                        = "/support.SupportService/Me"
+	SupportService_ChangeMyPassword_FullMethodName          = "/support.SupportService/ChangeMyPassword"
+	SupportService_UpdateMyProfile_FullMethodName           = "/support.SupportService/UpdateMyProfile"
+	SupportService_CreateSupportAgent_FullMethodName        = "/support.SupportService/CreateSupportAgent"
+	SupportService_ListSupportAgents_FullMethodName         = "/support.SupportService/ListSupportAgents"
+	SupportService_DeactivateSupportAgent_FullMethodName    = "/support.SupportService/DeactivateSupportAgent"
+	SupportService_ActivateSupportAgent_FullMethodName      = "/support.SupportService/ActivateSupportAgent"
+	SupportService_DeleteSupportAgent_FullMethodName        = "/support.SupportService/DeleteSupportAgent"
+	SupportService_UpdateSupportAgent_FullMethodName        = "/support.SupportService/UpdateSupportAgent"
+	SupportService_ForgotPassword_FullMethodName            = "/support.SupportService/ForgotPassword"
+	SupportService_ResetPassword_FullMethodName             = "/support.SupportService/ResetPassword"
+	SupportService_ListPasswordResetRequests_FullMethodName = "/support.SupportService/ListPasswordResetRequests"
+	SupportService_TriggerPasswordReset_FullMethodName      = "/support.SupportService/TriggerPasswordReset"
+	SupportService_Health_FullMethodName                    = "/support.SupportService/Health"
+	SupportService_GetSupportUserByID_FullMethodName        = "/support.SupportService/GetSupportUserByID"
 )
 
 // SupportServiceClient is the client API for SupportService service.
@@ -61,6 +65,14 @@ type SupportServiceClient interface {
 	// UpdateSupportAgent permet à l'admin de modifier l'email et/ou le rôle d'un
 	// agent. Un champ vide signifie « inchangé ».
 	UpdateSupportAgent(ctx context.Context, in *UpdateSupportAgentRequest, opts ...grpc.CallOption) (*UpdateSupportAgentResponse, error)
+	// ForgotPassword (public) : déclenche le flux de réinitialisation.
+	ForgotPassword(ctx context.Context, in *ForgotPasswordRequest, opts ...grpc.CallOption) (*ForgotPasswordResponse, error)
+	// ResetPassword (public) : applique un nouveau mot de passe via un token de reset.
+	ResetPassword(ctx context.Context, in *ResetPasswordRequest, opts ...grpc.CallOption) (*ResetPasswordResponse, error)
+	// ListPasswordResetRequests (admin) : demandes de reset support en attente.
+	ListPasswordResetRequests(ctx context.Context, in *ListPasswordResetRequestsRequest, opts ...grpc.CallOption) (*ListPasswordResetRequestsResponse, error)
+	// TriggerPasswordReset (admin) : envoie un lien de reset à l'agent ciblé.
+	TriggerPasswordReset(ctx context.Context, in *TriggerPasswordResetRequest, opts ...grpc.CallOption) (*TriggerPasswordResetResponse, error)
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 	// GetSupportUserByID est un RPC inter-service (gRPC uniquement, pas d'annotation HTTP).
 	// Utilisé par payment-service pour vérifier l'identité et l'habilitation d'un agent support.
@@ -215,6 +227,46 @@ func (c *supportServiceClient) UpdateSupportAgent(ctx context.Context, in *Updat
 	return out, nil
 }
 
+func (c *supportServiceClient) ForgotPassword(ctx context.Context, in *ForgotPasswordRequest, opts ...grpc.CallOption) (*ForgotPasswordResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ForgotPasswordResponse)
+	err := c.cc.Invoke(ctx, SupportService_ForgotPassword_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *supportServiceClient) ResetPassword(ctx context.Context, in *ResetPasswordRequest, opts ...grpc.CallOption) (*ResetPasswordResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResetPasswordResponse)
+	err := c.cc.Invoke(ctx, SupportService_ResetPassword_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *supportServiceClient) ListPasswordResetRequests(ctx context.Context, in *ListPasswordResetRequestsRequest, opts ...grpc.CallOption) (*ListPasswordResetRequestsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListPasswordResetRequestsResponse)
+	err := c.cc.Invoke(ctx, SupportService_ListPasswordResetRequests_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *supportServiceClient) TriggerPasswordReset(ctx context.Context, in *TriggerPasswordResetRequest, opts ...grpc.CallOption) (*TriggerPasswordResetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TriggerPasswordResetResponse)
+	err := c.cc.Invoke(ctx, SupportService_TriggerPasswordReset_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *supportServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -259,6 +311,14 @@ type SupportServiceServer interface {
 	// UpdateSupportAgent permet à l'admin de modifier l'email et/ou le rôle d'un
 	// agent. Un champ vide signifie « inchangé ».
 	UpdateSupportAgent(context.Context, *UpdateSupportAgentRequest) (*UpdateSupportAgentResponse, error)
+	// ForgotPassword (public) : déclenche le flux de réinitialisation.
+	ForgotPassword(context.Context, *ForgotPasswordRequest) (*ForgotPasswordResponse, error)
+	// ResetPassword (public) : applique un nouveau mot de passe via un token de reset.
+	ResetPassword(context.Context, *ResetPasswordRequest) (*ResetPasswordResponse, error)
+	// ListPasswordResetRequests (admin) : demandes de reset support en attente.
+	ListPasswordResetRequests(context.Context, *ListPasswordResetRequestsRequest) (*ListPasswordResetRequestsResponse, error)
+	// TriggerPasswordReset (admin) : envoie un lien de reset à l'agent ciblé.
+	TriggerPasswordReset(context.Context, *TriggerPasswordResetRequest) (*TriggerPasswordResetResponse, error)
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	// GetSupportUserByID est un RPC inter-service (gRPC uniquement, pas d'annotation HTTP).
 	// Utilisé par payment-service pour vérifier l'identité et l'habilitation d'un agent support.
@@ -314,6 +374,18 @@ func (UnimplementedSupportServiceServer) DeleteSupportAgent(context.Context, *De
 }
 func (UnimplementedSupportServiceServer) UpdateSupportAgent(context.Context, *UpdateSupportAgentRequest) (*UpdateSupportAgentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateSupportAgent not implemented")
+}
+func (UnimplementedSupportServiceServer) ForgotPassword(context.Context, *ForgotPasswordRequest) (*ForgotPasswordResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ForgotPassword not implemented")
+}
+func (UnimplementedSupportServiceServer) ResetPassword(context.Context, *ResetPasswordRequest) (*ResetPasswordResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ResetPassword not implemented")
+}
+func (UnimplementedSupportServiceServer) ListPasswordResetRequests(context.Context, *ListPasswordResetRequestsRequest) (*ListPasswordResetRequestsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListPasswordResetRequests not implemented")
+}
+func (UnimplementedSupportServiceServer) TriggerPasswordReset(context.Context, *TriggerPasswordResetRequest) (*TriggerPasswordResetResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method TriggerPasswordReset not implemented")
 }
 func (UnimplementedSupportServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -594,6 +666,78 @@ func _SupportService_UpdateSupportAgent_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SupportService_ForgotPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ForgotPasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SupportServiceServer).ForgotPassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SupportService_ForgotPassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SupportServiceServer).ForgotPassword(ctx, req.(*ForgotPasswordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SupportService_ResetPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResetPasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SupportServiceServer).ResetPassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SupportService_ResetPassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SupportServiceServer).ResetPassword(ctx, req.(*ResetPasswordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SupportService_ListPasswordResetRequests_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListPasswordResetRequestsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SupportServiceServer).ListPasswordResetRequests(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SupportService_ListPasswordResetRequests_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SupportServiceServer).ListPasswordResetRequests(ctx, req.(*ListPasswordResetRequestsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SupportService_TriggerPasswordReset_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TriggerPasswordResetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SupportServiceServer).TriggerPasswordReset(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SupportService_TriggerPasswordReset_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SupportServiceServer).TriggerPasswordReset(ctx, req.(*TriggerPasswordResetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SupportService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -692,6 +836,22 @@ var SupportService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateSupportAgent",
 			Handler:    _SupportService_UpdateSupportAgent_Handler,
+		},
+		{
+			MethodName: "ForgotPassword",
+			Handler:    _SupportService_ForgotPassword_Handler,
+		},
+		{
+			MethodName: "ResetPassword",
+			Handler:    _SupportService_ResetPassword_Handler,
+		},
+		{
+			MethodName: "ListPasswordResetRequests",
+			Handler:    _SupportService_ListPasswordResetRequests_Handler,
+		},
+		{
+			MethodName: "TriggerPasswordReset",
+			Handler:    _SupportService_TriggerPasswordReset_Handler,
 		},
 		{
 			MethodName: "Health",

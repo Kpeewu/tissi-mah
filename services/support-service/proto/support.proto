@@ -109,6 +109,37 @@ service SupportService {
     };
   }
 
+  // ForgotPassword (public) : déclenche le flux de réinitialisation.
+  rpc ForgotPassword(ForgotPasswordRequest) returns (ForgotPasswordResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/forgotPassword"
+      body: "*"
+    };
+  }
+
+  // ResetPassword (public) : applique un nouveau mot de passe via un token de reset.
+  rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/resetPassword"
+      body: "*"
+    };
+  }
+
+  // ListPasswordResetRequests (admin) : demandes de reset support en attente.
+  rpc ListPasswordResetRequests(ListPasswordResetRequestsRequest) returns (ListPasswordResetRequestsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/support/admin/agents/resetRequests"
+    };
+  }
+
+  // TriggerPasswordReset (admin) : envoie un lien de reset à l'agent ciblé.
+  rpc TriggerPasswordReset(TriggerPasswordResetRequest) returns (TriggerPasswordResetResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/admin/agents/triggerReset"
+      body: "*"
+    };
+  }
+
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
       get: "/api/v1/support/health"
@@ -255,6 +286,40 @@ message UpdateSupportAgentRequest {
 }
 
 message UpdateSupportAgentResponse {}
+
+message ForgotPasswordRequest {
+  string Email = 1;
+}
+
+message ForgotPasswordResponse {}
+
+message ResetPasswordRequest {
+  string Token       = 1;
+  string NewPassword = 2;
+}
+
+message ResetPasswordResponse {}
+
+message ListPasswordResetRequestsRequest {}
+
+message PasswordResetRequest {
+  string UserId      = 1;
+  string Email       = 2;
+  string FirstName   = 3;
+  string LastName    = 4;
+  string Role        = 5;
+  int64  RequestedAt = 6;
+}
+
+message ListPasswordResetRequestsResponse {
+  repeated PasswordResetRequest Requests = 1;
+}
+
+message TriggerPasswordResetRequest {
+  string UserId = 1;
+}
+
+message TriggerPasswordResetResponse {}
 
 message HealthRequest {}
 

@@ -61,6 +61,10 @@ func toGRPCError(err error) error {
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, supportErrors.ErrCannotDeleteActiveAccount):
 		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, supportErrors.ErrResetTokenInvalid):
+		return status.Error(codes.InvalidArgument, err.Error())
+	case errors.Is(err, supportErrors.ErrResetAlreadyProcessed):
+		return status.Error(codes.FailedPrecondition, err.Error())
 	default:
 		return status.Error(codes.Internal, "internal server error")
 	}
@@ -337,6 +341,77 @@ func (h *SupportHandler) UpdateSupportAgent(ctx context.Context, req *supportpb.
 	}
 	h.logger.Info("handler: UpdateSupportAgent success", zap.String("userID", req.GetUserId()))
 	return &supportpb.UpdateSupportAgentResponse{}, nil
+}
+
+// ForgotPassword est public : il déclenche le flux de réinitialisation. Réponse
+// toujours vide/succès (anti-énumération).
+func (h *SupportHandler) ForgotPassword(ctx context.Context, req *supportpb.ForgotPasswordRequest) (*supportpb.ForgotPasswordResponse, error) {
+	h.logger.Debug("handler: ForgotPassword called", zap.String("email", req.GetEmail()))
+	if err := h.svc.ForgotPassword(ctx, req.GetEmail()); err != nil {
+		// On loggue mais on ne révèle rien à l'appelant.
+		h.logger.Error("handler: ForgotPassword internal error", zap.Error(err))
+	}
+	return &supportpb.ForgotPasswordResponse{}, nil
+}
+
+// ResetPassword est public : applique un nouveau mot de passe via un token de reset.
+func (h *SupportHandler) ResetPassword(ctx context.Context, req *supportpb.ResetPasswordRequest) (*supportpb.ResetPasswordResponse, error) {
+	h.logger.Debug("handler: ResetPassword called")
+	if err := h.svc.ResetPassword(ctx, req.GetToken(), req.GetNewPassword()); err != nil {
+		h.logger.Warn("handler: ResetPassword failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+	h.logger.Info("handler: ResetPassword success")
+	return &supportpb.ResetPasswordResponse{}, nil
+}
+
+func (h *SupportHandler) ListPasswordResetRequests(ctx context.Context, _ *supportpb.ListPasswordResetRequestsRequest) (*supportpb.ListPasswordResetRequestsResponse, error) {
+	if err := requireAdmin(ctx); err != nil {
+		h.logger.Warn("handler: ListPasswordResetRequests - insufficient role", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+	if err := h.gateMustChange(ctx, false); err != nil {
+		return nil, toGRPCError(err)
+	}
+	h.logger.Debug("handler: ListPasswordResetRequests called")
+	users, err := h.svc.ListPasswordResetRequests(ctx)
+	if err != nil {
+		h.logger.Error("handler: ListPasswordResetRequests failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+	out := make([]*supportpb.PasswordResetRequest, 0, len(users))
+	for _, u := range users {
+		var requestedAt int64
+		if u.PasswordResetRequestedAt != nil {
+			requestedAt = u.PasswordResetRequestedAt.Unix()
+		}
+		out = append(out, &supportpb.PasswordResetRequest{
+			UserId:      u.UserID,
+			Email:       u.Email,
+			FirstName:   u.FirstName,
+			LastName:    u.LastName,
+			Role:        u.Role,
+			RequestedAt: requestedAt,
+		})
+	}
+	return &supportpb.ListPasswordResetRequestsResponse{Requests: out}, nil
+}
+
+func (h *SupportHandler) TriggerPasswordReset(ctx context.Context, req *supportpb.TriggerPasswordResetRequest) (*supportpb.TriggerPasswordResetResponse, error) {
+	if err := requireAdmin(ctx); err != nil {
+		h.logger.Warn("handler: TriggerPasswordReset - insufficient role", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+	if err := h.gateMustChange(ctx, false); err != nil {
+		return nil, toGRPCError(err)
+	}
+	h.logger.Debug("handler: TriggerPasswordReset called", zap.String("userID", req.GetUserId()))
+	if err := h.svc.TriggerPasswordReset(ctx, req.GetUserId()); err != nil {
+		h.logger.Error("handler: TriggerPasswordReset failed", zap.String("userID", req.GetUserId()), zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+	h.logger.Info("handler: TriggerPasswordReset success", zap.String("userID", req.GetUserId()))
+	return &supportpb.TriggerPasswordResetResponse{}, nil
 }
 
 func (h *SupportHandler) Health(_ context.Context, _ *supportpb.HealthRequest) (*supportpb.HealthResponse, error) {

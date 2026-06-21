@@ -14,17 +14,18 @@ func IsValidRole(role string) bool {
 
 // SupportUser représente un agent du back-office (admin ou support).
 type SupportUser struct {
-	UserID             string
-	Email              string
-	PasswordHash       string
-	FirstName          string
-	LastName           string
-	Role               string
-	IsActive           bool
-	MustChangePassword bool
-	EmailChangedAt     *time.Time
-	PasswordChangedAt  time.Time
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
-	DeletedAt          *time.Time
+	UserID                   string
+	Email                    string
+	PasswordHash             string
+	FirstName                string
+	LastName                 string
+	Role                     string
+	IsActive                 bool
+	MustChangePassword       bool
+	EmailChangedAt           *time.Time
+	PasswordChangedAt        time.Time
+	PasswordResetRequestedAt *time.Time
+	CreatedAt                time.Time
+	UpdatedAt                time.Time
+	DeletedAt                *time.Time
 }

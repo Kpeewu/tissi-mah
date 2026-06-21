@@ -113,10 +113,12 @@ var SupportProtectedRoutes = map[string]bool{
 	"/api/v1/support/me/password":             true,
 	"/api/v1/support/me/profile":              true,
 	"/api/v1/support/admin/agents":            true,
-	"/api/v1/support/admin/agents/deactivate": true,
-	"/api/v1/support/admin/agents/activate":   true,
-	"/api/v1/support/admin/agents/delete":     true,
-	"/api/v1/support/admin/agents/update":     true,
+	"/api/v1/support/admin/agents/deactivate":    true,
+	"/api/v1/support/admin/agents/activate":      true,
+	"/api/v1/support/admin/agents/delete":        true,
+	"/api/v1/support/admin/agents/update":        true,
+	"/api/v1/support/admin/agents/resetRequests": true,
+	"/api/v1/support/admin/agents/triggerReset":  true,
 
 	// payment-service — actions support
 	"/api/v1/payment/support/triggerManualPayout": true,
@@ -158,4 +160,8 @@ var RouteRateLimitConfig = map[string]RateLimitTier{
 	// flag = sensible (modération support)
 	"/api/v1/chat/threads/{thread_id}/messages": TierCreateAccount,
 	"/api/v1/chat/messages/{message_id}/flag":   TierSensitive,
+
+	// support-service — mot de passe oublié (public) : anti-abus / anti-email-bombing
+	"/api/v1/support/forgotPassword": TierSensitive,
+	"/api/v1/support/resetPassword":  TierSensitive,
 }

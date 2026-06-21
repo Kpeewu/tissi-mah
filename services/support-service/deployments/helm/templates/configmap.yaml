@@ -17,6 +17,8 @@ data:
   OTP_RESEND_COOLDOWN_SECONDS: {{ .Values.config.otpResendCooldownSeconds | quote }}
   LOGIN_FAIL_THRESHOLD: {{ .Values.config.loginFailThreshold | quote }}
   LOGIN_FAIL_WINDOW_SECONDS: {{ .Values.config.loginFailWindowSeconds | quote }}
+  SUPPORT_FRONTEND_URL: {{ .Values.config.frontendUrl | quote }}
+  PASSWORD_RESET_TTL_SECONDS: {{ .Values.config.passwordResetTtlSeconds | quote }}
   {{- range $key, $value := .Values.config.extra }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}

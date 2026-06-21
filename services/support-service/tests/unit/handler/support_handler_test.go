@@ -393,6 +393,81 @@ func TestHandler_DeactivateSupportAgent(t *testing.T) {
 }
 
 // =============================================================================
+// Mot de passe oublié
+// =============================================================================
+
+func TestHandler_ForgotPassword(t *testing.T) {
+	t.Run("public : succès renvoyé même si le service erreure (anti-énumération)", func(t *testing.T) {
+		h, svc := newHandler(t)
+		svc.On("ForgotPassword", mock.Anything, "x@x.com").Return(supportErrors.ErrInternal)
+		_, err := h.ForgotPassword(context.Background(), &supportpb.ForgotPasswordRequest{Email: "x@x.com"})
+		require.NoError(t, err)
+	})
+}
+
+func TestHandler_ResetPassword(t *testing.T) {
+	t.Run("succès", func(t *testing.T) {
+		h, svc := newHandler(t)
+		svc.On("ResetPassword", mock.Anything, "tok", "NewPassw0rd!Test").Return(nil)
+		_, err := h.ResetPassword(context.Background(), &supportpb.ResetPasswordRequest{Token: "tok", NewPassword: "NewPassw0rd!Test"})
+		require.NoError(t, err)
+	})
+
+	t.Run("token invalide → InvalidArgument", func(t *testing.T) {
+		h, svc := newHandler(t)
+		svc.On("ResetPassword", mock.Anything, "bad", "p").Return(supportErrors.ErrResetTokenInvalid)
+		_, err := h.ResetPassword(context.Background(), &supportpb.ResetPasswordRequest{Token: "bad", NewPassword: "p"})
+		assert.Equal(t, codes.InvalidArgument, codeOf(t, err))
+	})
+
+	t.Run("mot de passe faible → InvalidArgument", func(t *testing.T) {
+		h, svc := newHandler(t)
+		svc.On("ResetPassword", mock.Anything, "tok", "weak").Return(supportErrors.ErrWeakPassword)
+		_, err := h.ResetPassword(context.Background(), &supportpb.ResetPasswordRequest{Token: "tok", NewPassword: "weak"})
+		assert.Equal(t, codes.InvalidArgument, codeOf(t, err))
+	})
+}
+
+func TestHandler_ListPasswordResetRequests(t *testing.T) {
+	t.Run("non-admin → PermissionDenied", func(t *testing.T) {
+		h, _ := newHandler(t)
+		_, err := h.ListPasswordResetRequests(ctxWithUIDRole("uid", domain.RoleSupport), &supportpb.ListPasswordResetRequestsRequest{})
+		assert.Equal(t, codes.PermissionDenied, codeOf(t, err))
+	})
+
+	t.Run("admin succès", func(t *testing.T) {
+		h, svc := newHandler(t)
+		ctx := ctxWithUIDRole("admin-uid", domain.RoleAdmin)
+		svc.On("Me", mock.Anything, "admin-uid").Return(&domain.SupportUser{UserID: "admin-uid"}, nil)
+		svc.On("ListPasswordResetRequests", mock.Anything).Return([]*domain.SupportUser{
+			{UserID: "u1", Email: "a@x.com", Role: domain.RoleSupport},
+		}, nil)
+		res, err := h.ListPasswordResetRequests(ctx, &supportpb.ListPasswordResetRequestsRequest{})
+		require.NoError(t, err)
+		require.Len(t, res.GetRequests(), 1)
+		assert.Equal(t, "a@x.com", res.GetRequests()[0].GetEmail())
+	})
+}
+
+func TestHandler_TriggerPasswordReset(t *testing.T) {
+	t.Run("non-admin → PermissionDenied", func(t *testing.T) {
+		h, _ := newHandler(t)
+		_, err := h.TriggerPasswordReset(ctxWithUIDRole("uid", domain.RoleSupport),
+			&supportpb.TriggerPasswordResetRequest{UserId: "target"})
+		assert.Equal(t, codes.PermissionDenied, codeOf(t, err))
+	})
+
+	t.Run("admin succès", func(t *testing.T) {
+		h, svc := newHandler(t)
+		ctx := ctxWithUIDRole("admin-uid", domain.RoleAdmin)
+		svc.On("Me", mock.Anything, "admin-uid").Return(&domain.SupportUser{UserID: "admin-uid"}, nil)
+		svc.On("TriggerPasswordReset", mock.Anything, "target").Return(nil)
+		_, err := h.TriggerPasswordReset(ctx, &supportpb.TriggerPasswordResetRequest{UserId: "target"})
+		require.NoError(t, err)
+	})
+}
+
+// =============================================================================
 // Health (public, ne touche pas au service)
 // =============================================================================
 

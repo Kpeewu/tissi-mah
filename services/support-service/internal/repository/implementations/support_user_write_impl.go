@@ -161,3 +161,53 @@ func (r *supportUserWriteRepository) SoftDelete(ctx context.Context, userID stri
 	}
 	return nil
 }
+
+func (r *supportUserWriteRepository) SetPasswordResetRequested(ctx context.Context, userID string) error {
+	tag, err := r.pool.Exec(ctx, `
+        UPDATE support_users
+        SET password_reset_requested_at = NOW()
+        WHERE user_id = $1 AND deleted_at IS NULL
+    `, userID)
+	if err != nil {
+		r.logger.Error("SetPasswordResetRequested failed", zap.Error(err))
+		return supportErrors.ErrInternal
+	}
+	if tag.RowsAffected() == 0 {
+		return supportErrors.ErrUserNotFound
+	}
+	return nil
+}
+
+func (r *supportUserWriteRepository) ClearPasswordResetRequested(ctx context.Context, userID string) error {
+	tag, err := r.pool.Exec(ctx, `
+        UPDATE support_users
+        SET password_reset_requested_at = NULL
+        WHERE user_id = $1 AND deleted_at IS NULL
+    `, userID)
+	if err != nil {
+		r.logger.Error("ClearPasswordResetRequested failed", zap.Error(err))
+		return supportErrors.ErrInternal
+	}
+	if tag.RowsAffected() == 0 {
+		return supportErrors.ErrUserNotFound
+	}
+	return nil
+}
+
+// ClaimPasswordResetRequest n'efface le flag que s'il est présent (UPDATE conditionnel
+// atomique). 0 ligne affectée = demande déjà traitée par un autre admin.
+func (r *supportUserWriteRepository) ClaimPasswordResetRequest(ctx context.Context, userID string) error {
+	tag, err := r.pool.Exec(ctx, `
+        UPDATE support_users
+        SET password_reset_requested_at = NULL
+        WHERE user_id = $1 AND password_reset_requested_at IS NOT NULL AND deleted_at IS NULL
+    `, userID)
+	if err != nil {
+		r.logger.Error("ClaimPasswordResetRequest failed", zap.Error(err))
+		return supportErrors.ErrInternal
+	}
+	if tag.RowsAffected() == 0 {
+		return supportErrors.ErrResetAlreadyProcessed
+	}
+	return nil
+}

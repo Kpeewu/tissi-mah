@@ -34,3 +34,15 @@ func (m *MockSupportUserReadRepository) List(ctx context.Context, limit, offset 
 	users, _ := args.Get(0).([]*domain.SupportUser)
 	return users, args.Int(1), args.Error(2)
 }
+
+func (m *MockSupportUserReadRepository) ListPendingPasswordResets(ctx context.Context) ([]*domain.SupportUser, error) {
+	args := m.Called(ctx)
+	users, _ := args.Get(0).([]*domain.SupportUser)
+	return users, args.Error(1)
+}
+
+func (m *MockSupportUserReadRepository) ListAdminEmails(ctx context.Context) ([]string, error) {
+	args := m.Called(ctx)
+	emails, _ := args.Get(0).([]string)
+	return emails, args.Error(1)
+}
