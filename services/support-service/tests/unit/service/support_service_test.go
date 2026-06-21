@@ -37,6 +37,7 @@ type testDeps struct {
 	otpStore  *otp.Store
 	jwt       *token.JWTSigner
 	refresh   *token.RefreshStore
+	reset     *token.ResetStore
 	redisSrv  *miniredis.Miniredis
 	redisCli  *redis.Client
 }
@@ -68,6 +69,8 @@ func newDeps(t *testing.T) *testDeps {
 			FailThreshold:     5,
 			FailWindowSeconds: 86400,
 		},
+		PasswordReset: config.PasswordResetConfig{TTLSeconds: 3600},
+		FrontendURL:   "https://support.test",
 	}
 
 	readRepo := new(mocks.MockSupportUserReadRepository)
@@ -81,8 +84,9 @@ func newDeps(t *testing.T) *testDeps {
 	)
 	jwtSig := token.NewJWTSigner(cfg.JWT.Secret, cfg.JWT.AccessTTLHours)
 	refresh := token.NewRefreshStore(cli, cfg.JWT.RefreshTTLHours)
+	reset := token.NewResetStore(cli, time.Duration(cfg.PasswordReset.TTLSeconds)*time.Second)
 
-	svc := service.NewSupportService(cfg, readRepo, writeRepo, otpStore, jwtSig, refresh, email, zap.NewNop())
+	svc := service.NewSupportService(cfg, readRepo, writeRepo, otpStore, jwtSig, refresh, reset, email, zap.NewNop())
 
 	return &testDeps{
 		svc:       svc,
@@ -93,6 +97,7 @@ func newDeps(t *testing.T) *testDeps {
 		otpStore:  otpStore,
 		jwt:       jwtSig,
 		refresh:   refresh,
+		reset:     reset,
 		redisSrv:  srv,
 		redisCli:  cli,
 	}
@@ -931,4 +936,162 @@ func TestSupportService_DeactivateSupportAgent(t *testing.T) {
 		err := svc(d).DeactivateSupportAgent(ctx, "uid-1")
 		assert.ErrorIs(t, err, dbErr)
 	})
+}
+
+// =============================================================================
+// ForgotPassword / TriggerPasswordReset / ResetPassword / ListPasswordResetRequests
+// =============================================================================
+
+func TestSupportService_ForgotPassword(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("compte support → demande enregistrée + admins notifiés", func(t *testing.T) {
+		d := newDeps(t)
+		user := fixtures.NewTestSupportUser(fixtures.WithEmail("agent@x.com"))
+		d.readRepo.On("GetByEmail", mock.Anything, "agent@x.com").Return(user, nil)
+		d.writeRepo.On("SetPasswordResetRequested", mock.Anything, user.UserID).Return(nil)
+		d.readRepo.On("ListAdminEmails", mock.Anything).Return([]string{"admin@x.com"}, nil)
+
+		err := svc(d).ForgotPassword(ctx, "Agent@X.com")
+		require.NoError(t, err)
+		waitForEmails(t, d.email, 1)
+		assert.Equal(t, "admin@x.com", d.email.LastTo())
+	})
+
+	t.Run("compte admin → lien de reset envoyé à sa propre adresse", func(t *testing.T) {
+		d := newDeps(t)
+		admin := fixtures.NewTestAdmin(fixtures.WithEmail("boss@x.com"))
+		d.readRepo.On("GetByEmail", mock.Anything, "boss@x.com").Return(admin, nil)
+
+		err := svc(d).ForgotPassword(ctx, "boss@x.com")
+		require.NoError(t, err)
+		waitForEmails(t, d.email, 1)
+		call := d.email.Calls()[0]
+		assert.Equal(t, "boss@x.com", call.To)
+		assert.Contains(t, call.BodyText, "https://support.test/reset-password?token=")
+		d.writeRepo.AssertNotCalled(t, "SetPasswordResetRequested", mock.Anything, mock.Anything)
+	})
+
+	t.Run("email inconnu → succès silencieux, aucun email", func(t *testing.T) {
+		d := newDeps(t)
+		d.readRepo.On("GetByEmail", mock.Anything, "ghost@x.com").Return(nil, supportErrors.ErrUserNotFound)
+
+		err := svc(d).ForgotPassword(ctx, "ghost@x.com")
+		require.NoError(t, err)
+		assert.Equal(t, 0, d.email.Count())
+	})
+
+	t.Run("compte inactif → succès silencieux", func(t *testing.T) {
+		d := newDeps(t)
+		inactive := fixtures.NewTestSupportUser(fixtures.WithEmail("off@x.com"))
+		inactive.IsActive = false
+		d.readRepo.On("GetByEmail", mock.Anything, "off@x.com").Return(inactive, nil)
+
+		err := svc(d).ForgotPassword(ctx, "off@x.com")
+		require.NoError(t, err)
+		assert.Equal(t, 0, d.email.Count())
+	})
+}
+
+func TestSupportService_TriggerPasswordReset(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("succès : demande réclamée + lien envoyé", func(t *testing.T) {
+		d := newDeps(t)
+		user := fixtures.NewTestSupportUser(fixtures.WithEmail("agent@x.com"))
+		d.readRepo.On("GetByID", mock.Anything, user.UserID).Return(user, nil)
+		d.writeRepo.On("ClaimPasswordResetRequest", mock.Anything, user.UserID).Return(nil)
+
+		err := svc(d).TriggerPasswordReset(ctx, user.UserID)
+		require.NoError(t, err)
+		waitForEmails(t, d.email, 1)
+		assert.Equal(t, "agent@x.com", d.email.LastTo())
+	})
+
+	t.Run("demande déjà traitée par un autre admin → ErrResetAlreadyProcessed, aucun email", func(t *testing.T) {
+		d := newDeps(t)
+		user := fixtures.NewTestSupportUser(fixtures.WithEmail("agent@x.com"))
+		d.readRepo.On("GetByID", mock.Anything, user.UserID).Return(user, nil)
+		d.writeRepo.On("ClaimPasswordResetRequest", mock.Anything, user.UserID).
+			Return(supportErrors.ErrResetAlreadyProcessed)
+
+		err := svc(d).TriggerPasswordReset(ctx, user.UserID)
+		assert.ErrorIs(t, err, supportErrors.ErrResetAlreadyProcessed)
+		assert.Equal(t, 0, d.email.Count())
+	})
+
+	t.Run("userID vide → ErrInvalidInput", func(t *testing.T) {
+		d := newDeps(t)
+		err := svc(d).TriggerPasswordReset(ctx, "")
+		assert.ErrorIs(t, err, supportErrors.ErrInvalidInput)
+	})
+
+	t.Run("user introuvable → erreur propagée", func(t *testing.T) {
+		d := newDeps(t)
+		d.readRepo.On("GetByID", mock.Anything, "x").Return(nil, supportErrors.ErrUserNotFound)
+
+		err := svc(d).TriggerPasswordReset(ctx, "x")
+		assert.ErrorIs(t, err, supportErrors.ErrUserNotFound)
+	})
+}
+
+func TestSupportService_ResetPassword(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("succès : token valide + mot de passe fort", func(t *testing.T) {
+		d := newDeps(t)
+		raw, err := d.reset.Issue(ctx, "uid-1")
+		require.NoError(t, err)
+		d.writeRepo.On("UpdatePassword", mock.Anything, "uid-1", mock.Anything, false).Return(nil)
+		d.writeRepo.On("ClearPasswordResetRequested", mock.Anything, "uid-1").Return(nil)
+
+		err = svc(d).ResetPassword(ctx, raw, "NewPassw0rd!Test")
+		require.NoError(t, err)
+	})
+
+	t.Run("token invalide → ErrResetTokenInvalid", func(t *testing.T) {
+		d := newDeps(t)
+		err := svc(d).ResetPassword(ctx, "bogus-token", "NewPassw0rd!Test")
+		assert.ErrorIs(t, err, supportErrors.ErrResetTokenInvalid)
+	})
+
+	t.Run("mot de passe faible → ErrWeakPassword (token non consommé)", func(t *testing.T) {
+		d := newDeps(t)
+		raw, err := d.reset.Issue(ctx, "uid-1")
+		require.NoError(t, err)
+
+		err = svc(d).ResetPassword(ctx, raw, "weak")
+		assert.ErrorIs(t, err, supportErrors.ErrWeakPassword)
+
+		// Le token doit toujours être valide (non brûlé) : un 2e essai correct passe.
+		d.writeRepo.On("UpdatePassword", mock.Anything, "uid-1", mock.Anything, false).Return(nil)
+		d.writeRepo.On("ClearPasswordResetRequested", mock.Anything, "uid-1").Return(nil)
+		err = svc(d).ResetPassword(ctx, raw, "NewPassw0rd!Test")
+		require.NoError(t, err)
+	})
+
+	t.Run("token à usage unique → 2e usage échoue", func(t *testing.T) {
+		d := newDeps(t)
+		raw, err := d.reset.Issue(ctx, "uid-1")
+		require.NoError(t, err)
+		d.writeRepo.On("UpdatePassword", mock.Anything, "uid-1", mock.Anything, false).Return(nil)
+		d.writeRepo.On("ClearPasswordResetRequested", mock.Anything, "uid-1").Return(nil)
+
+		require.NoError(t, svc(d).ResetPassword(ctx, raw, "NewPassw0rd!Test"))
+		err = svc(d).ResetPassword(ctx, raw, "AnotherPassw0rd!")
+		assert.ErrorIs(t, err, supportErrors.ErrResetTokenInvalid)
+	})
+}
+
+func TestSupportService_ListPasswordResetRequests(t *testing.T) {
+	ctx := context.Background()
+
+	d := newDeps(t)
+	pending := []*domain.SupportUser{fixtures.NewTestSupportUser(fixtures.WithEmail("agent@x.com"))}
+	d.readRepo.On("ListPendingPasswordResets", mock.Anything).Return(pending, nil)
+
+	out, err := svc(d).ListPasswordResetRequests(ctx)
+	require.NoError(t, err)
+	assert.Len(t, out, 1)
+	assert.Equal(t, "agent@x.com", out[0].Email)
 }

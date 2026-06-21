@@ -11,4 +11,6 @@ type SupportUserReadRepository interface {
 	GetByEmail(ctx context.Context, email string) (*domain.SupportUser, error)
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
 	List(ctx context.Context, limit, offset int) ([]*domain.SupportUser, int, error)
+	ListPendingPasswordResets(ctx context.Context) ([]*domain.SupportUser, error)
+	ListAdminEmails(ctx context.Context) ([]string, error)
 }

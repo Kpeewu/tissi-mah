@@ -21,15 +21,17 @@ func getIntOrDefault(v *viper.Viper, key string, def int) int {
 }
 
 type Config struct {
-	Server       ServerConfig
-	Environment  EnvironmentConfig
-	Database     DatabaseConfig
-	Redis        RedisConfig
-	EmailService EmailServiceConfig
-	JWT          JWTConfig
-	OTP          OTPConfig
-	RateLimit    RateLimitConfig
-	LogLevel     string
+	Server        ServerConfig
+	Environment   EnvironmentConfig
+	Database      DatabaseConfig
+	Redis         RedisConfig
+	EmailService  EmailServiceConfig
+	JWT           JWTConfig
+	OTP           OTPConfig
+	RateLimit     RateLimitConfig
+	PasswordReset PasswordResetConfig
+	FrontendURL   string
+	LogLevel      string
 }
 
 type ServerConfig struct {
@@ -55,20 +57,24 @@ type EmailServiceConfig struct {
 }
 
 type JWTConfig struct {
-	Secret              string
-	AccessTTLHours      int
-	RefreshTTLHours     int
+	Secret          string
+	AccessTTLHours  int
+	RefreshTTLHours int
 }
 
 type OTPConfig struct {
-	TTLSeconds       int
-	MaxAttempts      int
+	TTLSeconds        int
+	MaxAttempts       int
 	ResendCooldownSec int
 }
 
 type RateLimitConfig struct {
 	FailThreshold     int
 	FailWindowSeconds int
+}
+
+type PasswordResetConfig struct {
+	TTLSeconds int
 }
 
 func Load() (*Config, error) {
@@ -109,7 +115,11 @@ func Load() (*Config, error) {
 			FailThreshold:     getIntOrDefault(values, "LOGIN_FAIL_THRESHOLD", 5),
 			FailWindowSeconds: getIntOrDefault(values, "LOGIN_FAIL_WINDOW_SECONDS", 86400),
 		},
-		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		PasswordReset: PasswordResetConfig{
+			TTLSeconds: getIntOrDefault(values, "PASSWORD_RESET_TTL_SECONDS", 3600),
+		},
+		FrontendURL: sharedconfig.GetStringOrDefault(values, "SUPPORT_FRONTEND_URL", ""),
+		LogLevel:    sharedconfig.MustGetString(values, "LOG_LEVEL"),
 	}
 
 	if err := validate(cfg); err != nil {
@@ -127,6 +137,9 @@ func validate(c *Config) error {
 	}
 	if len(c.JWT.Secret) < 32 {
 		return fmt.Errorf("JWT_SECRET must be at least 32 bytes")
+	}
+	if c.Environment.Mode != "local" && c.FrontendURL == "" {
+		return fmt.Errorf("SUPPORT_FRONTEND_URL is required outside local")
 	}
 	return nil
 }

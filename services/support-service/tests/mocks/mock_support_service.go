@@ -81,3 +81,21 @@ func (m *MockSupportService) DeleteSupportAgent(ctx context.Context, userID stri
 func (m *MockSupportService) UpdateSupportAgent(ctx context.Context, userID, newEmail, newRole string) error {
 	return m.Called(ctx, userID, newEmail, newRole).Error(0)
 }
+
+func (m *MockSupportService) ForgotPassword(ctx context.Context, email string) error {
+	return m.Called(ctx, email).Error(0)
+}
+
+func (m *MockSupportService) ResetPassword(ctx context.Context, token, newPassword string) error {
+	return m.Called(ctx, token, newPassword).Error(0)
+}
+
+func (m *MockSupportService) ListPasswordResetRequests(ctx context.Context) ([]*domain.SupportUser, error) {
+	args := m.Called(ctx)
+	users, _ := args.Get(0).([]*domain.SupportUser)
+	return users, args.Error(1)
+}
+
+func (m *MockSupportService) TriggerPasswordReset(ctx context.Context, userID string) error {
+	return m.Called(ctx, userID).Error(0)
+}

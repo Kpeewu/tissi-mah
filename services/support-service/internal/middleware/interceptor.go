@@ -22,13 +22,15 @@ const (
 
 // publicMethods : routes publiques (pas besoin de JWT support).
 var publicMethods = map[string]bool{
-	"/support.SupportService/Login":        true,
-	"/support.SupportService/VerifyOTP":    true,
-	"/support.SupportService/ResendOTP":    true,
-	"/support.SupportService/RefreshToken": true,
-	"/support.SupportService/Health":       true,
-	"/grpc.health.v1.Health/Check":         true,
-	"/grpc.health.v1.Health/Watch":         true,
+	"/support.SupportService/Login":          true,
+	"/support.SupportService/VerifyOTP":      true,
+	"/support.SupportService/ResendOTP":      true,
+	"/support.SupportService/RefreshToken":   true,
+	"/support.SupportService/ForgotPassword": true,
+	"/support.SupportService/ResetPassword":  true,
+	"/support.SupportService/Health":         true,
+	"/grpc.health.v1.Health/Check":           true,
+	"/grpc.health.v1.Health/Watch":           true,
 }
 
 // SupportInterceptor lit x-support-uid / x-support-role depuis la metadata gRPC injectée par api-gateway

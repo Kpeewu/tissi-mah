@@ -43,3 +43,15 @@ func (m *MockSupportUserWriteRepository) Activate(ctx context.Context, userID st
 func (m *MockSupportUserWriteRepository) SoftDelete(ctx context.Context, userID string) error {
 	return m.Called(ctx, userID).Error(0)
 }
+
+func (m *MockSupportUserWriteRepository) SetPasswordResetRequested(ctx context.Context, userID string) error {
+	return m.Called(ctx, userID).Error(0)
+}
+
+func (m *MockSupportUserWriteRepository) ClearPasswordResetRequested(ctx context.Context, userID string) error {
+	return m.Called(ctx, userID).Error(0)
+}
+
+func (m *MockSupportUserWriteRepository) ClaimPasswordResetRequest(ctx context.Context, userID string) error {
+	return m.Called(ctx, userID).Error(0)
+}

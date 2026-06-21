@@ -40,6 +40,8 @@ config:
   otpResendCooldownSeconds: "300"
   loginFailThreshold: "5"
   loginFailWindowSeconds: "86400"
+  frontendUrl: "https://support.tissimah.com"
+  passwordResetTtlSeconds: "3600"
   extra: {}
 
 secrets:

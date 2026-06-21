@@ -42,6 +42,16 @@ type SupportService interface {
 	ChangeMyPassword(ctx context.Context, userID, currentPassword, newPassword string) error
 	UpdateMyProfile(ctx context.Context, userID, firstName, lastName string) error
 
+	// ForgotPassword (public) : un agent support déclenche une demande (notifiée aux
+	// admins) ; un admin reçoit directement un lien de réinitialisation par email.
+	ForgotPassword(ctx context.Context, email string) error
+	// ResetPassword (public) : applique un nouveau mot de passe via un token de reset.
+	ResetPassword(ctx context.Context, token, newPassword string) error
+	// ListPasswordResetRequests (admin) : demandes de reset en attente (dashboard).
+	ListPasswordResetRequests(ctx context.Context) ([]*domain.SupportUser, error)
+	// TriggerPasswordReset (admin) : envoie un lien de reset à l'agent ciblé.
+	TriggerPasswordReset(ctx context.Context, userID string) error
+
 	CreateSupportAgent(ctx context.Context, email, firstName, lastName, role string) (string, error)
 	ListSupportAgents(ctx context.Context, limit, offset int) ([]*domain.SupportUser, int, error)
 	DeactivateSupportAgent(ctx context.Context, userID string) error

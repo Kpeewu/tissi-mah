@@ -78,9 +78,10 @@ func run(bootstrapLogger *zap.Logger) error {
 	)
 	jwtSigner := token.NewJWTSigner(cfg.JWT.Secret, cfg.JWT.AccessTTLHours)
 	refreshStore := token.NewRefreshStore(redisClient, cfg.JWT.RefreshTTLHours)
+	resetStore := token.NewResetStore(redisClient, time.Duration(cfg.PasswordReset.TTLSeconds)*time.Second)
 
 	supportSvc := service.NewSupportService(
-		cfg, readRepo, writeRepo, otpStore, jwtSigner, refreshStore, emailClient, logger,
+		cfg, readRepo, writeRepo, otpStore, jwtSigner, refreshStore, resetStore, emailClient, logger,
 	)
 
 	srv, err := grpcsrv.NewSupportServer(cfg, supportSvc, logger)

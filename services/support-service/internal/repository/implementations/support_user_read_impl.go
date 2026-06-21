@@ -24,7 +24,7 @@ func NewSupportUserReadRepository(pool *pgxpool.Pool, logger *zap.Logger) i.Supp
 const supportUserCols = `
     user_id, email, password_hash, first_name, last_name, role,
     is_active, must_change_password, email_changed_at, password_changed_at,
-    created_at, updated_at, deleted_at
+    password_reset_requested_at, created_at, updated_at, deleted_at
 `
 
 func scanSupportUser(row pgx.Row) (*domain.SupportUser, error) {
@@ -32,7 +32,7 @@ func scanSupportUser(row pgx.Row) (*domain.SupportUser, error) {
 	err := row.Scan(
 		&u.UserID, &u.Email, &u.PasswordHash, &u.FirstName, &u.LastName, &u.Role,
 		&u.IsActive, &u.MustChangePassword, &u.EmailChangedAt, &u.PasswordChangedAt,
-		&u.CreatedAt, &u.UpdatedAt, &u.DeletedAt,
+		&u.PasswordResetRequestedAt, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -113,4 +113,51 @@ func (r *supportUserReadRepository) List(ctx context.Context, limit, offset int)
 		out = append(out, u)
 	}
 	return out, total, nil
+}
+
+// ListPendingPasswordResets retourne les agents ayant une demande de réinitialisation en attente.
+func (r *supportUserReadRepository) ListPendingPasswordResets(ctx context.Context) ([]*domain.SupportUser, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT `+supportUserCols+` FROM support_users
+         WHERE password_reset_requested_at IS NOT NULL AND deleted_at IS NULL
+         ORDER BY password_reset_requested_at ASC`,
+	)
+	if err != nil {
+		return nil, supportErrors.ErrInternal
+	}
+	defer rows.Close()
+
+	out := make([]*domain.SupportUser, 0)
+	for rows.Next() {
+		u, err := scanSupportUser(rows)
+		if err != nil {
+			r.logger.Error("ListPendingPasswordResets scan failed", zap.Error(err))
+			return nil, supportErrors.ErrInternal
+		}
+		out = append(out, u)
+	}
+	return out, nil
+}
+
+// ListAdminEmails retourne les emails de tous les admins actifs (pour notification).
+func (r *supportUserReadRepository) ListAdminEmails(ctx context.Context) ([]string, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT email FROM support_users
+         WHERE role = 'admin' AND is_active AND deleted_at IS NULL`,
+	)
+	if err != nil {
+		return nil, supportErrors.ErrInternal
+	}
+	defer rows.Close()
+
+	out := make([]string, 0)
+	for rows.Next() {
+		var email string
+		if err := rows.Scan(&email); err != nil {
+			r.logger.Error("ListAdminEmails scan failed", zap.Error(err))
+			return nil, supportErrors.ErrInternal
+		}
+		out = append(out, email)
+	}
+	return out, nil
 }

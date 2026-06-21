@@ -30,6 +30,7 @@ type supportServiceImpl struct {
 	otpStore     *otp.Store
 	jwtSigner    *token.JWTSigner
 	refreshStore *token.RefreshStore
+	resetStore   *token.ResetStore
 	emailClient  EmailSender
 	logger       *zap.Logger
 }
@@ -42,6 +43,7 @@ func NewSupportService(
 	otpStore *otp.Store,
 	jwtSigner *token.JWTSigner,
 	refreshStore *token.RefreshStore,
+	resetStore *token.ResetStore,
 	emailClient EmailSender,
 	logger *zap.Logger,
 ) svcIfaces.SupportService {
@@ -52,6 +54,7 @@ func NewSupportService(
 		otpStore:     otpStore,
 		jwtSigner:    jwtSigner,
 		refreshStore: refreshStore,
+		resetStore:   resetStore,
 		emailClient:  emailClient,
 		logger:       logger,
 	}
@@ -533,4 +536,157 @@ func (s *supportServiceImpl) UpdateSupportAgent(ctx context.Context, userID, new
 	s.logger.Info("updateSupportAgent: success",
 		zap.String("userID", userID), zap.Bool("emailChanged", newEmail != ""), zap.Bool("roleChanged", newRole != ""))
 	return nil
+}
+
+// ─── ForgotPassword (public) ─────────────────────────────────────────────────
+
+// ForgotPassword déclenche le flux de réinitialisation. Réponse anti-énumération :
+// l'appelant reçoit toujours un succès, quel que soit l'état du compte.
+//   - compte admin  → lien de reset envoyé directement à sa propre adresse.
+//   - compte support → demande enregistrée + email de notification aux admins.
+func (s *supportServiceImpl) ForgotPassword(ctx context.Context, email string) error {
+	email = normalizeEmail(email)
+	if email == "" {
+		return nil
+	}
+	user, err := s.readRepo.GetByEmail(ctx, email)
+	if err != nil || !user.IsActive {
+		// Anti-énumération : on ne révèle pas l'existence du compte.
+		return nil
+	}
+
+	if user.Role == domain.RoleAdmin {
+		if err := s.sendResetLink(ctx, user); err != nil {
+			s.logger.Error("forgotPassword: admin self-service reset failed",
+				zap.String("userID", user.UserID), zap.Error(err))
+		}
+		return nil
+	}
+
+	// Compte support : enregistre la demande puis notifie les admins.
+	if err := s.writeRepo.SetPasswordResetRequested(ctx, user.UserID); err != nil {
+		s.logger.Error("forgotPassword: set request flag failed",
+			zap.String("userID", user.UserID), zap.Error(err))
+		return nil
+	}
+	s.notifyAdminsOfResetRequest(ctx, user.Email)
+	s.logger.Info("forgotPassword: support reset request recorded", zap.String("userID", user.UserID))
+	return nil
+}
+
+// ─── ListPasswordResetRequests (admin) ───────────────────────────────────────
+
+func (s *supportServiceImpl) ListPasswordResetRequests(ctx context.Context) ([]*domain.SupportUser, error) {
+	return s.readRepo.ListPendingPasswordResets(ctx)
+}
+
+// ─── TriggerPasswordReset (admin) ────────────────────────────────────────────
+
+// TriggerPasswordReset envoie un lien de réinitialisation à l'agent ciblé.
+// La demande est « réclamée » de façon atomique : si un autre admin l'a déjà
+// traitée, ErrResetAlreadyProcessed est renvoyé et aucun email n'est envoyé.
+func (s *supportServiceImpl) TriggerPasswordReset(ctx context.Context, userID string) error {
+	if userID == "" {
+		return supportErrors.ErrInvalidInput
+	}
+	user, err := s.readRepo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	// Réclame la demande AVANT l'envoi : seul le premier admin réussit.
+	if err := s.writeRepo.ClaimPasswordResetRequest(ctx, userID); err != nil {
+		return err
+	}
+	if err := s.sendResetLink(ctx, user); err != nil {
+		// L'envoi (génération du token) a échoué : on restaure la demande pour
+		// qu'un admin puisse réessayer.
+		if restoreErr := s.writeRepo.SetPasswordResetRequested(ctx, userID); restoreErr != nil {
+			s.logger.Error("triggerPasswordReset: restore request flag failed",
+				zap.String("userID", userID), zap.Error(restoreErr))
+		}
+		return err
+	}
+	s.logger.Info("triggerPasswordReset: reset link sent", zap.String("userID", userID))
+	return nil
+}
+
+// ─── ResetPassword (public) ──────────────────────────────────────────────────
+
+// ResetPassword applique un nouveau mot de passe à partir d'un token de reset valide.
+func (s *supportServiceImpl) ResetPassword(ctx context.Context, rawToken, newPassword string) error {
+	// Valider la force AVANT de consommer le token : un mot de passe faible ne doit
+	// pas invalider le token (l'utilisateur peut réessayer avec le même lien).
+	if err := password.ValidateStrength(newPassword); err != nil {
+		return supportErrors.ErrWeakPassword
+	}
+	userID, err := s.resetStore.Consume(ctx, rawToken)
+	if err != nil {
+		return err
+	}
+	hash, err := password.Hash(newPassword)
+	if err != nil {
+		s.logger.Error("resetPassword: hash failed", zap.String("userID", userID), zap.Error(err))
+		return supportErrors.ErrInternal
+	}
+	if err := s.writeRepo.UpdatePassword(ctx, userID, hash, false); err != nil {
+		return err
+	}
+	// Efface une éventuelle demande en attente (cas support).
+	if err := s.writeRepo.ClearPasswordResetRequested(ctx, userID); err != nil {
+		s.logger.Warn("resetPassword: clear request flag failed",
+			zap.String("userID", userID), zap.Error(err))
+	}
+	s.logger.Info("resetPassword: success", zap.String("userID", userID))
+	return nil
+}
+
+// sendResetLink génère un token de reset et envoie le lien par email à l'utilisateur.
+func (s *supportServiceImpl) sendResetLink(ctx context.Context, user *domain.SupportUser) error {
+	raw, err := s.resetStore.Issue(ctx, user.UserID)
+	if err != nil {
+		return err
+	}
+	link := strings.TrimRight(s.cfg.FrontendURL, "/") + "/reset-password?token=" + raw
+
+	go func(to, link string) {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := s.emailClient.SendEmail(bgCtx, to,
+			"Réinitialisation de votre mot de passe TissiMah Support",
+			"Pour réinitialiser votre mot de passe, ouvrez ce lien : "+link+"\nCe lien expire bientôt. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.",
+			"<p>Pour réinitialiser votre mot de passe, cliquez sur ce lien : <a href=\""+link+"\">Réinitialiser mon mot de passe</a></p><p>Ce lien expire bientôt. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>",
+		); err != nil {
+			s.logger.Error("sendResetLink: email send failed", zap.String("to", to), zap.Error(err))
+		}
+	}(user.Email, link)
+
+	return nil
+}
+
+// notifyAdminsOfResetRequest envoie un email à tous les admins actifs pour signaler
+// qu'un agent support a demandé une réinitialisation de mot de passe.
+func (s *supportServiceImpl) notifyAdminsOfResetRequest(ctx context.Context, agentEmail string) {
+	admins, err := s.readRepo.ListAdminEmails(ctx)
+	if err != nil {
+		s.logger.Error("notifyAdminsOfResetRequest: list admins failed", zap.Error(err))
+		return
+	}
+	if len(admins) == 0 {
+		return
+	}
+	go func(recipients []string, agent string) {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		subject := "Demande de réinitialisation de mot de passe — agent support"
+		text := "L'agent support " + agent + " a demandé une réinitialisation de mot de passe.\n" +
+			"Connectez-vous au back-office pour traiter la demande."
+		html := "<p>L'agent support <strong>" + agent + "</strong> a demandé une réinitialisation de mot de passe.</p>" +
+			"<p>Connectez-vous au back-office pour traiter la demande.</p>"
+		for _, to := range recipients {
+			if err := s.emailClient.SendEmail(bgCtx, to, subject, text, html); err != nil {
+				s.logger.Error("notifyAdminsOfResetRequest: email send failed",
+					zap.String("to", to), zap.Error(err))
+			}
+		}
+	}(admins, agentEmail)
 }
