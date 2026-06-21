@@ -111,11 +111,12 @@ var SupportProtectedRoutes = map[string]bool{
 	"/api/v1/support/logout":                  true,
 	"/api/v1/support/me":                      true,
 	"/api/v1/support/me/password":             true,
-	"/api/v1/support/me/email":                true,
+	"/api/v1/support/me/profile":              true,
 	"/api/v1/support/admin/agents":            true,
 	"/api/v1/support/admin/agents/deactivate": true,
 	"/api/v1/support/admin/agents/activate":   true,
 	"/api/v1/support/admin/agents/delete":     true,
+	"/api/v1/support/admin/agents/update":     true,
 
 	// payment-service — actions support
 	"/api/v1/payment/support/triggerManualPayout": true,

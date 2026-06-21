@@ -55,9 +55,11 @@ service SupportService {
     };
   }
 
-  rpc ChangeMyEmail(ChangeMyEmailRequest) returns (ChangeMyEmailResponse) {
+  // UpdateMyProfile permet à l'utilisateur courant (admin ou agent) de modifier
+  // ses propres nom et prénom.
+  rpc UpdateMyProfile(UpdateMyProfileRequest) returns (UpdateMyProfileResponse) {
     option (google.api.http) = {
-      post: "/api/v1/support/me/email"
+      post: "/api/v1/support/me/profile"
       body: "*"
     };
   }
@@ -94,6 +96,15 @@ service SupportService {
   rpc DeleteSupportAgent(DeleteSupportAgentRequest) returns (DeleteSupportAgentResponse) {
     option (google.api.http) = {
       post: "/api/v1/support/admin/agents/delete"
+      body: "*"
+    };
+  }
+
+  // UpdateSupportAgent permet à l'admin de modifier l'email et/ou le rôle d'un
+  // agent. Un champ vide signifie « inchangé ».
+  rpc UpdateSupportAgent(UpdateSupportAgentRequest) returns (UpdateSupportAgentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/admin/agents/update"
       body: "*"
     };
   }
@@ -178,18 +189,18 @@ message ChangeMyPasswordRequest {
 
 message ChangeMyPasswordResponse {}
 
-message ChangeMyEmailRequest {
-  string NewEmail         = 1;
-  string CurrentPassword  = 2;
+message UpdateMyProfileRequest {
+  string FirstName = 1;
+  string LastName  = 2;
 }
 
-message ChangeMyEmailResponse {}
+message UpdateMyProfileResponse {}
 
 message CreateSupportAgentRequest {
   string Email     = 1;
   string FirstName = 2;
   string LastName  = 3;
-  // Role du nouvel agent : "admin" ou "support". Vide = "support" par défaut.
+  // Role du nouvel agent : "admin" ou "support". Obligatoire.
   string Role      = 4;
 }
 
@@ -234,6 +245,16 @@ message DeleteSupportAgentRequest {
 }
 
 message DeleteSupportAgentResponse {}
+
+message UpdateSupportAgentRequest {
+  string UserId = 1;
+  // Email : nouvelle adresse, vide = inchangé.
+  string Email  = 2;
+  // Role : "admin" ou "support", vide = inchangé.
+  string Role   = 3;
+}
+
+message UpdateSupportAgentResponse {}
 
 message HealthRequest {}
 

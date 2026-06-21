@@ -205,22 +205,22 @@ func (h *SupportHandler) ChangeMyPassword(ctx context.Context, req *supportpb.Ch
 	return &supportpb.ChangeMyPasswordResponse{}, nil
 }
 
-func (h *SupportHandler) ChangeMyEmail(ctx context.Context, req *supportpb.ChangeMyEmailRequest) (*supportpb.ChangeMyEmailResponse, error) {
+func (h *SupportHandler) UpdateMyProfile(ctx context.Context, req *supportpb.UpdateMyProfileRequest) (*supportpb.UpdateMyProfileResponse, error) {
 	uid, ok := middleware.UIDFromContext(ctx)
 	if !ok {
-		h.logger.Error("handler: ChangeMyEmail - missing support UID in context")
+		h.logger.Error("handler: UpdateMyProfile - missing support UID in context")
 		return nil, toGRPCError(supportErrors.ErrUnauthenticated)
 	}
-	h.logger.Debug("handler: ChangeMyEmail called", zap.String("uid", uid))
+	h.logger.Debug("handler: UpdateMyProfile called", zap.String("uid", uid))
 	if err := h.gateMustChange(ctx, false); err != nil {
 		return nil, toGRPCError(err)
 	}
-	if err := h.svc.ChangeMyEmail(ctx, uid, req.GetNewEmail(), req.GetCurrentPassword()); err != nil {
-		h.logger.Error("handler: ChangeMyEmail failed", zap.String("uid", uid), zap.Error(err))
+	if err := h.svc.UpdateMyProfile(ctx, uid, req.GetFirstName(), req.GetLastName()); err != nil {
+		h.logger.Error("handler: UpdateMyProfile failed", zap.String("uid", uid), zap.Error(err))
 		return nil, toGRPCError(err)
 	}
-	h.logger.Info("handler: ChangeMyEmail success", zap.String("uid", uid))
-	return &supportpb.ChangeMyEmailResponse{}, nil
+	h.logger.Info("handler: UpdateMyProfile success", zap.String("uid", uid))
+	return &supportpb.UpdateMyProfileResponse{}, nil
 }
 
 func (h *SupportHandler) CreateSupportAgent(ctx context.Context, req *supportpb.CreateSupportAgentRequest) (*supportpb.CreateSupportAgentResponse, error) {
@@ -320,6 +320,23 @@ func (h *SupportHandler) DeleteSupportAgent(ctx context.Context, req *supportpb.
 	}
 	h.logger.Info("handler: DeleteSupportAgent success", zap.String("userID", req.GetUserId()))
 	return &supportpb.DeleteSupportAgentResponse{}, nil
+}
+
+func (h *SupportHandler) UpdateSupportAgent(ctx context.Context, req *supportpb.UpdateSupportAgentRequest) (*supportpb.UpdateSupportAgentResponse, error) {
+	if err := requireAdmin(ctx); err != nil {
+		h.logger.Warn("handler: UpdateSupportAgent - insufficient role", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+	if err := h.gateMustChange(ctx, false); err != nil {
+		return nil, toGRPCError(err)
+	}
+	h.logger.Debug("handler: UpdateSupportAgent called", zap.String("userID", req.GetUserId()))
+	if err := h.svc.UpdateSupportAgent(ctx, req.GetUserId(), req.GetEmail(), req.GetRole()); err != nil {
+		h.logger.Error("handler: UpdateSupportAgent failed", zap.String("userID", req.GetUserId()), zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+	h.logger.Info("handler: UpdateSupportAgent success", zap.String("userID", req.GetUserId()))
+	return &supportpb.UpdateSupportAgentResponse{}, nil
 }
 
 func (h *SupportHandler) Health(_ context.Context, _ *supportpb.HealthRequest) (*supportpb.HealthResponse, error) {

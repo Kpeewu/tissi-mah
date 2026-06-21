@@ -24,6 +24,14 @@ func (m *MockSupportUserWriteRepository) UpdateEmail(ctx context.Context, userID
 	return m.Called(ctx, userID, newEmail).Error(0)
 }
 
+func (m *MockSupportUserWriteRepository) UpdateName(ctx context.Context, userID, firstName, lastName string) error {
+	return m.Called(ctx, userID, firstName, lastName).Error(0)
+}
+
+func (m *MockSupportUserWriteRepository) UpdateRole(ctx context.Context, userID, role string) error {
+	return m.Called(ctx, userID, role).Error(0)
+}
+
 func (m *MockSupportUserWriteRepository) Deactivate(ctx context.Context, userID string) error {
 	return m.Called(ctx, userID).Error(0)
 }

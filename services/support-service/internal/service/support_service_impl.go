@@ -17,8 +17,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const emailChangeCooldown = 6 * 30 * 24 * time.Hour // 6 mois
-
 // EmailSender abstrait l'envoi d'email transactionnel (satisfait par *client.EmailClient).
 // Permet d'injecter un mock en tests sans dépendre d'un gRPC client.
 type EmailSender interface {
@@ -357,36 +355,19 @@ func (s *supportServiceImpl) ChangeMyPassword(ctx context.Context, userID, curre
 	return nil
 }
 
-// ─── ChangeMyEmail ───────────────────────────────────────────────────────────
+// ─── UpdateMyProfile ─────────────────────────────────────────────────────────
 
-func (s *supportServiceImpl) ChangeMyEmail(ctx context.Context, userID, newEmail, current string) error {
-	newEmail = normalizeEmail(newEmail)
-	if newEmail == "" {
+// UpdateMyProfile modifie le nom et le prénom de l'utilisateur courant.
+func (s *supportServiceImpl) UpdateMyProfile(ctx context.Context, userID, firstName, lastName string) error {
+	firstName = strings.TrimSpace(firstName)
+	lastName = strings.TrimSpace(lastName)
+	if firstName == "" || lastName == "" {
 		return supportErrors.ErrInvalidInput
 	}
-	user, err := s.readRepo.GetByID(ctx, userID)
-	if err != nil {
+	if err := s.writeRepo.UpdateName(ctx, userID, firstName, lastName); err != nil {
 		return err
 	}
-	ok, err := password.Verify(user.PasswordHash, current)
-	if err != nil || !ok {
-		return supportErrors.ErrInvalidCredentials
-	}
-	if user.EmailChangedAt != nil && time.Since(*user.EmailChangedAt) < emailChangeCooldown {
-		s.logger.Warn("changeMyEmail: cooldown not elapsed", zap.String("userID", userID))
-		return supportErrors.ErrEmailChangeCooldown
-	}
-	exists, err := s.readRepo.ExistsByEmail(ctx, newEmail)
-	if err != nil {
-		return err
-	}
-	if exists {
-		return supportErrors.ErrEmailAlreadyExists
-	}
-	if err := s.writeRepo.UpdateEmail(ctx, userID, newEmail); err != nil {
-		return err
-	}
-	s.logger.Info("changeMyEmail: success", zap.String("userID", userID))
+	s.logger.Info("updateMyProfile: success", zap.String("userID", userID))
 	return nil
 }
 
@@ -502,5 +483,50 @@ func (s *supportServiceImpl) DeleteSupportAgent(ctx context.Context, userID stri
 		return err
 	}
 	s.logger.Info("deleteSupportAgent: success", zap.String("userID", userID))
+	return nil
+}
+
+// ─── UpdateSupportAgent (admin) ──────────────────────────────────────────────
+
+// UpdateSupportAgent modifie l'email et/ou le rôle d'un agent. Un champ vide
+// signifie « inchangé ». Au moins un champ doit être fourni.
+func (s *supportServiceImpl) UpdateSupportAgent(ctx context.Context, userID, newEmail, newRole string) error {
+	if userID == "" {
+		return supportErrors.ErrInvalidInput
+	}
+	newEmail = normalizeEmail(newEmail)
+	if newEmail == "" && newRole == "" {
+		return supportErrors.ErrInvalidInput
+	}
+	if newRole != "" && !domain.IsValidRole(newRole) {
+		return supportErrors.ErrInvalidInput
+	}
+
+	// Vérifie l'existence du compte avant toute modification.
+	if _, err := s.readRepo.GetByID(ctx, userID); err != nil {
+		return err
+	}
+
+	if newEmail != "" {
+		exists, err := s.readRepo.ExistsByEmail(ctx, newEmail)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return supportErrors.ErrEmailAlreadyExists
+		}
+		if err := s.writeRepo.UpdateEmail(ctx, userID, newEmail); err != nil {
+			return err
+		}
+	}
+
+	if newRole != "" {
+		if err := s.writeRepo.UpdateRole(ctx, userID, newRole); err != nil {
+			return err
+		}
+	}
+
+	s.logger.Info("updateSupportAgent: success",
+		zap.String("userID", userID), zap.Bool("emailChanged", newEmail != ""), zap.Bool("roleChanged", newRole != ""))
 	return nil
 }
