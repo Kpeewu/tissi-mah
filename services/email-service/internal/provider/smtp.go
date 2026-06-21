@@ -5,7 +5,10 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
+	"mime"
 	"mime/multipart"
+	"mime/quotedprintable"
 	"net"
 	"net/smtp"
 	"net/textproto"
@@ -114,13 +117,18 @@ func (p *SMTPProvider) Name() string {
 }
 
 // buildMIMEBody construit un message MIME multipart/alternative (text + html).
+// Les corps sont encodés en quoted-printable (obligatoire dès qu'on déclare ce
+// Content-Transfer-Encoding) : sinon les caractères spéciaux comme `=` (présent
+// dans les URL `?token=…`) seraient interprétés comme des séquences d'échappement
+// QP par le client mail et corrompraient le contenu. Le sujet est encodé en
+// encoded-word pour gérer les accents.
 func buildMIMEBody(from, to, subject, bodyText, bodyHTML string) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// En-têtes principaux
 	buf.WriteString("From: TissiMah <" + from + ">\r\n")
 	buf.WriteString("To: " + to + "\r\n")
-	buf.WriteString("Subject: " + subject + "\r\n")
+	buf.WriteString("Subject: " + mime.QEncoding.Encode("utf-8", subject) + "\r\n")
 	buf.WriteString("Date: " + time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05 +0000") + "\r\n")
 	buf.WriteString("MIME-Version: 1.0\r\n")
 
@@ -136,7 +144,7 @@ func buildMIMEBody(from, to, subject, bodyText, bodyHTML string) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := pw.Write([]byte(bodyText)); err != nil {
+	if err := writeQuotedPrintable(pw, bodyText); err != nil {
 		return nil, err
 	}
 
@@ -148,7 +156,7 @@ func buildMIMEBody(from, to, subject, bodyText, bodyHTML string) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := hw.Write([]byte(bodyHTML)); err != nil {
+	if err := writeQuotedPrintable(hw, bodyHTML); err != nil {
 		return nil, err
 	}
 
@@ -157,4 +165,13 @@ func buildMIMEBody(from, to, subject, bodyText, bodyHTML string) ([]byte, error)
 	}
 
 	return buf.Bytes(), nil
+}
+
+// writeQuotedPrintable encode body en quoted-printable et l'écrit dans w.
+func writeQuotedPrintable(w io.Writer, body string) error {
+	qp := quotedprintable.NewWriter(w)
+	if _, err := qp.Write([]byte(body)); err != nil {
+		return err
+	}
+	return qp.Close()
 }
