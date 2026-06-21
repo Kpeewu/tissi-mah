@@ -743,7 +743,7 @@ func TestSupportService_CreateSupportAgent(t *testing.T) {
 				u.PasswordHash != ""
 		})).Return(nil)
 
-		id, err := svc(d).CreateSupportAgent(ctx, "New@X.com", "John", "Doe", "")
+		id, err := svc(d).CreateSupportAgent(ctx, "New@X.com", "John", "Doe", domain.RoleSupport)
 		require.NoError(t, err)
 		assert.NotEmpty(t, id)
 
@@ -769,6 +769,12 @@ func TestSupportService_CreateSupportAgent(t *testing.T) {
 		assert.ErrorIs(t, err, supportErrors.ErrInvalidInput)
 	})
 
+	t.Run("rôle vide → ErrInvalidInput", func(t *testing.T) {
+		d := newDeps(t)
+		_, err := svc(d).CreateSupportAgent(ctx, "e@x.com", "A", "B", "")
+		assert.ErrorIs(t, err, supportErrors.ErrInvalidInput)
+	})
+
 	t.Run("email vide → ErrInvalidInput", func(t *testing.T) {
 		d := newDeps(t)
 		_, err := svc(d).CreateSupportAgent(ctx, "", "A", "B", "")
@@ -791,7 +797,7 @@ func TestSupportService_CreateSupportAgent(t *testing.T) {
 		d := newDeps(t)
 		d.readRepo.On("ExistsByEmail", mock.Anything, "taken@x.com").Return(true, nil)
 
-		_, err := svc(d).CreateSupportAgent(ctx, "taken@x.com", "A", "B", "")
+		_, err := svc(d).CreateSupportAgent(ctx, "taken@x.com", "A", "B", domain.RoleSupport)
 		assert.ErrorIs(t, err, supportErrors.ErrEmailAlreadyExists)
 	})
 
@@ -800,7 +806,7 @@ func TestSupportService_CreateSupportAgent(t *testing.T) {
 		dbErr := errors.New("db down")
 		d.readRepo.On("ExistsByEmail", mock.Anything, "e@x.com").Return(false, dbErr)
 
-		_, err := svc(d).CreateSupportAgent(ctx, "e@x.com", "A", "B", "")
+		_, err := svc(d).CreateSupportAgent(ctx, "e@x.com", "A", "B", domain.RoleSupport)
 		assert.ErrorIs(t, err, dbErr)
 	})
 
@@ -810,7 +816,7 @@ func TestSupportService_CreateSupportAgent(t *testing.T) {
 		dbErr := errors.New("db down")
 		d.writeRepo.On("Create", mock.Anything, mock.Anything).Return(dbErr)
 
-		_, err := svc(d).CreateSupportAgent(ctx, "e@x.com", "A", "B", "")
+		_, err := svc(d).CreateSupportAgent(ctx, "e@x.com", "A", "B", domain.RoleSupport)
 		assert.ErrorIs(t, err, dbErr)
 	})
 }

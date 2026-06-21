@@ -189,7 +189,7 @@ message CreateSupportAgentRequest {
   string Email     = 1;
   string FirstName = 2;
   string LastName  = 3;
-  // Role du nouvel agent : "admin" ou "support". Vide = "support" par défaut.
+  // Role du nouvel agent : "admin" ou "support". Obligatoire.
   string Role      = 4;
 }
 

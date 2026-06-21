@@ -397,10 +397,7 @@ func (s *supportServiceImpl) CreateSupportAgent(ctx context.Context, email, firs
 	if email == "" || firstName == "" || lastName == "" {
 		return "", supportErrors.ErrInvalidInput
 	}
-	// Rôle par défaut "support" ; sinon doit être un rôle valide.
-	if role == "" {
-		role = domain.RoleSupport
-	}
+	// Le rôle est obligatoire et doit être un rôle valide (admin/support).
 	if !domain.IsValidRole(role) {
 		return "", supportErrors.ErrInvalidInput
 	}
