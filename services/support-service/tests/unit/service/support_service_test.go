@@ -722,6 +722,19 @@ func TestSupportService_UpdateSupportAgent(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("modif rôle en renvoyant l'email courant inchangé → pas de conflit", func(t *testing.T) {
+		d := newDeps(t)
+		user := fixtures.NewTestSupportUser(fixtures.WithEmail("agent@x.com"))
+		d.readRepo.On("GetByID", mock.Anything, user.UserID).Return(user, nil)
+		d.writeRepo.On("UpdateRole", mock.Anything, user.UserID, domain.RoleAdmin).Return(nil)
+		// ExistsByEmail/UpdateEmail ne doivent PAS être appelés : l'email est inchangé.
+
+		err := svc(d).UpdateSupportAgent(ctx, user.UserID, "Agent@X.com", domain.RoleAdmin)
+		require.NoError(t, err)
+		d.readRepo.AssertNotCalled(t, "ExistsByEmail", mock.Anything, mock.Anything)
+		d.writeRepo.AssertNotCalled(t, "UpdateEmail", mock.Anything, mock.Anything, mock.Anything)
+	})
+
 	t.Run("aucun champ → ErrInvalidInput", func(t *testing.T) {
 		d := newDeps(t)
 		err := svc(d).UpdateSupportAgent(ctx, "uid-1", "", "")

@@ -503,11 +503,15 @@ func (s *supportServiceImpl) UpdateSupportAgent(ctx context.Context, userID, new
 	}
 
 	// Vérifie l'existence du compte avant toute modification.
-	if _, err := s.readRepo.GetByID(ctx, userID); err != nil {
+	user, err := s.readRepo.GetByID(ctx, userID)
+	if err != nil {
 		return err
 	}
 
-	if newEmail != "" {
+	// On ne traite l'email que s'il diffère réellement de l'email courant : le
+	// front pré-remplit souvent l'email actuel lors d'une modif de rôle, il ne
+	// faut pas le considérer comme un conflit avec lui-même.
+	if newEmail != "" && newEmail != user.Email {
 		exists, err := s.readRepo.ExistsByEmail(ctx, newEmail)
 		if err != nil {
 			return err
