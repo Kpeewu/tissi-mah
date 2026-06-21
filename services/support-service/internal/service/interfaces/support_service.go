@@ -40,11 +40,14 @@ type SupportService interface {
 
 	Me(ctx context.Context, userID string) (*domain.SupportUser, error)
 	ChangeMyPassword(ctx context.Context, userID, currentPassword, newPassword string) error
-	ChangeMyEmail(ctx context.Context, userID, newEmail, currentPassword string) error
+	UpdateMyProfile(ctx context.Context, userID, firstName, lastName string) error
 
 	CreateSupportAgent(ctx context.Context, email, firstName, lastName, role string) (string, error)
 	ListSupportAgents(ctx context.Context, limit, offset int) ([]*domain.SupportUser, int, error)
 	DeactivateSupportAgent(ctx context.Context, userID string) error
 	ActivateSupportAgent(ctx context.Context, userID string) error
 	DeleteSupportAgent(ctx context.Context, userID string) error
+	// UpdateSupportAgent (admin) modifie l'email et/ou le rôle d'un agent.
+	// Un champ vide signifie « inchangé ».
+	UpdateSupportAgent(ctx context.Context, userID, newEmail, newRole string) error
 }

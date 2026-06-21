@@ -82,6 +82,38 @@ func (r *supportUserWriteRepository) UpdateEmail(ctx context.Context, userID, ne
 	return nil
 }
 
+func (r *supportUserWriteRepository) UpdateName(ctx context.Context, userID, firstName, lastName string) error {
+	tag, err := r.pool.Exec(ctx, `
+        UPDATE support_users
+        SET first_name = $1, last_name = $2
+        WHERE user_id = $3 AND deleted_at IS NULL
+    `, firstName, lastName, userID)
+	if err != nil {
+		r.logger.Error("UpdateName failed", zap.Error(err))
+		return supportErrors.ErrInternal
+	}
+	if tag.RowsAffected() == 0 {
+		return supportErrors.ErrUserNotFound
+	}
+	return nil
+}
+
+func (r *supportUserWriteRepository) UpdateRole(ctx context.Context, userID, role string) error {
+	tag, err := r.pool.Exec(ctx, `
+        UPDATE support_users
+        SET role = $1
+        WHERE user_id = $2 AND deleted_at IS NULL
+    `, role, userID)
+	if err != nil {
+		r.logger.Error("UpdateRole failed", zap.Error(err))
+		return supportErrors.ErrInternal
+	}
+	if tag.RowsAffected() == 0 {
+		return supportErrors.ErrUserNotFound
+	}
+	return nil
+}
+
 func (r *supportUserWriteRepository) Deactivate(ctx context.Context, userID string) error {
 	tag, err := r.pool.Exec(ctx, `
         UPDATE support_users

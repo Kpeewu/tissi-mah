@@ -766,28 +766,28 @@ func (*ChangeMyPasswordResponse) Descriptor() ([]byte, []int) {
 	return file_support_proto_rawDescGZIP(), []int{13}
 }
 
-type ChangeMyEmailRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	NewEmail        string                 `protobuf:"bytes,1,opt,name=NewEmail,proto3" json:"NewEmail,omitempty"`
-	CurrentPassword string                 `protobuf:"bytes,2,opt,name=CurrentPassword,proto3" json:"CurrentPassword,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+type UpdateMyProfileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FirstName     string                 `protobuf:"bytes,1,opt,name=FirstName,proto3" json:"FirstName,omitempty"`
+	LastName      string                 `protobuf:"bytes,2,opt,name=LastName,proto3" json:"LastName,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ChangeMyEmailRequest) Reset() {
-	*x = ChangeMyEmailRequest{}
+func (x *UpdateMyProfileRequest) Reset() {
+	*x = UpdateMyProfileRequest{}
 	mi := &file_support_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ChangeMyEmailRequest) String() string {
+func (x *UpdateMyProfileRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ChangeMyEmailRequest) ProtoMessage() {}
+func (*UpdateMyProfileRequest) ProtoMessage() {}
 
-func (x *ChangeMyEmailRequest) ProtoReflect() protoreflect.Message {
+func (x *UpdateMyProfileRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_support_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -799,45 +799,45 @@ func (x *ChangeMyEmailRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ChangeMyEmailRequest.ProtoReflect.Descriptor instead.
-func (*ChangeMyEmailRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use UpdateMyProfileRequest.ProtoReflect.Descriptor instead.
+func (*UpdateMyProfileRequest) Descriptor() ([]byte, []int) {
 	return file_support_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *ChangeMyEmailRequest) GetNewEmail() string {
+func (x *UpdateMyProfileRequest) GetFirstName() string {
 	if x != nil {
-		return x.NewEmail
+		return x.FirstName
 	}
 	return ""
 }
 
-func (x *ChangeMyEmailRequest) GetCurrentPassword() string {
+func (x *UpdateMyProfileRequest) GetLastName() string {
 	if x != nil {
-		return x.CurrentPassword
+		return x.LastName
 	}
 	return ""
 }
 
-type ChangeMyEmailResponse struct {
+type UpdateMyProfileResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ChangeMyEmailResponse) Reset() {
-	*x = ChangeMyEmailResponse{}
+func (x *UpdateMyProfileResponse) Reset() {
+	*x = UpdateMyProfileResponse{}
 	mi := &file_support_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ChangeMyEmailResponse) String() string {
+func (x *UpdateMyProfileResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ChangeMyEmailResponse) ProtoMessage() {}
+func (*UpdateMyProfileResponse) ProtoMessage() {}
 
-func (x *ChangeMyEmailResponse) ProtoReflect() protoreflect.Message {
+func (x *UpdateMyProfileResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_support_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -849,8 +849,8 @@ func (x *ChangeMyEmailResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ChangeMyEmailResponse.ProtoReflect.Descriptor instead.
-func (*ChangeMyEmailResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use UpdateMyProfileResponse.ProtoReflect.Descriptor instead.
+func (*UpdateMyProfileResponse) Descriptor() ([]byte, []int) {
 	return file_support_proto_rawDescGZIP(), []int{15}
 }
 
@@ -859,7 +859,7 @@ type CreateSupportAgentRequest struct {
 	Email     string                 `protobuf:"bytes,1,opt,name=Email,proto3" json:"Email,omitempty"`
 	FirstName string                 `protobuf:"bytes,2,opt,name=FirstName,proto3" json:"FirstName,omitempty"`
 	LastName  string                 `protobuf:"bytes,3,opt,name=LastName,proto3" json:"LastName,omitempty"`
-	// Role du nouvel agent : "admin" ou "support". Vide = "support" par défaut.
+	// Role du nouvel agent : "admin" ou "support". Obligatoire.
 	Role          string `protobuf:"bytes,4,opt,name=Role,proto3" json:"Role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1403,6 +1403,104 @@ func (*DeleteSupportAgentResponse) Descriptor() ([]byte, []int) {
 	return file_support_proto_rawDescGZIP(), []int{26}
 }
 
+type UpdateSupportAgentRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	UserId string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"`
+	// Email : nouvelle adresse, vide = inchangé.
+	Email string `protobuf:"bytes,2,opt,name=Email,proto3" json:"Email,omitempty"`
+	// Role : "admin" ou "support", vide = inchangé.
+	Role          string `protobuf:"bytes,3,opt,name=Role,proto3" json:"Role,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateSupportAgentRequest) Reset() {
+	*x = UpdateSupportAgentRequest{}
+	mi := &file_support_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateSupportAgentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateSupportAgentRequest) ProtoMessage() {}
+
+func (x *UpdateSupportAgentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_support_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateSupportAgentRequest.ProtoReflect.Descriptor instead.
+func (*UpdateSupportAgentRequest) Descriptor() ([]byte, []int) {
+	return file_support_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *UpdateSupportAgentRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UpdateSupportAgentRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *UpdateSupportAgentRequest) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+type UpdateSupportAgentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateSupportAgentResponse) Reset() {
+	*x = UpdateSupportAgentResponse{}
+	mi := &file_support_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateSupportAgentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateSupportAgentResponse) ProtoMessage() {}
+
+func (x *UpdateSupportAgentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_support_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateSupportAgentResponse.ProtoReflect.Descriptor instead.
+func (*UpdateSupportAgentResponse) Descriptor() ([]byte, []int) {
+	return file_support_proto_rawDescGZIP(), []int{28}
+}
+
 type HealthRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -1411,7 +1509,7 @@ type HealthRequest struct {
 
 func (x *HealthRequest) Reset() {
 	*x = HealthRequest{}
-	mi := &file_support_proto_msgTypes[27]
+	mi := &file_support_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1423,7 +1521,7 @@ func (x *HealthRequest) String() string {
 func (*HealthRequest) ProtoMessage() {}
 
 func (x *HealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_support_proto_msgTypes[27]
+	mi := &file_support_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1436,7 +1534,7 @@ func (x *HealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthRequest.ProtoReflect.Descriptor instead.
 func (*HealthRequest) Descriptor() ([]byte, []int) {
-	return file_support_proto_rawDescGZIP(), []int{27}
+	return file_support_proto_rawDescGZIP(), []int{29}
 }
 
 type HealthResponse struct {
@@ -1450,7 +1548,7 @@ type HealthResponse struct {
 
 func (x *HealthResponse) Reset() {
 	*x = HealthResponse{}
-	mi := &file_support_proto_msgTypes[28]
+	mi := &file_support_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1462,7 +1560,7 @@ func (x *HealthResponse) String() string {
 func (*HealthResponse) ProtoMessage() {}
 
 func (x *HealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_support_proto_msgTypes[28]
+	mi := &file_support_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1475,7 +1573,7 @@ func (x *HealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
 func (*HealthResponse) Descriptor() ([]byte, []int) {
-	return file_support_proto_rawDescGZIP(), []int{28}
+	return file_support_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *HealthResponse) GetStatus() string {
@@ -1508,7 +1606,7 @@ type GetSupportUserByIDRequest struct {
 
 func (x *GetSupportUserByIDRequest) Reset() {
 	*x = GetSupportUserByIDRequest{}
-	mi := &file_support_proto_msgTypes[29]
+	mi := &file_support_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1520,7 +1618,7 @@ func (x *GetSupportUserByIDRequest) String() string {
 func (*GetSupportUserByIDRequest) ProtoMessage() {}
 
 func (x *GetSupportUserByIDRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_support_proto_msgTypes[29]
+	mi := &file_support_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1533,7 +1631,7 @@ func (x *GetSupportUserByIDRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSupportUserByIDRequest.ProtoReflect.Descriptor instead.
 func (*GetSupportUserByIDRequest) Descriptor() ([]byte, []int) {
-	return file_support_proto_rawDescGZIP(), []int{29}
+	return file_support_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GetSupportUserByIDRequest) GetUserId() string {
@@ -1556,7 +1654,7 @@ type GetSupportUserByIDResponse struct {
 
 func (x *GetSupportUserByIDResponse) Reset() {
 	*x = GetSupportUserByIDResponse{}
-	mi := &file_support_proto_msgTypes[30]
+	mi := &file_support_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1568,7 +1666,7 @@ func (x *GetSupportUserByIDResponse) String() string {
 func (*GetSupportUserByIDResponse) ProtoMessage() {}
 
 func (x *GetSupportUserByIDResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_support_proto_msgTypes[30]
+	mi := &file_support_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1581,7 +1679,7 @@ func (x *GetSupportUserByIDResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSupportUserByIDResponse.ProtoReflect.Descriptor instead.
 func (*GetSupportUserByIDResponse) Descriptor() ([]byte, []int) {
-	return file_support_proto_rawDescGZIP(), []int{30}
+	return file_support_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *GetSupportUserByIDResponse) GetUserId() string {
@@ -1668,11 +1766,11 @@ const file_support_proto_rawDesc = "" +
 	"\x17ChangeMyPasswordRequest\x12(\n" +
 	"\x0fCurrentPassword\x18\x01 \x01(\tR\x0fCurrentPassword\x12 \n" +
 	"\vNewPassword\x18\x02 \x01(\tR\vNewPassword\"\x1a\n" +
-	"\x18ChangeMyPasswordResponse\"\\\n" +
-	"\x14ChangeMyEmailRequest\x12\x1a\n" +
-	"\bNewEmail\x18\x01 \x01(\tR\bNewEmail\x12(\n" +
-	"\x0fCurrentPassword\x18\x02 \x01(\tR\x0fCurrentPassword\"\x17\n" +
-	"\x15ChangeMyEmailResponse\"\x7f\n" +
+	"\x18ChangeMyPasswordResponse\"R\n" +
+	"\x16UpdateMyProfileRequest\x12\x1c\n" +
+	"\tFirstName\x18\x01 \x01(\tR\tFirstName\x12\x1a\n" +
+	"\bLastName\x18\x02 \x01(\tR\bLastName\"\x19\n" +
+	"\x17UpdateMyProfileResponse\"\x7f\n" +
 	"\x19CreateSupportAgentRequest\x12\x14\n" +
 	"\x05Email\x18\x01 \x01(\tR\x05Email\x12\x1c\n" +
 	"\tFirstName\x18\x02 \x01(\tR\tFirstName\x12\x1a\n" +
@@ -1702,7 +1800,12 @@ const file_support_proto_rawDesc = "" +
 	"\x1cActivateSupportAgentResponse\"3\n" +
 	"\x19DeleteSupportAgentRequest\x12\x16\n" +
 	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"\x1c\n" +
-	"\x1aDeleteSupportAgentResponse\"\x0f\n" +
+	"\x1aDeleteSupportAgentResponse\"]\n" +
+	"\x19UpdateSupportAgentRequest\x12\x16\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x12\x14\n" +
+	"\x05Email\x18\x02 \x01(\tR\x05Email\x12\x12\n" +
+	"\x04Role\x18\x03 \x01(\tR\x04Role\"\x1c\n" +
+	"\x1aUpdateSupportAgentResponse\"\x0f\n" +
 	"\rHealthRequest\"\\\n" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
@@ -1715,7 +1818,7 @@ const file_support_proto_rawDesc = "" +
 	"\tFirstName\x18\x02 \x01(\tR\tFirstName\x12\x1a\n" +
 	"\bLastName\x18\x03 \x01(\tR\bLastName\x12\x12\n" +
 	"\x04Role\x18\x04 \x01(\tR\x04Role\x12\x1a\n" +
-	"\bIsActive\x18\x05 \x01(\bR\bIsActive2\xe1\r\n" +
+	"\bIsActive\x18\x05 \x01(\bR\bIsActive2\xf9\x0e\n" +
 	"\x0eSupportService\x12X\n" +
 	"\x05Login\x12\x15.support.LoginRequest\x1a\x16.support.LoginResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/api/v1/support/login\x12h\n" +
 	"\tVerifyOTP\x12\x19.support.VerifyOTPRequest\x1a\x1a.support.VerifyOTPResponse\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/api/v1/support/verifyOtp\x12h\n" +
@@ -1723,13 +1826,14 @@ const file_support_proto_rawDesc = "" +
 	"\fRefreshToken\x12\x1c.support.RefreshTokenRequest\x1a\x1d.support.RefreshTokenResponse\"'\x82\xd3\xe4\x93\x02!:\x01*\"\x1c/api/v1/support/refreshToken\x12\\\n" +
 	"\x06Logout\x12\x16.support.LogoutRequest\x1a\x17.support.LogoutResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/api/v1/support/logout\x12I\n" +
 	"\x02Me\x12\x12.support.MeRequest\x1a\x13.support.MeResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/api/v1/support/me\x12\x7f\n" +
-	"\x10ChangeMyPassword\x12 .support.ChangeMyPasswordRequest\x1a!.support.ChangeMyPasswordResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/api/v1/support/me/password\x12s\n" +
-	"\rChangeMyEmail\x12\x1d.support.ChangeMyEmailRequest\x1a\x1e.support.ChangeMyEmailResponse\"#\x82\xd3\xe4\x93\x02\x1d:\x01*\"\x18/api/v1/support/me/email\x12\x86\x01\n" +
+	"\x10ChangeMyPassword\x12 .support.ChangeMyPasswordRequest\x1a!.support.ChangeMyPasswordResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/api/v1/support/me/password\x12{\n" +
+	"\x0fUpdateMyProfile\x12\x1f.support.UpdateMyProfileRequest\x1a .support.UpdateMyProfileResponse\"%\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/api/v1/support/me/profile\x12\x86\x01\n" +
 	"\x12CreateSupportAgent\x12\".support.CreateSupportAgentRequest\x1a#.support.CreateSupportAgentResponse\"'\x82\xd3\xe4\x93\x02!:\x01*\"\x1c/api/v1/support/admin/agents\x12\x80\x01\n" +
 	"\x11ListSupportAgents\x12!.support.ListSupportAgentsRequest\x1a\".support.ListSupportAgentsResponse\"$\x82\xd3\xe4\x93\x02\x1e\x12\x1c/api/v1/support/admin/agents\x12\x9d\x01\n" +
 	"\x16DeactivateSupportAgent\x12&.support.DeactivateSupportAgentRequest\x1a'.support.DeactivateSupportAgentResponse\"2\x82\xd3\xe4\x93\x02,:\x01*\"'/api/v1/support/admin/agents/deactivate\x12\x95\x01\n" +
 	"\x14ActivateSupportAgent\x12$.support.ActivateSupportAgentRequest\x1a%.support.ActivateSupportAgentResponse\"0\x82\xd3\xe4\x93\x02*:\x01*\"%/api/v1/support/admin/agents/activate\x12\x8d\x01\n" +
-	"\x12DeleteSupportAgent\x12\".support.DeleteSupportAgentRequest\x1a#.support.DeleteSupportAgentResponse\".\x82\xd3\xe4\x93\x02(:\x01*\"#/api/v1/support/admin/agents/delete\x12Y\n" +
+	"\x12DeleteSupportAgent\x12\".support.DeleteSupportAgentRequest\x1a#.support.DeleteSupportAgentResponse\".\x82\xd3\xe4\x93\x02(:\x01*\"#/api/v1/support/admin/agents/delete\x12\x8d\x01\n" +
+	"\x12UpdateSupportAgent\x12\".support.UpdateSupportAgentRequest\x1a#.support.UpdateSupportAgentResponse\".\x82\xd3\xe4\x93\x02(:\x01*\"#/api/v1/support/admin/agents/update\x12Y\n" +
 	"\x06Health\x12\x16.support.HealthRequest\x1a\x17.support.HealthResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/api/v1/support/health\x12]\n" +
 	"\x12GetSupportUserByID\x12\".support.GetSupportUserByIDRequest\x1a#.support.GetSupportUserByIDResponseBJZHgithub.com/Kpeewu/tissi-mah/services/support-service/proto/gen;supportpbb\x06proto3"
 
@@ -1745,7 +1849,7 @@ func file_support_proto_rawDescGZIP() []byte {
 	return file_support_proto_rawDescData
 }
 
-var file_support_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_support_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_support_proto_goTypes = []any{
 	(*LoginRequest)(nil),                   // 0: support.LoginRequest
 	(*LoginResponse)(nil),                  // 1: support.LoginResponse
@@ -1761,8 +1865,8 @@ var file_support_proto_goTypes = []any{
 	(*MeResponse)(nil),                     // 11: support.MeResponse
 	(*ChangeMyPasswordRequest)(nil),        // 12: support.ChangeMyPasswordRequest
 	(*ChangeMyPasswordResponse)(nil),       // 13: support.ChangeMyPasswordResponse
-	(*ChangeMyEmailRequest)(nil),           // 14: support.ChangeMyEmailRequest
-	(*ChangeMyEmailResponse)(nil),          // 15: support.ChangeMyEmailResponse
+	(*UpdateMyProfileRequest)(nil),         // 14: support.UpdateMyProfileRequest
+	(*UpdateMyProfileResponse)(nil),        // 15: support.UpdateMyProfileResponse
 	(*CreateSupportAgentRequest)(nil),      // 16: support.CreateSupportAgentRequest
 	(*CreateSupportAgentResponse)(nil),     // 17: support.CreateSupportAgentResponse
 	(*ListSupportAgentsRequest)(nil),       // 18: support.ListSupportAgentsRequest
@@ -1774,10 +1878,12 @@ var file_support_proto_goTypes = []any{
 	(*ActivateSupportAgentResponse)(nil),   // 24: support.ActivateSupportAgentResponse
 	(*DeleteSupportAgentRequest)(nil),      // 25: support.DeleteSupportAgentRequest
 	(*DeleteSupportAgentResponse)(nil),     // 26: support.DeleteSupportAgentResponse
-	(*HealthRequest)(nil),                  // 27: support.HealthRequest
-	(*HealthResponse)(nil),                 // 28: support.HealthResponse
-	(*GetSupportUserByIDRequest)(nil),      // 29: support.GetSupportUserByIDRequest
-	(*GetSupportUserByIDResponse)(nil),     // 30: support.GetSupportUserByIDResponse
+	(*UpdateSupportAgentRequest)(nil),      // 27: support.UpdateSupportAgentRequest
+	(*UpdateSupportAgentResponse)(nil),     // 28: support.UpdateSupportAgentResponse
+	(*HealthRequest)(nil),                  // 29: support.HealthRequest
+	(*HealthResponse)(nil),                 // 30: support.HealthResponse
+	(*GetSupportUserByIDRequest)(nil),      // 31: support.GetSupportUserByIDRequest
+	(*GetSupportUserByIDResponse)(nil),     // 32: support.GetSupportUserByIDResponse
 }
 var file_support_proto_depIdxs = []int32{
 	19, // 0: support.ListSupportAgentsResponse.Agents:type_name -> support.SupportAgent
@@ -1788,31 +1894,33 @@ var file_support_proto_depIdxs = []int32{
 	8,  // 5: support.SupportService.Logout:input_type -> support.LogoutRequest
 	10, // 6: support.SupportService.Me:input_type -> support.MeRequest
 	12, // 7: support.SupportService.ChangeMyPassword:input_type -> support.ChangeMyPasswordRequest
-	14, // 8: support.SupportService.ChangeMyEmail:input_type -> support.ChangeMyEmailRequest
+	14, // 8: support.SupportService.UpdateMyProfile:input_type -> support.UpdateMyProfileRequest
 	16, // 9: support.SupportService.CreateSupportAgent:input_type -> support.CreateSupportAgentRequest
 	18, // 10: support.SupportService.ListSupportAgents:input_type -> support.ListSupportAgentsRequest
 	21, // 11: support.SupportService.DeactivateSupportAgent:input_type -> support.DeactivateSupportAgentRequest
 	23, // 12: support.SupportService.ActivateSupportAgent:input_type -> support.ActivateSupportAgentRequest
 	25, // 13: support.SupportService.DeleteSupportAgent:input_type -> support.DeleteSupportAgentRequest
-	27, // 14: support.SupportService.Health:input_type -> support.HealthRequest
-	29, // 15: support.SupportService.GetSupportUserByID:input_type -> support.GetSupportUserByIDRequest
-	1,  // 16: support.SupportService.Login:output_type -> support.LoginResponse
-	3,  // 17: support.SupportService.VerifyOTP:output_type -> support.VerifyOTPResponse
-	5,  // 18: support.SupportService.ResendOTP:output_type -> support.ResendOTPResponse
-	7,  // 19: support.SupportService.RefreshToken:output_type -> support.RefreshTokenResponse
-	9,  // 20: support.SupportService.Logout:output_type -> support.LogoutResponse
-	11, // 21: support.SupportService.Me:output_type -> support.MeResponse
-	13, // 22: support.SupportService.ChangeMyPassword:output_type -> support.ChangeMyPasswordResponse
-	15, // 23: support.SupportService.ChangeMyEmail:output_type -> support.ChangeMyEmailResponse
-	17, // 24: support.SupportService.CreateSupportAgent:output_type -> support.CreateSupportAgentResponse
-	20, // 25: support.SupportService.ListSupportAgents:output_type -> support.ListSupportAgentsResponse
-	22, // 26: support.SupportService.DeactivateSupportAgent:output_type -> support.DeactivateSupportAgentResponse
-	24, // 27: support.SupportService.ActivateSupportAgent:output_type -> support.ActivateSupportAgentResponse
-	26, // 28: support.SupportService.DeleteSupportAgent:output_type -> support.DeleteSupportAgentResponse
-	28, // 29: support.SupportService.Health:output_type -> support.HealthResponse
-	30, // 30: support.SupportService.GetSupportUserByID:output_type -> support.GetSupportUserByIDResponse
-	16, // [16:31] is the sub-list for method output_type
-	1,  // [1:16] is the sub-list for method input_type
+	27, // 14: support.SupportService.UpdateSupportAgent:input_type -> support.UpdateSupportAgentRequest
+	29, // 15: support.SupportService.Health:input_type -> support.HealthRequest
+	31, // 16: support.SupportService.GetSupportUserByID:input_type -> support.GetSupportUserByIDRequest
+	1,  // 17: support.SupportService.Login:output_type -> support.LoginResponse
+	3,  // 18: support.SupportService.VerifyOTP:output_type -> support.VerifyOTPResponse
+	5,  // 19: support.SupportService.ResendOTP:output_type -> support.ResendOTPResponse
+	7,  // 20: support.SupportService.RefreshToken:output_type -> support.RefreshTokenResponse
+	9,  // 21: support.SupportService.Logout:output_type -> support.LogoutResponse
+	11, // 22: support.SupportService.Me:output_type -> support.MeResponse
+	13, // 23: support.SupportService.ChangeMyPassword:output_type -> support.ChangeMyPasswordResponse
+	15, // 24: support.SupportService.UpdateMyProfile:output_type -> support.UpdateMyProfileResponse
+	17, // 25: support.SupportService.CreateSupportAgent:output_type -> support.CreateSupportAgentResponse
+	20, // 26: support.SupportService.ListSupportAgents:output_type -> support.ListSupportAgentsResponse
+	22, // 27: support.SupportService.DeactivateSupportAgent:output_type -> support.DeactivateSupportAgentResponse
+	24, // 28: support.SupportService.ActivateSupportAgent:output_type -> support.ActivateSupportAgentResponse
+	26, // 29: support.SupportService.DeleteSupportAgent:output_type -> support.DeleteSupportAgentResponse
+	28, // 30: support.SupportService.UpdateSupportAgent:output_type -> support.UpdateSupportAgentResponse
+	30, // 31: support.SupportService.Health:output_type -> support.HealthResponse
+	32, // 32: support.SupportService.GetSupportUserByID:output_type -> support.GetSupportUserByIDResponse
+	17, // [17:33] is the sub-list for method output_type
+	1,  // [1:17] is the sub-list for method input_type
 	1,  // [1:1] is the sub-list for extension type_name
 	1,  // [1:1] is the sub-list for extension extendee
 	0,  // [0:1] is the sub-list for field type_name
@@ -1829,7 +1937,7 @@ func file_support_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_support_proto_rawDesc), len(file_support_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   31,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

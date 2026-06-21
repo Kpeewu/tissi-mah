@@ -206,21 +206,21 @@ func TestHandler_ChangeMyPassword(t *testing.T) {
 }
 
 // =============================================================================
-// ChangeMyEmail — gate mustChangePassword
+// UpdateMyProfile — gate mustChangePassword
 // =============================================================================
 
-func TestHandler_ChangeMyEmail(t *testing.T) {
+func TestHandler_UpdateMyProfile(t *testing.T) {
 	t.Run("sans UID → Unauthenticated", func(t *testing.T) {
 		h, _ := newHandler(t)
-		_, err := h.ChangeMyEmail(context.Background(), &supportpb.ChangeMyEmailRequest{})
+		_, err := h.UpdateMyProfile(context.Background(), &supportpb.UpdateMyProfileRequest{})
 		assert.Equal(t, codes.Unauthenticated, codeOf(t, err))
 	})
 
 	t.Run("mustChangePassword=true → FailedPrecondition", func(t *testing.T) {
 		h, svc := newHandler(t)
 		svc.On("Me", mock.Anything, "uid").Return(&domain.SupportUser{UserID: "uid", MustChangePassword: true}, nil)
-		_, err := h.ChangeMyEmail(ctxWithUID("uid"),
-			&supportpb.ChangeMyEmailRequest{NewEmail: "n@x.com", CurrentPassword: "p"})
+		_, err := h.UpdateMyProfile(ctxWithUID("uid"),
+			&supportpb.UpdateMyProfileRequest{FirstName: "Jean", LastName: "Dupont"})
 		// ErrMustChangePassword n'est pas dans toGRPCError → Internal (mapping par défaut)
 		assert.Equal(t, codes.Internal, codeOf(t, err))
 	})
@@ -228,28 +228,52 @@ func TestHandler_ChangeMyEmail(t *testing.T) {
 	t.Run("succès", func(t *testing.T) {
 		h, svc := newHandler(t)
 		svc.On("Me", mock.Anything, "uid").Return(&domain.SupportUser{UserID: "uid"}, nil)
-		svc.On("ChangeMyEmail", mock.Anything, "uid", "n@x.com", "p").Return(nil)
-		_, err := h.ChangeMyEmail(ctxWithUID("uid"),
-			&supportpb.ChangeMyEmailRequest{NewEmail: "n@x.com", CurrentPassword: "p"})
+		svc.On("UpdateMyProfile", mock.Anything, "uid", "Jean", "Dupont").Return(nil)
+		_, err := h.UpdateMyProfile(ctxWithUID("uid"),
+			&supportpb.UpdateMyProfileRequest{FirstName: "Jean", LastName: "Dupont"})
 		assert.NoError(t, err)
 	})
 
-	t.Run("email déjà pris → AlreadyExists", func(t *testing.T) {
+	t.Run("champ vide → InvalidArgument", func(t *testing.T) {
 		h, svc := newHandler(t)
 		svc.On("Me", mock.Anything, "uid").Return(&domain.SupportUser{UserID: "uid"}, nil)
-		svc.On("ChangeMyEmail", mock.Anything, "uid", "n@x.com", "p").Return(supportErrors.ErrEmailAlreadyExists)
-		_, err := h.ChangeMyEmail(ctxWithUID("uid"),
-			&supportpb.ChangeMyEmailRequest{NewEmail: "n@x.com", CurrentPassword: "p"})
-		assert.Equal(t, codes.AlreadyExists, codeOf(t, err))
+		svc.On("UpdateMyProfile", mock.Anything, "uid", "", "Dupont").Return(supportErrors.ErrInvalidInput)
+		_, err := h.UpdateMyProfile(ctxWithUID("uid"),
+			&supportpb.UpdateMyProfileRequest{FirstName: "", LastName: "Dupont"})
+		assert.Equal(t, codes.InvalidArgument, codeOf(t, err))
+	})
+}
+
+// =============================================================================
+// UpdateSupportAgent (admin) — requireAdmin + gateMustChange
+// =============================================================================
+
+func TestHandler_UpdateSupportAgent(t *testing.T) {
+	t.Run("non-admin → PermissionDenied", func(t *testing.T) {
+		h, _ := newHandler(t)
+		_, err := h.UpdateSupportAgent(ctxWithUIDRole("uid", domain.RoleSupport),
+			&supportpb.UpdateSupportAgentRequest{UserId: "target", Role: domain.RoleAdmin})
+		assert.Equal(t, codes.PermissionDenied, codeOf(t, err))
 	})
 
-	t.Run("cooldown 6 mois → FailedPrecondition", func(t *testing.T) {
+	t.Run("admin succès", func(t *testing.T) {
 		h, svc := newHandler(t)
-		svc.On("Me", mock.Anything, "uid").Return(&domain.SupportUser{UserID: "uid"}, nil)
-		svc.On("ChangeMyEmail", mock.Anything, "uid", "n@x.com", "p").Return(supportErrors.ErrEmailChangeCooldown)
-		_, err := h.ChangeMyEmail(ctxWithUID("uid"),
-			&supportpb.ChangeMyEmailRequest{NewEmail: "n@x.com", CurrentPassword: "p"})
-		assert.Equal(t, codes.FailedPrecondition, codeOf(t, err))
+		ctx := ctxWithUIDRole("admin-uid", domain.RoleAdmin)
+		svc.On("Me", mock.Anything, "admin-uid").Return(&domain.SupportUser{UserID: "admin-uid"}, nil)
+		svc.On("UpdateSupportAgent", mock.Anything, "target", "new@x.com", domain.RoleAdmin).Return(nil)
+		_, err := h.UpdateSupportAgent(ctx,
+			&supportpb.UpdateSupportAgentRequest{UserId: "target", Email: "new@x.com", Role: domain.RoleAdmin})
+		require.NoError(t, err)
+	})
+
+	t.Run("rôle invalide → InvalidArgument", func(t *testing.T) {
+		h, svc := newHandler(t)
+		ctx := ctxWithUIDRole("admin-uid", domain.RoleAdmin)
+		svc.On("Me", mock.Anything, "admin-uid").Return(&domain.SupportUser{UserID: "admin-uid"}, nil)
+		svc.On("UpdateSupportAgent", mock.Anything, "target", "", "boss").Return(supportErrors.ErrInvalidInput)
+		_, err := h.UpdateSupportAgent(ctx,
+			&supportpb.UpdateSupportAgentRequest{UserId: "target", Role: "boss"})
+		assert.Equal(t, codes.InvalidArgument, codeOf(t, err))
 	})
 }
 

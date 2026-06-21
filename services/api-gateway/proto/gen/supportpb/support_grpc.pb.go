@@ -26,12 +26,13 @@ const (
 	SupportService_Logout_FullMethodName                 = "/support.SupportService/Logout"
 	SupportService_Me_FullMethodName                     = "/support.SupportService/Me"
 	SupportService_ChangeMyPassword_FullMethodName       = "/support.SupportService/ChangeMyPassword"
-	SupportService_ChangeMyEmail_FullMethodName          = "/support.SupportService/ChangeMyEmail"
+	SupportService_UpdateMyProfile_FullMethodName        = "/support.SupportService/UpdateMyProfile"
 	SupportService_CreateSupportAgent_FullMethodName     = "/support.SupportService/CreateSupportAgent"
 	SupportService_ListSupportAgents_FullMethodName      = "/support.SupportService/ListSupportAgents"
 	SupportService_DeactivateSupportAgent_FullMethodName = "/support.SupportService/DeactivateSupportAgent"
 	SupportService_ActivateSupportAgent_FullMethodName   = "/support.SupportService/ActivateSupportAgent"
 	SupportService_DeleteSupportAgent_FullMethodName     = "/support.SupportService/DeleteSupportAgent"
+	SupportService_UpdateSupportAgent_FullMethodName     = "/support.SupportService/UpdateSupportAgent"
 	SupportService_Health_FullMethodName                 = "/support.SupportService/Health"
 	SupportService_GetSupportUserByID_FullMethodName     = "/support.SupportService/GetSupportUserByID"
 )
@@ -47,7 +48,9 @@ type SupportServiceClient interface {
 	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
 	Me(ctx context.Context, in *MeRequest, opts ...grpc.CallOption) (*MeResponse, error)
 	ChangeMyPassword(ctx context.Context, in *ChangeMyPasswordRequest, opts ...grpc.CallOption) (*ChangeMyPasswordResponse, error)
-	ChangeMyEmail(ctx context.Context, in *ChangeMyEmailRequest, opts ...grpc.CallOption) (*ChangeMyEmailResponse, error)
+	// UpdateMyProfile permet à l'utilisateur courant (admin ou agent) de modifier
+	// ses propres nom et prénom.
+	UpdateMyProfile(ctx context.Context, in *UpdateMyProfileRequest, opts ...grpc.CallOption) (*UpdateMyProfileResponse, error)
 	CreateSupportAgent(ctx context.Context, in *CreateSupportAgentRequest, opts ...grpc.CallOption) (*CreateSupportAgentResponse, error)
 	ListSupportAgents(ctx context.Context, in *ListSupportAgentsRequest, opts ...grpc.CallOption) (*ListSupportAgentsResponse, error)
 	DeactivateSupportAgent(ctx context.Context, in *DeactivateSupportAgentRequest, opts ...grpc.CallOption) (*DeactivateSupportAgentResponse, error)
@@ -55,6 +58,9 @@ type SupportServiceClient interface {
 	// DeleteSupportAgent supprime (soft-delete) un agent. Seul un compte déjà
 	// désactivé peut être supprimé.
 	DeleteSupportAgent(ctx context.Context, in *DeleteSupportAgentRequest, opts ...grpc.CallOption) (*DeleteSupportAgentResponse, error)
+	// UpdateSupportAgent permet à l'admin de modifier l'email et/ou le rôle d'un
+	// agent. Un champ vide signifie « inchangé ».
+	UpdateSupportAgent(ctx context.Context, in *UpdateSupportAgentRequest, opts ...grpc.CallOption) (*UpdateSupportAgentResponse, error)
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 	// GetSupportUserByID est un RPC inter-service (gRPC uniquement, pas d'annotation HTTP).
 	// Utilisé par payment-service pour vérifier l'identité et l'habilitation d'un agent support.
@@ -139,10 +145,10 @@ func (c *supportServiceClient) ChangeMyPassword(ctx context.Context, in *ChangeM
 	return out, nil
 }
 
-func (c *supportServiceClient) ChangeMyEmail(ctx context.Context, in *ChangeMyEmailRequest, opts ...grpc.CallOption) (*ChangeMyEmailResponse, error) {
+func (c *supportServiceClient) UpdateMyProfile(ctx context.Context, in *UpdateMyProfileRequest, opts ...grpc.CallOption) (*UpdateMyProfileResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ChangeMyEmailResponse)
-	err := c.cc.Invoke(ctx, SupportService_ChangeMyEmail_FullMethodName, in, out, cOpts...)
+	out := new(UpdateMyProfileResponse)
+	err := c.cc.Invoke(ctx, SupportService_UpdateMyProfile_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -199,6 +205,16 @@ func (c *supportServiceClient) DeleteSupportAgent(ctx context.Context, in *Delet
 	return out, nil
 }
 
+func (c *supportServiceClient) UpdateSupportAgent(ctx context.Context, in *UpdateSupportAgentRequest, opts ...grpc.CallOption) (*UpdateSupportAgentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateSupportAgentResponse)
+	err := c.cc.Invoke(ctx, SupportService_UpdateSupportAgent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *supportServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -230,7 +246,9 @@ type SupportServiceServer interface {
 	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
 	Me(context.Context, *MeRequest) (*MeResponse, error)
 	ChangeMyPassword(context.Context, *ChangeMyPasswordRequest) (*ChangeMyPasswordResponse, error)
-	ChangeMyEmail(context.Context, *ChangeMyEmailRequest) (*ChangeMyEmailResponse, error)
+	// UpdateMyProfile permet à l'utilisateur courant (admin ou agent) de modifier
+	// ses propres nom et prénom.
+	UpdateMyProfile(context.Context, *UpdateMyProfileRequest) (*UpdateMyProfileResponse, error)
 	CreateSupportAgent(context.Context, *CreateSupportAgentRequest) (*CreateSupportAgentResponse, error)
 	ListSupportAgents(context.Context, *ListSupportAgentsRequest) (*ListSupportAgentsResponse, error)
 	DeactivateSupportAgent(context.Context, *DeactivateSupportAgentRequest) (*DeactivateSupportAgentResponse, error)
@@ -238,6 +256,9 @@ type SupportServiceServer interface {
 	// DeleteSupportAgent supprime (soft-delete) un agent. Seul un compte déjà
 	// désactivé peut être supprimé.
 	DeleteSupportAgent(context.Context, *DeleteSupportAgentRequest) (*DeleteSupportAgentResponse, error)
+	// UpdateSupportAgent permet à l'admin de modifier l'email et/ou le rôle d'un
+	// agent. Un champ vide signifie « inchangé ».
+	UpdateSupportAgent(context.Context, *UpdateSupportAgentRequest) (*UpdateSupportAgentResponse, error)
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	// GetSupportUserByID est un RPC inter-service (gRPC uniquement, pas d'annotation HTTP).
 	// Utilisé par payment-service pour vérifier l'identité et l'habilitation d'un agent support.
@@ -273,8 +294,8 @@ func (UnimplementedSupportServiceServer) Me(context.Context, *MeRequest) (*MeRes
 func (UnimplementedSupportServiceServer) ChangeMyPassword(context.Context, *ChangeMyPasswordRequest) (*ChangeMyPasswordResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ChangeMyPassword not implemented")
 }
-func (UnimplementedSupportServiceServer) ChangeMyEmail(context.Context, *ChangeMyEmailRequest) (*ChangeMyEmailResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ChangeMyEmail not implemented")
+func (UnimplementedSupportServiceServer) UpdateMyProfile(context.Context, *UpdateMyProfileRequest) (*UpdateMyProfileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateMyProfile not implemented")
 }
 func (UnimplementedSupportServiceServer) CreateSupportAgent(context.Context, *CreateSupportAgentRequest) (*CreateSupportAgentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateSupportAgent not implemented")
@@ -290,6 +311,9 @@ func (UnimplementedSupportServiceServer) ActivateSupportAgent(context.Context, *
 }
 func (UnimplementedSupportServiceServer) DeleteSupportAgent(context.Context, *DeleteSupportAgentRequest) (*DeleteSupportAgentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteSupportAgent not implemented")
+}
+func (UnimplementedSupportServiceServer) UpdateSupportAgent(context.Context, *UpdateSupportAgentRequest) (*UpdateSupportAgentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateSupportAgent not implemented")
 }
 func (UnimplementedSupportServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -444,20 +468,20 @@ func _SupportService_ChangeMyPassword_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SupportService_ChangeMyEmail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ChangeMyEmailRequest)
+func _SupportService_UpdateMyProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateMyProfileRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SupportServiceServer).ChangeMyEmail(ctx, in)
+		return srv.(SupportServiceServer).UpdateMyProfile(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SupportService_ChangeMyEmail_FullMethodName,
+		FullMethod: SupportService_UpdateMyProfile_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SupportServiceServer).ChangeMyEmail(ctx, req.(*ChangeMyEmailRequest))
+		return srv.(SupportServiceServer).UpdateMyProfile(ctx, req.(*UpdateMyProfileRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -552,6 +576,24 @@ func _SupportService_DeleteSupportAgent_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SupportService_UpdateSupportAgent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateSupportAgentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SupportServiceServer).UpdateSupportAgent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SupportService_UpdateSupportAgent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SupportServiceServer).UpdateSupportAgent(ctx, req.(*UpdateSupportAgentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SupportService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -624,8 +666,8 @@ var SupportService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _SupportService_ChangeMyPassword_Handler,
 		},
 		{
-			MethodName: "ChangeMyEmail",
-			Handler:    _SupportService_ChangeMyEmail_Handler,
+			MethodName: "UpdateMyProfile",
+			Handler:    _SupportService_UpdateMyProfile_Handler,
 		},
 		{
 			MethodName: "CreateSupportAgent",
@@ -646,6 +688,10 @@ var SupportService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteSupportAgent",
 			Handler:    _SupportService_DeleteSupportAgent_Handler,
+		},
+		{
+			MethodName: "UpdateSupportAgent",
+			Handler:    _SupportService_UpdateSupportAgent_Handler,
 		},
 		{
 			MethodName: "Health",

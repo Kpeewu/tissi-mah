@@ -650,67 +650,97 @@ func TestSupportService_ChangeMyPassword(t *testing.T) {
 }
 
 // =============================================================================
-// ChangeMyEmail
+// UpdateMyProfile
 // =============================================================================
 
-func TestSupportService_ChangeMyEmail(t *testing.T) {
+func TestSupportService_UpdateMyProfile(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("succès", func(t *testing.T) {
 		d := newDeps(t)
-		user := fixtures.NewTestSupportUser(fixtures.WithNoEmailChangedAt())
-		d.readRepo.On("GetByID", mock.Anything, user.UserID).Return(user, nil)
-		d.readRepo.On("ExistsByEmail", mock.Anything, "new@tissimah.local").Return(false, nil)
-		d.writeRepo.On("UpdateEmail", mock.Anything, user.UserID, "new@tissimah.local").Return(nil)
+		d.writeRepo.On("UpdateName", mock.Anything, "uid-1", "Jean", "Dupont").Return(nil)
 
-		err := svc(d).ChangeMyEmail(ctx, user.UserID, "New@Tissimah.Local", fixtures.DefaultPasswordPlain)
+		err := svc(d).UpdateMyProfile(ctx, "uid-1", "Jean", "Dupont")
 		require.NoError(t, err)
 	})
 
-	t.Run("email vide → ErrInvalidInput", func(t *testing.T) {
+	t.Run("trim des espaces", func(t *testing.T) {
 		d := newDeps(t)
-		err := svc(d).ChangeMyEmail(ctx, "uid", "", "pwd")
+		d.writeRepo.On("UpdateName", mock.Anything, "uid-1", "Jean", "Dupont").Return(nil)
+
+		err := svc(d).UpdateMyProfile(ctx, "uid-1", "  Jean ", " Dupont  ")
+		require.NoError(t, err)
+	})
+
+	t.Run("firstName vide → ErrInvalidInput", func(t *testing.T) {
+		d := newDeps(t)
+		err := svc(d).UpdateMyProfile(ctx, "uid-1", "", "Dupont")
 		assert.ErrorIs(t, err, supportErrors.ErrInvalidInput)
 	})
 
-	t.Run("mot de passe courant incorrect → ErrInvalidCredentials", func(t *testing.T) {
+	t.Run("lastName vide → ErrInvalidInput", func(t *testing.T) {
+		d := newDeps(t)
+		err := svc(d).UpdateMyProfile(ctx, "uid-1", "Jean", "  ")
+		assert.ErrorIs(t, err, supportErrors.ErrInvalidInput)
+	})
+
+	t.Run("user introuvable → erreur propagée", func(t *testing.T) {
+		d := newDeps(t)
+		d.writeRepo.On("UpdateName", mock.Anything, "x", "Jean", "Dupont").Return(supportErrors.ErrUserNotFound)
+
+		err := svc(d).UpdateMyProfile(ctx, "x", "Jean", "Dupont")
+		assert.ErrorIs(t, err, supportErrors.ErrUserNotFound)
+	})
+}
+
+// =============================================================================
+// UpdateSupportAgent (admin)
+// =============================================================================
+
+func TestSupportService_UpdateSupportAgent(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("succès : email + rôle", func(t *testing.T) {
 		d := newDeps(t)
 		user := fixtures.NewTestSupportUser()
 		d.readRepo.On("GetByID", mock.Anything, user.UserID).Return(user, nil)
-
-		err := svc(d).ChangeMyEmail(ctx, user.UserID, "new@x.com", "WrongPwd1!")
-		assert.ErrorIs(t, err, supportErrors.ErrInvalidCredentials)
-	})
-
-	t.Run("cooldown 6 mois non écoulé → ErrEmailChangeCooldown", func(t *testing.T) {
-		d := newDeps(t)
-		recent := time.Now().Add(-10 * 24 * time.Hour)
-		user := fixtures.NewTestSupportUser(fixtures.WithEmailChangedAt(recent))
-		d.readRepo.On("GetByID", mock.Anything, user.UserID).Return(user, nil)
-
-		err := svc(d).ChangeMyEmail(ctx, user.UserID, "new@x.com", fixtures.DefaultPasswordPlain)
-		assert.ErrorIs(t, err, supportErrors.ErrEmailChangeCooldown)
-	})
-
-	t.Run("cooldown 6 mois écoulé → succès", func(t *testing.T) {
-		d := newDeps(t)
-		old := time.Now().Add(-200 * 24 * time.Hour)
-		user := fixtures.NewTestSupportUser(fixtures.WithEmailChangedAt(old))
-		d.readRepo.On("GetByID", mock.Anything, user.UserID).Return(user, nil)
 		d.readRepo.On("ExistsByEmail", mock.Anything, "new@x.com").Return(false, nil)
 		d.writeRepo.On("UpdateEmail", mock.Anything, user.UserID, "new@x.com").Return(nil)
+		d.writeRepo.On("UpdateRole", mock.Anything, user.UserID, domain.RoleAdmin).Return(nil)
 
-		err := svc(d).ChangeMyEmail(ctx, user.UserID, "new@x.com", fixtures.DefaultPasswordPlain)
-		assert.NoError(t, err)
+		err := svc(d).UpdateSupportAgent(ctx, user.UserID, "New@X.com", domain.RoleAdmin)
+		require.NoError(t, err)
+	})
+
+	t.Run("succès : rôle seul", func(t *testing.T) {
+		d := newDeps(t)
+		user := fixtures.NewTestSupportUser()
+		d.readRepo.On("GetByID", mock.Anything, user.UserID).Return(user, nil)
+		d.writeRepo.On("UpdateRole", mock.Anything, user.UserID, domain.RoleAdmin).Return(nil)
+
+		err := svc(d).UpdateSupportAgent(ctx, user.UserID, "", domain.RoleAdmin)
+		require.NoError(t, err)
+	})
+
+	t.Run("aucun champ → ErrInvalidInput", func(t *testing.T) {
+		d := newDeps(t)
+		err := svc(d).UpdateSupportAgent(ctx, "uid-1", "", "")
+		assert.ErrorIs(t, err, supportErrors.ErrInvalidInput)
+	})
+
+	t.Run("rôle invalide → ErrInvalidInput", func(t *testing.T) {
+		d := newDeps(t)
+		err := svc(d).UpdateSupportAgent(ctx, "uid-1", "", "boss")
+		assert.ErrorIs(t, err, supportErrors.ErrInvalidInput)
 	})
 
 	t.Run("email déjà utilisé → ErrEmailAlreadyExists", func(t *testing.T) {
 		d := newDeps(t)
-		user := fixtures.NewTestSupportUser(fixtures.WithNoEmailChangedAt())
+		user := fixtures.NewTestSupportUser()
 		d.readRepo.On("GetByID", mock.Anything, user.UserID).Return(user, nil)
 		d.readRepo.On("ExistsByEmail", mock.Anything, "taken@x.com").Return(true, nil)
 
-		err := svc(d).ChangeMyEmail(ctx, user.UserID, "taken@x.com", fixtures.DefaultPasswordPlain)
+		err := svc(d).UpdateSupportAgent(ctx, user.UserID, "taken@x.com", "")
 		assert.ErrorIs(t, err, supportErrors.ErrEmailAlreadyExists)
 	})
 
@@ -718,7 +748,7 @@ func TestSupportService_ChangeMyEmail(t *testing.T) {
 		d := newDeps(t)
 		d.readRepo.On("GetByID", mock.Anything, "x").Return(nil, supportErrors.ErrUserNotFound)
 
-		err := svc(d).ChangeMyEmail(ctx, "x", "e@x.com", "pwd")
+		err := svc(d).UpdateSupportAgent(ctx, "x", "", domain.RoleAdmin)
 		assert.ErrorIs(t, err, supportErrors.ErrUserNotFound)
 	})
 }
@@ -743,7 +773,7 @@ func TestSupportService_CreateSupportAgent(t *testing.T) {
 				u.PasswordHash != ""
 		})).Return(nil)
 
-		id, err := svc(d).CreateSupportAgent(ctx, "New@X.com", "John", "Doe", "")
+		id, err := svc(d).CreateSupportAgent(ctx, "New@X.com", "John", "Doe", domain.RoleSupport)
 		require.NoError(t, err)
 		assert.NotEmpty(t, id)
 
@@ -769,6 +799,12 @@ func TestSupportService_CreateSupportAgent(t *testing.T) {
 		assert.ErrorIs(t, err, supportErrors.ErrInvalidInput)
 	})
 
+	t.Run("rôle vide → ErrInvalidInput", func(t *testing.T) {
+		d := newDeps(t)
+		_, err := svc(d).CreateSupportAgent(ctx, "e@x.com", "A", "B", "")
+		assert.ErrorIs(t, err, supportErrors.ErrInvalidInput)
+	})
+
 	t.Run("email vide → ErrInvalidInput", func(t *testing.T) {
 		d := newDeps(t)
 		_, err := svc(d).CreateSupportAgent(ctx, "", "A", "B", "")
@@ -791,7 +827,7 @@ func TestSupportService_CreateSupportAgent(t *testing.T) {
 		d := newDeps(t)
 		d.readRepo.On("ExistsByEmail", mock.Anything, "taken@x.com").Return(true, nil)
 
-		_, err := svc(d).CreateSupportAgent(ctx, "taken@x.com", "A", "B", "")
+		_, err := svc(d).CreateSupportAgent(ctx, "taken@x.com", "A", "B", domain.RoleSupport)
 		assert.ErrorIs(t, err, supportErrors.ErrEmailAlreadyExists)
 	})
 
@@ -800,7 +836,7 @@ func TestSupportService_CreateSupportAgent(t *testing.T) {
 		dbErr := errors.New("db down")
 		d.readRepo.On("ExistsByEmail", mock.Anything, "e@x.com").Return(false, dbErr)
 
-		_, err := svc(d).CreateSupportAgent(ctx, "e@x.com", "A", "B", "")
+		_, err := svc(d).CreateSupportAgent(ctx, "e@x.com", "A", "B", domain.RoleSupport)
 		assert.ErrorIs(t, err, dbErr)
 	})
 
@@ -810,7 +846,7 @@ func TestSupportService_CreateSupportAgent(t *testing.T) {
 		dbErr := errors.New("db down")
 		d.writeRepo.On("Create", mock.Anything, mock.Anything).Return(dbErr)
 
-		_, err := svc(d).CreateSupportAgent(ctx, "e@x.com", "A", "B", "")
+		_, err := svc(d).CreateSupportAgent(ctx, "e@x.com", "A", "B", domain.RoleSupport)
 		assert.ErrorIs(t, err, dbErr)
 	})
 }

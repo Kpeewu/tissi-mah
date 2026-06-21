@@ -3,9 +3,9 @@ package e2e
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/support-service/fixtures"
+	"github.com/Kpeewu/tissi-mah/services/support-service/internal/domain"
 	supportpb "github.com/Kpeewu/tissi-mah/services/support-service/proto/gen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -51,55 +51,74 @@ func TestE2E_ChangeMyPassword(t *testing.T) {
 	})
 }
 
-func TestE2E_ChangeMyEmail(t *testing.T) {
+func TestE2E_UpdateMyProfile(t *testing.T) {
 	cleanAll(t)
 	d := newE2E(t)
 	defer d.cleanup()
 	ctx := context.Background()
 
-	u := fixtures.NewTestSupportUser(fixtures.WithEmail("old@x.com"))
+	u := fixtures.NewTestSupportUser(fixtures.WithEmail("agent@x.com"))
 	require.NoError(t, fixtures.InsertSupportUser(ctx, testPool, u))
-	uctx := withSupport(ctx, u.UserID, "support")
+	uctx := withSupport(ctx, u.UserID, domain.RoleSupport)
 
-	t.Run("succès", func(t *testing.T) {
-		_, err := d.client.ChangeMyEmail(uctx, &supportpb.ChangeMyEmailRequest{
-			NewEmail:        "newmail@x.com",
-			CurrentPassword: fixtures.DefaultPasswordPlain,
+	t.Run("succès : nom et prénom mis à jour", func(t *testing.T) {
+		_, err := d.client.UpdateMyProfile(uctx, &supportpb.UpdateMyProfileRequest{
+			FirstName: "Jean", LastName: "Dupont",
 		})
 		require.NoError(t, err)
 
 		me, err := d.client.Me(uctx, &supportpb.MeRequest{})
 		require.NoError(t, err)
-		assert.Equal(t, "newmail@x.com", me.GetEmail())
+		assert.Equal(t, "Jean", me.GetFirstName())
+		assert.Equal(t, "Dupont", me.GetLastName())
 	})
 
-	t.Run("cooldown 6 mois → FailedPrecondition", func(t *testing.T) {
-		// Le premier change ci-dessus a posé email_changed_at = NOW → tentative immédiate bloquée.
-		_, err := d.client.ChangeMyEmail(uctx, &supportpb.ChangeMyEmailRequest{
-			NewEmail:        "yetanother@x.com",
-			CurrentPassword: fixtures.DefaultPasswordPlain,
+	t.Run("prénom vide → InvalidArgument", func(t *testing.T) {
+		_, err := d.client.UpdateMyProfile(uctx, &supportpb.UpdateMyProfileRequest{
+			FirstName: "", LastName: "Dupont",
 		})
-		assert.Equal(t, codes.FailedPrecondition, grpcCode(t, err))
+		assert.Equal(t, codes.InvalidArgument, grpcCode(t, err))
 	})
+}
 
-	t.Run("email conflit", func(t *testing.T) {
-		// Setup : un autre user avec email cible.
-		other := fixtures.NewTestSupportUser(fixtures.WithEmail("taken@x.com"))
-		require.NoError(t, fixtures.InsertSupportUser(ctx, testPool, other))
+func TestE2E_UpdateSupportAgent_AdminFlow(t *testing.T) {
+	cleanAll(t)
+	d := newE2E(t)
+	defer d.cleanup()
+	ctx := context.Background()
 
-		// User courant : reset email_changed_at pour contourner le cooldown.
-		past := time.Now().Add(-7 * 30 * 24 * time.Hour)
-		_, err := testPool.Exec(ctx,
-			"UPDATE support_users SET email_changed_at = $1 WHERE user_id = $2",
-			past, u.UserID,
-		)
+	admin := fixtures.NewTestAdmin(fixtures.WithEmail("admin@tissimah.local"))
+	require.NoError(t, fixtures.InsertSupportUser(ctx, testPool, admin))
+	adminCtx := withSupport(ctx, admin.UserID, domain.RoleAdmin)
+
+	target := fixtures.NewTestSupportUser(fixtures.WithEmail("agent@x.com"))
+	require.NoError(t, fixtures.InsertSupportUser(ctx, testPool, target))
+
+	t.Run("admin modifie email + rôle", func(t *testing.T) {
+		_, err := d.client.UpdateSupportAgent(adminCtx, &supportpb.UpdateSupportAgentRequest{
+			UserId: target.UserID, Email: "promoted@x.com", Role: domain.RoleAdmin,
+		})
 		require.NoError(t, err)
 
-		_, err = d.client.ChangeMyEmail(uctx, &supportpb.ChangeMyEmailRequest{
-			NewEmail:        "taken@x.com",
-			CurrentPassword: fixtures.DefaultPasswordPlain,
+		listRes, err := d.client.ListSupportAgents(adminCtx, &supportpb.ListSupportAgentsRequest{Limit: 50})
+		require.NoError(t, err)
+		var found *supportpb.SupportAgent
+		for _, a := range listRes.GetAgents() {
+			if a.GetUserId() == target.UserID {
+				found = a
+			}
+		}
+		require.NotNil(t, found)
+		assert.Equal(t, "promoted@x.com", found.GetEmail())
+		assert.Equal(t, domain.RoleAdmin, found.GetRole())
+	})
+
+	t.Run("non-admin → PermissionDenied", func(t *testing.T) {
+		supportCtx := withSupport(ctx, target.UserID, domain.RoleSupport)
+		_, err := d.client.UpdateSupportAgent(supportCtx, &supportpb.UpdateSupportAgentRequest{
+			UserId: target.UserID, Role: domain.RoleSupport,
 		})
-		assert.Equal(t, codes.AlreadyExists, grpcCode(t, err))
+		assert.Equal(t, codes.PermissionDenied, grpcCode(t, err))
 	})
 }
 

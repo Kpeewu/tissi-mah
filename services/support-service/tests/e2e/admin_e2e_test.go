@@ -27,6 +27,7 @@ func TestE2E_CreateSupportAgent_AdminFlow(t *testing.T) {
 		Email:     "new@x.com",
 		FirstName: "Jean",
 		LastName:  "Dupont",
+		Role:      domain.RoleSupport,
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, createRes.GetUserId())
@@ -65,7 +66,7 @@ func TestE2E_CreateSupportAgent_EmailTaken(t *testing.T) {
 
 	adminCtx := withSupport(ctx, admin.UserID, domain.RoleAdmin)
 	_, err := d.client.CreateSupportAgent(adminCtx, &supportpb.CreateSupportAgentRequest{
-		Email: "dup@x.com", FirstName: "A", LastName: "B",
+		Email: "dup@x.com", FirstName: "A", LastName: "B", Role: domain.RoleSupport,
 	})
 	assert.Equal(t, codes.AlreadyExists, grpcCode(t, err))
 }
