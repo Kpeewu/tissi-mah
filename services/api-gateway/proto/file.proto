@@ -64,6 +64,11 @@ service FileService {
   rpc GetCurrentUserDocument(GetCurrentUserDocumentRequest) returns (UserDocumentResponse);
   rpc GetVehicleDocuments(GetVehicleDocumentsRequest) returns (GetVehicleDocumentsResponse);
   rpc GetVehicleDocument(GetDocumentByIDRequest) returns (VehicleDocumentResponse);
+  rpc GetVehicleDocumentsByUserID(GetVehicleDocumentsByUserIDRequest) returns (GetVehicleDocumentsResponse);
+
+  // ListKycDocuments — file de validation manuelle (inter-service, appelé par kyc-service).
+  // Liste les documents KYC courants (user + vehicle) filtrés par statut.
+  rpc ListKycDocuments(ListKycDocumentsRequest) returns (ListKycDocumentsResponse);
 
   // --- Suppression document (HTTP via api-gateway) ---
   // Supprime un fichier après vérification de la propriété (UserID doit être propriétaire)
@@ -261,6 +266,30 @@ message GetCurrentUserDocumentRequest {
 
 message GetVehicleDocumentsRequest {
   string VehicleId = 1;
+}
+
+message GetVehicleDocumentsByUserIDRequest {
+  string UserId = 1;
+}
+
+message ListKycDocumentsRequest {
+  repeated string Statuses = 1; // vide = tous les statuts
+}
+
+// KycDocument : vue unifiée d'un document KYC (user ou véhicule) pour la file
+// de validation manuelle. OwnerKind = "user" | "vehicle".
+message KycDocument {
+  string DocumentId   = 1;
+  string UserId       = 2;
+  string VehicleId    = 3; // vide pour un document utilisateur
+  string DocumentType = 4;
+  string Status       = 5;
+  string OwnerKind    = 6;
+  string UpdatedAt    = 7; // ISO 8601
+}
+
+message ListKycDocumentsResponse {
+  repeated KycDocument Documents = 1;
 }
 
 message DeleteDocumentRequest {

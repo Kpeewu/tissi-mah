@@ -51,6 +51,30 @@ func (m *MockFileServiceClient) GetVehicleDocuments(ctx context.Context, vehicle
 	return args.Get(0).([]*domain.DocumentRef), args.Error(1)
 }
 
+func (m *MockFileServiceClient) ListKycDocuments(ctx context.Context, statuses []string) ([]*domain.KycDocument, error) {
+	args := m.Called(ctx, statuses)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.KycDocument), args.Error(1)
+}
+
+func (m *MockFileServiceClient) GetUserDocumentSummaries(ctx context.Context, userID string) ([]*domain.DocumentSummary, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.DocumentSummary), args.Error(1)
+}
+
+func (m *MockFileServiceClient) GetVehicleDocumentSummariesByUserID(ctx context.Context, userID string) ([]*domain.DocumentSummary, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.DocumentSummary), args.Error(1)
+}
+
 func (m *MockFileServiceClient) CreateDocumentReview(ctx context.Context, review *domain.Review) (*domain.Review, error) {
 	args := m.Called(ctx, review)
 	if args.Get(0) == nil {

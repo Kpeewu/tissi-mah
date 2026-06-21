@@ -7,6 +7,19 @@ import (
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/domain"
 )
 
+// KycDocument est une vue unifiée d'un document KYC (user ou véhicule) pour la file
+// de validation manuelle. OwnerKind vaut "user" ou "vehicle" ; pour un document
+// véhicule, VehicleID est renseigné (UserID reste le propriétaire dénormalisé).
+type KycDocument struct {
+	DocumentID   string
+	UserID       string
+	VehicleID    string // vide pour un document utilisateur
+	DocumentType string
+	Status       string
+	OwnerKind    string // "user" | "vehicle"
+	UpdatedAt    string // ISO 8601
+}
+
 // UploadUserDocumentInput contient les données nécessaires à l'upload d'un document utilisateur
 type UploadUserDocumentInput struct {
 	UserID         string
@@ -180,8 +193,17 @@ type FileService interface {
 	// Récupère un document véhicule par son ID
 	GetVehicleDocument(ctx context.Context, documentID string) (*domain.VehicleDocument, error)
 
+	// Récupère tous les documents véhicule d'un utilisateur (user_id dénormalisé)
+	GetVehicleDocumentsByUserID(ctx context.Context, userID string) ([]*domain.VehicleDocument, error)
+
 	// Supprime un document véhicule (S3 + DB)
 	DeleteVehicleDocument(ctx context.Context, documentID string) error
+
+	// --- Validation manuelle (support) ---
+
+	// ListKycDocuments liste les documents KYC courants (user + vehicle) filtrés par
+	// statut, pour la file de validation manuelle. statuses vide = tous les statuts.
+	ListKycDocuments(ctx context.Context, statuses []string) ([]*KycDocument, error)
 
 	// --- Remplacement de document ---
 

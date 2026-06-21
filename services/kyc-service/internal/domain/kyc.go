@@ -123,3 +123,123 @@ type LatestRejection struct {
 	ReviewType       string
 	ReviewedAt       *time.Time
 }
+
+// =============================================================================
+// Validation manuelle (support) — catégorisation passenger / driver
+// =============================================================================
+
+const (
+	CategoryPassenger = "passenger"
+	CategoryDriver    = "driver"
+	CategoryOther     = "other"
+)
+
+// passengerDocumentTypes : documents d'identité (validation "passenger").
+var passengerDocumentTypes = map[string]bool{
+	"idCardFront": true,
+	"idCardBack":  true,
+	"passport":    true,
+}
+
+// driverUserDocumentTypes : documents utilisateur relatifs au permis (validation "driver").
+var driverUserDocumentTypes = map[string]bool{
+	"driverLicenceFront": true,
+	"driverLicenceBack":  true,
+}
+
+// DocumentCategory classe un document en "passenger" / "driver" / "other".
+// Tout document véhicule (ownerKind == "vehicle") relève du "driver".
+func DocumentCategory(documentType, ownerKind string) string {
+	if ownerKind == "vehicle" {
+		return CategoryDriver
+	}
+	if passengerDocumentTypes[documentType] {
+		return CategoryPassenger
+	}
+	if driverUserDocumentTypes[documentType] {
+		return CategoryDriver
+	}
+	return CategoryOther
+}
+
+// statusPrecedence ordonne les statuts pour l'agrégation par catégorie : plus la
+// valeur est élevée, plus le statut prime (triage : rejected en premier).
+var statusPrecedence = map[string]int{
+	"rejected":    5,
+	"underReview": 4,
+	"pending":     3,
+	"expired":     2,
+	"approved":    1,
+}
+
+// AggregateStatus retourne le statut prioritaire d'un ensemble de statuts de documents
+// (précédence rejected > underReview > pending > expired > approved). "" si vide.
+func AggregateStatus(statuses []string) string {
+	best := ""
+	bestRank := 0
+	for _, s := range statuses {
+		if r := statusPrecedence[s]; r > bestRank {
+			bestRank = r
+			best = s
+		}
+	}
+	return best
+}
+
+// KycDocument : document KYC (user ou véhicule) remonté par le file-service.
+type KycDocument struct {
+	DocumentID   string
+	UserID       string
+	VehicleID    string
+	DocumentType string
+	Status       string
+	OwnerKind    string // "user" | "vehicle"
+	UpdatedAt    string
+}
+
+// DocumentSummary : document soumis par un utilisateur (vue détail support).
+type DocumentSummary struct {
+	DocumentID   string
+	DocumentType string
+	Status       string
+	OwnerKind    string // "user" | "vehicle"
+	OwnerID      string // user_id ou vehicle_id selon OwnerKind
+	Category     string // passenger | driver | other
+	LatestReview *ReviewSummary
+}
+
+// ReviewSummary : dernière review associée à un document.
+type ReviewSummary struct {
+	ReviewID         string
+	Status           string
+	Decision         string
+	ReasonRejection  string
+	RejectionDetails string
+	ReviewType       string
+	ReviewedBy       string
+	ReviewedAt       *time.Time
+}
+
+// UserInfo : infos profil utilisateur (récupérées via user-service).
+type UserInfo struct {
+	UserID          string
+	Name            string
+	FirstName       string
+	Email           string
+	PhoneNumber     string
+	ProfileImageURL string
+}
+
+// ManualReviewRequest : entrée de la liste groupée par utilisateur.
+type ManualReviewRequest struct {
+	User            *UserInfo
+	PassengerStatus string
+	DriverStatus    string
+	TotalDocuments  int32
+}
+
+// ManualReviewRequestDetail : détail d'une demande (user + tous ses documents).
+type ManualReviewRequestDetail struct {
+	User      *UserInfo
+	Documents []*DocumentSummary
+}

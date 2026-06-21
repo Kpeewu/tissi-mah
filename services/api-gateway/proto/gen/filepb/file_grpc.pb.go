@@ -34,6 +34,8 @@ const (
 	FileService_GetCurrentUserDocument_FullMethodName              = "/file.FileService/GetCurrentUserDocument"
 	FileService_GetVehicleDocuments_FullMethodName                 = "/file.FileService/GetVehicleDocuments"
 	FileService_GetVehicleDocument_FullMethodName                  = "/file.FileService/GetVehicleDocument"
+	FileService_GetVehicleDocumentsByUserID_FullMethodName         = "/file.FileService/GetVehicleDocumentsByUserID"
+	FileService_ListKycDocuments_FullMethodName                    = "/file.FileService/ListKycDocuments"
 	FileService_DeleteFile_FullMethodName                          = "/file.FileService/DeleteFile"
 	FileService_DeleteUserDocument_FullMethodName                  = "/file.FileService/DeleteUserDocument"
 	FileService_DeleteVehicleDocument_FullMethodName               = "/file.FileService/DeleteVehicleDocument"
@@ -77,6 +79,10 @@ type FileServiceClient interface {
 	GetCurrentUserDocument(ctx context.Context, in *GetCurrentUserDocumentRequest, opts ...grpc.CallOption) (*UserDocumentResponse, error)
 	GetVehicleDocuments(ctx context.Context, in *GetVehicleDocumentsRequest, opts ...grpc.CallOption) (*GetVehicleDocumentsResponse, error)
 	GetVehicleDocument(ctx context.Context, in *GetDocumentByIDRequest, opts ...grpc.CallOption) (*VehicleDocumentResponse, error)
+	GetVehicleDocumentsByUserID(ctx context.Context, in *GetVehicleDocumentsByUserIDRequest, opts ...grpc.CallOption) (*GetVehicleDocumentsResponse, error)
+	// ListKycDocuments — file de validation manuelle (inter-service, appelé par kyc-service).
+	// Liste les documents KYC courants (user + vehicle) filtrés par statut.
+	ListKycDocuments(ctx context.Context, in *ListKycDocumentsRequest, opts ...grpc.CallOption) (*ListKycDocumentsResponse, error)
 	// --- Suppression document (HTTP via api-gateway) ---
 	// Supprime un fichier après vérification de la propriété (UserID doit être propriétaire)
 	DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*DeleteFileResponse, error)
@@ -217,6 +223,26 @@ func (c *fileServiceClient) GetVehicleDocument(ctx context.Context, in *GetDocum
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(VehicleDocumentResponse)
 	err := c.cc.Invoke(ctx, FileService_GetVehicleDocument_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fileServiceClient) GetVehicleDocumentsByUserID(ctx context.Context, in *GetVehicleDocumentsByUserIDRequest, opts ...grpc.CallOption) (*GetVehicleDocumentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetVehicleDocumentsResponse)
+	err := c.cc.Invoke(ctx, FileService_GetVehicleDocumentsByUserID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fileServiceClient) ListKycDocuments(ctx context.Context, in *ListKycDocumentsRequest, opts ...grpc.CallOption) (*ListKycDocumentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListKycDocumentsResponse)
+	err := c.cc.Invoke(ctx, FileService_ListKycDocuments_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -372,6 +398,10 @@ type FileServiceServer interface {
 	GetCurrentUserDocument(context.Context, *GetCurrentUserDocumentRequest) (*UserDocumentResponse, error)
 	GetVehicleDocuments(context.Context, *GetVehicleDocumentsRequest) (*GetVehicleDocumentsResponse, error)
 	GetVehicleDocument(context.Context, *GetDocumentByIDRequest) (*VehicleDocumentResponse, error)
+	GetVehicleDocumentsByUserID(context.Context, *GetVehicleDocumentsByUserIDRequest) (*GetVehicleDocumentsResponse, error)
+	// ListKycDocuments — file de validation manuelle (inter-service, appelé par kyc-service).
+	// Liste les documents KYC courants (user + vehicle) filtrés par statut.
+	ListKycDocuments(context.Context, *ListKycDocumentsRequest) (*ListKycDocumentsResponse, error)
 	// --- Suppression document (HTTP via api-gateway) ---
 	// Supprime un fichier après vérification de la propriété (UserID doit être propriétaire)
 	DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error)
@@ -434,6 +464,12 @@ func (UnimplementedFileServiceServer) GetVehicleDocuments(context.Context, *GetV
 }
 func (UnimplementedFileServiceServer) GetVehicleDocument(context.Context, *GetDocumentByIDRequest) (*VehicleDocumentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetVehicleDocument not implemented")
+}
+func (UnimplementedFileServiceServer) GetVehicleDocumentsByUserID(context.Context, *GetVehicleDocumentsByUserIDRequest) (*GetVehicleDocumentsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetVehicleDocumentsByUserID not implemented")
+}
+func (UnimplementedFileServiceServer) ListKycDocuments(context.Context, *ListKycDocumentsRequest) (*ListKycDocumentsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListKycDocuments not implemented")
 }
 func (UnimplementedFileServiceServer) DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteFile not implemented")
@@ -664,6 +700,42 @@ func _FileService_GetVehicleDocument_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(FileServiceServer).GetVehicleDocument(ctx, req.(*GetDocumentByIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FileService_GetVehicleDocumentsByUserID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVehicleDocumentsByUserIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServiceServer).GetVehicleDocumentsByUserID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileService_GetVehicleDocumentsByUserID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServiceServer).GetVehicleDocumentsByUserID(ctx, req.(*GetVehicleDocumentsByUserIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FileService_ListKycDocuments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListKycDocumentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServiceServer).ListKycDocuments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileService_ListKycDocuments_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServiceServer).ListKycDocuments(ctx, req.(*ListKycDocumentsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -926,6 +998,14 @@ var FileService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetVehicleDocument",
 			Handler:    _FileService_GetVehicleDocument_Handler,
+		},
+		{
+			MethodName: "GetVehicleDocumentsByUserID",
+			Handler:    _FileService_GetVehicleDocumentsByUserID_Handler,
+		},
+		{
+			MethodName: "ListKycDocuments",
+			Handler:    _FileService_ListKycDocuments_Handler,
 		},
 		{
 			MethodName: "DeleteFile",

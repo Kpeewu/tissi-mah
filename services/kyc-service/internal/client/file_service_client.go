@@ -71,7 +71,7 @@ func (c *fileServiceClientImpl) GetUserDocument(ctx context.Context, documentID 
 	c.logger.Debug("client: GetUserDocument", zap.String("documentID", documentID))
 
 	resp, err := c.grpcClient.GetUserDocument(ctx, &filepb.GetDocumentByIDRequest{
-		DocumentId:   documentID,
+		DocumentId:     documentID,
 		PresignTTLSecs: 86400, // 24h — Persona doit pouvoir fetcher le document
 	})
 	if err != nil {
@@ -91,7 +91,7 @@ func (c *fileServiceClientImpl) GetVehicleDocument(ctx context.Context, document
 	c.logger.Debug("client: GetVehicleDocument", zap.String("documentID", documentID))
 
 	resp, err := c.grpcClient.GetVehicleDocument(ctx, &filepb.GetDocumentByIDRequest{
-		DocumentId:   documentID,
+		DocumentId:     documentID,
 		PresignTTLSecs: 86400, // 24h — Persona doit pouvoir fetcher le document
 	})
 	if err != nil {
@@ -148,6 +148,76 @@ func (c *fileServiceClientImpl) GetVehicleDocuments(ctx context.Context, vehicle
 		})
 	}
 	return refs, nil
+}
+
+func (c *fileServiceClientImpl) ListKycDocuments(ctx context.Context, statuses []string) ([]*domain.KycDocument, error) {
+	c.logger.Debug("client: ListKycDocuments", zap.Strings("statuses", statuses))
+
+	resp, err := c.grpcClient.ListKycDocuments(ctx, &filepb.ListKycDocumentsRequest{Statuses: statuses})
+	if err != nil {
+		c.logger.Error("client: ListKycDocuments failed", zap.Error(err))
+		return nil, fmt.Errorf("file-service: ListKycDocuments: %w", err)
+	}
+
+	docs := make([]*domain.KycDocument, 0, len(resp.Documents))
+	for _, d := range resp.Documents {
+		docs = append(docs, &domain.KycDocument{
+			DocumentID:   d.DocumentId,
+			UserID:       d.UserId,
+			VehicleID:    d.VehicleId,
+			DocumentType: d.DocumentType,
+			Status:       d.Status,
+			OwnerKind:    d.OwnerKind,
+			UpdatedAt:    d.UpdatedAt,
+		})
+	}
+	return docs, nil
+}
+
+func (c *fileServiceClientImpl) GetUserDocumentSummaries(ctx context.Context, userID string) ([]*domain.DocumentSummary, error) {
+	c.logger.Debug("client: GetUserDocumentSummaries", zap.String("userID", userID))
+
+	resp, err := c.grpcClient.GetUserDocuments(ctx, &filepb.GetUserDocumentsRequest{UserId: userID})
+	if err != nil {
+		c.logger.Error("client: GetUserDocumentSummaries failed", zap.Error(err))
+		return nil, fmt.Errorf("file-service: GetUserDocuments: %w", err)
+	}
+
+	out := make([]*domain.DocumentSummary, 0, len(resp.Documents))
+	for _, d := range resp.Documents {
+		out = append(out, &domain.DocumentSummary{
+			DocumentID:   d.DocumentId,
+			DocumentType: d.DocumentType,
+			Status:       d.Status,
+			OwnerKind:    "user",
+			OwnerID:      d.UserId,
+			Category:     domain.DocumentCategory(d.DocumentType, "user"),
+		})
+	}
+	return out, nil
+}
+
+func (c *fileServiceClientImpl) GetVehicleDocumentSummariesByUserID(ctx context.Context, userID string) ([]*domain.DocumentSummary, error) {
+	c.logger.Debug("client: GetVehicleDocumentSummariesByUserID", zap.String("userID", userID))
+
+	resp, err := c.grpcClient.GetVehicleDocumentsByUserID(ctx, &filepb.GetVehicleDocumentsByUserIDRequest{UserId: userID})
+	if err != nil {
+		c.logger.Error("client: GetVehicleDocumentSummariesByUserID failed", zap.Error(err))
+		return nil, fmt.Errorf("file-service: GetVehicleDocumentsByUserID: %w", err)
+	}
+
+	out := make([]*domain.DocumentSummary, 0, len(resp.Documents))
+	for _, d := range resp.Documents {
+		out = append(out, &domain.DocumentSummary{
+			DocumentID:   d.DocumentId,
+			DocumentType: d.DocumentType,
+			Status:       d.Status,
+			OwnerKind:    "vehicle",
+			OwnerID:      d.VehicleId,
+			Category:     domain.DocumentCategory(d.DocumentType, "vehicle"),
+		})
+	}
+	return out, nil
 }
 
 func (c *fileServiceClientImpl) CreateDocumentReview(ctx context.Context, review *domain.Review) (*domain.Review, error) {
