@@ -86,6 +86,20 @@ service KYCService {
     };
   }
 
+  // GetManualReviewRequests - Demandes de validation manuelle groupées par utilisateur (support)
+  rpc GetManualReviewRequests(GetManualReviewRequestsRequest) returns (GetManualReviewRequestsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/kyc/admin/manualReviews/requests"
+    };
+  }
+
+  // GetManualReviewRequestDetail - Détail d'une demande : tous les documents soumis d'un utilisateur (support)
+  rpc GetManualReviewRequestDetail(GetManualReviewRequestDetailRequest) returns (GetManualReviewRequestDetailResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/kyc/admin/manualReviews/requestDetail"
+    };
+  }
+
   // Health - Health check endpoint (no auth required)
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -240,6 +254,70 @@ message HealthResponse {
   string Status = 1;
   string Version = 2;
   int64 Timestamp = 3;
+}
+
+// =============================================================================
+// Validation manuelle groupée par utilisateur (support)
+// =============================================================================
+
+message GetManualReviewRequestsRequest {
+  string Status   = 1; // Optionnel — filtre : passenger OU driver == ce statut
+  int32  Page     = 2; // 0-based
+  int32  PageSize = 3; // 0 = défaut
+}
+
+message ManualReviewRequestItem {
+  string UserId          = 1;
+  string Name            = 2;
+  string FirstName       = 3;
+  string Email           = 4;
+  string PhoneNumber     = 5;
+  string ProfileImageURL = 6;
+  string PassengerStatus = 7; // "" si aucun document d'identité
+  string DriverStatus    = 8; // "" si aucun document permis/véhicule
+  int32  TotalDocuments  = 9;
+}
+
+message GetManualReviewRequestsResponse {
+  string ErrorMessage = 1;
+  repeated ManualReviewRequestItem Requests = 2;
+  int32 Total = 3;
+}
+
+message GetManualReviewRequestDetailRequest {
+  string UserId = 1;
+}
+
+message ManualReviewDocumentReview {
+  string ReviewId         = 1;
+  string Status           = 2;
+  string Decision         = 3;
+  string ReasonRejection  = 4;
+  string RejectionDetails = 5;
+  string ReviewType       = 6;
+  string ReviewedBy       = 7;
+  string ReviewedAt       = 8; // ISO 8601
+}
+
+message ManualReviewDocument {
+  string DocumentId   = 1;
+  string DocumentType  = 2;
+  string Status        = 3;
+  string OwnerKind     = 4; // "user" | "vehicle"
+  string OwnerId       = 5; // user_id ou vehicle_id
+  string Category      = 6; // passenger | driver | other
+  ManualReviewDocumentReview LatestReview = 7; // null si aucune review
+}
+
+message GetManualReviewRequestDetailResponse {
+  string ErrorMessage = 1;
+  string UserId          = 2;
+  string Name            = 3;
+  string FirstName       = 4;
+  string Email           = 5;
+  string PhoneNumber     = 6;
+  string ProfileImageURL = 7;
+  repeated ManualReviewDocument Documents = 8;
 }
 
 // =============================================================================

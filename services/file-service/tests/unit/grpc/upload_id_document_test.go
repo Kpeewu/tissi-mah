@@ -74,6 +74,12 @@ func (s *spyFileService) GetVehicleDocuments(context.Context, string) ([]*domain
 func (s *spyFileService) GetVehicleDocument(context.Context, string) (*domain.VehicleDocument, error) {
 	panic("not implemented")
 }
+func (s *spyFileService) GetVehicleDocumentsByUserID(context.Context, string) ([]*domain.VehicleDocument, error) {
+	panic("not implemented")
+}
+func (s *spyFileService) ListKycDocuments(context.Context, []string) ([]*serviceInterfaces.KycDocument, error) {
+	panic("not implemented")
+}
 func (s *spyFileService) DeleteVehicleDocument(context.Context, string) error {
 	panic("not implemented")
 }

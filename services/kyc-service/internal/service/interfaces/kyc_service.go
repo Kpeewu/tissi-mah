@@ -173,6 +173,19 @@ type ValidateDocumentResult struct {
 	Notes      string
 }
 
+// GetManualReviewRequestsInput contient les filtres de la liste groupée par utilisateur.
+type GetManualReviewRequestsInput struct {
+	Status   string // Optionnel — ne garder que les users dont une catégorie a ce statut
+	Page     int32  // 0-based
+	PageSize int32  // 0 = défaut
+}
+
+// GetManualReviewRequestsResult : page de la liste groupée par utilisateur.
+type GetManualReviewRequestsResult struct {
+	Requests []*domain.ManualReviewRequest
+	Total    int32
+}
+
 // KYCService définit les opérations du service KYC
 type KYCService interface {
 	// Démarre une nouvelle vérification d'identité
@@ -201,4 +214,12 @@ type KYCService interface {
 
 	// Validation manuelle directe d'un document par un agent support (sans Persona)
 	ValidateDocument(ctx context.Context, input ValidateDocumentInput) (*ValidateDocumentResult, error)
+
+	// GetManualReviewRequests liste, groupées par utilisateur, les demandes de
+	// validation (statut par catégorie passenger/driver). Tous statuts retournés.
+	GetManualReviewRequests(ctx context.Context, input GetManualReviewRequestsInput) (*GetManualReviewRequestsResult, error)
+
+	// GetManualReviewRequestDetail retourne tous les documents soumis d'un utilisateur
+	// avec leur statut et la dernière review associée.
+	GetManualReviewRequestDetail(ctx context.Context, userID string) (*domain.ManualReviewRequestDetail, error)
 }

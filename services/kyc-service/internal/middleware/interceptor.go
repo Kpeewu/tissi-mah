@@ -22,18 +22,20 @@ const SupportIDKey contextKey = "supportID"
 
 // Routes gRPC publiques (pas de JWT requis)
 var publicMethods = map[string]bool{
-	"/kyc.KYCService/Health":          true,
-	"/kyc.KYCService/ProcessWebhook":  true,
-	"/grpc.health.v1.Health/Check":    true, // Readiness probe Kubernetes
-	"/grpc.health.v1.Health/Watch":    true, // Liveness probe Kubernetes
+	"/kyc.KYCService/Health":         true,
+	"/kyc.KYCService/ProcessWebhook": true,
+	"/grpc.health.v1.Health/Check":   true, // Readiness probe Kubernetes
+	"/grpc.health.v1.Health/Watch":   true, // Liveness probe Kubernetes
 }
 
 // Méthodes réservées aux agents support (JWT support, pas Firebase)
 var adminMethods = map[string]bool{
-	"/kyc.KYCService/GetAdminReviews":  true,
-	"/kyc.KYCService/GetAdminReview":   true,
-	"/kyc.KYCService/OverrideReview":   true,
-	"/kyc.KYCService/ValidateDocument": true,
+	"/kyc.KYCService/GetAdminReviews":              true,
+	"/kyc.KYCService/GetAdminReview":               true,
+	"/kyc.KYCService/OverrideReview":               true,
+	"/kyc.KYCService/ValidateDocument":             true,
+	"/kyc.KYCService/GetManualReviewRequests":      true,
+	"/kyc.KYCService/GetManualReviewRequestDetail": true,
 }
 
 // KYCInterceptor retourne un intercepteur gRPC unaire qui :

@@ -81,6 +81,22 @@ func (m *MockKYCService) ValidateDocument(ctx context.Context, input serviceInte
 	return args.Get(0).(*serviceInterfaces.ValidateDocumentResult), args.Error(1)
 }
 
+func (m *MockKYCService) GetManualReviewRequests(ctx context.Context, input serviceInterfaces.GetManualReviewRequestsInput) (*serviceInterfaces.GetManualReviewRequestsResult, error) {
+	args := m.Called(ctx, input)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.GetManualReviewRequestsResult), args.Error(1)
+}
+
+func (m *MockKYCService) GetManualReviewRequestDetail(ctx context.Context, userID string) (*domain.ManualReviewRequestDetail, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.ManualReviewRequestDetail), args.Error(1)
+}
+
 // Compile-time check
 var _ serviceInterfaces.KYCService = (*MockKYCService)(nil)
 var _ = (*MockKYCService)(nil)

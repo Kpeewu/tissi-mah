@@ -25,16 +25,18 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	KYCService_CreateInquiry_FullMethodName    = "/kyc.KYCService/CreateInquiry"
-	KYCService_GetInquiry_FullMethodName       = "/kyc.KYCService/GetInquiry"
-	KYCService_GetKYCStatus_FullMethodName     = "/kyc.KYCService/GetKYCStatus"
-	KYCService_ResumeInquiry_FullMethodName    = "/kyc.KYCService/ResumeInquiry"
-	KYCService_ProcessWebhook_FullMethodName   = "/kyc.KYCService/ProcessWebhook"
-	KYCService_GetAdminReviews_FullMethodName  = "/kyc.KYCService/GetAdminReviews"
-	KYCService_GetAdminReview_FullMethodName   = "/kyc.KYCService/GetAdminReview"
-	KYCService_OverrideReview_FullMethodName   = "/kyc.KYCService/OverrideReview"
-	KYCService_ValidateDocument_FullMethodName = "/kyc.KYCService/ValidateDocument"
-	KYCService_Health_FullMethodName           = "/kyc.KYCService/Health"
+	KYCService_CreateInquiry_FullMethodName                = "/kyc.KYCService/CreateInquiry"
+	KYCService_GetInquiry_FullMethodName                   = "/kyc.KYCService/GetInquiry"
+	KYCService_GetKYCStatus_FullMethodName                 = "/kyc.KYCService/GetKYCStatus"
+	KYCService_ResumeInquiry_FullMethodName                = "/kyc.KYCService/ResumeInquiry"
+	KYCService_ProcessWebhook_FullMethodName               = "/kyc.KYCService/ProcessWebhook"
+	KYCService_GetAdminReviews_FullMethodName              = "/kyc.KYCService/GetAdminReviews"
+	KYCService_GetAdminReview_FullMethodName               = "/kyc.KYCService/GetAdminReview"
+	KYCService_OverrideReview_FullMethodName               = "/kyc.KYCService/OverrideReview"
+	KYCService_ValidateDocument_FullMethodName             = "/kyc.KYCService/ValidateDocument"
+	KYCService_GetManualReviewRequests_FullMethodName      = "/kyc.KYCService/GetManualReviewRequests"
+	KYCService_GetManualReviewRequestDetail_FullMethodName = "/kyc.KYCService/GetManualReviewRequestDetail"
+	KYCService_Health_FullMethodName                       = "/kyc.KYCService/Health"
 )
 
 // KYCServiceClient is the client API for KYCService service.
@@ -60,6 +62,10 @@ type KYCServiceClient interface {
 	// ValidateDocument - Validation manuelle directe d'un document par un agent support (sans Persona)
 	// Obligatoire pour les documents véhicule (insurance, registrationCard, driverLicence avec VehicleId)
 	ValidateDocument(ctx context.Context, in *ValidateDocumentRequest, opts ...grpc.CallOption) (*ValidateDocumentResponse, error)
+	// GetManualReviewRequests - Demandes de validation manuelle groupées par utilisateur (support)
+	GetManualReviewRequests(ctx context.Context, in *GetManualReviewRequestsRequest, opts ...grpc.CallOption) (*GetManualReviewRequestsResponse, error)
+	// GetManualReviewRequestDetail - Détail d'une demande : tous les documents soumis d'un utilisateur (support)
+	GetManualReviewRequestDetail(ctx context.Context, in *GetManualReviewRequestDetailRequest, opts ...grpc.CallOption) (*GetManualReviewRequestDetailResponse, error)
 	// Health - Health check endpoint (no auth required)
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -162,6 +168,26 @@ func (c *kYCServiceClient) ValidateDocument(ctx context.Context, in *ValidateDoc
 	return out, nil
 }
 
+func (c *kYCServiceClient) GetManualReviewRequests(ctx context.Context, in *GetManualReviewRequestsRequest, opts ...grpc.CallOption) (*GetManualReviewRequestsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetManualReviewRequestsResponse)
+	err := c.cc.Invoke(ctx, KYCService_GetManualReviewRequests_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *kYCServiceClient) GetManualReviewRequestDetail(ctx context.Context, in *GetManualReviewRequestDetailRequest, opts ...grpc.CallOption) (*GetManualReviewRequestDetailResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetManualReviewRequestDetailResponse)
+	err := c.cc.Invoke(ctx, KYCService_GetManualReviewRequestDetail_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *kYCServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -195,6 +221,10 @@ type KYCServiceServer interface {
 	// ValidateDocument - Validation manuelle directe d'un document par un agent support (sans Persona)
 	// Obligatoire pour les documents véhicule (insurance, registrationCard, driverLicence avec VehicleId)
 	ValidateDocument(context.Context, *ValidateDocumentRequest) (*ValidateDocumentResponse, error)
+	// GetManualReviewRequests - Demandes de validation manuelle groupées par utilisateur (support)
+	GetManualReviewRequests(context.Context, *GetManualReviewRequestsRequest) (*GetManualReviewRequestsResponse, error)
+	// GetManualReviewRequestDetail - Détail d'une demande : tous les documents soumis d'un utilisateur (support)
+	GetManualReviewRequestDetail(context.Context, *GetManualReviewRequestDetailRequest) (*GetManualReviewRequestDetailResponse, error)
 	// Health - Health check endpoint (no auth required)
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedKYCServiceServer()
@@ -233,6 +263,12 @@ func (UnimplementedKYCServiceServer) OverrideReview(context.Context, *OverrideRe
 }
 func (UnimplementedKYCServiceServer) ValidateDocument(context.Context, *ValidateDocumentRequest) (*ValidateDocumentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ValidateDocument not implemented")
+}
+func (UnimplementedKYCServiceServer) GetManualReviewRequests(context.Context, *GetManualReviewRequestsRequest) (*GetManualReviewRequestsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetManualReviewRequests not implemented")
+}
+func (UnimplementedKYCServiceServer) GetManualReviewRequestDetail(context.Context, *GetManualReviewRequestDetailRequest) (*GetManualReviewRequestDetailResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetManualReviewRequestDetail not implemented")
 }
 func (UnimplementedKYCServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -420,6 +456,42 @@ func _KYCService_ValidateDocument_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _KYCService_GetManualReviewRequests_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetManualReviewRequestsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KYCServiceServer).GetManualReviewRequests(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: KYCService_GetManualReviewRequests_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KYCServiceServer).GetManualReviewRequests(ctx, req.(*GetManualReviewRequestsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _KYCService_GetManualReviewRequestDetail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetManualReviewRequestDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KYCServiceServer).GetManualReviewRequestDetail(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: KYCService_GetManualReviewRequestDetail_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KYCServiceServer).GetManualReviewRequestDetail(ctx, req.(*GetManualReviewRequestDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _KYCService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -480,6 +552,14 @@ var KYCService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ValidateDocument",
 			Handler:    _KYCService_ValidateDocument_Handler,
+		},
+		{
+			MethodName: "GetManualReviewRequests",
+			Handler:    _KYCService_GetManualReviewRequests_Handler,
+		},
+		{
+			MethodName: "GetManualReviewRequestDetail",
+			Handler:    _KYCService_GetManualReviewRequestDetail_Handler,
 		},
 		{
 			MethodName: "Health",

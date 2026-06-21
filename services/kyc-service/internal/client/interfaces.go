@@ -23,6 +23,18 @@ type FileServiceClient interface {
 	// Récupère les documents d'un véhicule
 	GetVehicleDocuments(ctx context.Context, vehicleID string) ([]*domain.DocumentRef, error)
 
+	// --- Validation manuelle (support) ---
+
+	// ListKycDocuments liste les documents KYC courants (user + vehicle) filtrés par statut.
+	ListKycDocuments(ctx context.Context, statuses []string) ([]*domain.KycDocument, error)
+
+	// GetUserDocumentSummaries récupère tous les documents utilisateur avec leur statut.
+	GetUserDocumentSummaries(ctx context.Context, userID string) ([]*domain.DocumentSummary, error)
+
+	// GetVehicleDocumentSummariesByUserID récupère tous les documents véhicule d'un
+	// utilisateur (user_id dénormalisé) avec leur statut.
+	GetVehicleDocumentSummariesByUserID(ctx context.Context, userID string) ([]*domain.DocumentSummary, error)
+
 	// Crée une revue de document dans le file-service
 	CreateDocumentReview(ctx context.Context, review *domain.Review) (*domain.Review, error)
 
@@ -61,6 +73,9 @@ type PersonaClient interface {
 type UserClient interface {
 	// GetUserIDByFirebaseID résout un Firebase UID en UserID interne MongoDB.
 	GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error)
+
+	// GetUserByUserID récupère les infos profil par UserID interne (vue support).
+	GetUserByUserID(ctx context.Context, userID string) (*domain.UserInfo, error)
 
 	// Ferme la connexion gRPC
 	Close() error

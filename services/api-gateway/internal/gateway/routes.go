@@ -9,17 +9,17 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/auth/deleteAccount": true,
 
 	// user-service
-	"/api/v1/user/me":                         true,
+	"/api/v1/user/me":                          true,
 	"/api/v1/userProfile/createDriverAccount":  true,
 	"/api/v1/userProfile/addTripPreferences":   true,
 	"/api/v1/userProfile/updateProfile":        true,
 	"/api/v1/userProfile/changeProfilePicture": true,
 
 	// rating-service
-	"/api/v1/ratings/rateUser":                    true,
-	"/api/v1/ratings/user/getUserRatings":         true,
-	"/api/v1/ratings/user/getUserRatingsAverage":  true,
-	"/api/v1/ratings/updateRating":                true,
+	"/api/v1/ratings/rateUser":                   true,
+	"/api/v1/ratings/user/getUserRatings":        true,
+	"/api/v1/ratings/user/getUserRatingsAverage": true,
+	"/api/v1/ratings/updateRating":               true,
 
 	// file-service
 	"/api/v1/file/uploadIdDocument":       true,
@@ -44,17 +44,17 @@ var ProtectedRoutes = map[string]bool{
 	// kyc-service admin → SupportProtectedRoutes
 
 	// booking-service (internal/* et health sont publics)
-	"/api/v1/booking/createBooking":              true,
-	"/api/v1/booking/getBookingDetails":          true,
-	"/api/v1/booking/getPassengerBookings":       true,
-	"/api/v1/booking/getDriverTripBookings":      true,
-	"/api/v1/booking/getDriverPendingBookings":   true,
+	"/api/v1/booking/createBooking":               true,
+	"/api/v1/booking/getBookingDetails":           true,
+	"/api/v1/booking/getPassengerBookings":        true,
+	"/api/v1/booking/getDriverTripBookings":       true,
+	"/api/v1/booking/getDriverPendingBookings":    true,
 	"/api/v1/booking/getActivePassengerSummaries": true,
-	"/api/v1/booking/approveBooking":             true,
-	"/api/v1/booking/rejectBooking":              true,
-	"/api/v1/booking/cancelBooking":              true,
-	"/api/v1/booking/reportNoShow":               true,
-	"/api/v1/booking/confirmPayment":             true,
+	"/api/v1/booking/approveBooking":              true,
+	"/api/v1/booking/rejectBooking":               true,
+	"/api/v1/booking/cancelBooking":               true,
+	"/api/v1/booking/reportNoShow":                true,
+	"/api/v1/booking/confirmPayment":              true,
 
 	// payment-service (protégé)
 	"/api/v1/payment/createPayment":       true,
@@ -88,7 +88,7 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/notifications/inbox/readAll":         true,
 	"/api/v1/notifications/inbox/unreadCount":     true,
 	"/api/v1/notifications/preferences":           true,
-	"/api/v1/notifications/deviceToken":            true,
+	"/api/v1/notifications/deviceToken":           true,
 	// notification-service — health est public (pas de JWT)
 
 	// geolocation-service (Firebase JWT requis pendant la création de trajet)
@@ -98,21 +98,21 @@ var ProtectedRoutes = map[string]bool{
 	// geolocation-service — health est public (pas de JWT)
 
 	// chat-service (passager-chauffeur, après réservation acceptée)
-	"/api/v1/chat/threads":                                true, // POST GetOrCreateThread + GET GetUserThreads
-	"/api/v1/chat/threads/{thread_id}/messages":           true, // POST SendMessage + GET GetMessages
-	"/api/v1/chat/threads/{thread_id}/read":               true, // PATCH MarkRead
-	"/api/v1/chat/messages/{message_id}/flag":             true, // POST FlagMessage
+	"/api/v1/chat/threads":                      true, // POST GetOrCreateThread + GET GetUserThreads
+	"/api/v1/chat/threads/{thread_id}/messages": true, // POST SendMessage + GET GetMessages
+	"/api/v1/chat/threads/{thread_id}/read":     true, // PATCH MarkRead
+	"/api/v1/chat/messages/{message_id}/flag":   true, // POST FlagMessage
 	// chat-service — health public ; GetFlaggedMessageContent côté Support (cf. SupportProtectedRoutes)
 }
 
 // SupportProtectedRoutes liste les routes HTTP qui requièrent un JWT support-service valide
 // (back-office admin / agents support — distinct du JWT Firebase utilisé pour les passagers/conducteurs).
 var SupportProtectedRoutes = map[string]bool{
-	"/api/v1/support/logout":                  true,
-	"/api/v1/support/me":                      true,
-	"/api/v1/support/me/password":             true,
-	"/api/v1/support/me/profile":              true,
-	"/api/v1/support/admin/agents":            true,
+	"/api/v1/support/logout":                     true,
+	"/api/v1/support/me":                         true,
+	"/api/v1/support/me/password":                true,
+	"/api/v1/support/me/profile":                 true,
+	"/api/v1/support/admin/agents":               true,
 	"/api/v1/support/admin/agents/deactivate":    true,
 	"/api/v1/support/admin/agents/activate":      true,
 	"/api/v1/support/admin/agents/delete":        true,
@@ -127,10 +127,12 @@ var SupportProtectedRoutes = map[string]bool{
 	"/api/v1/chat/messages/{message_id}/flagged-content": true,
 
 	// kyc-service — validation et consultation des revues de documents (réservé support)
-	"/api/v1/kyc/admin/reviews/getReviews":  true,
-	"/api/v1/kyc/admin/reviews/getReview":   true,
-	"/api/v1/kyc/admin/reviews/override":    true,
-	"/api/v1/kyc/admin/validateDocument":    true,
+	"/api/v1/kyc/admin/reviews/getReviews":          true,
+	"/api/v1/kyc/admin/reviews/getReview":           true,
+	"/api/v1/kyc/admin/reviews/override":            true,
+	"/api/v1/kyc/admin/validateDocument":            true,
+	"/api/v1/kyc/admin/manualReviews/requests":      true,
+	"/api/v1/kyc/admin/manualReviews/requestDetail": true,
 }
 
 // RateLimitTier identifie le niveau de rate limiting pour une route

@@ -3,11 +3,20 @@ package mocks
 import (
 	"context"
 
+	"github.com/Kpeewu/tissi-mah/services/kyc-service/internal/domain"
 	"github.com/stretchr/testify/mock"
 )
 
 type MockUserClient struct {
 	mock.Mock
+}
+
+func (m *MockUserClient) GetUserByUserID(ctx context.Context, userID string) (*domain.UserInfo, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.UserInfo), args.Error(1)
 }
 
 func (m *MockUserClient) GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error) {

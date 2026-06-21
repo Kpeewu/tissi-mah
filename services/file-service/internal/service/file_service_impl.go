@@ -39,15 +39,15 @@ var allowedMimeTypes = map[string]bool{
 const maxFileSize int64 = 10 * 1024 * 1024
 
 type fileServiceImpl struct {
-	userDocRead       repoInterfaces.UserDocumentRepositoryRead
-	userDocWrite      repoInterfaces.UserDocumentRepositoryWrite
-	vehicleDocRead    repoInterfaces.VehicleDocumentRepositoryRead
-	vehicleDocWrite   repoInterfaces.VehicleDocumentRepositoryWrite
-	reviewRead        repoInterfaces.DocumentReviewRepositoryRead
-	reviewWrite       repoInterfaces.DocumentReviewRepositoryWrite
-	storage           storage.StorageClient
-	moderationClient  fileClient.ModerationClient // nil si désactivé
-	logger            *zap.Logger
+	userDocRead      repoInterfaces.UserDocumentRepositoryRead
+	userDocWrite     repoInterfaces.UserDocumentRepositoryWrite
+	vehicleDocRead   repoInterfaces.VehicleDocumentRepositoryRead
+	vehicleDocWrite  repoInterfaces.VehicleDocumentRepositoryWrite
+	reviewRead       repoInterfaces.DocumentReviewRepositoryRead
+	reviewWrite      repoInterfaces.DocumentReviewRepositoryWrite
+	storage          storage.StorageClient
+	moderationClient fileClient.ModerationClient // nil si désactivé
+	logger           *zap.Logger
 }
 
 func NewFileService(
@@ -332,6 +332,51 @@ func (s *fileServiceImpl) GetVehicleDocuments(ctx context.Context, vehicleID str
 func (s *fileServiceImpl) GetVehicleDocument(ctx context.Context, documentID string) (*domain.VehicleDocument, error) {
 	s.logger.Debug("get vehicle document", zap.String("documentID", documentID))
 	return s.vehicleDocRead.GetByID(ctx, documentID)
+}
+
+func (s *fileServiceImpl) GetVehicleDocumentsByUserID(ctx context.Context, userID string) ([]*domain.VehicleDocument, error) {
+	s.logger.Debug("get vehicle documents by userID", zap.String("userID", userID))
+	return s.vehicleDocRead.GetByUserID(ctx, userID)
+}
+
+// kycListLimit borne la file de validation manuelle (back-office).
+const kycListLimit int32 = 1000
+
+func (s *fileServiceImpl) ListKycDocuments(ctx context.Context, statuses []string) ([]*serviceInterfaces.KycDocument, error) {
+	s.logger.Debug("list kyc documents", zap.Strings("statuses", statuses))
+
+	userDocs, err := s.userDocRead.ListCurrentByStatuses(ctx, statuses, kycListLimit)
+	if err != nil {
+		return nil, err
+	}
+	vehicleDocs, err := s.vehicleDocRead.ListCurrentByStatuses(ctx, statuses, kycListLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]*serviceInterfaces.KycDocument, 0, len(userDocs)+len(vehicleDocs))
+	for _, d := range userDocs {
+		out = append(out, &serviceInterfaces.KycDocument{
+			DocumentID:   d.DocumentID,
+			UserID:       d.UserID,
+			DocumentType: d.DocumentType,
+			Status:       d.Status,
+			OwnerKind:    "user",
+			UpdatedAt:    d.UpdatedAt.UTC().Format(time.RFC3339),
+		})
+	}
+	for _, d := range vehicleDocs {
+		out = append(out, &serviceInterfaces.KycDocument{
+			DocumentID:   d.DocumentID,
+			UserID:       d.UserID,
+			VehicleID:    d.VehicleID,
+			DocumentType: d.DocumentType,
+			Status:       d.Status,
+			OwnerKind:    "vehicle",
+			UpdatedAt:    d.UpdatedAt.UTC().Format(time.RFC3339),
+		})
+	}
+	return out, nil
 }
 
 func (s *fileServiceImpl) DeleteVehicleDocument(ctx context.Context, documentID string) error {

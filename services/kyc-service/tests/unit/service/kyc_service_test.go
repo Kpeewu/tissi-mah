@@ -1786,3 +1786,136 @@ func TestOverrideReview(t *testing.T) {
 		assert.ErrorIs(t, err, kycErrors.ErrorFileServiceUnavailable)
 	})
 }
+
+// =============================================================================
+// GetManualReviewRequests / GetManualReviewRequestDetail (validation manuelle support)
+// =============================================================================
+
+func newManualReviewService() (*mocks.MockFileServiceClient, *mocks.MockUserClient, serviceInterfaces.KYCService) {
+	mockFileClient := new(mocks.MockFileServiceClient)
+	mockPersonaClient := new(mocks.MockPersonaClient)
+	mockUserClient := new(mocks.MockUserClient)
+	svc := service.NewKYCService(mockFileClient, mockPersonaClient, mockUserClient, testTemplateID, testWebhookSecret, nil, zap.NewNop())
+	return mockFileClient, mockUserClient, svc
+}
+
+func TestGetManualReviewRequests(t *testing.T) {
+	t.Run("groupement par utilisateur + statuts par catégorie", func(t *testing.T) {
+		fileClient, userClient, svc := newManualReviewService()
+		fileClient.On("ListKycDocuments", mock.Anything, []string(nil)).Return([]*domain.KycDocument{
+			// userA : identité pending (passenger) + assurance rejected (driver/vehicle)
+			{DocumentID: "d1", UserID: "userA", DocumentType: "idCardFront", Status: "pending", OwnerKind: "user"},
+			{DocumentID: "d2", UserID: "userA", VehicleID: "veh1", DocumentType: "insurance", Status: "rejected", OwnerKind: "vehicle"},
+			// userB : passport approved (passenger)
+			{DocumentID: "d3", UserID: "userB", DocumentType: "passport", Status: "approved", OwnerKind: "user"},
+			// profilePicture ignoré (catégorie other)
+			{DocumentID: "d4", UserID: "userB", DocumentType: "profilePicture", Status: "approved", OwnerKind: "user"},
+		}, nil)
+		userClient.On("GetUserByUserID", mock.Anything, "userA").Return(&domain.UserInfo{UserID: "userA", Name: "A"}, nil)
+		userClient.On("GetUserByUserID", mock.Anything, "userB").Return(&domain.UserInfo{UserID: "userB", Name: "B"}, nil)
+
+		res, err := svc.GetManualReviewRequests(context.Background(), serviceInterfaces.GetManualReviewRequestsInput{})
+		require.NoError(t, err)
+		require.Equal(t, int32(2), res.Total)
+		require.Len(t, res.Requests, 2)
+
+		// Tri par userID : userA puis userB
+		a := res.Requests[0]
+		assert.Equal(t, "userA", a.User.UserID)
+		assert.Equal(t, "pending", a.PassengerStatus)
+		assert.Equal(t, "rejected", a.DriverStatus)
+		assert.Equal(t, int32(2), a.TotalDocuments)
+
+		b := res.Requests[1]
+		assert.Equal(t, "userB", b.User.UserID)
+		assert.Equal(t, "approved", b.PassengerStatus)
+		assert.Equal(t, "", b.DriverStatus)
+		assert.Equal(t, int32(1), b.TotalDocuments) // profilePicture exclu
+	})
+
+	t.Run("filtre statut ne garde que les users correspondants", func(t *testing.T) {
+		fileClient, userClient, svc := newManualReviewService()
+		fileClient.On("ListKycDocuments", mock.Anything, []string(nil)).Return([]*domain.KycDocument{
+			{DocumentID: "d1", UserID: "userA", DocumentType: "idCardFront", Status: "pending", OwnerKind: "user"},
+			{DocumentID: "d3", UserID: "userB", DocumentType: "passport", Status: "approved", OwnerKind: "user"},
+		}, nil)
+		userClient.On("GetUserByUserID", mock.Anything, "userA").Return(&domain.UserInfo{UserID: "userA"}, nil)
+
+		res, err := svc.GetManualReviewRequests(context.Background(), serviceInterfaces.GetManualReviewRequestsInput{Status: "pending"})
+		require.NoError(t, err)
+		require.Equal(t, int32(1), res.Total)
+		require.Len(t, res.Requests, 1)
+		assert.Equal(t, "userA", res.Requests[0].User.UserID)
+	})
+
+	t.Run("file-service indisponible → erreur", func(t *testing.T) {
+		fileClient, _, svc := newManualReviewService()
+		fileClient.On("ListKycDocuments", mock.Anything, []string(nil)).Return(nil, errors.New("down"))
+
+		_, err := svc.GetManualReviewRequests(context.Background(), serviceInterfaces.GetManualReviewRequestsInput{})
+		assert.ErrorIs(t, err, kycErrors.ErrorFileServiceUnavailable)
+	})
+}
+
+func TestGetManualReviewRequestDetail(t *testing.T) {
+	t.Run("documents + dernière review rattachée", func(t *testing.T) {
+		fileClient, userClient, svc := newManualReviewService()
+		userClient.On("GetUserByUserID", mock.Anything, "userA").Return(&domain.UserInfo{UserID: "userA", Name: "A"}, nil)
+		fileClient.On("GetUserDocumentSummaries", mock.Anything, "userA").Return([]*domain.DocumentSummary{
+			{DocumentID: "d1", DocumentType: "idCardFront", Status: "approved", OwnerKind: "user", OwnerID: "userA", Category: "passenger"},
+		}, nil)
+		fileClient.On("GetVehicleDocumentSummariesByUserID", mock.Anything, "userA").Return([]*domain.DocumentSummary{
+			{DocumentID: "v1", DocumentType: "insurance", Status: "rejected", OwnerKind: "vehicle", OwnerID: "veh1", Category: "driver"},
+		}, nil)
+		older := time.Now().Add(-2 * time.Hour)
+		newer := time.Now().Add(-1 * time.Hour)
+		fileClient.On("GetDocumentReviewsByUserID", mock.Anything, "userA").Return([]*domain.Review{
+			{ReviewID: "r-old", UserDocumentID: "d1", DocumentType: "idCardFront", Decision: "pending", ReviewedAt: &older},
+			{ReviewID: "r-new", UserDocumentID: "d1", DocumentType: "idCardFront", Decision: "approved", ReviewedBy: "agent1", ReviewedAt: &newer},
+			{ReviewID: "r-veh", VehicleDocumentID: "v1", DocumentType: "insurance", Decision: "rejected", ReasonRejection: "document_illegible", ReviewedAt: &newer},
+		}, nil)
+
+		detail, err := svc.GetManualReviewRequestDetail(context.Background(), "userA")
+		require.NoError(t, err)
+		assert.Equal(t, "userA", detail.User.UserID)
+		require.Len(t, detail.Documents, 2)
+
+		// idCardFront : dernière review = r-new (la plus récente)
+		idDoc := detail.Documents[0]
+		assert.Equal(t, "d1", idDoc.DocumentID)
+		require.NotNil(t, idDoc.LatestReview)
+		assert.Equal(t, "r-new", idDoc.LatestReview.ReviewID)
+		assert.Equal(t, "approved", idDoc.LatestReview.Decision)
+		assert.Equal(t, "agent1", idDoc.LatestReview.ReviewedBy)
+
+		// insurance : review véhicule rattachée par VehicleDocumentID
+		vehDoc := detail.Documents[1]
+		assert.Equal(t, "v1", vehDoc.DocumentID)
+		assert.Equal(t, "vehicle", vehDoc.OwnerKind)
+		assert.Equal(t, "veh1", vehDoc.OwnerID)
+		require.NotNil(t, vehDoc.LatestReview)
+		assert.Equal(t, "r-veh", vehDoc.LatestReview.ReviewID)
+		assert.Equal(t, "document_illegible", vehDoc.LatestReview.ReasonRejection)
+	})
+
+	t.Run("document sans review → LatestReview nil", func(t *testing.T) {
+		fileClient, userClient, svc := newManualReviewService()
+		userClient.On("GetUserByUserID", mock.Anything, "userA").Return(&domain.UserInfo{UserID: "userA"}, nil)
+		fileClient.On("GetUserDocumentSummaries", mock.Anything, "userA").Return([]*domain.DocumentSummary{
+			{DocumentID: "d1", DocumentType: "idCardFront", Status: "pending", OwnerKind: "user", OwnerID: "userA", Category: "passenger"},
+		}, nil)
+		fileClient.On("GetVehicleDocumentSummariesByUserID", mock.Anything, "userA").Return([]*domain.DocumentSummary{}, nil)
+		fileClient.On("GetDocumentReviewsByUserID", mock.Anything, "userA").Return([]*domain.Review{}, nil)
+
+		detail, err := svc.GetManualReviewRequestDetail(context.Background(), "userA")
+		require.NoError(t, err)
+		require.Len(t, detail.Documents, 1)
+		assert.Nil(t, detail.Documents[0].LatestReview)
+	})
+
+	t.Run("userID vide → ErrorMissingUserID", func(t *testing.T) {
+		_, _, svc := newManualReviewService()
+		_, err := svc.GetManualReviewRequestDetail(context.Background(), "")
+		assert.ErrorIs(t, err, kycErrors.ErrorMissingUserID)
+	})
+}

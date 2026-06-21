@@ -379,6 +379,94 @@ func (h *KYCHandler) ValidateDocument(ctx context.Context, req *kycpb.ValidateDo
 }
 
 // =============================================================================
+// GetManualReviewRequests / GetManualReviewRequestDetail (support)
+// =============================================================================
+
+func (h *KYCHandler) GetManualReviewRequests(ctx context.Context, req *kycpb.GetManualReviewRequestsRequest) (*kycpb.GetManualReviewRequestsResponse, error) {
+	if _, err := getSupportID(ctx); err != nil {
+		return nil, err
+	}
+	h.logger.Debug("handler: GetManualReviewRequests called",
+		zap.String("status", req.Status), zap.Int32("page", req.Page), zap.Int32("pageSize", req.PageSize))
+
+	result, err := h.service.GetManualReviewRequests(ctx, serviceInterfaces.GetManualReviewRequestsInput{
+		Status:   req.Status,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	})
+	if err != nil {
+		h.logger.Error("handler: GetManualReviewRequests failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	items := make([]*kycpb.ManualReviewRequestItem, 0, len(result.Requests))
+	for _, r := range result.Requests {
+		items = append(items, &kycpb.ManualReviewRequestItem{
+			UserId:          r.User.UserID,
+			Name:            r.User.Name,
+			FirstName:       r.User.FirstName,
+			Email:           r.User.Email,
+			PhoneNumber:     r.User.PhoneNumber,
+			ProfileImageURL: r.User.ProfileImageURL,
+			PassengerStatus: r.PassengerStatus,
+			DriverStatus:    r.DriverStatus,
+			TotalDocuments:  r.TotalDocuments,
+		})
+	}
+	return &kycpb.GetManualReviewRequestsResponse{Requests: items, Total: result.Total}, nil
+}
+
+func (h *KYCHandler) GetManualReviewRequestDetail(ctx context.Context, req *kycpb.GetManualReviewRequestDetailRequest) (*kycpb.GetManualReviewRequestDetailResponse, error) {
+	if _, err := getSupportID(ctx); err != nil {
+		return nil, err
+	}
+	h.logger.Debug("handler: GetManualReviewRequestDetail called", zap.String("userID", req.UserId))
+
+	detail, err := h.service.GetManualReviewRequestDetail(ctx, req.UserId)
+	if err != nil {
+		h.logger.Error("handler: GetManualReviewRequestDetail failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	docs := make([]*kycpb.ManualReviewDocument, 0, len(detail.Documents))
+	for _, d := range detail.Documents {
+		pd := &kycpb.ManualReviewDocument{
+			DocumentId:   d.DocumentID,
+			DocumentType: d.DocumentType,
+			Status:       d.Status,
+			OwnerKind:    d.OwnerKind,
+			OwnerId:      d.OwnerID,
+			Category:     d.Category,
+		}
+		if d.LatestReview != nil {
+			pd.LatestReview = &kycpb.ManualReviewDocumentReview{
+				ReviewId:         d.LatestReview.ReviewID,
+				Status:           d.LatestReview.Status,
+				Decision:         d.LatestReview.Decision,
+				ReasonRejection:  d.LatestReview.ReasonRejection,
+				RejectionDetails: d.LatestReview.RejectionDetails,
+				ReviewType:       d.LatestReview.ReviewType,
+				ReviewedBy:       d.LatestReview.ReviewedBy,
+			}
+			if d.LatestReview.ReviewedAt != nil {
+				pd.LatestReview.ReviewedAt = d.LatestReview.ReviewedAt.Format(time.RFC3339)
+			}
+		}
+		docs = append(docs, pd)
+	}
+
+	return &kycpb.GetManualReviewRequestDetailResponse{
+		UserId:          detail.User.UserID,
+		Name:            detail.User.Name,
+		FirstName:       detail.User.FirstName,
+		Email:           detail.User.Email,
+		PhoneNumber:     detail.User.PhoneNumber,
+		ProfileImageURL: detail.User.ProfileImageURL,
+		Documents:       docs,
+	}, nil
+}
+
+// =============================================================================
 // Health
 // =============================================================================
 

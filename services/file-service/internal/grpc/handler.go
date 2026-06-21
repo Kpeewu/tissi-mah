@@ -463,6 +463,44 @@ func (h *FileHandler) GetVehicleDocument(ctx context.Context, req *filepb.GetDoc
 	return toProtoVehicleDocument(doc, presignedURL), nil
 }
 
+func (h *FileHandler) GetVehicleDocumentsByUserID(ctx context.Context, req *filepb.GetVehicleDocumentsByUserIDRequest) (*filepb.GetVehicleDocumentsResponse, error) {
+	h.logger.Debug("handler: GetVehicleDocumentsByUserID", zap.String("userID", req.UserId))
+	docs, err := h.service.GetVehicleDocumentsByUserID(ctx, req.UserId)
+	if err != nil {
+		h.logger.Error("handler: GetVehicleDocumentsByUserID failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	var protoDocs []*filepb.VehicleDocumentResponse
+	for _, doc := range docs {
+		presignedURL, _ := h.storage.GeneratePresignedURL(ctx, doc.DocumentKey, defaultPresignTTL)
+		protoDocs = append(protoDocs, toProtoVehicleDocument(doc, presignedURL))
+	}
+	return &filepb.GetVehicleDocumentsResponse{Documents: protoDocs}, nil
+}
+
+func (h *FileHandler) ListKycDocuments(ctx context.Context, req *filepb.ListKycDocumentsRequest) (*filepb.ListKycDocumentsResponse, error) {
+	h.logger.Debug("handler: ListKycDocuments", zap.Strings("statuses", req.Statuses))
+	docs, err := h.service.ListKycDocuments(ctx, req.Statuses)
+	if err != nil {
+		h.logger.Error("handler: ListKycDocuments failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+	out := make([]*filepb.KycDocument, 0, len(docs))
+	for _, d := range docs {
+		out = append(out, &filepb.KycDocument{
+			DocumentId:   d.DocumentID,
+			UserId:       d.UserID,
+			VehicleId:    d.VehicleID,
+			DocumentType: d.DocumentType,
+			Status:       d.Status,
+			OwnerKind:    d.OwnerKind,
+			UpdatedAt:    d.UpdatedAt,
+		})
+	}
+	return &filepb.ListKycDocumentsResponse{Documents: out}, nil
+}
+
 // --- Suppression ---
 
 func (h *FileHandler) DeleteUserDocument(ctx context.Context, req *filepb.DeleteDocumentRequest) (*filepb.OperationResponse, error) {

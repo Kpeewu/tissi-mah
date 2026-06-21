@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -82,7 +83,6 @@ func mapToFileDocumentType(docType string) string {
 		return docType // "passport", "idCardFront", "idCardBack", etc.
 	}
 }
-
 
 // =============================================================================
 // CreateInquiry
@@ -945,4 +945,209 @@ func (s *kycServiceImpl) ValidateDocument(ctx context.Context, input serviceInte
 		ReviewedAt: created.ReviewedAt.Format(time.RFC3339),
 		Notes:      created.Notes,
 	}, nil
+}
+
+// =============================================================================
+// GetManualReviewRequests — demandes de validation groupées par utilisateur
+// =============================================================================
+
+const defaultManualReviewPageSize int32 = 20
+
+// userBucket agrège les statuts de documents d'un utilisateur par catégorie.
+type userBucket struct {
+	passengerStatuses []string
+	driverStatuses    []string
+	total             int32
+}
+
+func (s *kycServiceImpl) GetManualReviewRequests(ctx context.Context, input serviceInterfaces.GetManualReviewRequestsInput) (*serviceInterfaces.GetManualReviewRequestsResult, error) {
+	s.logger.Debug("get manual review requests",
+		zap.String("statusFilter", input.Status),
+		zap.Int32("page", input.Page),
+		zap.Int32("pageSize", input.PageSize),
+	)
+
+	// On récupère tous les documents KYC (tous statuts), le tri/filtre statut se fait
+	// après agrégation pour que le statut par catégorie reste calculé sur l'ensemble.
+	docs, err := s.fileClient.ListKycDocuments(ctx, nil)
+	if err != nil {
+		s.logger.Error("failed to list kyc documents", zap.Error(err))
+		return nil, kycErrors.ErrorFileServiceUnavailable
+	}
+
+	buckets := make(map[string]*userBucket)
+	for _, d := range docs {
+		category := domain.DocumentCategory(d.DocumentType, d.OwnerKind)
+		if category == domain.CategoryOther {
+			continue
+		}
+		b := buckets[d.UserID]
+		if b == nil {
+			b = &userBucket{}
+			buckets[d.UserID] = b
+		}
+		if category == domain.CategoryPassenger {
+			b.passengerStatuses = append(b.passengerStatuses, d.Status)
+		} else {
+			b.driverStatuses = append(b.driverStatuses, d.Status)
+		}
+		b.total++
+	}
+
+	// Calcul des statuts agrégés + filtre statut optionnel.
+	type entry struct {
+		userID          string
+		passengerStatus string
+		driverStatus    string
+		total           int32
+	}
+	entries := make([]entry, 0, len(buckets))
+	for userID, b := range buckets {
+		ps := domain.AggregateStatus(b.passengerStatuses)
+		ds := domain.AggregateStatus(b.driverStatuses)
+		if input.Status != "" && ps != input.Status && ds != input.Status {
+			continue
+		}
+		entries = append(entries, entry{userID: userID, passengerStatus: ps, driverStatus: ds, total: b.total})
+	}
+
+	// Tri déterministe pour une pagination stable.
+	sort.Slice(entries, func(i, j int) bool { return entries[i].userID < entries[j].userID })
+
+	total := int32(len(entries))
+	pageSize := input.PageSize
+	if pageSize <= 0 {
+		pageSize = defaultManualReviewPageSize
+	}
+	start := input.Page * pageSize
+	if start < 0 || start >= total {
+		return &serviceInterfaces.GetManualReviewRequestsResult{Requests: []*domain.ManualReviewRequest{}, Total: total}, nil
+	}
+	end := start + pageSize
+	if end > total {
+		end = total
+	}
+
+	requests := make([]*domain.ManualReviewRequest, 0, end-start)
+	for _, e := range entries[start:end] {
+		userInfo, err := s.userClient.GetUserByUserID(ctx, e.userID)
+		if err != nil {
+			// L'utilisateur peut avoir été supprimé : on remonte au moins l'ID.
+			s.logger.Warn("failed to fetch user info for manual review request",
+				zap.String("userID", e.userID), zap.Error(err))
+			userInfo = &domain.UserInfo{UserID: e.userID}
+		}
+		requests = append(requests, &domain.ManualReviewRequest{
+			User:            userInfo,
+			PassengerStatus: e.passengerStatus,
+			DriverStatus:    e.driverStatus,
+			TotalDocuments:  e.total,
+		})
+	}
+
+	s.logger.Info("manual review requests retrieved",
+		zap.Int32("total", total), zap.Int("page", len(requests)))
+	return &serviceInterfaces.GetManualReviewRequestsResult{Requests: requests, Total: total}, nil
+}
+
+// =============================================================================
+// GetManualReviewRequestDetail — documents soumis d'un utilisateur + dernière review
+// =============================================================================
+
+func (s *kycServiceImpl) GetManualReviewRequestDetail(ctx context.Context, userID string) (*domain.ManualReviewRequestDetail, error) {
+	s.logger.Debug("get manual review request detail", zap.String("userID", userID))
+
+	if userID == "" {
+		return nil, kycErrors.ErrorMissingUserID
+	}
+
+	userInfo, err := s.userClient.GetUserByUserID(ctx, userID)
+	if err != nil {
+		s.logger.Error("failed to fetch user info", zap.String("userID", userID), zap.Error(err))
+		return nil, kycErrors.ErrorUserNotFound
+	}
+
+	userDocs, err := s.fileClient.GetUserDocumentSummaries(ctx, userID)
+	if err != nil {
+		s.logger.Error("failed to fetch user documents", zap.Error(err))
+		return nil, kycErrors.ErrorFileServiceUnavailable
+	}
+	vehicleDocs, err := s.fileClient.GetVehicleDocumentSummariesByUserID(ctx, userID)
+	if err != nil {
+		s.logger.Error("failed to fetch vehicle documents", zap.Error(err))
+		return nil, kycErrors.ErrorFileServiceUnavailable
+	}
+	reviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, userID)
+	if err != nil {
+		s.logger.Error("failed to fetch reviews", zap.Error(err))
+		return nil, kycErrors.ErrorFileServiceUnavailable
+	}
+
+	byUserDoc, byVehicleDoc, byType := indexLatestReviews(reviews)
+
+	docs := make([]*domain.DocumentSummary, 0, len(userDocs)+len(vehicleDocs))
+	for _, d := range userDocs {
+		d.LatestReview = pickReview(byUserDoc[d.DocumentID], byType[d.DocumentType])
+		docs = append(docs, d)
+	}
+	for _, d := range vehicleDocs {
+		d.LatestReview = pickReview(byVehicleDoc[d.DocumentID], byType[d.DocumentType])
+		docs = append(docs, d)
+	}
+
+	s.logger.Info("manual review request detail retrieved",
+		zap.String("userID", userID), zap.Int("documents", len(docs)))
+	return &domain.ManualReviewRequestDetail{User: userInfo, Documents: docs}, nil
+}
+
+// reviewTime retourne l'instant de référence d'une review (reviewed_at sinon updated_at).
+func reviewTime(r *domain.Review) time.Time {
+	if r.ReviewedAt != nil {
+		return *r.ReviewedAt
+	}
+	return r.UpdatedAt
+}
+
+// indexLatestReviews indexe la dernière review par user_document_id, vehicle_document_id
+// et par document_type (fallback).
+func indexLatestReviews(reviews []*domain.Review) (byUserDoc, byVehicleDoc, byType map[string]*domain.Review) {
+	byUserDoc = make(map[string]*domain.Review)
+	byVehicleDoc = make(map[string]*domain.Review)
+	byType = make(map[string]*domain.Review)
+	keepLatest := func(m map[string]*domain.Review, key string, r *domain.Review) {
+		if key == "" {
+			return
+		}
+		if cur, ok := m[key]; !ok || reviewTime(r).After(reviewTime(cur)) {
+			m[key] = r
+		}
+	}
+	for _, r := range reviews {
+		keepLatest(byUserDoc, r.UserDocumentID, r)
+		keepLatest(byVehicleDoc, r.VehicleDocumentID, r)
+		keepLatest(byType, r.DocumentType, r)
+	}
+	return byUserDoc, byVehicleDoc, byType
+}
+
+// pickReview retourne le ReviewSummary de la review prioritaire (match document direct,
+// sinon fallback par type), ou nil si aucune.
+func pickReview(direct, fallback *domain.Review) *domain.ReviewSummary {
+	r := direct
+	if r == nil {
+		r = fallback
+	}
+	if r == nil {
+		return nil
+	}
+	return &domain.ReviewSummary{
+		ReviewID:         r.ReviewID,
+		Status:           r.Status,
+		Decision:         r.Decision,
+		ReasonRejection:  r.ReasonRejection,
+		RejectionDetails: r.RejectionDetails,
+		ReviewType:       r.ReviewType,
+		ReviewedBy:       r.ReviewedBy,
+		ReviewedAt:       r.ReviewedAt,
+	}
 }

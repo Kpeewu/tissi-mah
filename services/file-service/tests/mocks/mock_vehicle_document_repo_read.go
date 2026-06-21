@@ -26,3 +26,19 @@ func (m *MockVehicleDocumentRepositoryRead) GetByVehicleID(ctx context.Context, 
 	}
 	return args.Get(0).([]*domain.VehicleDocument), args.Error(1)
 }
+
+func (m *MockVehicleDocumentRepositoryRead) GetByUserID(ctx context.Context, userID string) ([]*domain.VehicleDocument, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.VehicleDocument), args.Error(1)
+}
+
+func (m *MockVehicleDocumentRepositoryRead) ListCurrentByStatuses(ctx context.Context, statuses []string, limit int32) ([]*domain.VehicleDocument, error) {
+	args := m.Called(ctx, statuses, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.VehicleDocument), args.Error(1)
+}

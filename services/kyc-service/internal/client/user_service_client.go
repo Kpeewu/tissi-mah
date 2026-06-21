@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
+	"github.com/Kpeewu/tissi-mah/services/kyc-service/internal/domain"
 	userpb "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -66,4 +67,27 @@ func (c *UserServiceClient) GetUserIDByFirebaseID(ctx context.Context, firebaseU
 	}
 
 	return resp.UserID, nil
+}
+
+// GetUserByUserID récupère les infos profil d'un utilisateur par son UserID interne.
+func (c *UserServiceClient) GetUserByUserID(ctx context.Context, userID string) (*domain.UserInfo, error) {
+	c.logger.Debug("client: GetUserByUserID called", zap.String("userID", userID))
+
+	resp, err := c.grpcClient.GetUserByUserID(ctx, &userpb.GetUserByUserIDRequest{UserID: userID})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return nil, fmt.Errorf("user-service: user not found for userID %s", userID)
+		}
+		c.logger.Error("client: GetUserByUserID failed", zap.Error(err), zap.String("userID", userID))
+		return nil, fmt.Errorf("user-service: GetUserByUserID failed: %w", err)
+	}
+
+	return &domain.UserInfo{
+		UserID:          resp.UserID,
+		Name:            resp.Name,
+		FirstName:       resp.FirstName,
+		Email:           resp.Email,
+		PhoneNumber:     resp.PhoneNumber,
+		ProfileImageURL: resp.ProfileImageURL,
+	}, nil
 }

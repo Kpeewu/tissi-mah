@@ -34,3 +34,11 @@ func (m *MockUserDocumentRepositoryRead) GetCurrentByUserIDAndType(ctx context.C
 	}
 	return args.Get(0).(*domain.UserDocument), args.Error(1)
 }
+
+func (m *MockUserDocumentRepositoryRead) ListCurrentByStatuses(ctx context.Context, statuses []string, limit int32) ([]*domain.UserDocument, error) {
+	args := m.Called(ctx, statuses, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.UserDocument), args.Error(1)
+}
