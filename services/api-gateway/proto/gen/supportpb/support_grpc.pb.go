@@ -30,6 +30,8 @@ const (
 	SupportService_CreateSupportAgent_FullMethodName     = "/support.SupportService/CreateSupportAgent"
 	SupportService_ListSupportAgents_FullMethodName      = "/support.SupportService/ListSupportAgents"
 	SupportService_DeactivateSupportAgent_FullMethodName = "/support.SupportService/DeactivateSupportAgent"
+	SupportService_ActivateSupportAgent_FullMethodName   = "/support.SupportService/ActivateSupportAgent"
+	SupportService_DeleteSupportAgent_FullMethodName     = "/support.SupportService/DeleteSupportAgent"
 	SupportService_Health_FullMethodName                 = "/support.SupportService/Health"
 	SupportService_GetSupportUserByID_FullMethodName     = "/support.SupportService/GetSupportUserByID"
 )
@@ -49,6 +51,10 @@ type SupportServiceClient interface {
 	CreateSupportAgent(ctx context.Context, in *CreateSupportAgentRequest, opts ...grpc.CallOption) (*CreateSupportAgentResponse, error)
 	ListSupportAgents(ctx context.Context, in *ListSupportAgentsRequest, opts ...grpc.CallOption) (*ListSupportAgentsResponse, error)
 	DeactivateSupportAgent(ctx context.Context, in *DeactivateSupportAgentRequest, opts ...grpc.CallOption) (*DeactivateSupportAgentResponse, error)
+	ActivateSupportAgent(ctx context.Context, in *ActivateSupportAgentRequest, opts ...grpc.CallOption) (*ActivateSupportAgentResponse, error)
+	// DeleteSupportAgent supprime (soft-delete) un agent. Seul un compte déjà
+	// désactivé peut être supprimé.
+	DeleteSupportAgent(ctx context.Context, in *DeleteSupportAgentRequest, opts ...grpc.CallOption) (*DeleteSupportAgentResponse, error)
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 	// GetSupportUserByID est un RPC inter-service (gRPC uniquement, pas d'annotation HTTP).
 	// Utilisé par payment-service pour vérifier l'identité et l'habilitation d'un agent support.
@@ -173,6 +179,26 @@ func (c *supportServiceClient) DeactivateSupportAgent(ctx context.Context, in *D
 	return out, nil
 }
 
+func (c *supportServiceClient) ActivateSupportAgent(ctx context.Context, in *ActivateSupportAgentRequest, opts ...grpc.CallOption) (*ActivateSupportAgentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ActivateSupportAgentResponse)
+	err := c.cc.Invoke(ctx, SupportService_ActivateSupportAgent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *supportServiceClient) DeleteSupportAgent(ctx context.Context, in *DeleteSupportAgentRequest, opts ...grpc.CallOption) (*DeleteSupportAgentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteSupportAgentResponse)
+	err := c.cc.Invoke(ctx, SupportService_DeleteSupportAgent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *supportServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -208,6 +234,10 @@ type SupportServiceServer interface {
 	CreateSupportAgent(context.Context, *CreateSupportAgentRequest) (*CreateSupportAgentResponse, error)
 	ListSupportAgents(context.Context, *ListSupportAgentsRequest) (*ListSupportAgentsResponse, error)
 	DeactivateSupportAgent(context.Context, *DeactivateSupportAgentRequest) (*DeactivateSupportAgentResponse, error)
+	ActivateSupportAgent(context.Context, *ActivateSupportAgentRequest) (*ActivateSupportAgentResponse, error)
+	// DeleteSupportAgent supprime (soft-delete) un agent. Seul un compte déjà
+	// désactivé peut être supprimé.
+	DeleteSupportAgent(context.Context, *DeleteSupportAgentRequest) (*DeleteSupportAgentResponse, error)
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	// GetSupportUserByID est un RPC inter-service (gRPC uniquement, pas d'annotation HTTP).
 	// Utilisé par payment-service pour vérifier l'identité et l'habilitation d'un agent support.
@@ -254,6 +284,12 @@ func (UnimplementedSupportServiceServer) ListSupportAgents(context.Context, *Lis
 }
 func (UnimplementedSupportServiceServer) DeactivateSupportAgent(context.Context, *DeactivateSupportAgentRequest) (*DeactivateSupportAgentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeactivateSupportAgent not implemented")
+}
+func (UnimplementedSupportServiceServer) ActivateSupportAgent(context.Context, *ActivateSupportAgentRequest) (*ActivateSupportAgentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ActivateSupportAgent not implemented")
+}
+func (UnimplementedSupportServiceServer) DeleteSupportAgent(context.Context, *DeleteSupportAgentRequest) (*DeleteSupportAgentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteSupportAgent not implemented")
 }
 func (UnimplementedSupportServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -480,6 +516,42 @@ func _SupportService_DeactivateSupportAgent_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SupportService_ActivateSupportAgent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ActivateSupportAgentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SupportServiceServer).ActivateSupportAgent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SupportService_ActivateSupportAgent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SupportServiceServer).ActivateSupportAgent(ctx, req.(*ActivateSupportAgentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SupportService_DeleteSupportAgent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteSupportAgentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SupportServiceServer).DeleteSupportAgent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SupportService_DeleteSupportAgent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SupportServiceServer).DeleteSupportAgent(ctx, req.(*DeleteSupportAgentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SupportService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -566,6 +638,14 @@ var SupportService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeactivateSupportAgent",
 			Handler:    _SupportService_DeactivateSupportAgent_Handler,
+		},
+		{
+			MethodName: "ActivateSupportAgent",
+			Handler:    _SupportService_ActivateSupportAgent_Handler,
+		},
+		{
+			MethodName: "DeleteSupportAgent",
+			Handler:    _SupportService_DeleteSupportAgent_Handler,
 		},
 		{
 			MethodName: "Health",

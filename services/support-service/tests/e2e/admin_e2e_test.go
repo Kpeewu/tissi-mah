@@ -86,6 +86,63 @@ func TestE2E_Deactivate_NotFound(t *testing.T) {
 	assert.Equal(t, codes.NotFound, grpcCode(t, err))
 }
 
+func TestE2E_ActivateAndDelete_Flow(t *testing.T) {
+	cleanAll(t)
+	d := newE2E(t)
+	defer d.cleanup()
+	ctx := context.Background()
+
+	admin := fixtures.NewTestAdmin(fixtures.WithEmail("admin@tissimah.local"))
+	require.NoError(t, fixtures.InsertSupportUser(ctx, testPool, admin))
+	adminCtx := withSupport(ctx, admin.UserID, domain.RoleAdmin)
+
+	// Crée un agent (actif par défaut)
+	createRes, err := d.client.CreateSupportAgent(adminCtx, &supportpb.CreateSupportAgentRequest{
+		Email: "agent@x.com", FirstName: "Jean", LastName: "Dupont", Role: domain.RoleSupport,
+	})
+	require.NoError(t, err)
+	agentID := createRes.GetUserId()
+
+	// 1. Supprimer un compte actif → FailedPrecondition
+	_, err = d.client.DeleteSupportAgent(adminCtx, &supportpb.DeleteSupportAgentRequest{UserId: agentID})
+	assert.Equal(t, codes.FailedPrecondition, grpcCode(t, err))
+
+	// 2. Désactiver
+	_, err = d.client.DeactivateSupportAgent(adminCtx, &supportpb.DeactivateSupportAgentRequest{UserId: agentID})
+	require.NoError(t, err)
+
+	// 3. Réactiver
+	_, err = d.client.ActivateSupportAgent(adminCtx, &supportpb.ActivateSupportAgentRequest{UserId: agentID})
+	require.NoError(t, err)
+
+	// 4. Re-désactiver puis supprimer → OK
+	_, err = d.client.DeactivateSupportAgent(adminCtx, &supportpb.DeactivateSupportAgentRequest{UserId: agentID})
+	require.NoError(t, err)
+	_, err = d.client.DeleteSupportAgent(adminCtx, &supportpb.DeleteSupportAgentRequest{UserId: agentID})
+	require.NoError(t, err)
+
+	// 5. Après suppression, l'agent n'apparaît plus dans la liste (admin seul)
+	listRes, err := d.client.ListSupportAgents(adminCtx, &supportpb.ListSupportAgentsRequest{Limit: 50})
+	require.NoError(t, err)
+	assert.Equal(t, int32(1), listRes.GetTotal())
+}
+
+func TestE2E_Activate_NonAdmin_Denied(t *testing.T) {
+	cleanAll(t)
+	d := newE2E(t)
+	defer d.cleanup()
+	ctx := context.Background()
+
+	support := fixtures.NewTestSupportUser(fixtures.WithEmail("agent@x.com"))
+	require.NoError(t, fixtures.InsertSupportUser(ctx, testPool, support))
+	supportCtx := withSupport(ctx, support.UserID, domain.RoleSupport)
+
+	_, err := d.client.ActivateSupportAgent(supportCtx, &supportpb.ActivateSupportAgentRequest{
+		UserId: support.UserID,
+	})
+	assert.Equal(t, codes.PermissionDenied, grpcCode(t, err))
+}
+
 func TestE2E_Admin_MustChangePassword_Blocked(t *testing.T) {
 	cleanAll(t)
 	d := newE2E(t)

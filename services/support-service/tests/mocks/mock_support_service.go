@@ -55,8 +55,8 @@ func (m *MockSupportService) ChangeMyEmail(ctx context.Context, userID, newEmail
 	return m.Called(ctx, userID, newEmail, cur).Error(0)
 }
 
-func (m *MockSupportService) CreateSupportAgent(ctx context.Context, email, fn, ln string) (string, error) {
-	args := m.Called(ctx, email, fn, ln)
+func (m *MockSupportService) CreateSupportAgent(ctx context.Context, email, fn, ln, role string) (string, error) {
+	args := m.Called(ctx, email, fn, ln, role)
 	return args.String(0), args.Error(1)
 }
 
@@ -67,5 +67,13 @@ func (m *MockSupportService) ListSupportAgents(ctx context.Context, limit, offse
 }
 
 func (m *MockSupportService) DeactivateSupportAgent(ctx context.Context, userID string) error {
+	return m.Called(ctx, userID).Error(0)
+}
+
+func (m *MockSupportService) ActivateSupportAgent(ctx context.Context, userID string) error {
+	return m.Called(ctx, userID).Error(0)
+}
+
+func (m *MockSupportService) DeleteSupportAgent(ctx context.Context, userID string) error {
 	return m.Called(ctx, userID).Error(0)
 }

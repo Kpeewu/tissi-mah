@@ -42,7 +42,9 @@ type SupportService interface {
 	ChangeMyPassword(ctx context.Context, userID, currentPassword, newPassword string) error
 	ChangeMyEmail(ctx context.Context, userID, newEmail, currentPassword string) error
 
-	CreateSupportAgent(ctx context.Context, email, firstName, lastName string) (string, error)
+	CreateSupportAgent(ctx context.Context, email, firstName, lastName, role string) (string, error)
 	ListSupportAgents(ctx context.Context, limit, offset int) ([]*domain.SupportUser, int, error)
 	DeactivateSupportAgent(ctx context.Context, userID string) error
+	ActivateSupportAgent(ctx context.Context, userID string) error
+	DeleteSupportAgent(ctx context.Context, userID string) error
 }

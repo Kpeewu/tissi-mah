@@ -392,9 +392,16 @@ func (s *supportServiceImpl) ChangeMyEmail(ctx context.Context, userID, newEmail
 
 // ─── CreateSupportAgent ──────────────────────────────────────────────────────
 
-func (s *supportServiceImpl) CreateSupportAgent(ctx context.Context, email, firstName, lastName string) (string, error) {
+func (s *supportServiceImpl) CreateSupportAgent(ctx context.Context, email, firstName, lastName, role string) (string, error) {
 	email = normalizeEmail(email)
 	if email == "" || firstName == "" || lastName == "" {
+		return "", supportErrors.ErrInvalidInput
+	}
+	// Rôle par défaut "support" ; sinon doit être un rôle valide.
+	if role == "" {
+		role = domain.RoleSupport
+	}
+	if !domain.IsValidRole(role) {
 		return "", supportErrors.ErrInvalidInput
 	}
 	exists, err := s.readRepo.ExistsByEmail(ctx, email)
@@ -420,7 +427,7 @@ func (s *supportServiceImpl) CreateSupportAgent(ctx context.Context, email, firs
 		PasswordHash:       hash,
 		FirstName:          firstName,
 		LastName:           lastName,
-		Role:               domain.RoleSupport,
+		Role:               role,
 		IsActive:           true,
 		MustChangePassword: true,
 	}
@@ -441,7 +448,8 @@ func (s *supportServiceImpl) CreateSupportAgent(ctx context.Context, email, firs
 		}
 	}(email, temp)
 
-	s.logger.Info("createSupportAgent: support agent created", zap.String("userID", user.UserID), zap.String("email", email))
+	s.logger.Info("createSupportAgent: support agent created",
+		zap.String("userID", user.UserID), zap.String("email", email), zap.String("role", role))
 	return user.UserID, nil
 }
 
@@ -461,5 +469,41 @@ func (s *supportServiceImpl) DeactivateSupportAgent(ctx context.Context, userID 
 		return err
 	}
 	s.logger.Info("deactivateSupportAgent: success", zap.String("userID", userID))
+	return nil
+}
+
+// ─── ActivateSupportAgent ────────────────────────────────────────────────────
+
+func (s *supportServiceImpl) ActivateSupportAgent(ctx context.Context, userID string) error {
+	if userID == "" {
+		return supportErrors.ErrInvalidInput
+	}
+	if err := s.writeRepo.Activate(ctx, userID); err != nil {
+		return err
+	}
+	s.logger.Info("activateSupportAgent: success", zap.String("userID", userID))
+	return nil
+}
+
+// ─── DeleteSupportAgent ──────────────────────────────────────────────────────
+
+// DeleteSupportAgent supprime (soft-delete) un agent. Un compte encore actif ne
+// peut pas être supprimé : il doit d'abord être désactivé.
+func (s *supportServiceImpl) DeleteSupportAgent(ctx context.Context, userID string) error {
+	if userID == "" {
+		return supportErrors.ErrInvalidInput
+	}
+	user, err := s.readRepo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if user.IsActive {
+		s.logger.Warn("deleteSupportAgent: account still active", zap.String("userID", userID))
+		return supportErrors.ErrCannotDeleteActiveAccount
+	}
+	if err := s.writeRepo.SoftDelete(ctx, userID); err != nil {
+		return err
+	}
+	s.logger.Info("deleteSupportAgent: success", zap.String("userID", userID))
 	return nil
 }

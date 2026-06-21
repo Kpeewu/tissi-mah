@@ -11,4 +11,7 @@ type SupportUserWriteRepository interface {
 	UpdatePassword(ctx context.Context, userID, hash string, mustChange bool) error
 	UpdateEmail(ctx context.Context, userID, newEmail string) error
 	Deactivate(ctx context.Context, userID string) error
+	Activate(ctx context.Context, userID string) error
+	// SoftDelete marque le compte comme supprimé (deleted_at = NOW()).
+	SoftDelete(ctx context.Context, userID string) error
 }

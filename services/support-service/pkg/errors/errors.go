@@ -22,4 +22,7 @@ var (
 	ErrEmailChangeCooldown  = errors.New("ErrEmailChangeCooldown")
 	ErrMustChangePassword   = errors.New("ErrMustChangePassword")
 	ErrUnauthenticated      = errors.New("ErrUnauthenticated")
+	// ErrCannotDeleteActiveAccount est renvoyé quand on tente de supprimer un
+	// compte encore actif : il doit d'abord être désactivé.
+	ErrCannotDeleteActiveAccount = errors.New("ErrCannotDeleteActiveAccount")
 )
