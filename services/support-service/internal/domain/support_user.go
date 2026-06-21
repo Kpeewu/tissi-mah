@@ -7,6 +7,11 @@ const (
 	RoleSupport = "support"
 )
 
+// IsValidRole indique si le rôle fourni fait partie des rôles autorisés.
+func IsValidRole(role string) bool {
+	return role == RoleAdmin || role == RoleSupport
+}
+
 // SupportUser représente un agent du back-office (admin ou support).
 type SupportUser struct {
 	UserID             string

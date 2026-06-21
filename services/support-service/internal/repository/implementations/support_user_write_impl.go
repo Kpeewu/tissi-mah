@@ -97,3 +97,35 @@ func (r *supportUserWriteRepository) Deactivate(ctx context.Context, userID stri
 	}
 	return nil
 }
+
+func (r *supportUserWriteRepository) Activate(ctx context.Context, userID string) error {
+	tag, err := r.pool.Exec(ctx, `
+        UPDATE support_users
+        SET is_active = TRUE
+        WHERE user_id = $1 AND deleted_at IS NULL
+    `, userID)
+	if err != nil {
+		r.logger.Error("Activate failed", zap.Error(err))
+		return supportErrors.ErrInternal
+	}
+	if tag.RowsAffected() == 0 {
+		return supportErrors.ErrUserNotFound
+	}
+	return nil
+}
+
+func (r *supportUserWriteRepository) SoftDelete(ctx context.Context, userID string) error {
+	tag, err := r.pool.Exec(ctx, `
+        UPDATE support_users
+        SET deleted_at = NOW()
+        WHERE user_id = $1 AND deleted_at IS NULL
+    `, userID)
+	if err != nil {
+		r.logger.Error("SoftDelete failed", zap.Error(err))
+		return supportErrors.ErrInternal
+	}
+	if tag.RowsAffected() == 0 {
+		return supportErrors.ErrUserNotFound
+	}
+	return nil
+}

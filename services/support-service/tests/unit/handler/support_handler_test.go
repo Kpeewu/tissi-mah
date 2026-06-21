@@ -275,7 +275,7 @@ func TestHandler_CreateSupportAgent(t *testing.T) {
 		h, svc := newHandler(t)
 		ctx := ctxWithUIDRole("admin-uid", domain.RoleAdmin)
 		svc.On("Me", mock.Anything, "admin-uid").Return(&domain.SupportUser{UserID: "admin-uid"}, nil)
-		svc.On("CreateSupportAgent", mock.Anything, "new@x.com", "A", "B").Return("new-id", nil)
+		svc.On("CreateSupportAgent", mock.Anything, "new@x.com", "A", "B", "").Return("new-id", nil)
 
 		res, err := h.CreateSupportAgent(ctx, &supportpb.CreateSupportAgentRequest{
 			Email: "new@x.com", FirstName: "A", LastName: "B",
@@ -297,7 +297,7 @@ func TestHandler_CreateSupportAgent(t *testing.T) {
 		h, svc := newHandler(t)
 		ctx := ctxWithUIDRole("admin-uid", domain.RoleAdmin)
 		svc.On("Me", mock.Anything, "admin-uid").Return(&domain.SupportUser{UserID: "admin-uid"}, nil)
-		svc.On("CreateSupportAgent", mock.Anything, "n@x.com", "A", "B").Return("", supportErrors.ErrEmailAlreadyExists)
+		svc.On("CreateSupportAgent", mock.Anything, "n@x.com", "A", "B", "").Return("", supportErrors.ErrEmailAlreadyExists)
 		_, err := h.CreateSupportAgent(ctx, &supportpb.CreateSupportAgentRequest{Email: "n@x.com", FirstName: "A", LastName: "B"})
 		assert.Equal(t, codes.AlreadyExists, codeOf(t, err))
 	})

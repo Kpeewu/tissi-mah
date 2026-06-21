@@ -114,6 +114,8 @@ var SupportProtectedRoutes = map[string]bool{
 	"/api/v1/support/me/email":                true,
 	"/api/v1/support/admin/agents":            true,
 	"/api/v1/support/admin/agents/deactivate": true,
+	"/api/v1/support/admin/agents/activate":   true,
+	"/api/v1/support/admin/agents/delete":     true,
 
 	// payment-service — actions support
 	"/api/v1/payment/support/triggerManualPayout": true,

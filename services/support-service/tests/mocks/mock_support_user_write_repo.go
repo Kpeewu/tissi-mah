@@ -27,3 +27,11 @@ func (m *MockSupportUserWriteRepository) UpdateEmail(ctx context.Context, userID
 func (m *MockSupportUserWriteRepository) Deactivate(ctx context.Context, userID string) error {
 	return m.Called(ctx, userID).Error(0)
 }
+
+func (m *MockSupportUserWriteRepository) Activate(ctx context.Context, userID string) error {
+	return m.Called(ctx, userID).Error(0)
+}
+
+func (m *MockSupportUserWriteRepository) SoftDelete(ctx context.Context, userID string) error {
+	return m.Called(ctx, userID).Error(0)
+}

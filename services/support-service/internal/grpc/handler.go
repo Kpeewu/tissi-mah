@@ -59,6 +59,8 @@ func toGRPCError(err error) error {
 		return status.Error(codes.InvalidArgument, err.Error())
 	case errors.Is(err, supportErrors.ErrEmailChangeCooldown):
 		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, supportErrors.ErrCannotDeleteActiveAccount):
+		return status.Error(codes.FailedPrecondition, err.Error())
 	default:
 		return status.Error(codes.Internal, "internal server error")
 	}
@@ -229,8 +231,8 @@ func (h *SupportHandler) CreateSupportAgent(ctx context.Context, req *supportpb.
 	if err := h.gateMustChange(ctx, false); err != nil {
 		return nil, toGRPCError(err)
 	}
-	h.logger.Debug("handler: CreateSupportAgent called", zap.String("email", req.GetEmail()))
-	id, err := h.svc.CreateSupportAgent(ctx, req.GetEmail(), req.GetFirstName(), req.GetLastName())
+	h.logger.Debug("handler: CreateSupportAgent called", zap.String("email", req.GetEmail()), zap.String("role", req.GetRole()))
+	id, err := h.svc.CreateSupportAgent(ctx, req.GetEmail(), req.GetFirstName(), req.GetLastName(), req.GetRole())
 	if err != nil {
 		h.logger.Error("handler: CreateSupportAgent failed", zap.String("email", req.GetEmail()), zap.Error(err))
 		return nil, toGRPCError(err)
@@ -284,6 +286,40 @@ func (h *SupportHandler) DeactivateSupportAgent(ctx context.Context, req *suppor
 	}
 	h.logger.Info("handler: DeactivateSupportAgent success", zap.String("userID", req.GetUserId()))
 	return &supportpb.DeactivateSupportAgentResponse{}, nil
+}
+
+func (h *SupportHandler) ActivateSupportAgent(ctx context.Context, req *supportpb.ActivateSupportAgentRequest) (*supportpb.ActivateSupportAgentResponse, error) {
+	if err := requireAdmin(ctx); err != nil {
+		h.logger.Warn("handler: ActivateSupportAgent - insufficient role", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+	if err := h.gateMustChange(ctx, false); err != nil {
+		return nil, toGRPCError(err)
+	}
+	h.logger.Debug("handler: ActivateSupportAgent called", zap.String("userID", req.GetUserId()))
+	if err := h.svc.ActivateSupportAgent(ctx, req.GetUserId()); err != nil {
+		h.logger.Error("handler: ActivateSupportAgent failed", zap.String("userID", req.GetUserId()), zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+	h.logger.Info("handler: ActivateSupportAgent success", zap.String("userID", req.GetUserId()))
+	return &supportpb.ActivateSupportAgentResponse{}, nil
+}
+
+func (h *SupportHandler) DeleteSupportAgent(ctx context.Context, req *supportpb.DeleteSupportAgentRequest) (*supportpb.DeleteSupportAgentResponse, error) {
+	if err := requireAdmin(ctx); err != nil {
+		h.logger.Warn("handler: DeleteSupportAgent - insufficient role", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+	if err := h.gateMustChange(ctx, false); err != nil {
+		return nil, toGRPCError(err)
+	}
+	h.logger.Debug("handler: DeleteSupportAgent called", zap.String("userID", req.GetUserId()))
+	if err := h.svc.DeleteSupportAgent(ctx, req.GetUserId()); err != nil {
+		h.logger.Error("handler: DeleteSupportAgent failed", zap.String("userID", req.GetUserId()), zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+	h.logger.Info("handler: DeleteSupportAgent success", zap.String("userID", req.GetUserId()))
+	return &supportpb.DeleteSupportAgentResponse{}, nil
 }
 
 func (h *SupportHandler) Health(_ context.Context, _ *supportpb.HealthRequest) (*supportpb.HealthResponse, error) {

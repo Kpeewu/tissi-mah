@@ -82,6 +82,22 @@ service SupportService {
     };
   }
 
+  rpc ActivateSupportAgent(ActivateSupportAgentRequest) returns (ActivateSupportAgentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/admin/agents/activate"
+      body: "*"
+    };
+  }
+
+  // DeleteSupportAgent supprime (soft-delete) un agent. Seul un compte déjà
+  // désactivé peut être supprimé.
+  rpc DeleteSupportAgent(DeleteSupportAgentRequest) returns (DeleteSupportAgentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/admin/agents/delete"
+      body: "*"
+    };
+  }
+
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
       get: "/api/v1/support/health"
@@ -173,6 +189,8 @@ message CreateSupportAgentRequest {
   string Email     = 1;
   string FirstName = 2;
   string LastName  = 3;
+  // Role du nouvel agent : "admin" ou "support". Vide = "support" par défaut.
+  string Role      = 4;
 }
 
 message CreateSupportAgentResponse {
@@ -204,6 +222,18 @@ message DeactivateSupportAgentRequest {
 }
 
 message DeactivateSupportAgentResponse {}
+
+message ActivateSupportAgentRequest {
+  string UserId = 1;
+}
+
+message ActivateSupportAgentResponse {}
+
+message DeleteSupportAgentRequest {
+  string UserId = 1;
+}
+
+message DeleteSupportAgentResponse {}
 
 message HealthRequest {}
 
