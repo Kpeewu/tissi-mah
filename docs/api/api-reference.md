@@ -118,8 +118,8 @@ Ces endpoints n'exigent **aucun token** :
 |---|---|
 | `GET /api/v1/auth/checkEmail` | Vérifier si un email est disponible |
 | `GET /api/v1/auth/checkPhoneNumber` | Vérifier si un numéro est disponible |
-| `GET /trip/passenger/getScheduledTripsPreviews` | Recherche de trajets |
-| `GET /trip/passenger/getTripDetails` | Détail d'un trajet (vue passager) |
+| `GET /api/v1/trip/passenger/getScheduledTripsPreviews` | Recherche de trajets |
+| `GET /api/v1/trip/passenger/getTripDetails` | Détail d'un trajet (vue passager) |
 | `POST /api/v1/geolocation/route` | Calcul d'itinéraire OSRM |
 | `GET /api/v1/geolocation/geocode` | Géocodage (texte → coords) |
 | `GET /api/v1/geolocation/reverse` | Géocodage inverse (coords → adresse) |
@@ -401,7 +401,7 @@ Active le compte conducteur.
 
 Base : `/vehicle`
 
-#### `POST /vehicle/add` 🔒
+#### `POST /api/v1/vehicle/add` 🔒
 
 ```json
 {
@@ -416,7 +416,7 @@ Base : `/vehicle`
 
 **Réponse :** `{ "VehicleId": "uuid", "ErrorMessage": "" }`
 
-#### `POST /vehicle/getUserVehicles` 🔒
+#### `POST /api/v1/vehicle/getUserVehicles` 🔒
 
 ```json
 { "UserId": "uuid" }
@@ -438,19 +438,19 @@ Base : `/vehicle`
 }
 ```
 
-#### `POST /vehicle/details` 🔒
+#### `POST /api/v1/vehicle/details` 🔒
 
 ```json
 { "UserId": "uuid", "VehicleId": "uuid" }
 ```
 
-#### `PATCH /vehicle/update` 🔒
+#### `PATCH /api/v1/vehicle/update` 🔒
 
 ```json
 { "UserId": "uuid", "VehicleId": "uuid", "Color": "Noir", "LicencePlate": "TG-5678-CD" }
 ```
 
-#### `POST /vehicle/delete` 🔒
+#### `POST /api/v1/vehicle/delete` 🔒
 
 ```json
 { "UserId": "uuid", "VehicleId": "uuid" }
@@ -465,7 +465,7 @@ Base : `/file`
 > Les fichiers sont envoyés en **bytes encodés en base64** dans le corps JSON.
 > Limite globale : 10 Mo par requête.
 
-#### `POST /file/uploadIdDocument` 🔒
+#### `POST /api/v1/file/uploadIdDocument` 🔒
 
 ```json
 {
@@ -489,7 +489,7 @@ Base : `/file`
 }
 ```
 
-#### `POST /file/uploadVehicleDocuments` 🔒
+#### `POST /api/v1/file/uploadVehicleDocuments` 🔒
 
 ```json
 {
@@ -501,19 +501,19 @@ Base : `/file`
 }
 ```
 
-#### `PATCH /file/changeDocument` 🔒
+#### `PATCH /api/v1/file/changeDocument` 🔒
 
 ```json
 { "UserID": "uuid", "FileID": "uuid", "NewDocument": "<base64>" }
 ```
 
-#### `GET /file/getDocument?FileID=uuid` 🔒
+#### `GET /api/v1/file/getDocument?FileID=uuid` 🔒
 
 ```json
 { "ErrorMessage": "", "File": { "FileID": "uuid", "FileURL": "https://...", "FileType": "IDCard" } }
 ```
 
-#### `POST /file/deleteFile` 🔒
+#### `POST /api/v1/file/deleteFile` 🔒
 
 ```json
 { "UserID": "uuid", "FileID": "uuid" }
@@ -580,7 +580,7 @@ Reprendre une vérification interrompue.
 
 Base : `/trip`
 
-#### `GET /trip/passenger/getScheduledTripsPreviews` 🌐
+#### `GET /api/v1/trip/passenger/getScheduledTripsPreviews` 🌐
 
 Recherche de trajets disponibles.
 
@@ -622,11 +622,11 @@ Recherche de trajets disponibles.
 }
 ```
 
-#### `GET /trip/passenger/getTripDetails?TripId=uuid` 🌐
+#### `GET /api/v1/trip/passenger/getTripDetails?TripId=uuid` 🌐
 
 Détail complet d'un trajet pour un passager.
 
-#### `POST /trip/driver/createTrip` 🔒
+#### `POST /api/v1/trip/driver/createTrip` 🔒
 
 Crée un nouveau trajet.
 
@@ -683,15 +683,15 @@ Crée un nouveau trajet.
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `GET /trip/driver/getTripsPreviews?DriverId=uuid&Index=0` | GET 🔒 | Mes trajets à venir |
-| `GET /trip/driver/getCompletedTripsPreviews?DriverId=uuid&Index=0` | GET 🔒 | Mes trajets passés |
-| `GET /trip/driver/getTripDetails?TripId=uuid` | GET 🔒 | Détail complet (avec réservations) |
-| `PATCH /trip/driver/startTrip` | PATCH 🔒 | `{ "DriverId": "uuid", "TripId": "uuid" }` |
-| `PATCH /trip/driver/endTrip` | PATCH 🔒 | `{ "DriverId": "uuid", "TripId": "uuid" }` |
-| `PATCH /trip/driver/confirmWaypointArrival` | PATCH 🔒 | `{ "DriverId": "uuid", "WaypointId": "uuid" }` |
-| `PATCH /trip/driver/confirmWaypointDeparture` | PATCH 🔒 | `{ "DriverId": "uuid", "WaypointId": "uuid" }` |
-| `DELETE /trip/driver/cancelTrip` | DELETE 🔒 | `{ "DriverId": "uuid", "TripId": "uuid", "CancellationReason": "..." }` |
-| `PATCH /trip/driver/changeTripDateAndTime` | PATCH 🔒 | `{ "DriverId": "uuid", "TripId": "uuid", "DepartureDatetime": "..." }` |
+| `GET /api/v1/trip/driver/getTripsPreviews?DriverId=uuid&Index=0` | GET 🔒 | Mes trajets à venir |
+| `GET /api/v1/trip/driver/getCompletedTripsPreviews?DriverId=uuid&Index=0` | GET 🔒 | Mes trajets passés |
+| `GET /api/v1/trip/driver/getTripDetails?TripId=uuid` | GET 🔒 | Détail complet (avec réservations) |
+| `PATCH /api/v1/trip/driver/startTrip` | PATCH 🔒 | `{ "DriverId": "uuid", "TripId": "uuid" }` |
+| `PATCH /api/v1/trip/driver/endTrip` | PATCH 🔒 | `{ "DriverId": "uuid", "TripId": "uuid" }` |
+| `PATCH /api/v1/trip/driver/confirmWaypointArrival` | PATCH 🔒 | `{ "DriverId": "uuid", "WaypointId": "uuid" }` |
+| `PATCH /api/v1/trip/driver/confirmWaypointDeparture` | PATCH 🔒 | `{ "DriverId": "uuid", "WaypointId": "uuid" }` |
+| `DELETE /api/v1/trip/driver/cancelTrip` | DELETE 🔒 | `{ "DriverId": "uuid", "TripId": "uuid", "CancellationReason": "..." }` |
+| `PATCH /api/v1/trip/driver/changeTripDateAndTime` | PATCH 🔒 | `{ "DriverId": "uuid", "TripId": "uuid", "DepartureDatetime": "..." }` |
 
 ---
 
@@ -699,7 +699,7 @@ Crée un nouveau trajet.
 
 Base : `/booking`
 
-#### `POST /booking/createBooking` 🔒
+#### `POST /api/v1/booking/createBooking` 🔒
 
 ```json
 {
@@ -744,21 +744,21 @@ Base : `/booking`
 }
 ```
 
-#### `GET /booking/getBookingDetails?BookingId=uuid&UserId=uuid` 🔒
+#### `GET /api/v1/booking/getBookingDetails?BookingId=uuid&UserId=uuid` 🔒
 
-#### `GET /booking/getPassengerBookings?PassengerId=uuid&Index=0` 🔒
+#### `GET /api/v1/booking/getPassengerBookings?PassengerId=uuid&Index=0` 🔒
 
-#### `GET /booking/getDriverTripBookings?DriverId=uuid&TripId=uuid&Index=0` 🔒
+#### `GET /api/v1/booking/getDriverTripBookings?DriverId=uuid&TripId=uuid&Index=0` 🔒
 
 #### Actions sur une réservation
 
 | Endpoint | Auth | Body |
 |---|---|---|
-| `PATCH /booking/approveBooking` | 🔒 | `{ "DriverId": "uuid", "BookingId": "uuid" }` |
-| `PATCH /booking/rejectBooking` | 🔒 | `{ "DriverId": "uuid", "BookingId": "uuid", "Reason": "..." }` |
-| `PATCH /booking/cancelBooking` | 🔒 | `{ "UserId": "uuid", "BookingId": "uuid", "Reason": "..." }` |
-| `POST /booking/reportNoShow` | 🔒 | `{ "BookingId": "uuid", "ReporterId": "uuid", "NoShowType": "driver\|passenger", "Description": "..." }` |
-| `POST /booking/confirmPayment` | 🔒 | `{ "BookingId": "uuid", "TransactionId": "xxx" }` |
+| `PATCH /api/v1/booking/approveBooking` | 🔒 | `{ "DriverId": "uuid", "BookingId": "uuid" }` |
+| `PATCH /api/v1/booking/rejectBooking` | 🔒 | `{ "DriverId": "uuid", "BookingId": "uuid", "Reason": "..." }` |
+| `PATCH /api/v1/booking/cancelBooking` | 🔒 | `{ "UserId": "uuid", "BookingId": "uuid", "Reason": "..." }` |
+| `POST /api/v1/booking/reportNoShow` | 🔒 | `{ "BookingId": "uuid", "ReporterId": "uuid", "NoShowType": "driver\|passenger", "Description": "..." }` |
+| `POST /api/v1/booking/confirmPayment` | 🔒 | `{ "BookingId": "uuid", "TransactionId": "xxx" }` |
 
 ---
 
@@ -766,7 +766,7 @@ Base : `/booking`
 
 Base : `/payment`
 
-#### `POST /payment/createPayment` 🔒
+#### `POST /api/v1/payment/createPayment` 🔒
 
 ```json
 {
@@ -791,13 +791,13 @@ Base : `/payment`
 }
 ```
 
-#### `GET /payment/getPaymentStatus?PaymentId=uuid` 🔒
+#### `GET /api/v1/payment/getPaymentStatus?PaymentId=uuid` 🔒
 
-#### `GET /payment/getPaymentByBooking?BookingId=uuid` 🔒
+#### `GET /api/v1/payment/getPaymentByBooking?BookingId=uuid` 🔒
 
-#### `GET /payment/getRefundStatus?RefundId=uuid` 🔒
+#### `GET /api/v1/payment/getRefundStatus?RefundId=uuid` 🔒
 
-#### `GET /payment/getDriverPayouts?DriverId=uuid&PageIndex=0` 🔒
+#### `GET /api/v1/payment/getDriverPayouts?DriverId=uuid&PageIndex=0` 🔒
 
 **Réponse :**
 ```json
@@ -1190,7 +1190,7 @@ async function searchTrips({ from, to, date }) {
     Index: 0,
   });
 
-  const res = await fetch(`${BASE_URL}/trip/passenger/getScheduledTripsPreviews?${params}`);
+  const res = await fetch(`${BASE_URL}/api/v1/trip/passenger/getScheduledTripsPreviews?${params}`);
   return res.json();
 }
 
@@ -1198,7 +1198,7 @@ async function searchTrips({ from, to, date }) {
 async function bookTrip(user, tripId, pickupId, dropoffId) {
   const token = await user.getIdToken();
 
-  const res = await fetch(`${BASE_URL}/booking/createBooking`, {
+  const res = await fetch(`${BASE_URL}/api/v1/booking/createBooking`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -1242,7 +1242,7 @@ Future<String> createTrip(String driverId, String vehicleId) async {
 
   // 2. Créer le trajet avec les données de route
   final tripRes = await http.post(
-    Uri.parse('$baseUrl/trip/driver/createTrip'),
+    Uri.parse('$baseUrl/api/v1/trip/driver/createTrip'),
     headers: {
       'Authorization': 'Bearer $token',
       'Content-Type': 'application/json',
@@ -1340,10 +1340,10 @@ Chaque service expose un endpoint de santé :
 |---|---|
 | Auth | `GET /api/v1/auth/health` |
 | User | `GET /api/v1/user/health` |
-| Vehicle | `GET /vehicle/health` |
-| Trips | `GET /trip/health` |
-| Booking | `GET /booking/health` |
-| Payment | `GET /payment/health` |
+| Vehicle | `GET /api/v1/vehicle/health` |
+| Trips | `GET /api/v1/trip/health` |
+| Booking | `GET /api/v1/booking/health` |
+| Payment | `GET /api/v1/payment/health` |
 | Rating | `GET /api/v1/ratings/health` |
 | KYC | `GET /api/v1/kyc/health` |
 | Geolocation | `GET /api/v1/geolocation/health` |

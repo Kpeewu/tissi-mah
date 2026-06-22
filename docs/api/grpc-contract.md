@@ -721,13 +721,13 @@ api-gateway      ──gRPC──> booking-service   (HTTP transcoding via grpc-
 
 | RPC | Type | HTTP Route | Auth | Description |
 |-----|------|------------|------|-------------|
-| `AddVehicle` | Unary | `POST /vehicle/add` | JWT | Register a new vehicle |
-| `UpdateVehicle` | Unary | `PATCH /vehicle/update` | JWT | Update vehicle info |
-| `DeleteVehicle` | Unary | `DELETE /vehicle/delete` | JWT | Soft-delete a vehicle |
-| `GetVehicleDetails` | Unary | `GET /vehicle/details` | JWT | Get vehicle by ID |
-| `GetUserVehicles` | Unary | `GET /vehicle/getUserVehicles` | JWT | List vehicles for a user |
+| `AddVehicle` | Unary | `POST /api/v1/vehicle/add` | JWT | Register a new vehicle |
+| `UpdateVehicle` | Unary | `PATCH /api/v1/vehicle/update` | JWT | Update vehicle info |
+| `DeleteVehicle` | Unary | `DELETE /api/v1/vehicle/delete` | JWT | Soft-delete a vehicle |
+| `GetVehicleDetails` | Unary | `GET /api/v1/vehicle/details` | JWT | Get vehicle by ID |
+| `GetUserVehicles` | Unary | `GET /api/v1/vehicle/getUserVehicles` | JWT | List vehicles for a user |
 | `GetVehicleInfo` | Unary | N/A | Inter-service | Minimal info for trips enrichment |
-| `Health` | Unary | `GET /vehicle/health` | Public | Health check |
+| `Health` | Unary | `GET /api/v1/vehicle/health` | Public | Health check |
 
 ---
 
@@ -741,21 +741,21 @@ api-gateway      ──gRPC──> booking-service   (HTTP transcoding via grpc-
 
 | RPC | Type | HTTP Route | Auth | Description |
 |-----|------|------------|------|-------------|
-| `CreateTrip` | Unary | `POST /trip/driver/createTrip` | JWT | Create a new trip |
-| `CreateRecurringTrip` | Unary | `POST /trip/driver/createRecurringTrip` | JWT | Schedule a recurring trip |
-| `GetTripsPreviews` | Unary | `GET /trip/driver/getTripsPreviews` | JWT | List active trips (paginated) |
-| `GetCompletedTripsPreviews` | Unary | `GET /trip/driver/getCompletedTripsPreviews` | JWT | List completed trips (paginated) |
-| `ChangeTripDateAndTime` | Unary | `PATCH /trip/driver/changeTripDateAndTime` | JWT | Update departure datetime |
-| `ChangeTripVehicle` | Unary | `PATCH /trip/driver/changeTripVehicle` | JWT | Change vehicle |
-| `ChangeTripAllowances` | Unary | `PATCH /trip/driver/changeTripAllowances` | JWT | Update luggage/pet/food/smoking flags |
-| `ChangeAutoApprove` | Unary | `PATCH /trip/driver/activeAutoApprouve` | JWT | Toggle auto-approve |
-| `StartTrip` | Unary | `PATCH /trip/driver/startTrip` | JWT | Start a scheduled trip |
-| `EndTrip` | Unary | `PATCH /trip/driver/endTrip` | JWT | End an in-progress trip |
-| `ConfirmWaypointArrival` | Unary | `PATCH /trip/driver/confirmWaypointArrival` | JWT | Record arrival at a stop |
-| `ConfirmWaypointDeparture` | Unary | `PATCH /trip/driver/confirmWaypointDeparture` | JWT | Record departure from a stop |
-| `GetTripByID` | Unary | `GET /trip/getTripByID` | Public | Get trip details + waypoints |
-| `UpdateAvailableSeats` | Unary | `PATCH /trip/internal/updateAvailableSeats` | Internal | Update available seat count |
-| `Health` | Unary | `GET /trip/health` | Public | Health check |
+| `CreateTrip` | Unary | `POST /api/v1/trip/driver/createTrip` | JWT | Create a new trip |
+| `CreateRecurringTrip` | Unary | `POST /api/v1/trip/driver/createRecurringTrip` | JWT | Schedule a recurring trip |
+| `GetTripsPreviews` | Unary | `GET /api/v1/trip/driver/getTripsPreviews` | JWT | List active trips (paginated) |
+| `GetCompletedTripsPreviews` | Unary | `GET /api/v1/trip/driver/getCompletedTripsPreviews` | JWT | List completed trips (paginated) |
+| `ChangeTripDateAndTime` | Unary | `PATCH /api/v1/trip/driver/changeTripDateAndTime` | JWT | Update departure datetime |
+| `ChangeTripVehicle` | Unary | `PATCH /api/v1/trip/driver/changeTripVehicle` | JWT | Change vehicle |
+| `ChangeTripAllowances` | Unary | `PATCH /api/v1/trip/driver/changeTripAllowances` | JWT | Update luggage/pet/food/smoking flags |
+| `ChangeAutoApprove` | Unary | `PATCH /api/v1/trip/driver/activeAutoApprouve` | JWT | Toggle auto-approve |
+| `StartTrip` | Unary | `PATCH /api/v1/trip/driver/startTrip` | JWT | Start a scheduled trip |
+| `EndTrip` | Unary | `PATCH /api/v1/trip/driver/endTrip` | JWT | End an in-progress trip |
+| `ConfirmWaypointArrival` | Unary | `PATCH /api/v1/trip/driver/confirmWaypointArrival` | JWT | Record arrival at a stop |
+| `ConfirmWaypointDeparture` | Unary | `PATCH /api/v1/trip/driver/confirmWaypointDeparture` | JWT | Record departure from a stop |
+| `GetTripByID` | Unary | `GET /api/v1/trip/getTripByID` | Public | Get trip details + waypoints |
+| `UpdateAvailableSeats` | Unary | `PATCH /api/v1/trip/internal/updateAvailableSeats` | Internal | Update available seat count |
+| `Health` | Unary | `GET /api/v1/trip/health` | Public | Health check |
 
 ---
 
@@ -791,15 +791,15 @@ api-gateway      ──gRPC──> booking-service   (HTTP transcoding via grpc-
 
 | RPC | Type | HTTP Route | Auth | Description |
 |-----|------|------------|------|-------------|
-| `CreateBooking` | Unary | `POST /booking/createBooking` | JWT | Create a new reservation |
-| `GetBookingDetails` | Unary | `GET /booking/getBookingDetails` | JWT | Get full booking details |
-| `GetPassengerBookings` | Unary | `GET /booking/getPassengerBookings` | JWT | List passenger bookings (paginated) |
-| `GetDriverTripBookings` | Unary | `GET /booking/getDriverTripBookings` | JWT | List bookings for a driver's trip |
-| `ApproveBooking` | Unary | `PATCH /booking/approveBooking` | JWT | Driver approves a pending booking |
-| `RejectBooking` | Unary | `PATCH /booking/rejectBooking` | JWT | Driver rejects a pending booking |
-| `CancelBooking` | Unary | `PATCH /booking/cancelBooking` | JWT | Cancel a booking (passenger or driver) |
-| `ReportNoShow` | Unary | `POST /booking/reportNoShow` | JWT | Report passenger or driver no-show |
-| `ConfirmPayment` | Unary | `POST /booking/confirmPayment` | JWT | Confirm payment (payment callback) |
-| `StartBookingsForWaypoint` | Unary | `PATCH /booking/internal/startBookingsForWaypoint` | Internal | Start approved bookings for a waypoint |
-| `CompleteBookingsForWaypoint` | Unary | `PATCH /booking/internal/completeBookingsForWaypoint` | Internal | Complete active bookings for a waypoint |
-| `Health` | Unary | `GET /booking/health` | Public | Health check |
+| `CreateBooking` | Unary | `POST /api/v1/booking/createBooking` | JWT | Create a new reservation |
+| `GetBookingDetails` | Unary | `GET /api/v1/booking/getBookingDetails` | JWT | Get full booking details |
+| `GetPassengerBookings` | Unary | `GET /api/v1/booking/getPassengerBookings` | JWT | List passenger bookings (paginated) |
+| `GetDriverTripBookings` | Unary | `GET /api/v1/booking/getDriverTripBookings` | JWT | List bookings for a driver's trip |
+| `ApproveBooking` | Unary | `PATCH /api/v1/booking/approveBooking` | JWT | Driver approves a pending booking |
+| `RejectBooking` | Unary | `PATCH /api/v1/booking/rejectBooking` | JWT | Driver rejects a pending booking |
+| `CancelBooking` | Unary | `PATCH /api/v1/booking/cancelBooking` | JWT | Cancel a booking (passenger or driver) |
+| `ReportNoShow` | Unary | `POST /api/v1/booking/reportNoShow` | JWT | Report passenger or driver no-show |
+| `ConfirmPayment` | Unary | `POST /api/v1/booking/confirmPayment` | JWT | Confirm payment (payment callback) |
+| `StartBookingsForWaypoint` | Unary | `PATCH /api/v1/booking/internal/startBookingsForWaypoint` | Internal | Start approved bookings for a waypoint |
+| `CompleteBookingsForWaypoint` | Unary | `PATCH /api/v1/booking/internal/completeBookingsForWaypoint` | Internal | Complete active bookings for a waypoint |
+| `Health` | Unary | `GET /api/v1/booking/health` | Public | Health check |
