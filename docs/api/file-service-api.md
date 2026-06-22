@@ -56,7 +56,7 @@ All HTTP errors return the appropriate status code with this JSON body:
 
 ## HTTP Endpoints
 
-### POST /file/uploadIdDocument
+### POST /api/v1/file/uploadIdDocument
 
 Uploads one or more identity documents for a user profile. Files are sent as base64-encoded bytes in the JSON body. The service uploads each file to S3/MinIO and stores the URL in the database.
 
@@ -67,7 +67,7 @@ Uploads one or more identity documents for a user profile. Files are sent as bas
 #### Request
 
 ```http
-POST /file/uploadIdDocument HTTP/1.1
+POST /api/v1/file/uploadIdDocument HTTP/1.1
 Host: api.tissimah.kpeewu.dev
 Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
@@ -152,7 +152,7 @@ Content-Type: application/json
 
 ```bash
 # IDCard upload
-curl -X POST https://api.tissimah.kpeewu.dev/file/uploadIdDocument \
+curl -X POST https://api.tissimah.kpeewu.dev/api/v1/file/uploadIdDocument \
   -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -162,7 +162,7 @@ curl -X POST https://api.tissimah.kpeewu.dev/file/uploadIdDocument \
   }'
 
 # Passport upload
-curl -X POST https://api.tissimah.kpeewu.dev/file/uploadIdDocument \
+curl -X POST https://api.tissimah.kpeewu.dev/api/v1/file/uploadIdDocument \
   -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -173,7 +173,7 @@ curl -X POST https://api.tissimah.kpeewu.dev/file/uploadIdDocument \
 
 ---
 
-### POST /file/uploadVehicleDocuments
+### POST /api/v1/file/uploadVehicleDocuments
 
 Uploads the vehicle documents (driver's licence, insurance, registration card). Files are sent as base64-encoded bytes in the JSON body. The service uploads each file to S3/MinIO and stores the URL in the database.
 
@@ -184,7 +184,7 @@ Uploads the vehicle documents (driver's licence, insurance, registration card). 
 #### Request
 
 ```http
-POST /file/uploadVehicleDocuments HTTP/1.1
+POST /api/v1/file/uploadVehicleDocuments HTTP/1.1
 Host: api.tissimah.kpeewu.dev
 Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
@@ -262,7 +262,7 @@ Content-Type: application/json
 #### Example (cURL)
 
 ```bash
-curl -X POST https://api.tissimah.kpeewu.dev/file/uploadVehicleDocuments \
+curl -X POST https://api.tissimah.kpeewu.dev/api/v1/file/uploadVehicleDocuments \
   -H "Authorization: Bearer <firebase_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -275,7 +275,7 @@ curl -X POST https://api.tissimah.kpeewu.dev/file/uploadVehicleDocuments \
 
 ---
 
-### PATCH /file/changeDocument
+### PATCH /api/v1/file/changeDocument
 
 Replaces the file of an existing document with a new one. The old file is deleted from S3/MinIO and a new document record is created.
 
@@ -284,7 +284,7 @@ Replaces the file of an existing document with a new one. The old file is delete
 #### Request
 
 ```http
-PATCH /file/changeDocument HTTP/1.1
+PATCH /api/v1/file/changeDocument HTTP/1.1
 Host: api.tissimah.kpeewu.dev
 Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
@@ -344,7 +344,7 @@ Content-Type: application/json
 
 ---
 
-### GET /file/getDocument
+### GET /api/v1/file/getDocument
 
 Retrieves a document file by ID. Access is controlled by ownership: either the owning user or a support agent can retrieve the file.
 
@@ -353,7 +353,7 @@ Retrieves a document file by ID. Access is controlled by ownership: either the o
 #### Request
 
 ```http
-GET /file/getDocument?FileID=d-550e8400-e29b-41d4-a716-446655440001&UserID=8b1d4173-d563-4f81-aeb1-8bf565816545 HTTP/1.1
+GET /api/v1/file/getDocument?FileID=d-550e8400-e29b-41d4-a716-446655440001&UserID=8b1d4173-d563-4f81-aeb1-8bf565816545 HTTP/1.1
 Host: api.tissimah.kpeewu.dev
 Authorization: Bearer <firebase_id_token>
 ```
@@ -392,7 +392,7 @@ Content-Type: application/json
 
 ---
 
-### POST /file/deleteFile
+### POST /api/v1/file/deleteFile
 
 Deletes a file from S3/MinIO and removes its metadata from the database. The caller must be the owner of the file.
 
@@ -401,7 +401,7 @@ Deletes a file from S3/MinIO and removes its metadata from the database. The cal
 #### Request
 
 ```http
-POST /file/deleteFile HTTP/1.1
+POST /api/v1/file/deleteFile HTTP/1.1
 Host: api.tissimah.kpeewu.dev
 Authorization: Bearer <firebase_id_token>
 Content-Type: application/json

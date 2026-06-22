@@ -1955,19 +1955,19 @@ const file_payment_proto_rawDesc = "" +
 	"BookingIds\"Y\n" +
 	"\x19AnonymizeUserDataResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\x9e\f\n" +
-	"\x0ePaymentService\x12q\n" +
-	"\rCreatePayment\x12\x1d.payment.CreatePaymentRequest\x1a\x1e.payment.CreatePaymentResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/payment/createPayment\x12z\n" +
-	"\x10GetPaymentStatus\x12 .payment.GetPaymentStatusRequest\x1a!.payment.GetPaymentStatusResponse\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/payment/getPaymentStatus\x12\x86\x01\n" +
-	"\x13GetPaymentByBooking\x12#.payment.GetPaymentByBookingRequest\x1a$.payment.GetPaymentByBookingResponse\"$\x82\xd3\xe4\x93\x02\x1e\x12\x1c/payment/getPaymentByBooking\x12w\n" +
-	"\x0eProcessWebhook\x12\x1e.payment.ProcessWebhookRequest\x1a\x1f.payment.ProcessWebhookResponse\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/payment/webhooks/fedapay\x12z\n" +
-	"\rRequestRefund\x12\x1d.payment.RequestRefundRequest\x1a\x1e.payment.RequestRefundResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/payment/internal/requestRefund\x12v\n" +
-	"\x0fGetRefundStatus\x12\x1f.payment.GetRefundStatusRequest\x1a .payment.GetRefundStatusResponse\" \x82\xd3\xe4\x93\x02\x1a\x12\x18/payment/getRefundStatus\x12~\n" +
-	"\x0eReleasePayment\x12\x1e.payment.ReleasePaymentRequest\x1a\x1f.payment.ReleasePaymentResponse\"+\x82\xd3\xe4\x93\x02%:\x01*\" /payment/internal/releasePayment\x12v\n" +
-	"\x0fGetPayoutStatus\x12\x1f.payment.GetPayoutStatusRequest\x1a .payment.GetPayoutStatusResponse\" \x82\xd3\xe4\x93\x02\x1a\x12\x18/payment/getPayoutStatus\x12z\n" +
-	"\x10GetDriverPayouts\x12 .payment.GetDriverPayoutsRequest\x1a!.payment.GetDriverPayoutsResponse\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/payment/getDriverPayouts\x12\x91\x01\n" +
-	"\x13TriggerManualPayout\x12#.payment.TriggerManualPayoutRequest\x1a$.payment.TriggerManualPayoutResponse\"/\x82\xd3\xe4\x93\x02):\x01*\"$/payment/support/triggerManualPayout\x12R\n" +
-	"\x06Health\x12\x16.payment.HealthRequest\x1a\x17.payment.HealthResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/payment/health\x12o\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\xef\f\n" +
+	"\x0ePaymentService\x12x\n" +
+	"\rCreatePayment\x12\x1d.payment.CreatePaymentRequest\x1a\x1e.payment.CreatePaymentResponse\"(\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/api/v1/payment/createPayment\x12\x81\x01\n" +
+	"\x10GetPaymentStatus\x12 .payment.GetPaymentStatusRequest\x1a!.payment.GetPaymentStatusResponse\"(\x82\xd3\xe4\x93\x02\"\x12 /api/v1/payment/getPaymentStatus\x12\x8d\x01\n" +
+	"\x13GetPaymentByBooking\x12#.payment.GetPaymentByBookingRequest\x1a$.payment.GetPaymentByBookingResponse\"+\x82\xd3\xe4\x93\x02%\x12#/api/v1/payment/getPaymentByBooking\x12~\n" +
+	"\x0eProcessWebhook\x12\x1e.payment.ProcessWebhookRequest\x1a\x1f.payment.ProcessWebhookResponse\"+\x82\xd3\xe4\x93\x02%:\x01*\" /api/v1/payment/webhooks/fedapay\x12\x81\x01\n" +
+	"\rRequestRefund\x12\x1d.payment.RequestRefundRequest\x1a\x1e.payment.RequestRefundResponse\"1\x82\xd3\xe4\x93\x02+:\x01*\"&/api/v1/payment/internal/requestRefund\x12}\n" +
+	"\x0fGetRefundStatus\x12\x1f.payment.GetRefundStatusRequest\x1a .payment.GetRefundStatusResponse\"'\x82\xd3\xe4\x93\x02!\x12\x1f/api/v1/payment/getRefundStatus\x12\x85\x01\n" +
+	"\x0eReleasePayment\x12\x1e.payment.ReleasePaymentRequest\x1a\x1f.payment.ReleasePaymentResponse\"2\x82\xd3\xe4\x93\x02,:\x01*\"'/api/v1/payment/internal/releasePayment\x12}\n" +
+	"\x0fGetPayoutStatus\x12\x1f.payment.GetPayoutStatusRequest\x1a .payment.GetPayoutStatusResponse\"'\x82\xd3\xe4\x93\x02!\x12\x1f/api/v1/payment/getPayoutStatus\x12\x81\x01\n" +
+	"\x10GetDriverPayouts\x12 .payment.GetDriverPayoutsRequest\x1a!.payment.GetDriverPayoutsResponse\"(\x82\xd3\xe4\x93\x02\"\x12 /api/v1/payment/getDriverPayouts\x12\x98\x01\n" +
+	"\x13TriggerManualPayout\x12#.payment.TriggerManualPayoutRequest\x1a$.payment.TriggerManualPayoutResponse\"6\x82\xd3\xe4\x93\x020:\x01*\"+/api/v1/payment/support/triggerManualPayout\x12Y\n" +
+	"\x06Health\x12\x16.payment.HealthRequest\x1a\x17.payment.HealthResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/api/v1/payment/health\x12o\n" +
 	"\x18CheckDeletionEligibility\x12(.payment.CheckDeletionEligibilityRequest\x1a).payment.CheckDeletionEligibilityResponse\x12Z\n" +
 	"\x11AnonymizeUserData\x12!.payment.AnonymizeUserDataRequest\x1a\".payment.AnonymizeUserDataResponseBPZNgithub.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/paymentpb;paymentpbb\x06proto3"
 

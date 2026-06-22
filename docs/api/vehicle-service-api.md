@@ -44,7 +44,7 @@ All errors follow this format:
 
 ## Endpoints
 
-### POST /vehicle/add
+### POST /api/v1/vehicle/add
 
 Creates a new vehicle for a user.
 
@@ -53,7 +53,7 @@ Creates a new vehicle for a user.
 #### Request
 
 ```http
-POST /vehicle/add HTTP/1.1
+POST /api/v1/vehicle/add HTTP/1.1
 Host: api.tissi-mah.com
 Content-Type: application/json
 
@@ -107,7 +107,7 @@ Content-Type: application/json
 #### Example (cURL)
 
 ```bash
-curl -X POST https://api.tissi-mah.com/vehicle/add \
+curl -X POST https://api.tissi-mah.com/api/v1/vehicle/add \
   -H "Content-Type: application/json" \
   -d '{
     "UserId": "firebase-uid-abc123",
@@ -121,7 +121,7 @@ curl -X POST https://api.tissi-mah.com/vehicle/add \
 
 ---
 
-### PATCH /vehicle/update
+### PATCH /api/v1/vehicle/update
 
 Updates the mutable fields of a vehicle (color and/or licence plate). Only the owner can update their vehicle.
 
@@ -130,7 +130,7 @@ Updates the mutable fields of a vehicle (color and/or licence plate). Only the o
 #### Request
 
 ```http
-PATCH /vehicle/update HTTP/1.1
+PATCH /api/v1/vehicle/update HTTP/1.1
 Host: api.tissi-mah.com
 Content-Type: application/json
 
@@ -182,7 +182,7 @@ Content-Type: application/json
 #### Example (cURL)
 
 ```bash
-curl -X PATCH https://api.tissi-mah.com/vehicle/update \
+curl -X PATCH https://api.tissi-mah.com/api/v1/vehicle/update \
   -H "Content-Type: application/json" \
   -d '{
     "UserId": "firebase-uid-abc123",
@@ -193,7 +193,7 @@ curl -X PATCH https://api.tissi-mah.com/vehicle/update \
 
 ---
 
-### POST /vehicle/delete
+### POST /api/v1/vehicle/delete
 
 Deletes a vehicle. Only the owner can delete their vehicle.
 
@@ -202,7 +202,7 @@ Deletes a vehicle. Only the owner can delete their vehicle.
 #### Request
 
 ```http
-POST /vehicle/delete HTTP/1.1
+POST /api/v1/vehicle/delete HTTP/1.1
 Host: api.tissi-mah.com
 Content-Type: application/json
 
@@ -248,7 +248,7 @@ Content-Type: application/json
 #### Example (cURL)
 
 ```bash
-curl -X POST https://api.tissi-mah.com/vehicle/delete \
+curl -X POST https://api.tissi-mah.com/api/v1/vehicle/delete \
   -H "Content-Type: application/json" \
   -d '{
     "UserId": "firebase-uid-abc123",
@@ -258,7 +258,7 @@ curl -X POST https://api.tissi-mah.com/vehicle/delete \
 
 ---
 
-### POST /vehicle/details
+### POST /api/v1/vehicle/details
 
 Retrieves full details of a vehicle, including documents fetched from file-service (assurance and registration card URLs).
 
@@ -267,7 +267,7 @@ Retrieves full details of a vehicle, including documents fetched from file-servi
 #### Request
 
 ```http
-POST /vehicle/details HTTP/1.1
+POST /api/v1/vehicle/details HTTP/1.1
 Host: api.tissi-mah.com
 Content-Type: application/json
 
@@ -338,7 +338,7 @@ Content-Type: application/json
 #### Example (cURL)
 
 ```bash
-curl -X POST https://api.tissi-mah.com/vehicle/details \
+curl -X POST https://api.tissi-mah.com/api/v1/vehicle/details \
   -H "Content-Type: application/json" \
   -d '{
     "UserId": "firebase-uid-abc123",
@@ -348,7 +348,7 @@ curl -X POST https://api.tissi-mah.com/vehicle/details \
 
 ---
 
-### POST /vehicle/getUserVehicles
+### POST /api/v1/vehicle/getUserVehicles
 
 Retrieves the list of all vehicles belonging to a user.
 
@@ -357,7 +357,7 @@ Retrieves the list of all vehicles belonging to a user.
 #### Request
 
 ```http
-POST /vehicle/getUserVehicles HTTP/1.1
+POST /api/v1/vehicle/getUserVehicles HTTP/1.1
 Host: api.tissi-mah.com
 Content-Type: application/json
 
@@ -421,14 +421,14 @@ Content-Type: application/json
 #### Example (cURL)
 
 ```bash
-curl -X POST https://api.tissi-mah.com/vehicle/getUserVehicles \
+curl -X POST https://api.tissi-mah.com/api/v1/vehicle/getUserVehicles \
   -H "Content-Type: application/json" \
   -d '{"UserId": "firebase-uid-abc123"}'
 ```
 
 ---
 
-### GET /vehicle/health
+### GET /api/v1/vehicle/health
 
 Health check endpoint for the vehicle-service.
 
@@ -437,7 +437,7 @@ Health check endpoint for the vehicle-service.
 #### Request
 
 ```http
-GET /vehicle/health HTTP/1.1
+GET /api/v1/vehicle/health HTTP/1.1
 Host: api.tissi-mah.com
 ```
 
@@ -457,7 +457,7 @@ Content-Type: application/json
 #### Example (cURL)
 
 ```bash
-curl https://api.tissi-mah.com/vehicle/health
+curl https://api.tissi-mah.com/api/v1/vehicle/health
 ```
 
 ---

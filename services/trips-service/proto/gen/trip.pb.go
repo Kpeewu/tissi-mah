@@ -4715,34 +4715,34 @@ const file_trip_proto_rawDesc = "" +
 	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"Y\n" +
 	"\x19AnonymizeUserDataResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\xda\x16\n" +
-	"\vTripService\x12c\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\xe0\x17\n" +
+	"\vTripService\x12j\n" +
 	"\n" +
-	"CreateTrip\x12\x17.trip.CreateTripRequest\x1a\x18.trip.CreateTripResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/trip/driver/createTrip\x12\x87\x01\n" +
-	"\x13CreateRecurringTrip\x12 .trip.CreateRecurringTripRequest\x1a!.trip.CreateRecurringTripResponse\"+\x82\xd3\xe4\x93\x02%:\x01*\" /trip/driver/createRecurringTrip\x12x\n" +
-	"\x10GetTripsPreviews\x12\x1d.trip.GetTripsPreviewsRequest\x1a\x1e.trip.GetTripsPreviewsResponse\"%\x82\xd3\xe4\x93\x02\x1f\x12\x1d/trip/driver/getTripsPreviews\x12\x9c\x01\n" +
-	"\x19GetCompletedTripsPreviews\x12&.trip.GetCompletedTripsPreviewsRequest\x1a'.trip.GetCompletedTripsPreviewsResponse\".\x82\xd3\xe4\x93\x02(\x12&/trip/driver/getCompletedTripsPreviews\x12\x8f\x01\n" +
-	"\x15ChangeTripDateAndTime\x12\".trip.ChangeTripDateAndTimeRequest\x1a#.trip.ChangeTripDateAndTimeResponse\"-\x82\xd3\xe4\x93\x02':\x01*2\"/trip/driver/changeTripDateAndTime\x12\x7f\n" +
-	"\x11ChangeTripVehicle\x12\x1e.trip.ChangeTripVehicleRequest\x1a\x1f.trip.ChangeTripVehicleResponse\")\x82\xd3\xe4\x93\x02#:\x01*2\x1e/trip/driver/changeTripVehicle\x12\x8b\x01\n" +
-	"\x14ChangeTripAllowances\x12!.trip.ChangeTripAllowancesRequest\x1a\".trip.ChangeTripAllowancesResponse\",\x82\xd3\xe4\x93\x02&:\x01*2!/trip/driver/changeTripAllowances\x12\x80\x01\n" +
-	"\x11ChangeAutoApprove\x12\x1e.trip.ChangeAutoApproveRequest\x1a\x1f.trip.ChangeAutoApproveResponse\"*\x82\xd3\xe4\x93\x02$:\x01*2\x1f/trip/driver/activeAutoApprouve\x12_\n" +
-	"\tStartTrip\x12\x16.trip.StartTripRequest\x1a\x17.trip.StartTripResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*2\x16/trip/driver/startTrip\x12W\n" +
-	"\aEndTrip\x12\x14.trip.EndTripRequest\x1a\x15.trip.EndTripResponse\"\x1f\x82\xd3\xe4\x93\x02\x19:\x01*2\x14/trip/driver/endTrip\x12\x93\x01\n" +
-	"\x16ConfirmWaypointArrival\x12#.trip.ConfirmWaypointArrivalRequest\x1a$.trip.ConfirmWaypointArrivalResponse\".\x82\xd3\xe4\x93\x02(:\x01*2#/trip/driver/confirmWaypointArrival\x12\x9b\x01\n" +
-	"\x18ConfirmWaypointDeparture\x12%.trip.ConfirmWaypointDepartureRequest\x1a&.trip.ConfirmWaypointDepartureResponse\"0\x82\xd3\xe4\x93\x02*:\x01*2%/trip/driver/confirmWaypointDeparture\x12B\n" +
-	"\vGetTripByID\x12\x18.trip.GetTripByIDRequest\x1a\x19.trip.GetTripByIDResponse\x12\x82\x01\n" +
-	"\x14GetDriverTripDetails\x12!.trip.GetDriverTripDetailsRequest\x1a\".trip.GetDriverTripDetailsResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/trip/driver/getTripDetails\x12\x8e\x01\n" +
-	"\x17GetPassengerTripDetails\x12$.trip.GetPassengerTripDetailsRequest\x1a%.trip.GetPassengerTripDetailsResponse\"&\x82\xd3\xe4\x93\x02 \x12\x1e/trip/passenger/getTripDetails\x12\x8d\x01\n" +
-	"\x14UpdateAvailableSeats\x12!.trip.UpdateAvailableSeatsRequest\x1a\".trip.UpdateAvailableSeatsResponse\".\x82\xd3\xe4\x93\x02(:\x01*2#/trip/internal/updateAvailableSeats\x12c\n" +
+	"CreateTrip\x12\x17.trip.CreateTripRequest\x1a\x18.trip.CreateTripResponse\")\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/api/v1/trip/driver/createTrip\x12\x8e\x01\n" +
+	"\x13CreateRecurringTrip\x12 .trip.CreateRecurringTripRequest\x1a!.trip.CreateRecurringTripResponse\"2\x82\xd3\xe4\x93\x02,:\x01*\"'/api/v1/trip/driver/createRecurringTrip\x12\x7f\n" +
+	"\x10GetTripsPreviews\x12\x1d.trip.GetTripsPreviewsRequest\x1a\x1e.trip.GetTripsPreviewsResponse\",\x82\xd3\xe4\x93\x02&\x12$/api/v1/trip/driver/getTripsPreviews\x12\xa3\x01\n" +
+	"\x19GetCompletedTripsPreviews\x12&.trip.GetCompletedTripsPreviewsRequest\x1a'.trip.GetCompletedTripsPreviewsResponse\"5\x82\xd3\xe4\x93\x02/\x12-/api/v1/trip/driver/getCompletedTripsPreviews\x12\x96\x01\n" +
+	"\x15ChangeTripDateAndTime\x12\".trip.ChangeTripDateAndTimeRequest\x1a#.trip.ChangeTripDateAndTimeResponse\"4\x82\xd3\xe4\x93\x02.:\x01*2)/api/v1/trip/driver/changeTripDateAndTime\x12\x86\x01\n" +
+	"\x11ChangeTripVehicle\x12\x1e.trip.ChangeTripVehicleRequest\x1a\x1f.trip.ChangeTripVehicleResponse\"0\x82\xd3\xe4\x93\x02*:\x01*2%/api/v1/trip/driver/changeTripVehicle\x12\x92\x01\n" +
+	"\x14ChangeTripAllowances\x12!.trip.ChangeTripAllowancesRequest\x1a\".trip.ChangeTripAllowancesResponse\"3\x82\xd3\xe4\x93\x02-:\x01*2(/api/v1/trip/driver/changeTripAllowances\x12\x87\x01\n" +
+	"\x11ChangeAutoApprove\x12\x1e.trip.ChangeAutoApproveRequest\x1a\x1f.trip.ChangeAutoApproveResponse\"1\x82\xd3\xe4\x93\x02+:\x01*2&/api/v1/trip/driver/activeAutoApprouve\x12f\n" +
+	"\tStartTrip\x12\x16.trip.StartTripRequest\x1a\x17.trip.StartTripResponse\"(\x82\xd3\xe4\x93\x02\":\x01*2\x1d/api/v1/trip/driver/startTrip\x12^\n" +
+	"\aEndTrip\x12\x14.trip.EndTripRequest\x1a\x15.trip.EndTripResponse\"&\x82\xd3\xe4\x93\x02 :\x01*2\x1b/api/v1/trip/driver/endTrip\x12\x9a\x01\n" +
+	"\x16ConfirmWaypointArrival\x12#.trip.ConfirmWaypointArrivalRequest\x1a$.trip.ConfirmWaypointArrivalResponse\"5\x82\xd3\xe4\x93\x02/:\x01*2*/api/v1/trip/driver/confirmWaypointArrival\x12\xa2\x01\n" +
+	"\x18ConfirmWaypointDeparture\x12%.trip.ConfirmWaypointDepartureRequest\x1a&.trip.ConfirmWaypointDepartureResponse\"7\x82\xd3\xe4\x93\x021:\x01*2,/api/v1/trip/driver/confirmWaypointDeparture\x12B\n" +
+	"\vGetTripByID\x12\x18.trip.GetTripByIDRequest\x1a\x19.trip.GetTripByIDResponse\x12\x89\x01\n" +
+	"\x14GetDriverTripDetails\x12!.trip.GetDriverTripDetailsRequest\x1a\".trip.GetDriverTripDetailsResponse\"*\x82\xd3\xe4\x93\x02$\x12\"/api/v1/trip/driver/getTripDetails\x12\x95\x01\n" +
+	"\x17GetPassengerTripDetails\x12$.trip.GetPassengerTripDetailsRequest\x1a%.trip.GetPassengerTripDetailsResponse\"-\x82\xd3\xe4\x93\x02'\x12%/api/v1/trip/passenger/getTripDetails\x12\x94\x01\n" +
+	"\x14UpdateAvailableSeats\x12!.trip.UpdateAvailableSeatsRequest\x1a\".trip.UpdateAvailableSeatsResponse\"5\x82\xd3\xe4\x93\x02/:\x01*2*/api/v1/trip/internal/updateAvailableSeats\x12j\n" +
 	"\n" +
-	"CancelTrip\x12\x17.trip.CancelTripRequest\x1a\x18.trip.CancelTripResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01**\x17/trip/driver/cancelTrip\x12s\n" +
-	"\x0eCancelWaypoint\x12\x1b.trip.CancelWaypointRequest\x1a\x1c.trip.CancelWaypointResponse\"&\x82\xd3\xe4\x93\x02 :\x01**\x1b/trip/driver/cancelWaypoint\x12\x9f\x01\n" +
-	"\x19GetScheduledTripsPreviews\x12&.trip.GetScheduledTripsPreviewsRequest\x1a'.trip.GetScheduledTripsPreviewsResponse\"1\x82\xd3\xe4\x93\x02+\x12)/trip/passenger/getScheduledTripsPreviews\x12f\n" +
+	"CancelTrip\x12\x17.trip.CancelTripRequest\x1a\x18.trip.CancelTripResponse\")\x82\xd3\xe4\x93\x02#:\x01**\x1e/api/v1/trip/driver/cancelTrip\x12z\n" +
+	"\x0eCancelWaypoint\x12\x1b.trip.CancelWaypointRequest\x1a\x1c.trip.CancelWaypointResponse\"-\x82\xd3\xe4\x93\x02':\x01**\"/api/v1/trip/driver/cancelWaypoint\x12\xa6\x01\n" +
+	"\x19GetScheduledTripsPreviews\x12&.trip.GetScheduledTripsPreviewsRequest\x1a'.trip.GetScheduledTripsPreviewsResponse\"8\x82\xd3\xe4\x93\x022\x120/api/v1/trip/passenger/getScheduledTripsPreviews\x12f\n" +
 	"\x17IncrementLegBookedSeats\x12$.trip.IncrementLegBookedSeatsRequest\x1a%.trip.IncrementLegBookedSeatsResponse\x12W\n" +
 	"\x12SyncLegBookedSeats\x12\x1f.trip.SyncLegBookedSeatsRequest\x1a .trip.SyncLegBookedSeatsResponse\x12i\n" +
 	"\x18CheckDeletionEligibility\x12%.trip.CheckDeletionEligibilityRequest\x1a&.trip.CheckDeletionEligibilityResponse\x12T\n" +
-	"\x11AnonymizeUserData\x12\x1e.trip.AnonymizeUserDataRequest\x1a\x1f.trip.AnonymizeUserDataResponse\x12I\n" +
-	"\x06Health\x12\x13.trip.HealthRequest\x1a\x14.trip.HealthResponse\"\x14\x82\xd3\xe4\x93\x02\x0e\x12\f/trip/healthBCZAgithub.com/Kpeewu/tissi-mah/services/trips-service/proto/gen;tripb\x06proto3"
+	"\x11AnonymizeUserData\x12\x1e.trip.AnonymizeUserDataRequest\x1a\x1f.trip.AnonymizeUserDataResponse\x12P\n" +
+	"\x06Health\x12\x13.trip.HealthRequest\x1a\x14.trip.HealthResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/api/v1/trip/healthBCZAgithub.com/Kpeewu/tissi-mah/services/trips-service/proto/gen;tripb\x06proto3"
 
 var (
 	file_trip_proto_rawDescOnce sync.Once

@@ -11,7 +11,7 @@ service TripService {
   // CreateTrip crée un nouveau trajet avec ses waypoints.
   rpc CreateTrip(CreateTripRequest) returns (CreateTripResponse) {
     option (google.api.http) = {
-      post: "/trip/driver/createTrip"
+      post: "/api/v1/trip/driver/createTrip"
       body: "*"
     };
   }
@@ -19,7 +19,7 @@ service TripService {
   // CreateRecurringTrip programme un trajet récurrent (quotidien, hebdo, custom).
   rpc CreateRecurringTrip(CreateRecurringTripRequest) returns (CreateRecurringTripResponse) {
     option (google.api.http) = {
-      post: "/trip/driver/createRecurringTrip"
+      post: "/api/v1/trip/driver/createRecurringTrip"
       body: "*"
     };
   }
@@ -28,7 +28,7 @@ service TripService {
   // dont le statut est différent de "completed".
   rpc GetTripsPreviews(GetTripsPreviewsRequest) returns (GetTripsPreviewsResponse) {
     option (google.api.http) = {
-      get: "/trip/driver/getTripsPreviews"
+      get: "/api/v1/trip/driver/getTripsPreviews"
     };
   }
 
@@ -36,7 +36,7 @@ service TripService {
   // du conducteur.
   rpc GetCompletedTripsPreviews(GetCompletedTripsPreviewsRequest) returns (GetCompletedTripsPreviewsResponse) {
     option (google.api.http) = {
-      get: "/trip/driver/getCompletedTripsPreviews"
+      get: "/api/v1/trip/driver/getCompletedTripsPreviews"
     };
   }
 
@@ -44,7 +44,7 @@ service TripService {
   // Seuls les trajets avec le statut "scheduled" peuvent être modifiés.
   rpc ChangeTripDateAndTime(ChangeTripDateAndTimeRequest) returns (ChangeTripDateAndTimeResponse) {
     option (google.api.http) = {
-      patch: "/trip/driver/changeTripDateAndTime"
+      patch: "/api/v1/trip/driver/changeTripDateAndTime"
       body: "*"
     };
   }
@@ -53,7 +53,7 @@ service TripService {
   // Seuls les trajets avec le statut "scheduled" peuvent être modifiés.
   rpc ChangeTripVehicle(ChangeTripVehicleRequest) returns (ChangeTripVehicleResponse) {
     option (google.api.http) = {
-      patch: "/trip/driver/changeTripVehicle"
+      patch: "/api/v1/trip/driver/changeTripVehicle"
       body: "*"
     };
   }
@@ -63,7 +63,7 @@ service TripService {
   // Impossible moins de 24h avant le départ.
   rpc ChangeTripAllowances(ChangeTripAllowancesRequest) returns (ChangeTripAllowancesResponse) {
     option (google.api.http) = {
-      patch: "/trip/driver/changeTripAllowances"
+      patch: "/api/v1/trip/driver/changeTripAllowances"
       body: "*"
     };
   }
@@ -72,7 +72,7 @@ service TripService {
   // Le trajet doit avoir le statut "scheduled" ou "inProgress".
   rpc ChangeAutoApprove(ChangeAutoApproveRequest) returns (ChangeAutoApproveResponse) {
     option (google.api.http) = {
-      patch: "/trip/driver/activeAutoApprouve"
+      patch: "/api/v1/trip/driver/activeAutoApprouve"
       body: "*"
     };
   }
@@ -81,7 +81,7 @@ service TripService {
   // Le conducteur ne peut avoir qu'un seul trajet inProgress à la fois.
   rpc StartTrip(StartTripRequest) returns (StartTripResponse) {
     option (google.api.http) = {
-      patch: "/trip/driver/startTrip"
+      patch: "/api/v1/trip/driver/startTrip"
       body: "*"
     };
   }
@@ -89,7 +89,7 @@ service TripService {
   // EndTrip termine un trajet en cours et passe son statut à "completed".
   rpc EndTrip(EndTripRequest) returns (EndTripResponse) {
     option (google.api.http) = {
-      patch: "/trip/driver/endTrip"
+      patch: "/api/v1/trip/driver/endTrip"
       body: "*"
     };
   }
@@ -97,7 +97,7 @@ service TripService {
   // ConfirmWaypointArrival enregistre l'arrivée du conducteur à un waypoint de type "stop".
   rpc ConfirmWaypointArrival(ConfirmWaypointArrivalRequest) returns (ConfirmWaypointArrivalResponse) {
     option (google.api.http) = {
-      patch: "/trip/driver/confirmWaypointArrival"
+      patch: "/api/v1/trip/driver/confirmWaypointArrival"
       body: "*"
     };
   }
@@ -105,7 +105,7 @@ service TripService {
   // ConfirmWaypointDeparture enregistre le départ du conducteur d'un waypoint de type "stop".
   rpc ConfirmWaypointDeparture(ConfirmWaypointDepartureRequest) returns (ConfirmWaypointDepartureResponse) {
     option (google.api.http) = {
-      patch: "/trip/driver/confirmWaypointDeparture"
+      patch: "/api/v1/trip/driver/confirmWaypointDeparture"
       body: "*"
     };
   }
@@ -116,14 +116,14 @@ service TripService {
   // GetDriverTripDetails retourne les détails complets d'un trajet pour le conducteur.
   rpc GetDriverTripDetails(GetDriverTripDetailsRequest) returns (GetDriverTripDetailsResponse) {
     option (google.api.http) = {
-      get: "/trip/driver/getTripDetails"
+      get: "/api/v1/trip/driver/getTripDetails"
     };
   }
 
   // GetPassengerTripDetails retourne les détails d'un trajet pour un passager.
   rpc GetPassengerTripDetails(GetPassengerTripDetailsRequest) returns (GetPassengerTripDetailsResponse) {
     option (google.api.http) = {
-      get: "/trip/passenger/getTripDetails"
+      get: "/api/v1/trip/passenger/getTripDetails"
     };
   }
 
@@ -131,7 +131,7 @@ service TripService {
   // Route interne utilisée par le job de réconciliation du booking-service.
   rpc UpdateAvailableSeats(UpdateAvailableSeatsRequest) returns (UpdateAvailableSeatsResponse) {
     option (google.api.http) = {
-      patch: "/trip/internal/updateAvailableSeats"
+      patch: "/api/v1/trip/internal/updateAvailableSeats"
       body: "*"
     };
   }
@@ -140,7 +140,7 @@ service TripService {
   // Le trajet doit avoir le statut "scheduled".
   rpc CancelTrip(CancelTripRequest) returns (CancelTripResponse) {
     option (google.api.http) = {
-      delete: "/trip/driver/cancelTrip"
+      delete: "/api/v1/trip/driver/cancelTrip"
       body: "*"
     };
   }
@@ -149,7 +149,7 @@ service TripService {
   // Le trajet doit avoir le statut "scheduled". Seuls les waypoints "stop" peuvent être annulés.
   rpc CancelWaypoint(CancelWaypointRequest) returns (CancelWaypointResponse) {
     option (google.api.http) = {
-      delete: "/trip/driver/cancelWaypoint"
+      delete: "/api/v1/trip/driver/cancelWaypoint"
       body: "*"
     };
   }
@@ -158,7 +158,7 @@ service TripService {
   // Endpoint public — pas d'authentification requise.
   rpc GetScheduledTripsPreviews(GetScheduledTripsPreviewsRequest) returns (GetScheduledTripsPreviewsResponse) {
     option (google.api.http) = {
-      get: "/trip/passenger/getScheduledTripsPreviews"
+      get: "/api/v1/trip/passenger/getScheduledTripsPreviews"
     };
   }
 
@@ -182,7 +182,7 @@ service TripService {
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
-      get: "/trip/health"
+      get: "/api/v1/trip/health"
     };
   }
 }

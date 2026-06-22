@@ -81,6 +81,8 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/trip/driver/cancelWaypoint":            true,
 	"/api/v1/trip/driver/cancelTrip":                true,
 	"/api/v1/trip/driver/getTripDetails":            true,
+	"/api/v1/trip/passenger/getTripDetails":         true,
+	// trip/passenger/getScheduledTripsPreviews est public (@SkipAuth côté app) → hors map
 
 	// notification-service
 	"/api/v1/notifications/inbox":                 true,
