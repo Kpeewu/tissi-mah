@@ -8,7 +8,7 @@ estimée pour chaque waypoint.
 
 > **Important** : `trips-service` n'appelle PAS ce service. Le front interroge
 > `/api/v1/geolocation/route` pendant l'édition des waypoints, reçoit le
-> tracé + ETAs, et inclut ces valeurs dans le payload `POST /trip/driver/createTrip`.
+> tracé + ETAs, et inclut ces valeurs dans le payload `POST /api/v1/trip/driver/createTrip`.
 > trips-service stocke tel quel.
 
 ## Base URL

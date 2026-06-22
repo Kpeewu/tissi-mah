@@ -376,7 +376,7 @@ export const api = {
 import { api, ApiError } from '@/lib/api/client';
 
 // Route publique (pas de token nécessaire)
-const trips = await api.get('/trip/passenger/getScheduledTripsPreviews?...', {
+const trips = await api.get('/api/v1/trip/passenger/getScheduledTripsPreviews?...', {
   skipAuth: true,
 });
 
@@ -385,7 +385,7 @@ const me = await api.get<{ User: { UserID: string } }>('/api/v1/user/me');
 
 // Gestion d'erreur
 try {
-  const booking = await api.post('/booking/createBooking', {
+  const booking = await api.post('/api/v1/booking/createBooking', {
     PassengerId: userId,
     TripId: tripId,
     // ...
@@ -657,7 +657,7 @@ final api = ApiClient.instance;
 
 // Route publique
 final trips = await api.get(
-  '/trip/passenger/getScheduledTripsPreviews'
+  '/api/v1/trip/passenger/getScheduledTripsPreviews'
   '?DepartureLocationName=Lomé&ArrivalLocationName=Accra'
   '&PassengerPositionLat=6.1375&PassengerPositionLng=1.2317'
   '&DistanceRange=5000&TripStartDate=2024-12-01'
@@ -671,7 +671,7 @@ final userId = me['User']['UserID'] as String;
 
 // Gestion d'erreur
 try {
-  await api.post('/booking/createBooking', {
+  await api.post('/api/v1/booking/createBooking', {
     'PassengerId': userId,
     'TripId': tripId,
     'SeatsBooked': 1,

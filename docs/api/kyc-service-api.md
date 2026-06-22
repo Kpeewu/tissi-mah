@@ -46,7 +46,7 @@ Starts a new Persona identity verification inquiry for a document already upload
 
 **Authentication:** Firebase JWT required
 
-> **Flow:** Upload the document first with `/file/uploadIdDocument` or `/file/uploadVehicleDocuments`, then pass the returned `DocumentID` to this endpoint. The service verifies that the document exists and belongs to the authenticated user before submitting it to Persona.
+> **Flow:** Upload the document first with `/api/v1/file/uploadIdDocument` or `/api/v1/file/uploadVehicleDocuments`, then pass the returned `DocumentID` to this endpoint. The service verifies that the document exists and belongs to the authenticated user before submitting it to Persona.
 
 #### Request
 
@@ -69,7 +69,7 @@ Content-Type: application/json
 |-------|------|----------|-------------|
 | `DocumentType` | string | Yes | Document type: `IDCard`, `Passport`, `DriverLicence` for identity docs; `driverLicence`, `insurance`, `registrationCard` for vehicle docs |
 | `VehicleId` | string | Conditional | Required when submitting a vehicle document |
-| `DocumentId` | string | Yes | ID of the uploaded document — returned by `/file/uploadIdDocument` or `/file/uploadVehicleDocuments` |
+| `DocumentId` | string | Yes | ID of the uploaded document — returned by `/api/v1/file/uploadIdDocument` or `/api/v1/file/uploadVehicleDocuments` |
 
 #### Response (Success)
 

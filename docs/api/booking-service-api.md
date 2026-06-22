@@ -121,7 +121,7 @@ Content-Type: application/json
 | `cash` | `false` | `pendingApproval` |
 | non-cash (`mobileMoney`, `card`, `paypal`) | — | `paymentPending` |
 
-> For non-cash bookings, the client must initiate payment via `POST /payment/createPayment`. Once payment is confirmed (via FedaPay webhook → payment-service → `confirmPayment`), the booking transitions to `pendingApproval` (or `approved` if `AutoApprove = true`).
+> For non-cash bookings, the client must initiate payment via `POST /api/v1/payment/createPayment`. Once payment is confirmed (via FedaPay webhook → payment-service → `confirmPayment`), the booking transitions to `pendingApproval` (or `approved` if `AutoApprove = true`).
 
 #### Errors
 
