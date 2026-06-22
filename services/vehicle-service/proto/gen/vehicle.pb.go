@@ -1011,15 +1011,15 @@ const file_vehicle_proto_rawDesc = "" +
 	"\n" +
 	"IsVerified\x18\x05 \x01(\bR\n" +
 	"IsVerified\x12$\n" +
-	"\rNumberOfSeats\x18\x06 \x01(\x05R\rNumberOfSeats2\x90\x05\n" +
-	"\x0eVehicleService\x12^\n" +
+	"\rNumberOfSeats\x18\x06 \x01(\x05R\rNumberOfSeats2\xbb\x05\n" +
+	"\x0eVehicleService\x12e\n" +
 	"\n" +
-	"AddVehicle\x12\x1a.vehicle.AddVehicleRequest\x1a\x1b.vehicle.AddVehicleResponse\"\x17\x82\xd3\xe4\x93\x02\x11:\x01*\"\f/vehicle/add\x12j\n" +
-	"\rUpdateVehicle\x12\x1d.vehicle.UpdateVehicleRequest\x1a\x1e.vehicle.UpdateVehicleResponse\"\x1a\x82\xd3\xe4\x93\x02\x14:\x01*2\x0f/vehicle/update\x12j\n" +
-	"\rDeleteVehicle\x12\x1d.vehicle.DeleteVehicleRequest\x1a\x1e.vehicle.DeleteVehicleResponse\"\x1a\x82\xd3\xe4\x93\x02\x14:\x01*\"\x0f/vehicle/delete\x12w\n" +
-	"\x11GetVehicleDetails\x12!.vehicle.GetVehicleDetailsRequest\x1a\".vehicle.GetVehicleDetailsResponse\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\"\x10/vehicle/details\x12y\n" +
-	"\x0fGetUserVehicles\x12\x1f.vehicle.GetUserVehiclesRequest\x1a .vehicle.GetUserVehiclesResponse\"#\x82\xd3\xe4\x93\x02\x1d:\x01*\"\x18/vehicle/getUserVehicles\x12R\n" +
-	"\x06Health\x12\x16.vehicle.HealthRequest\x1a\x17.vehicle.HealthResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/vehicle/healthBHZFgithub.com/Kpeewu/tissi-mah/services/vehicle-service/proto/gen;vehicleb\x06proto3"
+	"AddVehicle\x12\x1a.vehicle.AddVehicleRequest\x1a\x1b.vehicle.AddVehicleResponse\"\x1e\x82\xd3\xe4\x93\x02\x18:\x01*\"\x13/api/v1/vehicle/add\x12q\n" +
+	"\rUpdateVehicle\x12\x1d.vehicle.UpdateVehicleRequest\x1a\x1e.vehicle.UpdateVehicleResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*2\x16/api/v1/vehicle/update\x12q\n" +
+	"\rDeleteVehicle\x12\x1d.vehicle.DeleteVehicleRequest\x1a\x1e.vehicle.DeleteVehicleResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/api/v1/vehicle/delete\x12~\n" +
+	"\x11GetVehicleDetails\x12!.vehicle.GetVehicleDetailsRequest\x1a\".vehicle.GetVehicleDetailsResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/api/v1/vehicle/details\x12\x80\x01\n" +
+	"\x0fGetUserVehicles\x12\x1f.vehicle.GetUserVehiclesRequest\x1a .vehicle.GetUserVehiclesResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/api/v1/vehicle/getUserVehicles\x12Y\n" +
+	"\x06Health\x12\x16.vehicle.HealthRequest\x1a\x17.vehicle.HealthResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/api/v1/vehicle/healthBHZFgithub.com/Kpeewu/tissi-mah/services/vehicle-service/proto/gen;vehicleb\x06proto3"
 
 var (
 	file_vehicle_proto_rawDescOnce sync.Once
