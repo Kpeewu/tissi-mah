@@ -13,11 +13,11 @@ This document describes the HTTP/REST API exposed by the trips-service through t
 
 ## Authentication
 
-All `/trip/driver/*` endpoints require a valid **Firebase JWT** in the `Authorization` header.
+All `/api/v1/trip/driver/*` endpoints require a valid **Firebase JWT** in the `Authorization` header.
 The driver identity is resolved **server-side from the Firebase UID** (via the `x-firebase-uid` metadata injected by the api-gateway). For `CancelTrip`, `CancelWaypoint`, and `GetDriverTripDetails`, any `DriverId` supplied in the request body is ignored — the server always uses the authenticated UID to prevent identity spoofing.
 
-The `/trip/passenger/*` and `/trip/health` endpoints are **public** (no token required).
-The `/trip/internal/*` routes are intended for inter-service use (booking-service) and are not exposed to mobile clients.
+The `/api/v1/trip/passenger/*` and `/api/v1/trip/health` endpoints are **public** (no token required).
+The `/api/v1/trip/internal/*` routes are intended for inter-service use (booking-service) and are not exposed to mobile clients.
 `GetTripByID` is now an **internal gRPC-only RPC** (no HTTP route) — called by booking-service to validate reservations.
 
 ```http
@@ -50,7 +50,7 @@ All errors follow this format:
 
 ## Endpoints
 
-### POST /trip/driver/createTrip
+### POST /api/v1/trip/driver/createTrip
 
 Creates a new trip with its waypoints.
 
@@ -59,7 +59,7 @@ Creates a new trip with its waypoints.
 #### Request
 
 ```http
-POST /trip/driver/createTrip HTTP/1.1
+POST /api/v1/trip/driver/createTrip HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -183,7 +183,7 @@ Content-Type: application/json
 #### Example (cURL)
 
 ```bash
-curl -X POST https://api.tissi-mah.com/trip/driver/createTrip \
+curl -X POST https://api.tissi-mah.com/api/v1/trip/driver/createTrip \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -210,7 +210,7 @@ curl -X POST https://api.tissi-mah.com/trip/driver/createTrip \
 
 ---
 
-### POST /trip/driver/createRecurringTrip
+### POST /api/v1/trip/driver/createRecurringTrip
 
 Creates a recurring trip pattern (daily, weekly, or custom days).
 
@@ -219,7 +219,7 @@ Creates a recurring trip pattern (daily, weekly, or custom days).
 #### Request
 
 ```http
-POST /trip/driver/createRecurringTrip HTTP/1.1
+POST /api/v1/trip/driver/createRecurringTrip HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -295,7 +295,7 @@ Content-Type: application/json
 
 ---
 
-### GET /trip/driver/getTripsPreviews
+### GET /api/v1/trip/driver/getTripsPreviews
 
 Returns a paginated list of the driver's trips with status different from `completed`.
 
@@ -304,7 +304,7 @@ Returns a paginated list of the driver's trips with status different from `compl
 #### Request
 
 ```http
-GET /trip/driver/getTripsPreviews?DriverId=550e8400-e29b-41d4-a716-446655440001&Index=0 HTTP/1.1
+GET /api/v1/trip/driver/getTripsPreviews?DriverId=550e8400-e29b-41d4-a716-446655440001&Index=0 HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 ```
@@ -386,7 +386,7 @@ Content-Type: application/json
 
 ---
 
-### GET /trip/driver/getCompletedTripsPreviews
+### GET /api/v1/trip/driver/getCompletedTripsPreviews
 
 Returns a paginated list of the driver's completed trips.
 
@@ -395,7 +395,7 @@ Returns a paginated list of the driver's completed trips.
 #### Request
 
 ```http
-GET /trip/driver/getCompletedTripsPreviews?DriverId=550e8400-e29b-41d4-a716-446655440001&Index=0 HTTP/1.1
+GET /api/v1/trip/driver/getCompletedTripsPreviews?DriverId=550e8400-e29b-41d4-a716-446655440001&Index=0 HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 ```
@@ -446,7 +446,7 @@ Content-Type: application/json
 
 ---
 
-### PATCH /trip/driver/changeTripDateAndTime
+### PATCH /api/v1/trip/driver/changeTripDateAndTime
 
 Changes the departure datetime of a scheduled trip.
 
@@ -456,7 +456,7 @@ Changes the departure datetime of a scheduled trip.
 #### Request
 
 ```http
-PATCH /trip/driver/changeTripDateAndTime HTTP/1.1
+PATCH /api/v1/trip/driver/changeTripDateAndTime HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -501,7 +501,7 @@ Content-Type: application/json
 
 ---
 
-### PATCH /trip/driver/changeTripVehicle
+### PATCH /api/v1/trip/driver/changeTripVehicle
 
 Changes the vehicle associated with a scheduled trip.
 
@@ -511,7 +511,7 @@ Changes the vehicle associated with a scheduled trip.
 #### Request
 
 ```http
-PATCH /trip/driver/changeTripVehicle HTTP/1.1
+PATCH /api/v1/trip/driver/changeTripVehicle HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -557,7 +557,7 @@ Content-Type: application/json
 
 ---
 
-### PATCH /trip/driver/changeTripAllowances
+### PATCH /api/v1/trip/driver/changeTripAllowances
 
 Changes the allowances (pets, food, smoking, luggage) of a scheduled trip.
 
@@ -567,7 +567,7 @@ Changes the allowances (pets, food, smoking, luggage) of a scheduled trip.
 #### Request
 
 ```http
-PATCH /trip/driver/changeTripAllowances HTTP/1.1
+PATCH /api/v1/trip/driver/changeTripAllowances HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -618,7 +618,7 @@ Content-Type: application/json
 
 ---
 
-### PATCH /trip/driver/activeAutoApprouve
+### PATCH /api/v1/trip/driver/activeAutoApprouve
 
 Enables or disables automatic passenger approval for a trip.
 
@@ -628,7 +628,7 @@ Enables or disables automatic passenger approval for a trip.
 #### Request
 
 ```http
-PATCH /trip/driver/activeAutoApprouve HTTP/1.1
+PATCH /api/v1/trip/driver/activeAutoApprouve HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -672,7 +672,7 @@ Content-Type: application/json
 
 ---
 
-### PATCH /trip/driver/startTrip
+### PATCH /api/v1/trip/driver/startTrip
 
 Starts a scheduled trip, changing its status to `inProgress`.
 
@@ -682,7 +682,7 @@ Starts a scheduled trip, changing its status to `inProgress`.
 #### Request
 
 ```http
-PATCH /trip/driver/startTrip HTTP/1.1
+PATCH /api/v1/trip/driver/startTrip HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -725,7 +725,7 @@ Content-Type: application/json
 
 ---
 
-### PATCH /trip/driver/endTrip
+### PATCH /api/v1/trip/driver/endTrip
 
 Ends an in-progress trip, changing its status to `completed`.
 
@@ -735,7 +735,7 @@ Ends an in-progress trip, changing its status to `completed`.
 #### Request
 
 ```http
-PATCH /trip/driver/endTrip HTTP/1.1
+PATCH /api/v1/trip/driver/endTrip HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -777,7 +777,7 @@ Content-Type: application/json
 
 ---
 
-### PATCH /trip/driver/confirmWaypointArrival
+### PATCH /api/v1/trip/driver/confirmWaypointArrival
 
 Records the driver's arrival at a `stop`-type waypoint.
 
@@ -787,7 +787,7 @@ Records the driver's arrival at a `stop`-type waypoint.
 #### Request
 
 ```http
-PATCH /trip/driver/confirmWaypointArrival HTTP/1.1
+PATCH /api/v1/trip/driver/confirmWaypointArrival HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -832,7 +832,7 @@ Content-Type: application/json
 
 ---
 
-### PATCH /trip/driver/confirmWaypointDeparture
+### PATCH /api/v1/trip/driver/confirmWaypointDeparture
 
 Records the driver's departure from a `stop`-type waypoint.
 
@@ -842,7 +842,7 @@ Records the driver's departure from a `stop`-type waypoint.
 #### Request
 
 ```http
-PATCH /trip/driver/confirmWaypointDeparture HTTP/1.1
+PATCH /api/v1/trip/driver/confirmWaypointDeparture HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -886,7 +886,7 @@ Content-Type: application/json
 
 ---
 
-### GET /trip/driver/getTripDetails
+### GET /api/v1/trip/driver/getTripDetails
 
 Returns the complete details of a trip for its driver, including waypoints with actual arrival/departure timestamps, the list of bookings, and cancellation flags.
 
@@ -895,7 +895,7 @@ Returns the complete details of a trip for its driver, including waypoints with 
 #### Request
 
 ```http
-GET /trip/driver/getTripDetails?TripId=t-550e8400-e29b-41d4-a716-446655440000 HTTP/1.1
+GET /api/v1/trip/driver/getTripDetails?TripId=t-550e8400-e29b-41d4-a716-446655440000 HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 ```
@@ -994,7 +994,7 @@ Content-Type: application/json
 
 ---
 
-### GET /trip/passenger/getTripDetails
+### GET /api/v1/trip/passenger/getTripDetails
 
 Returns the details of a trip for a passenger (public — used on the search result detail screen). Excludes bookings and driver-private data; includes the driver's public profile (name, photo, rating).
 
@@ -1003,7 +1003,7 @@ Returns the details of a trip for a passenger (public — used on the search res
 #### Request
 
 ```http
-GET /trip/passenger/getTripDetails?TripId=t-550e8400-e29b-41d4-a716-446655440000 HTTP/1.1
+GET /api/v1/trip/passenger/getTripDetails?TripId=t-550e8400-e29b-41d4-a716-446655440000 HTTP/1.1
 Host: api.tissi-mah.com
 ```
 
@@ -1069,7 +1069,7 @@ Content-Type: application/json
 
 ---
 
-### GET /trip/passenger/getScheduledTripsPreviews
+### GET /api/v1/trip/passenger/getScheduledTripsPreviews
 
 Searches scheduled trips matching a passenger's origin/destination, time window, and optional GPS radius. Returns paginated results enriched with segment pricing, duration, and the driver's public profile.
 
@@ -1078,7 +1078,7 @@ Searches scheduled trips matching a passenger's origin/destination, time window,
 #### Request
 
 ```http
-GET /trip/passenger/getScheduledTripsPreviews?DepartureLocationName=Dakar&ArrivalLocationName=Saint-Louis&TripStartDate=2026-04-15&TripStartHour=07:00&TripArrivalHour=14:00&Index=0 HTTP/1.1
+GET /api/v1/trip/passenger/getScheduledTripsPreviews?DepartureLocationName=Dakar&ArrivalLocationName=Saint-Louis&TripStartDate=2026-04-15&TripStartHour=07:00&TripArrivalHour=14:00&Index=0 HTTP/1.1
 Host: api.tissi-mah.com
 ```
 
@@ -1151,7 +1151,7 @@ Content-Type: application/json
 
 ---
 
-### DELETE /trip/driver/cancelTrip
+### DELETE /api/v1/trip/driver/cancelTrip
 
 Cancels a scheduled trip and all its associated bookings. The trip must be in `scheduled` status.
 
@@ -1160,7 +1160,7 @@ Cancels a scheduled trip and all its associated bookings. The trip must be in `s
 #### Request
 
 ```http
-DELETE /trip/driver/cancelTrip HTTP/1.1
+DELETE /api/v1/trip/driver/cancelTrip HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -1199,7 +1199,7 @@ Content-Type: application/json
 
 ---
 
-### DELETE /trip/driver/cancelWaypoint
+### DELETE /api/v1/trip/driver/cancelWaypoint
 
 Cancels a `stop`-type waypoint of a scheduled trip. Affected segments and their bookings are marked accordingly. Departure and arrival waypoints cannot be cancelled individually — use `CancelTrip` to cancel the whole trip.
 
@@ -1208,7 +1208,7 @@ Cancels a `stop`-type waypoint of a scheduled trip. Affected segments and their 
 #### Request
 
 ```http
-DELETE /trip/driver/cancelWaypoint HTTP/1.1
+DELETE /api/v1/trip/driver/cancelWaypoint HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -1251,7 +1251,7 @@ Content-Type: application/json
 
 ### GetTripByID (internal gRPC RPC — no HTTP route)
 
-Returns the complete details of a trip including its waypoints. Previously exposed on `GET /trip/getTripByID`; this route has been **removed**. The RPC remains on the internal gRPC port and is called by booking-service to validate reservations.
+Returns the complete details of a trip including its waypoints. Previously exposed on `GET /api/v1/trip/getTripByID`; this route has been **removed**. The RPC remains on the internal gRPC port and is called by booking-service to validate reservations.
 
 | Item | Value |
 |------|-------|
@@ -1262,7 +1262,7 @@ Returns the complete details of a trip including its waypoints. Previously expos
 
 ---
 
-### PATCH /trip/internal/updateAvailableSeats
+### PATCH /api/v1/trip/internal/updateAvailableSeats
 
 Updates the number of available seats for a trip. **Internal route** called by the booking-service reconciliation job. Not intended for mobile clients.
 
@@ -1271,7 +1271,7 @@ Updates the number of available seats for a trip. **Internal route** called by t
 #### Request
 
 ```http
-PATCH /trip/internal/updateAvailableSeats HTTP/1.1
+PATCH /api/v1/trip/internal/updateAvailableSeats HTTP/1.1
 Host: api.tissi-mah.com
 Content-Type: application/json
 
@@ -1307,7 +1307,7 @@ Content-Type: application/json
 
 ---
 
-### GET /trip/health
+### GET /api/v1/trip/health
 
 Health check endpoint.
 
@@ -1316,7 +1316,7 @@ Health check endpoint.
 #### Request
 
 ```http
-GET /trip/health HTTP/1.1
+GET /api/v1/trip/health HTTP/1.1
 Host: api.tissi-mah.com
 ```
 
@@ -1344,7 +1344,7 @@ Content-Type: application/json
 #### Example (cURL)
 
 ```bash
-curl https://api.tissi-mah.com/trip/health
+curl https://api.tissi-mah.com/api/v1/trip/health
 ```
 
 ---

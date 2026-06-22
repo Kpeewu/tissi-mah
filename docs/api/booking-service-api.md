@@ -13,8 +13,8 @@ This document describes the HTTP/REST API exposed by the booking-service through
 
 ## Authentication
 
-All `/booking/*` endpoints (except `/booking/health` and `/booking/internal/*`) require a valid **Firebase JWT**.
-The `/booking/internal/*` routes are for inter-service use (trips-service) and are not exposed to mobile clients.
+All `/api/v1/booking/*` endpoints (except `/api/v1/booking/health` and `/api/v1/booking/internal/*`) require a valid **Firebase JWT**.
+The `/api/v1/booking/internal/*` routes are for inter-service use (trips-service) and are not exposed to mobile clients.
 
 ```http
 Authorization: Bearer <firebase-id-token>
@@ -39,7 +39,7 @@ Authorization: Bearer <firebase-id-token>
 
 ## Endpoints
 
-### POST /booking/createBooking
+### POST /api/v1/booking/createBooking
 
 Creates a new trip reservation for a passenger.
 
@@ -48,7 +48,7 @@ Creates a new trip reservation for a passenger.
 #### Request
 
 ```http
-POST /booking/createBooking HTTP/1.1
+POST /api/v1/booking/createBooking HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -136,7 +136,7 @@ Content-Type: application/json
 
 ---
 
-### GET /booking/getBookingDetails
+### GET /api/v1/booking/getBookingDetails
 
 Returns the complete details of a booking including segments and status history.
 
@@ -201,7 +201,7 @@ Content-Type: application/json
 
 ---
 
-### GET /booking/getPassengerBookings
+### GET /api/v1/booking/getPassengerBookings
 
 Returns the paginated list of bookings for a passenger.
 
@@ -242,7 +242,7 @@ Content-Type: application/json
 
 ---
 
-### GET /booking/getDriverTripBookings
+### GET /api/v1/booking/getDriverTripBookings
 
 Returns the paginated list of bookings for a specific trip, enriched with passenger info.
 
@@ -314,7 +314,7 @@ Content-Type: application/json
 
 ---
 
-### PATCH /booking/approveBooking
+### PATCH /api/v1/booking/approveBooking
 
 Driver approves a pending booking.
 
@@ -323,7 +323,7 @@ Driver approves a pending booking.
 #### Request
 
 ```http
-PATCH /booking/approveBooking HTTP/1.1
+PATCH /api/v1/booking/approveBooking HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -351,7 +351,7 @@ Content-Type: application/json
 
 ---
 
-### PATCH /booking/rejectBooking
+### PATCH /api/v1/booking/rejectBooking
 
 Driver rejects a pending booking.
 
@@ -360,7 +360,7 @@ Driver rejects a pending booking.
 #### Request
 
 ```http
-PATCH /booking/rejectBooking HTTP/1.1
+PATCH /api/v1/booking/rejectBooking HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -382,7 +382,7 @@ Content-Type: application/json
 
 ---
 
-### PATCH /booking/cancelBooking
+### PATCH /api/v1/booking/cancelBooking
 
 Cancels a booking. Can be initiated by the passenger or the driver.
 
@@ -391,7 +391,7 @@ Cancels a booking. Can be initiated by the passenger or the driver.
 #### Request
 
 ```http
-PATCH /booking/cancelBooking HTTP/1.1
+PATCH /api/v1/booking/cancelBooking HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -416,7 +416,7 @@ Content-Type: application/json
 
 ---
 
-### POST /booking/reportNoShow
+### POST /api/v1/booking/reportNoShow
 
 Reports a passenger or driver no-show.
 
@@ -425,7 +425,7 @@ Reports a passenger or driver no-show.
 #### Request
 
 ```http
-POST /booking/reportNoShow HTTP/1.1
+POST /api/v1/booking/reportNoShow HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -449,7 +449,7 @@ Content-Type: application/json
 
 ---
 
-### POST /booking/confirmPayment
+### POST /api/v1/booking/confirmPayment
 
 Confirms payment for a booking. **Called internally by payment-service** after a successful payment (FedaPay webhook → payment-service → this endpoint). Mobile clients do not call this directly.
 
@@ -458,7 +458,7 @@ Confirms payment for a booking. **Called internally by payment-service** after a
 #### Request
 
 ```http
-POST /booking/confirmPayment HTTP/1.1
+POST /api/v1/booking/confirmPayment HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -483,7 +483,7 @@ Content-Type: application/json
 
 ---
 
-### PATCH /booking/internal/startBookingsForWaypoint
+### PATCH /api/v1/booking/internal/startBookingsForWaypoint
 
 Starts approved bookings associated with a trip waypoint. **Internal route** called by trips-service on `StartTrip` (for the departure waypoint) and `ConfirmWaypointDeparture` (for stop waypoints).
 
@@ -506,7 +506,7 @@ Starts approved bookings associated with a trip waypoint. **Internal route** cal
 
 ---
 
-### PATCH /booking/internal/completeBookingsForWaypoint
+### PATCH /api/v1/booking/internal/completeBookingsForWaypoint
 
 Completes active bookings associated with a trip waypoint. **Internal route** called by trips-service on `EndTrip` (for the arrival waypoint) and `ConfirmWaypointArrival` (for stop waypoints).
 
@@ -529,7 +529,7 @@ Completes active bookings associated with a trip waypoint. **Internal route** ca
 
 ---
 
-### GET /booking/health
+### GET /api/v1/booking/health
 
 Health check endpoint.
 
@@ -547,7 +547,7 @@ Health check endpoint.
 
 ---
 
-### GET /booking/getDriverPendingBookings
+### GET /api/v1/booking/getDriverPendingBookings
 
 Returns all bookings awaiting driver approval, across all trips of the driver.
 
@@ -604,7 +604,7 @@ Content-Type: application/json
 
 ---
 
-### GET /booking/getActivePassengerSummaries
+### GET /api/v1/booking/getActivePassengerSummaries
 
 Returns real-time summaries of passengers currently on board a trip. Used by the driver's live tracking screen.
 
@@ -654,7 +654,7 @@ Content-Type: application/json
 
 ---
 
-### PATCH /booking/internal/cancelBookingsForWaypoint
+### PATCH /api/v1/booking/internal/cancelBookingsForWaypoint
 
 Cancels all bookings associated with a waypoint that was removed. **Internal route** called by trips-service on `CancelWaypoint`.
 
@@ -677,7 +677,7 @@ Cancels all bookings associated with a waypoint that was removed. **Internal rou
 
 ---
 
-### PATCH /booking/internal/cancelBookingsForTrip
+### PATCH /api/v1/booking/internal/cancelBookingsForTrip
 
 Cancels all bookings for a trip that was cancelled. **Internal route** called by trips-service on `CancelTrip`.
 
@@ -697,7 +697,7 @@ Cancels all bookings for a trip that was cancelled. **Internal route** called by
 
 ---
 
-### POST /booking/internal/failPayment
+### POST /api/v1/booking/internal/failPayment
 
 Marks a booking's payment as failed. **Internal route** called by payment-service on a failed FedaPay webhook event.
 
@@ -717,7 +717,7 @@ Marks a booking's payment as failed. **Internal route** called by payment-servic
 
 ---
 
-### GET /booking/internal/getActivePassengerIDsForTrip
+### GET /api/v1/booking/internal/getActivePassengerIDsForTrip
 
 Returns the list of passenger IDs with an `inProgress` booking for a given trip. Used by trips-service and payment-service.
 
@@ -734,6 +734,40 @@ Returns the list of passenger IDs with an `inProgress` booking for a given trip.
 ```json
 { "PassengerIDs": ["550e8400-e29b-41d4-a716-446655440010", "550e8400-e29b-41d4-a716-446655440011"] }
 ```
+
+---
+
+## Support (admin) endpoints
+
+Réservés aux **agents support** (JWT support, header `x-support-uid` injecté par l'api-gateway —
+routes dans `SupportProtectedRoutes`). Pas de scoping par acteur : le support voit toutes les
+réservations.
+
+### GET /api/v1/booking/admin/listBookings
+
+Liste paginée et filtrée de toutes les réservations, enrichie des noms passager/conducteur.
+
+**Query params** (tous optionnels sauf pagination) :
+
+| Param | Description |
+|-------|-------------|
+| `Status` | Filtre par statut (`created`, `paymentPending`, `pendingApproval`, `approved`, `rejected`, `cancelled`, `inProgress`, `completed`, `noShow`, `expired`) |
+| `PassengerId` / `DriverId` / `TripId` | Filtres d'identité |
+| `BookingReference` | Recherche exacte par référence |
+| `DateFrom` / `DateTo` | Bornes RFC3339 sur `created_at` |
+| `Index` | Index de page (0-based) |
+| `PageSize` | Taille de page (défaut 20, max 100) |
+
+**Response** : `{ Bookings: AdminBookingPreview[], Total: int }` où `AdminBookingPreview` contient
+les infos résumées + `PassengerName` / `DriverName` (enrichis via user-service, best-effort).
+
+### GET /api/v1/booking/admin/getBookingDetail
+
+Détail complet d'une réservation (segments + historique de statut) **sans** contrôle
+d'appartenance, enrichi de `PassengerName` / `DriverName`.
+
+**Query param** : `BookingId`.
+**Response** : `{ Booking: BookingDetail, PassengerName, DriverName }`.
 
 ---
 

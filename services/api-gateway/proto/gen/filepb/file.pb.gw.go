@@ -190,7 +190,7 @@ func RegisterFileServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/file.FileService/UploadIdDocument", runtime.WithHTTPPathPattern("/file/uploadIdDocument"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/file.FileService/UploadIdDocument", runtime.WithHTTPPathPattern("/api/v1/file/uploadIdDocument"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -210,7 +210,7 @@ func RegisterFileServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/file.FileService/UploadVehicleDocuments", runtime.WithHTTPPathPattern("/file/uploadVehicleDocuments"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/file.FileService/UploadVehicleDocuments", runtime.WithHTTPPathPattern("/api/v1/file/uploadVehicleDocuments"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -230,7 +230,7 @@ func RegisterFileServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/file.FileService/ChangeDocument", runtime.WithHTTPPathPattern("/file/changeDocument"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/file.FileService/ChangeDocument", runtime.WithHTTPPathPattern("/api/v1/file/changeDocument"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -250,7 +250,7 @@ func RegisterFileServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/file.FileService/GetDocument", runtime.WithHTTPPathPattern("/file/getDocument"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/file.FileService/GetDocument", runtime.WithHTTPPathPattern("/api/v1/file/getDocument"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -270,7 +270,7 @@ func RegisterFileServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/file.FileService/DeleteFile", runtime.WithHTTPPathPattern("/file/deleteFile"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/file.FileService/DeleteFile", runtime.WithHTTPPathPattern("/api/v1/file/deleteFile"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -328,7 +328,7 @@ func RegisterFileServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/file.FileService/UploadIdDocument", runtime.WithHTTPPathPattern("/file/uploadIdDocument"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/file.FileService/UploadIdDocument", runtime.WithHTTPPathPattern("/api/v1/file/uploadIdDocument"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -345,7 +345,7 @@ func RegisterFileServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/file.FileService/UploadVehicleDocuments", runtime.WithHTTPPathPattern("/file/uploadVehicleDocuments"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/file.FileService/UploadVehicleDocuments", runtime.WithHTTPPathPattern("/api/v1/file/uploadVehicleDocuments"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -362,7 +362,7 @@ func RegisterFileServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/file.FileService/ChangeDocument", runtime.WithHTTPPathPattern("/file/changeDocument"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/file.FileService/ChangeDocument", runtime.WithHTTPPathPattern("/api/v1/file/changeDocument"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -379,7 +379,7 @@ func RegisterFileServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/file.FileService/GetDocument", runtime.WithHTTPPathPattern("/file/getDocument"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/file.FileService/GetDocument", runtime.WithHTTPPathPattern("/api/v1/file/getDocument"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -396,7 +396,7 @@ func RegisterFileServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/file.FileService/DeleteFile", runtime.WithHTTPPathPattern("/file/deleteFile"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/file.FileService/DeleteFile", runtime.WithHTTPPathPattern("/api/v1/file/deleteFile"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -413,11 +413,11 @@ func RegisterFileServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 }
 
 var (
-	pattern_FileService_UploadIdDocument_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"file", "uploadIdDocument"}, ""))
-	pattern_FileService_UploadVehicleDocuments_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"file", "uploadVehicleDocuments"}, ""))
-	pattern_FileService_ChangeDocument_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"file", "changeDocument"}, ""))
-	pattern_FileService_GetDocument_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"file", "getDocument"}, ""))
-	pattern_FileService_DeleteFile_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"file", "deleteFile"}, ""))
+	pattern_FileService_UploadIdDocument_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "file", "uploadIdDocument"}, ""))
+	pattern_FileService_UploadVehicleDocuments_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "file", "uploadVehicleDocuments"}, ""))
+	pattern_FileService_ChangeDocument_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "file", "changeDocument"}, ""))
+	pattern_FileService_GetDocument_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "file", "getDocument"}, ""))
+	pattern_FileService_DeleteFile_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "file", "deleteFile"}, ""))
 )
 
 var (

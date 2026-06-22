@@ -52,6 +52,84 @@ func TestBookingReadRepository_GetByID(t *testing.T) {
 }
 
 // =============================================================================
+// ListBookingsAdmin / CountBookingsAdmin (vue support)
+// =============================================================================
+
+func TestBookingReadRepository_ListBookingsAdmin(t *testing.T) {
+	ctx := context.Background()
+	repo := newTestBookingReadRepository()
+
+	seed := func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+		require.NoError(t, fixtures.InsertBooking(ctx, testPool, fixtures.NewTestBooking(
+			fixtures.WithBookingID("adm-1"), fixtures.WithPassengerID("pax-A"), fixtures.WithDriverID("drv-X"),
+			fixtures.WithTripID("trip-1"), fixtures.WithBookingStatus(domain.BookingStatusApproved))))
+		require.NoError(t, fixtures.InsertBooking(ctx, testPool, fixtures.NewTestBooking(
+			fixtures.WithBookingID("adm-2"), fixtures.WithPassengerID("pax-B"), fixtures.WithDriverID("drv-X"),
+			fixtures.WithTripID("trip-1"), fixtures.WithBookingStatus(domain.BookingStatusCompleted))))
+		require.NoError(t, fixtures.InsertBooking(ctx, testPool, fixtures.NewTestBooking(
+			fixtures.WithBookingID("adm-3"), fixtures.WithPassengerID("pax-A"), fixtures.WithDriverID("drv-Y"),
+			fixtures.WithTripID("trip-2"), fixtures.WithBookingStatus(domain.BookingStatusApproved))))
+	}
+
+	t.Run("sans filtre : retourne tout + count", func(t *testing.T) {
+		seed(t)
+		rows, err := repo.ListBookingsAdmin(ctx, domain.BookingAdminFilter{}, 0, 20)
+		require.NoError(t, err)
+		assert.Len(t, rows, 3)
+		total, err := repo.CountBookingsAdmin(ctx, domain.BookingAdminFilter{})
+		require.NoError(t, err)
+		assert.Equal(t, 3, total)
+	})
+
+	t.Run("filtre statut", func(t *testing.T) {
+		seed(t)
+		f := domain.BookingAdminFilter{Status: "approved"}
+		rows, err := repo.ListBookingsAdmin(ctx, f, 0, 20)
+		require.NoError(t, err)
+		assert.Len(t, rows, 2)
+		total, _ := repo.CountBookingsAdmin(ctx, f)
+		assert.Equal(t, 2, total)
+	})
+
+	t.Run("filtre passager + conducteur + trajet combinés", func(t *testing.T) {
+		seed(t)
+		f := domain.BookingAdminFilter{PassengerID: "pax-A", DriverID: "drv-X", TripID: "trip-1"}
+		rows, err := repo.ListBookingsAdmin(ctx, f, 0, 20)
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
+		assert.Equal(t, "adm-1", rows[0].BookingID)
+	})
+
+	t.Run("pagination", func(t *testing.T) {
+		seed(t)
+		page0, err := repo.ListBookingsAdmin(ctx, domain.BookingAdminFilter{}, 0, 2)
+		require.NoError(t, err)
+		assert.Len(t, page0, 2)
+		page1, err := repo.ListBookingsAdmin(ctx, domain.BookingAdminFilter{}, 1, 2)
+		require.NoError(t, err)
+		assert.Len(t, page1, 1)
+	})
+
+	t.Run("filtre référence exacte", func(t *testing.T) {
+		seed(t)
+		ref := "BK-MYREF99"
+		require.NoError(t, fixtures.InsertBooking(ctx, testPool, fixtures.NewTestBooking(
+			fixtures.WithBookingID("adm-ref"), withBookingReference(ref))))
+		f := domain.BookingAdminFilter{BookingReference: ref}
+		rows, err := repo.ListBookingsAdmin(ctx, f, 0, 20)
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
+		assert.Equal(t, "adm-ref", rows[0].BookingID)
+	})
+}
+
+// withBookingReference est un helper local (pas de fixture dédiée).
+func withBookingReference(ref string) fixtures.BookingOption {
+	return func(b *domain.Booking) { b.BookingReference = ref }
+}
+
+// =============================================================================
 // HasActiveBooking
 // =============================================================================
 

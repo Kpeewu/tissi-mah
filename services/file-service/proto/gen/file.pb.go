@@ -3412,23 +3412,23 @@ const file_file_proto_rawDesc = "" +
 	"\x06UserID\x18\x01 \x01(\tR\x06UserID\"Z\n" +
 	"\x1aDeleteAllUserFilesResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\x9f\x12\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\xc2\x12\n" +
 	"\vFileService\x12S\n" +
 	"\x12UploadUserDocument\x12\x1f.file.UploadUserDocumentRequest\x1a\x1a.file.UserDocumentResponse(\x01\x12\\\n" +
-	"\x15UploadVehicleDocument\x12\".file.UploadVehicleDocumentRequest\x1a\x1d.file.VehicleDocumentResponse(\x01\x12t\n" +
-	"\x10UploadIdDocument\x12\x1d.file.UploadIdDocumentRequest\x1a\x1e.file.UploadIdDocumentResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/file/uploadIdDocument\x12\x8c\x01\n" +
-	"\x16UploadVehicleDocuments\x12#.file.UploadVehicleDocumentsRequest\x1a$.file.UploadVehicleDocumentsResponse\"'\x82\xd3\xe4\x93\x02!:\x01*\"\x1c/file/uploadVehicleDocuments\x12l\n" +
-	"\x0eChangeDocument\x12\x1b.file.ChangeDocumentRequest\x1a\x1c.file.ChangeDocumentResponse\"\x1f\x82\xd3\xe4\x93\x02\x19:\x01*2\x14/file/changeDocument\x12]\n" +
-	"\vGetDocument\x12\x18.file.GetDocumentRequest\x1a\x19.file.GetDocumentResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/file/getDocument\x12Q\n" +
+	"\x15UploadVehicleDocument\x12\".file.UploadVehicleDocumentRequest\x1a\x1d.file.VehicleDocumentResponse(\x01\x12{\n" +
+	"\x10UploadIdDocument\x12\x1d.file.UploadIdDocumentRequest\x1a\x1e.file.UploadIdDocumentResponse\"(\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/api/v1/file/uploadIdDocument\x12\x93\x01\n" +
+	"\x16UploadVehicleDocuments\x12#.file.UploadVehicleDocumentsRequest\x1a$.file.UploadVehicleDocumentsResponse\".\x82\xd3\xe4\x93\x02(:\x01*\"#/api/v1/file/uploadVehicleDocuments\x12s\n" +
+	"\x0eChangeDocument\x12\x1b.file.ChangeDocumentRequest\x1a\x1c.file.ChangeDocumentResponse\"&\x82\xd3\xe4\x93\x02 :\x01*2\x1b/api/v1/file/changeDocument\x12d\n" +
+	"\vGetDocument\x12\x18.file.GetDocumentRequest\x1a\x19.file.GetDocumentResponse\" \x82\xd3\xe4\x93\x02\x1a\x12\x18/api/v1/file/getDocument\x12Q\n" +
 	"\x10GetUserDocuments\x12\x1d.file.GetUserDocumentsRequest\x1a\x1e.file.GetUserDocumentsResponse\x12K\n" +
 	"\x0fGetUserDocument\x12\x1c.file.GetDocumentByIDRequest\x1a\x1a.file.UserDocumentResponse\x12Y\n" +
 	"\x16GetCurrentUserDocument\x12#.file.GetCurrentUserDocumentRequest\x1a\x1a.file.UserDocumentResponse\x12Z\n" +
 	"\x13GetVehicleDocuments\x12 .file.GetVehicleDocumentsRequest\x1a!.file.GetVehicleDocumentsResponse\x12Q\n" +
 	"\x12GetVehicleDocument\x12\x1c.file.GetDocumentByIDRequest\x1a\x1d.file.VehicleDocumentResponse\x12j\n" +
 	"\x1bGetVehicleDocumentsByUserID\x12(.file.GetVehicleDocumentsByUserIDRequest\x1a!.file.GetVehicleDocumentsResponse\x12Q\n" +
-	"\x10ListKycDocuments\x12\x1d.file.ListKycDocumentsRequest\x1a\x1e.file.ListKycDocumentsResponse\x12\\\n" +
+	"\x10ListKycDocuments\x12\x1d.file.ListKycDocumentsRequest\x1a\x1e.file.ListKycDocumentsResponse\x12c\n" +
 	"\n" +
-	"DeleteFile\x12\x17.file.DeleteFileRequest\x1a\x18.file.DeleteFileResponse\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\"\x10/file/deleteFile\x12J\n" +
+	"DeleteFile\x12\x17.file.DeleteFileRequest\x1a\x18.file.DeleteFileResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/api/v1/file/deleteFile\x12J\n" +
 	"\x12DeleteUserDocument\x12\x1b.file.DeleteDocumentRequest\x1a\x17.file.OperationResponse\x12M\n" +
 	"\x15DeleteVehicleDocument\x12\x1b.file.DeleteDocumentRequest\x1a\x17.file.OperationResponse\x12W\n" +
 	"\x14CreateDocumentReview\x12!.file.CreateDocumentReviewRequest\x1a\x1c.file.DocumentReviewResponse\x12U\n" +

@@ -81,6 +81,8 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/trip/driver/cancelWaypoint":            true,
 	"/api/v1/trip/driver/cancelTrip":                true,
 	"/api/v1/trip/driver/getTripDetails":            true,
+	"/api/v1/trip/passenger/getTripDetails":         true,
+	// trip/passenger/getScheduledTripsPreviews est public (@SkipAuth côté app) → hors map
 
 	// notification-service
 	"/api/v1/notifications/inbox":                 true,
@@ -119,6 +121,10 @@ var SupportProtectedRoutes = map[string]bool{
 	"/api/v1/support/admin/agents/update":        true,
 	"/api/v1/support/admin/agents/resetRequests": true,
 	"/api/v1/support/admin/agents/triggerReset":  true,
+
+	// booking-service — vue support sur les réservations
+	"/api/v1/booking/admin/listBookings":     true,
+	"/api/v1/booking/admin/getBookingDetail": true,
 
 	// payment-service — actions support
 	"/api/v1/payment/support/triggerManualPayout": true,

@@ -63,6 +63,14 @@ type BookingService interface {
 
 	// GetPassengerBookingIDs retourne tous les IDs de réservation d'un passager.
 	GetPassengerBookingIDs(ctx context.Context, passengerID string) ([]string, error)
+
+	// ListBookingsAdmin retourne la liste paginée et filtrée des réservations (vue support),
+	// enrichie des noms passager/conducteur, + le total filtré.
+	ListBookingsAdmin(ctx context.Context, input *ListBookingsAdminInput) (*ListBookingsAdminResult, error)
+
+	// GetBookingDetailAdmin retourne le détail complet d'une réservation sans contrôle
+	// d'appartenance (vue support), enrichi des noms passager/conducteur.
+	GetBookingDetailAdmin(ctx context.Context, bookingID string) (*BookingDetailAdminResult, error)
 }
 
 // =============================================================================
@@ -310,4 +318,50 @@ type PassengerSummaryResult struct {
 	Rating        float64
 	IsVerified    bool
 	BookingID     string
+}
+
+// ListBookingsAdminInput regroupe les filtres + pagination de la vue support.
+// DateFrom/DateTo sont au format RFC3339 (vides = pas de borne).
+type ListBookingsAdminInput struct {
+	Status           string
+	PassengerID      string
+	DriverID         string
+	TripID           string
+	BookingReference string
+	DateFrom         string
+	DateTo           string
+	PageIndex        int
+	PageSize         int
+}
+
+// AdminBookingPreviewResult est la vue support enrichie d'une réservation.
+type AdminBookingPreviewResult struct {
+	BookingID           string
+	BookingReference    string
+	TripID              string
+	PassengerID         string
+	DriverID            string
+	PassengerName       string
+	DriverName          string
+	Status              string
+	SeatsBooked         int
+	TotalAmount         int
+	PaymentMethod       string
+	PickupLocationName  string
+	DropoffLocationName string
+	DepartureDatetime   string
+	CreatedAt           string
+}
+
+// ListBookingsAdminResult contient la page enrichie + le total filtré.
+type ListBookingsAdminResult struct {
+	Bookings []*AdminBookingPreviewResult
+	Total    int
+}
+
+// BookingDetailAdminResult est le détail support d'une réservation enrichi des noms.
+type BookingDetailAdminResult struct {
+	Booking       *BookingDetailResult
+	PassengerName string
+	DriverName    string
 }

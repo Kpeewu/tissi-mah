@@ -594,7 +594,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/CreateTrip", runtime.WithHTTPPathPattern("/trip/driver/createTrip"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/CreateTrip", runtime.WithHTTPPathPattern("/api/v1/trip/driver/createTrip"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -614,7 +614,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/CreateRecurringTrip", runtime.WithHTTPPathPattern("/trip/driver/createRecurringTrip"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/CreateRecurringTrip", runtime.WithHTTPPathPattern("/api/v1/trip/driver/createRecurringTrip"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -634,7 +634,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/GetTripsPreviews", runtime.WithHTTPPathPattern("/trip/driver/getTripsPreviews"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/GetTripsPreviews", runtime.WithHTTPPathPattern("/api/v1/trip/driver/getTripsPreviews"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -654,7 +654,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/GetCompletedTripsPreviews", runtime.WithHTTPPathPattern("/trip/driver/getCompletedTripsPreviews"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/GetCompletedTripsPreviews", runtime.WithHTTPPathPattern("/api/v1/trip/driver/getCompletedTripsPreviews"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -674,7 +674,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/ChangeTripDateAndTime", runtime.WithHTTPPathPattern("/trip/driver/changeTripDateAndTime"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/ChangeTripDateAndTime", runtime.WithHTTPPathPattern("/api/v1/trip/driver/changeTripDateAndTime"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -694,7 +694,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/ChangeTripVehicle", runtime.WithHTTPPathPattern("/trip/driver/changeTripVehicle"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/ChangeTripVehicle", runtime.WithHTTPPathPattern("/api/v1/trip/driver/changeTripVehicle"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -714,7 +714,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/ChangeTripAllowances", runtime.WithHTTPPathPattern("/trip/driver/changeTripAllowances"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/ChangeTripAllowances", runtime.WithHTTPPathPattern("/api/v1/trip/driver/changeTripAllowances"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -734,7 +734,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/ChangeAutoApprove", runtime.WithHTTPPathPattern("/trip/driver/activeAutoApprouve"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/ChangeAutoApprove", runtime.WithHTTPPathPattern("/api/v1/trip/driver/activeAutoApprouve"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -754,7 +754,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/StartTrip", runtime.WithHTTPPathPattern("/trip/driver/startTrip"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/StartTrip", runtime.WithHTTPPathPattern("/api/v1/trip/driver/startTrip"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -774,7 +774,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/EndTrip", runtime.WithHTTPPathPattern("/trip/driver/endTrip"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/EndTrip", runtime.WithHTTPPathPattern("/api/v1/trip/driver/endTrip"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -794,7 +794,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/ConfirmWaypointArrival", runtime.WithHTTPPathPattern("/trip/driver/confirmWaypointArrival"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/ConfirmWaypointArrival", runtime.WithHTTPPathPattern("/api/v1/trip/driver/confirmWaypointArrival"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -814,7 +814,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/ConfirmWaypointDeparture", runtime.WithHTTPPathPattern("/trip/driver/confirmWaypointDeparture"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/ConfirmWaypointDeparture", runtime.WithHTTPPathPattern("/api/v1/trip/driver/confirmWaypointDeparture"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -834,7 +834,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/GetDriverTripDetails", runtime.WithHTTPPathPattern("/trip/driver/getTripDetails"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/GetDriverTripDetails", runtime.WithHTTPPathPattern("/api/v1/trip/driver/getTripDetails"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -854,7 +854,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/GetPassengerTripDetails", runtime.WithHTTPPathPattern("/trip/passenger/getTripDetails"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/GetPassengerTripDetails", runtime.WithHTTPPathPattern("/api/v1/trip/passenger/getTripDetails"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -874,7 +874,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/UpdateAvailableSeats", runtime.WithHTTPPathPattern("/trip/internal/updateAvailableSeats"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/UpdateAvailableSeats", runtime.WithHTTPPathPattern("/api/v1/trip/internal/updateAvailableSeats"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -894,7 +894,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/CancelTrip", runtime.WithHTTPPathPattern("/trip/driver/cancelTrip"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/CancelTrip", runtime.WithHTTPPathPattern("/api/v1/trip/driver/cancelTrip"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -914,7 +914,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/CancelWaypoint", runtime.WithHTTPPathPattern("/trip/driver/cancelWaypoint"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/CancelWaypoint", runtime.WithHTTPPathPattern("/api/v1/trip/driver/cancelWaypoint"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -934,7 +934,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/GetScheduledTripsPreviews", runtime.WithHTTPPathPattern("/trip/passenger/getScheduledTripsPreviews"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/GetScheduledTripsPreviews", runtime.WithHTTPPathPattern("/api/v1/trip/passenger/getScheduledTripsPreviews"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -954,7 +954,7 @@ func RegisterTripServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/Health", runtime.WithHTTPPathPattern("/trip/health"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/trip.TripService/Health", runtime.WithHTTPPathPattern("/api/v1/trip/health"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1012,7 +1012,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/CreateTrip", runtime.WithHTTPPathPattern("/trip/driver/createTrip"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/CreateTrip", runtime.WithHTTPPathPattern("/api/v1/trip/driver/createTrip"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1029,7 +1029,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/CreateRecurringTrip", runtime.WithHTTPPathPattern("/trip/driver/createRecurringTrip"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/CreateRecurringTrip", runtime.WithHTTPPathPattern("/api/v1/trip/driver/createRecurringTrip"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1046,7 +1046,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/GetTripsPreviews", runtime.WithHTTPPathPattern("/trip/driver/getTripsPreviews"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/GetTripsPreviews", runtime.WithHTTPPathPattern("/api/v1/trip/driver/getTripsPreviews"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1063,7 +1063,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/GetCompletedTripsPreviews", runtime.WithHTTPPathPattern("/trip/driver/getCompletedTripsPreviews"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/GetCompletedTripsPreviews", runtime.WithHTTPPathPattern("/api/v1/trip/driver/getCompletedTripsPreviews"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1080,7 +1080,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/ChangeTripDateAndTime", runtime.WithHTTPPathPattern("/trip/driver/changeTripDateAndTime"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/ChangeTripDateAndTime", runtime.WithHTTPPathPattern("/api/v1/trip/driver/changeTripDateAndTime"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1097,7 +1097,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/ChangeTripVehicle", runtime.WithHTTPPathPattern("/trip/driver/changeTripVehicle"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/ChangeTripVehicle", runtime.WithHTTPPathPattern("/api/v1/trip/driver/changeTripVehicle"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1114,7 +1114,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/ChangeTripAllowances", runtime.WithHTTPPathPattern("/trip/driver/changeTripAllowances"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/ChangeTripAllowances", runtime.WithHTTPPathPattern("/api/v1/trip/driver/changeTripAllowances"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1131,7 +1131,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/ChangeAutoApprove", runtime.WithHTTPPathPattern("/trip/driver/activeAutoApprouve"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/ChangeAutoApprove", runtime.WithHTTPPathPattern("/api/v1/trip/driver/activeAutoApprouve"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1148,7 +1148,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/StartTrip", runtime.WithHTTPPathPattern("/trip/driver/startTrip"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/StartTrip", runtime.WithHTTPPathPattern("/api/v1/trip/driver/startTrip"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1165,7 +1165,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/EndTrip", runtime.WithHTTPPathPattern("/trip/driver/endTrip"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/EndTrip", runtime.WithHTTPPathPattern("/api/v1/trip/driver/endTrip"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1182,7 +1182,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/ConfirmWaypointArrival", runtime.WithHTTPPathPattern("/trip/driver/confirmWaypointArrival"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/ConfirmWaypointArrival", runtime.WithHTTPPathPattern("/api/v1/trip/driver/confirmWaypointArrival"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1199,7 +1199,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/ConfirmWaypointDeparture", runtime.WithHTTPPathPattern("/trip/driver/confirmWaypointDeparture"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/ConfirmWaypointDeparture", runtime.WithHTTPPathPattern("/api/v1/trip/driver/confirmWaypointDeparture"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1216,7 +1216,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/GetDriverTripDetails", runtime.WithHTTPPathPattern("/trip/driver/getTripDetails"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/GetDriverTripDetails", runtime.WithHTTPPathPattern("/api/v1/trip/driver/getTripDetails"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1233,7 +1233,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/GetPassengerTripDetails", runtime.WithHTTPPathPattern("/trip/passenger/getTripDetails"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/GetPassengerTripDetails", runtime.WithHTTPPathPattern("/api/v1/trip/passenger/getTripDetails"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1250,7 +1250,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/UpdateAvailableSeats", runtime.WithHTTPPathPattern("/trip/internal/updateAvailableSeats"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/UpdateAvailableSeats", runtime.WithHTTPPathPattern("/api/v1/trip/internal/updateAvailableSeats"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1267,7 +1267,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/CancelTrip", runtime.WithHTTPPathPattern("/trip/driver/cancelTrip"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/CancelTrip", runtime.WithHTTPPathPattern("/api/v1/trip/driver/cancelTrip"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1284,7 +1284,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/CancelWaypoint", runtime.WithHTTPPathPattern("/trip/driver/cancelWaypoint"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/CancelWaypoint", runtime.WithHTTPPathPattern("/api/v1/trip/driver/cancelWaypoint"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1301,7 +1301,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/GetScheduledTripsPreviews", runtime.WithHTTPPathPattern("/trip/passenger/getScheduledTripsPreviews"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/GetScheduledTripsPreviews", runtime.WithHTTPPathPattern("/api/v1/trip/passenger/getScheduledTripsPreviews"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1318,7 +1318,7 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/Health", runtime.WithHTTPPathPattern("/trip/health"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/trip.TripService/Health", runtime.WithHTTPPathPattern("/api/v1/trip/health"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1335,25 +1335,25 @@ func RegisterTripServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 }
 
 var (
-	pattern_TripService_CreateTrip_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "createTrip"}, ""))
-	pattern_TripService_CreateRecurringTrip_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "createRecurringTrip"}, ""))
-	pattern_TripService_GetTripsPreviews_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "getTripsPreviews"}, ""))
-	pattern_TripService_GetCompletedTripsPreviews_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "getCompletedTripsPreviews"}, ""))
-	pattern_TripService_ChangeTripDateAndTime_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "changeTripDateAndTime"}, ""))
-	pattern_TripService_ChangeTripVehicle_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "changeTripVehicle"}, ""))
-	pattern_TripService_ChangeTripAllowances_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "changeTripAllowances"}, ""))
-	pattern_TripService_ChangeAutoApprove_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "activeAutoApprouve"}, ""))
-	pattern_TripService_StartTrip_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "startTrip"}, ""))
-	pattern_TripService_EndTrip_0                   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "endTrip"}, ""))
-	pattern_TripService_ConfirmWaypointArrival_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "confirmWaypointArrival"}, ""))
-	pattern_TripService_ConfirmWaypointDeparture_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "confirmWaypointDeparture"}, ""))
-	pattern_TripService_GetDriverTripDetails_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "getTripDetails"}, ""))
-	pattern_TripService_GetPassengerTripDetails_0   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "passenger", "getTripDetails"}, ""))
-	pattern_TripService_UpdateAvailableSeats_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "internal", "updateAvailableSeats"}, ""))
-	pattern_TripService_CancelTrip_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "cancelTrip"}, ""))
-	pattern_TripService_CancelWaypoint_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "driver", "cancelWaypoint"}, ""))
-	pattern_TripService_GetScheduledTripsPreviews_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"trip", "passenger", "getScheduledTripsPreviews"}, ""))
-	pattern_TripService_Health_0                    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"trip", "health"}, ""))
+	pattern_TripService_CreateTrip_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "driver", "createTrip"}, ""))
+	pattern_TripService_CreateRecurringTrip_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "driver", "createRecurringTrip"}, ""))
+	pattern_TripService_GetTripsPreviews_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "driver", "getTripsPreviews"}, ""))
+	pattern_TripService_GetCompletedTripsPreviews_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "driver", "getCompletedTripsPreviews"}, ""))
+	pattern_TripService_ChangeTripDateAndTime_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "driver", "changeTripDateAndTime"}, ""))
+	pattern_TripService_ChangeTripVehicle_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "driver", "changeTripVehicle"}, ""))
+	pattern_TripService_ChangeTripAllowances_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "driver", "changeTripAllowances"}, ""))
+	pattern_TripService_ChangeAutoApprove_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "driver", "activeAutoApprouve"}, ""))
+	pattern_TripService_StartTrip_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "driver", "startTrip"}, ""))
+	pattern_TripService_EndTrip_0                   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "driver", "endTrip"}, ""))
+	pattern_TripService_ConfirmWaypointArrival_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "driver", "confirmWaypointArrival"}, ""))
+	pattern_TripService_ConfirmWaypointDeparture_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "driver", "confirmWaypointDeparture"}, ""))
+	pattern_TripService_GetDriverTripDetails_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "driver", "getTripDetails"}, ""))
+	pattern_TripService_GetPassengerTripDetails_0   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "passenger", "getTripDetails"}, ""))
+	pattern_TripService_UpdateAvailableSeats_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "internal", "updateAvailableSeats"}, ""))
+	pattern_TripService_CancelTrip_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "driver", "cancelTrip"}, ""))
+	pattern_TripService_CancelWaypoint_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "driver", "cancelWaypoint"}, ""))
+	pattern_TripService_GetScheduledTripsPreviews_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "trip", "passenger", "getScheduledTripsPreviews"}, ""))
+	pattern_TripService_Health_0                    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "trip", "health"}, ""))
 )
 
 var (

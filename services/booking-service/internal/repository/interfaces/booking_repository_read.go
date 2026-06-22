@@ -71,4 +71,11 @@ type BookingRepositoryRead interface {
 
 	// GetPassengerBookingIDs retourne tous les IDs de réservation d'un passager.
 	GetPassengerBookingIDs(ctx context.Context, passengerID string) ([]string, error)
+
+	// ListBookingsAdmin retourne la liste paginée des réservations selon les filtres support
+	// (statut, passager, conducteur, trajet, référence, plage de dates), triée par created_at DESC.
+	ListBookingsAdmin(ctx context.Context, filter domain.BookingAdminFilter, pageIndex, pageSize int) ([]*domain.RawAdminBookingPreview, error)
+
+	// CountBookingsAdmin retourne le nombre total de réservations correspondant aux filtres support.
+	CountBookingsAdmin(ctx context.Context, filter domain.BookingAdminFilter) (int, error)
 }

@@ -3,6 +3,8 @@ package implementations
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/domain"
@@ -630,4 +632,106 @@ func (r *bookingReadRepositoryImpl) GetPassengerBookingIDs(ctx context.Context, 
 		ids = append(ids, id)
 	}
 	return ids, nil
+}
+
+// buildAdminFilterClause construit la clause WHERE dynamique de la vue support à partir des
+// filtres non-vides. Retourne le SQL (commençant par "WHERE ...") et les arguments positionnels.
+// Le placeholder commence à $1.
+func buildAdminFilterClause(filter domain.BookingAdminFilter) (string, []interface{}) {
+	conditions := []string{"b.deleted_at IS NULL"}
+	args := []interface{}{}
+	add := func(cond string, val interface{}) {
+		args = append(args, val)
+		conditions = append(conditions, fmt.Sprintf(cond, len(args)))
+	}
+
+	if filter.Status != "" {
+		add("b.status = $%d::booking_status", filter.Status)
+	}
+	if filter.PassengerID != "" {
+		add("b.passenger_id = $%d", filter.PassengerID)
+	}
+	if filter.DriverID != "" {
+		add("b.driver_id = $%d", filter.DriverID)
+	}
+	if filter.TripID != "" {
+		add("b.trip_id = $%d", filter.TripID)
+	}
+	if filter.BookingReference != "" {
+		add("b.booking_reference = $%d", filter.BookingReference)
+	}
+	if filter.DateFrom != nil {
+		add("b.created_at >= $%d", *filter.DateFrom)
+	}
+	if filter.DateTo != nil {
+		add("b.created_at <= $%d", *filter.DateTo)
+	}
+
+	return "WHERE " + strings.Join(conditions, " AND "), args
+}
+
+// adminBookingsBaseSelect sélectionne les colonnes de RawAdminBookingPreview avec LATERAL join
+// sur les segments (pickup du premier, dropoff du dernier, departure datetime).
+const adminBookingsBaseSelect = `
+	SELECT b.booking_id, b.booking_reference, b.trip_id, b.passenger_id, b.driver_id, b.status::text,
+	       b.seats_booked, b.total_amount, b.payment_method::text,
+	       COALESCE(s_pick.pickup_location_name, '') AS pickup_location_name,
+	       COALESCE(s_drop.dropoff_location_name, '') AS dropoff_location_name,
+	       COALESCE(s_pick.pickup_scheduled_at, b.created_at) AS departure_datetime,
+	       b.created_at
+	FROM bookings b
+	LEFT JOIN LATERAL (
+		SELECT pickup_location_name, pickup_scheduled_at FROM bookings_segments
+		WHERE booking_id = b.booking_id ORDER BY created_at ASC LIMIT 1
+	) s_pick ON true
+	LEFT JOIN LATERAL (
+		SELECT dropoff_location_name FROM bookings_segments
+		WHERE booking_id = b.booking_id ORDER BY created_at DESC LIMIT 1
+	) s_drop ON true`
+
+// ListBookingsAdmin retourne la liste paginée et filtrée des réservations pour la vue support.
+func (r *bookingReadRepositoryImpl) ListBookingsAdmin(ctx context.Context, filter domain.BookingAdminFilter, pageIndex, pageSize int) ([]*domain.RawAdminBookingPreview, error) {
+	whereClause, args := buildAdminFilterClause(filter)
+	offset := pageIndex * pageSize
+	query := adminBookingsBaseSelect + " " + whereClause +
+		fmt.Sprintf(" ORDER BY b.created_at DESC LIMIT $%d OFFSET $%d", len(args)+1, len(args)+2)
+	args = append(args, pageSize, offset)
+
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		r.logger.Error("ListBookingsAdmin failed", zap.Error(err))
+		return nil, bookingErrors.ErrorDataRetrievalFailed
+	}
+	defer rows.Close()
+
+	var results []*domain.RawAdminBookingPreview
+	for rows.Next() {
+		p := &domain.RawAdminBookingPreview{}
+		var statusStr string
+		if err := rows.Scan(
+			&p.BookingID, &p.BookingReference, &p.TripID, &p.PassengerID, &p.DriverID, &statusStr,
+			&p.SeatsBooked, &p.TotalAmount, &p.PaymentMethod,
+			&p.PickupLocationName, &p.DropoffLocationName,
+			&p.DepartureDatetime, &p.CreatedAt,
+		); err != nil {
+			r.logger.Error("ListBookingsAdmin scan failed", zap.Error(err))
+			return nil, bookingErrors.ErrorDataRetrievalFailed
+		}
+		p.Status = domain.BookingStatus(statusStr)
+		results = append(results, p)
+	}
+	return results, nil
+}
+
+// CountBookingsAdmin retourne le nombre total de réservations correspondant aux filtres support.
+func (r *bookingReadRepositoryImpl) CountBookingsAdmin(ctx context.Context, filter domain.BookingAdminFilter) (int, error) {
+	whereClause, args := buildAdminFilterClause(filter)
+	query := "SELECT COUNT(*) FROM bookings b " + whereClause
+
+	var total int
+	if err := r.pool.QueryRow(ctx, query, args...).Scan(&total); err != nil {
+		r.logger.Error("CountBookingsAdmin failed", zap.Error(err))
+		return 0, bookingErrors.ErrorDataRetrievalFailed
+	}
+	return total, nil
 }

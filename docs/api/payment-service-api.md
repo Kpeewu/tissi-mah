@@ -15,15 +15,15 @@ This document describes the HTTP/REST API exposed by the payment-service through
 
 | Route | Auth |
 |-------|------|
-| `/payment/createPayment` | Firebase JWT required |
-| `/payment/getPaymentStatus` | Firebase JWT required |
-| `/payment/getPaymentByBooking` | Firebase JWT required |
-| `/payment/getRefundStatus` | Firebase JWT required |
-| `/payment/getPayoutStatus` | Firebase JWT required |
-| `/payment/getDriverPayouts` | Firebase JWT required |
-| `/payment/webhooks/fedapay` | Public (HMAC-SHA256 signature verified internally) |
-| `/payment/internal/*` | Public (inter-service only, not for mobile clients) |
-| `/payment/health` | Public |
+| `/api/v1/payment/createPayment` | Firebase JWT required |
+| `/api/v1/payment/getPaymentStatus` | Firebase JWT required |
+| `/api/v1/payment/getPaymentByBooking` | Firebase JWT required |
+| `/api/v1/payment/getRefundStatus` | Firebase JWT required |
+| `/api/v1/payment/getPayoutStatus` | Firebase JWT required |
+| `/api/v1/payment/getDriverPayouts` | Firebase JWT required |
+| `/api/v1/payment/webhooks/fedapay` | Public (HMAC-SHA256 signature verified internally) |
+| `/api/v1/payment/internal/*` | Public (inter-service only, not for mobile clients) |
+| `/api/v1/payment/health` | Public |
 
 ```http
 Authorization: Bearer <firebase-id-token>
@@ -41,7 +41,7 @@ Authorization: Bearer <firebase-id-token>
 
 ## Endpoints
 
-### POST /payment/createPayment
+### POST /api/v1/payment/createPayment
 
 Initiates a FedaPay payment for a booking. Creates the transaction and sends a mobile money request to the passenger's phone.
 
@@ -52,7 +52,7 @@ Initiates a FedaPay payment for a booking. Creates the transaction and sends a m
 #### Request
 
 ```http
-POST /payment/createPayment HTTP/1.1
+POST /api/v1/payment/createPayment HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
@@ -97,7 +97,7 @@ Content-Type: application/json
 1. Payment is created with status `pending`
 2. FedaPay sends a mobile money request to the passenger's phone
 3. Passenger approves on their phone
-4. FedaPay calls `POST /payment/webhooks/fedapay` with the result
+4. FedaPay calls `POST /api/v1/payment/webhooks/fedapay` with the result
 5. On `transaction.approved` → payment status becomes `held`, booking transitions to `pendingApproval`
 6. On `transaction.declined` or `transaction.canceled` → payment status becomes `failed`
 
@@ -112,7 +112,7 @@ Content-Type: application/json
 
 ---
 
-### GET /payment/getPaymentStatus
+### GET /api/v1/payment/getPaymentStatus
 
 Returns the current status of a payment.
 
@@ -163,7 +163,7 @@ Content-Type: application/json
 
 ---
 
-### GET /payment/getPaymentByBooking
+### GET /api/v1/payment/getPaymentByBooking
 
 Returns the payment associated with a booking.
 
@@ -202,7 +202,7 @@ Content-Type: application/json
 
 ---
 
-### POST /payment/webhooks/fedapay
+### POST /api/v1/payment/webhooks/fedapay
 
 Receives and processes FedaPay webhook events. **Public route** — not called by mobile clients.
 
@@ -260,7 +260,7 @@ Receives and processes FedaPay webhook events. **Public route** — not called b
 
 ---
 
-### GET /payment/getRefundStatus
+### GET /api/v1/payment/getRefundStatus
 
 Returns the details and status of a refund.
 
@@ -305,7 +305,7 @@ Content-Type: application/json
 
 ---
 
-### GET /payment/getPayoutStatus
+### GET /api/v1/payment/getPayoutStatus
 
 Returns the details and status of a driver payout.
 
@@ -358,7 +358,7 @@ Content-Type: application/json
 
 ---
 
-### GET /payment/getDriverPayouts
+### GET /api/v1/payment/getDriverPayouts
 
 Returns the paginated list of payouts for a driver.
 
@@ -395,7 +395,7 @@ Content-Type: application/json
 
 ---
 
-### GET /payment/health
+### GET /api/v1/payment/health
 
 Health check endpoint.
 
@@ -417,7 +417,7 @@ Health check endpoint.
 
 These routes are called by booking-service and are not accessible to mobile clients.
 
-### POST /payment/internal/requestRefund
+### POST /api/v1/payment/internal/requestRefund
 
 Creates a refund for a booking. Called by booking-service on cancellation, rejection, or no-show.
 
@@ -472,7 +472,7 @@ Creates a refund for a booking. Called by booking-service on cancellation, rejec
 
 ---
 
-### POST /payment/internal/releasePayment
+### POST /api/v1/payment/internal/releasePayment
 
 Releases a held payment to the driver after the contestation delay. Called by booking-service's background worker.
 
