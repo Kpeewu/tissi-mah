@@ -1542,3 +1542,137 @@ func GetServiceFeePercent(svc serviceInterfaces.BookingService) int {
 	}
 	return impl.serviceFee
 }
+
+// =============================================================================
+// Vue support : ListBookingsAdmin / GetBookingDetailAdmin
+// =============================================================================
+
+const (
+	adminDefaultPageSize = 20
+	adminMaxPageSize     = 100
+)
+
+// ListBookingsAdmin retourne la liste paginée et filtrée des réservations (vue support).
+func (s *bookingServiceImpl) ListBookingsAdmin(ctx context.Context, input *serviceInterfaces.ListBookingsAdminInput) (*serviceInterfaces.ListBookingsAdminResult, error) {
+	pageIndex := input.PageIndex
+	if pageIndex < 0 {
+		pageIndex = 0
+	}
+	pageSize := input.PageSize
+	if pageSize <= 0 {
+		pageSize = adminDefaultPageSize
+	}
+	if pageSize > adminMaxPageSize {
+		pageSize = adminMaxPageSize
+	}
+
+	filter := domain.BookingAdminFilter{
+		Status:           input.Status,
+		PassengerID:      input.PassengerID,
+		DriverID:         input.DriverID,
+		TripID:           input.TripID,
+		BookingReference: input.BookingReference,
+	}
+	if input.DateFrom != "" {
+		t, err := time.Parse(time.RFC3339, input.DateFrom)
+		if err != nil {
+			return nil, bookingErrors.ErrorInvalidInput
+		}
+		filter.DateFrom = &t
+	}
+	if input.DateTo != "" {
+		t, err := time.Parse(time.RFC3339, input.DateTo)
+		if err != nil {
+			return nil, bookingErrors.ErrorInvalidInput
+		}
+		filter.DateTo = &t
+	}
+
+	rows, err := s.readRepo.ListBookingsAdmin(ctx, filter, pageIndex, pageSize)
+	if err != nil {
+		return nil, err
+	}
+	total, err := s.readRepo.CountBookingsAdmin(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Enrichissement des noms : un seul appel user-service par userID unique de la page.
+	nameByID := s.resolveUserNames(ctx, rows)
+
+	bookings := make([]*serviceInterfaces.AdminBookingPreviewResult, 0, len(rows))
+	for _, b := range rows {
+		bookings = append(bookings, &serviceInterfaces.AdminBookingPreviewResult{
+			BookingID:           b.BookingID,
+			BookingReference:    b.BookingReference,
+			TripID:              b.TripID,
+			PassengerID:         b.PassengerID,
+			DriverID:            b.DriverID,
+			PassengerName:       nameByID[b.PassengerID],
+			DriverName:          nameByID[b.DriverID],
+			Status:              string(b.Status),
+			SeatsBooked:         int(b.SeatsBooked),
+			TotalAmount:         b.TotalAmount,
+			PaymentMethod:       b.PaymentMethod,
+			PickupLocationName:  b.PickupLocationName,
+			DropoffLocationName: b.DropoffLocationName,
+			DepartureDatetime:   b.DepartureDatetime.Format(time.RFC3339),
+			CreatedAt:           b.CreatedAt.Format(time.RFC3339),
+		})
+	}
+
+	return &serviceInterfaces.ListBookingsAdminResult{Bookings: bookings, Total: total}, nil
+}
+
+// resolveUserNames résout le nom de chaque userID unique (passager + conducteur) de la page,
+// best-effort (nom vide en cas d'échec). Un seul appel user-service par ID.
+func (s *bookingServiceImpl) resolveUserNames(ctx context.Context, rows []*domain.RawAdminBookingPreview) map[string]string {
+	unique := make(map[string]struct{})
+	for _, b := range rows {
+		if b.PassengerID != "" {
+			unique[b.PassengerID] = struct{}{}
+		}
+		if b.DriverID != "" {
+			unique[b.DriverID] = struct{}{}
+		}
+	}
+	names := make(map[string]string, len(unique))
+	for id := range unique {
+		name, _, err := s.userClient.GetPassengerInfo(ctx, id)
+		if err != nil {
+			s.logger.Warn("ListBookingsAdmin: GetPassengerInfo failed", zap.String("userID", id), zap.Error(err))
+			continue
+		}
+		names[id] = name
+	}
+	return names
+}
+
+// GetBookingDetailAdmin retourne le détail complet d'une réservation pour le support (sans
+// contrôle d'appartenance), enrichi des noms passager/conducteur.
+func (s *bookingServiceImpl) GetBookingDetailAdmin(ctx context.Context, bookingID string) (*serviceInterfaces.BookingDetailAdminResult, error) {
+	if bookingID == "" {
+		return nil, bookingErrors.ErrorInvalidInput
+	}
+
+	booking, segments, history, err := s.readRepo.GetByIDWithDetails(ctx, bookingID)
+	if err != nil {
+		return nil, err
+	}
+	detail := s.mapBookingToDetailResult(booking, segments, history)
+
+	passengerName, _, err := s.userClient.GetPassengerInfo(ctx, booking.PassengerID)
+	if err != nil {
+		s.logger.Warn("GetBookingDetailAdmin: passenger name failed", zap.String("passengerID", booking.PassengerID), zap.Error(err))
+	}
+	driverName, _, err := s.userClient.GetPassengerInfo(ctx, booking.DriverID)
+	if err != nil {
+		s.logger.Warn("GetBookingDetailAdmin: driver name failed", zap.String("driverID", booking.DriverID), zap.Error(err))
+	}
+
+	return &serviceInterfaces.BookingDetailAdminResult{
+		Booking:       detail,
+		PassengerName: passengerName,
+		DriverName:    driverName,
+	}, nil
+}

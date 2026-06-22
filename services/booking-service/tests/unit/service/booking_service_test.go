@@ -554,3 +554,103 @@ func TestShouldRequestRefund_Conditions(t *testing.T) {
 		d.paymentClient.AssertNotCalled(t, "RequestRefund")
 	})
 }
+
+// =============================================================================
+// Vue support : ListBookingsAdmin / GetBookingDetailAdmin
+// =============================================================================
+
+func TestListBookingsAdmin(t *testing.T) {
+	t.Run("succès : filtres + pagination + enrichissement noms (dédupliqué)", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		rows := []*domain.RawAdminBookingPreview{
+			{BookingID: "b1", PassengerID: "p1", DriverID: "d1", Status: domain.BookingStatusApproved, TotalAmount: 1500, CreatedAt: time.Now(), DepartureDatetime: time.Now()},
+			{BookingID: "b2", PassengerID: "p2", DriverID: "d1", Status: domain.BookingStatusCompleted, TotalAmount: 2000, CreatedAt: time.Now(), DepartureDatetime: time.Now()},
+		}
+		// Le filtre attendu correspond à l'input mappé.
+		expectedFilter := domain.BookingAdminFilter{Status: "approved"}
+		d.readRepo.On("ListBookingsAdmin", ctx, expectedFilter, 0, 20).Return(rows, nil)
+		d.readRepo.On("CountBookingsAdmin", ctx, expectedFilter).Return(2, nil)
+
+		// 3 userIDs uniques (p1, p2, d1) → 3 appels seulement, pas 4.
+		d.userClient.On("GetPassengerInfo", ctx, "p1").Return("Passenger One", true, nil).Once()
+		d.userClient.On("GetPassengerInfo", ctx, "p2").Return("Passenger Two", false, nil).Once()
+		d.userClient.On("GetPassengerInfo", ctx, "d1").Return("Driver One", true, nil).Once()
+
+		res, err := d.svc.ListBookingsAdmin(ctx, &serviceInterfaces.ListBookingsAdminInput{Status: "approved"})
+		require.NoError(t, err)
+		assert.Equal(t, 2, res.Total)
+		require.Len(t, res.Bookings, 2)
+		assert.Equal(t, "Passenger One", res.Bookings[0].PassengerName)
+		assert.Equal(t, "Driver One", res.Bookings[0].DriverName)
+		assert.Equal(t, "Driver One", res.Bookings[1].DriverName) // dédupliqué
+		d.userClient.AssertExpectations(t)
+		d.readRepo.AssertExpectations(t)
+	})
+
+	t.Run("PageSize plafonné à 100 et défaut 20", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+		d.readRepo.On("ListBookingsAdmin", ctx, mock.Anything, 0, 100).Return([]*domain.RawAdminBookingPreview{}, nil)
+		d.readRepo.On("CountBookingsAdmin", ctx, mock.Anything).Return(0, nil)
+
+		_, err := d.svc.ListBookingsAdmin(ctx, &serviceInterfaces.ListBookingsAdminInput{PageSize: 9999})
+		require.NoError(t, err)
+		d.readRepo.AssertExpectations(t)
+	})
+
+	t.Run("DateFrom invalide → ErrorInvalidInput", func(t *testing.T) {
+		d := newTestService()
+		_, err := d.svc.ListBookingsAdmin(context.Background(), &serviceInterfaces.ListBookingsAdminInput{DateFrom: "pas-une-date"})
+		assert.ErrorIs(t, err, bookingErrors.ErrorInvalidInput)
+	})
+
+	t.Run("enrichissement best-effort : nom vide si user-service échoue", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+		rows := []*domain.RawAdminBookingPreview{
+			{BookingID: "b1", PassengerID: "p1", DriverID: "d1", Status: domain.BookingStatusApproved},
+		}
+		d.readRepo.On("ListBookingsAdmin", ctx, mock.Anything, 0, 20).Return(rows, nil)
+		d.readRepo.On("CountBookingsAdmin", ctx, mock.Anything).Return(1, nil)
+		d.userClient.On("GetPassengerInfo", ctx, "p1").Return("", false, assert.AnError)
+		d.userClient.On("GetPassengerInfo", ctx, "d1").Return("Driver One", true, nil)
+
+		res, err := d.svc.ListBookingsAdmin(ctx, &serviceInterfaces.ListBookingsAdminInput{})
+		require.NoError(t, err)
+		assert.Equal(t, "", res.Bookings[0].PassengerName)
+		assert.Equal(t, "Driver One", res.Bookings[0].DriverName)
+	})
+}
+
+func TestGetBookingDetailAdmin(t *testing.T) {
+	t.Run("succès : détail sans contrôle d'appartenance + noms", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+		booking := &domain.Booking{BookingID: "b1", PassengerID: "p1", DriverID: "d1", Status: domain.BookingStatusApproved}
+		d.readRepo.On("GetByIDWithDetails", ctx, "b1").Return(booking, []*domain.Segment{}, []*domain.StatusHistoryEntry{}, nil)
+		d.userClient.On("GetPassengerInfo", ctx, "p1").Return("Passenger One", true, nil)
+		d.userClient.On("GetPassengerInfo", ctx, "d1").Return("Driver One", true, nil)
+
+		res, err := d.svc.GetBookingDetailAdmin(ctx, "b1")
+		require.NoError(t, err)
+		assert.Equal(t, "b1", res.Booking.BookingID)
+		assert.Equal(t, "Passenger One", res.PassengerName)
+		assert.Equal(t, "Driver One", res.DriverName)
+	})
+
+	t.Run("bookingID vide → ErrorInvalidInput", func(t *testing.T) {
+		d := newTestService()
+		_, err := d.svc.GetBookingDetailAdmin(context.Background(), "")
+		assert.ErrorIs(t, err, bookingErrors.ErrorInvalidInput)
+	})
+
+	t.Run("introuvable → erreur propagée", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+		d.readRepo.On("GetByIDWithDetails", ctx, "x").Return((*domain.Booking)(nil), []*domain.Segment(nil), []*domain.StatusHistoryEntry(nil), bookingErrors.ErrorBookingNotFound)
+		_, err := d.svc.GetBookingDetailAdmin(ctx, "x")
+		assert.ErrorIs(t, err, bookingErrors.ErrorBookingNotFound)
+	})
+}

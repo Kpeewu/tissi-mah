@@ -542,6 +542,76 @@ func local_request_BookingService_GetActivePassengerSummariesForTrip_0(ctx conte
 	return msg, metadata, err
 }
 
+var filter_BookingService_ListBookings_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+
+func request_BookingService_ListBookings_0(ctx context.Context, marshaler runtime.Marshaler, client BookingServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq ListBookingsRequest
+		metadata runtime.ServerMetadata
+	)
+	if req.Body != nil {
+		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_BookingService_ListBookings_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	msg, err := client.ListBookings(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+}
+
+func local_request_BookingService_ListBookings_0(ctx context.Context, marshaler runtime.Marshaler, server BookingServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq ListBookingsRequest
+		metadata runtime.ServerMetadata
+	)
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_BookingService_ListBookings_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	msg, err := server.ListBookings(ctx, &protoReq)
+	return msg, metadata, err
+}
+
+var filter_BookingService_GetBookingDetailAdmin_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+
+func request_BookingService_GetBookingDetailAdmin_0(ctx context.Context, marshaler runtime.Marshaler, client BookingServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq GetBookingDetailAdminRequest
+		metadata runtime.ServerMetadata
+	)
+	if req.Body != nil {
+		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_BookingService_GetBookingDetailAdmin_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	msg, err := client.GetBookingDetailAdmin(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+}
+
+func local_request_BookingService_GetBookingDetailAdmin_0(ctx context.Context, marshaler runtime.Marshaler, server BookingServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq GetBookingDetailAdminRequest
+		metadata runtime.ServerMetadata
+	)
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_BookingService_GetBookingDetailAdmin_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	msg, err := server.GetBookingDetailAdmin(ctx, &protoReq)
+	return msg, metadata, err
+}
+
 func request_BookingService_Health_0(ctx context.Context, marshaler runtime.Marshaler, client BookingServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
 		protoReq HealthRequest
@@ -575,7 +645,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/CreateBooking", runtime.WithHTTPPathPattern("/booking/createBooking"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/CreateBooking", runtime.WithHTTPPathPattern("/api/v1/booking/createBooking"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -595,7 +665,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/GetBookingDetails", runtime.WithHTTPPathPattern("/booking/getBookingDetails"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/GetBookingDetails", runtime.WithHTTPPathPattern("/api/v1/booking/getBookingDetails"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -615,7 +685,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/GetPassengerBookings", runtime.WithHTTPPathPattern("/booking/getPassengerBookings"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/GetPassengerBookings", runtime.WithHTTPPathPattern("/api/v1/booking/getPassengerBookings"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -635,7 +705,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/GetDriverTripBookings", runtime.WithHTTPPathPattern("/booking/getDriverTripBookings"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/GetDriverTripBookings", runtime.WithHTTPPathPattern("/api/v1/booking/getDriverTripBookings"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -655,7 +725,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/ApproveBooking", runtime.WithHTTPPathPattern("/booking/approveBooking"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/ApproveBooking", runtime.WithHTTPPathPattern("/api/v1/booking/approveBooking"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -675,7 +745,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/RejectBooking", runtime.WithHTTPPathPattern("/booking/rejectBooking"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/RejectBooking", runtime.WithHTTPPathPattern("/api/v1/booking/rejectBooking"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -695,7 +765,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/CancelBooking", runtime.WithHTTPPathPattern("/booking/cancelBooking"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/CancelBooking", runtime.WithHTTPPathPattern("/api/v1/booking/cancelBooking"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -715,7 +785,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/StartBookingsForWaypoint", runtime.WithHTTPPathPattern("/booking/internal/startBookingsForWaypoint"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/StartBookingsForWaypoint", runtime.WithHTTPPathPattern("/api/v1/booking/internal/startBookingsForWaypoint"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -735,7 +805,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/CompleteBookingsForWaypoint", runtime.WithHTTPPathPattern("/booking/internal/completeBookingsForWaypoint"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/CompleteBookingsForWaypoint", runtime.WithHTTPPathPattern("/api/v1/booking/internal/completeBookingsForWaypoint"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -755,7 +825,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/CancelBookingsForWaypoint", runtime.WithHTTPPathPattern("/booking/internal/cancelBookingsForWaypoint"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/CancelBookingsForWaypoint", runtime.WithHTTPPathPattern("/api/v1/booking/internal/cancelBookingsForWaypoint"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -775,7 +845,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/CancelBookingsForTrip", runtime.WithHTTPPathPattern("/booking/internal/cancelBookingsForTrip"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/CancelBookingsForTrip", runtime.WithHTTPPathPattern("/api/v1/booking/internal/cancelBookingsForTrip"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -795,7 +865,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/ReportNoShow", runtime.WithHTTPPathPattern("/booking/reportNoShow"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/ReportNoShow", runtime.WithHTTPPathPattern("/api/v1/booking/reportNoShow"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -815,7 +885,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/ConfirmPayment", runtime.WithHTTPPathPattern("/booking/confirmPayment"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/ConfirmPayment", runtime.WithHTTPPathPattern("/api/v1/booking/confirmPayment"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -835,7 +905,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/FailPayment", runtime.WithHTTPPathPattern("/booking/internal/failPayment"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/FailPayment", runtime.WithHTTPPathPattern("/api/v1/booking/internal/failPayment"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -855,7 +925,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/GetActivePassengerIDsForTrip", runtime.WithHTTPPathPattern("/booking/internal/getActivePassengerIDsForTrip"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/GetActivePassengerIDsForTrip", runtime.WithHTTPPathPattern("/api/v1/booking/internal/getActivePassengerIDsForTrip"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -875,7 +945,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/GetDriverPendingBookings", runtime.WithHTTPPathPattern("/booking/getDriverPendingBookings"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/GetDriverPendingBookings", runtime.WithHTTPPathPattern("/api/v1/booking/getDriverPendingBookings"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -895,7 +965,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/GetActivePassengerSummariesForTrip", runtime.WithHTTPPathPattern("/booking/getActivePassengerSummaries"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/GetActivePassengerSummariesForTrip", runtime.WithHTTPPathPattern("/api/v1/booking/getActivePassengerSummaries"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -909,13 +979,53 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		}
 		forward_BookingService_GetActivePassengerSummariesForTrip_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodGet, pattern_BookingService_ListBookings_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/ListBookings", runtime.WithHTTPPathPattern("/api/v1/booking/admin/listBookings"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_BookingService_ListBookings_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_BookingService_ListBookings_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
+	mux.Handle(http.MethodGet, pattern_BookingService_GetBookingDetailAdmin_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/GetBookingDetailAdmin", runtime.WithHTTPPathPattern("/api/v1/booking/admin/getBookingDetail"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_BookingService_GetBookingDetailAdmin_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_BookingService_GetBookingDetailAdmin_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodGet, pattern_BookingService_Health_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/Health", runtime.WithHTTPPathPattern("/booking/health"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/Health", runtime.WithHTTPPathPattern("/api/v1/booking/health"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -973,7 +1083,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/CreateBooking", runtime.WithHTTPPathPattern("/booking/createBooking"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/CreateBooking", runtime.WithHTTPPathPattern("/api/v1/booking/createBooking"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -990,7 +1100,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/GetBookingDetails", runtime.WithHTTPPathPattern("/booking/getBookingDetails"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/GetBookingDetails", runtime.WithHTTPPathPattern("/api/v1/booking/getBookingDetails"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1007,7 +1117,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/GetPassengerBookings", runtime.WithHTTPPathPattern("/booking/getPassengerBookings"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/GetPassengerBookings", runtime.WithHTTPPathPattern("/api/v1/booking/getPassengerBookings"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1024,7 +1134,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/GetDriverTripBookings", runtime.WithHTTPPathPattern("/booking/getDriverTripBookings"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/GetDriverTripBookings", runtime.WithHTTPPathPattern("/api/v1/booking/getDriverTripBookings"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1041,7 +1151,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/ApproveBooking", runtime.WithHTTPPathPattern("/booking/approveBooking"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/ApproveBooking", runtime.WithHTTPPathPattern("/api/v1/booking/approveBooking"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1058,7 +1168,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/RejectBooking", runtime.WithHTTPPathPattern("/booking/rejectBooking"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/RejectBooking", runtime.WithHTTPPathPattern("/api/v1/booking/rejectBooking"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1075,7 +1185,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/CancelBooking", runtime.WithHTTPPathPattern("/booking/cancelBooking"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/CancelBooking", runtime.WithHTTPPathPattern("/api/v1/booking/cancelBooking"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1092,7 +1202,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/StartBookingsForWaypoint", runtime.WithHTTPPathPattern("/booking/internal/startBookingsForWaypoint"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/StartBookingsForWaypoint", runtime.WithHTTPPathPattern("/api/v1/booking/internal/startBookingsForWaypoint"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1109,7 +1219,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/CompleteBookingsForWaypoint", runtime.WithHTTPPathPattern("/booking/internal/completeBookingsForWaypoint"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/CompleteBookingsForWaypoint", runtime.WithHTTPPathPattern("/api/v1/booking/internal/completeBookingsForWaypoint"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1126,7 +1236,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/CancelBookingsForWaypoint", runtime.WithHTTPPathPattern("/booking/internal/cancelBookingsForWaypoint"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/CancelBookingsForWaypoint", runtime.WithHTTPPathPattern("/api/v1/booking/internal/cancelBookingsForWaypoint"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1143,7 +1253,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/CancelBookingsForTrip", runtime.WithHTTPPathPattern("/booking/internal/cancelBookingsForTrip"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/CancelBookingsForTrip", runtime.WithHTTPPathPattern("/api/v1/booking/internal/cancelBookingsForTrip"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1160,7 +1270,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/ReportNoShow", runtime.WithHTTPPathPattern("/booking/reportNoShow"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/ReportNoShow", runtime.WithHTTPPathPattern("/api/v1/booking/reportNoShow"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1177,7 +1287,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/ConfirmPayment", runtime.WithHTTPPathPattern("/booking/confirmPayment"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/ConfirmPayment", runtime.WithHTTPPathPattern("/api/v1/booking/confirmPayment"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1194,7 +1304,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/FailPayment", runtime.WithHTTPPathPattern("/booking/internal/failPayment"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/FailPayment", runtime.WithHTTPPathPattern("/api/v1/booking/internal/failPayment"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1211,7 +1321,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/GetActivePassengerIDsForTrip", runtime.WithHTTPPathPattern("/booking/internal/getActivePassengerIDsForTrip"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/GetActivePassengerIDsForTrip", runtime.WithHTTPPathPattern("/api/v1/booking/internal/getActivePassengerIDsForTrip"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1228,7 +1338,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/GetDriverPendingBookings", runtime.WithHTTPPathPattern("/booking/getDriverPendingBookings"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/GetDriverPendingBookings", runtime.WithHTTPPathPattern("/api/v1/booking/getDriverPendingBookings"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1245,7 +1355,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/GetActivePassengerSummariesForTrip", runtime.WithHTTPPathPattern("/booking/getActivePassengerSummaries"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/GetActivePassengerSummariesForTrip", runtime.WithHTTPPathPattern("/api/v1/booking/getActivePassengerSummaries"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1258,11 +1368,45 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		}
 		forward_BookingService_GetActivePassengerSummariesForTrip_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodGet, pattern_BookingService_ListBookings_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/ListBookings", runtime.WithHTTPPathPattern("/api/v1/booking/admin/listBookings"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_BookingService_ListBookings_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_BookingService_ListBookings_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
+	mux.Handle(http.MethodGet, pattern_BookingService_GetBookingDetailAdmin_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/GetBookingDetailAdmin", runtime.WithHTTPPathPattern("/api/v1/booking/admin/getBookingDetail"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_BookingService_GetBookingDetailAdmin_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_BookingService_GetBookingDetailAdmin_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodGet, pattern_BookingService_Health_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/Health", runtime.WithHTTPPathPattern("/booking/health"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/Health", runtime.WithHTTPPathPattern("/api/v1/booking/health"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1279,24 +1423,26 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 }
 
 var (
-	pattern_BookingService_CreateBooking_0                      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "createBooking"}, ""))
-	pattern_BookingService_GetBookingDetails_0                  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "getBookingDetails"}, ""))
-	pattern_BookingService_GetPassengerBookings_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "getPassengerBookings"}, ""))
-	pattern_BookingService_GetDriverTripBookings_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "getDriverTripBookings"}, ""))
-	pattern_BookingService_ApproveBooking_0                     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "approveBooking"}, ""))
-	pattern_BookingService_RejectBooking_0                      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "rejectBooking"}, ""))
-	pattern_BookingService_CancelBooking_0                      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "cancelBooking"}, ""))
-	pattern_BookingService_StartBookingsForWaypoint_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "startBookingsForWaypoint"}, ""))
-	pattern_BookingService_CompleteBookingsForWaypoint_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "completeBookingsForWaypoint"}, ""))
-	pattern_BookingService_CancelBookingsForWaypoint_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "cancelBookingsForWaypoint"}, ""))
-	pattern_BookingService_CancelBookingsForTrip_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "cancelBookingsForTrip"}, ""))
-	pattern_BookingService_ReportNoShow_0                       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "reportNoShow"}, ""))
-	pattern_BookingService_ConfirmPayment_0                     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "confirmPayment"}, ""))
-	pattern_BookingService_FailPayment_0                        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "failPayment"}, ""))
-	pattern_BookingService_GetActivePassengerIDsForTrip_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"booking", "internal", "getActivePassengerIDsForTrip"}, ""))
-	pattern_BookingService_GetDriverPendingBookings_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "getDriverPendingBookings"}, ""))
-	pattern_BookingService_GetActivePassengerSummariesForTrip_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "getActivePassengerSummaries"}, ""))
-	pattern_BookingService_Health_0                             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"booking", "health"}, ""))
+	pattern_BookingService_CreateBooking_0                      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "createBooking"}, ""))
+	pattern_BookingService_GetBookingDetails_0                  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "getBookingDetails"}, ""))
+	pattern_BookingService_GetPassengerBookings_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "getPassengerBookings"}, ""))
+	pattern_BookingService_GetDriverTripBookings_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "getDriverTripBookings"}, ""))
+	pattern_BookingService_ApproveBooking_0                     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "approveBooking"}, ""))
+	pattern_BookingService_RejectBooking_0                      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "rejectBooking"}, ""))
+	pattern_BookingService_CancelBooking_0                      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "cancelBooking"}, ""))
+	pattern_BookingService_StartBookingsForWaypoint_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "booking", "internal", "startBookingsForWaypoint"}, ""))
+	pattern_BookingService_CompleteBookingsForWaypoint_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "booking", "internal", "completeBookingsForWaypoint"}, ""))
+	pattern_BookingService_CancelBookingsForWaypoint_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "booking", "internal", "cancelBookingsForWaypoint"}, ""))
+	pattern_BookingService_CancelBookingsForTrip_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "booking", "internal", "cancelBookingsForTrip"}, ""))
+	pattern_BookingService_ReportNoShow_0                       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "reportNoShow"}, ""))
+	pattern_BookingService_ConfirmPayment_0                     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "confirmPayment"}, ""))
+	pattern_BookingService_FailPayment_0                        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "booking", "internal", "failPayment"}, ""))
+	pattern_BookingService_GetActivePassengerIDsForTrip_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "booking", "internal", "getActivePassengerIDsForTrip"}, ""))
+	pattern_BookingService_GetDriverPendingBookings_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "getDriverPendingBookings"}, ""))
+	pattern_BookingService_GetActivePassengerSummariesForTrip_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "getActivePassengerSummaries"}, ""))
+	pattern_BookingService_ListBookings_0                       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "booking", "admin", "listBookings"}, ""))
+	pattern_BookingService_GetBookingDetailAdmin_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "booking", "admin", "getBookingDetail"}, ""))
+	pattern_BookingService_Health_0                             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "health"}, ""))
 )
 
 var (
@@ -1317,5 +1463,7 @@ var (
 	forward_BookingService_GetActivePassengerIDsForTrip_0       = runtime.ForwardResponseMessage
 	forward_BookingService_GetDriverPendingBookings_0           = runtime.ForwardResponseMessage
 	forward_BookingService_GetActivePassengerSummariesForTrip_0 = runtime.ForwardResponseMessage
+	forward_BookingService_ListBookings_0                       = runtime.ForwardResponseMessage
+	forward_BookingService_GetBookingDetailAdmin_0              = runtime.ForwardResponseMessage
 	forward_BookingService_Health_0                             = runtime.ForwardResponseMessage
 )

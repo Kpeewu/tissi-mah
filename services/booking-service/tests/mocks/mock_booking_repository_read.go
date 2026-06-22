@@ -146,3 +146,16 @@ func (m *MockBookingRepositoryRead) GetPassengerBookingIDs(ctx context.Context, 
 	}
 	return args.Get(0).([]string), args.Error(1)
 }
+
+func (m *MockBookingRepositoryRead) ListBookingsAdmin(ctx context.Context, filter domain.BookingAdminFilter, pageIndex, pageSize int) ([]*domain.RawAdminBookingPreview, error) {
+	args := m.Called(ctx, filter, pageIndex, pageSize)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.RawAdminBookingPreview), args.Error(1)
+}
+
+func (m *MockBookingRepositoryRead) CountBookingsAdmin(ctx context.Context, filter domain.BookingAdminFilter) (int, error) {
+	args := m.Called(ctx, filter)
+	return args.Int(0), args.Error(1)
+}

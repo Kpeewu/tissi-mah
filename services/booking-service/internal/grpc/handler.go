@@ -92,7 +92,13 @@ func (h *BookingHandler) GetBookingDetails(ctx context.Context, req *bookingpb.G
 		return &bookingpb.GetBookingDetailsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
-	// Mapper les segments
+	return &bookingpb.GetBookingDetailsResponse{
+		Booking: toProtoBookingDetail(result),
+	}, nil
+}
+
+// toProtoBookingDetail convertit un BookingDetailResult en message proto BookingDetail.
+func toProtoBookingDetail(result *serviceInterfaces.BookingDetailResult) *bookingpb.BookingDetail {
 	pbSegments := make([]*bookingpb.SegmentDetail, 0, len(result.Segments))
 	for _, s := range result.Segments {
 		pbSegments = append(pbSegments, &bookingpb.SegmentDetail{
@@ -117,7 +123,6 @@ func (h *BookingHandler) GetBookingDetails(ctx context.Context, req *bookingpb.G
 		})
 	}
 
-	// Mapper l'historique
 	pbHistory := make([]*bookingpb.StatusHistoryEntry, 0, len(result.History))
 	for _, h := range result.History {
 		pbHistory = append(pbHistory, &bookingpb.StatusHistoryEntry{
@@ -132,40 +137,38 @@ func (h *BookingHandler) GetBookingDetails(ctx context.Context, req *bookingpb.G
 		})
 	}
 
-	return &bookingpb.GetBookingDetailsResponse{
-		Booking: &bookingpb.BookingDetail{
-			BookingId:          result.BookingID,
-			BookingReference:   result.BookingReference,
-			TripId:             result.TripID,
-			PassengerId:        result.PassengerID,
-			DriverId:           result.DriverID,
-			PickupWaypointId:   result.PickupWaypointID,
-			DropoffWaypointId:  result.DropoffWaypointID,
-			SeatsBooked:        int32(result.SeatsBooked),
-			PricePerSeat:       int32(result.PricePerSeat),
-			Subtotal:           int32(result.Subtotal),
-			ServiceFee:         int32(result.ServiceFee),
-			TotalAmount:        int32(result.TotalAmount),
-			PaymentMethod:      result.PaymentMethod,
-			Status:             result.Status,
-			PaymentCompletedAt: result.PaymentCompletedAt,
-			ApprovedAt:         result.ApprovedAt,
-			RejectedAt:         result.RejectedAt,
-			CancelledAt:        result.CancelledAt,
-			CompletedAt:        result.CompletedAt,
-			CancellerId:        result.CancellerID,
-			CancellationReason: result.CancellationReason,
-			NoShowType:         result.NoShowType,
-			NoShowReportedBy:   result.NoShowReportedBy,
-			NoShowReportedAt:   result.NoShowReportedAt,
-			NoShowDescription:  result.NoShowDescription,
-			CreatedAt:          result.CreatedAt,
-			UpdatedAt:          result.UpdatedAt,
-			Segments:           pbSegments,
-			History:            pbHistory,
-			PassengerMessage:   result.PassengerMessage,
-		},
-	}, nil
+	return &bookingpb.BookingDetail{
+		BookingId:          result.BookingID,
+		BookingReference:   result.BookingReference,
+		TripId:             result.TripID,
+		PassengerId:        result.PassengerID,
+		DriverId:           result.DriverID,
+		PickupWaypointId:   result.PickupWaypointID,
+		DropoffWaypointId:  result.DropoffWaypointID,
+		SeatsBooked:        int32(result.SeatsBooked),
+		PricePerSeat:       int32(result.PricePerSeat),
+		Subtotal:           int32(result.Subtotal),
+		ServiceFee:         int32(result.ServiceFee),
+		TotalAmount:        int32(result.TotalAmount),
+		PaymentMethod:      result.PaymentMethod,
+		Status:             result.Status,
+		PaymentCompletedAt: result.PaymentCompletedAt,
+		ApprovedAt:         result.ApprovedAt,
+		RejectedAt:         result.RejectedAt,
+		CancelledAt:        result.CancelledAt,
+		CompletedAt:        result.CompletedAt,
+		CancellerId:        result.CancellerID,
+		CancellationReason: result.CancellationReason,
+		NoShowType:         result.NoShowType,
+		NoShowReportedBy:   result.NoShowReportedBy,
+		NoShowReportedAt:   result.NoShowReportedAt,
+		NoShowDescription:  result.NoShowDescription,
+		CreatedAt:          result.CreatedAt,
+		UpdatedAt:          result.UpdatedAt,
+		Segments:           pbSegments,
+		History:            pbHistory,
+		PassengerMessage:   result.PassengerMessage,
+	}
 }
 
 // GetPassengerBookings retourne la liste paginée des réservations d'un passager.
@@ -496,6 +499,68 @@ func toProtoBookingCounts(c *serviceInterfaces.BookingCountsResult) *bookingpb.B
 		Rejected:  c.Rejected,
 		Cancelled: c.Cancelled,
 	}
+}
+
+// ListBookings retourne la liste paginée et filtrée des réservations (vue support).
+func (h *BookingHandler) ListBookings(ctx context.Context, req *bookingpb.ListBookingsRequest) (*bookingpb.ListBookingsResponse, error) {
+	h.logger.Debug("handler: ListBookings called (support)", zap.String("status", req.Status), zap.String("tripID", req.TripId))
+
+	result, err := h.service.ListBookingsAdmin(ctx, &serviceInterfaces.ListBookingsAdminInput{
+		Status:           req.Status,
+		PassengerID:      req.PassengerId,
+		DriverID:         req.DriverId,
+		TripID:           req.TripId,
+		BookingReference: req.BookingReference,
+		DateFrom:         req.DateFrom,
+		DateTo:           req.DateTo,
+		PageIndex:        int(req.Index),
+		PageSize:         int(req.PageSize),
+	})
+	if err != nil {
+		return &bookingpb.ListBookingsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	pbBookings := make([]*bookingpb.AdminBookingPreview, 0, len(result.Bookings))
+	for _, b := range result.Bookings {
+		pbBookings = append(pbBookings, &bookingpb.AdminBookingPreview{
+			BookingId:           b.BookingID,
+			BookingReference:    b.BookingReference,
+			TripId:              b.TripID,
+			PassengerId:         b.PassengerID,
+			DriverId:            b.DriverID,
+			PassengerName:       b.PassengerName,
+			DriverName:          b.DriverName,
+			Status:              b.Status,
+			SeatsBooked:         int32(b.SeatsBooked),
+			TotalAmount:         int32(b.TotalAmount),
+			PaymentMethod:       b.PaymentMethod,
+			PickupLocationName:  b.PickupLocationName,
+			DropoffLocationName: b.DropoffLocationName,
+			DepartureDatetime:   b.DepartureDatetime,
+			CreatedAt:           b.CreatedAt,
+		})
+	}
+
+	return &bookingpb.ListBookingsResponse{
+		Bookings: pbBookings,
+		Total:    int32(result.Total),
+	}, nil
+}
+
+// GetBookingDetailAdmin retourne le détail complet d'une réservation (vue support).
+func (h *BookingHandler) GetBookingDetailAdmin(ctx context.Context, req *bookingpb.GetBookingDetailAdminRequest) (*bookingpb.GetBookingDetailAdminResponse, error) {
+	h.logger.Debug("handler: GetBookingDetailAdmin called (support)", zap.String("bookingID", req.BookingId))
+
+	result, err := h.service.GetBookingDetailAdmin(ctx, req.BookingId)
+	if err != nil {
+		return &bookingpb.GetBookingDetailAdminResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return &bookingpb.GetBookingDetailAdminResponse{
+		Booking:       toProtoBookingDetail(result.Booking),
+		PassengerName: result.PassengerName,
+		DriverName:    result.DriverName,
+	}, nil
 }
 
 // toGRPCError traduit les erreurs domaine en codes de statut gRPC.

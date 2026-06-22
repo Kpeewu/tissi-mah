@@ -16,6 +16,16 @@ type contextKey string
 // injecté par l'api-gateway via la metadata gRPC x-firebase-uid.
 const FirebaseIDKey contextKey = "firebaseID"
 
+// SupportIDKey est la clé du contexte gRPC où est stocké l'UID de l'agent support,
+// injecté par l'api-gateway via la metadata gRPC x-support-uid.
+const SupportIDKey contextKey = "supportID"
+
+// Méthodes réservées aux agents support (JWT support, pas Firebase)
+var adminMethods = map[string]bool{
+	"/booking.BookingService/ListBookings":          true,
+	"/booking.BookingService/GetBookingDetailAdmin": true,
+}
+
 // Routes gRPC publiques ou internes (pas de JWT requis)
 var publicMethods = map[string]bool{
 	"/booking.BookingService/Health":                      true,
@@ -24,10 +34,10 @@ var publicMethods = map[string]bool{
 	"/booking.BookingService/ConfirmPayment":              true, // Route interne (payment-service)
 	"/booking.BookingService/FailPayment":                 true, // Route interne (payment-service)
 	"/booking.BookingService/GetBookingDetails":           true, // Route interne (payment-service)
-	"/booking.BookingService/CancelBookingsForWaypoint": true, // Route interne (trips-service)
-	"/booking.BookingService/CancelBookingsForTrip":     true, // Route interne (trips-service)
-	"/grpc.health.v1.Health/Check":                       true, // Readiness probe Kubernetes
-	"/grpc.health.v1.Health/Watch":                       true, // Liveness probe Kubernetes
+	"/booking.BookingService/CancelBookingsForWaypoint":   true, // Route interne (trips-service)
+	"/booking.BookingService/CancelBookingsForTrip":       true, // Route interne (trips-service)
+	"/grpc.health.v1.Health/Check":                        true, // Readiness probe Kubernetes
+	"/grpc.health.v1.Health/Watch":                        true, // Liveness probe Kubernetes
 }
 
 // BookingInterceptor retourne un intercepteur gRPC unaire qui :
@@ -44,6 +54,16 @@ func BookingInterceptor(secret []byte) grpc.UnaryServerInterceptor {
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
 			return nil, status.Error(codes.Unauthenticated, "missing metadata")
+		}
+
+		// Méthodes admin support : lire x-support-uid → SupportIDKey
+		if adminMethods[info.FullMethod] {
+			suids := md.Get("x-support-uid")
+			if len(suids) == 0 || suids[0] == "" {
+				return nil, status.Error(codes.Unauthenticated, "missing support uid")
+			}
+			ctx = context.WithValue(ctx, SupportIDKey, suids[0])
+			return handler(ctx, req)
 		}
 
 		uids := md.Get("x-firebase-uid")

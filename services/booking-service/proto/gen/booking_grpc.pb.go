@@ -36,6 +36,8 @@ const (
 	BookingService_GetActivePassengerIDsForTrip_FullMethodName       = "/booking.BookingService/GetActivePassengerIDsForTrip"
 	BookingService_GetDriverPendingBookings_FullMethodName           = "/booking.BookingService/GetDriverPendingBookings"
 	BookingService_GetActivePassengerSummariesForTrip_FullMethodName = "/booking.BookingService/GetActivePassengerSummariesForTrip"
+	BookingService_ListBookings_FullMethodName                       = "/booking.BookingService/ListBookings"
+	BookingService_GetBookingDetailAdmin_FullMethodName              = "/booking.BookingService/GetBookingDetailAdmin"
 	BookingService_Health_FullMethodName                             = "/booking.BookingService/Health"
 	BookingService_CheckDeletionEligibility_FullMethodName           = "/booking.BookingService/CheckDeletionEligibility"
 	BookingService_AnonymizeUserData_FullMethodName                  = "/booking.BookingService/AnonymizeUserData"
@@ -90,6 +92,12 @@ type BookingServiceClient interface {
 	// GetActivePassengerSummariesForTrip retourne les passagers actifs d'un trajet
 	// enrichis avec nom, note, statut paiement — pour l'écran de suivi chauffeur.
 	GetActivePassengerSummariesForTrip(ctx context.Context, in *GetActivePassengerSummariesForTripRequest, opts ...grpc.CallOption) (*GetActivePassengerSummariesForTripResponse, error)
+	// ListBookings retourne la liste paginée et filtrée de toutes les réservations (support).
+	// Réservé aux agents support (JWT support).
+	ListBookings(ctx context.Context, in *ListBookingsRequest, opts ...grpc.CallOption) (*ListBookingsResponse, error)
+	// GetBookingDetailAdmin retourne le détail complet d'une réservation sans contrôle
+	// d'appartenance (support). Réservé aux agents support (JWT support).
+	GetBookingDetailAdmin(ctx context.Context, in *GetBookingDetailAdminRequest, opts ...grpc.CallOption) (*GetBookingDetailAdminResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 	// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
@@ -282,6 +290,26 @@ func (c *bookingServiceClient) GetActivePassengerSummariesForTrip(ctx context.Co
 	return out, nil
 }
 
+func (c *bookingServiceClient) ListBookings(ctx context.Context, in *ListBookingsRequest, opts ...grpc.CallOption) (*ListBookingsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListBookingsResponse)
+	err := c.cc.Invoke(ctx, BookingService_ListBookings_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bookingServiceClient) GetBookingDetailAdmin(ctx context.Context, in *GetBookingDetailAdminRequest, opts ...grpc.CallOption) (*GetBookingDetailAdminResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetBookingDetailAdminResponse)
+	err := c.cc.Invoke(ctx, BookingService_GetBookingDetailAdmin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *bookingServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -370,6 +398,12 @@ type BookingServiceServer interface {
 	// GetActivePassengerSummariesForTrip retourne les passagers actifs d'un trajet
 	// enrichis avec nom, note, statut paiement — pour l'écran de suivi chauffeur.
 	GetActivePassengerSummariesForTrip(context.Context, *GetActivePassengerSummariesForTripRequest) (*GetActivePassengerSummariesForTripResponse, error)
+	// ListBookings retourne la liste paginée et filtrée de toutes les réservations (support).
+	// Réservé aux agents support (JWT support).
+	ListBookings(context.Context, *ListBookingsRequest) (*ListBookingsResponse, error)
+	// GetBookingDetailAdmin retourne le détail complet d'une réservation sans contrôle
+	// d'appartenance (support). Réservé aux agents support (JWT support).
+	GetBookingDetailAdmin(context.Context, *GetBookingDetailAdminRequest) (*GetBookingDetailAdminResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
@@ -442,6 +476,12 @@ func (UnimplementedBookingServiceServer) GetDriverPendingBookings(context.Contex
 }
 func (UnimplementedBookingServiceServer) GetActivePassengerSummariesForTrip(context.Context, *GetActivePassengerSummariesForTripRequest) (*GetActivePassengerSummariesForTripResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetActivePassengerSummariesForTrip not implemented")
+}
+func (UnimplementedBookingServiceServer) ListBookings(context.Context, *ListBookingsRequest) (*ListBookingsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListBookings not implemented")
+}
+func (UnimplementedBookingServiceServer) GetBookingDetailAdmin(context.Context, *GetBookingDetailAdminRequest) (*GetBookingDetailAdminResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetBookingDetailAdmin not implemented")
 }
 func (UnimplementedBookingServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -782,6 +822,42 @@ func _BookingService_GetActivePassengerSummariesForTrip_Handler(srv interface{},
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BookingService_ListBookings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListBookingsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).ListBookings(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_ListBookings_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).ListBookings(ctx, req.(*ListBookingsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BookingService_GetBookingDetailAdmin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetBookingDetailAdminRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).GetBookingDetailAdmin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_GetBookingDetailAdmin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).GetBookingDetailAdmin(ctx, req.(*GetBookingDetailAdminRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BookingService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -928,6 +1004,14 @@ var BookingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetActivePassengerSummariesForTrip",
 			Handler:    _BookingService_GetActivePassengerSummariesForTrip_Handler,
+		},
+		{
+			MethodName: "ListBookings",
+			Handler:    _BookingService_ListBookings_Handler,
+		},
+		{
+			MethodName: "GetBookingDetailAdmin",
+			Handler:    _BookingService_GetBookingDetailAdmin_Handler,
 		},
 		{
 			MethodName: "Health",

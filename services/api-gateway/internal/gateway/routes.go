@@ -120,6 +120,10 @@ var SupportProtectedRoutes = map[string]bool{
 	"/api/v1/support/admin/agents/resetRequests": true,
 	"/api/v1/support/admin/agents/triggerReset":  true,
 
+	// booking-service — vue support sur les réservations
+	"/api/v1/booking/admin/listBookings":     true,
+	"/api/v1/booking/admin/getBookingDetail": true,
+
 	// payment-service — actions support
 	"/api/v1/payment/support/triggerManualPayout": true,
 

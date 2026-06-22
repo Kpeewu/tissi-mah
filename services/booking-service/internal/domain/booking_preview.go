@@ -51,3 +51,33 @@ type RawPassengerSummary struct {
 	PaymentMethod      string
 	PaymentCompletedAt *time.Time
 }
+
+// BookingAdminFilter regroupe les filtres optionnels de la liste support (ListBookingsAdmin).
+// Un champ vide/nil signifie « pas de filtre sur ce critère ».
+type BookingAdminFilter struct {
+	Status           string
+	PassengerID      string
+	DriverID         string
+	TripID           string
+	BookingReference string
+	DateFrom         *time.Time
+	DateTo           *time.Time
+}
+
+// RawAdminBookingPreview contient les champs DB bruts d'une réservation pour la vue support,
+// avant enrichissement des noms passager/conducteur via user-service.
+type RawAdminBookingPreview struct {
+	BookingID           string
+	BookingReference    string
+	TripID              string
+	PassengerID         string
+	DriverID            string
+	Status              BookingStatus
+	SeatsBooked         int16
+	TotalAmount         int
+	PaymentMethod       string
+	PickupLocationName  string
+	DropoffLocationName string
+	DepartureDatetime   time.Time
+	CreatedAt           time.Time
+}
