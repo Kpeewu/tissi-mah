@@ -52,6 +52,7 @@ PROTO_OUT_AUTH="${PROTO_DIR}/gen/authpb"
 PROTO_OUT_USER="${PROTO_DIR}/gen/userpb"
 PROTO_OUT_RATING="${PROTO_DIR}/gen/ratingpb"
 PROTO_OUT_FILE="${PROTO_DIR}/gen/filepb"
+PROTO_OUT_VEHICLE="${PROTO_DIR}/gen/vehiclepb"
 PROTO_OUT_TRIP="${PROTO_DIR}/gen/trippb"
 PROTO_OUT_KYC="${PROTO_DIR}/gen/kycpb"
 PROTO_OUT_BOOKING="${PROTO_DIR}/gen/bookingpb"
@@ -60,7 +61,7 @@ PROTO_OUT_NOTIFICATION="${PROTO_DIR}/gen/notificationpb"
 PROTO_OUT_SUPPORT="${PROTO_DIR}/gen/supportpb"
 PROTO_OUT_GEOLOCATION="${PROTO_DIR}/gen/geolocationpb"
 PROTO_OUT_CHAT="${PROTO_DIR}/gen/chatpb"
-mkdir -p ${PROTO_OUT_AUTH} ${PROTO_OUT_USER} ${PROTO_OUT_RATING} ${PROTO_OUT_FILE} ${PROTO_OUT_TRIP} ${PROTO_OUT_KYC} ${PROTO_OUT_BOOKING} ${PROTO_OUT_PAYMENT} ${PROTO_OUT_NOTIFICATION} ${PROTO_OUT_SUPPORT} ${PROTO_OUT_GEOLOCATION} ${PROTO_OUT_CHAT}
+mkdir -p ${PROTO_OUT_AUTH} ${PROTO_OUT_USER} ${PROTO_OUT_RATING} ${PROTO_OUT_FILE} ${PROTO_OUT_VEHICLE} ${PROTO_OUT_TRIP} ${PROTO_OUT_KYC} ${PROTO_OUT_BOOKING} ${PROTO_OUT_PAYMENT} ${PROTO_OUT_NOTIFICATION} ${PROTO_OUT_SUPPORT} ${PROTO_OUT_GEOLOCATION} ${PROTO_OUT_CHAT}
 
 # Download google/api proto files if they don't exist
 if [ ! -f "${GOOGLE_API_DIR}/annotations.proto" ]; then
@@ -129,6 +130,19 @@ protoc \
   --grpc-gateway_opt=paths=source_relative \
   --grpc-gateway_opt=generate_unbound_methods=false \
   file.proto
+
+# Generate vehicle.proto (stubs + grpc-gateway reverse proxy)
+echo "Generating Go code from vehicle.proto..."
+protoc \
+  --proto_path=${PROTO_DIR} \
+  --go_out=${PROTO_OUT_VEHICLE} \
+  --go_opt=paths=source_relative \
+  --go-grpc_out=${PROTO_OUT_VEHICLE} \
+  --go-grpc_opt=paths=source_relative \
+  --grpc-gateway_out=${PROTO_OUT_VEHICLE} \
+  --grpc-gateway_opt=paths=source_relative \
+  --grpc-gateway_opt=generate_unbound_methods=false \
+  vehicle.proto
 
 # Generate trip.proto (stubs + grpc-gateway reverse proxy)
 # allow_delete_body=true : requis pour CancelWaypoint (DELETE avec body)
