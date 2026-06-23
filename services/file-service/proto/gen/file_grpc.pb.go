@@ -71,7 +71,7 @@ type FileServiceClient interface {
 	ChangeDocument(ctx context.Context, in *ChangeDocumentRequest, opts ...grpc.CallOption) (*ChangeDocumentResponse, error)
 	// --- Lecture document (HTTP via api-gateway) ---
 	// Récupère un document par son ID.
-	// Si UserID fourni : vérifie la propriété. Si SupportID fourni : accès direct.
+	// Si UserID fourni : vérifie la propriété. Si x-support-uid en metadata : accès direct.
 	GetDocument(ctx context.Context, in *GetDocumentRequest, opts ...grpc.CallOption) (*GetDocumentResponse, error)
 	// --- Lecture (inter-service) ---
 	GetUserDocuments(ctx context.Context, in *GetUserDocumentsRequest, opts ...grpc.CallOption) (*GetUserDocumentsResponse, error)
@@ -390,7 +390,7 @@ type FileServiceServer interface {
 	ChangeDocument(context.Context, *ChangeDocumentRequest) (*ChangeDocumentResponse, error)
 	// --- Lecture document (HTTP via api-gateway) ---
 	// Récupère un document par son ID.
-	// Si UserID fourni : vérifie la propriété. Si SupportID fourni : accès direct.
+	// Si UserID fourni : vérifie la propriété. Si x-support-uid en metadata : accès direct.
 	GetDocument(context.Context, *GetDocumentRequest) (*GetDocumentResponse, error)
 	// --- Lecture (inter-service) ---
 	GetUserDocuments(context.Context, *GetUserDocumentsRequest) (*GetUserDocumentsResponse, error)

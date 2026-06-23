@@ -56,12 +56,13 @@ func TestMain(m *testing.M) {
 	reviewRead := implementations.NewDocumentReviewReadRepository(testPool, logger)
 	reviewWrite := implementations.NewDocumentReviewWriteRepository(testPool, logger)
 
-	// --- Service avec storage mocké ---
+	// --- Service avec storage mocké (moderation désactivée en test) ---
 	svc := fileService.NewFileService(
 		userDocRead, userDocWrite,
 		vehicleDocRead, vehicleDocWrite,
 		reviewRead, reviewWrite,
 		mockStorage,
+		nil,
 		logger,
 	)
 

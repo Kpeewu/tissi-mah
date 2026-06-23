@@ -25,8 +25,8 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/file/uploadIdDocument":       true,
 	"/api/v1/file/uploadVehicleDocuments": true,
 	"/api/v1/file/changeDocument":         true,
-	"/api/v1/file/getDocument":            true,
 	"/api/v1/file/deleteFile":             true,
+	// getDocument est dans DualProtectedRoutes (Firebase OU Support JWT)
 
 	// vehicle-service
 	"/api/v1/vehicle/add":             true,
@@ -105,6 +105,14 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/chat/threads/{thread_id}/read":     true, // PATCH MarkRead
 	"/api/v1/chat/messages/{message_id}/flag":   true, // POST FlagMessage
 	// chat-service — health public ; GetFlaggedMessageContent côté Support (cf. SupportProtectedRoutes)
+}
+
+// DualProtectedRoutes liste les routes qui acceptent soit un JWT Firebase (utilisateurs mobiles)
+// soit un JWT support-service (agents back-office). Les deux middlewares JWTFirebase et JWTSupport
+// les couvrent : Firebase tente la validation en premier ; en cas d'échec, JWTSupport prend le relais.
+var DualProtectedRoutes = map[string]bool{
+	// file-service — les agents support doivent pouvoir récupérer l'URL présignée d'un document KYC
+	"/api/v1/file/getDocument": true,
 }
 
 // SupportProtectedRoutes liste les routes HTTP qui requièrent un JWT support-service valide

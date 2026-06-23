@@ -126,18 +126,26 @@ func (h *FileHandler) DeleteFile(ctx context.Context, req *filepb.DeleteFileRequ
 // --- Lecture document (HTTP via api-gateway) ---
 
 // GetDocument récupère un document par son ID avec contrôle d'accès.
-// Si UserID fourni : vérifie la propriété. Si SupportID fourni : accès direct.
+// Si UserID fourni : vérifie la propriété. Si x-support-uid présent en metadata : accès direct.
+// Le SupportID vient exclusivement de la metadata gRPC injectée par JWTSupport — req.SupportID est ignoré.
 func (h *FileHandler) GetDocument(ctx context.Context, req *filepb.GetDocumentRequest) (*filepb.GetDocumentResponse, error) {
+	var supportID string
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if vals := md.Get("x-support-uid"); len(vals) > 0 {
+			supportID = vals[0]
+		}
+	}
+
 	h.logger.Debug("handler: GetDocument called",
 		zap.String("fileID", req.FileID),
 		zap.String("userID", req.UserID),
-		zap.String("supportID", req.SupportID),
+		zap.Bool("isSupportAccess", supportID != ""),
 	)
 
 	result, err := h.service.GetDocument(ctx, serviceInterfaces.GetDocumentInput{
 		FileID:    req.FileID,
 		UserID:    req.UserID,
-		SupportID: req.SupportID,
+		SupportID: supportID,
 	})
 	if err != nil {
 		h.logger.Error("handler: GetDocument failed", zap.String("fileID", req.FileID), zap.Error(err))

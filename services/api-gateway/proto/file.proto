@@ -51,7 +51,7 @@ service FileService {
 
   // --- Lecture document (HTTP via api-gateway) ---
   // Récupère un document par son ID.
-  // Si UserID fourni : vérifie la propriété. Si SupportID fourni : accès direct.
+  // Si UserID fourni : vérifie la propriété. Si x-support-uid en metadata : accès direct.
   rpc GetDocument(GetDocumentRequest) returns (GetDocumentResponse) {
     option (google.api.http) = {
       get: "/api/v1/file/getDocument"
@@ -148,9 +148,9 @@ message DeleteFileResponse {
 // =============================================================================
 
 message GetDocumentRequest {
-  string FileID     = 1;
-  string UserID     = 2; // Optionnel — vérifie la propriété
-  string SupportID  = 3; // Optionnel — accès support sans vérification
+  string FileID  = 1;
+  string UserID  = 2; // Optionnel — vérifie la propriété
+  // SupportID supprimé : le contrôle support passe par x-support-uid en metadata gRPC
 }
 
 message DocumentFile {

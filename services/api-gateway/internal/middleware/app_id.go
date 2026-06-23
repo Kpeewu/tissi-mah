@@ -53,6 +53,23 @@ func AppID(
 				return
 			}
 
+			// Routes duales (mobile OU support) : accepter l'un ou l'autre App-ID
+			if isMobileRoute && isSupportRoute {
+				_, inMobile := mobileIDs[id]
+				_, inSupport := supportIDs[id]
+				if !inMobile && !inSupport {
+					logger.Warn("invalid X-App-ID rejected (dual route)",
+						zap.String("path", path),
+						zap.String("ip", extractIP(r)),
+						zap.String("requestID", r.Header.Get(RequestIDHeader)),
+					)
+					writeJSONError(w, http.StatusUnauthorized, "invalid X-App-ID")
+					return
+				}
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			// Choisir la whitelist selon la zone de la route
 			allowed := mobileIDs
 			if isSupportRoute {
