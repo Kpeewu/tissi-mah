@@ -196,9 +196,6 @@ func (s *authServiceImpl) RegisterUser(ctx context.Context, name string, firstNa
 // CheckEmail vérifie si un email est disponible (non utilisé)
 func (s *authServiceImpl) CheckEmail(ctx context.Context, email string) (bool, error) {
 	email = domain.NormalizeEmail(email)
-	if email == "" {
-		return false, authErrors.ErrorInternalServer
-	}
 	if err := domain.ValidateEmail(email); err != nil {
 		return false, err
 	}
@@ -214,9 +211,6 @@ func (s *authServiceImpl) CheckEmail(ctx context.Context, email string) (bool, e
 // CheckPhoneNumber vérifie si un numéro de téléphone est disponible (non utilisé)
 func (s *authServiceImpl) CheckPhoneNumber(ctx context.Context, phoneNumber string) (bool, error) {
 	phoneNumber = domain.NormalizePhone(phoneNumber)
-	if phoneNumber == "" {
-		return false, authErrors.ErrorInternalServer
-	}
 	if err := domain.ValidatePhone(phoneNumber); err != nil {
 		return false, err
 	}

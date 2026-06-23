@@ -875,12 +875,12 @@ const file_auth_proto_rawDesc = "" +
 	"\tFirstName\x18\x04 \x01(\tR\tFirstName\x12\x14\n" +
 	"\x05Email\x18\x05 \x01(\tR\x05Email\x12 \n" +
 	"\vPhoneNumber\x18\x06 \x01(\tR\vPhoneNumber\x12(\n" +
-	"\x0fProfileImageURL\x18\a \x01(\tR\x0fProfileImageURL2\xb0\x05\n" +
+	"\x0fProfileImageURL\x18\a \x01(\tR\x0fProfileImageURL2\xb6\x05\n" +
 	"\vAuthService\x12o\n" +
-	"\rCreateAccount\x12\x1a.auth.CreateAccountRequest\x1a\x1b.auth.CreateAccountResponse\"%\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/api/v1/auth/createAccount\x12y\n" +
-	"\x10CheckPhoneNumber\x12\x1d.auth.CheckPhoneNumberRequest\x1a\x1f.auth.CheckPhoneOrEmailResponse\"%\x82\xd3\xe4\x93\x02\x1f\x12\x1d/api/v1/auth/checkPhoneNumber\x12g\n" +
+	"\rCreateAccount\x12\x1a.auth.CreateAccountRequest\x1a\x1b.auth.CreateAccountResponse\"%\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/api/v1/auth/createAccount\x12|\n" +
+	"\x10CheckPhoneNumber\x12\x1d.auth.CheckPhoneNumberRequest\x1a\x1f.auth.CheckPhoneOrEmailResponse\"(\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/api/v1/auth/checkPhoneNumber\x12j\n" +
 	"\n" +
-	"CheckEmail\x12\x17.auth.CheckEmailRequest\x1a\x1f.auth.CheckPhoneOrEmailResponse\"\x1f\x82\xd3\xe4\x93\x02\x19\x12\x17/api/v1/auth/checkEmail\x12i\n" +
+	"CheckEmail\x12\x17.auth.CheckEmailRequest\x1a\x1f.auth.CheckPhoneOrEmailResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/api/v1/auth/checkEmail\x12i\n" +
 	"\rDeleteAccount\x12\x1a.auth.DeleteAccountRequest\x1a\x18.auth.AuthServerResponse\"\"\x82\xd3\xe4\x93\x02\x1c*\x1a/api/v1/auth/deleteAccount\x12P\n" +
 	"\x06Health\x12\x13.auth.HealthRequest\x1a\x14.auth.HealthResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/api/v1/auth/health\x12B\n" +
 	"\vGetAuthInfo\x12\x18.auth.GetAuthInfoRequest\x1a\x19.auth.GetAuthInfoResponse\x12K\n" +

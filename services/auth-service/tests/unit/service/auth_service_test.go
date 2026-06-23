@@ -424,14 +424,14 @@ func TestCheckEmail(t *testing.T) {
 		mockReadRepo.AssertExpectations(t)
 	})
 
-	t.Run("erreur - email vide retourne (false, ErrorInternalServer)", func(t *testing.T) {
+	t.Run("erreur - email vide retourne ErrEmailInvalidFormat", func(t *testing.T) {
 		_, _, _, svc := newTestService()
 		ctx := context.Background()
 
 		available, err := svc.CheckEmail(ctx, "")
 
 		assert.False(t, available)
-		assert.ErrorIs(t, err, authErrors.ErrorInternalServer)
+		assert.ErrorIs(t, err, domain.ErrEmailInvalidFormat)
 	})
 
 	t.Run("erreur - email au format invalide retourne ErrEmailInvalidFormat", func(t *testing.T) {
@@ -478,14 +478,14 @@ func TestCheckPhoneNumber(t *testing.T) {
 		mockReadRepo.AssertExpectations(t)
 	})
 
-	t.Run("erreur - numéro vide retourne (false, ErrorInternalServer)", func(t *testing.T) {
+	t.Run("erreur - numéro vide retourne ErrPhoneInvalidFormat", func(t *testing.T) {
 		_, _, _, svc := newTestService()
 		ctx := context.Background()
 
 		available, err := svc.CheckPhoneNumber(ctx, "")
 
 		assert.False(t, available)
-		assert.ErrorIs(t, err, authErrors.ErrorInternalServer)
+		assert.ErrorIs(t, err, domain.ErrPhoneInvalidFormat)
 	})
 
 	t.Run("erreur - téléphone au format invalide retourne ErrPhoneInvalidFormat", func(t *testing.T) {
