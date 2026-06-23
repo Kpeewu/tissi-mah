@@ -37,6 +37,7 @@ config:
   s3Region: "us-east-1"
   s3Bucket: "tissi-mah-files"
   s3Endpoint: ""
+  s3PublicEndpoint: ""
   s3ForcePathStyle: "true"
   userServiceHost: "user-service"
   userServicePort: "50052"

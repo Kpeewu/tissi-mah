@@ -51,6 +51,10 @@ type S3Config struct {
 	AccessKey      string
 	SecretKey      string
 	Endpoint       string
+	// PublicEndpoint est utilisé exclusivement pour construire les URL présignées
+	// envoyées aux clients. Laissez vide si Endpoint est déjà le domaine public.
+	// Ex: S3_ENDPOINT=http://minio:9000 (interne), S3_PUBLIC_ENDPOINT=https://storage.tissimah.kpeewu.dev
+	PublicEndpoint string
 	ForcePathStyle bool
 }
 
@@ -90,6 +94,7 @@ func Load() (*Config, error) {
 			AccessKey:      sharedconfig.MustGetString(values, "S3_ACCESS_KEY"),
 			SecretKey:      sharedconfig.MustGetString(values, "S3_SECRET_KEY"),
 			Endpoint:       sharedconfig.GetStringOrDefault(values, "S3_ENDPOINT", ""),
+			PublicEndpoint: sharedconfig.GetStringOrDefault(values, "S3_PUBLIC_ENDPOINT", ""),
 			ForcePathStyle: sharedconfig.GetStringOrDefault(values, "S3_FORCE_PATH_STYLE", "true") == "true",
 		},
 		UserService: UserServiceConfig{

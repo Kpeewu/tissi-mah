@@ -101,7 +101,7 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 
 	documentID := uuid.New().String()
 	ext := extensionFromMimeType(input.MimeType)
-	s3Key := fmt.Sprintf("%s/%s/%s%s", input.DocumentType, input.UserID, documentID, ext)
+	s3Key := fmt.Sprintf("documents/%s%s", documentID, ext)
 
 	// Modération synchrone pour les photos de profil (avant upload S3).
 	if input.DocumentType == "profilePicture" && s.moderationClient != nil {
@@ -290,7 +290,7 @@ func (s *fileServiceImpl) UploadVehicleDocument(ctx context.Context, input servi
 
 	documentID := uuid.New().String()
 	ext := extensionFromMimeType(input.MimeType)
-	s3Key := fmt.Sprintf("%s/%s/%s%s", input.DocumentType, input.VehicleID, documentID, ext)
+	s3Key := fmt.Sprintf("documents/%s%s", documentID, ext)
 
 	if _, uploadErr := s.storage.Upload(ctx, s3Key, input.Data, input.MimeType, input.FileSizeBytes); uploadErr != nil {
 		s.logger.Error("S3 upload failed for vehicle doc", zap.Error(uploadErr), zap.String("key", s3Key))

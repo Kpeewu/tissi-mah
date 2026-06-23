@@ -45,17 +45,34 @@ func NewS3Client(ctx context.Context, cfg fileconfig.S3Config, logger *zap.Logge
 
 	// Si un endpoint custom est défini (MinIO), on l'utilise
 	if cfg.Endpoint != "" {
+		ep := cfg.Endpoint
 		s3Opts = append(s3Opts, func(o *s3.Options) {
-			o.BaseEndpoint = aws.String(cfg.Endpoint)
+			o.BaseEndpoint = aws.String(ep)
 			o.UsePathStyle = cfg.ForcePathStyle
 		})
 	}
 
 	client := s3.NewFromConfig(awsCfg, s3Opts...)
 
+	// Client dédié aux URL présignées : si S3_PUBLIC_ENDPOINT est défini, les URL
+	// générées utilisent ce domaine (HTTPS public) plutôt que l'endpoint interne.
+	presignEndpoint := cfg.PublicEndpoint
+	if presignEndpoint == "" {
+		presignEndpoint = cfg.Endpoint
+	}
+	var presignOpts []func(*s3.Options)
+	if presignEndpoint != "" {
+		ep := presignEndpoint
+		presignOpts = append(presignOpts, func(o *s3.Options) {
+			o.BaseEndpoint = aws.String(ep)
+			o.UsePathStyle = cfg.ForcePathStyle
+		})
+	}
+	presignBaseClient := s3.NewFromConfig(awsCfg, presignOpts...)
+
 	return &s3Client{
 		client:        client,
-		presignClient: s3.NewPresignClient(client),
+		presignClient: s3.NewPresignClient(presignBaseClient),
 		bucket:        cfg.Bucket,
 		endpoint:      cfg.Endpoint,
 		logger:        logger,

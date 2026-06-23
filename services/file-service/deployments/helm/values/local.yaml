@@ -36,6 +36,7 @@ config:
   s3Region: "us-east-1"
   s3Bucket: "tissi-mah-files"
   s3Endpoint: "http://minio:9000"
+  s3PublicEndpoint: ""
   s3ForcePathStyle: "true"
   userServiceHost: "user-service"
   userServicePort: "50052"
@@ -44,8 +45,8 @@ config:
 secrets:
   databaseUrl: "postgresql://dev:dev123@file-postgres:5432/file_db?sslmode=disable"
   redisUrl: "redis://file-redis:6379/0"
-  s3AccessKey: "minioadmin"
-  s3SecretKey: "minioadmin"
+  s3AccessKey: "filesvc"
+  s3SecretKey: "filesvc-dev-secret"
   extra: {}
 
 probes:
