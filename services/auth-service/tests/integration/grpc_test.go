@@ -63,7 +63,12 @@ func newTestGRPCServer(t *testing.T, c grpcTestClients) (authpb.AuthServiceClien
 
 	readRepo := implementations.NewAuthReadRepository(testPool, zap.NewNop())
 	writeRepo := implementations.NewAuthWriteRepository(testPool, zap.NewNop())
-	authService := service.NewAuthService(readRepo, writeRepo, c.user, c.trips, c.booking, c.payment, c.chat, c.file, nil, zap.NewNop())
+	authService := service.NewAuthService(
+		readRepo, writeRepo, userClient,
+		new(mocks.MockTripsClient), new(mocks.MockBookingClient),
+		new(mocks.MockPaymentClient), new(mocks.MockChatClient), new(mocks.MockFileClient),
+		nil, nil, zap.NewNop(),
+	)
 	handler := grpcHandler.NewAuthHandler(authService, zap.NewNop())
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
