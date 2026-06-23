@@ -35,7 +35,7 @@ func newTestService() (*mocks.MockAuthRepositoryRead, *mocks.MockAuthRepositoryW
 		mockReadRepo, mockWriteRepo, mockUserClient,
 		new(mocks.MockTripsClient), new(mocks.MockBookingClient),
 		new(mocks.MockPaymentClient), new(mocks.MockChatClient), new(mocks.MockFileClient),
-		nil, zap.NewNop(),
+		nil, nil, zap.NewNop(),
 	)
 	return mockReadRepo, mockWriteRepo, mockUserClient, svc
 }
@@ -67,7 +67,7 @@ func newFullTestService() *fullTestDeps {
 	d.svc = service.NewAuthService(
 		d.readRepo, d.writeRepo, d.userClient,
 		d.tripsClient, d.bookingClient, d.paymentClient, d.chatClient, d.fileClient,
-		nil, zap.NewNop(),
+		nil, nil, zap.NewNop(),
 	)
 	return d
 }
