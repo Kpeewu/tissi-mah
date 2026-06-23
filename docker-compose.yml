@@ -534,6 +534,8 @@ services:
       - tissi-mah-network
 
   # MinIO - Stockage S3 compatible (dev local)
+  # SÉCURITÉ: ports liés à 127.0.0.1 uniquement — ne pas exposer sur 0.0.0.0 en dev partagé ou sur VPS.
+  # En prod/staging, MinIO doit être derrière un reverse-proxy TLS (port 9000 fermé au firewall).
   minio:
     image: minio/minio:latest
     container_name: tissi-mah-minio
@@ -542,8 +544,8 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - minio_data:/data
     healthcheck:
@@ -554,7 +556,9 @@ services:
     networks:
       - tissi-mah-network
 
-  # MinIO init - Crée le bucket au démarrage
+  # MinIO init - Crée le bucket et le compte de service au démarrage
+  # Le compte root (minioadmin) n'est utilisé que pour l'init.
+  # file-service utilise le compte 'filesvc' avec une policy restreinte au bucket.
   minio-init:
     image: minio/mc:latest
     container_name: tissi-mah-minio-init
@@ -565,7 +569,11 @@ services:
       /bin/sh -c "
       mc alias set local http://minio:9000 minioadmin minioadmin &&
       mc mb --ignore-existing local/tissi-mah-files &&
-      mc anonymous set none local/tissi-mah-files
+      mc anonymous set none local/tissi-mah-files &&
+      printf '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\",\"s3:DeleteObject\"],\"Resource\":[\"arn:aws:s3:::tissi-mah-files/*\"]}]}' > /tmp/filesvc-policy.json &&
+      mc admin policy create local file-service-policy /tmp/filesvc-policy.json &&
+      mc admin user add local filesvc filesvc-dev-secret &&
+      mc admin policy attach local file-service-policy --user filesvc
       "
     networks:
       - tissi-mah-network

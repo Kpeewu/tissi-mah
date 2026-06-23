@@ -13,6 +13,9 @@ data:
   {{- if .Values.config.s3Endpoint }}
   S3_ENDPOINT: {{ .Values.config.s3Endpoint | quote }}
   {{- end }}
+  {{- if .Values.config.s3PublicEndpoint }}
+  S3_PUBLIC_ENDPOINT: {{ .Values.config.s3PublicEndpoint | quote }}
+  {{- end }}
   S3_FORCE_PATH_STYLE: {{ .Values.config.s3ForcePathStyle | default "false" | quote }}
   USER_SERVICE_HOST: {{ .Values.config.userServiceHost | quote }}
   USER_SERVICE_PORT: {{ .Values.config.userServicePort | quote }}
