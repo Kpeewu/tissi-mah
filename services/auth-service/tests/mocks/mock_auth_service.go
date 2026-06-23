@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"context"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/domain"
 	"github.com/stretchr/testify/mock"
@@ -48,4 +49,9 @@ func (m *MockAuthService) GetAuthInfo(ctx context.Context, authID string) (*doma
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*domain.Auth), args.Error(1)
+}
+
+func (m *MockAuthService) SuspendAccount(ctx context.Context, authID string, suspendedUntil *time.Time, isBanned bool) error {
+	args := m.Called(ctx, authID, suspendedUntil, isBanned)
+	return args.Error(0)
 }

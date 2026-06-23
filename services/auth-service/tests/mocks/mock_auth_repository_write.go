@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"context"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/domain"
 	"github.com/stretchr/testify/mock"
@@ -26,5 +27,10 @@ func (m *MockAuthRepositoryWrite) Update(ctx context.Context, auth *domain.Auth)
 
 func (m *MockAuthRepositoryWrite) Delete(ctx context.Context, auth *domain.Auth) error {
 	args := m.Called(ctx, auth)
+	return args.Error(0)
+}
+
+func (m *MockAuthRepositoryWrite) Suspend(ctx context.Context, authID string, suspendedUntil *time.Time, isBanned bool) error {
+	args := m.Called(ctx, authID, suspendedUntil, isBanned)
 	return args.Error(0)
 }
