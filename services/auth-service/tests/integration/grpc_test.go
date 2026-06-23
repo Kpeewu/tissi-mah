@@ -29,10 +29,37 @@ import (
 // Helpers E2E
 // =============================================================================
 
-// newTestGRPCServer crée un vrai serveur gRPC avec de vrais repos et un userClient mocké.
+type grpcTestClients struct {
+	user    *mocks.MockUserClient
+	trips   *mocks.MockTripsClient
+	booking *mocks.MockBookingClient
+	payment *mocks.MockPaymentClient
+	chat    *mocks.MockChatClient
+	file    *mocks.MockFileClient
+}
+
+// newTestGRPCServer crée un vrai serveur gRPC avec de vrais repos et des clients mockés.
 // Retourne le client gRPC connecté et une fonction de nettoyage.
-func newTestGRPCServer(t *testing.T, userClient *mocks.MockUserClient) (authpb.AuthServiceClient, func()) {
+func newTestGRPCServer(t *testing.T, c grpcTestClients) (authpb.AuthServiceClient, func()) {
 	t.Helper()
+	if c.user == nil {
+		c.user = new(mocks.MockUserClient)
+	}
+	if c.trips == nil {
+		c.trips = new(mocks.MockTripsClient)
+	}
+	if c.booking == nil {
+		c.booking = new(mocks.MockBookingClient)
+	}
+	if c.payment == nil {
+		c.payment = new(mocks.MockPaymentClient)
+	}
+	if c.chat == nil {
+		c.chat = new(mocks.MockChatClient)
+	}
+	if c.file == nil {
+		c.file = new(mocks.MockFileClient)
+	}
 
 	readRepo := implementations.NewAuthReadRepository(testPool, zap.NewNop())
 	writeRepo := implementations.NewAuthWriteRepository(testPool, zap.NewNop())
@@ -90,7 +117,7 @@ func stubbedUserPreview(authID string) *domain.UserPreview {
 // =============================================================================
 
 func TestE2E_Health(t *testing.T) {
-	client, cleanup := newTestGRPCServer(t, &mocks.MockUserClient{})
+	client, cleanup := newTestGRPCServer(t, grpcTestClients{})
 	defer cleanup()
 
 	resp, err := client.Health(context.Background(), &authpb.HealthRequest{})
@@ -107,7 +134,7 @@ func TestE2E_Health(t *testing.T) {
 
 func TestE2E_CheckEmail(t *testing.T) {
 	ctx := context.Background()
-	client, cleanup := newTestGRPCServer(t, &mocks.MockUserClient{})
+	client, cleanup := newTestGRPCServer(t, grpcTestClients{})
 	defer cleanup()
 
 	t.Run("should return available when email does not exist", func(t *testing.T) {
@@ -137,7 +164,7 @@ func TestE2E_CheckEmail(t *testing.T) {
 
 func TestE2E_CheckPhoneNumber(t *testing.T) {
 	ctx := context.Background()
-	client, cleanup := newTestGRPCServer(t, &mocks.MockUserClient{})
+	client, cleanup := newTestGRPCServer(t, grpcTestClients{})
 	defer cleanup()
 
 	t.Run("should return available when phone does not exist", func(t *testing.T) {
@@ -171,7 +198,7 @@ func TestE2E_CreateAccount(t *testing.T) {
 	t.Run("should create account successfully", func(t *testing.T) {
 		cleanupAuthTable(t, ctx)
 		mockUserClient := &mocks.MockUserClient{}
-		client, cleanup := newTestGRPCServer(t, mockUserClient)
+		client, cleanup := newTestGRPCServer(t, grpcTestClients{user: mockUserClient})
 		defer cleanup()
 
 		firebaseUID := uuid.New().String()
@@ -199,7 +226,7 @@ func TestE2E_CreateAccount(t *testing.T) {
 	})
 
 	t.Run("should fail without firebase UID in metadata", func(t *testing.T) {
-		client, cleanup := newTestGRPCServer(t, &mocks.MockUserClient{})
+		client, cleanup := newTestGRPCServer(t, grpcTestClients{})
 		defer cleanup()
 
 		_, err := client.CreateAccount(ctx, &authpb.CreateAccountRequest{
@@ -212,7 +239,7 @@ func TestE2E_CreateAccount(t *testing.T) {
 	t.Run("should fail on duplicate email", func(t *testing.T) {
 		cleanupAuthTable(t, ctx)
 		mockUserClient := &mocks.MockUserClient{}
-		client, cleanup := newTestGRPCServer(t, mockUserClient)
+		client, cleanup := newTestGRPCServer(t, grpcTestClients{user: mockUserClient})
 		defer cleanup()
 
 		dupEmail := "dup@example.com"
@@ -230,7 +257,7 @@ func TestE2E_CreateAccount(t *testing.T) {
 	t.Run("should fail on duplicate phone number", func(t *testing.T) {
 		cleanupAuthTable(t, ctx)
 		mockUserClient := &mocks.MockUserClient{}
-		client, cleanup := newTestGRPCServer(t, mockUserClient)
+		client, cleanup := newTestGRPCServer(t, grpcTestClients{user: mockUserClient})
 		defer cleanup()
 
 		dupPhone := "+22822222222"
@@ -255,12 +282,40 @@ func TestE2E_DeleteAccount(t *testing.T) {
 
 	t.Run("should soft-delete account successfully", func(t *testing.T) {
 		cleanupAuthTable(t, ctx)
-		mockUserClient := &mocks.MockUserClient{}
-		mockUserClient.On("SoftDeleteUser", mock.Anything, mock.Anything).Return(nil)
-		client, cleanup := newTestGRPCServer(t, mockUserClient)
-		defer cleanup()
 
 		firebaseUID := uuid.New().String()
+		userID := uuid.New().String()
+
+		mockUserClient := &mocks.MockUserClient{}
+		mockTripsClient := &mocks.MockTripsClient{}
+		mockBookingClient := &mocks.MockBookingClient{}
+		mockPaymentClient := &mocks.MockPaymentClient{}
+		mockChatClient := &mocks.MockChatClient{}
+		mockFileClient := &mocks.MockFileClient{}
+
+		mockUserClient.On("GetUserByAuthID", mock.Anything, mock.AnythingOfType("string")).
+			Return(&domain.UserPreview{UserID: userID, Name: "Doe", FirstName: "John"}, nil).Once()
+		mockTripsClient.On("CheckDeletionEligibility", mock.Anything, userID).Return(true, "", nil).Once()
+		mockBookingClient.On("CheckDeletionEligibility", mock.Anything, userID).Return(true, "", nil).Once()
+		mockPaymentClient.On("CheckDeletionEligibility", mock.Anything, userID).Return(true, "", nil).Once()
+		mockBookingClient.On("GetPassengerBookingIDs", mock.Anything, userID).Return([]string{}, nil).Once()
+		mockChatClient.On("AnonymizeUserData", mock.Anything, userID).Return(nil).Once()
+		mockFileClient.On("DeleteAllUserFiles", mock.Anything, userID).Return(nil).Once()
+		mockBookingClient.On("AnonymizeUserData", mock.Anything, userID).Return(nil).Once()
+		mockPaymentClient.On("AnonymizeUserData", mock.Anything, userID, []string{}).Return(nil).Once()
+		mockTripsClient.On("AnonymizeUserData", mock.Anything, userID).Return(nil).Once()
+		mockUserClient.On("SoftDeleteUser", mock.Anything, mock.AnythingOfType("string")).Return(nil).Once()
+
+		client, cleanup := newTestGRPCServer(t, grpcTestClients{
+			user:    mockUserClient,
+			trips:   mockTripsClient,
+			booking: mockBookingClient,
+			payment: mockPaymentClient,
+			chat:    mockChatClient,
+			file:    mockFileClient,
+		})
+		defer cleanup()
+
 		auth := fixtures.NewTestAuth(fixtures.WithFirebaseID(firebaseUID))
 		require.NoError(t, fixtures.InsertAuth(ctx, testPool, auth))
 
@@ -271,11 +326,17 @@ func TestE2E_DeleteAccount(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.True(t, resp.Success)
+		mockUserClient.AssertExpectations(t)
+		mockTripsClient.AssertExpectations(t)
+		mockBookingClient.AssertExpectations(t)
+		mockPaymentClient.AssertExpectations(t)
+		mockChatClient.AssertExpectations(t)
+		mockFileClient.AssertExpectations(t)
 	})
 
 	t.Run("should fail when account does not exist", func(t *testing.T) {
 		cleanupAuthTable(t, ctx)
-		client, cleanup := newTestGRPCServer(t, &mocks.MockUserClient{})
+		client, cleanup := newTestGRPCServer(t, grpcTestClients{})
 		defer cleanup()
 
 		_, err := client.DeleteAccount(
@@ -287,7 +348,7 @@ func TestE2E_DeleteAccount(t *testing.T) {
 	})
 
 	t.Run("should fail without firebase UID in metadata", func(t *testing.T) {
-		client, cleanup := newTestGRPCServer(t, &mocks.MockUserClient{})
+		client, cleanup := newTestGRPCServer(t, grpcTestClients{})
 		defer cleanup()
 
 		_, err := client.DeleteAccount(ctx, &authpb.DeleteAccountRequest{})
@@ -302,7 +363,7 @@ func TestE2E_DeleteAccount(t *testing.T) {
 
 func TestE2E_GetAuthInfo(t *testing.T) {
 	ctx := context.Background()
-	client, cleanup := newTestGRPCServer(t, &mocks.MockUserClient{})
+	client, cleanup := newTestGRPCServer(t, grpcTestClients{})
 	defer cleanup()
 
 	t.Run("should return auth info for existing auth_id", func(t *testing.T) {
