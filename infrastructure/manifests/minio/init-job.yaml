@@ -1,0 +1,74 @@
+# Job d'initialisation MinIO — à appliquer une seule fois après le premier démarrage.
+#
+# Crée :
+#   1. Le bucket tissi-mah-files (privé)
+#   2. La policy IAM restreinte file-service-policy
+#   3. Le compte de service filesvc (accès S3 uniquement, pas d'admin)
+#
+# Relancer si nécessaire :
+#   kubectl delete job minio-init -n default
+#   kubectl apply -f init-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-init
+  namespace: default
+  labels:
+    app: minio
+    tier: storage
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: quay.io/minio/mc:RELEASE.2024-09-16T17-22-04Z
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: MINIO_ROOT_PASSWORD
+            - name: FILESVC_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: FILESVC_ACCESS_KEY
+            - name: FILESVC_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: FILESVC_SECRET_KEY
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              echo "Attente de MinIO..."
+              until mc alias set minio http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" 2>/dev/null; do
+                sleep 2
+              done
+
+              echo "Création du bucket tissi-mah-files..."
+              mc mb --ignore-existing minio/tissi-mah-files
+              mc anonymous set none minio/tissi-mah-files
+
+              echo "Création de la policy file-service..."
+              printf '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:DeleteObject"],"Resource":["arn:aws:s3:::tissi-mah-files/*"]}]}' \
+                > /tmp/filesvc-policy.json
+              mc admin policy create minio file-service-policy /tmp/filesvc-policy.json || \
+                mc admin policy update minio file-service-policy /tmp/filesvc-policy.json
+
+              echo "Création du compte de service filesvc..."
+              mc admin user add minio "$FILESVC_ACCESS_KEY" "$FILESVC_SECRET_KEY" || true
+              mc admin policy attach minio file-service-policy --user "$FILESVC_ACCESS_KEY"
+
+              echo "Initialisation MinIO terminée."

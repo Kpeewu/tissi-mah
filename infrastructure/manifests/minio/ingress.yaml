@@ -1,0 +1,43 @@
+# Ingress MinIO API — pour EKS prod (nginx ingress controller + cert-manager).
+#
+# Sur le VPS dev K3s, NE PAS utiliser cet Ingress.
+# Utiliser le NodePort 30093 + le nginx système (cf. nginx-storage.conf).
+#
+# CRITIQUE — presigned URL & Host header :
+#   Les URL présignées S3 signent le header "Host". Le Ingress nginx doit
+#   transmettre le Host original (storage.tissimah.kpeewu.dev) à MinIO,
+#   sinon la validation HMAC échoue. L'annotation
+#   nginx.ingress.kubernetes.io/upstream-vhost assure cette transmission.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minio-storage
+  namespace: default
+  labels:
+    app: minio
+    tier: storage
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"          # Pas de limite (MinIO gère)
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"     # 10 min pour gros uploads
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
+    nginx.ingress.kubernetes.io/upstream-vhost: "storage.tissimah.kpeewu.dev"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"        # Streaming sans buffer
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - storage.tissimah.kpeewu.dev
+      secretName: storage-tissimah-kpeewu-dev-tls
+  rules:
+    - host: storage.tissimah.kpeewu.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: minio
+                port:
+                  number: 9000

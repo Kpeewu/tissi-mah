@@ -1,0 +1,17 @@
+# PVC pour les données MinIO (documents KYC, photos profil, pièces véhicules).
+# 20 Gi couvre plusieurs années de croissance à quelques Mo par utilisateur.
+# ReadWriteOnce : MinIO single-node ; passer à ReadWriteMany si multi-node distribué.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-data
+  namespace: default
+  labels:
+    app: minio
+    tier: storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
