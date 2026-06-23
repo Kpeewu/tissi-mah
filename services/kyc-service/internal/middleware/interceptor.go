@@ -20,6 +20,10 @@ const FirebaseIDKey contextKey = "firebaseID"
 // injecté par l'api-gateway via la metadata gRPC x-support-uid.
 const SupportIDKey contextKey = "supportID"
 
+// SupportRoleKey est la clé du contexte gRPC où est stocké le rôle de l'agent support,
+// injecté par l'api-gateway via la metadata gRPC x-support-role.
+const SupportRoleKey contextKey = "supportRole"
+
 // Routes gRPC publiques (pas de JWT requis)
 var publicMethods = map[string]bool{
 	"/kyc.KYCService/Health":         true,
@@ -59,6 +63,9 @@ func KYCInterceptor(secret []byte) grpc.UnaryServerInterceptor {
 				return nil, status.Error(codes.Unauthenticated, "missing support uid")
 			}
 			ctx = context.WithValue(ctx, SupportIDKey, uids[0])
+			if roles := md.Get("x-support-role"); len(roles) > 0 {
+				ctx = context.WithValue(ctx, SupportRoleKey, roles[0])
+			}
 			return handler(ctx, req)
 		}
 

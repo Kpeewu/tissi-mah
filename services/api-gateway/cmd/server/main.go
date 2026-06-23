@@ -184,13 +184,19 @@ func buildHandler(
 
 	// JWT Firebase — maintenant AVANT le rate limit pour que l'UID soit
 	// disponible comme clé de rate limiting.
-	jwtMW := middleware.JWTFirebase(validator, func(path string) bool {
-		return gateway.ProtectedRoutes[path]
-	}, suspensionRedis, logger)
+	// isDual : routes acceptant Firebase OU Support JWT (ex: getDocument).
+	jwtMW := middleware.JWTFirebase(
+		validator,
+		func(path string) bool { return gateway.ProtectedRoutes[path] },
+		func(path string) bool { return gateway.DualProtectedRoutes[path] },
+		suspensionRedis,
+		logger,
+	)
 
-	// JWT Support (back-office admin / agents) — canal d'auth séparé de Firebase
+	// JWT Support (back-office admin / agents) — canal d'auth séparé de Firebase.
+	// Couvre SupportProtectedRoutes + DualProtectedRoutes.
 	jwtSupportMW := middleware.JWTSupport(cfg.SupportJWTSecret, func(path string) bool {
-		return gateway.SupportProtectedRoutes[path]
+		return gateway.SupportProtectedRoutes[path] || gateway.DualProtectedRoutes[path]
 	}, logger)
 
 	// Rate limiting — clé hybride UID (si JWT précédent a setté x-firebase-uid)
@@ -236,8 +242,8 @@ func buildHandler(
 	appIDMW := middleware.AppID(
 		mobileIDs,
 		supportIDs,
-		func(path string) bool { return gateway.ProtectedRoutes[path] },
-		func(path string) bool { return gateway.SupportProtectedRoutes[path] },
+		func(path string) bool { return gateway.ProtectedRoutes[path] || gateway.DualProtectedRoutes[path] },
+		func(path string) bool { return gateway.SupportProtectedRoutes[path] || gateway.DualProtectedRoutes[path] },
 		logger,
 	)
 

@@ -340,8 +340,7 @@ func (x *DeleteFileResponse) GetErrorMessage() string {
 type GetDocumentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FileID        string                 `protobuf:"bytes,1,opt,name=FileID,proto3" json:"FileID,omitempty"`
-	UserID        string                 `protobuf:"bytes,2,opt,name=UserID,proto3" json:"UserID,omitempty"`       // Optionnel — vérifie la propriété
-	SupportID     string                 `protobuf:"bytes,3,opt,name=SupportID,proto3" json:"SupportID,omitempty"` // Optionnel — accès support sans vérification
+	UserID        string                 `protobuf:"bytes,2,opt,name=UserID,proto3" json:"UserID,omitempty"` // Optionnel — vérifie la propriété
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -386,13 +385,6 @@ func (x *GetDocumentRequest) GetFileID() string {
 func (x *GetDocumentRequest) GetUserID() string {
 	if x != nil {
 		return x.UserID
-	}
-	return ""
-}
-
-func (x *GetDocumentRequest) GetSupportID() string {
-	if x != nil {
-		return x.SupportID
 	}
 	return ""
 }
@@ -3170,11 +3162,10 @@ const file_file_proto_rawDesc = "" +
 	"\x06FileID\x18\x02 \x01(\tR\x06FileID\"R\n" +
 	"\x12DeleteFileResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"b\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"D\n" +
 	"\x12GetDocumentRequest\x12\x16\n" +
 	"\x06FileID\x18\x01 \x01(\tR\x06FileID\x12\x16\n" +
-	"\x06UserID\x18\x02 \x01(\tR\x06UserID\x12\x1c\n" +
-	"\tSupportID\x18\x03 \x01(\tR\tSupportID\"\x92\x01\n" +
+	"\x06UserID\x18\x02 \x01(\tR\x06UserID\"\x92\x01\n" +
 	"\fDocumentFile\x12\x16\n" +
 	"\x06FileID\x18\x01 \x01(\tR\x06FileID\x12\x18\n" +
 	"\aFileURL\x18\x02 \x01(\tR\aFileURL\x12\x1a\n" +

@@ -23,15 +23,20 @@ const suspensionKeyPrefix = "suspended:"
 type ProtectedRoutes func(path string) bool
 
 // JWTFirebase retourne un middleware HTTP qui :
-//  1. Vérifie si la route est protégée (nécessite un JWT)
+//  1. Vérifie si la route est protégée (nécessite un JWT Firebase ou dual-auth)
 //  2. Extrait le Bearer token du header Authorization
 //  3. Valide le token avec Firebase Admin SDK
 //  4. Vérifie que le compte n'est pas suspendu/banni (via Redis si configuré)
 //  5. Injecte le Firebase UID dans le header x-firebase-uid
-func JWTFirebase(validator *firebaseValidator.JWTValidator, isProtected ProtectedRoutes, suspensionRedis *redis.Client, logger *zap.Logger) func(http.Handler) http.Handler {
+//
+// isDual : routes qui acceptent aussi un JWT support (ex: getDocument).
+// Si Firebase échoue sur une route duale, le middleware passe au suivant
+// sans erreur — JWTSupport prend le relais.
+func JWTFirebase(validator *firebaseValidator.JWTValidator, isProtected ProtectedRoutes, isDual ProtectedRoutes, suspensionRedis *redis.Client, logger *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !isProtected(r.URL.Path) {
+			path := r.URL.Path
+			if !isProtected(path) && !isDual(path) {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -50,8 +55,13 @@ func JWTFirebase(validator *firebaseValidator.JWTValidator, isProtected Protecte
 
 			uid, err := validator.VerifyToken(r.Context(), token)
 			if err != nil {
+				if isDual(path) {
+					// Route duale : JWTSupport gérera la validation du token support
+					next.ServeHTTP(w, r)
+					return
+				}
 				logger.Warn("firebase token validation failed",
-					zap.String("path", r.URL.Path),
+					zap.String("path", path),
 					zap.Error(err),
 				)
 				writeJSONError(w, http.StatusUnauthorized, "invalid or expired token")
@@ -86,7 +96,7 @@ func JWTFirebase(validator *firebaseValidator.JWTValidator, isProtected Protecte
 			r.Header.Set(FirebaseUIDHeader, uid)
 			logger.Debug("authenticated request",
 				zap.String("uid", uid),
-				zap.String("path", r.URL.Path),
+				zap.String("path", path),
 			)
 			next.ServeHTTP(w, r)
 		})

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -346,9 +347,10 @@ func TestE2E_GetDocument(t *testing.T) {
 
 		uploaded := uploadUserDoc(t, "e2e-owner-2", "passport")
 
-		resp, err := grpcClient.GetDocument(ctx, &filepb.GetDocumentRequest{
-			FileID:    uploaded.DocumentId,
-			SupportID: "support-agent-1",
+		// Simuler l'api-gateway qui injecte x-support-uid après validation du JWT support
+		supportCtx := metadata.NewOutgoingContext(ctx, metadata.Pairs("x-support-uid", "support-agent-1"))
+		resp, err := grpcClient.GetDocument(supportCtx, &filepb.GetDocumentRequest{
+			FileID: uploaded.DocumentId,
 		})
 
 		require.NoError(t, err)
@@ -641,6 +643,7 @@ func TestE2E_CreateDocumentReview(t *testing.T) {
 		doc := uploadUserDoc(t, "e2e-review-user", "idCardFront")
 
 		resp, err := grpcClient.CreateDocumentReview(ctx, &filepb.CreateDocumentReviewRequest{
+			UserId:         "e2e-review-user",
 			UserDocumentId: doc.DocumentId,
 			Decision:       "approved",
 			ReviewType:     "manual",
@@ -662,6 +665,7 @@ func TestE2E_CreateDocumentReview(t *testing.T) {
 		doc := uploadVehicleDoc(t, "veh-review-1", "insurance")
 
 		resp, err := grpcClient.CreateDocumentReview(ctx, &filepb.CreateDocumentReviewRequest{
+			UserId:            "veh-review-1",
 			VehicleDocumentId: doc.DocumentId,
 			Decision:          "rejected",
 			ReviewType:        "automatic",
@@ -725,6 +729,7 @@ func TestE2E_CreateDocumentReview(t *testing.T) {
 		cleanTables(t)
 
 		_, err := grpcClient.CreateDocumentReview(ctx, &filepb.CreateDocumentReviewRequest{
+			UserId:         "some-user",
 			UserDocumentId: "nonexistent-doc-id",
 			Decision:       "approved",
 			ReviewType:     "manual",
@@ -749,12 +754,14 @@ func TestE2E_GetDocumentReviews(t *testing.T) {
 		doc := uploadUserDoc(t, "e2e-reviews-get", "passport")
 
 		_, err := grpcClient.CreateDocumentReview(ctx, &filepb.CreateDocumentReviewRequest{
+			UserId:         "e2e-reviews-get",
 			UserDocumentId: doc.DocumentId,
 			Decision:       "approved",
 			ReviewType:     "manual",
 		})
 		require.NoError(t, err)
 		_, err = grpcClient.CreateDocumentReview(ctx, &filepb.CreateDocumentReviewRequest{
+			UserId:          "e2e-reviews-get",
 			UserDocumentId:  doc.DocumentId,
 			Decision:        "rejected",
 			ReviewType:      "manual",
@@ -779,6 +786,7 @@ func TestE2E_GetDocumentReviews(t *testing.T) {
 		doc := uploadVehicleDoc(t, "veh-reviews-get", "registrationCard")
 
 		_, err := grpcClient.CreateDocumentReview(ctx, &filepb.CreateDocumentReviewRequest{
+			UserId:            "veh-reviews-get",
 			VehicleDocumentId: doc.DocumentId,
 			Decision:          "approved",
 			ReviewType:        "automatic",
@@ -846,6 +854,7 @@ func TestE2E_FullScenario(t *testing.T) {
 
 	// 6. Créer une revue pour la carte d'identité
 	review, err := grpcClient.CreateDocumentReview(ctx, &filepb.CreateDocumentReviewRequest{
+		UserId:         userID,
 		UserDocumentId: idCardFront.DocumentId,
 		Decision:       "approved",
 		ReviewType:     "manual",
@@ -883,10 +892,10 @@ func TestE2E_FullScenario(t *testing.T) {
 	assert.NotNil(t, docResp.File)
 	assert.Equal(t, idCardFront2.DocumentId, docResp.File.FileID)
 
-	// 11. GetDocument avec support bypass
-	docRespSupport, err := grpcClient.GetDocument(ctx, &filepb.GetDocumentRequest{
-		FileID:    idCardFront2.DocumentId,
-		SupportID: "support-agent-001",
+	// 11. GetDocument avec support bypass (x-support-uid injecté par l'api-gateway)
+	supportCtx := metadata.NewOutgoingContext(ctx, metadata.Pairs("x-support-uid", "support-agent-001"))
+	docRespSupport, err := grpcClient.GetDocument(supportCtx, &filepb.GetDocumentRequest{
+		FileID: idCardFront2.DocumentId,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, docRespSupport.File)
@@ -906,6 +915,7 @@ func TestE2E_FullScenario(t *testing.T) {
 
 	// 14. Revue véhicule
 	vehReview, err := grpcClient.CreateDocumentReview(ctx, &filepb.CreateDocumentReviewRequest{
+		UserId:            userID,
 		VehicleDocumentId: insurance.DocumentId,
 		Decision:          "resubmission",
 		ReviewType:        "automatic",
