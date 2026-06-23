@@ -203,7 +203,7 @@ func RegisterVehicleServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/vehicle.VehicleService/AddVehicle", runtime.WithHTTPPathPattern("/vehicle/add"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/vehicle.VehicleService/AddVehicle", runtime.WithHTTPPathPattern("/api/v1/vehicle/add"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -223,7 +223,7 @@ func RegisterVehicleServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/vehicle.VehicleService/UpdateVehicle", runtime.WithHTTPPathPattern("/vehicle/update"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/vehicle.VehicleService/UpdateVehicle", runtime.WithHTTPPathPattern("/api/v1/vehicle/update"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -243,7 +243,7 @@ func RegisterVehicleServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/vehicle.VehicleService/DeleteVehicle", runtime.WithHTTPPathPattern("/vehicle/delete"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/vehicle.VehicleService/DeleteVehicle", runtime.WithHTTPPathPattern("/api/v1/vehicle/delete"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -263,7 +263,7 @@ func RegisterVehicleServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/vehicle.VehicleService/GetVehicleDetails", runtime.WithHTTPPathPattern("/vehicle/details"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/vehicle.VehicleService/GetVehicleDetails", runtime.WithHTTPPathPattern("/api/v1/vehicle/details"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -283,7 +283,7 @@ func RegisterVehicleServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/vehicle.VehicleService/GetUserVehicles", runtime.WithHTTPPathPattern("/vehicle/getUserVehicles"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/vehicle.VehicleService/GetUserVehicles", runtime.WithHTTPPathPattern("/api/v1/vehicle/getUserVehicles"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -303,7 +303,7 @@ func RegisterVehicleServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/vehicle.VehicleService/Health", runtime.WithHTTPPathPattern("/vehicle/health"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/vehicle.VehicleService/Health", runtime.WithHTTPPathPattern("/api/v1/vehicle/health"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -361,7 +361,7 @@ func RegisterVehicleServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/vehicle.VehicleService/AddVehicle", runtime.WithHTTPPathPattern("/vehicle/add"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/vehicle.VehicleService/AddVehicle", runtime.WithHTTPPathPattern("/api/v1/vehicle/add"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -378,7 +378,7 @@ func RegisterVehicleServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/vehicle.VehicleService/UpdateVehicle", runtime.WithHTTPPathPattern("/vehicle/update"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/vehicle.VehicleService/UpdateVehicle", runtime.WithHTTPPathPattern("/api/v1/vehicle/update"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -395,7 +395,7 @@ func RegisterVehicleServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/vehicle.VehicleService/DeleteVehicle", runtime.WithHTTPPathPattern("/vehicle/delete"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/vehicle.VehicleService/DeleteVehicle", runtime.WithHTTPPathPattern("/api/v1/vehicle/delete"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -412,7 +412,7 @@ func RegisterVehicleServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/vehicle.VehicleService/GetVehicleDetails", runtime.WithHTTPPathPattern("/vehicle/details"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/vehicle.VehicleService/GetVehicleDetails", runtime.WithHTTPPathPattern("/api/v1/vehicle/details"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -429,7 +429,7 @@ func RegisterVehicleServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/vehicle.VehicleService/GetUserVehicles", runtime.WithHTTPPathPattern("/vehicle/getUserVehicles"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/vehicle.VehicleService/GetUserVehicles", runtime.WithHTTPPathPattern("/api/v1/vehicle/getUserVehicles"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -446,7 +446,7 @@ func RegisterVehicleServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/vehicle.VehicleService/Health", runtime.WithHTTPPathPattern("/vehicle/health"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/vehicle.VehicleService/Health", runtime.WithHTTPPathPattern("/api/v1/vehicle/health"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -463,12 +463,12 @@ func RegisterVehicleServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 }
 
 var (
-	pattern_VehicleService_AddVehicle_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"vehicle", "add"}, ""))
-	pattern_VehicleService_UpdateVehicle_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"vehicle", "update"}, ""))
-	pattern_VehicleService_DeleteVehicle_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"vehicle", "delete"}, ""))
-	pattern_VehicleService_GetVehicleDetails_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"vehicle", "details"}, ""))
-	pattern_VehicleService_GetUserVehicles_0   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"vehicle", "getUserVehicles"}, ""))
-	pattern_VehicleService_Health_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"vehicle", "health"}, ""))
+	pattern_VehicleService_AddVehicle_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "vehicle", "add"}, ""))
+	pattern_VehicleService_UpdateVehicle_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "vehicle", "update"}, ""))
+	pattern_VehicleService_DeleteVehicle_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "vehicle", "delete"}, ""))
+	pattern_VehicleService_GetVehicleDetails_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "vehicle", "details"}, ""))
+	pattern_VehicleService_GetUserVehicles_0   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "vehicle", "getUserVehicles"}, ""))
+	pattern_VehicleService_Health_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "vehicle", "health"}, ""))
 )
 
 var (
