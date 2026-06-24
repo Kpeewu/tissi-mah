@@ -10,6 +10,28 @@ type UserProfile struct {
 	LastName  string // mappe sur UserProfileResponse.Name
 }
 
+// VehicleInfo contient les informations essentielles d'un véhicule.
+// Source : vehicle-service.GetVehicleDetails.
+type VehicleInfo struct {
+	VehicleID    string
+	Brand        string
+	BrandModel   string
+	Color        string
+	LicencePlate string
+	NumberOfSeats int32
+	IsVerified   bool
+}
+
+// VehicleClient est l'interface pour communiquer avec vehicle-service via gRPC.
+type VehicleClient interface {
+	// GetVehicleInfo retourne les informations essentielles d'un véhicule.
+	// Retourne nil, nil si le véhicule n'est pas trouvé (dégradation gracieuse).
+	GetVehicleInfo(ctx context.Context, vehicleID string) (*VehicleInfo, error)
+
+	// Close libère la connexion gRPC.
+	Close() error
+}
+
 // UserClient est l'interface pour communiquer avec user-service via gRPC.
 // Le file-service reçoit un Firebase UID injecté par l'api-gateway dans la
 // metadata gRPC (x-firebase-uid) et doit le résoudre en UUID interne avant

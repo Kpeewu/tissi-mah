@@ -21,6 +21,7 @@ func NewFileServer(
 	cfg *config.Config,
 	service serviceInterfaces.FileService,
 	userClient client.UserClient,
+	vehicleClient client.VehicleClient,
 	storageClient storage.StorageClient,
 	logger *zap.Logger,
 ) (*grpcutil.Server, error) {
@@ -44,7 +45,7 @@ func NewFileServer(
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)
 	}
 
-	handler := NewFileHandler(service, userClient, storageClient, logger)
+	handler := NewFileHandler(service, userClient, vehicleClient, storageClient, logger)
 	filepb.RegisterFileServiceServer(srv.Server(), handler)
 	srv.SetServingStatus("file.FileService", grpc_health_v1.HealthCheckResponse_SERVING)
 

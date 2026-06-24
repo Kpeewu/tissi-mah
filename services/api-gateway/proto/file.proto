@@ -443,23 +443,38 @@ message UserDocumentResponse {
   string UpdatedAt           = 13;
   string ExpiredAt           = 14; // ISO 8601 ou "" si non défini
   string LogicalDocumentType = 15; // idCard, driverLicence, passport…
+  string IssuedAt            = 16; // ISO 8601 ou "" si non défini
+}
+
+// VehicleInfo embarque les données essentielles du véhicule dans la réponse document.
+message VehicleInfo {
+  string VehicleId    = 1;
+  string Brand        = 2;
+  string BrandModel   = 3;
+  string Color        = 4;
+  string LicencePlate = 5;
+  int32  NumberOfSeats = 6;
+  bool   IsVerified   = 7;
 }
 
 message VehicleDocumentResponse {
-  string DocumentId = 1;
-  string VehicleId = 2;
-  string DocumentName = 3;
-  string DocumentType = 4;
-  string DocumentUrl = 5;
-  int64 FileSizeBytes = 6;
-  string MimeType = 7;
-  string DocumentNumber = 8;
+  string DocumentId       = 1;
+  string VehicleId        = 2;
+  string DocumentName     = 3;
+  string DocumentType     = 4;
+  string DocumentUrl      = 5;
+  int64  FileSizeBytes    = 6;
+  string MimeType         = 7;
+  string DocumentNumber   = 8;
   string IssuingAuthority = 9;
-  string Status = 10;
-  bool IsCurrent = 11;
-  string UploadedAt = 12;
-  string UpdatedAt = 13;
-  string UserId = 14; // Propriétaire (driver) — dénormalisation migration 000005
+  string Status           = 10;
+  bool   IsCurrent        = 11;
+  string UploadedAt       = 12;
+  string UpdatedAt        = 13;
+  string UserId           = 14; // Propriétaire (driver) — dénormalisation migration 000005
+  string IssuedAt         = 15; // ISO 8601 ou "" si non défini
+  string ExpireAt         = 16; // ISO 8601 ou "" si non défini
+  VehicleInfo Vehicle     = 17; // Détails du véhicule (null si non résolu)
 }
 
 message GetUserDocumentsResponse {
