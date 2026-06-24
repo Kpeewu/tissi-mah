@@ -185,6 +185,9 @@ func (c *fileServiceClientImpl) GetUserDocumentSummaries(ctx context.Context, us
 
 	out := make([]*domain.DocumentSummary, 0, len(resp.Documents))
 	for _, d := range resp.Documents {
+		if !d.IsCurrent {
+			continue
+		}
 		out = append(out, &domain.DocumentSummary{
 			DocumentID:          d.DocumentId,
 			DocumentType:        d.DocumentType,
@@ -193,6 +196,16 @@ func (c *fileServiceClientImpl) GetUserDocumentSummaries(ctx context.Context, us
 			OwnerKind:           "user",
 			OwnerID:             d.UserId,
 			Category:            domain.DocumentCategory(d.DocumentType, "user"),
+			DocumentURL:         d.DocumentUrl,
+			FileSizeBytes:       d.FileSizeBytes,
+			MimeType:            d.MimeType,
+			DocumentNumber:      d.DocumentNumber,
+			IsCurrent:           d.IsCurrent,
+			UploadedAt:          d.UploadedAt,
+			UpdatedAt:           d.UpdatedAt,
+			IssuedAt:            d.IssuedAt,
+			ExpiredAt:           d.ExpiredAt,
+			IssuingCountry:      d.IssuingCountry,
 		})
 	}
 	return out, nil
@@ -209,6 +222,21 @@ func (c *fileServiceClientImpl) GetVehicleDocumentSummariesByUserID(ctx context.
 
 	out := make([]*domain.DocumentSummary, 0, len(resp.Documents))
 	for _, d := range resp.Documents {
+		if !d.IsCurrent {
+			continue
+		}
+		var vd *domain.VehicleDetails
+		if d.Vehicle != nil {
+			vd = &domain.VehicleDetails{
+				VehicleID:     d.Vehicle.VehicleId,
+				Brand:         d.Vehicle.Brand,
+				BrandModel:    d.Vehicle.BrandModel,
+				Color:         d.Vehicle.Color,
+				LicencePlate:  d.Vehicle.LicencePlate,
+				NumberOfSeats: d.Vehicle.NumberOfSeats,
+				IsVerified:    d.Vehicle.IsVerified,
+			}
+		}
 		out = append(out, &domain.DocumentSummary{
 			DocumentID:          d.DocumentId,
 			DocumentType:        d.DocumentType,
@@ -217,6 +245,17 @@ func (c *fileServiceClientImpl) GetVehicleDocumentSummariesByUserID(ctx context.
 			OwnerKind:           "vehicle",
 			OwnerID:             d.VehicleId,
 			Category:            domain.DocumentCategory(d.DocumentType, "vehicle"),
+			DocumentURL:         d.DocumentUrl,
+			FileSizeBytes:       d.FileSizeBytes,
+			MimeType:            d.MimeType,
+			DocumentNumber:      d.DocumentNumber,
+			IsCurrent:           d.IsCurrent,
+			UploadedAt:          d.UploadedAt,
+			UpdatedAt:           d.UpdatedAt,
+			IssuedAt:            d.IssuedAt,
+			ExpiredAt:           d.ExpireAt,
+			IssuingAuthority:    d.IssuingAuthority,
+			Vehicle:             vd,
 		})
 	}
 	return out, nil

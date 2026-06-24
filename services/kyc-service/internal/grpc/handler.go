@@ -438,6 +438,36 @@ func (h *KYCHandler) GetManualReviewRequestDetail(ctx context.Context, req *kycp
 			OwnerKind:           d.OwnerKind,
 			OwnerId:             d.OwnerID,
 			Category:            d.Category,
+			// Métadonnées document (recto / document principal)
+			DocumentUrl:         d.DocumentURL,
+			FileSizeBytes:       d.FileSizeBytes,
+			MimeType:            d.MimeType,
+			DocumentNumber:      d.DocumentNumber,
+			IsCurrent:           d.IsCurrent,
+			UploadedAt:          d.UploadedAt,
+			UpdatedAt:           d.UpdatedAt,
+			IssuedAt:            d.IssuedAt,
+			ExpiredAt:           d.ExpiredAt,
+			IssuingCountry:      d.IssuingCountry,
+			IssuingAuthority:    d.IssuingAuthority,
+			// Verso recto-verso
+			SecondDocumentId:    d.SecondDocumentID,
+			SecondDocumentUrl:   d.SecondDocumentURL,
+			SecondFileSizeBytes: d.SecondFileSizeBytes,
+			SecondMimeType:      d.SecondMimeType,
+			SecondUploadedAt:    d.SecondUploadedAt,
+			SecondUpdatedAt:     d.SecondUpdatedAt,
+		}
+		if d.Vehicle != nil {
+			pd.Vehicle = &kycpb.ManualReviewVehicleInfo{
+				VehicleId:     d.Vehicle.VehicleID,
+				Brand:         d.Vehicle.Brand,
+				BrandModel:    d.Vehicle.BrandModel,
+				Color:         d.Vehicle.Color,
+				LicencePlate:  d.Vehicle.LicencePlate,
+				NumberOfSeats: d.Vehicle.NumberOfSeats,
+				IsVerified:    d.Vehicle.IsVerified,
+			}
 		}
 		if d.LatestReview != nil {
 			pd.LatestReview = &kycpb.ManualReviewDocumentReview{

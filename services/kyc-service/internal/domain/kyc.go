@@ -199,6 +199,17 @@ type KycDocument struct {
 	UpdatedAt    string
 }
 
+// VehicleDetails : infos véhicule embarquées dans DocumentSummary (vehicle docs uniquement).
+type VehicleDetails struct {
+	VehicleID     string
+	Brand         string
+	BrandModel    string
+	Color         string
+	LicencePlate  string
+	NumberOfSeats int32
+	IsVerified    bool
+}
+
 // DocumentSummary : document soumis par un utilisateur (vue détail support).
 type DocumentSummary struct {
 	DocumentID          string
@@ -209,6 +220,26 @@ type DocumentSummary struct {
 	OwnerID             string // user_id ou vehicle_id selon OwnerKind
 	Category            string // passenger | driver | other
 	LatestReview        *ReviewSummary
+	// Métadonnées document (recto / document principal)
+	DocumentURL      string
+	FileSizeBytes    int64
+	MimeType         string
+	DocumentNumber   string
+	IsCurrent        bool
+	UploadedAt       string
+	UpdatedAt        string
+	IssuedAt         string
+	ExpiredAt        string         // unifié : ExpiredAt user / ExpireAt vehicle
+	IssuingCountry   string         // user docs uniquement
+	IssuingAuthority string         // vehicle docs uniquement
+	Vehicle          *VehicleDetails // vehicle docs uniquement
+	// Verso — recto-verso (idCard, driverLicence) ; vide si document singulier
+	SecondDocumentID    string
+	SecondDocumentURL   string
+	SecondFileSizeBytes int64
+	SecondMimeType      string
+	SecondUploadedAt    string
+	SecondUpdatedAt     string
 }
 
 // ReviewSummary : dernière review associée à un document.
