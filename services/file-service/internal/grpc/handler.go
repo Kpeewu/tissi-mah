@@ -27,14 +27,15 @@ const maxPresignTTL = 24 * time.Hour
 // FileHandler implémente filepb.FileServiceServer.
 type FileHandler struct {
 	filepb.UnimplementedFileServiceServer
-	service    serviceInterfaces.FileService
-	userClient client.UserClient
-	storage    storage.StorageClient
-	logger     *zap.Logger
+	service       serviceInterfaces.FileService
+	userClient    client.UserClient
+	vehicleClient client.VehicleClient
+	storage       storage.StorageClient
+	logger        *zap.Logger
 }
 
-func NewFileHandler(service serviceInterfaces.FileService, userClient client.UserClient, storageClient storage.StorageClient, logger *zap.Logger) *FileHandler {
-	return &FileHandler{service: service, userClient: userClient, storage: storageClient, logger: logger}
+func NewFileHandler(service serviceInterfaces.FileService, userClient client.UserClient, vehicleClient client.VehicleClient, storageClient storage.StorageClient, logger *zap.Logger) *FileHandler {
+	return &FileHandler{service: service, userClient: userClient, vehicleClient: vehicleClient, storage: storageClient, logger: logger}
 }
 
 // --- Upload streaming : documents utilisateur ---
@@ -425,7 +426,7 @@ func (h *FileHandler) UploadVehicleDocument(stream filepb.FileService_UploadVehi
 
 	presignedURL, _ := h.storage.GeneratePresignedURL(stream.Context(), doc.DocumentKey, defaultPresignTTL)
 	h.logger.Info("handler: UploadVehicleDocument success", zap.String("documentID", doc.DocumentID))
-	return stream.SendAndClose(toProtoVehicleDocument(doc, presignedURL))
+	return stream.SendAndClose(toProtoVehicleDocument(doc, presignedURL, nil))
 }
 
 // --- Lecture ---
@@ -477,10 +478,11 @@ func (h *FileHandler) GetVehicleDocuments(ctx context.Context, req *filepb.GetVe
 		return nil, toGRPCError(err)
 	}
 
+	vehicleInfo := h.fetchVehicleInfo(ctx, req.VehicleId)
 	var protoDocs []*filepb.VehicleDocumentResponse
 	for _, doc := range docs {
 		presignedURL, _ := h.storage.GeneratePresignedURL(ctx, doc.DocumentKey, defaultPresignTTL)
-		protoDocs = append(protoDocs, toProtoVehicleDocument(doc, presignedURL))
+		protoDocs = append(protoDocs, toProtoVehicleDocument(doc, presignedURL, vehicleInfo))
 	}
 	return &filepb.GetVehicleDocumentsResponse{Documents: protoDocs}, nil
 }
@@ -494,7 +496,8 @@ func (h *FileHandler) GetVehicleDocument(ctx context.Context, req *filepb.GetDoc
 	}
 	ttl := presignTTLFromRequest(req.PresignTTLSecs)
 	presignedURL, _ := h.storage.GeneratePresignedURL(ctx, doc.DocumentKey, ttl)
-	return toProtoVehicleDocument(doc, presignedURL), nil
+	vehicleInfo := h.fetchVehicleInfo(ctx, doc.VehicleID)
+	return toProtoVehicleDocument(doc, presignedURL, vehicleInfo), nil
 }
 
 func (h *FileHandler) GetVehicleDocumentsByUserID(ctx context.Context, req *filepb.GetVehicleDocumentsByUserIDRequest) (*filepb.GetVehicleDocumentsResponse, error) {
@@ -505,10 +508,15 @@ func (h *FileHandler) GetVehicleDocumentsByUserID(ctx context.Context, req *file
 		return nil, toGRPCError(err)
 	}
 
+	// Dédupliquer les vehicleIDs pour n'appeler vehicle-service qu'une fois par véhicule.
+	vehicleCache := make(map[string]*filepb.VehicleInfo)
 	var protoDocs []*filepb.VehicleDocumentResponse
 	for _, doc := range docs {
+		if _, cached := vehicleCache[doc.VehicleID]; !cached {
+			vehicleCache[doc.VehicleID] = h.fetchVehicleInfo(ctx, doc.VehicleID)
+		}
 		presignedURL, _ := h.storage.GeneratePresignedURL(ctx, doc.DocumentKey, defaultPresignTTL)
-		protoDocs = append(protoDocs, toProtoVehicleDocument(doc, presignedURL))
+		protoDocs = append(protoDocs, toProtoVehicleDocument(doc, presignedURL, vehicleCache[doc.VehicleID]))
 	}
 	return &filepb.GetVehicleDocumentsResponse{Documents: protoDocs}, nil
 }
@@ -843,11 +851,12 @@ func toProtoUserDocument(doc *domain.UserDocument, presignedURL string) *filepb.
 		IsCurrent:           doc.IsCurrent,
 		UploadedAt:          doc.UploadedAt.Format(time.RFC3339),
 		UpdatedAt:           doc.UpdatedAt.Format(time.RFC3339),
+		IssuedAt:            formatTimeOrEmpty(doc.IssuedAt),
 		ExpiredAt:           formatTimeOrEmpty(doc.ExpireAt),
 	}
 }
 
-func toProtoVehicleDocument(doc *domain.VehicleDocument, presignedURL string) *filepb.VehicleDocumentResponse {
+func toProtoVehicleDocument(doc *domain.VehicleDocument, presignedURL string, vehicle *filepb.VehicleInfo) *filepb.VehicleDocumentResponse {
 	return &filepb.VehicleDocumentResponse{
 		DocumentId:       doc.DocumentID,
 		VehicleId:        doc.VehicleID,
@@ -863,6 +872,30 @@ func toProtoVehicleDocument(doc *domain.VehicleDocument, presignedURL string) *f
 		IsCurrent:        doc.IsCurrent,
 		UploadedAt:       doc.UploadedAt.Format(time.RFC3339),
 		UpdatedAt:        doc.UpdatedAt.Format(time.RFC3339),
+		IssuedAt:         formatTimeOrEmpty(doc.IssuedAt),
+		ExpireAt:         formatTimeOrEmpty(doc.ExpireAt),
+		Vehicle:          vehicle,
+	}
+}
+
+// fetchVehicleInfo appelle vehicle-service et convertit le résultat en proto VehicleInfo.
+// En cas d'erreur ou véhicule inconnu, retourne nil (dégradation gracieuse).
+func (h *FileHandler) fetchVehicleInfo(ctx context.Context, vehicleID string) *filepb.VehicleInfo {
+	if h.vehicleClient == nil || vehicleID == "" {
+		return nil
+	}
+	info, err := h.vehicleClient.GetVehicleInfo(ctx, vehicleID)
+	if err != nil || info == nil {
+		return nil
+	}
+	return &filepb.VehicleInfo{
+		VehicleId:     info.VehicleID,
+		Brand:         info.Brand,
+		BrandModel:    info.BrandModel,
+		Color:         info.Color,
+		LicencePlate:  info.LicencePlate,
+		NumberOfSeats: info.NumberOfSeats,
+		IsVerified:    info.IsVerified,
 	}
 }
 

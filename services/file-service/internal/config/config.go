@@ -13,6 +13,7 @@ type Config struct {
 	Redis              RedisConfig
 	S3                 S3Config
 	UserService        UserServiceConfig
+	VehicleService     ServiceConfig
 	ModerationService  ServiceConfig
 	ModerationEnabled  bool
 	ModerationFailClosed bool
@@ -100,6 +101,10 @@ func Load() (*Config, error) {
 		UserService: UserServiceConfig{
 			Address: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_HOST", "0.0.0.0"),
 			Port:    sharedconfig.GetStringOrDefault(values, "USER_SERVICE_PORT", "50052"),
+		},
+		VehicleService: ServiceConfig{
+			Address: sharedconfig.GetStringOrDefault(values, "VEHICLE_SERVICE_HOST", "0.0.0.0"),
+			Port:    sharedconfig.GetStringOrDefault(values, "VEHICLE_SERVICE_PORT", "50055"),
 		},
 		ModerationService: ServiceConfig{
 			Address: sharedconfig.GetStringOrDefault(values, "MODERATION_SERVICE_HOST", "0.0.0.0"),

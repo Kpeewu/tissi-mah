@@ -74,6 +74,14 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer userClient.Close()
 	logger.Info("user-service client ready", zap.String("address", cfg.UserService.Addr()))
 
+	// --- Vehicle-service client ---
+	vehicleClient, err := client.NewVehicleServiceClient(cfg.VehicleService.Addr(), logger)
+	if err != nil {
+		return fmt.Errorf("vehicle-service client: %w", err)
+	}
+	defer vehicleClient.Close()
+	logger.Info("vehicle-service client ready", zap.String("address", cfg.VehicleService.Addr()))
+
 	// --- Repositories ---
 	userDocRead := implementations.NewUserDocumentReadRepository(pool, logger)
 	userDocWrite := implementations.NewUserDocumentWriteRepository(pool, logger)
@@ -106,7 +114,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	)
 
 	// --- gRPC server ---
-	srv, err := grpcServer.NewFileServer(cfg, fileService, userClient, storageClient, logger)
+	srv, err := grpcServer.NewFileServer(cfg, fileService, userClient, vehicleClient, storageClient, logger)
 	if err != nil {
 		return fmt.Errorf("grpc server: %w", err)
 	}
