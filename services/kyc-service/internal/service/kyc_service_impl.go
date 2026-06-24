@@ -1101,30 +1101,42 @@ func (s *kycServiceImpl) GetManualReviewRequestDetail(ctx context.Context, userI
 
 	// Grouper les user docs par LogicalDocumentType pour fusionner les paires recto-verso
 	// (idCardFront+idCardBack → une seule entrée, idem driverLicenceFront+Back).
+	// Deux passages pour être indépendant de l'ordre de tri : les documents sont triés
+	// par uploaded_at DESC, donc le verso peut précéder le recto. Un passage unique
+	// perdrait alors le verso (recto pas encore enregistré).
 	byLogicalUser := make(map[string]*domain.DocumentSummary, len(userDocs))
 	var userDocOrder []string
+
+	// 1er passage : enregistrer les rectos / documents principaux.
 	for _, d := range userDocs {
 		d.LogicalDocumentType = domain.ToLogicalDocumentType(d.DocumentType)
 		d.LatestReview = pickReview(byUserDoc[d.DocumentID], byLogicalType[d.LogicalDocumentType], byType[d.DocumentType])
-
 		if strings.HasSuffix(d.DocumentType, "Back") {
-			// Verso : rattacher au recto déjà enregistré
-			if primary, ok := byLogicalUser[d.LogicalDocumentType]; ok {
-				primary.SecondDocumentID    = d.DocumentID
-				primary.SecondDocumentURL   = d.DocumentURL
-				primary.SecondFileSizeBytes = d.FileSizeBytes
-				primary.SecondMimeType      = d.MimeType
-				primary.SecondUploadedAt    = d.UploadedAt
-				primary.SecondUpdatedAt     = d.UpdatedAt
-			}
-			// Si le recto n'est pas encore arrivé (cas anormal), le verso est ignoré.
-		} else {
-			if _, exists := byLogicalUser[d.LogicalDocumentType]; !exists {
-				byLogicalUser[d.LogicalDocumentType] = d
-				userDocOrder = append(userDocOrder, d.LogicalDocumentType)
-			}
+			continue
+		}
+		if _, exists := byLogicalUser[d.LogicalDocumentType]; !exists {
+			byLogicalUser[d.LogicalDocumentType] = d
+			userDocOrder = append(userDocOrder, d.LogicalDocumentType)
 		}
 	}
+
+	// 2e passage : rattacher les versos au recto correspondant.
+	for _, d := range userDocs {
+		if !strings.HasSuffix(d.DocumentType, "Back") {
+			continue
+		}
+		logical := domain.ToLogicalDocumentType(d.DocumentType)
+		if primary, ok := byLogicalUser[logical]; ok {
+			primary.SecondDocumentID    = d.DocumentID
+			primary.SecondDocumentURL   = d.DocumentURL
+			primary.SecondFileSizeBytes = d.FileSizeBytes
+			primary.SecondMimeType      = d.MimeType
+			primary.SecondUploadedAt    = d.UploadedAt
+			primary.SecondUpdatedAt     = d.UpdatedAt
+		}
+		// Si le recto est absent (cas anormal), le verso est ignoré.
+	}
+
 	for _, key := range userDocOrder {
 		docs = append(docs, byLogicalUser[key])
 	}

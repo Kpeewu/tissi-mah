@@ -199,35 +199,50 @@ func (s *fileServiceImpl) GetDocument(ctx context.Context, input serviceInterfac
 		return nil, fileErrors.ErrorDocumentNotFound
 	}
 
-	doc, err := s.userDocRead.GetByID(ctx, input.FileID)
-	if err != nil {
-		s.logger.Error("get document: not found", zap.Error(err), zap.String("fileID", input.FileID))
+	// On résout d'abord parmi les documents utilisateur, puis en fallback parmi les
+	// documents véhicule : un agent support doit pouvoir prévisualiser un document
+	// véhicule via son ID (l'historique KYC ne fournit que des file IDs, pas d'URL).
+	var (
+		documentID   string
+		ownerUserID  string
+		documentKey  string
+		documentType string
+		isVehicleDoc bool
+	)
+
+	if userDoc, err := s.userDocRead.GetByID(ctx, input.FileID); err == nil {
+		documentID, ownerUserID, documentKey, documentType = userDoc.DocumentID, userDoc.UserID, userDoc.DocumentKey, userDoc.DocumentType
+	} else if vehDoc, vErr := s.vehicleDocRead.GetByID(ctx, input.FileID); vErr == nil {
+		documentID, ownerUserID, documentKey, documentType = vehDoc.DocumentID, vehDoc.UserID, vehDoc.DocumentKey, vehDoc.DocumentType
+		isVehicleDoc = true
+	} else {
+		s.logger.Error("get document: not found", zap.Error(vErr), zap.String("fileID", input.FileID))
 		return nil, fileErrors.ErrorDocumentNotFound
 	}
 
-	// Vérification de propriété uniquement pour les utilisateurs
+	// Vérification de propriété uniquement pour les utilisateurs (jamais en mode support)
 	if input.SupportID == "" {
-		if doc.UserID != input.UserID {
+		if ownerUserID != input.UserID {
 			s.logger.Warn("get document: unauthorized access",
 				zap.String("fileID", input.FileID),
 				zap.String("userID", input.UserID),
-				zap.String("docOwner", doc.UserID),
+				zap.String("docOwner", ownerUserID),
 			)
 			return nil, fileErrors.ErrorUnauthorized
 		}
 	}
 
-	presignedURL, err := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, time.Hour)
+	presignedURL, err := s.storage.GeneratePresignedURL(ctx, documentKey, time.Hour)
 	if err != nil {
 		s.logger.Error("get document: presign failed", zap.Error(err), zap.String("fileID", input.FileID))
 		return nil, fileErrors.ErrorUploadFailed
 	}
 
-	s.logger.Info("get document: success", zap.String("fileID", input.FileID))
+	s.logger.Info("get document: success", zap.String("fileID", input.FileID), zap.Bool("vehicle", isVehicleDoc))
 	return &serviceInterfaces.GetDocumentResult{
-		FileID:                doc.DocumentID,
+		FileID:                documentID,
 		FileURL:               presignedURL,
-		FileType:              doc.DocumentType,
+		FileType:              documentType,
 		PresignedURLExpiresAt: time.Now().UTC().Add(30 * time.Minute).Format(time.RFC3339),
 	}, nil
 }
