@@ -55,18 +55,24 @@ func cleanTables(t *testing.T) {
 
 func newUserDoc(userID, docType string) *domain.UserDocument {
 	now := time.Now().UTC().Truncate(time.Millisecond)
+	issued := now.AddDate(-1, 0, 0)
+	expiry := now.AddDate(5, 0, 0)
 	return &domain.UserDocument{
-		DocumentID:    uuid.New().String(),
-		UserID:        userID,
-		DocumentName:  docType + "_doc",
-		DocumentType:  docType,
-		DocumentKey:   docType + "/" + userID + "/doc.jpg",
-		FileSizeBytes: 1024,
-		MimeType:      "image/jpeg",
-		Status:        "pending",
-		IsCurrent:     true,
-		UploadedAt:    now,
-		UpdatedAt:     now,
+		DocumentID:     uuid.New().String(),
+		UserID:         userID,
+		DocumentName:   docType + "_doc",
+		DocumentType:   docType,
+		DocumentKey:    docType + "/" + userID + "/doc.jpg",
+		FileSizeBytes:  1024,
+		MimeType:       "image/jpeg",
+		DocumentNumber: "TEST-" + docType,
+		IssuedAt:       &issued,
+		ExpireAt:       &expiry,
+		IssuingCountry: "TG",
+		Status:         "pending",
+		IsCurrent:      true,
+		UploadedAt:     now,
+		UpdatedAt:      now,
 	}
 }
 
@@ -81,22 +87,28 @@ func insertUserDoc(t *testing.T, doc *domain.UserDocument) {
 
 func newVehicleDoc(vehicleID, docType string) *domain.VehicleDocument {
 	now := time.Now().UTC().Truncate(time.Millisecond)
+	issued := now.AddDate(-1, 0, 0)
+	expiry := now.AddDate(3, 0, 0)
 	return &domain.VehicleDocument{
 		DocumentID: uuid.New().String(),
 		VehicleID:  vehicleID,
 		// UserID par défaut dérivé du vehicleID : les tests qui ont besoin d'un
 		// utilisateur spécifique peuvent écraser ce champ après l'appel.
 		// Indispensable depuis migration 000008 où document_reviews.user_id est NOT NULL.
-		UserID:        "owner-" + vehicleID,
-		DocumentName:  docType + "_doc",
-		DocumentType:  docType,
-		DocumentKey:   docType + "/" + vehicleID + "/doc.jpg",
-		FileSizeBytes: 2048,
-		MimeType:      "image/jpeg",
-		Status:        "pending",
-		IsCurrent:     true,
-		UploadedAt:    now,
-		UpdatedAt:     now,
+		UserID:           "owner-" + vehicleID,
+		DocumentName:     docType + "_doc",
+		DocumentType:     docType,
+		DocumentKey:      docType + "/" + vehicleID + "/doc.jpg",
+		FileSizeBytes:    2048,
+		MimeType:         "image/jpeg",
+		DocumentNumber:   "VEH-" + docType,
+		IssuedAt:         &issued,
+		ExpireAt:         &expiry,
+		IssuingAuthority: "test-authority",
+		Status:           "pending",
+		IsCurrent:        true,
+		UploadedAt:       now,
+		UpdatedAt:        now,
 	}
 }
 
