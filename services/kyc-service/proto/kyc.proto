@@ -306,7 +306,19 @@ message ManualReviewDocumentReview {
   string ReviewedAt       = 8; // ISO 8601
 }
 
+// Infos véhicule embarquées dans ManualReviewDocument (vehicle docs uniquement).
+message ManualReviewVehicleInfo {
+  string VehicleId     = 1;
+  string Brand         = 2;
+  string BrandModel    = 3;
+  string Color         = 4;
+  string LicencePlate  = 5;
+  int32  NumberOfSeats = 6;
+  bool   IsVerified    = 7;
+}
+
 message ManualReviewDocument {
+  // Champs existants — ne pas modifier les numéros
   string DocumentId          = 1;
   string DocumentType        = 2;
   string Status              = 3;
@@ -315,6 +327,26 @@ message ManualReviewDocument {
   string Category            = 6; // passenger | driver | other
   ManualReviewDocumentReview LatestReview = 7; // null si aucune review
   string LogicalDocumentType = 8; // idCard, driverLicence, passport…
+  // Métadonnées document (recto / document principal)
+  string DocumentUrl         = 9;
+  int64  FileSizeBytes       = 10;
+  string MimeType            = 11;
+  string DocumentNumber      = 12;
+  bool   IsCurrent           = 13;
+  string UploadedAt          = 14; // ISO 8601
+  string UpdatedAt           = 15; // ISO 8601
+  string IssuedAt            = 16; // ISO 8601
+  string ExpiredAt           = 17; // ISO 8601 — ExpiredAt user / ExpireAt vehicle (unifié)
+  string IssuingCountry      = 18; // user docs uniquement
+  string IssuingAuthority    = 19; // vehicle docs uniquement
+  ManualReviewVehicleInfo Vehicle = 20; // vehicle docs uniquement
+  // Verso — recto-verso (idCard, driverLicence) uniquement ; vide sinon
+  string SecondDocumentId    = 21;
+  string SecondDocumentUrl   = 22;
+  int64  SecondFileSizeBytes = 23;
+  string SecondMimeType      = 24;
+  string SecondUploadedAt    = 25; // ISO 8601
+  string SecondUpdatedAt     = 26; // ISO 8601
 }
 
 // =============================================================================

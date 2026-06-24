@@ -1098,11 +1098,38 @@ func (s *kycServiceImpl) GetManualReviewRequestDetail(ctx context.Context, userI
 	byUserDoc, byVehicleDoc, byLogicalType, byType := indexLatestReviews(reviews)
 
 	docs := make([]*domain.DocumentSummary, 0, len(userDocs)+len(vehicleDocs))
+
+	// Grouper les user docs par LogicalDocumentType pour fusionner les paires recto-verso
+	// (idCardFront+idCardBack → une seule entrée, idem driverLicenceFront+Back).
+	byLogicalUser := make(map[string]*domain.DocumentSummary, len(userDocs))
+	var userDocOrder []string
 	for _, d := range userDocs {
 		d.LogicalDocumentType = domain.ToLogicalDocumentType(d.DocumentType)
 		d.LatestReview = pickReview(byUserDoc[d.DocumentID], byLogicalType[d.LogicalDocumentType], byType[d.DocumentType])
-		docs = append(docs, d)
+
+		if strings.HasSuffix(d.DocumentType, "Back") {
+			// Verso : rattacher au recto déjà enregistré
+			if primary, ok := byLogicalUser[d.LogicalDocumentType]; ok {
+				primary.SecondDocumentID    = d.DocumentID
+				primary.SecondDocumentURL   = d.DocumentURL
+				primary.SecondFileSizeBytes = d.FileSizeBytes
+				primary.SecondMimeType      = d.MimeType
+				primary.SecondUploadedAt    = d.UploadedAt
+				primary.SecondUpdatedAt     = d.UpdatedAt
+			}
+			// Si le recto n'est pas encore arrivé (cas anormal), le verso est ignoré.
+		} else {
+			if _, exists := byLogicalUser[d.LogicalDocumentType]; !exists {
+				byLogicalUser[d.LogicalDocumentType] = d
+				userDocOrder = append(userDocOrder, d.LogicalDocumentType)
+			}
+		}
 	}
+	for _, key := range userDocOrder {
+		docs = append(docs, byLogicalUser[key])
+	}
+
+	// Vehicle docs : pas de recto-verso, append direct.
 	for _, d := range vehicleDocs {
 		d.LogicalDocumentType = domain.ToLogicalDocumentType(d.DocumentType)
 		d.LatestReview = pickReview(byVehicleDoc[d.DocumentID], byLogicalType[d.LogicalDocumentType], byType[d.DocumentType])
