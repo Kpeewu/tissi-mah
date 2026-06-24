@@ -30,7 +30,7 @@ func (s *spyChangeDocument) ChangeDocument(_ context.Context, input serviceInter
 }
 
 func newChangeDocHandler(spy *spyChangeDocument) filepb.FileServiceServer {
-	return grpcHandler.NewFileHandler(spy, new(mocks.MockUserClient), new(mocks.MockStorageClient), zap.NewNop())
+	return grpcHandler.NewFileHandler(spy, new(mocks.MockUserClient), nil, new(mocks.MockStorageClient), zap.NewNop())
 }
 
 // =============================================================================
@@ -153,7 +153,7 @@ func (s *spyKycError) ListKycDocuments(_ context.Context, _ []string) ([]*servic
 
 func TestToGRPCError_AlreadyExists(t *testing.T) {
 	spy := &spyKycError{kycErr: fileErrors.ErrorDocumentAlreadySubmitted}
-	h := grpcHandler.NewFileHandler(spy, new(mocks.MockUserClient), new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, new(mocks.MockUserClient), nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	_, err := h.ListKycDocuments(context.Background(), &filepb.ListKycDocumentsRequest{})
 
@@ -165,7 +165,7 @@ func TestToGRPCError_AlreadyExists(t *testing.T) {
 
 func TestToGRPCError_FailedPrecondition(t *testing.T) {
 	spy := &spyKycError{kycErr: fileErrors.ErrorDocumentNotReplaceable}
-	h := grpcHandler.NewFileHandler(spy, new(mocks.MockUserClient), new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, new(mocks.MockUserClient), nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	_, err := h.ListKycDocuments(context.Background(), &filepb.ListKycDocumentsRequest{})
 
@@ -177,7 +177,7 @@ func TestToGRPCError_FailedPrecondition(t *testing.T) {
 
 func TestToGRPCError_InvalidArgument_MissingMetadata(t *testing.T) {
 	spy := &spyKycError{kycErr: fileErrors.ErrorMissingDocumentMetadata}
-	h := grpcHandler.NewFileHandler(spy, new(mocks.MockUserClient), new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, new(mocks.MockUserClient), nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	_, err := h.ListKycDocuments(context.Background(), &filepb.ListKycDocumentsRequest{})
 

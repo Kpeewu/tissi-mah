@@ -120,7 +120,7 @@ func ctxWithFirebaseUID(uid string) context.Context {
 func TestUploadIdDocument_MissingMetadata_ReturnsUnauthenticated(t *testing.T) {
 	spy := &spyFileService{}
 	mockUser := new(mocks.MockUserClient)
-	h := grpcHandler.NewFileHandler(spy, mockUser, new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	_, err := h.UploadIdDocument(context.Background(), &filepb.UploadIdDocumentRequest{
 		UserID:       "firebaseXYZ",
@@ -138,7 +138,7 @@ func TestUploadIdDocument_MissingMetadata_ReturnsUnauthenticated(t *testing.T) {
 func TestUploadIdDocument_MissingFirebaseUID_ReturnsUnauthenticated(t *testing.T) {
 	spy := &spyFileService{}
 	mockUser := new(mocks.MockUserClient)
-	h := grpcHandler.NewFileHandler(spy, mockUser, new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	ctx := metadata.NewIncomingContext(context.Background(), metadata.New(map[string]string{}))
 	_, err := h.UploadIdDocument(ctx, &filepb.UploadIdDocumentRequest{
@@ -159,7 +159,7 @@ func TestUploadIdDocument_UserServiceError_ReturnsErrorMessage(t *testing.T) {
 	mockUser := new(mocks.MockUserClient)
 	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
 		Return((*client.UserProfile)(nil), errors.New("user-service down"))
-	h := grpcHandler.NewFileHandler(spy, mockUser, new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	resp, err := h.UploadIdDocument(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadIdDocumentRequest{
 		DocumentType: "DriverLicence",
@@ -178,7 +178,7 @@ func TestUploadIdDocument_ResolvesFirebaseToProfileAndForwardsInternalUUID(t *te
 	mockUser := new(mocks.MockUserClient)
 	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
 		Return(&client.UserProfile{UserID: "uuid-abc", FirstName: "Jean", LastName: "Dupont"}, nil)
-	h := grpcHandler.NewFileHandler(spy, mockUser, new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	resp, err := h.UploadIdDocument(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadIdDocumentRequest{
 		UserID:             "firebaseXYZ", // body-supplied, doit etre ignore
@@ -206,7 +206,7 @@ func TestUploadIdDocument_IgnoresBodyUserIDEvenWhenDifferentFromMetadata(t *test
 	mockUser := new(mocks.MockUserClient)
 	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "legitFirebaseUID").
 		Return(&client.UserProfile{UserID: "internal-from-legit", FirstName: "Anne", LastName: "Martin"}, nil)
-	h := grpcHandler.NewFileHandler(spy, mockUser, new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	// Un attaquant met un Firebase UID autre dans le body mais possede son propre JWT legitime.
 	// Le handler doit utiliser l'UID du JWT (metadata) et ignorer le body.
@@ -228,7 +228,7 @@ func TestUploadIdDocument_ServiceError_ReturnsErrorMessage(t *testing.T) {
 	mockUser := new(mocks.MockUserClient)
 	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
 		Return(&client.UserProfile{UserID: "uuid-abc", FirstName: "Jean", LastName: "Dupont"}, nil)
-	h := grpcHandler.NewFileHandler(spy, mockUser, new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	resp, err := h.UploadIdDocument(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadIdDocumentRequest{
 		DocumentType: "DriverLicence",
@@ -247,7 +247,7 @@ func TestUploadIdDocument_ForwardsMetadataFields(t *testing.T) {
 	mockUser := new(mocks.MockUserClient)
 	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
 		Return(&client.UserProfile{UserID: "uuid-abc", FirstName: "Jean", LastName: "Dupont"}, nil)
-	h := grpcHandler.NewFileHandler(spy, mockUser, new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	_, err := h.UploadIdDocument(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadIdDocumentRequest{
 		DocumentType:   "Passport",
