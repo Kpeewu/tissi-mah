@@ -217,7 +217,7 @@ func (s *fileServiceImpl) GetDocument(ctx context.Context, input serviceInterfac
 		}
 	}
 
-	presignedURL, err := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, 30*time.Minute)
+	presignedURL, err := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, time.Hour)
 	if err != nil {
 		s.logger.Error("get document: presign failed", zap.Error(err), zap.String("fileID", input.FileID))
 		return nil, fileErrors.ErrorUploadFailed
@@ -812,7 +812,7 @@ func (s *fileServiceImpl) ChangeDocument(ctx context.Context, input serviceInter
 		}
 		_ = s.userDocWrite.MarkAsReplaced(ctx, userDoc.DocumentID, documentID)
 
-		presignedURL, _ := s.storage.GeneratePresignedURL(ctx, newDoc.DocumentKey, 30*time.Minute)
+		presignedURL, _ := s.storage.GeneratePresignedURL(ctx, newDoc.DocumentKey, time.Hour)
 		s.logger.Info("user document changed",
 			zap.String("oldFileID", input.FileID),
 			zap.String("newFileID", documentID),
@@ -897,7 +897,7 @@ func (s *fileServiceImpl) ChangeDocument(ctx context.Context, input serviceInter
 	}
 	_ = s.vehicleDocWrite.MarkAsReplaced(ctx, vehicleDoc.DocumentID, documentID)
 
-	presignedURL, _ := s.storage.GeneratePresignedURL(ctx, newVehicleDoc.DocumentKey, 30*time.Minute)
+	presignedURL, _ := s.storage.GeneratePresignedURL(ctx, newVehicleDoc.DocumentKey, time.Hour)
 	s.logger.Info("vehicle document changed",
 		zap.String("oldFileID", input.FileID),
 		zap.String("newFileID", documentID),
@@ -1026,7 +1026,7 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 			zap.String("docType", u.docType),
 			zap.String("documentID", doc.DocumentID),
 		)
-		presignedURL, _ := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, 30*time.Minute)
+		presignedURL, _ := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, time.Hour)
 		created = append(created, &serviceInterfaces.UploadedDocument{
 			DocumentID:   doc.DocumentID,
 			DocumentURL:  presignedURL,
@@ -1146,7 +1146,7 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 			zap.String("docType", u.docType),
 			zap.String("documentID", doc.DocumentID),
 		)
-		presignedURL, _ := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, 30*time.Minute)
+		presignedURL, _ := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, time.Hour)
 		created = append(created, &serviceInterfaces.UploadedDocument{
 			DocumentID:   doc.DocumentID,
 			DocumentURL:  presignedURL,

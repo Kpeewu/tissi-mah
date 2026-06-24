@@ -21,7 +21,7 @@ import (
 
 const serviceVersion = "1.0.0"
 
-const defaultPresignTTL = 30 * time.Minute
+const defaultPresignTTL = 1 * time.Hour
 const maxPresignTTL = 24 * time.Hour
 
 // FileHandler implémente filepb.FileServiceServer.
