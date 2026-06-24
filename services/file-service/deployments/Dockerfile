@@ -22,6 +22,7 @@ RUN apk add --no-cache git ca-certificates tzdata
 COPY pkg/go.mod pkg/go.sum ./pkg/
 COPY services/file-service/go.mod services/file-service/go.sum* ./services/file-service/
 COPY services/user-service/go.mod services/user-service/go.sum* ./services/user-service/
+COPY services/vehicle-service/go.mod services/vehicle-service/go.sum* ./services/vehicle-service/
 
 # pkg-test est un module de test uniquement, mais file-service/go.mod a un replace directive qui
 # pointe vers lui. On crée un stub minimal pour satisfaire la résolution Go sans inclure
@@ -29,15 +30,16 @@ COPY services/user-service/go.mod services/user-service/go.sum* ./services/user-
 RUN mkdir -p pkg-test && \
     printf 'module github.com/Kpeewu/tissi-mah/pkg-test\n\ngo 1.25\n' > pkg-test/go.mod
 
-# Create a scoped go.work with pkg + pkg-test stub + file-service + user-service
-# user-service is required because file-service/go.mod has a replace directive pointing to it
-# (file-service importe user-service/proto/gen pour résoudre firebaseUID → internal userID)
-RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/user-service\n)\n' > go.work
+# Create a scoped go.work with pkg + pkg-test stub + file-service + user-service + vehicle-service
+# user-service and vehicle-service are required because file-service/go.mod has replace directives
+# pointing to them (proto/gen imports for user lookups and vehicle info)
+RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/user-service\n\t./services/vehicle-service\n)\n' > go.work
 
 # Download dependencies for all modules
 RUN go mod download -C ./pkg
 RUN go mod download -C ./services/file-service
 RUN go mod download -C ./services/user-service
+RUN go mod download -C ./services/vehicle-service
 
 # =============================================================================
 # Stage 2: Builder
@@ -54,8 +56,9 @@ WORKDIR /build
 # Copy shared pkg source code
 COPY pkg/ ./pkg/
 
-# Copy user-service source code (required by file-service replace directive — proto/gen import)
+# Copy user-service and vehicle-service source code (required by file-service replace directives)
 COPY services/user-service/ ./services/user-service/
+COPY services/vehicle-service/ ./services/vehicle-service/
 
 # Copy file-service source code
 COPY services/file-service/ ./services/file-service/
