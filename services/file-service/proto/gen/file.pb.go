@@ -259,13 +259,14 @@ func (x *UploadVehicleDocumentsResponse) GetDocuments() []*UploadedDocument {
 // Renvoyé par UploadIdDocument, UploadVehicleDocuments et ChangeDocument
 // pour que le front affiche la ressource sans avoir à la re-fetcher.
 type UploadedDocument struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	DocumentID    string                 `protobuf:"bytes,1,opt,name=DocumentID,proto3" json:"DocumentID,omitempty"`
-	DocumentURL   string                 `protobuf:"bytes,2,opt,name=DocumentURL,proto3" json:"DocumentURL,omitempty"`
-	DocumentType  string                 `protobuf:"bytes,3,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"`
-	DocumentName  string                 `protobuf:"bytes,4,opt,name=DocumentName,proto3" json:"DocumentName,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	DocumentID          string                 `protobuf:"bytes,1,opt,name=DocumentID,proto3" json:"DocumentID,omitempty"`
+	DocumentURL         string                 `protobuf:"bytes,2,opt,name=DocumentURL,proto3" json:"DocumentURL,omitempty"`
+	DocumentType        string                 `protobuf:"bytes,3,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"`
+	DocumentName        string                 `protobuf:"bytes,4,opt,name=DocumentName,proto3" json:"DocumentName,omitempty"`
+	LogicalDocumentType string                 `protobuf:"bytes,5,opt,name=LogicalDocumentType,proto3" json:"LogicalDocumentType,omitempty"` // idCard, driverLicence, passport, insurance…
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *UploadedDocument) Reset() {
@@ -322,6 +323,13 @@ func (x *UploadedDocument) GetDocumentType() string {
 func (x *UploadedDocument) GetDocumentName() string {
 	if x != nil {
 		return x.DocumentName
+	}
+	return ""
+}
+
+func (x *UploadedDocument) GetLogicalDocumentType() string {
+	if x != nil {
+		return x.LogicalDocumentType
 	}
 	return ""
 }
@@ -1782,10 +1790,13 @@ type CreateDocumentReviewRequest struct {
 	// Timestamps
 	SubmittedAt string `protobuf:"bytes,20,opt,name=SubmittedAt,proto3" json:"SubmittedAt,omitempty"` // Optionnel (ISO 8601)
 	// Dénormalisation (migration 000008) — toujours fournis par kyc-service
-	UserId        string `protobuf:"bytes,21,opt,name=UserId,proto3" json:"UserId,omitempty"`             // Obligatoire — propriétaire de la review
-	DocumentType  string `protobuf:"bytes,22,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"` // Type de document (idCardFront, driverLicenceFront, ...)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	UserId       string `protobuf:"bytes,21,opt,name=UserId,proto3" json:"UserId,omitempty"`             // Obligatoire — propriétaire de la review
+	DocumentType string `protobuf:"bytes,22,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"` // Type de document (idCardFront, driverLicenceFront, ...)
+	// Recto-verso + historique (migration 000010)
+	SecondUserDocumentId string `protobuf:"bytes,23,opt,name=SecondUserDocumentId,proto3" json:"SecondUserDocumentId,omitempty"` // Optionnel — verso pour les documents recto-verso
+	LogicalDocumentType  string `protobuf:"bytes,24,opt,name=LogicalDocumentType,proto3" json:"LogicalDocumentType,omitempty"`   // idCard, driverLicence, passport… (dérivé de DocumentType)
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *CreateDocumentReviewRequest) Reset() {
@@ -1968,6 +1979,20 @@ func (x *CreateDocumentReviewRequest) GetUserId() string {
 func (x *CreateDocumentReviewRequest) GetDocumentType() string {
 	if x != nil {
 		return x.DocumentType
+	}
+	return ""
+}
+
+func (x *CreateDocumentReviewRequest) GetSecondUserDocumentId() string {
+	if x != nil {
+		return x.SecondUserDocumentId
+	}
+	return ""
+}
+
+func (x *CreateDocumentReviewRequest) GetLogicalDocumentType() string {
+	if x != nil {
+		return x.LogicalDocumentType
 	}
 	return ""
 }
@@ -2422,23 +2447,24 @@ func (*HealthRequest) Descriptor() ([]byte, []int) {
 }
 
 type UserDocumentResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	DocumentId     string                 `protobuf:"bytes,1,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`
-	UserId         string                 `protobuf:"bytes,2,opt,name=UserId,proto3" json:"UserId,omitempty"`
-	DocumentName   string                 `protobuf:"bytes,3,opt,name=DocumentName,proto3" json:"DocumentName,omitempty"`
-	DocumentType   string                 `protobuf:"bytes,4,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"`
-	DocumentUrl    string                 `protobuf:"bytes,5,opt,name=DocumentUrl,proto3" json:"DocumentUrl,omitempty"`
-	FileSizeBytes  int64                  `protobuf:"varint,6,opt,name=FileSizeBytes,proto3" json:"FileSizeBytes,omitempty"`
-	MimeType       string                 `protobuf:"bytes,7,opt,name=MimeType,proto3" json:"MimeType,omitempty"`
-	DocumentNumber string                 `protobuf:"bytes,8,opt,name=DocumentNumber,proto3" json:"DocumentNumber,omitempty"`
-	IssuingCountry string                 `protobuf:"bytes,9,opt,name=IssuingCountry,proto3" json:"IssuingCountry,omitempty"`
-	Status         string                 `protobuf:"bytes,10,opt,name=Status,proto3" json:"Status,omitempty"`
-	IsCurrent      bool                   `protobuf:"varint,11,opt,name=IsCurrent,proto3" json:"IsCurrent,omitempty"`
-	UploadedAt     string                 `protobuf:"bytes,12,opt,name=UploadedAt,proto3" json:"UploadedAt,omitempty"`
-	UpdatedAt      string                 `protobuf:"bytes,13,opt,name=UpdatedAt,proto3" json:"UpdatedAt,omitempty"`
-	ExpiredAt      string                 `protobuf:"bytes,14,opt,name=ExpiredAt,proto3" json:"ExpiredAt,omitempty"` // ISO 8601 ou "" si non défini
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId          string                 `protobuf:"bytes,1,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`
+	UserId              string                 `protobuf:"bytes,2,opt,name=UserId,proto3" json:"UserId,omitempty"`
+	DocumentName        string                 `protobuf:"bytes,3,opt,name=DocumentName,proto3" json:"DocumentName,omitempty"`
+	DocumentType        string                 `protobuf:"bytes,4,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"`
+	DocumentUrl         string                 `protobuf:"bytes,5,opt,name=DocumentUrl,proto3" json:"DocumentUrl,omitempty"`
+	FileSizeBytes       int64                  `protobuf:"varint,6,opt,name=FileSizeBytes,proto3" json:"FileSizeBytes,omitempty"`
+	MimeType            string                 `protobuf:"bytes,7,opt,name=MimeType,proto3" json:"MimeType,omitempty"`
+	DocumentNumber      string                 `protobuf:"bytes,8,opt,name=DocumentNumber,proto3" json:"DocumentNumber,omitempty"`
+	IssuingCountry      string                 `protobuf:"bytes,9,opt,name=IssuingCountry,proto3" json:"IssuingCountry,omitempty"`
+	Status              string                 `protobuf:"bytes,10,opt,name=Status,proto3" json:"Status,omitempty"`
+	IsCurrent           bool                   `protobuf:"varint,11,opt,name=IsCurrent,proto3" json:"IsCurrent,omitempty"`
+	UploadedAt          string                 `protobuf:"bytes,12,opt,name=UploadedAt,proto3" json:"UploadedAt,omitempty"`
+	UpdatedAt           string                 `protobuf:"bytes,13,opt,name=UpdatedAt,proto3" json:"UpdatedAt,omitempty"`
+	ExpiredAt           string                 `protobuf:"bytes,14,opt,name=ExpiredAt,proto3" json:"ExpiredAt,omitempty"`                     // ISO 8601 ou "" si non défini
+	LogicalDocumentType string                 `protobuf:"bytes,15,opt,name=LogicalDocumentType,proto3" json:"LogicalDocumentType,omitempty"` // idCard, driverLicence, passport…
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *UserDocumentResponse) Reset() {
@@ -2565,6 +2591,13 @@ func (x *UserDocumentResponse) GetUpdatedAt() string {
 func (x *UserDocumentResponse) GetExpiredAt() string {
 	if x != nil {
 		return x.ExpiredAt
+	}
+	return ""
+}
+
+func (x *UserDocumentResponse) GetLogicalDocumentType() string {
+	if x != nil {
+		return x.LogicalDocumentType
 	}
 	return ""
 }
@@ -2881,8 +2914,13 @@ type DocumentReviewResponse struct {
 	SubmittedAt string `protobuf:"bytes,22,opt,name=SubmittedAt,proto3" json:"SubmittedAt,omitempty"` // ISO 8601
 	UpdatedAt   string `protobuf:"bytes,23,opt,name=UpdatedAt,proto3" json:"UpdatedAt,omitempty"`     // ISO 8601
 	// Dénormalisation (migration 000008) — toujours présents
-	UserId        string `protobuf:"bytes,24,opt,name=UserId,proto3" json:"UserId,omitempty"`             // Propriétaire de la review
-	DocumentType  string `protobuf:"bytes,25,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"` // Type de document
+	UserId       string `protobuf:"bytes,24,opt,name=UserId,proto3" json:"UserId,omitempty"`             // Propriétaire de la review
+	DocumentType string `protobuf:"bytes,25,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"` // Type de document
+	// Recto-verso + historique (migration 000010)
+	SecondUserDocumentId string `protobuf:"bytes,26,opt,name=SecondUserDocumentId,proto3" json:"SecondUserDocumentId,omitempty"` // verso pour les documents recto-verso
+	LogicalDocumentType  string `protobuf:"bytes,27,opt,name=LogicalDocumentType,proto3" json:"LogicalDocumentType,omitempty"`   // idCard, driverLicence, passport…
+	// Timestamps créé/modifié
+	CreatedAt     string `protobuf:"bytes,28,opt,name=CreatedAt,proto3" json:"CreatedAt,omitempty"` // ISO 8601
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3092,6 +3130,27 @@ func (x *DocumentReviewResponse) GetDocumentType() string {
 	return ""
 }
 
+func (x *DocumentReviewResponse) GetSecondUserDocumentId() string {
+	if x != nil {
+		return x.SecondUserDocumentId
+	}
+	return ""
+}
+
+func (x *DocumentReviewResponse) GetLogicalDocumentType() string {
+	if x != nil {
+		return x.LogicalDocumentType
+	}
+	return ""
+}
+
+func (x *DocumentReviewResponse) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
 type GetDocumentReviewsResponse struct {
 	state         protoimpl.MessageState    `protogen:"open.v1"`
 	Reviews       []*DocumentReviewResponse `protobuf:"bytes,1,rep,name=Reviews,proto3" json:"Reviews,omitempty"`
@@ -3292,6 +3351,102 @@ func (x *DeleteAllUserFilesResponse) GetErrorMessage() string {
 	return ""
 }
 
+type GetDocumentReviewHistoryRequest struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	UserId              string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"`                           // Propriétaire des documents
+	LogicalDocumentType string                 `protobuf:"bytes,2,opt,name=LogicalDocumentType,proto3" json:"LogicalDocumentType,omitempty"` // idCard | driverLicence | passport | insurance | registrationCard
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *GetDocumentReviewHistoryRequest) Reset() {
+	*x = GetDocumentReviewHistoryRequest{}
+	mi := &file_file_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentReviewHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentReviewHistoryRequest) ProtoMessage() {}
+
+func (x *GetDocumentReviewHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_file_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentReviewHistoryRequest.ProtoReflect.Descriptor instead.
+func (*GetDocumentReviewHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_file_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *GetDocumentReviewHistoryRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *GetDocumentReviewHistoryRequest) GetLogicalDocumentType() string {
+	if x != nil {
+		return x.LogicalDocumentType
+	}
+	return ""
+}
+
+type GetDocumentReviewHistoryResponse struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Reviews       []*DocumentReviewResponse `protobuf:"bytes,1,rep,name=Reviews,proto3" json:"Reviews,omitempty"` // Triées par date décroissante (plus récente en premier)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDocumentReviewHistoryResponse) Reset() {
+	*x = GetDocumentReviewHistoryResponse{}
+	mi := &file_file_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentReviewHistoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentReviewHistoryResponse) ProtoMessage() {}
+
+func (x *GetDocumentReviewHistoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_file_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentReviewHistoryResponse.ProtoReflect.Descriptor instead.
+func (*GetDocumentReviewHistoryResponse) Descriptor() ([]byte, []int) {
+	return file_file_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *GetDocumentReviewHistoryResponse) GetReviews() []*DocumentReviewResponse {
+	if x != nil {
+		return x.Reviews
+	}
+	return nil
+}
+
 var File_file_proto protoreflect.FileDescriptor
 
 const file_file_proto_rawDesc = "" +
@@ -3315,14 +3470,15 @@ const file_file_proto_rawDesc = "" +
 	"\x1eUploadVehicleDocumentsResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\x124\n" +
-	"\tDocuments\x18\x03 \x03(\v2\x16.file.UploadedDocumentR\tDocuments\"\x9c\x01\n" +
+	"\tDocuments\x18\x03 \x03(\v2\x16.file.UploadedDocumentR\tDocuments\"\xce\x01\n" +
 	"\x10UploadedDocument\x12\x1e\n" +
 	"\n" +
 	"DocumentID\x18\x01 \x01(\tR\n" +
 	"DocumentID\x12 \n" +
 	"\vDocumentURL\x18\x02 \x01(\tR\vDocumentURL\x12\"\n" +
 	"\fDocumentType\x18\x03 \x01(\tR\fDocumentType\x12\"\n" +
-	"\fDocumentName\x18\x04 \x01(\tR\fDocumentName\"C\n" +
+	"\fDocumentName\x18\x04 \x01(\tR\fDocumentName\x120\n" +
+	"\x13LogicalDocumentType\x18\x05 \x01(\tR\x13LogicalDocumentType\"C\n" +
 	"\x11DeleteFileRequest\x12\x16\n" +
 	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12\x16\n" +
 	"\x06FileID\x18\x02 \x01(\tR\x06FileID\"R\n" +
@@ -3424,7 +3580,7 @@ const file_file_proto_rawDesc = "" +
 	"\x15DeleteDocumentRequest\x12\x1e\n" +
 	"\n" +
 	"DocumentId\x18\x01 \x01(\tR\n" +
-	"DocumentId\"\xe9\x06\n" +
+	"DocumentId\"\xcf\a\n" +
 	"\x1bCreateDocumentReviewRequest\x12&\n" +
 	"\x0eUserDocumentId\x18\x01 \x01(\tR\x0eUserDocumentId\x12,\n" +
 	"\x11VehicleDocumentId\x18\x02 \x01(\tR\x11VehicleDocumentId\x12*\n" +
@@ -3452,7 +3608,9 @@ const file_file_proto_rawDesc = "" +
 	"\rExtractedData\x18\x13 \x01(\fR\rExtractedData\x12 \n" +
 	"\vSubmittedAt\x18\x14 \x01(\tR\vSubmittedAt\x12\x16\n" +
 	"\x06UserId\x18\x15 \x01(\tR\x06UserId\x12\"\n" +
-	"\fDocumentType\x18\x16 \x01(\tR\fDocumentType\"q\n" +
+	"\fDocumentType\x18\x16 \x01(\tR\fDocumentType\x122\n" +
+	"\x14SecondUserDocumentId\x18\x17 \x01(\tR\x14SecondUserDocumentId\x120\n" +
+	"\x13LogicalDocumentType\x18\x18 \x01(\tR\x13LogicalDocumentType\"q\n" +
 	"\x19GetDocumentReviewsRequest\x12&\n" +
 	"\x0eUserDocumentId\x18\x01 \x01(\tR\x0eUserDocumentId\x12,\n" +
 	"\x11VehicleDocumentId\x18\x02 \x01(\tR\x11VehicleDocumentId\":\n" +
@@ -3488,7 +3646,7 @@ const file_file_proto_rawDesc = "" +
 	"\bDecision\x18\x03 \x01(\tR\bDecision\x12\x12\n" +
 	"\x04Page\x18\x04 \x01(\x05R\x04Page\x12\x1a\n" +
 	"\bPageSize\x18\x05 \x01(\x05R\bPageSize\"\x0f\n" +
-	"\rHealthRequest\"\xdc\x03\n" +
+	"\rHealthRequest\"\x8e\x04\n" +
 	"\x14UserDocumentResponse\x12\x1e\n" +
 	"\n" +
 	"DocumentId\x18\x01 \x01(\tR\n" +
@@ -3508,7 +3666,8 @@ const file_file_proto_rawDesc = "" +
 	"UploadedAt\x18\f \x01(\tR\n" +
 	"UploadedAt\x12\x1c\n" +
 	"\tUpdatedAt\x18\r \x01(\tR\tUpdatedAt\x12\x1c\n" +
-	"\tExpiredAt\x18\x0e \x01(\tR\tExpiredAt\"\xe3\x03\n" +
+	"\tExpiredAt\x18\x0e \x01(\tR\tExpiredAt\x120\n" +
+	"\x13LogicalDocumentType\x18\x0f \x01(\tR\x13LogicalDocumentType\"\xe3\x03\n" +
 	"\x17VehicleDocumentResponse\x12\x1e\n" +
 	"\n" +
 	"DocumentId\x18\x01 \x01(\tR\n" +
@@ -3534,7 +3693,7 @@ const file_file_proto_rawDesc = "" +
 	"\x1bGetVehicleDocumentsResponse\x12;\n" +
 	"\tdocuments\x18\x01 \x03(\v2\x1d.file.VehicleDocumentResponseR\tdocuments\"-\n" +
 	"\x11OperationResponse\x12\x18\n" +
-	"\aSuccess\x18\x01 \x01(\bR\aSuccess\"\xbe\a\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\"\xc2\b\n" +
 	"\x16DocumentReviewResponse\x12\x1a\n" +
 	"\bReviewId\x18\x01 \x01(\tR\bReviewId\x12&\n" +
 	"\x0eUserDocumentId\x18\x02 \x01(\tR\x0eUserDocumentId\x12,\n" +
@@ -3567,7 +3726,10 @@ const file_file_proto_rawDesc = "" +
 	"\vSubmittedAt\x18\x16 \x01(\tR\vSubmittedAt\x12\x1c\n" +
 	"\tUpdatedAt\x18\x17 \x01(\tR\tUpdatedAt\x12\x16\n" +
 	"\x06UserId\x18\x18 \x01(\tR\x06UserId\x12\"\n" +
-	"\fDocumentType\x18\x19 \x01(\tR\fDocumentType\"T\n" +
+	"\fDocumentType\x18\x19 \x01(\tR\fDocumentType\x122\n" +
+	"\x14SecondUserDocumentId\x18\x1a \x01(\tR\x14SecondUserDocumentId\x120\n" +
+	"\x13LogicalDocumentType\x18\x1b \x01(\tR\x13LogicalDocumentType\x12\x1c\n" +
+	"\tCreatedAt\x18\x1c \x01(\tR\tCreatedAt\"T\n" +
 	"\x1aGetDocumentReviewsResponse\x126\n" +
 	"\aReviews\x18\x01 \x03(\v2\x1c.file.DocumentReviewResponseR\aReviews\"`\n" +
 	"\x0eHealthResponse\x12\x16\n" +
@@ -3578,7 +3740,12 @@ const file_file_proto_rawDesc = "" +
 	"\x06UserID\x18\x01 \x01(\tR\x06UserID\"Z\n" +
 	"\x1aDeleteAllUserFilesResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\xc2\x12\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"k\n" +
+	"\x1fGetDocumentReviewHistoryRequest\x12\x16\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x120\n" +
+	"\x13LogicalDocumentType\x18\x02 \x01(\tR\x13LogicalDocumentType\"Z\n" +
+	" GetDocumentReviewHistoryResponse\x126\n" +
+	"\aReviews\x18\x01 \x03(\v2\x1c.file.DocumentReviewResponseR\aReviews2\xad\x13\n" +
 	"\vFileService\x12S\n" +
 	"\x12UploadUserDocument\x12\x1f.file.UploadUserDocumentRequest\x1a\x1a.file.UserDocumentResponse(\x01\x12\\\n" +
 	"\x15UploadVehicleDocument\x12\".file.UploadVehicleDocumentRequest\x1a\x1d.file.VehicleDocumentResponse(\x01\x12{\n" +
@@ -3603,7 +3770,8 @@ const file_file_proto_rawDesc = "" +
 	"#GetDocumentReviewByPersonaInquiryID\x120.file.GetDocumentReviewByPersonaInquiryIDRequest\x1a\x1c.file.DocumentReviewResponse\x12g\n" +
 	"\x1aGetDocumentReviewsByUserID\x12'.file.GetDocumentReviewsByUserIDRequest\x1a .file.GetDocumentReviewsResponse\x12W\n" +
 	"\x14UpdateDocumentReview\x12!.file.UpdateDocumentReviewRequest\x1a\x1c.file.DocumentReviewResponse\x12Y\n" +
-	"\x13ListDocumentReviews\x12 .file.ListDocumentReviewsRequest\x1a .file.GetDocumentReviewsResponse\x123\n" +
+	"\x13ListDocumentReviews\x12 .file.ListDocumentReviewsRequest\x1a .file.GetDocumentReviewsResponse\x12i\n" +
+	"\x18GetDocumentReviewHistory\x12%.file.GetDocumentReviewHistoryRequest\x1a&.file.GetDocumentReviewHistoryResponse\x123\n" +
 	"\x06Health\x12\x13.file.HealthRequest\x1a\x14.file.HealthResponse\x12W\n" +
 	"\x12DeleteAllUserFiles\x12\x1f.file.DeleteAllUserFilesRequest\x1a .file.DeleteAllUserFilesResponseBBZ@github.com/Kpeewu/tissi-mah/services/file-service/proto/gen;fileb\x06proto3"
 
@@ -3619,7 +3787,7 @@ func file_file_proto_rawDescGZIP() []byte {
 	return file_file_proto_rawDescData
 }
 
-var file_file_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
+var file_file_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
 var file_file_proto_goTypes = []any{
 	(*VehicleDocMetadata)(nil),                         // 0: file.VehicleDocMetadata
 	(*UploadVehicleDocumentsRequest)(nil),              // 1: file.UploadVehicleDocumentsRequest
@@ -3665,6 +3833,8 @@ var file_file_proto_goTypes = []any{
 	(*HealthResponse)(nil),                             // 41: file.HealthResponse
 	(*DeleteAllUserFilesRequest)(nil),                  // 42: file.DeleteAllUserFilesRequest
 	(*DeleteAllUserFilesResponse)(nil),                 // 43: file.DeleteAllUserFilesResponse
+	(*GetDocumentReviewHistoryRequest)(nil),            // 44: file.GetDocumentReviewHistoryRequest
+	(*GetDocumentReviewHistoryResponse)(nil),           // 45: file.GetDocumentReviewHistoryResponse
 }
 var file_file_proto_depIdxs = []int32{
 	0,  // 0: file.UploadVehicleDocumentsRequest.DriverLicenceMetadata:type_name -> file.VehicleDocMetadata
@@ -3680,61 +3850,64 @@ var file_file_proto_depIdxs = []int32{
 	34, // 10: file.GetUserDocumentsResponse.documents:type_name -> file.UserDocumentResponse
 	35, // 11: file.GetVehicleDocumentsResponse.documents:type_name -> file.VehicleDocumentResponse
 	39, // 12: file.GetDocumentReviewsResponse.Reviews:type_name -> file.DocumentReviewResponse
-	13, // 13: file.FileService.UploadUserDocument:input_type -> file.UploadUserDocumentRequest
-	15, // 14: file.FileService.UploadVehicleDocument:input_type -> file.UploadVehicleDocumentRequest
-	11, // 15: file.FileService.UploadIdDocument:input_type -> file.UploadIdDocumentRequest
-	1,  // 16: file.FileService.UploadVehicleDocuments:input_type -> file.UploadVehicleDocumentsRequest
-	9,  // 17: file.FileService.ChangeDocument:input_type -> file.ChangeDocumentRequest
-	6,  // 18: file.FileService.GetDocument:input_type -> file.GetDocumentRequest
-	17, // 19: file.FileService.GetUserDocuments:input_type -> file.GetUserDocumentsRequest
-	18, // 20: file.FileService.GetUserDocument:input_type -> file.GetDocumentByIDRequest
-	19, // 21: file.FileService.GetCurrentUserDocument:input_type -> file.GetCurrentUserDocumentRequest
-	20, // 22: file.FileService.GetVehicleDocuments:input_type -> file.GetVehicleDocumentsRequest
-	18, // 23: file.FileService.GetVehicleDocument:input_type -> file.GetDocumentByIDRequest
-	21, // 24: file.FileService.GetVehicleDocumentsByUserID:input_type -> file.GetVehicleDocumentsByUserIDRequest
-	22, // 25: file.FileService.ListKycDocuments:input_type -> file.ListKycDocumentsRequest
-	4,  // 26: file.FileService.DeleteFile:input_type -> file.DeleteFileRequest
-	25, // 27: file.FileService.DeleteUserDocument:input_type -> file.DeleteDocumentRequest
-	25, // 28: file.FileService.DeleteVehicleDocument:input_type -> file.DeleteDocumentRequest
-	26, // 29: file.FileService.CreateDocumentReview:input_type -> file.CreateDocumentReviewRequest
-	28, // 30: file.FileService.GetDocumentReview:input_type -> file.GetDocumentReviewByIDRequest
-	27, // 31: file.FileService.GetDocumentReviews:input_type -> file.GetDocumentReviewsRequest
-	29, // 32: file.FileService.GetDocumentReviewByPersonaInquiryID:input_type -> file.GetDocumentReviewByPersonaInquiryIDRequest
-	30, // 33: file.FileService.GetDocumentReviewsByUserID:input_type -> file.GetDocumentReviewsByUserIDRequest
-	31, // 34: file.FileService.UpdateDocumentReview:input_type -> file.UpdateDocumentReviewRequest
-	32, // 35: file.FileService.ListDocumentReviews:input_type -> file.ListDocumentReviewsRequest
-	33, // 36: file.FileService.Health:input_type -> file.HealthRequest
-	42, // 37: file.FileService.DeleteAllUserFiles:input_type -> file.DeleteAllUserFilesRequest
-	34, // 38: file.FileService.UploadUserDocument:output_type -> file.UserDocumentResponse
-	35, // 39: file.FileService.UploadVehicleDocument:output_type -> file.VehicleDocumentResponse
-	12, // 40: file.FileService.UploadIdDocument:output_type -> file.UploadIdDocumentResponse
-	2,  // 41: file.FileService.UploadVehicleDocuments:output_type -> file.UploadVehicleDocumentsResponse
-	10, // 42: file.FileService.ChangeDocument:output_type -> file.ChangeDocumentResponse
-	8,  // 43: file.FileService.GetDocument:output_type -> file.GetDocumentResponse
-	36, // 44: file.FileService.GetUserDocuments:output_type -> file.GetUserDocumentsResponse
-	34, // 45: file.FileService.GetUserDocument:output_type -> file.UserDocumentResponse
-	34, // 46: file.FileService.GetCurrentUserDocument:output_type -> file.UserDocumentResponse
-	37, // 47: file.FileService.GetVehicleDocuments:output_type -> file.GetVehicleDocumentsResponse
-	35, // 48: file.FileService.GetVehicleDocument:output_type -> file.VehicleDocumentResponse
-	37, // 49: file.FileService.GetVehicleDocumentsByUserID:output_type -> file.GetVehicleDocumentsResponse
-	24, // 50: file.FileService.ListKycDocuments:output_type -> file.ListKycDocumentsResponse
-	5,  // 51: file.FileService.DeleteFile:output_type -> file.DeleteFileResponse
-	38, // 52: file.FileService.DeleteUserDocument:output_type -> file.OperationResponse
-	38, // 53: file.FileService.DeleteVehicleDocument:output_type -> file.OperationResponse
-	39, // 54: file.FileService.CreateDocumentReview:output_type -> file.DocumentReviewResponse
-	39, // 55: file.FileService.GetDocumentReview:output_type -> file.DocumentReviewResponse
-	40, // 56: file.FileService.GetDocumentReviews:output_type -> file.GetDocumentReviewsResponse
-	39, // 57: file.FileService.GetDocumentReviewByPersonaInquiryID:output_type -> file.DocumentReviewResponse
-	40, // 58: file.FileService.GetDocumentReviewsByUserID:output_type -> file.GetDocumentReviewsResponse
-	39, // 59: file.FileService.UpdateDocumentReview:output_type -> file.DocumentReviewResponse
-	40, // 60: file.FileService.ListDocumentReviews:output_type -> file.GetDocumentReviewsResponse
-	41, // 61: file.FileService.Health:output_type -> file.HealthResponse
-	43, // 62: file.FileService.DeleteAllUserFiles:output_type -> file.DeleteAllUserFilesResponse
-	38, // [38:63] is the sub-list for method output_type
-	13, // [13:38] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	39, // 13: file.GetDocumentReviewHistoryResponse.Reviews:type_name -> file.DocumentReviewResponse
+	13, // 14: file.FileService.UploadUserDocument:input_type -> file.UploadUserDocumentRequest
+	15, // 15: file.FileService.UploadVehicleDocument:input_type -> file.UploadVehicleDocumentRequest
+	11, // 16: file.FileService.UploadIdDocument:input_type -> file.UploadIdDocumentRequest
+	1,  // 17: file.FileService.UploadVehicleDocuments:input_type -> file.UploadVehicleDocumentsRequest
+	9,  // 18: file.FileService.ChangeDocument:input_type -> file.ChangeDocumentRequest
+	6,  // 19: file.FileService.GetDocument:input_type -> file.GetDocumentRequest
+	17, // 20: file.FileService.GetUserDocuments:input_type -> file.GetUserDocumentsRequest
+	18, // 21: file.FileService.GetUserDocument:input_type -> file.GetDocumentByIDRequest
+	19, // 22: file.FileService.GetCurrentUserDocument:input_type -> file.GetCurrentUserDocumentRequest
+	20, // 23: file.FileService.GetVehicleDocuments:input_type -> file.GetVehicleDocumentsRequest
+	18, // 24: file.FileService.GetVehicleDocument:input_type -> file.GetDocumentByIDRequest
+	21, // 25: file.FileService.GetVehicleDocumentsByUserID:input_type -> file.GetVehicleDocumentsByUserIDRequest
+	22, // 26: file.FileService.ListKycDocuments:input_type -> file.ListKycDocumentsRequest
+	4,  // 27: file.FileService.DeleteFile:input_type -> file.DeleteFileRequest
+	25, // 28: file.FileService.DeleteUserDocument:input_type -> file.DeleteDocumentRequest
+	25, // 29: file.FileService.DeleteVehicleDocument:input_type -> file.DeleteDocumentRequest
+	26, // 30: file.FileService.CreateDocumentReview:input_type -> file.CreateDocumentReviewRequest
+	28, // 31: file.FileService.GetDocumentReview:input_type -> file.GetDocumentReviewByIDRequest
+	27, // 32: file.FileService.GetDocumentReviews:input_type -> file.GetDocumentReviewsRequest
+	29, // 33: file.FileService.GetDocumentReviewByPersonaInquiryID:input_type -> file.GetDocumentReviewByPersonaInquiryIDRequest
+	30, // 34: file.FileService.GetDocumentReviewsByUserID:input_type -> file.GetDocumentReviewsByUserIDRequest
+	31, // 35: file.FileService.UpdateDocumentReview:input_type -> file.UpdateDocumentReviewRequest
+	32, // 36: file.FileService.ListDocumentReviews:input_type -> file.ListDocumentReviewsRequest
+	44, // 37: file.FileService.GetDocumentReviewHistory:input_type -> file.GetDocumentReviewHistoryRequest
+	33, // 38: file.FileService.Health:input_type -> file.HealthRequest
+	42, // 39: file.FileService.DeleteAllUserFiles:input_type -> file.DeleteAllUserFilesRequest
+	34, // 40: file.FileService.UploadUserDocument:output_type -> file.UserDocumentResponse
+	35, // 41: file.FileService.UploadVehicleDocument:output_type -> file.VehicleDocumentResponse
+	12, // 42: file.FileService.UploadIdDocument:output_type -> file.UploadIdDocumentResponse
+	2,  // 43: file.FileService.UploadVehicleDocuments:output_type -> file.UploadVehicleDocumentsResponse
+	10, // 44: file.FileService.ChangeDocument:output_type -> file.ChangeDocumentResponse
+	8,  // 45: file.FileService.GetDocument:output_type -> file.GetDocumentResponse
+	36, // 46: file.FileService.GetUserDocuments:output_type -> file.GetUserDocumentsResponse
+	34, // 47: file.FileService.GetUserDocument:output_type -> file.UserDocumentResponse
+	34, // 48: file.FileService.GetCurrentUserDocument:output_type -> file.UserDocumentResponse
+	37, // 49: file.FileService.GetVehicleDocuments:output_type -> file.GetVehicleDocumentsResponse
+	35, // 50: file.FileService.GetVehicleDocument:output_type -> file.VehicleDocumentResponse
+	37, // 51: file.FileService.GetVehicleDocumentsByUserID:output_type -> file.GetVehicleDocumentsResponse
+	24, // 52: file.FileService.ListKycDocuments:output_type -> file.ListKycDocumentsResponse
+	5,  // 53: file.FileService.DeleteFile:output_type -> file.DeleteFileResponse
+	38, // 54: file.FileService.DeleteUserDocument:output_type -> file.OperationResponse
+	38, // 55: file.FileService.DeleteVehicleDocument:output_type -> file.OperationResponse
+	39, // 56: file.FileService.CreateDocumentReview:output_type -> file.DocumentReviewResponse
+	39, // 57: file.FileService.GetDocumentReview:output_type -> file.DocumentReviewResponse
+	40, // 58: file.FileService.GetDocumentReviews:output_type -> file.GetDocumentReviewsResponse
+	39, // 59: file.FileService.GetDocumentReviewByPersonaInquiryID:output_type -> file.DocumentReviewResponse
+	40, // 60: file.FileService.GetDocumentReviewsByUserID:output_type -> file.GetDocumentReviewsResponse
+	39, // 61: file.FileService.UpdateDocumentReview:output_type -> file.DocumentReviewResponse
+	40, // 62: file.FileService.ListDocumentReviews:output_type -> file.GetDocumentReviewsResponse
+	45, // 63: file.FileService.GetDocumentReviewHistory:output_type -> file.GetDocumentReviewHistoryResponse
+	41, // 64: file.FileService.Health:output_type -> file.HealthResponse
+	43, // 65: file.FileService.DeleteAllUserFiles:output_type -> file.DeleteAllUserFilesResponse
+	40, // [40:66] is the sub-list for method output_type
+	14, // [14:40] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_file_proto_init() }
@@ -3756,7 +3929,7 @@ func file_file_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_file_proto_rawDesc), len(file_file_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   44,
+			NumMessages:   46,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

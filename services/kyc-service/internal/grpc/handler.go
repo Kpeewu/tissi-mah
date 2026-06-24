@@ -431,12 +431,13 @@ func (h *KYCHandler) GetManualReviewRequestDetail(ctx context.Context, req *kycp
 	docs := make([]*kycpb.ManualReviewDocument, 0, len(detail.Documents))
 	for _, d := range detail.Documents {
 		pd := &kycpb.ManualReviewDocument{
-			DocumentId:   d.DocumentID,
-			DocumentType: d.DocumentType,
-			Status:       d.Status,
-			OwnerKind:    d.OwnerKind,
-			OwnerId:      d.OwnerID,
-			Category:     d.Category,
+			DocumentId:          d.DocumentID,
+			DocumentType:        d.DocumentType,
+			LogicalDocumentType: d.LogicalDocumentType,
+			Status:              d.Status,
+			OwnerKind:           d.OwnerKind,
+			OwnerId:             d.OwnerID,
+			Category:            d.Category,
 		}
 		if d.LatestReview != nil {
 			pd.LatestReview = &kycpb.ManualReviewDocumentReview{
@@ -464,6 +465,52 @@ func (h *KYCHandler) GetManualReviewRequestDetail(ctx context.Context, req *kycp
 		ProfileImageURL: detail.User.ProfileImageURL,
 		Documents:       docs,
 	}, nil
+}
+
+// =============================================================================
+// GetDocumentHistory — historique complet d'un document logique (support)
+// =============================================================================
+
+func (h *KYCHandler) GetDocumentHistory(ctx context.Context, req *kycpb.GetDocumentHistoryRequest) (*kycpb.GetDocumentHistoryResponse, error) {
+	if _, err := getSupportID(ctx); err != nil {
+		return nil, err
+	}
+	h.logger.Debug("handler: GetDocumentHistory called",
+		zap.String("userID", req.UserId),
+		zap.String("logicalDocumentType", req.LogicalDocumentType),
+	)
+
+	entries, err := h.service.GetDocumentHistory(ctx, req.UserId, req.LogicalDocumentType)
+	if err != nil {
+		h.logger.Error("handler: GetDocumentHistory failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	pbEntries := make([]*kycpb.DocumentHistoryEntry, 0, len(entries))
+	for _, e := range entries {
+		pe := &kycpb.DocumentHistoryEntry{
+			ReviewId:            e.ReviewID,
+			Status:              e.Status,
+			Decision:            e.Decision,
+			ReasonRejection:     e.ReasonRejection,
+			RejectionDetails:    e.RejectionDetails,
+			Notes:               e.Notes,
+			ReviewType:          e.ReviewType,
+			ReviewedBy:          e.ReviewedBy,
+			AttemptNumber:       e.AttemptNumber,
+			DocumentId:          e.DocumentID,
+			SecondDocumentId:    e.SecondDocumentID,
+			LogicalDocumentType: e.LogicalDocumentType,
+			CreatedAt:           e.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:           e.UpdatedAt.Format(time.RFC3339),
+		}
+		if e.ReviewedAt != nil {
+			pe.ReviewedAt = e.ReviewedAt.Format(time.RFC3339)
+		}
+		pbEntries = append(pbEntries, pe)
+	}
+
+	return &kycpb.GetDocumentHistoryResponse{Entries: pbEntries}, nil
 }
 
 // =============================================================================

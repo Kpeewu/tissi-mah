@@ -26,7 +26,8 @@ func (r *documentReviewWriteImpl) Create(ctx context.Context, review *domain.Doc
 	r.logger.Debug("création d'une revue de document", zap.String("reviewID", review.ReviewID))
 
 	query := `INSERT INTO document_reviews
-	          (review_id, user_id, document_type, user_document_id, vehicle_document_id,
+	          (review_id, user_id, document_type, logical_document_type,
+	           user_document_id, second_user_document_id, vehicle_document_id,
 	           persona_inquiry_id, persona_template_id, persona_session_token, session_expires_at,
 	           webhook_event_type, webhook_received_at, persona_raw_payload,
 	           attempt_number, previous_review_id,
@@ -34,13 +35,14 @@ func (r *documentReviewWriteImpl) Create(ctx context.Context, review *domain.Doc
 	           reviewed_by, review_type,
 	           notes, extracted_data,
 	           submitted_at, updated_at)
-	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-	                  $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+	                  $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
 	          RETURNING review_id`
 
 	var reviewID string
 	err := r.pool.QueryRow(ctx, query,
-		review.ReviewID, review.UserID, review.DocumentType, review.UserDocumentID, review.VehicleDocumentID,
+		review.ReviewID, review.UserID, review.DocumentType, review.LogicalDocumentType,
+		review.UserDocumentID, review.SecondUserDocumentID, review.VehicleDocumentID,
 		review.PersonaInquiryID, review.PersonaTemplateID, review.PersonaSessionToken, review.SessionExpiresAt,
 		review.WebhookEventType, review.WebhookReceivedAt, review.PersonaRawPayload,
 		review.AttemptNumber, review.PreviousReviewID,
@@ -72,7 +74,8 @@ func (r *documentReviewWriteImpl) Update(ctx context.Context, review *domain.Doc
 	           status = $7, decision = $8, reason_rejection = $9, rejection_details = $10,
 	           reviewed_by = $11, review_type = $12, reviewed_at = $13,
 	           notes = $14,
-	           submitted_at = $15, updated_at = $16
+	           submitted_at = $15, updated_at = $16,
+	           logical_document_type = $17, second_user_document_id = $18
 	          WHERE review_id = $1`
 
 	result, err := r.pool.Exec(ctx, query,
@@ -83,6 +86,7 @@ func (r *documentReviewWriteImpl) Update(ctx context.Context, review *domain.Doc
 		review.ReviewedBy, review.ReviewType, review.ReviewedAt,
 		review.Notes,
 		review.SubmittedAt, review.UpdatedAt,
+		review.LogicalDocumentType, review.SecondUserDocumentID,
 	)
 	if err != nil {
 		r.logger.Error("erreur mise à jour revue", zap.String("reviewID", review.ReviewID), zap.Error(err))

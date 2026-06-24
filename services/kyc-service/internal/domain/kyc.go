@@ -42,11 +42,13 @@ func IsActiveStatus(status string) bool {
 
 // Review représente une revue de document telle que retournée par le file-service
 type Review struct {
-	ReviewID          string
-	UserID            string
-	DocumentType      string
-	UserDocumentID    string
-	VehicleDocumentID string
+	ReviewID             string
+	UserID               string
+	DocumentType         string
+	LogicalDocumentType  string // idCard, driverLicence, passport…
+	UserDocumentID       string
+	SecondUserDocumentID string // verso pour les documents recto-verso
+	VehicleDocumentID    string
 
 	PersonaInquiryID    string
 	PersonaTemplateID   string
@@ -199,13 +201,14 @@ type KycDocument struct {
 
 // DocumentSummary : document soumis par un utilisateur (vue détail support).
 type DocumentSummary struct {
-	DocumentID   string
-	DocumentType string
-	Status       string
-	OwnerKind    string // "user" | "vehicle"
-	OwnerID      string // user_id ou vehicle_id selon OwnerKind
-	Category     string // passenger | driver | other
-	LatestReview *ReviewSummary
+	DocumentID          string
+	DocumentType        string
+	LogicalDocumentType string // idCard, driverLicence, passport…
+	Status              string
+	OwnerKind           string // "user" | "vehicle"
+	OwnerID             string // user_id ou vehicle_id selon OwnerKind
+	Category            string // passenger | driver | other
+	LatestReview        *ReviewSummary
 }
 
 // ReviewSummary : dernière review associée à un document.
@@ -242,4 +245,52 @@ type ManualReviewRequest struct {
 type ManualReviewRequestDetail struct {
 	User      *UserInfo
 	Documents []*DocumentSummary
+}
+
+// DocumentHistoryEntry : entrée de l'historique d'un document logique (vue support).
+type DocumentHistoryEntry struct {
+	ReviewID             string
+	Status               string
+	Decision             string
+	ReasonRejection      string
+	RejectionDetails     string
+	Notes                string
+	ReviewType           string
+	ReviewedBy           string
+	ReviewedAt           *time.Time
+	AttemptNumber        int32
+	DocumentID           string // recto / face principale
+	SecondDocumentID     string // verso (vide si non recto-verso)
+	LogicalDocumentType  string
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+}
+
+// ToLogicalDocumentType dérive le type logique depuis le type physique.
+func ToLogicalDocumentType(documentType string) string {
+	switch documentType {
+	case "idCardFront", "idCardBack":
+		return "idCard"
+	case "driverLicenceFront", "driverLicenceBack":
+		return "driverLicence"
+	default:
+		return documentType
+	}
+}
+
+// companionDocumentType retourne le type du côté compagnon pour les documents recto-verso.
+// Retourne "" si le type n'est pas recto-verso.
+func CompanionDocumentType(documentType string) string {
+	switch documentType {
+	case "idCardFront":
+		return "idCardBack"
+	case "idCardBack":
+		return "idCardFront"
+	case "driverLicenceFront":
+		return "driverLicenceBack"
+	case "driverLicenceBack":
+		return "driverLicenceFront"
+	default:
+		return ""
+	}
 }

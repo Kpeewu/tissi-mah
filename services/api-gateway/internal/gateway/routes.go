@@ -147,6 +147,7 @@ var SupportProtectedRoutes = map[string]bool{
 	"/api/v1/kyc/admin/validateDocument":            true,
 	"/api/v1/kyc/admin/manualReviews/requests":      true,
 	"/api/v1/kyc/admin/manualReviews/requestDetail": true,
+	"/api/v1/kyc/admin/documentHistory":             true, // historique complet d'un document logique
 }
 
 // RateLimitTier identifie le niveau de rate limiting pour une route

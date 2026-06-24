@@ -144,10 +144,11 @@ type UploadedDocument struct {
 
 // CreateReviewInput contient les données nécessaires à la création d'une revue
 type CreateReviewInput struct {
-	UserID            string
-	DocumentType      string
-	UserDocumentID    string
-	VehicleDocumentID string
+	UserID               string
+	DocumentType         string
+	UserDocumentID       string
+	SecondUserDocumentID string // verso pour les documents recto-verso
+	VehicleDocumentID    string
 
 	// Persona
 	PersonaInquiryID    string
@@ -269,6 +270,9 @@ type FileService interface {
 
 	// Liste les revues avec filtres et pagination
 	ListDocumentReviews(ctx context.Context, userID string, status string, decision string, page int32, pageSize int32) ([]*domain.DocumentReview, error)
+
+	// Retourne l'historique complet d'un document logique pour un utilisateur (trié par date décroissante)
+	GetDocumentReviewHistory(ctx context.Context, userID string, logicalDocumentType string) ([]*domain.DocumentReview, error)
 
 	// --- Suppression de compte ---
 

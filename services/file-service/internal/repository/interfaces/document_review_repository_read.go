@@ -24,4 +24,7 @@ type DocumentReviewRepositoryRead interface {
 
 	// Liste les revues avec filtres et pagination
 	List(ctx context.Context, userID string, status string, decision string, offset int32, limit int32) ([]*domain.DocumentReview, error)
+
+	// Historique complet par user + type logique, trié par date décroissante
+	GetHistoryByUserIDAndLogicalType(ctx context.Context, userID string, logicalType string) ([]*domain.DocumentReview, error)
 }

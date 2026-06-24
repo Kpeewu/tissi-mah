@@ -222,4 +222,8 @@ type KYCService interface {
 	// GetManualReviewRequestDetail retourne tous les documents soumis d'un utilisateur
 	// avec leur statut et la dernière review associée.
 	GetManualReviewRequestDetail(ctx context.Context, userID string) (*domain.ManualReviewRequestDetail, error)
+
+	// GetDocumentHistory retourne l'historique chronologique complet des revues
+	// pour un type logique de document (idCard, driverLicence, etc.).
+	GetDocumentHistory(ctx context.Context, userID string, logicalDocumentType string) ([]*domain.DocumentHistoryEntry, error)
 }

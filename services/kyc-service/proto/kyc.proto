@@ -100,6 +100,13 @@ service KYCService {
     };
   }
 
+  // GetDocumentHistory - Historique complet des revues d'un document logique (support)
+  rpc GetDocumentHistory(GetDocumentHistoryRequest) returns (GetDocumentHistoryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/kyc/admin/documentHistory"
+    };
+  }
+
   // Health - Health check endpoint (no auth required)
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -300,13 +307,45 @@ message ManualReviewDocumentReview {
 }
 
 message ManualReviewDocument {
-  string DocumentId   = 1;
-  string DocumentType  = 2;
-  string Status        = 3;
-  string OwnerKind     = 4; // "user" | "vehicle"
-  string OwnerId       = 5; // user_id ou vehicle_id
-  string Category      = 6; // passenger | driver | other
+  string DocumentId          = 1;
+  string DocumentType        = 2;
+  string Status              = 3;
+  string OwnerKind           = 4; // "user" | "vehicle"
+  string OwnerId             = 5; // user_id ou vehicle_id
+  string Category            = 6; // passenger | driver | other
   ManualReviewDocumentReview LatestReview = 7; // null si aucune review
+  string LogicalDocumentType = 8; // idCard, driverLicence, passport…
+}
+
+// =============================================================================
+// GetDocumentHistory — historique complet d'un document logique (support)
+// =============================================================================
+
+message GetDocumentHistoryRequest {
+  string UserId              = 1; // Propriétaire des documents
+  string LogicalDocumentType = 2; // idCard | driverLicence | passport | insurance | registrationCard
+}
+
+message DocumentHistoryEntry {
+  string ReviewId            = 1;
+  string Status              = 2;
+  string Decision            = 3;
+  string ReasonRejection     = 4;
+  string RejectionDetails    = 5;
+  string Notes               = 6;
+  string ReviewType          = 7;  // manual | automatic
+  string ReviewedBy          = 8;
+  string ReviewedAt          = 9;  // ISO 8601
+  int32  AttemptNumber       = 10;
+  string DocumentId          = 11; // recto / face principale
+  string SecondDocumentId    = 12; // verso (vide si non recto-verso)
+  string LogicalDocumentType = 13;
+  string CreatedAt           = 14; // ISO 8601
+  string UpdatedAt           = 15; // ISO 8601
+}
+
+message GetDocumentHistoryResponse {
+  repeated DocumentHistoryEntry Entries = 1;
 }
 
 message GetManualReviewRequestDetailResponse {

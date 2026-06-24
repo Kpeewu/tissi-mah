@@ -536,13 +536,20 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 		attemptNumber = 1
 	}
 
+	var secondUserDocID *string
+	if input.SecondUserDocumentID != "" {
+		secondUserDocID = &input.SecondUserDocumentID
+	}
+
 	now := time.Now().UTC()
 	review := &domain.DocumentReview{
-		ReviewID:          reviewID,
-		UserID:            input.UserID,
-		DocumentType:      input.DocumentType,
-		UserDocumentID:    userDocID,
-		VehicleDocumentID: vehicleDocID,
+		ReviewID:             reviewID,
+		UserID:               input.UserID,
+		DocumentType:         input.DocumentType,
+		LogicalDocumentType:  domain.ToLogicalDocumentType(input.DocumentType),
+		UserDocumentID:       userDocID,
+		SecondUserDocumentID: secondUserDocID,
+		VehicleDocumentID:    vehicleDocID,
 
 		PersonaInquiryID:    input.PersonaInquiryID,
 		PersonaTemplateID:   input.PersonaTemplateID,
@@ -581,6 +588,13 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 	newStatus := mapDecisionToStatus(input.Decision)
 	if input.UserDocumentID != "" {
 		doc, _ := s.userDocRead.GetByID(ctx, input.UserDocumentID)
+		if doc != nil {
+			doc.Status = newStatus
+			_, _ = s.userDocWrite.Update(ctx, doc)
+		}
+	}
+	if input.SecondUserDocumentID != "" {
+		doc, _ := s.userDocRead.GetByID(ctx, input.SecondUserDocumentID)
 		if doc != nil {
 			doc.Status = newStatus
 			_, _ = s.userDocWrite.Update(ctx, doc)
@@ -641,6 +655,11 @@ func (s *fileServiceImpl) UpdateDocumentReview(ctx context.Context, review *doma
 
 	s.logger.Info("document review updated", zap.String("reviewID", updated.ReviewID))
 	return updated, nil
+}
+
+func (s *fileServiceImpl) GetDocumentReviewHistory(ctx context.Context, userID string, logicalDocumentType string) ([]*domain.DocumentReview, error) {
+	s.logger.Debug("get document review history", zap.String("userID", userID), zap.String("logicalType", logicalDocumentType))
+	return s.reviewRead.GetHistoryByUserIDAndLogicalType(ctx, userID, logicalDocumentType)
 }
 
 func (s *fileServiceImpl) ListDocumentReviews(ctx context.Context, userID string, status string, decision string, page int32, pageSize int32) ([]*domain.DocumentReview, error) {

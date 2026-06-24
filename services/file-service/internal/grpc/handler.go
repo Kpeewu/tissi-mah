@@ -567,10 +567,11 @@ func (h *FileHandler) CreateDocumentReview(ctx context.Context, req *filepb.Crea
 	)
 
 	input := serviceInterfaces.CreateReviewInput{
-		UserID:            req.UserId,
-		DocumentType:      req.DocumentType,
-		UserDocumentID:    req.UserDocumentId,
-		VehicleDocumentID: req.VehicleDocumentId,
+		UserID:               req.UserId,
+		DocumentType:         req.DocumentType,
+		UserDocumentID:       req.UserDocumentId,
+		SecondUserDocumentID: req.SecondUserDocumentId,
+		VehicleDocumentID:    req.VehicleDocumentId,
 
 		PersonaInquiryID:    req.PersonaInquiryId,
 		PersonaTemplateID:   req.PersonaTemplateId,
@@ -755,6 +756,25 @@ func (h *FileHandler) ListDocumentReviews(ctx context.Context, req *filepb.ListD
 	return &filepb.GetDocumentReviewsResponse{Reviews: protoReviews}, nil
 }
 
+func (h *FileHandler) GetDocumentReviewHistory(ctx context.Context, req *filepb.GetDocumentReviewHistoryRequest) (*filepb.GetDocumentReviewHistoryResponse, error) {
+	h.logger.Debug("handler: GetDocumentReviewHistory",
+		zap.String("userID", req.UserId),
+		zap.String("logicalDocumentType", req.LogicalDocumentType),
+	)
+
+	reviews, err := h.service.GetDocumentReviewHistory(ctx, req.UserId, req.LogicalDocumentType)
+	if err != nil {
+		h.logger.Error("handler: GetDocumentReviewHistory failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	protoReviews := make([]*filepb.DocumentReviewResponse, 0, len(reviews))
+	for _, review := range reviews {
+		protoReviews = append(protoReviews, toProtoDocumentReview(review))
+	}
+	return &filepb.GetDocumentReviewHistoryResponse{Reviews: protoReviews}, nil
+}
+
 // --- Suppression de compte ---
 
 func (h *FileHandler) DeleteAllUserFiles(ctx context.Context, req *filepb.DeleteAllUserFilesRequest) (*filepb.DeleteAllUserFilesResponse, error) {
@@ -791,10 +811,11 @@ func toProtoUploadedDocument(doc *serviceInterfaces.UploadedDocument) *filepb.Up
 		return nil
 	}
 	return &filepb.UploadedDocument{
-		DocumentID:   doc.DocumentID,
-		DocumentURL:  doc.DocumentURL,
-		DocumentType: doc.DocumentType,
-		DocumentName: doc.DocumentName,
+		DocumentID:          doc.DocumentID,
+		DocumentURL:         doc.DocumentURL,
+		DocumentType:        doc.DocumentType,
+		DocumentName:        doc.DocumentName,
+		LogicalDocumentType: domain.ToLogicalDocumentType(doc.DocumentType),
 	}
 }
 
@@ -808,20 +829,21 @@ func toProtoUploadedDocuments(docs []*serviceInterfaces.UploadedDocument) []*fil
 
 func toProtoUserDocument(doc *domain.UserDocument, presignedURL string) *filepb.UserDocumentResponse {
 	return &filepb.UserDocumentResponse{
-		DocumentId:     doc.DocumentID,
-		UserId:         doc.UserID,
-		DocumentName:   doc.DocumentName,
-		DocumentType:   doc.DocumentType,
-		DocumentUrl:    presignedURL,
-		FileSizeBytes:  doc.FileSizeBytes,
-		MimeType:       doc.MimeType,
-		DocumentNumber: doc.DocumentNumber,
-		IssuingCountry: doc.IssuingCountry,
-		Status:         doc.Status,
-		IsCurrent:      doc.IsCurrent,
-		UploadedAt:     doc.UploadedAt.Format(time.RFC3339),
-		UpdatedAt:      doc.UpdatedAt.Format(time.RFC3339),
-		ExpiredAt:      formatTimeOrEmpty(doc.ExpireAt),
+		DocumentId:          doc.DocumentID,
+		UserId:              doc.UserID,
+		DocumentName:        doc.DocumentName,
+		DocumentType:        doc.DocumentType,
+		LogicalDocumentType: domain.ToLogicalDocumentType(doc.DocumentType),
+		DocumentUrl:         presignedURL,
+		FileSizeBytes:       doc.FileSizeBytes,
+		MimeType:            doc.MimeType,
+		DocumentNumber:      doc.DocumentNumber,
+		IssuingCountry:      doc.IssuingCountry,
+		Status:              doc.Status,
+		IsCurrent:           doc.IsCurrent,
+		UploadedAt:          doc.UploadedAt.Format(time.RFC3339),
+		UpdatedAt:           doc.UpdatedAt.Format(time.RFC3339),
+		ExpiredAt:           formatTimeOrEmpty(doc.ExpireAt),
 	}
 }
 
@@ -903,6 +925,10 @@ func toProtoDocumentReview(review *domain.DocumentReview) *filepb.DocumentReview
 	if review.SubmittedAt != nil {
 		resp.SubmittedAt = review.SubmittedAt.Format(time.RFC3339)
 	}
+	if review.SecondUserDocumentID != nil {
+		resp.SecondUserDocumentId = *review.SecondUserDocumentID
+	}
+	resp.LogicalDocumentType = review.LogicalDocumentType
 	return resp
 }
 

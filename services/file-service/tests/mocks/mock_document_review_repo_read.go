@@ -58,3 +58,11 @@ func (m *MockDocumentReviewRepositoryRead) List(ctx context.Context, userID stri
 	}
 	return args.Get(0).([]*domain.DocumentReview), args.Error(1)
 }
+
+func (m *MockDocumentReviewRepositoryRead) GetHistoryByUserIDAndLogicalType(ctx context.Context, userID string, logicalType string) ([]*domain.DocumentReview, error) {
+	args := m.Called(ctx, userID, logicalType)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.DocumentReview), args.Error(1)
+}
