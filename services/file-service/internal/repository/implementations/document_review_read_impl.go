@@ -23,7 +23,7 @@ func NewDocumentReviewReadRepository(pool *pgxpool.Pool, logger *zap.Logger) i.D
 	return &documentReviewReadImpl{pool: pool, logger: logger}
 }
 
-const reviewSelectColumns = `review_id, user_id, document_type, user_document_id, vehicle_document_id,
+const reviewSelectColumns = `review_id, user_id, document_type, logical_document_type, user_document_id, second_user_document_id, vehicle_document_id,
 	persona_inquiry_id, persona_template_id, persona_session_token, session_expires_at,
 	webhook_event_type, webhook_received_at, persona_raw_payload,
 	attempt_number, previous_review_id,
@@ -32,15 +32,12 @@ const reviewSelectColumns = `review_id, user_id, document_type, user_document_id
 	notes, extracted_data,
 	submitted_at, updated_at`
 
-func (r *documentReviewReadImpl) GetByID(ctx context.Context, reviewID string) (*domain.DocumentReview, error) {
-	r.logger.Debug("récupération de la revue par ID", zap.String("reviewID", reviewID))
-
-	query := `SELECT ` + reviewSelectColumns + `
-	          FROM document_reviews WHERE review_id = $1`
-
-	review := &domain.DocumentReview{}
-	err := r.pool.QueryRow(ctx, query, reviewID).Scan(
-		&review.ReviewID, &review.UserID, &review.DocumentType, &review.UserDocumentID, &review.VehicleDocumentID,
+func scanReview(row interface {
+	Scan(dest ...any) error
+}, review *domain.DocumentReview) error {
+	return row.Scan(
+		&review.ReviewID, &review.UserID, &review.DocumentType, &review.LogicalDocumentType,
+		&review.UserDocumentID, &review.SecondUserDocumentID, &review.VehicleDocumentID,
 		&review.PersonaInquiryID, &review.PersonaTemplateID, &review.PersonaSessionToken, &review.SessionExpiresAt,
 		&review.WebhookEventType, &review.WebhookReceivedAt, &review.PersonaRawPayload,
 		&review.AttemptNumber, &review.PreviousReviewID,
@@ -49,6 +46,15 @@ func (r *documentReviewReadImpl) GetByID(ctx context.Context, reviewID string) (
 		&review.Notes, &review.ExtractedData,
 		&review.SubmittedAt, &review.UpdatedAt,
 	)
+}
+
+func (r *documentReviewReadImpl) GetByID(ctx context.Context, reviewID string) (*domain.DocumentReview, error) {
+	r.logger.Debug("récupération de la revue par ID", zap.String("reviewID", reviewID))
+
+	query := `SELECT ` + reviewSelectColumns + ` FROM document_reviews WHERE review_id = $1`
+
+	review := &domain.DocumentReview{}
+	err := scanReview(r.pool.QueryRow(ctx, query, reviewID), review)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			r.logger.Debug("revue non trouvée", zap.String("reviewID", reviewID))
@@ -65,7 +71,7 @@ func (r *documentReviewReadImpl) GetByUserDocumentID(ctx context.Context, userDo
 
 	query := `SELECT ` + reviewSelectColumns + `
 	          FROM document_reviews WHERE user_document_id = $1
-	          ORDER BY reviewed_at DESC`
+	          ORDER BY COALESCE(reviewed_at, updated_at) DESC`
 
 	return r.queryReviews(ctx, query, userDocumentID)
 }
@@ -75,7 +81,7 @@ func (r *documentReviewReadImpl) GetByVehicleDocumentID(ctx context.Context, veh
 
 	query := `SELECT ` + reviewSelectColumns + `
 	          FROM document_reviews WHERE vehicle_document_id = $1
-	          ORDER BY reviewed_at DESC`
+	          ORDER BY COALESCE(reviewed_at, updated_at) DESC`
 
 	return r.queryReviews(ctx, query, vehicleDocumentID)
 }
@@ -83,20 +89,10 @@ func (r *documentReviewReadImpl) GetByVehicleDocumentID(ctx context.Context, veh
 func (r *documentReviewReadImpl) GetByPersonaInquiryID(ctx context.Context, personaInquiryID string) (*domain.DocumentReview, error) {
 	r.logger.Debug("récupération de la revue par persona_inquiry_id", zap.String("personaInquiryID", personaInquiryID))
 
-	query := `SELECT ` + reviewSelectColumns + `
-	          FROM document_reviews WHERE persona_inquiry_id = $1`
+	query := `SELECT ` + reviewSelectColumns + ` FROM document_reviews WHERE persona_inquiry_id = $1`
 
 	review := &domain.DocumentReview{}
-	err := r.pool.QueryRow(ctx, query, personaInquiryID).Scan(
-		&review.ReviewID, &review.UserID, &review.DocumentType, &review.UserDocumentID, &review.VehicleDocumentID,
-		&review.PersonaInquiryID, &review.PersonaTemplateID, &review.PersonaSessionToken, &review.SessionExpiresAt,
-		&review.WebhookEventType, &review.WebhookReceivedAt, &review.PersonaRawPayload,
-		&review.AttemptNumber, &review.PreviousReviewID,
-		&review.Status, &review.Decision, &review.ReasonRejection, &review.RejectionDetails,
-		&review.ReviewedBy, &review.ReviewType, &review.ReviewedAt,
-		&review.Notes, &review.ExtractedData,
-		&review.SubmittedAt, &review.UpdatedAt,
-	)
+	err := scanReview(r.pool.QueryRow(ctx, query, personaInquiryID), review)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			r.logger.Debug("revue non trouvée par persona_inquiry_id", zap.String("personaInquiryID", personaInquiryID))
@@ -111,9 +107,6 @@ func (r *documentReviewReadImpl) GetByPersonaInquiryID(ctx context.Context, pers
 func (r *documentReviewReadImpl) GetByUserID(ctx context.Context, userID string) ([]*domain.DocumentReview, error) {
 	r.logger.Debug("récupération des revues par userID", zap.String("userID", userID))
 
-	// user_id est dénormalisé directement sur document_reviews depuis la
-	// migration 000008 : plus besoin de joindre via les FK doc (qui sont NULL
-	// pour les reviews Persona 100%).
 	query := `SELECT ` + reviewSelectColumns + `
 	          FROM document_reviews
 	          WHERE user_id = $1
@@ -155,41 +148,31 @@ func (r *documentReviewReadImpl) List(ctx context.Context, userID string, status
 	query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, argIdx, argIdx+1)
 	args = append(args, limit, offset)
 
-	rows, err := r.pool.Query(ctx, query, args...)
-	if err != nil {
-		r.logger.Error("erreur requête List", zap.Error(err))
-		return nil, fileErrors.ErrorDataRetrievalFailed
-	}
-	defer rows.Close()
+	return r.queryReviewsArgs(ctx, query, args...)
+}
 
-	var reviews []*domain.DocumentReview
-	for rows.Next() {
-		review := &domain.DocumentReview{}
-		err := rows.Scan(
-			&review.ReviewID, &review.UserID, &review.DocumentType, &review.UserDocumentID, &review.VehicleDocumentID,
-			&review.PersonaInquiryID, &review.PersonaTemplateID, &review.PersonaSessionToken, &review.SessionExpiresAt,
-			&review.WebhookEventType, &review.WebhookReceivedAt, &review.PersonaRawPayload,
-			&review.AttemptNumber, &review.PreviousReviewID,
-			&review.Status, &review.Decision, &review.ReasonRejection, &review.RejectionDetails,
-			&review.ReviewedBy, &review.ReviewType, &review.ReviewedAt,
-			&review.Notes, &review.ExtractedData,
-			&review.SubmittedAt, &review.UpdatedAt,
-		)
-		if err != nil {
-			r.logger.Error("erreur scan revue dans List", zap.Error(err))
-			return nil, fileErrors.ErrorDataRetrievalFailed
-		}
-		reviews = append(reviews, review)
-	}
-	return reviews, nil
+func (r *documentReviewReadImpl) GetHistoryByUserIDAndLogicalType(ctx context.Context, userID string, logicalType string) ([]*domain.DocumentReview, error) {
+	r.logger.Debug("historique des revues par type logique",
+		zap.String("userID", userID),
+		zap.String("logicalType", logicalType),
+	)
+
+	query := `SELECT ` + reviewSelectColumns + `
+	          FROM document_reviews
+	          WHERE user_id = $1 AND logical_document_type = $2
+	          ORDER BY COALESCE(reviewed_at, updated_at) DESC`
+
+	return r.queryReviewsArgs(ctx, query, userID, logicalType)
 }
 
 func (r *documentReviewReadImpl) queryReviews(ctx context.Context, query string, id string) ([]*domain.DocumentReview, error) {
-	r.logger.Debug("exécution de la requête queryReviews", zap.String("id", id))
+	return r.queryReviewsArgs(ctx, query, id)
+}
 
-	rows, err := r.pool.Query(ctx, query, id)
+func (r *documentReviewReadImpl) queryReviewsArgs(ctx context.Context, query string, args ...interface{}) ([]*domain.DocumentReview, error) {
+	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
-		r.logger.Error("erreur requête queryReviews", zap.String("id", id), zap.Error(err))
+		r.logger.Error("erreur requête reviews", zap.Error(err))
 		return nil, fileErrors.ErrorDataRetrievalFailed
 	}
 	defer rows.Close()
@@ -197,18 +180,8 @@ func (r *documentReviewReadImpl) queryReviews(ctx context.Context, query string,
 	var reviews []*domain.DocumentReview
 	for rows.Next() {
 		review := &domain.DocumentReview{}
-		err := rows.Scan(
-			&review.ReviewID, &review.UserID, &review.DocumentType, &review.UserDocumentID, &review.VehicleDocumentID,
-			&review.PersonaInquiryID, &review.PersonaTemplateID, &review.PersonaSessionToken, &review.SessionExpiresAt,
-			&review.WebhookEventType, &review.WebhookReceivedAt, &review.PersonaRawPayload,
-			&review.AttemptNumber, &review.PreviousReviewID,
-			&review.Status, &review.Decision, &review.ReasonRejection, &review.RejectionDetails,
-			&review.ReviewedBy, &review.ReviewType, &review.ReviewedAt,
-			&review.Notes, &review.ExtractedData,
-			&review.SubmittedAt, &review.UpdatedAt,
-		)
-		if err != nil {
-			r.logger.Error("erreur scan revue", zap.String("id", id), zap.Error(err))
+		if err := scanReview(rows, review); err != nil {
+			r.logger.Error("erreur scan revue", zap.Error(err))
 			return nil, fileErrors.ErrorDataRetrievalFailed
 		}
 		reviews = append(reviews, review)

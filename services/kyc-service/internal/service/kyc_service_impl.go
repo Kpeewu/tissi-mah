@@ -908,21 +908,33 @@ func (s *kycServiceImpl) ValidateDocument(ctx context.Context, input serviceInte
 		documentType = doc.DocumentType
 	}
 
+	// Auto-découverte du document compagnon pour les documents recto-verso
+	var secondUserDocumentID string
+	if userDocumentID != "" {
+		if companionType := domain.CompanionDocumentType(documentType); companionType != "" {
+			if companion, err := s.fileClient.GetCurrentUserDocument(ctx, ownerUserID, companionType); err == nil {
+				secondUserDocumentID = companion.DocumentID
+			}
+		}
+	}
+
 	now := time.Now().UTC()
 	review := &domain.Review{
-		UserID:            ownerUserID,
-		DocumentType:      documentType,
-		PersonaInquiryID:  "",
-		ReviewType:        "manual",
-		Status:            "completed",
-		Decision:          input.Decision,
-		ReasonRejection:   input.ReasonRejection,
-		RejectionDetails:  input.RejectionDetails,
-		Notes:             input.Notes,
-		ReviewedBy:        input.SupportAgentID,
-		ReviewedAt:        &now,
-		UserDocumentID:    userDocumentID,
-		VehicleDocumentID: vehicleDocumentID,
+		UserID:               ownerUserID,
+		DocumentType:         documentType,
+		LogicalDocumentType:  domain.ToLogicalDocumentType(documentType),
+		PersonaInquiryID:     "",
+		ReviewType:           "manual",
+		Status:               "completed",
+		Decision:             input.Decision,
+		ReasonRejection:      input.ReasonRejection,
+		RejectionDetails:     input.RejectionDetails,
+		Notes:                input.Notes,
+		ReviewedBy:           input.SupportAgentID,
+		ReviewedAt:           &now,
+		UserDocumentID:       userDocumentID,
+		SecondUserDocumentID: secondUserDocumentID,
+		VehicleDocumentID:    vehicleDocumentID,
 	}
 
 	created, err := s.fileClient.CreateDocumentReview(ctx, review)
@@ -1083,15 +1095,17 @@ func (s *kycServiceImpl) GetManualReviewRequestDetail(ctx context.Context, userI
 		return nil, kycErrors.ErrorFileServiceUnavailable
 	}
 
-	byUserDoc, byVehicleDoc, byType := indexLatestReviews(reviews)
+	byUserDoc, byVehicleDoc, byLogicalType, byType := indexLatestReviews(reviews)
 
 	docs := make([]*domain.DocumentSummary, 0, len(userDocs)+len(vehicleDocs))
 	for _, d := range userDocs {
-		d.LatestReview = pickReview(byUserDoc[d.DocumentID], byType[d.DocumentType])
+		d.LogicalDocumentType = domain.ToLogicalDocumentType(d.DocumentType)
+		d.LatestReview = pickReview(byUserDoc[d.DocumentID], byLogicalType[d.LogicalDocumentType], byType[d.DocumentType])
 		docs = append(docs, d)
 	}
 	for _, d := range vehicleDocs {
-		d.LatestReview = pickReview(byVehicleDoc[d.DocumentID], byType[d.DocumentType])
+		d.LogicalDocumentType = domain.ToLogicalDocumentType(d.DocumentType)
+		d.LatestReview = pickReview(byVehicleDoc[d.DocumentID], byLogicalType[d.LogicalDocumentType], byType[d.DocumentType])
 		docs = append(docs, d)
 	}
 
@@ -1108,11 +1122,12 @@ func reviewTime(r *domain.Review) time.Time {
 	return r.UpdatedAt
 }
 
-// indexLatestReviews indexe la dernière review par user_document_id, vehicle_document_id
-// et par document_type (fallback).
-func indexLatestReviews(reviews []*domain.Review) (byUserDoc, byVehicleDoc, byType map[string]*domain.Review) {
+// indexLatestReviews indexe la dernière review par user_document_id, vehicle_document_id,
+// logical_document_type et par document_type (fallback pour les anciennes revues).
+func indexLatestReviews(reviews []*domain.Review) (byUserDoc, byVehicleDoc, byLogicalType, byType map[string]*domain.Review) {
 	byUserDoc = make(map[string]*domain.Review)
 	byVehicleDoc = make(map[string]*domain.Review)
+	byLogicalType = make(map[string]*domain.Review)
 	byType = make(map[string]*domain.Review)
 	keepLatest := func(m map[string]*domain.Review, key string, r *domain.Review) {
 		if key == "" {
@@ -1125,17 +1140,21 @@ func indexLatestReviews(reviews []*domain.Review) (byUserDoc, byVehicleDoc, byTy
 	for _, r := range reviews {
 		keepLatest(byUserDoc, r.UserDocumentID, r)
 		keepLatest(byVehicleDoc, r.VehicleDocumentID, r)
+		keepLatest(byLogicalType, r.LogicalDocumentType, r)
 		keepLatest(byType, r.DocumentType, r)
 	}
-	return byUserDoc, byVehicleDoc, byType
+	return byUserDoc, byVehicleDoc, byLogicalType, byType
 }
 
-// pickReview retourne le ReviewSummary de la review prioritaire (match document direct,
-// sinon fallback par type), ou nil si aucune.
-func pickReview(direct, fallback *domain.Review) *domain.ReviewSummary {
+// pickReview retourne le ReviewSummary de la review prioritaire :
+// 1. match direct par document_id, 2. fallback par logical_document_type, 3. fallback par document_type.
+func pickReview(direct, byLogical, byType *domain.Review) *domain.ReviewSummary {
 	r := direct
 	if r == nil {
-		r = fallback
+		r = byLogical
+	}
+	if r == nil {
+		r = byType
 	}
 	if r == nil {
 		return nil
@@ -1150,4 +1169,44 @@ func pickReview(direct, fallback *domain.Review) *domain.ReviewSummary {
 		ReviewedBy:       r.ReviewedBy,
 		ReviewedAt:       r.ReviewedAt,
 	}
+}
+
+func (s *kycServiceImpl) GetDocumentHistory(ctx context.Context, userID string, logicalDocumentType string) ([]*domain.DocumentHistoryEntry, error) {
+	s.logger.Debug("get document history",
+		zap.String("userID", userID),
+		zap.String("logicalDocumentType", logicalDocumentType),
+	)
+
+	if userID == "" || logicalDocumentType == "" {
+		return nil, kycErrors.ErrorMissingUserID
+	}
+
+	reviews, err := s.fileClient.GetDocumentReviewHistory(ctx, userID, logicalDocumentType)
+	if err != nil {
+		s.logger.Error("failed to get document review history", zap.Error(err))
+		return nil, kycErrors.ErrorFileServiceUnavailable
+	}
+
+	entries := make([]*domain.DocumentHistoryEntry, 0, len(reviews))
+	for _, r := range reviews {
+		entry := &domain.DocumentHistoryEntry{
+			ReviewID:            r.ReviewID,
+			Status:              r.Status,
+			Decision:            r.Decision,
+			ReasonRejection:     r.ReasonRejection,
+			RejectionDetails:    r.RejectionDetails,
+			Notes:               r.Notes,
+			ReviewType:          r.ReviewType,
+			ReviewedBy:          r.ReviewedBy,
+			ReviewedAt:          r.ReviewedAt,
+			AttemptNumber:       r.AttemptNumber,
+			DocumentID:          r.UserDocumentID,
+			SecondDocumentID:    r.SecondUserDocumentID,
+			LogicalDocumentType: r.LogicalDocumentType,
+			UpdatedAt:           r.UpdatedAt,
+			CreatedAt:           r.CreatedAt,
+		}
+		entries = append(entries, entry)
+	}
+	return entries, nil
 }

@@ -53,6 +53,9 @@ type FileServiceClient interface {
 	// Liste les revues avec filtres et pagination
 	ListDocumentReviews(ctx context.Context, userID string, status string, decision string, page int32, pageSize int32) ([]*domain.Review, error)
 
+	// GetDocumentReviewHistory retourne l'historique complet des revues pour un type logique
+	GetDocumentReviewHistory(ctx context.Context, userID string, logicalDocumentType string) ([]*domain.Review, error)
+
 	// Ferme la connexion gRPC
 	Close() error
 }

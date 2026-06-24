@@ -107,6 +107,9 @@ func (s *spyFileService) UpdateDocumentReview(context.Context, *domain.DocumentR
 func (s *spyFileService) ListDocumentReviews(context.Context, string, string, string, int32, int32) ([]*domain.DocumentReview, error) {
 	panic("not implemented")
 }
+func (s *spyFileService) GetDocumentReviewHistory(context.Context, string, string) ([]*domain.DocumentReview, error) {
+	panic("not implemented")
+}
 func (s *spyFileService) DeleteAllUserFiles(context.Context, string) error { panic("not implemented") }
 
 func ctxWithFirebaseUID(uid string) context.Context {
@@ -237,4 +240,29 @@ func TestUploadIdDocument_ServiceError_ReturnsErrorMessage(t *testing.T) {
 	assert.Equal(t, fileErrors.ErrorUploadFailed.Error(), resp.ErrorMessage)
 	require.NotNil(t, spy.gotInput)
 	assert.Equal(t, "uuid-abc", spy.gotInput.UserID)
+}
+
+func TestUploadIdDocument_ForwardsMetadataFields(t *testing.T) {
+	spy := &spyFileService{}
+	mockUser := new(mocks.MockUserClient)
+	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
+		Return(&client.UserProfile{UserID: "uuid-abc", FirstName: "Jean", LastName: "Dupont"}, nil)
+	h := grpcHandler.NewFileHandler(spy, mockUser, new(mocks.MockStorageClient), zap.NewNop())
+
+	_, err := h.UploadIdDocument(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadIdDocumentRequest{
+		DocumentType:   "Passport",
+		Passport:       []byte("passport-bytes"),
+		DocumentNumber: "PP-001",
+		IssuedAt:       "2022-06-01T00:00:00Z",
+		ExpireAt:       "2032-06-01T00:00:00Z",
+		IssuingCountry: "TG",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, spy.gotInput)
+	assert.Equal(t, "PP-001", spy.gotInput.DocumentNumber)
+	assert.Equal(t, "2022-06-01T00:00:00Z", spy.gotInput.IssuedAt)
+	assert.Equal(t, "2032-06-01T00:00:00Z", spy.gotInput.ExpireAt)
+	assert.Equal(t, "TG", spy.gotInput.IssuingCountry)
+	mockUser.AssertExpectations(t)
 }

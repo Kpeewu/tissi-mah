@@ -22,4 +22,7 @@ var (
 	ErrorUserServiceUnavailable    = errors.New("ErrorUserServiceUnavailable")
 	ErrorInvalidInput              = errors.New("ErrorInvalidInput")
 	ErrorContentBlocked            = errors.New("ErrorContentBlocked")
+	ErrorDocumentAlreadySubmitted  = errors.New("ErrorDocumentAlreadySubmitted")
+	ErrorDocumentNotReplaceable    = errors.New("ErrorDocumentNotReplaceable")
+	ErrorMissingDocumentMetadata   = errors.New("ErrorMissingDocumentMetadata")
 )

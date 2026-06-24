@@ -16,6 +16,9 @@ type VehicleDocumentRepositoryRead interface {
 	// Récupère tous les documents véhicule d'un utilisateur (user_id dénormalisé)
 	GetByUserID(ctx context.Context, userID string) ([]*domain.VehicleDocument, error)
 
+	// Récupère le document courant d'un véhicule par type (is_current = true)
+	GetCurrentByVehicleIDAndType(ctx context.Context, vehicleID string, documentType string) (*domain.VehicleDocument, error)
+
 	// ListCurrentByStatuses liste les documents véhicule courants (is_current) dont le
 	// statut est dans la liste fournie. statuses vide = tous les statuts.
 	ListCurrentByStatuses(ctx context.Context, statuses []string, limit int32) ([]*domain.VehicleDocument, error)

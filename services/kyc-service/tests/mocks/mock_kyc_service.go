@@ -97,6 +97,14 @@ func (m *MockKYCService) GetManualReviewRequestDetail(ctx context.Context, userI
 	return args.Get(0).(*domain.ManualReviewRequestDetail), args.Error(1)
 }
 
+func (m *MockKYCService) GetDocumentHistory(ctx context.Context, userID string, logicalDocumentType string) ([]*domain.DocumentHistoryEntry, error) {
+	args := m.Called(ctx, userID, logicalDocumentType)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.DocumentHistoryEntry), args.Error(1)
+}
+
 // Compile-time check
 var _ serviceInterfaces.KYCService = (*MockKYCService)(nil)
 var _ = (*MockKYCService)(nil)

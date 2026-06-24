@@ -186,12 +186,13 @@ func (c *fileServiceClientImpl) GetUserDocumentSummaries(ctx context.Context, us
 	out := make([]*domain.DocumentSummary, 0, len(resp.Documents))
 	for _, d := range resp.Documents {
 		out = append(out, &domain.DocumentSummary{
-			DocumentID:   d.DocumentId,
-			DocumentType: d.DocumentType,
-			Status:       d.Status,
-			OwnerKind:    "user",
-			OwnerID:      d.UserId,
-			Category:     domain.DocumentCategory(d.DocumentType, "user"),
+			DocumentID:          d.DocumentId,
+			DocumentType:        d.DocumentType,
+			LogicalDocumentType: domain.ToLogicalDocumentType(d.DocumentType),
+			Status:              d.Status,
+			OwnerKind:           "user",
+			OwnerID:             d.UserId,
+			Category:            domain.DocumentCategory(d.DocumentType, "user"),
 		})
 	}
 	return out, nil
@@ -209,12 +210,13 @@ func (c *fileServiceClientImpl) GetVehicleDocumentSummariesByUserID(ctx context.
 	out := make([]*domain.DocumentSummary, 0, len(resp.Documents))
 	for _, d := range resp.Documents {
 		out = append(out, &domain.DocumentSummary{
-			DocumentID:   d.DocumentId,
-			DocumentType: d.DocumentType,
-			Status:       d.Status,
-			OwnerKind:    "vehicle",
-			OwnerID:      d.VehicleId,
-			Category:     domain.DocumentCategory(d.DocumentType, "vehicle"),
+			DocumentID:          d.DocumentId,
+			DocumentType:        d.DocumentType,
+			LogicalDocumentType: domain.ToLogicalDocumentType(d.DocumentType),
+			Status:              d.Status,
+			OwnerKind:           "vehicle",
+			OwnerID:             d.VehicleId,
+			Category:            domain.DocumentCategory(d.DocumentType, "vehicle"),
 		})
 	}
 	return out, nil
@@ -224,10 +226,11 @@ func (c *fileServiceClientImpl) CreateDocumentReview(ctx context.Context, review
 	c.logger.Debug("client: CreateDocumentReview")
 
 	req := &filepb.CreateDocumentReviewRequest{
-		UserId:              review.UserID,
-		DocumentType:        review.DocumentType,
-		UserDocumentId:      review.UserDocumentID,
-		VehicleDocumentId:   review.VehicleDocumentID,
+		UserId:               review.UserID,
+		DocumentType:         review.DocumentType,
+		UserDocumentId:       review.UserDocumentID,
+		SecondUserDocumentId: review.SecondUserDocumentID,
+		VehicleDocumentId:    review.VehicleDocumentID,
 		PersonaInquiryId:    review.PersonaInquiryID,
 		PersonaTemplateId:   review.PersonaTemplateID,
 		PersonaSessionToken: review.PersonaSessionToken,
@@ -376,14 +379,38 @@ func (c *fileServiceClientImpl) ListDocumentReviews(ctx context.Context, userID 
 	return reviews, nil
 }
 
+func (c *fileServiceClientImpl) GetDocumentReviewHistory(ctx context.Context, userID string, logicalDocumentType string) ([]*domain.Review, error) {
+	c.logger.Debug("client: GetDocumentReviewHistory",
+		zap.String("userID", userID),
+		zap.String("logicalDocumentType", logicalDocumentType),
+	)
+
+	resp, err := c.grpcClient.GetDocumentReviewHistory(ctx, &filepb.GetDocumentReviewHistoryRequest{
+		UserId:              userID,
+		LogicalDocumentType: logicalDocumentType,
+	})
+	if err != nil {
+		c.logger.Error("client: GetDocumentReviewHistory failed", zap.Error(err))
+		return nil, fmt.Errorf("file-service: GetDocumentReviewHistory: %w", err)
+	}
+
+	reviews := make([]*domain.Review, 0, len(resp.Reviews))
+	for _, r := range resp.Reviews {
+		reviews = append(reviews, protoToReview(r))
+	}
+	return reviews, nil
+}
+
 // protoToReview convertit un DocumentReviewResponse proto en domain.Review
 func protoToReview(r *filepb.DocumentReviewResponse) *domain.Review {
 	review := &domain.Review{
-		ReviewID:          r.ReviewId,
-		UserID:            r.UserId,
-		DocumentType:      r.DocumentType,
-		UserDocumentID:    r.UserDocumentId,
-		VehicleDocumentID: r.VehicleDocumentId,
+		ReviewID:             r.ReviewId,
+		UserID:               r.UserId,
+		DocumentType:         r.DocumentType,
+		LogicalDocumentType:  r.LogicalDocumentType,
+		UserDocumentID:       r.UserDocumentId,
+		SecondUserDocumentID: r.SecondUserDocumentId,
+		VehicleDocumentID:    r.VehicleDocumentId,
 
 		PersonaInquiryID:    r.PersonaInquiryId,
 		PersonaTemplateID:   r.PersonaTemplateId,

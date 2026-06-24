@@ -100,7 +100,7 @@ func TestUploadVehicleDocuments_ResolvesFirebaseAndForwardsProfile(t *testing.T)
 	assert.Equal(t, "Jean", spy.gotVehicleInput.FirstName)
 	assert.Equal(t, "Dupont", spy.gotVehicleInput.LastName)
 	assert.Equal(t, "vehicle-1", spy.gotVehicleInput.VehicleID)
-	assert.Equal(t, []byte("permis"), spy.gotVehicleInput.DriverLicenceImage)
+	assert.Equal(t, []byte("permis"), spy.gotVehicleInput.DriverLicence.Data)
 	mockUser.AssertExpectations(t)
 }
 
@@ -146,4 +146,59 @@ func TestUploadVehicleDocuments_ServiceError_ReturnsErrorMessage(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.False(t, resp.Success)
 	assert.Equal(t, fileErrors.ErrorUploadFailed.Error(), resp.ErrorMessage)
+}
+
+func TestUploadVehicleDocuments_ForwardsPerDocMetadata(t *testing.T) {
+	spy := &spyFileService{}
+	mockUser := new(mocks.MockUserClient)
+	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
+		Return(&client.UserProfile{UserID: "uuid-abc", FirstName: "Jean", LastName: "Dupont"}, nil)
+	h := grpcHandler.NewFileHandler(spy, mockUser, new(mocks.MockStorageClient), zap.NewNop())
+
+	resp, err := h.UploadVehicleDocuments(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadVehicleDocumentsRequest{
+		VehicleID:           "vehicle-1",
+		DriverLicenceImage:  []byte("permis"),
+		Assurance:           []byte("assurance"),
+		VehicleRegistration: []byte("carte"),
+		DriverLicenceMetadata: &filepb.VehicleDocMetadata{
+			DocumentNumber:   "DL-001",
+			IssuedAt:         "2022-01-01T00:00:00Z",
+			ExpireAt:         "2026-01-01T00:00:00Z",
+			IssuingAuthority: "DVLA",
+		},
+		AssuranceMetadata: &filepb.VehicleDocMetadata{
+			DocumentNumber:   "INS-001",
+			IssuedAt:         "2024-01-01T00:00:00Z",
+			ExpireAt:         "2025-01-01T00:00:00Z",
+			IssuingAuthority: "Assureur",
+		},
+		RegistrationCardMetadata: &filepb.VehicleDocMetadata{
+			DocumentNumber:   "RC-001",
+			IssuedAt:         "2023-01-01T00:00:00Z",
+			ExpireAt:         "",
+			IssuingAuthority: "Préfecture",
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotNil(t, spy.gotVehicleInput)
+
+	dl := spy.gotVehicleInput.DriverLicence
+	assert.Equal(t, []byte("permis"), dl.Data)
+	assert.Equal(t, "DL-001", dl.DocumentNumber)
+	assert.Equal(t, "2022-01-01T00:00:00Z", dl.IssuedAt)
+	assert.Equal(t, "2026-01-01T00:00:00Z", dl.ExpireAt)
+	assert.Equal(t, "DVLA", dl.IssuingAuthority)
+
+	ass := spy.gotVehicleInput.Assurance
+	assert.Equal(t, []byte("assurance"), ass.Data)
+	assert.Equal(t, "INS-001", ass.DocumentNumber)
+
+	rc := spy.gotVehicleInput.RegistrationCard
+	assert.Equal(t, []byte("carte"), rc.Data)
+	assert.Equal(t, "RC-001", rc.DocumentNumber)
+	assert.Empty(t, rc.ExpireAt, "expire_at optionnel pour registrationCard")
+
+	mockUser.AssertExpectations(t)
 }

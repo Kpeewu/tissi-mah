@@ -36,6 +36,7 @@ const (
 	KYCService_ValidateDocument_FullMethodName             = "/kyc.KYCService/ValidateDocument"
 	KYCService_GetManualReviewRequests_FullMethodName      = "/kyc.KYCService/GetManualReviewRequests"
 	KYCService_GetManualReviewRequestDetail_FullMethodName = "/kyc.KYCService/GetManualReviewRequestDetail"
+	KYCService_GetDocumentHistory_FullMethodName           = "/kyc.KYCService/GetDocumentHistory"
 	KYCService_Health_FullMethodName                       = "/kyc.KYCService/Health"
 )
 
@@ -66,6 +67,8 @@ type KYCServiceClient interface {
 	GetManualReviewRequests(ctx context.Context, in *GetManualReviewRequestsRequest, opts ...grpc.CallOption) (*GetManualReviewRequestsResponse, error)
 	// GetManualReviewRequestDetail - Détail d'une demande : tous les documents soumis d'un utilisateur (support)
 	GetManualReviewRequestDetail(ctx context.Context, in *GetManualReviewRequestDetailRequest, opts ...grpc.CallOption) (*GetManualReviewRequestDetailResponse, error)
+	// GetDocumentHistory - Historique complet des revues d'un document logique (support)
+	GetDocumentHistory(ctx context.Context, in *GetDocumentHistoryRequest, opts ...grpc.CallOption) (*GetDocumentHistoryResponse, error)
 	// Health - Health check endpoint (no auth required)
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -188,6 +191,16 @@ func (c *kYCServiceClient) GetManualReviewRequestDetail(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *kYCServiceClient) GetDocumentHistory(ctx context.Context, in *GetDocumentHistoryRequest, opts ...grpc.CallOption) (*GetDocumentHistoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDocumentHistoryResponse)
+	err := c.cc.Invoke(ctx, KYCService_GetDocumentHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *kYCServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -225,6 +238,8 @@ type KYCServiceServer interface {
 	GetManualReviewRequests(context.Context, *GetManualReviewRequestsRequest) (*GetManualReviewRequestsResponse, error)
 	// GetManualReviewRequestDetail - Détail d'une demande : tous les documents soumis d'un utilisateur (support)
 	GetManualReviewRequestDetail(context.Context, *GetManualReviewRequestDetailRequest) (*GetManualReviewRequestDetailResponse, error)
+	// GetDocumentHistory - Historique complet des revues d'un document logique (support)
+	GetDocumentHistory(context.Context, *GetDocumentHistoryRequest) (*GetDocumentHistoryResponse, error)
 	// Health - Health check endpoint (no auth required)
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedKYCServiceServer()
@@ -269,6 +284,9 @@ func (UnimplementedKYCServiceServer) GetManualReviewRequests(context.Context, *G
 }
 func (UnimplementedKYCServiceServer) GetManualReviewRequestDetail(context.Context, *GetManualReviewRequestDetailRequest) (*GetManualReviewRequestDetailResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetManualReviewRequestDetail not implemented")
+}
+func (UnimplementedKYCServiceServer) GetDocumentHistory(context.Context, *GetDocumentHistoryRequest) (*GetDocumentHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDocumentHistory not implemented")
 }
 func (UnimplementedKYCServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -492,6 +510,24 @@ func _KYCService_GetManualReviewRequestDetail_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _KYCService_GetDocumentHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDocumentHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KYCServiceServer).GetDocumentHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: KYCService_GetDocumentHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KYCServiceServer).GetDocumentHistory(ctx, req.(*GetDocumentHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _KYCService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -560,6 +596,10 @@ var KYCService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetManualReviewRequestDetail",
 			Handler:    _KYCService_GetManualReviewRequestDetail_Handler,
+		},
+		{
+			MethodName: "GetDocumentHistory",
+			Handler:    _KYCService_GetDocumentHistory_Handler,
 		},
 		{
 			MethodName: "Health",

@@ -1729,16 +1729,17 @@ func (x *ManualReviewDocumentReview) GetReviewedAt() string {
 }
 
 type ManualReviewDocument struct {
-	state         protoimpl.MessageState      `protogen:"open.v1"`
-	DocumentId    string                      `protobuf:"bytes,1,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`
-	DocumentType  string                      `protobuf:"bytes,2,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"`
-	Status        string                      `protobuf:"bytes,3,opt,name=Status,proto3" json:"Status,omitempty"`
-	OwnerKind     string                      `protobuf:"bytes,4,opt,name=OwnerKind,proto3" json:"OwnerKind,omitempty"`       // "user" | "vehicle"
-	OwnerId       string                      `protobuf:"bytes,5,opt,name=OwnerId,proto3" json:"OwnerId,omitempty"`           // user_id ou vehicle_id
-	Category      string                      `protobuf:"bytes,6,opt,name=Category,proto3" json:"Category,omitempty"`         // passenger | driver | other
-	LatestReview  *ManualReviewDocumentReview `protobuf:"bytes,7,opt,name=LatestReview,proto3" json:"LatestReview,omitempty"` // null si aucune review
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState      `protogen:"open.v1"`
+	DocumentId          string                      `protobuf:"bytes,1,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`
+	DocumentType        string                      `protobuf:"bytes,2,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"`
+	Status              string                      `protobuf:"bytes,3,opt,name=Status,proto3" json:"Status,omitempty"`
+	OwnerKind           string                      `protobuf:"bytes,4,opt,name=OwnerKind,proto3" json:"OwnerKind,omitempty"`                     // "user" | "vehicle"
+	OwnerId             string                      `protobuf:"bytes,5,opt,name=OwnerId,proto3" json:"OwnerId,omitempty"`                         // user_id ou vehicle_id
+	Category            string                      `protobuf:"bytes,6,opt,name=Category,proto3" json:"Category,omitempty"`                       // passenger | driver | other
+	LatestReview        *ManualReviewDocumentReview `protobuf:"bytes,7,opt,name=LatestReview,proto3" json:"LatestReview,omitempty"`               // null si aucune review
+	LogicalDocumentType string                      `protobuf:"bytes,8,opt,name=LogicalDocumentType,proto3" json:"LogicalDocumentType,omitempty"` // idCard, driverLicence, passport…
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ManualReviewDocument) Reset() {
@@ -1820,6 +1821,265 @@ func (x *ManualReviewDocument) GetLatestReview() *ManualReviewDocumentReview {
 	return nil
 }
 
+func (x *ManualReviewDocument) GetLogicalDocumentType() string {
+	if x != nil {
+		return x.LogicalDocumentType
+	}
+	return ""
+}
+
+type GetDocumentHistoryRequest struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	UserId              string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"`                           // Propriétaire des documents
+	LogicalDocumentType string                 `protobuf:"bytes,2,opt,name=LogicalDocumentType,proto3" json:"LogicalDocumentType,omitempty"` // idCard | driverLicence | passport | insurance | registrationCard
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *GetDocumentHistoryRequest) Reset() {
+	*x = GetDocumentHistoryRequest{}
+	mi := &file_kyc_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentHistoryRequest) ProtoMessage() {}
+
+func (x *GetDocumentHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kyc_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentHistoryRequest.ProtoReflect.Descriptor instead.
+func (*GetDocumentHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_kyc_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *GetDocumentHistoryRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *GetDocumentHistoryRequest) GetLogicalDocumentType() string {
+	if x != nil {
+		return x.LogicalDocumentType
+	}
+	return ""
+}
+
+type DocumentHistoryEntry struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	ReviewId            string                 `protobuf:"bytes,1,opt,name=ReviewId,proto3" json:"ReviewId,omitempty"`
+	Status              string                 `protobuf:"bytes,2,opt,name=Status,proto3" json:"Status,omitempty"`
+	Decision            string                 `protobuf:"bytes,3,opt,name=Decision,proto3" json:"Decision,omitempty"`
+	ReasonRejection     string                 `protobuf:"bytes,4,opt,name=ReasonRejection,proto3" json:"ReasonRejection,omitempty"`
+	RejectionDetails    string                 `protobuf:"bytes,5,opt,name=RejectionDetails,proto3" json:"RejectionDetails,omitempty"`
+	Notes               string                 `protobuf:"bytes,6,opt,name=Notes,proto3" json:"Notes,omitempty"`
+	ReviewType          string                 `protobuf:"bytes,7,opt,name=ReviewType,proto3" json:"ReviewType,omitempty"` // manual | automatic
+	ReviewedBy          string                 `protobuf:"bytes,8,opt,name=ReviewedBy,proto3" json:"ReviewedBy,omitempty"`
+	ReviewedAt          string                 `protobuf:"bytes,9,opt,name=ReviewedAt,proto3" json:"ReviewedAt,omitempty"` // ISO 8601
+	AttemptNumber       int32                  `protobuf:"varint,10,opt,name=AttemptNumber,proto3" json:"AttemptNumber,omitempty"`
+	DocumentId          string                 `protobuf:"bytes,11,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`             // recto / face principale
+	SecondDocumentId    string                 `protobuf:"bytes,12,opt,name=SecondDocumentId,proto3" json:"SecondDocumentId,omitempty"` // verso (vide si non recto-verso)
+	LogicalDocumentType string                 `protobuf:"bytes,13,opt,name=LogicalDocumentType,proto3" json:"LogicalDocumentType,omitempty"`
+	CreatedAt           string                 `protobuf:"bytes,14,opt,name=CreatedAt,proto3" json:"CreatedAt,omitempty"` // ISO 8601
+	UpdatedAt           string                 `protobuf:"bytes,15,opt,name=UpdatedAt,proto3" json:"UpdatedAt,omitempty"` // ISO 8601
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *DocumentHistoryEntry) Reset() {
+	*x = DocumentHistoryEntry{}
+	mi := &file_kyc_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentHistoryEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentHistoryEntry) ProtoMessage() {}
+
+func (x *DocumentHistoryEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_kyc_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentHistoryEntry.ProtoReflect.Descriptor instead.
+func (*DocumentHistoryEntry) Descriptor() ([]byte, []int) {
+	return file_kyc_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *DocumentHistoryEntry) GetReviewId() string {
+	if x != nil {
+		return x.ReviewId
+	}
+	return ""
+}
+
+func (x *DocumentHistoryEntry) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *DocumentHistoryEntry) GetDecision() string {
+	if x != nil {
+		return x.Decision
+	}
+	return ""
+}
+
+func (x *DocumentHistoryEntry) GetReasonRejection() string {
+	if x != nil {
+		return x.ReasonRejection
+	}
+	return ""
+}
+
+func (x *DocumentHistoryEntry) GetRejectionDetails() string {
+	if x != nil {
+		return x.RejectionDetails
+	}
+	return ""
+}
+
+func (x *DocumentHistoryEntry) GetNotes() string {
+	if x != nil {
+		return x.Notes
+	}
+	return ""
+}
+
+func (x *DocumentHistoryEntry) GetReviewType() string {
+	if x != nil {
+		return x.ReviewType
+	}
+	return ""
+}
+
+func (x *DocumentHistoryEntry) GetReviewedBy() string {
+	if x != nil {
+		return x.ReviewedBy
+	}
+	return ""
+}
+
+func (x *DocumentHistoryEntry) GetReviewedAt() string {
+	if x != nil {
+		return x.ReviewedAt
+	}
+	return ""
+}
+
+func (x *DocumentHistoryEntry) GetAttemptNumber() int32 {
+	if x != nil {
+		return x.AttemptNumber
+	}
+	return 0
+}
+
+func (x *DocumentHistoryEntry) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *DocumentHistoryEntry) GetSecondDocumentId() string {
+	if x != nil {
+		return x.SecondDocumentId
+	}
+	return ""
+}
+
+func (x *DocumentHistoryEntry) GetLogicalDocumentType() string {
+	if x != nil {
+		return x.LogicalDocumentType
+	}
+	return ""
+}
+
+func (x *DocumentHistoryEntry) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *DocumentHistoryEntry) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+type GetDocumentHistoryResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Entries       []*DocumentHistoryEntry `protobuf:"bytes,1,rep,name=Entries,proto3" json:"Entries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDocumentHistoryResponse) Reset() {
+	*x = GetDocumentHistoryResponse{}
+	mi := &file_kyc_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentHistoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentHistoryResponse) ProtoMessage() {}
+
+func (x *GetDocumentHistoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kyc_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentHistoryResponse.ProtoReflect.Descriptor instead.
+func (*GetDocumentHistoryResponse) Descriptor() ([]byte, []int) {
+	return file_kyc_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *GetDocumentHistoryResponse) GetEntries() []*DocumentHistoryEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
 type GetManualReviewRequestDetailResponse struct {
 	state           protoimpl.MessageState  `protogen:"open.v1"`
 	ErrorMessage    string                  `protobuf:"bytes,1,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
@@ -1836,7 +2096,7 @@ type GetManualReviewRequestDetailResponse struct {
 
 func (x *GetManualReviewRequestDetailResponse) Reset() {
 	*x = GetManualReviewRequestDetailResponse{}
-	mi := &file_kyc_proto_msgTypes[26]
+	mi := &file_kyc_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1848,7 +2108,7 @@ func (x *GetManualReviewRequestDetailResponse) String() string {
 func (*GetManualReviewRequestDetailResponse) ProtoMessage() {}
 
 func (x *GetManualReviewRequestDetailResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[26]
+	mi := &file_kyc_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1861,7 +2121,7 @@ func (x *GetManualReviewRequestDetailResponse) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use GetManualReviewRequestDetailResponse.ProtoReflect.Descriptor instead.
 func (*GetManualReviewRequestDetailResponse) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{26}
+	return file_kyc_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetManualReviewRequestDetailResponse) GetErrorMessage() string {
@@ -1943,7 +2203,7 @@ type InquiryDetail struct {
 
 func (x *InquiryDetail) Reset() {
 	*x = InquiryDetail{}
-	mi := &file_kyc_proto_msgTypes[27]
+	mi := &file_kyc_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1955,7 +2215,7 @@ func (x *InquiryDetail) String() string {
 func (*InquiryDetail) ProtoMessage() {}
 
 func (x *InquiryDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[27]
+	mi := &file_kyc_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1968,7 +2228,7 @@ func (x *InquiryDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InquiryDetail.ProtoReflect.Descriptor instead.
 func (*InquiryDetail) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{27}
+	return file_kyc_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *InquiryDetail) GetReviewId() string {
@@ -2089,7 +2349,7 @@ type PendingReviewItem struct {
 
 func (x *PendingReviewItem) Reset() {
 	*x = PendingReviewItem{}
-	mi := &file_kyc_proto_msgTypes[28]
+	mi := &file_kyc_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2101,7 +2361,7 @@ func (x *PendingReviewItem) String() string {
 func (*PendingReviewItem) ProtoMessage() {}
 
 func (x *PendingReviewItem) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[28]
+	mi := &file_kyc_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2114,7 +2374,7 @@ func (x *PendingReviewItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PendingReviewItem.ProtoReflect.Descriptor instead.
 func (*PendingReviewItem) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{28}
+	return file_kyc_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *PendingReviewItem) GetReviewId() string {
@@ -2165,7 +2425,7 @@ type LatestRejectionItem struct {
 
 func (x *LatestRejectionItem) Reset() {
 	*x = LatestRejectionItem{}
-	mi := &file_kyc_proto_msgTypes[29]
+	mi := &file_kyc_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2177,7 +2437,7 @@ func (x *LatestRejectionItem) String() string {
 func (*LatestRejectionItem) ProtoMessage() {}
 
 func (x *LatestRejectionItem) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[29]
+	mi := &file_kyc_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2190,7 +2450,7 @@ func (x *LatestRejectionItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LatestRejectionItem.ProtoReflect.Descriptor instead.
 func (*LatestRejectionItem) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{29}
+	return file_kyc_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *LatestRejectionItem) GetReviewId() string {
@@ -2252,7 +2512,7 @@ type AdminReviewItem struct {
 
 func (x *AdminReviewItem) Reset() {
 	*x = AdminReviewItem{}
-	mi := &file_kyc_proto_msgTypes[30]
+	mi := &file_kyc_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2264,7 +2524,7 @@ func (x *AdminReviewItem) String() string {
 func (*AdminReviewItem) ProtoMessage() {}
 
 func (x *AdminReviewItem) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[30]
+	mi := &file_kyc_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2277,7 +2537,7 @@ func (x *AdminReviewItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminReviewItem.ProtoReflect.Descriptor instead.
 func (*AdminReviewItem) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{30}
+	return file_kyc_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *AdminReviewItem) GetReviewId() string {
@@ -2421,7 +2681,7 @@ type AdminReviewDetail struct {
 
 func (x *AdminReviewDetail) Reset() {
 	*x = AdminReviewDetail{}
-	mi := &file_kyc_proto_msgTypes[31]
+	mi := &file_kyc_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2433,7 +2693,7 @@ func (x *AdminReviewDetail) String() string {
 func (*AdminReviewDetail) ProtoMessage() {}
 
 func (x *AdminReviewDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_kyc_proto_msgTypes[31]
+	mi := &file_kyc_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2446,7 +2706,7 @@ func (x *AdminReviewDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminReviewDetail.ProtoReflect.Descriptor instead.
 func (*AdminReviewDetail) Descriptor() ([]byte, []int) {
-	return file_kyc_proto_rawDescGZIP(), []int{31}
+	return file_kyc_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *AdminReviewDetail) GetReviewId() string {
@@ -2750,7 +3010,7 @@ const file_kyc_proto_rawDesc = "" +
 	"ReviewedBy\x12\x1e\n" +
 	"\n" +
 	"ReviewedAt\x18\b \x01(\tR\n" +
-	"ReviewedAt\"\x8b\x02\n" +
+	"ReviewedAt\"\xbd\x02\n" +
 	"\x14ManualReviewDocument\x12\x1e\n" +
 	"\n" +
 	"DocumentId\x18\x01 \x01(\tR\n" +
@@ -2760,7 +3020,38 @@ const file_kyc_proto_rawDesc = "" +
 	"\tOwnerKind\x18\x04 \x01(\tR\tOwnerKind\x12\x18\n" +
 	"\aOwnerId\x18\x05 \x01(\tR\aOwnerId\x12\x1a\n" +
 	"\bCategory\x18\x06 \x01(\tR\bCategory\x12C\n" +
-	"\fLatestReview\x18\a \x01(\v2\x1f.kyc.ManualReviewDocumentReviewR\fLatestReview\"\xaf\x02\n" +
+	"\fLatestReview\x18\a \x01(\v2\x1f.kyc.ManualReviewDocumentReviewR\fLatestReview\x120\n" +
+	"\x13LogicalDocumentType\x18\b \x01(\tR\x13LogicalDocumentType\"e\n" +
+	"\x19GetDocumentHistoryRequest\x12\x16\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x120\n" +
+	"\x13LogicalDocumentType\x18\x02 \x01(\tR\x13LogicalDocumentType\"\x92\x04\n" +
+	"\x14DocumentHistoryEntry\x12\x1a\n" +
+	"\bReviewId\x18\x01 \x01(\tR\bReviewId\x12\x16\n" +
+	"\x06Status\x18\x02 \x01(\tR\x06Status\x12\x1a\n" +
+	"\bDecision\x18\x03 \x01(\tR\bDecision\x12(\n" +
+	"\x0fReasonRejection\x18\x04 \x01(\tR\x0fReasonRejection\x12*\n" +
+	"\x10RejectionDetails\x18\x05 \x01(\tR\x10RejectionDetails\x12\x14\n" +
+	"\x05Notes\x18\x06 \x01(\tR\x05Notes\x12\x1e\n" +
+	"\n" +
+	"ReviewType\x18\a \x01(\tR\n" +
+	"ReviewType\x12\x1e\n" +
+	"\n" +
+	"ReviewedBy\x18\b \x01(\tR\n" +
+	"ReviewedBy\x12\x1e\n" +
+	"\n" +
+	"ReviewedAt\x18\t \x01(\tR\n" +
+	"ReviewedAt\x12$\n" +
+	"\rAttemptNumber\x18\n" +
+	" \x01(\x05R\rAttemptNumber\x12\x1e\n" +
+	"\n" +
+	"DocumentId\x18\v \x01(\tR\n" +
+	"DocumentId\x12*\n" +
+	"\x10SecondDocumentId\x18\f \x01(\tR\x10SecondDocumentId\x120\n" +
+	"\x13LogicalDocumentType\x18\r \x01(\tR\x13LogicalDocumentType\x12\x1c\n" +
+	"\tCreatedAt\x18\x0e \x01(\tR\tCreatedAt\x12\x1c\n" +
+	"\tUpdatedAt\x18\x0f \x01(\tR\tUpdatedAt\"Q\n" +
+	"\x1aGetDocumentHistoryResponse\x123\n" +
+	"\aEntries\x18\x01 \x03(\v2\x19.kyc.DocumentHistoryEntryR\aEntries\"\xaf\x02\n" +
 	"$GetManualReviewRequestDetailResponse\x12\"\n" +
 	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12\x16\n" +
 	"\x06UserId\x18\x02 \x01(\tR\x06UserId\x12\x12\n" +
@@ -2857,7 +3148,7 @@ const file_kyc_proto_rawDesc = "" +
 	"\x10PreviousReviewId\x18\x12 \x01(\tR\x10PreviousReviewId\x12*\n" +
 	"\x10SessionExpiresAt\x18\x13 \x01(\tR\x10SessionExpiresAt\x12\x1c\n" +
 	"\tCreatedAt\x18\x14 \x01(\tR\tCreatedAt\x12\x1c\n" +
-	"\tUpdatedAt\x18\x15 \x01(\tR\tUpdatedAt2\xb2\v\n" +
+	"\tUpdatedAt\x18\x15 \x01(\tR\tUpdatedAt2\xb5\f\n" +
 	"\n" +
 	"KYCService\x12l\n" +
 	"\rCreateInquiry\x12\x19.kyc.CreateInquiryRequest\x1a\x1a.kyc.CreateInquiryResponse\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/api/v1/kyc/inquiries/add\x12g\n" +
@@ -2871,7 +3162,8 @@ const file_kyc_proto_rawDesc = "" +
 	"\x0eOverrideReview\x12\x1a.kyc.OverrideReviewRequest\x1a\x1b.kyc.OverrideReviewResponse\"-\x82\xd3\xe4\x93\x02':\x01*\"\"/api/v1/kyc/admin/reviews/override\x12~\n" +
 	"\x10ValidateDocument\x12\x1c.kyc.ValidateDocumentRequest\x1a\x1d.kyc.ValidateDocumentResponse\"-\x82\xd3\xe4\x93\x02':\x01*\"\"/api/v1/kyc/admin/validateDocument\x12\x96\x01\n" +
 	"\x17GetManualReviewRequests\x12#.kyc.GetManualReviewRequestsRequest\x1a$.kyc.GetManualReviewRequestsResponse\"0\x82\xd3\xe4\x93\x02*\x12(/api/v1/kyc/admin/manualReviews/requests\x12\xaa\x01\n" +
-	"\x1cGetManualReviewRequestDetail\x12(.kyc.GetManualReviewRequestDetailRequest\x1a).kyc.GetManualReviewRequestDetailResponse\"5\x82\xd3\xe4\x93\x02/\x12-/api/v1/kyc/admin/manualReviews/requestDetail\x12M\n" +
+	"\x1cGetManualReviewRequestDetail\x12(.kyc.GetManualReviewRequestDetailRequest\x1a).kyc.GetManualReviewRequestDetailResponse\"5\x82\xd3\xe4\x93\x02/\x12-/api/v1/kyc/admin/manualReviews/requestDetail\x12\x80\x01\n" +
+	"\x12GetDocumentHistory\x12\x1e.kyc.GetDocumentHistoryRequest\x1a\x1f.kyc.GetDocumentHistoryResponse\")\x82\xd3\xe4\x93\x02#\x12!/api/v1/kyc/admin/documentHistory\x12M\n" +
 	"\x06Health\x12\x12.kyc.HealthRequest\x1a\x13.kyc.HealthResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/api/v1/kyc/healthBHZFgithub.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/kycpb;kycpbb\x06proto3"
 
 var (
@@ -2886,7 +3178,7 @@ func file_kyc_proto_rawDescGZIP() []byte {
 	return file_kyc_proto_rawDescData
 }
 
-var file_kyc_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_kyc_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
 var file_kyc_proto_goTypes = []any{
 	(*CreateInquiryRequest)(nil),                 // 0: kyc.CreateInquiryRequest
 	(*GetInquiryRequest)(nil),                    // 1: kyc.GetInquiryRequest
@@ -2914,51 +3206,57 @@ var file_kyc_proto_goTypes = []any{
 	(*GetManualReviewRequestDetailRequest)(nil),  // 23: kyc.GetManualReviewRequestDetailRequest
 	(*ManualReviewDocumentReview)(nil),           // 24: kyc.ManualReviewDocumentReview
 	(*ManualReviewDocument)(nil),                 // 25: kyc.ManualReviewDocument
-	(*GetManualReviewRequestDetailResponse)(nil), // 26: kyc.GetManualReviewRequestDetailResponse
-	(*InquiryDetail)(nil),                        // 27: kyc.InquiryDetail
-	(*PendingReviewItem)(nil),                    // 28: kyc.PendingReviewItem
-	(*LatestRejectionItem)(nil),                  // 29: kyc.LatestRejectionItem
-	(*AdminReviewItem)(nil),                      // 30: kyc.AdminReviewItem
-	(*AdminReviewDetail)(nil),                    // 31: kyc.AdminReviewDetail
+	(*GetDocumentHistoryRequest)(nil),            // 26: kyc.GetDocumentHistoryRequest
+	(*DocumentHistoryEntry)(nil),                 // 27: kyc.DocumentHistoryEntry
+	(*GetDocumentHistoryResponse)(nil),           // 28: kyc.GetDocumentHistoryResponse
+	(*GetManualReviewRequestDetailResponse)(nil), // 29: kyc.GetManualReviewRequestDetailResponse
+	(*InquiryDetail)(nil),                        // 30: kyc.InquiryDetail
+	(*PendingReviewItem)(nil),                    // 31: kyc.PendingReviewItem
+	(*LatestRejectionItem)(nil),                  // 32: kyc.LatestRejectionItem
+	(*AdminReviewItem)(nil),                      // 33: kyc.AdminReviewItem
+	(*AdminReviewDetail)(nil),                    // 34: kyc.AdminReviewDetail
 }
 var file_kyc_proto_depIdxs = []int32{
-	27, // 0: kyc.GetInquiryResponse.Inquiry:type_name -> kyc.InquiryDetail
-	28, // 1: kyc.GetKYCStatusResponse.PendingReviews:type_name -> kyc.PendingReviewItem
-	29, // 2: kyc.GetKYCStatusResponse.LatestRejection:type_name -> kyc.LatestRejectionItem
-	30, // 3: kyc.GetAdminReviewsResponse.Reviews:type_name -> kyc.AdminReviewItem
-	31, // 4: kyc.GetAdminReviewResponse.Review:type_name -> kyc.AdminReviewDetail
+	30, // 0: kyc.GetInquiryResponse.Inquiry:type_name -> kyc.InquiryDetail
+	31, // 1: kyc.GetKYCStatusResponse.PendingReviews:type_name -> kyc.PendingReviewItem
+	32, // 2: kyc.GetKYCStatusResponse.LatestRejection:type_name -> kyc.LatestRejectionItem
+	33, // 3: kyc.GetAdminReviewsResponse.Reviews:type_name -> kyc.AdminReviewItem
+	34, // 4: kyc.GetAdminReviewResponse.Review:type_name -> kyc.AdminReviewDetail
 	21, // 5: kyc.GetManualReviewRequestsResponse.Requests:type_name -> kyc.ManualReviewRequestItem
 	24, // 6: kyc.ManualReviewDocument.LatestReview:type_name -> kyc.ManualReviewDocumentReview
-	25, // 7: kyc.GetManualReviewRequestDetailResponse.Documents:type_name -> kyc.ManualReviewDocument
-	0,  // 8: kyc.KYCService.CreateInquiry:input_type -> kyc.CreateInquiryRequest
-	1,  // 9: kyc.KYCService.GetInquiry:input_type -> kyc.GetInquiryRequest
-	2,  // 10: kyc.KYCService.GetKYCStatus:input_type -> kyc.GetKYCStatusRequest
-	3,  // 11: kyc.KYCService.ResumeInquiry:input_type -> kyc.ResumeInquiryRequest
-	4,  // 12: kyc.KYCService.ProcessWebhook:input_type -> kyc.ProcessWebhookRequest
-	5,  // 13: kyc.KYCService.GetAdminReviews:input_type -> kyc.GetAdminReviewsRequest
-	6,  // 14: kyc.KYCService.GetAdminReview:input_type -> kyc.GetAdminReviewRequest
-	7,  // 15: kyc.KYCService.OverrideReview:input_type -> kyc.OverrideReviewRequest
-	8,  // 16: kyc.KYCService.ValidateDocument:input_type -> kyc.ValidateDocumentRequest
-	20, // 17: kyc.KYCService.GetManualReviewRequests:input_type -> kyc.GetManualReviewRequestsRequest
-	23, // 18: kyc.KYCService.GetManualReviewRequestDetail:input_type -> kyc.GetManualReviewRequestDetailRequest
-	9,  // 19: kyc.KYCService.Health:input_type -> kyc.HealthRequest
-	10, // 20: kyc.KYCService.CreateInquiry:output_type -> kyc.CreateInquiryResponse
-	11, // 21: kyc.KYCService.GetInquiry:output_type -> kyc.GetInquiryResponse
-	12, // 22: kyc.KYCService.GetKYCStatus:output_type -> kyc.GetKYCStatusResponse
-	13, // 23: kyc.KYCService.ResumeInquiry:output_type -> kyc.ResumeInquiryResponse
-	14, // 24: kyc.KYCService.ProcessWebhook:output_type -> kyc.ProcessWebhookResponse
-	15, // 25: kyc.KYCService.GetAdminReviews:output_type -> kyc.GetAdminReviewsResponse
-	16, // 26: kyc.KYCService.GetAdminReview:output_type -> kyc.GetAdminReviewResponse
-	17, // 27: kyc.KYCService.OverrideReview:output_type -> kyc.OverrideReviewResponse
-	18, // 28: kyc.KYCService.ValidateDocument:output_type -> kyc.ValidateDocumentResponse
-	22, // 29: kyc.KYCService.GetManualReviewRequests:output_type -> kyc.GetManualReviewRequestsResponse
-	26, // 30: kyc.KYCService.GetManualReviewRequestDetail:output_type -> kyc.GetManualReviewRequestDetailResponse
-	19, // 31: kyc.KYCService.Health:output_type -> kyc.HealthResponse
-	20, // [20:32] is the sub-list for method output_type
-	8,  // [8:20] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	27, // 7: kyc.GetDocumentHistoryResponse.Entries:type_name -> kyc.DocumentHistoryEntry
+	25, // 8: kyc.GetManualReviewRequestDetailResponse.Documents:type_name -> kyc.ManualReviewDocument
+	0,  // 9: kyc.KYCService.CreateInquiry:input_type -> kyc.CreateInquiryRequest
+	1,  // 10: kyc.KYCService.GetInquiry:input_type -> kyc.GetInquiryRequest
+	2,  // 11: kyc.KYCService.GetKYCStatus:input_type -> kyc.GetKYCStatusRequest
+	3,  // 12: kyc.KYCService.ResumeInquiry:input_type -> kyc.ResumeInquiryRequest
+	4,  // 13: kyc.KYCService.ProcessWebhook:input_type -> kyc.ProcessWebhookRequest
+	5,  // 14: kyc.KYCService.GetAdminReviews:input_type -> kyc.GetAdminReviewsRequest
+	6,  // 15: kyc.KYCService.GetAdminReview:input_type -> kyc.GetAdminReviewRequest
+	7,  // 16: kyc.KYCService.OverrideReview:input_type -> kyc.OverrideReviewRequest
+	8,  // 17: kyc.KYCService.ValidateDocument:input_type -> kyc.ValidateDocumentRequest
+	20, // 18: kyc.KYCService.GetManualReviewRequests:input_type -> kyc.GetManualReviewRequestsRequest
+	23, // 19: kyc.KYCService.GetManualReviewRequestDetail:input_type -> kyc.GetManualReviewRequestDetailRequest
+	26, // 20: kyc.KYCService.GetDocumentHistory:input_type -> kyc.GetDocumentHistoryRequest
+	9,  // 21: kyc.KYCService.Health:input_type -> kyc.HealthRequest
+	10, // 22: kyc.KYCService.CreateInquiry:output_type -> kyc.CreateInquiryResponse
+	11, // 23: kyc.KYCService.GetInquiry:output_type -> kyc.GetInquiryResponse
+	12, // 24: kyc.KYCService.GetKYCStatus:output_type -> kyc.GetKYCStatusResponse
+	13, // 25: kyc.KYCService.ResumeInquiry:output_type -> kyc.ResumeInquiryResponse
+	14, // 26: kyc.KYCService.ProcessWebhook:output_type -> kyc.ProcessWebhookResponse
+	15, // 27: kyc.KYCService.GetAdminReviews:output_type -> kyc.GetAdminReviewsResponse
+	16, // 28: kyc.KYCService.GetAdminReview:output_type -> kyc.GetAdminReviewResponse
+	17, // 29: kyc.KYCService.OverrideReview:output_type -> kyc.OverrideReviewResponse
+	18, // 30: kyc.KYCService.ValidateDocument:output_type -> kyc.ValidateDocumentResponse
+	22, // 31: kyc.KYCService.GetManualReviewRequests:output_type -> kyc.GetManualReviewRequestsResponse
+	29, // 32: kyc.KYCService.GetManualReviewRequestDetail:output_type -> kyc.GetManualReviewRequestDetailResponse
+	28, // 33: kyc.KYCService.GetDocumentHistory:output_type -> kyc.GetDocumentHistoryResponse
+	19, // 34: kyc.KYCService.Health:output_type -> kyc.HealthResponse
+	22, // [22:35] is the sub-list for method output_type
+	9,  // [9:22] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_kyc_proto_init() }
@@ -2972,7 +3270,7 @@ func file_kyc_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_kyc_proto_rawDesc), len(file_kyc_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   32,
+			NumMessages:   35,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

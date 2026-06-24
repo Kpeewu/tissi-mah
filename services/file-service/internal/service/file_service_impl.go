@@ -99,6 +99,19 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 		return nil, fileErrors.ErrorFileTooLarge
 	}
 
+	// Bloquer si un document courant existe déjà pour ce type (hors profilePicture qui peut être mis à jour librement)
+	if input.DocumentType != "profilePicture" {
+		existing, _ := s.userDocRead.GetCurrentByUserIDAndType(ctx, input.UserID, input.DocumentType)
+		if existing != nil {
+			s.logger.Warn("document already submitted",
+				zap.String("userID", input.UserID),
+				zap.String("type", input.DocumentType),
+				zap.String("existingID", existing.DocumentID),
+			)
+			return nil, fileErrors.ErrorDocumentAlreadySubmitted
+		}
+	}
+
 	documentID := uuid.New().String()
 	ext := extensionFromMimeType(input.MimeType)
 	s3Key := fmt.Sprintf("documents/%s%s", documentID, ext)
@@ -128,9 +141,6 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 		return nil, fileErrors.ErrorUploadFailed
 	}
 
-	// Chercher le document courant avant la création du nouveau (pour le remplacer ensuite)
-	existing, _ := s.userDocRead.GetCurrentByUserIDAndType(ctx, input.UserID, input.DocumentType)
-
 	now := time.Now().UTC()
 	doc := &domain.UserDocument{
 		DocumentID:     documentID,
@@ -141,6 +151,8 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 		FileSizeBytes:  input.FileSizeBytes,
 		MimeType:       input.MimeType,
 		DocumentNumber: input.DocumentNumber,
+		IssuedAt:       input.IssuedAt,
+		ExpireAt:       input.ExpireAt,
 		IssuingCountry: input.IssuingCountry,
 		Status:         "pending",
 		IsCurrent:      true,
@@ -152,11 +164,6 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 	if err != nil {
 		s.logger.Error("create user document record failed", zap.Error(err), zap.String("documentID", documentID))
 		return nil, fileErrors.ErrorInternalServer
-	}
-
-	// MarkAsReplaced APRÈS la création du nouveau doc pour satisfaire la contrainte FK
-	if existing != nil {
-		_ = s.userDocWrite.MarkAsReplaced(ctx, existing.DocumentID, documentID)
 	}
 
 	s.logger.Info("user document uploaded", zap.String("documentID", documentID), zap.String("userID", input.UserID))
@@ -210,7 +217,7 @@ func (s *fileServiceImpl) GetDocument(ctx context.Context, input serviceInterfac
 		}
 	}
 
-	presignedURL, err := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, 30*time.Minute)
+	presignedURL, err := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, time.Hour)
 	if err != nil {
 		s.logger.Error("get document: presign failed", zap.Error(err), zap.String("fileID", input.FileID))
 		return nil, fileErrors.ErrorUploadFailed
@@ -288,6 +295,16 @@ func (s *fileServiceImpl) UploadVehicleDocument(ctx context.Context, input servi
 		return nil, fileErrors.ErrorFileTooLarge
 	}
 
+	// Bloquer si un document courant existe déjà pour ce type sur ce véhicule
+	if existingVeh, _ := s.vehicleDocRead.GetCurrentByVehicleIDAndType(ctx, input.VehicleID, input.DocumentType); existingVeh != nil {
+		s.logger.Warn("vehicle document already submitted",
+			zap.String("vehicleID", input.VehicleID),
+			zap.String("type", input.DocumentType),
+			zap.String("existingID", existingVeh.DocumentID),
+		)
+		return nil, fileErrors.ErrorDocumentAlreadySubmitted
+	}
+
 	documentID := uuid.New().String()
 	ext := extensionFromMimeType(input.MimeType)
 	s3Key := fmt.Sprintf("documents/%s%s", documentID, ext)
@@ -308,6 +325,8 @@ func (s *fileServiceImpl) UploadVehicleDocument(ctx context.Context, input servi
 		FileSizeBytes:    input.FileSizeBytes,
 		MimeType:         input.MimeType,
 		DocumentNumber:   input.DocumentNumber,
+		IssuedAt:         input.IssuedAt,
+		ExpireAt:         input.ExpireAt,
 		IssuingAuthority: input.IssuingAuthority,
 		Status:           "pending",
 		IsCurrent:        true,
@@ -517,13 +536,20 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 		attemptNumber = 1
 	}
 
+	var secondUserDocID *string
+	if input.SecondUserDocumentID != "" {
+		secondUserDocID = &input.SecondUserDocumentID
+	}
+
 	now := time.Now().UTC()
 	review := &domain.DocumentReview{
-		ReviewID:          reviewID,
-		UserID:            input.UserID,
-		DocumentType:      input.DocumentType,
-		UserDocumentID:    userDocID,
-		VehicleDocumentID: vehicleDocID,
+		ReviewID:             reviewID,
+		UserID:               input.UserID,
+		DocumentType:         input.DocumentType,
+		LogicalDocumentType:  domain.ToLogicalDocumentType(input.DocumentType),
+		UserDocumentID:       userDocID,
+		SecondUserDocumentID: secondUserDocID,
+		VehicleDocumentID:    vehicleDocID,
 
 		PersonaInquiryID:    input.PersonaInquiryID,
 		PersonaTemplateID:   input.PersonaTemplateID,
@@ -562,6 +588,13 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 	newStatus := mapDecisionToStatus(input.Decision)
 	if input.UserDocumentID != "" {
 		doc, _ := s.userDocRead.GetByID(ctx, input.UserDocumentID)
+		if doc != nil {
+			doc.Status = newStatus
+			_, _ = s.userDocWrite.Update(ctx, doc)
+		}
+	}
+	if input.SecondUserDocumentID != "" {
+		doc, _ := s.userDocRead.GetByID(ctx, input.SecondUserDocumentID)
 		if doc != nil {
 			doc.Status = newStatus
 			_, _ = s.userDocWrite.Update(ctx, doc)
@@ -624,6 +657,11 @@ func (s *fileServiceImpl) UpdateDocumentReview(ctx context.Context, review *doma
 	return updated, nil
 }
 
+func (s *fileServiceImpl) GetDocumentReviewHistory(ctx context.Context, userID string, logicalDocumentType string) ([]*domain.DocumentReview, error) {
+	s.logger.Debug("get document review history", zap.String("userID", userID), zap.String("logicalType", logicalDocumentType))
+	return s.reviewRead.GetHistoryByUserIDAndLogicalType(ctx, userID, logicalDocumentType)
+}
+
 func (s *fileServiceImpl) ListDocumentReviews(ctx context.Context, userID string, status string, decision string, page int32, pageSize int32) ([]*domain.DocumentReview, error) {
 	s.logger.Debug("list document reviews",
 		zap.String("userID", userID),
@@ -681,9 +719,17 @@ func detectMimeType(data []byte) string {
 
 // --- Remplacement de document ---
 
-// ChangeDocument remplace le fichier d'un document utilisateur existant par un nouveau.
-// Récupère le document existant, upload le nouveau fichier en S3, puis crée un nouvel
-// enregistrement DB en marquant l'ancien comme remplacé.
+// statuts qui bloquent le remplacement
+var nonReplaceableStatuses = map[string]bool{
+	"pending":     true,
+	"underReview": true,
+	"approved":    true,
+}
+
+// ChangeDocument remplace le fichier d'un document (utilisateur ou véhicule) existant.
+// Le document courant doit avoir le statut "rejected" ou "expired".
+// Gère lui-même l'upload S3 + création DB + MarkAsReplaced sans passer par UploadUserDocument
+// (qui bloquerait désormais si un document courant existe déjà).
 func (s *fileServiceImpl) ChangeDocument(ctx context.Context, input serviceInterfaces.ChangeDocumentInput) (*serviceInterfaces.UploadedDocument, error) {
 	s.logger.Debug("change document", zap.String("userID", input.UserID), zap.String("fileID", input.FileID))
 
@@ -691,17 +737,12 @@ func (s *fileServiceImpl) ChangeDocument(ctx context.Context, input serviceInter
 		return nil, fileErrors.ErrorInvalidDocumentType
 	}
 
-	existing, err := s.userDocRead.GetByID(ctx, input.FileID)
-	if err != nil {
-		s.logger.Error("change document: document not found", zap.Error(err), zap.String("fileID", input.FileID))
-		return nil, fileErrors.ErrorDocumentNotFound
-	}
+	// Chercher le document : user docs d'abord, vehicle docs ensuite
+	userDoc, userErr := s.userDocRead.GetByID(ctx, input.FileID)
+	vehicleDoc, vehicleErr := s.vehicleDocRead.GetByID(ctx, input.FileID)
 
-	if existing.UserID != input.UserID {
-		s.logger.Error("change document: user mismatch",
-			zap.String("expected", existing.UserID),
-			zap.String("got", input.UserID),
-		)
+	if userErr != nil && vehicleErr != nil {
+		s.logger.Error("change document: document not found", zap.String("fileID", input.FileID))
 		return nil, fileErrors.ErrorDocumentNotFound
 	}
 
@@ -714,33 +755,178 @@ func (s *fileServiceImpl) ChangeDocument(ctx context.Context, input serviceInter
 		return nil, fileErrors.ErrorInvalidMimeType
 	}
 
-	newDoc, err := s.UploadUserDocument(ctx, serviceInterfaces.UploadUserDocumentInput{
-		UserID:         existing.UserID,
-		DocumentName:   existing.DocumentName,
-		DocumentType:   existing.DocumentType,
-		MimeType:       mimeType,
-		FileSizeBytes:  int64(len(input.NewDocument)),
-		Data:           bytes.NewReader(input.NewDocument),
-		DocumentNumber: existing.DocumentNumber,
-		IssuingCountry: existing.IssuingCountry,
-	})
-	if err != nil {
-		s.logger.Error("change document: upload failed", zap.Error(err), zap.String("fileID", input.FileID))
-		return nil, err
+	documentID := uuid.New().String()
+	ext := extensionFromMimeType(mimeType)
+	s3Key := fmt.Sprintf("documents/%s%s", documentID, ext)
+	now := time.Now().UTC()
+
+	if userDoc != nil {
+		// --- Document utilisateur ---
+		if userDoc.UserID != input.UserID {
+			s.logger.Error("change document: user mismatch",
+				zap.String("expected", userDoc.UserID),
+				zap.String("got", input.UserID),
+			)
+			return nil, fileErrors.ErrorDocumentNotFound
+		}
+		if !userDoc.IsCurrent {
+			s.logger.Warn("change document: document is not current", zap.String("fileID", input.FileID))
+			return nil, fileErrors.ErrorDocumentNotFound
+		}
+		if nonReplaceableStatuses[userDoc.Status] {
+			s.logger.Warn("change document: document status does not allow replacement",
+				zap.String("fileID", input.FileID),
+				zap.String("status", userDoc.Status),
+			)
+			return nil, fileErrors.ErrorDocumentNotReplaceable
+		}
+
+		// Résoudre les métadonnées : conserver l'existant, écraser si fourni
+		docNumber := userDoc.DocumentNumber
+		if input.DocumentNumber != "" {
+			docNumber = input.DocumentNumber
+		}
+		issuingPlace := userDoc.IssuingCountry
+		if input.IssuingPlace != "" {
+			issuingPlace = input.IssuingPlace
+		}
+		issuedAt := userDoc.IssuedAt
+		if input.IssuedAt != "" {
+			if t, parseErr := time.Parse(time.RFC3339, input.IssuedAt); parseErr == nil {
+				issuedAt = &t
+			}
+		}
+		expireAt := userDoc.ExpireAt
+		if input.ExpireAt != "" {
+			if t, parseErr := time.Parse(time.RFC3339, input.ExpireAt); parseErr == nil {
+				expireAt = &t
+			}
+		}
+
+		if _, uploadErr := s.storage.Upload(ctx, s3Key, bytes.NewReader(input.NewDocument), mimeType, int64(len(input.NewDocument))); uploadErr != nil {
+			s.logger.Error("change document: S3 upload failed", zap.Error(uploadErr), zap.String("key", s3Key))
+			return nil, fileErrors.ErrorUploadFailed
+		}
+
+		newDoc := &domain.UserDocument{
+			DocumentID:     documentID,
+			UserID:         userDoc.UserID,
+			DocumentName:   userDoc.DocumentName,
+			DocumentType:   userDoc.DocumentType,
+			DocumentKey:    s3Key,
+			FileSizeBytes:  int64(len(input.NewDocument)),
+			MimeType:       mimeType,
+			DocumentNumber: docNumber,
+			IssuedAt:       issuedAt,
+			ExpireAt:       expireAt,
+			IssuingCountry: issuingPlace,
+			Status:         "pending",
+			IsCurrent:      true,
+			UploadedAt:     now,
+			UpdatedAt:      now,
+		}
+		if _, createErr := s.userDocWrite.Create(ctx, newDoc); createErr != nil {
+			s.logger.Error("change document: create record failed", zap.Error(createErr))
+			return nil, fileErrors.ErrorInternalServer
+		}
+		_ = s.userDocWrite.MarkAsReplaced(ctx, userDoc.DocumentID, documentID)
+
+		presignedURL, _ := s.storage.GeneratePresignedURL(ctx, newDoc.DocumentKey, time.Hour)
+		s.logger.Info("user document changed",
+			zap.String("oldFileID", input.FileID),
+			zap.String("newFileID", documentID),
+			zap.String("userID", input.UserID),
+		)
+		return &serviceInterfaces.UploadedDocument{
+			DocumentID:   newDoc.DocumentID,
+			DocumentURL:  presignedURL,
+			DocumentType: newDoc.DocumentType,
+			DocumentName: newDoc.DocumentName,
+		}, nil
 	}
 
-	presignedURL, _ := s.storage.GeneratePresignedURL(ctx, newDoc.DocumentKey, 30*time.Minute)
+	// --- Document véhicule ---
+	if vehicleDoc.UserID != input.UserID {
+		s.logger.Error("change document: vehicle doc user mismatch",
+			zap.String("expected", vehicleDoc.UserID),
+			zap.String("got", input.UserID),
+		)
+		return nil, fileErrors.ErrorDocumentNotFound
+	}
+	if !vehicleDoc.IsCurrent {
+		s.logger.Warn("change vehicle document: document is not current", zap.String("fileID", input.FileID))
+		return nil, fileErrors.ErrorDocumentNotFound
+	}
+	if nonReplaceableStatuses[vehicleDoc.Status] {
+		s.logger.Warn("change vehicle document: status does not allow replacement",
+			zap.String("fileID", input.FileID),
+			zap.String("status", vehicleDoc.Status),
+		)
+		return nil, fileErrors.ErrorDocumentNotReplaceable
+	}
 
-	s.logger.Info("document changed",
+	// Résoudre les métadonnées véhicule
+	docNumber := vehicleDoc.DocumentNumber
+	if input.DocumentNumber != "" {
+		docNumber = input.DocumentNumber
+	}
+	issuingPlace := vehicleDoc.IssuingAuthority
+	if input.IssuingPlace != "" {
+		issuingPlace = input.IssuingPlace
+	}
+	issuedAt := vehicleDoc.IssuedAt
+	if input.IssuedAt != "" {
+		if t, parseErr := time.Parse(time.RFC3339, input.IssuedAt); parseErr == nil {
+			issuedAt = &t
+		}
+	}
+	expireAt := vehicleDoc.ExpireAt
+	if input.ExpireAt != "" {
+		if t, parseErr := time.Parse(time.RFC3339, input.ExpireAt); parseErr == nil {
+			expireAt = &t
+		}
+	}
+
+	if _, uploadErr := s.storage.Upload(ctx, s3Key, bytes.NewReader(input.NewDocument), mimeType, int64(len(input.NewDocument))); uploadErr != nil {
+		s.logger.Error("change vehicle document: S3 upload failed", zap.Error(uploadErr), zap.String("key", s3Key))
+		return nil, fileErrors.ErrorUploadFailed
+	}
+
+	newVehicleDoc := &domain.VehicleDocument{
+		DocumentID:       documentID,
+		UserID:           vehicleDoc.UserID,
+		VehicleID:        vehicleDoc.VehicleID,
+		DocumentName:     vehicleDoc.DocumentName,
+		DocumentType:     vehicleDoc.DocumentType,
+		DocumentKey:      s3Key,
+		FileSizeBytes:    int64(len(input.NewDocument)),
+		MimeType:         mimeType,
+		DocumentNumber:   docNumber,
+		IssuedAt:         issuedAt,
+		ExpireAt:         expireAt,
+		IssuingAuthority: issuingPlace,
+		Status:           "pending",
+		IsCurrent:        true,
+		UploadedAt:       now,
+		UpdatedAt:        now,
+	}
+	if _, createErr := s.vehicleDocWrite.Create(ctx, newVehicleDoc); createErr != nil {
+		s.logger.Error("change vehicle document: create record failed", zap.Error(createErr))
+		return nil, fileErrors.ErrorInternalServer
+	}
+	_ = s.vehicleDocWrite.MarkAsReplaced(ctx, vehicleDoc.DocumentID, documentID)
+
+	presignedURL, _ := s.storage.GeneratePresignedURL(ctx, newVehicleDoc.DocumentKey, time.Hour)
+	s.logger.Info("vehicle document changed",
 		zap.String("oldFileID", input.FileID),
-		zap.String("newFileID", newDoc.DocumentID),
+		zap.String("newFileID", documentID),
 		zap.String("userID", input.UserID),
 	)
 	return &serviceInterfaces.UploadedDocument{
-		DocumentID:   newDoc.DocumentID,
+		DocumentID:   newVehicleDoc.DocumentID,
 		DocumentURL:  presignedURL,
-		DocumentType: newDoc.DocumentType,
-		DocumentName: newDoc.DocumentName,
+		DocumentType: newVehicleDoc.DocumentType,
+		DocumentName: newVehicleDoc.DocumentName,
 	}, nil
 }
 
@@ -754,6 +940,25 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 
 	if input.UserID == "" {
 		return nil, fileErrors.ErrorInvalidDocumentType
+	}
+
+	// Valider les métadonnées légales obligatoires
+	if input.DocumentNumber == "" || input.IssuedAt == "" || input.ExpireAt == "" || input.IssuingCountry == "" {
+		s.logger.Error("upload id document: métadonnées légales manquantes",
+			zap.String("profileID", input.UserID),
+			zap.String("type", input.DocumentType),
+		)
+		return nil, fileErrors.ErrorMissingDocumentMetadata
+	}
+	issuedAt, err := time.Parse(time.RFC3339, input.IssuedAt)
+	if err != nil {
+		s.logger.Error("upload id document: issued_at invalide", zap.String("value", input.IssuedAt), zap.Error(err))
+		return nil, fileErrors.ErrorMissingDocumentMetadata
+	}
+	expireAt, err := time.Parse(time.RFC3339, input.ExpireAt)
+	if err != nil {
+		s.logger.Error("upload id document: expire_at invalide", zap.String("value", input.ExpireAt), zap.Error(err))
+		return nil, fileErrors.ErrorMissingDocumentMetadata
 	}
 
 	// Détermine les fichiers requis selon le type de document
@@ -816,12 +1021,16 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 		}
 
 		doc, err := s.UploadUserDocument(ctx, serviceInterfaces.UploadUserDocumentInput{
-			UserID:        input.UserID,
-			DocumentName:  u.docName,
-			DocumentType:  u.docType,
-			MimeType:      mimeType,
-			FileSizeBytes: int64(len(u.data)),
-			Data:          bytes.NewReader(u.data),
+			UserID:         input.UserID,
+			DocumentName:   u.docName,
+			DocumentType:   u.docType,
+			MimeType:       mimeType,
+			FileSizeBytes:  int64(len(u.data)),
+			Data:           bytes.NewReader(u.data),
+			DocumentNumber: input.DocumentNumber,
+			IssuedAt:       &issuedAt,
+			ExpireAt:       &expireAt,
+			IssuingCountry: input.IssuingCountry,
 		})
 		if err != nil {
 			s.logger.Error("upload id document file failed",
@@ -836,7 +1045,7 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 			zap.String("docType", u.docType),
 			zap.String("documentID", doc.DocumentID),
 		)
-		presignedURL, _ := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, 30*time.Minute)
+		presignedURL, _ := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, time.Hour)
 		created = append(created, &serviceInterfaces.UploadedDocument{
 			DocumentID:   doc.DocumentID,
 			DocumentURL:  presignedURL,
@@ -862,7 +1071,7 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 	}
 
 	type fileUpload struct {
-		data    []byte
+		file    serviceInterfaces.VehicleDocFileInput
 		docType string
 		docName string
 	}
@@ -873,14 +1082,14 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 	prefix := fmt.Sprintf("%s_%s_%s", lastName, firstName, timestamp)
 
 	uploads := []fileUpload{
-		{data: input.DriverLicenceImage, docType: "driverLicence", docName: prefix + "_driver_licence"},
-		{data: input.Assurance, docType: "insurance", docName: prefix + "_assurance"},
-		{data: input.VehicleRegistration, docType: "registrationCard", docName: prefix + "_vehicle_registration"},
+		{file: input.DriverLicence, docType: "driverLicence", docName: prefix + "_driver_licence"},
+		{file: input.Assurance, docType: "insurance", docName: prefix + "_assurance"},
+		{file: input.RegistrationCard, docType: "registrationCard", docName: prefix + "_vehicle_registration"},
 	}
 
 	created := make([]*serviceInterfaces.UploadedDocument, 0, len(uploads))
 	for _, u := range uploads {
-		if len(u.data) == 0 {
+		if len(u.file.Data) == 0 {
 			s.logger.Error("upload vehicle documents: fichier manquant",
 				zap.String("vehicleID", input.VehicleID),
 				zap.String("docName", u.docName),
@@ -888,7 +1097,39 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 			return nil, fileErrors.ErrorInvalidDocumentType
 		}
 
-		mimeType := detectMimeType(u.data)
+		// Valider les métadonnées obligatoires par type
+		if u.file.DocumentNumber == "" || u.file.IssuedAt == "" || u.file.IssuingAuthority == "" {
+			s.logger.Error("upload vehicle documents: métadonnées légales manquantes",
+				zap.String("vehicleID", input.VehicleID),
+				zap.String("docType", u.docType),
+			)
+			return nil, fileErrors.ErrorMissingDocumentMetadata
+		}
+		// expire_at obligatoire pour driverLicence et insurance, optionnel pour registrationCard
+		if u.docType != "registrationCard" && u.file.ExpireAt == "" {
+			s.logger.Error("upload vehicle documents: expire_at obligatoire",
+				zap.String("vehicleID", input.VehicleID),
+				zap.String("docType", u.docType),
+			)
+			return nil, fileErrors.ErrorMissingDocumentMetadata
+		}
+
+		issuedAt, err := time.Parse(time.RFC3339, u.file.IssuedAt)
+		if err != nil {
+			s.logger.Error("upload vehicle documents: issued_at invalide", zap.String("value", u.file.IssuedAt), zap.Error(err))
+			return nil, fileErrors.ErrorMissingDocumentMetadata
+		}
+		var expireAtPtr *time.Time
+		if u.file.ExpireAt != "" {
+			expireAt, parseErr := time.Parse(time.RFC3339, u.file.ExpireAt)
+			if parseErr != nil {
+				s.logger.Error("upload vehicle documents: expire_at invalide", zap.String("value", u.file.ExpireAt), zap.Error(parseErr))
+				return nil, fileErrors.ErrorMissingDocumentMetadata
+			}
+			expireAtPtr = &expireAt
+		}
+
+		mimeType := detectMimeType(u.file.Data)
 		if !allowedMimeTypes[mimeType] {
 			s.logger.Error("upload vehicle documents: unsupported mime type",
 				zap.String("vehicleID", input.VehicleID),
@@ -899,13 +1140,17 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 		}
 
 		doc, err := s.UploadVehicleDocument(ctx, serviceInterfaces.UploadVehicleDocumentInput{
-			UserID:        input.UserID,
-			VehicleID:     input.VehicleID,
-			DocumentName:  u.docName,
-			DocumentType:  u.docType,
-			MimeType:      mimeType,
-			FileSizeBytes: int64(len(u.data)),
-			Data:          bytes.NewReader(u.data),
+			UserID:           input.UserID,
+			VehicleID:        input.VehicleID,
+			DocumentName:     u.docName,
+			DocumentType:     u.docType,
+			MimeType:         mimeType,
+			FileSizeBytes:    int64(len(u.file.Data)),
+			Data:             bytes.NewReader(u.file.Data),
+			DocumentNumber:   u.file.DocumentNumber,
+			IssuedAt:         &issuedAt,
+			ExpireAt:         expireAtPtr,
+			IssuingAuthority: u.file.IssuingAuthority,
 		})
 		if err != nil {
 			s.logger.Error("upload vehicle documents: file upload failed",
@@ -920,7 +1165,7 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 			zap.String("docType", u.docType),
 			zap.String("documentID", doc.DocumentID),
 		)
-		presignedURL, _ := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, 30*time.Minute)
+		presignedURL, _ := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, time.Hour)
 		created = append(created, &serviceInterfaces.UploadedDocument{
 			DocumentID:   doc.DocumentID,
 			DocumentURL:  presignedURL,

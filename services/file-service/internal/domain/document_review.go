@@ -43,11 +43,13 @@ var ValidReasonRejections = map[string]bool{
 }
 
 type DocumentReview struct {
-	ReviewID          string
-	UserID            string
-	DocumentType      string
-	UserDocumentID    *string
-	VehicleDocumentID *string
+	ReviewID             string
+	UserID               string
+	DocumentType         string
+	LogicalDocumentType  string  // type logique : idCard, driverLicence, passport…
+	UserDocumentID       *string
+	SecondUserDocumentID *string // verso pour les documents recto-verso
+	VehicleDocumentID    *string
 
 	// Persona
 	PersonaInquiryID    string
@@ -109,4 +111,17 @@ func IsValidReasonRejection(reason string) bool {
 		return true
 	}
 	return ValidReasonRejections[reason]
+}
+
+// ToLogicalDocumentType dérive le type logique d'un document depuis son type physique.
+// idCardFront/idCardBack → idCard, driverLicenceFront/driverLicenceBack → driverLicence.
+func ToLogicalDocumentType(documentType string) string {
+	switch documentType {
+	case "idCardFront", "idCardBack":
+		return "idCard"
+	case "driverLicenceFront", "driverLicenceBack":
+		return "driverLicence"
+	default:
+		return documentType
+	}
 }

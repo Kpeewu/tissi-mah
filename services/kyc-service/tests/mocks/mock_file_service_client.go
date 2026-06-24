@@ -123,6 +123,14 @@ func (m *MockFileServiceClient) ListDocumentReviews(ctx context.Context, userID 
 	return args.Get(0).([]*domain.Review), args.Error(1)
 }
 
+func (m *MockFileServiceClient) GetDocumentReviewHistory(ctx context.Context, userID string, logicalDocumentType string) ([]*domain.Review, error) {
+	args := m.Called(ctx, userID, logicalDocumentType)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Review), args.Error(1)
+}
+
 func (m *MockFileServiceClient) Close() error {
 	args := m.Called()
 	return args.Error(0)

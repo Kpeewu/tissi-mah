@@ -46,6 +46,7 @@ const (
 	FileService_GetDocumentReviewsByUserID_FullMethodName          = "/file.FileService/GetDocumentReviewsByUserID"
 	FileService_UpdateDocumentReview_FullMethodName                = "/file.FileService/UpdateDocumentReview"
 	FileService_ListDocumentReviews_FullMethodName                 = "/file.FileService/ListDocumentReviews"
+	FileService_GetDocumentReviewHistory_FullMethodName            = "/file.FileService/GetDocumentReviewHistory"
 	FileService_Health_FullMethodName                              = "/file.FileService/Health"
 	FileService_DeleteAllUserFiles_FullMethodName                  = "/file.FileService/DeleteAllUserFiles"
 )
@@ -97,6 +98,8 @@ type FileServiceClient interface {
 	GetDocumentReviewsByUserID(ctx context.Context, in *GetDocumentReviewsByUserIDRequest, opts ...grpc.CallOption) (*GetDocumentReviewsResponse, error)
 	UpdateDocumentReview(ctx context.Context, in *UpdateDocumentReviewRequest, opts ...grpc.CallOption) (*DocumentReviewResponse, error)
 	ListDocumentReviews(ctx context.Context, in *ListDocumentReviewsRequest, opts ...grpc.CallOption) (*GetDocumentReviewsResponse, error)
+	// Historique complet d'un document logique pour un utilisateur (inter-service, appelé par kyc-service)
+	GetDocumentReviewHistory(ctx context.Context, in *GetDocumentReviewHistoryRequest, opts ...grpc.CallOption) (*GetDocumentReviewHistoryResponse, error)
 	// --- Health ---
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 	// --- Suppression compte (inter-service) ---
@@ -349,6 +352,16 @@ func (c *fileServiceClient) ListDocumentReviews(ctx context.Context, in *ListDoc
 	return out, nil
 }
 
+func (c *fileServiceClient) GetDocumentReviewHistory(ctx context.Context, in *GetDocumentReviewHistoryRequest, opts ...grpc.CallOption) (*GetDocumentReviewHistoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDocumentReviewHistoryResponse)
+	err := c.cc.Invoke(ctx, FileService_GetDocumentReviewHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *fileServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -416,6 +429,8 @@ type FileServiceServer interface {
 	GetDocumentReviewsByUserID(context.Context, *GetDocumentReviewsByUserIDRequest) (*GetDocumentReviewsResponse, error)
 	UpdateDocumentReview(context.Context, *UpdateDocumentReviewRequest) (*DocumentReviewResponse, error)
 	ListDocumentReviews(context.Context, *ListDocumentReviewsRequest) (*GetDocumentReviewsResponse, error)
+	// Historique complet d'un document logique pour un utilisateur (inter-service, appelé par kyc-service)
+	GetDocumentReviewHistory(context.Context, *GetDocumentReviewHistoryRequest) (*GetDocumentReviewHistoryResponse, error)
 	// --- Health ---
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	// --- Suppression compte (inter-service) ---
@@ -500,6 +515,9 @@ func (UnimplementedFileServiceServer) UpdateDocumentReview(context.Context, *Upd
 }
 func (UnimplementedFileServiceServer) ListDocumentReviews(context.Context, *ListDocumentReviewsRequest) (*GetDocumentReviewsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListDocumentReviews not implemented")
+}
+func (UnimplementedFileServiceServer) GetDocumentReviewHistory(context.Context, *GetDocumentReviewHistoryRequest) (*GetDocumentReviewHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDocumentReviewHistory not implemented")
 }
 func (UnimplementedFileServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -920,6 +938,24 @@ func _FileService_ListDocumentReviews_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FileService_GetDocumentReviewHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDocumentReviewHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServiceServer).GetDocumentReviewHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileService_GetDocumentReviewHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServiceServer).GetDocumentReviewHistory(ctx, req.(*GetDocumentReviewHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _FileService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -1046,6 +1082,10 @@ var FileService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListDocumentReviews",
 			Handler:    _FileService_ListDocumentReviews_Handler,
+		},
+		{
+			MethodName: "GetDocumentReviewHistory",
+			Handler:    _FileService_GetDocumentReviewHistory_Handler,
 		},
 		{
 			MethodName: "Health",
