@@ -173,9 +173,13 @@ func (h *FileHandler) ChangeDocument(ctx context.Context, req *filepb.ChangeDocu
 	)
 
 	doc, err := h.service.ChangeDocument(ctx, serviceInterfaces.ChangeDocumentInput{
-		UserID:      req.UserID,
-		FileID:      req.FileID,
-		NewDocument: req.NewDocument,
+		UserID:         req.UserID,
+		FileID:         req.FileID,
+		NewDocument:    req.NewDocument,
+		DocumentNumber: req.DocumentNumber,
+		IssuedAt:       req.IssuedAt,
+		ExpireAt:       req.ExpireAt,
+		IssuingPlace:   req.IssuingPlace,
 	})
 	if err != nil {
 		h.logger.Error("handler: ChangeDocument failed",
@@ -247,6 +251,10 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 		DriverLicenceRecto: req.DriverLicenceRecto,
 		DriverLicenceVerso: req.DriverLicenceVerso,
 		Passport:           req.Passport,
+		DocumentNumber:     req.DocumentNumber,
+		IssuedAt:           req.IssuedAt,
+		ExpireAt:           req.ExpireAt,
+		IssuingCountry:     req.IssuingCountry,
 	})
 	if err != nil {
 		h.logger.Error("handler: UploadIdDocument failed",
@@ -309,13 +317,31 @@ func (h *FileHandler) UploadVehicleDocuments(ctx context.Context, req *filepb.Up
 	)
 
 	docs, err := h.service.UploadVehicleDocuments(ctx, serviceInterfaces.UploadVehicleDocumentsInput{
-		UserID:              profile.UserID,
-		VehicleID:           req.VehicleID,
-		FirstName:           profile.FirstName,
-		LastName:            profile.LastName,
-		DriverLicenceImage:  req.DriverLicenceImage,
-		Assurance:           req.Assurance,
-		VehicleRegistration: req.VehicleRegistration,
+		UserID:    profile.UserID,
+		VehicleID: req.VehicleID,
+		FirstName: profile.FirstName,
+		LastName:  profile.LastName,
+		DriverLicence: serviceInterfaces.VehicleDocFileInput{
+			Data:             req.DriverLicenceImage,
+			DocumentNumber:   req.GetDriverLicenceMetadata().GetDocumentNumber(),
+			IssuedAt:         req.GetDriverLicenceMetadata().GetIssuedAt(),
+			ExpireAt:         req.GetDriverLicenceMetadata().GetExpireAt(),
+			IssuingAuthority: req.GetDriverLicenceMetadata().GetIssuingAuthority(),
+		},
+		Assurance: serviceInterfaces.VehicleDocFileInput{
+			Data:             req.Assurance,
+			DocumentNumber:   req.GetAssuranceMetadata().GetDocumentNumber(),
+			IssuedAt:         req.GetAssuranceMetadata().GetIssuedAt(),
+			ExpireAt:         req.GetAssuranceMetadata().GetExpireAt(),
+			IssuingAuthority: req.GetAssuranceMetadata().GetIssuingAuthority(),
+		},
+		RegistrationCard: serviceInterfaces.VehicleDocFileInput{
+			Data:             req.VehicleRegistration,
+			DocumentNumber:   req.GetRegistrationCardMetadata().GetDocumentNumber(),
+			IssuedAt:         req.GetRegistrationCardMetadata().GetIssuedAt(),
+			ExpireAt:         req.GetRegistrationCardMetadata().GetExpireAt(),
+			IssuingAuthority: req.GetRegistrationCardMetadata().GetIssuingAuthority(),
+		},
 	})
 	if err != nil {
 		h.logger.Error("handler: UploadVehicleDocuments failed",
@@ -912,6 +938,15 @@ func toGRPCError(err error) error {
 
 	case errors.Is(err, fileErrors.ErrorUploadFailed):
 		return status.Error(codes.Unavailable, err.Error())
+
+	case errors.Is(err, fileErrors.ErrorDocumentAlreadySubmitted):
+		return status.Error(codes.AlreadyExists, err.Error())
+
+	case errors.Is(err, fileErrors.ErrorDocumentNotReplaceable):
+		return status.Error(codes.FailedPrecondition, err.Error())
+
+	case errors.Is(err, fileErrors.ErrorMissingDocumentMetadata):
+		return status.Error(codes.InvalidArgument, err.Error())
 
 	default:
 		return status.Error(codes.Internal, err.Error())

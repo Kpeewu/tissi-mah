@@ -105,12 +105,23 @@ service FileService {
 // Upload documents véhicule (HTTP)
 // =============================================================================
 
+// Métadonnées légales d'un document véhicule
+message VehicleDocMetadata {
+  string DocumentNumber   = 1;
+  string IssuedAt         = 2; // ISO 8601
+  string ExpireAt         = 3; // ISO 8601 — optionnel pour registrationCard
+  string IssuingAuthority = 4;
+}
+
 message UploadVehicleDocumentsRequest {
   string UserID               = 1;
   string VehicleID            = 2;
   bytes  DriverLicenceImage   = 3;
   bytes  Assurance            = 4;
   bytes  VehicleRegistration  = 5;
+  VehicleDocMetadata DriverLicenceMetadata    = 6;
+  VehicleDocMetadata AssuranceMetadata        = 7;
+  VehicleDocMetadata RegistrationCardMetadata = 8;
 }
 
 message UploadVehicleDocumentsResponse {
@@ -173,6 +184,10 @@ message ChangeDocumentRequest {
   string UserID      = 1;
   string FileID      = 2;
   bytes  NewDocument = 3;
+  string DocumentNumber = 4; // Optionnel — remplace l'existant si fourni
+  string IssuedAt       = 5; // Optionnel
+  string ExpireAt       = 6; // Optionnel
+  string IssuingPlace   = 7; // Optionnel (country pour user doc, authority pour vehicle doc)
 }
 
 message ChangeDocumentResponse {
@@ -200,6 +215,12 @@ message UploadIdDocumentRequest {
 
   // Obligatoire si DocumentType = Passport
   bytes Passport = 7;
+
+  // Métadonnées légales — obligatoires pour tous les types
+  string DocumentNumber = 8;
+  string IssuedAt       = 9;  // ISO 8601
+  string ExpireAt       = 10; // ISO 8601
+  string IssuingCountry = 11;
 }
 
 message UploadIdDocumentResponse {

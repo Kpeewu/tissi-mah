@@ -132,6 +132,35 @@ func (r *vehicleDocumentReadImpl) GetByUserID(ctx context.Context, userID string
 	return docs, nil
 }
 
+func (r *vehicleDocumentReadImpl) GetCurrentByVehicleIDAndType(ctx context.Context, vehicleID string, documentType string) (*domain.VehicleDocument, error) {
+	r.logger.Debug("récupération du document véhicule courant par vehicleID et type",
+		zap.String("vehicleID", vehicleID),
+		zap.String("documentType", documentType),
+	)
+
+	query := `SELECT ` + vehicleDocCols + `
+	          FROM vehicle_documents
+	          WHERE vehicle_id = $1 AND document_type = $2 AND is_current = true`
+
+	doc := &domain.VehicleDocument{}
+	rows, err := r.pool.Query(ctx, query, vehicleID, documentType)
+	if err != nil {
+		r.logger.Error("erreur récupération document véhicule courant", zap.String("vehicleID", vehicleID), zap.String("documentType", documentType), zap.Error(err))
+		return nil, fileErrors.ErrorDataRetrievalFailed
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		if err := scanVehicleDoc(rows, doc); err != nil {
+			r.logger.Error("erreur scan document véhicule courant", zap.Error(err))
+			return nil, fileErrors.ErrorDataRetrievalFailed
+		}
+		return doc, nil
+	}
+	r.logger.Debug("document véhicule courant non trouvé", zap.String("vehicleID", vehicleID), zap.String("documentType", documentType))
+	return nil, fileErrors.ErrorDocumentNotFound
+}
+
 func (r *vehicleDocumentReadImpl) ListCurrentByStatuses(ctx context.Context, statuses []string, limit int32) ([]*domain.VehicleDocument, error) {
 	r.logger.Debug("liste des documents véhicule courants par statuts", zap.Strings("statuses", statuses))
 

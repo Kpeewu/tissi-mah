@@ -3,6 +3,7 @@ package interfaces
 import (
 	"context"
 	"io"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/domain"
 )
@@ -29,6 +30,8 @@ type UploadUserDocumentInput struct {
 	FileSizeBytes  int64
 	Data           io.Reader
 	DocumentNumber string
+	IssuedAt       *time.Time
+	ExpireAt       *time.Time
 	IssuingCountry string
 }
 
@@ -45,6 +48,8 @@ type UploadVehicleDocumentInput struct {
 	FileSizeBytes    int64
 	Data             io.Reader
 	DocumentNumber   string
+	IssuedAt         *time.Time
+	ExpireAt         *time.Time
 	IssuingAuthority string
 }
 
@@ -72,22 +77,35 @@ type DeleteFileInput struct {
 
 // ChangeDocumentInput contient les données pour remplacer le fichier d'un document existant.
 type ChangeDocumentInput struct {
-	UserID      string
-	FileID      string
-	NewDocument []byte
+	UserID        string
+	FileID        string
+	NewDocument   []byte
+	DocumentNumber string // vide = conserver l'existant
+	IssuedAt       string // ISO 8601 — vide = conserver
+	ExpireAt       string // ISO 8601 — vide = conserver
+	IssuingPlace   string // vide = conserver (country ou authority selon le type)
+}
+
+// VehicleDocFileInput regroupe le fichier et les métadonnées légales d'un document véhicule.
+type VehicleDocFileInput struct {
+	Data             []byte
+	DocumentNumber   string
+	IssuedAt         string // ISO 8601
+	ExpireAt         string // ISO 8601 — vide si registrationCard (optionnel)
+	IssuingAuthority string
 }
 
 // UploadVehicleDocumentsInput contient les documents du véhicule à uploader.
 // UserID, VehicleID et les 3 fichiers sont obligatoires.
 // FirstName / LastName viennent de user-service et servent à construire le docName.
 type UploadVehicleDocumentsInput struct {
-	UserID              string
-	VehicleID           string
-	FirstName           string
-	LastName            string
-	DriverLicenceImage  []byte
-	Assurance           []byte
-	VehicleRegistration []byte
+	UserID          string
+	VehicleID       string
+	FirstName       string
+	LastName        string
+	DriverLicence    VehicleDocFileInput
+	Assurance        VehicleDocFileInput
+	RegistrationCard VehicleDocFileInput
 }
 
 // UploadIdDocumentInput contient les fichiers d'identité à uploader.
@@ -98,6 +116,7 @@ type UploadVehicleDocumentsInput struct {
 //
 // FirstName / LastName viennent de user-service et servent à construire le docName
 // au format {nom}_{prenom}_{YYYYMMDD}_{HHMMSS}_{type}.
+// DocumentNumber, IssuedAt, ExpireAt, IssuingCountry sont obligatoires pour tous les types.
 type UploadIdDocumentInput struct {
 	UserID             string
 	FirstName          string
@@ -108,6 +127,10 @@ type UploadIdDocumentInput struct {
 	DriverLicenceRecto []byte
 	DriverLicenceVerso []byte
 	Passport           []byte
+	DocumentNumber     string
+	IssuedAt           string // ISO 8601
+	ExpireAt           string // ISO 8601
+	IssuingCountry     string
 }
 
 // UploadedDocument décrit un document fraîchement uploadé/remplacé,
