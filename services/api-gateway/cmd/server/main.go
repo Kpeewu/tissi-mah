@@ -227,9 +227,13 @@ func buildHandler(
 			}
 			return string(gateway.TierGlobal)
 		},
-		// GetUID lit le header positionné par le middleware JWTFirebase ci-dessus.
+		// GetUID lit x-firebase-uid (mobile) ou x-support-uid (back-office).
+		// Sans UID (routes publiques), on tombe sur la clé IP.
 		GetUID: func(r *http.Request) string {
-			return r.Header.Get("x-firebase-uid")
+			if uid := r.Header.Get("x-firebase-uid"); uid != "" {
+				return uid
+			}
+			return r.Header.Get("x-support-uid")
 		},
 		RedisClient: redisClient,
 		FailClosed:  cfg.Security.RateLimitFailClosed,
