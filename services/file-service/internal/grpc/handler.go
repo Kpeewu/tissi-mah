@@ -450,7 +450,7 @@ func (h *FileHandler) GetUserDocument(ctx context.Context, req *filepb.GetDocume
 	h.logger.Debug("handler: GetUserDocument", zap.String("documentID", req.DocumentId))
 	doc, err := h.service.GetUserDocument(ctx, req.DocumentId)
 	if err != nil {
-		h.logger.Error("handler: GetUserDocument failed", zap.Error(err))
+		h.logHandlerError("handler: GetUserDocument", err)
 		return nil, toGRPCError(err)
 	}
 	ttl := presignTTLFromRequest(req.PresignTTLSecs)
@@ -462,7 +462,7 @@ func (h *FileHandler) GetCurrentUserDocument(ctx context.Context, req *filepb.Ge
 	h.logger.Debug("handler: GetCurrentUserDocument", zap.String("userID", req.UserId), zap.String("type", req.DocumentType))
 	doc, err := h.service.GetCurrentUserDocument(ctx, req.UserId, req.DocumentType)
 	if err != nil {
-		h.logger.Error("handler: GetCurrentUserDocument failed", zap.Error(err))
+		h.logHandlerError("handler: GetCurrentUserDocument", err)
 		return nil, toGRPCError(err)
 	}
 	presignedURL, _ := h.storage.GeneratePresignedURL(ctx, doc.DocumentKey, defaultPresignTTL)
@@ -489,7 +489,7 @@ func (h *FileHandler) GetVehicleDocument(ctx context.Context, req *filepb.GetDoc
 	h.logger.Debug("handler: GetVehicleDocument", zap.String("documentID", req.DocumentId))
 	doc, err := h.service.GetVehicleDocument(ctx, req.DocumentId)
 	if err != nil {
-		h.logger.Error("handler: GetVehicleDocument failed", zap.Error(err))
+		h.logHandlerError("handler: GetVehicleDocument", err)
 		return nil, toGRPCError(err)
 	}
 	ttl := presignTTLFromRequest(req.PresignTTLSecs)
@@ -613,7 +613,7 @@ func (h *FileHandler) GetDocumentReview(ctx context.Context, req *filepb.GetDocu
 
 	review, err := h.service.GetDocumentReview(ctx, req.ReviewId)
 	if err != nil {
-		h.logger.Error("handler: GetDocumentReview failed", zap.Error(err))
+		h.logHandlerError("handler: GetDocumentReview", err)
 		return nil, toGRPCError(err)
 	}
 	return toProtoDocumentReview(review), nil
@@ -642,7 +642,7 @@ func (h *FileHandler) GetDocumentReviewByPersonaInquiryID(ctx context.Context, r
 
 	review, err := h.service.GetDocumentReviewByPersonaInquiryID(ctx, req.PersonaInquiryId)
 	if err != nil {
-		h.logger.Error("handler: GetDocumentReviewByPersonaInquiryID failed", zap.Error(err))
+		h.logHandlerError("handler: GetDocumentReviewByPersonaInquiryID", err)
 		return nil, toGRPCError(err)
 	}
 	return toProtoDocumentReview(review), nil
@@ -930,6 +930,16 @@ func toProtoDocumentReview(review *domain.DocumentReview) *filepb.DocumentReview
 	}
 	resp.LogicalDocumentType = review.LogicalDocumentType
 	return resp
+}
+
+// logHandlerError logs not-found errors at DEBUG (expected condition) and all
+// other errors at ERROR (unexpected failures).
+func (h *FileHandler) logHandlerError(handlerName string, err error) {
+	if errors.Is(err, fileErrors.ErrorDocumentNotFound) || errors.Is(err, fileErrors.ErrorReviewNotFound) {
+		h.logger.Debug(handlerName+" failed", zap.Error(err))
+	} else {
+		h.logger.Error(handlerName+" failed", zap.Error(err))
+	}
 }
 
 // =============================================================================

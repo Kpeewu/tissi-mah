@@ -950,12 +950,12 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 		)
 		return nil, fileErrors.ErrorMissingDocumentMetadata
 	}
-	issuedAt, err := time.Parse(time.RFC3339, input.IssuedAt)
+	issuedAt, err := parseDateField(input.IssuedAt)
 	if err != nil {
 		s.logger.Error("upload id document: issued_at invalide", zap.String("value", input.IssuedAt), zap.Error(err))
 		return nil, fileErrors.ErrorMissingDocumentMetadata
 	}
-	expireAt, err := time.Parse(time.RFC3339, input.ExpireAt)
+	expireAt, err := parseDateField(input.ExpireAt)
 	if err != nil {
 		s.logger.Error("upload id document: expire_at invalide", zap.String("value", input.ExpireAt), zap.Error(err))
 		return nil, fileErrors.ErrorMissingDocumentMetadata
@@ -1114,14 +1114,14 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 			return nil, fileErrors.ErrorMissingDocumentMetadata
 		}
 
-		issuedAt, err := time.Parse(time.RFC3339, u.file.IssuedAt)
+		issuedAt, err := parseDateField(u.file.IssuedAt)
 		if err != nil {
 			s.logger.Error("upload vehicle documents: issued_at invalide", zap.String("value", u.file.IssuedAt), zap.Error(err))
 			return nil, fileErrors.ErrorMissingDocumentMetadata
 		}
 		var expireAtPtr *time.Time
 		if u.file.ExpireAt != "" {
-			expireAt, parseErr := time.Parse(time.RFC3339, u.file.ExpireAt)
+			expireAt, parseErr := parseDateField(u.file.ExpireAt)
 			if parseErr != nil {
 				s.logger.Error("upload vehicle documents: expire_at invalide", zap.String("value", u.file.ExpireAt), zap.Error(parseErr))
 				return nil, fileErrors.ErrorMissingDocumentMetadata
@@ -1183,6 +1183,14 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 // - remplace espaces et apostrophes par des tirets
 // - garde uniquement [a-z0-9-]
 // Retourne "x" si le résultat est vide, pour éviter les tokens vides dans le docName.
+// parseDateField accepte ISO 8601 date ("2006-01-02") et datetime RFC3339 ("2006-01-02T15:04:05Z").
+func parseDateField(s string) (time.Time, error) {
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t, nil
+	}
+	return time.Parse(time.DateOnly, s)
+}
+
 func sanitizeForDocName(s string) string {
 	decomposed := norm.NFD.String(s)
 	var b strings.Builder
