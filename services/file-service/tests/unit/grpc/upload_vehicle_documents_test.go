@@ -22,7 +22,7 @@ import (
 func TestUploadVehicleDocuments_MissingMetadata_ReturnsUnauthenticated(t *testing.T) {
 	spy := &spyFileService{}
 	mockUser := new(mocks.MockUserClient)
-	h := grpcHandler.NewFileHandler(spy, mockUser, new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	_, err := h.UploadVehicleDocuments(context.Background(), &filepb.UploadVehicleDocumentsRequest{
 		UserID:    "firebaseXYZ",
@@ -40,7 +40,7 @@ func TestUploadVehicleDocuments_MissingMetadata_ReturnsUnauthenticated(t *testin
 func TestUploadVehicleDocuments_MissingFirebaseUID_ReturnsUnauthenticated(t *testing.T) {
 	spy := &spyFileService{}
 	mockUser := new(mocks.MockUserClient)
-	h := grpcHandler.NewFileHandler(spy, mockUser, new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	ctx := metadata.NewIncomingContext(context.Background(), metadata.New(map[string]string{}))
 	_, err := h.UploadVehicleDocuments(ctx, &filepb.UploadVehicleDocumentsRequest{
@@ -59,7 +59,7 @@ func TestUploadVehicleDocuments_UserServiceError_ReturnsErrorMessage(t *testing.
 	mockUser := new(mocks.MockUserClient)
 	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
 		Return((*client.UserProfile)(nil), errors.New("user-service down"))
-	h := grpcHandler.NewFileHandler(spy, mockUser, new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	resp, err := h.UploadVehicleDocuments(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadVehicleDocumentsRequest{
 		VehicleID: "vehicle-1",
@@ -82,7 +82,7 @@ func TestUploadVehicleDocuments_ResolvesFirebaseAndForwardsProfile(t *testing.T)
 			FirstName: "Jean",
 			LastName:  "Dupont",
 		}, nil)
-	h := grpcHandler.NewFileHandler(spy, mockUser, new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	resp, err := h.UploadVehicleDocuments(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadVehicleDocumentsRequest{
 		UserID:              "firebaseXYZ", // body-supplied, doit etre ignore
@@ -113,7 +113,7 @@ func TestUploadVehicleDocuments_IgnoresBodyUserID(t *testing.T) {
 			FirstName: "Ama",
 			LastName:  "Mensah",
 		}, nil)
-	h := grpcHandler.NewFileHandler(spy, mockUser, new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	// Attaquant forge un UserID dans le body mais possede son propre JWT legitime.
 	resp, err := h.UploadVehicleDocuments(ctxWithFirebaseUID("legitFirebaseUID"), &filepb.UploadVehicleDocumentsRequest{
@@ -136,7 +136,7 @@ func TestUploadVehicleDocuments_ServiceError_ReturnsErrorMessage(t *testing.T) {
 	mockUser := new(mocks.MockUserClient)
 	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
 		Return(&client.UserProfile{UserID: "uuid-abc", FirstName: "Jean", LastName: "Dupont"}, nil)
-	h := grpcHandler.NewFileHandler(spy, mockUser, new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	resp, err := h.UploadVehicleDocuments(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadVehicleDocumentsRequest{
 		VehicleID: "vehicle-1",
@@ -153,7 +153,7 @@ func TestUploadVehicleDocuments_ForwardsPerDocMetadata(t *testing.T) {
 	mockUser := new(mocks.MockUserClient)
 	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
 		Return(&client.UserProfile{UserID: "uuid-abc", FirstName: "Jean", LastName: "Dupont"}, nil)
-	h := grpcHandler.NewFileHandler(spy, mockUser, new(mocks.MockStorageClient), zap.NewNop())
+	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	resp, err := h.UploadVehicleDocuments(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadVehicleDocumentsRequest{
 		VehicleID:           "vehicle-1",
