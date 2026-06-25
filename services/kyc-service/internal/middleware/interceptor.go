@@ -40,6 +40,7 @@ var adminMethods = map[string]bool{
 	"/kyc.KYCService/ValidateDocument":             true,
 	"/kyc.KYCService/GetManualReviewRequests":      true,
 	"/kyc.KYCService/GetManualReviewRequestDetail": true,
+	"/kyc.KYCService/GetDocumentHistory":           true,
 }
 
 // KYCInterceptor retourne un intercepteur gRPC unaire qui :
