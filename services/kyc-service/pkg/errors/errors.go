@@ -11,6 +11,8 @@ var (
 	ErrorInvalidWebhookSignature = errors.New("ErrorInvalidWebhookSignature")
 	ErrorInvalidDecision         = errors.New("ErrorInvalidDecision")
 	ErrorReviewNotOverridable    = errors.New("ErrorReviewNotOverridable")
+	ErrorOnlyRejectionOverridable = errors.New("ErrorOnlyRejectionOverridable")
+	ErrorDocumentAlreadyReviewed = errors.New("ErrorDocumentAlreadyReviewed")
 	ErrorReviewNotFound          = errors.New("ErrorReviewNotFound")
 	ErrorMissingUserID           = errors.New("ErrorMissingUserID")
 	ErrorMissingDocumentType     = errors.New("ErrorMissingDocumentType")

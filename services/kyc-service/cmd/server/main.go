@@ -63,6 +63,14 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer userClient.Close()
 	logger.Info("user-service client ready", zap.String("address", cfg.UserService.Addr()))
 
+	// --- Support-service gRPC client (enrichissement prénom/nom des agents) ---
+	supportClient, err := client.NewSupportServiceClient(cfg.SupportService.Addr(), logger)
+	if err != nil {
+		return fmt.Errorf("support-service client: %w", err)
+	}
+	defer supportClient.Close()
+	logger.Info("support-service client ready", zap.String("address", cfg.SupportService.Addr()))
+
 	// --- Persona HTTP client ---
 	personaClient := client.NewPersonaClient(cfg.Persona.APIKey, logger)
 	logger.Info("persona client ready")
@@ -80,6 +88,7 @@ func run(bootstrapLogger *zap.Logger) error {
 		fileClient,
 		personaClient,
 		userClient,
+		supportClient,
 		cfg.Persona.TemplateID,
 		cfg.Persona.WebhookSecret,
 		notifRedis,

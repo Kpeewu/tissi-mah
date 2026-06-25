@@ -27,17 +27,21 @@ type kycServiceImpl struct {
 	fileClient        client.FileServiceClient
 	personaClient     client.PersonaClient
 	userClient        client.UserClient
+	supportClient     client.SupportClient
 	personaTemplateID string
 	webhookSecret     string
 	notifRedis        *redis.Client
 	logger            *zap.Logger
 }
 
-// NewKYCService crée une nouvelle instance du service KYC
+// NewKYCService crée une nouvelle instance du service KYC.
+// supportClient peut être nil : dans ce cas l'enrichissement des reviews avec
+// le prénom/nom des agents support est désactivé (dégradation gracieuse).
 func NewKYCService(
 	fileClient client.FileServiceClient,
 	personaClient client.PersonaClient,
 	userClient client.UserClient,
+	supportClient client.SupportClient,
 	personaTemplateID string,
 	webhookSecret string,
 	notifRedis *redis.Client,
@@ -47,11 +51,36 @@ func NewKYCService(
 		fileClient:        fileClient,
 		personaClient:     personaClient,
 		userClient:        userClient,
+		supportClient:     supportClient,
 		personaTemplateID: personaTemplateID,
 		webhookSecret:     webhookSecret,
 		notifRedis:        notifRedis,
 		logger:            logger,
 	}
+}
+
+// resolveSupportAgents résout un ensemble d'UID d'agents support en leurs infos
+// (prénom/nom) via support-service. Déduplique les UID et tolère les erreurs
+// individuelles (dégradation gracieuse). No-op si supportClient est nil.
+func (s *kycServiceImpl) resolveSupportAgents(ctx context.Context, uids []string) map[string]*domain.SupportAgent {
+	result := make(map[string]*domain.SupportAgent)
+	if s.supportClient == nil {
+		return result
+	}
+	seen := make(map[string]bool)
+	for _, uid := range uids {
+		if uid == "" || seen[uid] {
+			continue
+		}
+		seen[uid] = true
+		agent, err := s.supportClient.GetSupportUserByID(ctx, uid)
+		if err != nil {
+			s.logger.Warn("failed to resolve support agent", zap.String("uid", uid), zap.Error(err))
+			continue
+		}
+		result[uid] = agent
+	}
+	return result
 }
 
 // resolveInternalUserID résout le Firebase UID reçu depuis l'api-gateway
@@ -804,6 +833,15 @@ func (s *kycServiceImpl) OverrideReview(ctx context.Context, input serviceInterf
 		return nil, kycErrors.ErrorReviewNotOverridable
 	}
 
+	// Seul un rejet peut être overridé — pas une acceptation ni une demande de resoumission.
+	if review.Decision != "rejected" {
+		s.logger.Warn("only rejected reviews can be overridden",
+			zap.String("reviewID", input.ReviewID),
+			zap.String("decision", review.Decision),
+		)
+		return nil, kycErrors.ErrorOnlyRejectionOverridable
+	}
+
 	// Appliquer l'override
 	now := time.Now().UTC()
 	review.Decision = input.Decision
@@ -906,6 +944,33 @@ func (s *kycServiceImpl) ValidateDocument(ctx context.Context, input serviceInte
 		userDocumentID = doc.DocumentID
 		ownerUserID = doc.OwnerID // pour user docs, OwnerID = user_id directement
 		documentType = doc.DocumentType
+	}
+
+	// Contrôle d'unicité : un document ne peut être validé qu'une seule fois.
+	// Toute action ultérieure doit passer par OverrideReview. Couvre aussi le cas
+	// où une review Persona (automatique) a déjà tranché ce document.
+	existingReviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, ownerUserID)
+	if err != nil {
+		s.logger.Error("failed to fetch existing reviews", zap.Error(err))
+		return nil, kycErrors.ErrorFileServiceUnavailable
+	}
+	logicalType := domain.ToLogicalDocumentType(documentType)
+	for _, r := range existingReviews {
+		if r.Status != "completed" {
+			continue
+		}
+		// vehicle doc : match par vehicle_document_id ; user doc : match par type logique
+		if vehicleDocumentID != "" {
+			if r.VehicleDocumentID == vehicleDocumentID {
+				s.logger.Warn("vehicle document already reviewed",
+					zap.String("vehicleDocumentID", vehicleDocumentID), zap.String("reviewID", r.ReviewID))
+				return nil, kycErrors.ErrorDocumentAlreadyReviewed
+			}
+		} else if r.VehicleDocumentID == "" && r.LogicalDocumentType == logicalType {
+			s.logger.Warn("user document already reviewed",
+				zap.String("userID", ownerUserID), zap.String("logicalType", logicalType), zap.String("reviewID", r.ReviewID))
+			return nil, kycErrors.ErrorDocumentAlreadyReviewed
+		}
 	}
 
 	// Auto-découverte du document compagnon pour les documents recto-verso
@@ -1127,12 +1192,12 @@ func (s *kycServiceImpl) GetManualReviewRequestDetail(ctx context.Context, userI
 		}
 		logical := domain.ToLogicalDocumentType(d.DocumentType)
 		if primary, ok := byLogicalUser[logical]; ok {
-			primary.SecondDocumentID    = d.DocumentID
-			primary.SecondDocumentURL   = d.DocumentURL
+			primary.SecondDocumentID = d.DocumentID
+			primary.SecondDocumentURL = d.DocumentURL
 			primary.SecondFileSizeBytes = d.FileSizeBytes
-			primary.SecondMimeType      = d.MimeType
-			primary.SecondUploadedAt    = d.UploadedAt
-			primary.SecondUpdatedAt     = d.UpdatedAt
+			primary.SecondMimeType = d.MimeType
+			primary.SecondUploadedAt = d.UploadedAt
+			primary.SecondUpdatedAt = d.UpdatedAt
 		}
 		// Si le recto est absent (cas anormal), le verso est ignoré.
 	}
@@ -1146,6 +1211,24 @@ func (s *kycServiceImpl) GetManualReviewRequestDetail(ctx context.Context, userI
 		d.LogicalDocumentType = domain.ToLogicalDocumentType(d.DocumentType)
 		d.LatestReview = pickReview(byVehicleDoc[d.DocumentID], byLogicalType[d.LogicalDocumentType], byType[d.DocumentType])
 		docs = append(docs, d)
+	}
+
+	// Enrichir les dernières reviews manuelles avec le prénom/nom de l'agent support.
+	var supportUIDs []string
+	for _, d := range docs {
+		if d.LatestReview != nil && d.LatestReview.ReviewType == "manual" && d.LatestReview.ReviewedBy != "" {
+			supportUIDs = append(supportUIDs, d.LatestReview.ReviewedBy)
+		}
+	}
+	agents := s.resolveSupportAgents(ctx, supportUIDs)
+	for _, d := range docs {
+		if d.LatestReview == nil {
+			continue
+		}
+		if agent, ok := agents[d.LatestReview.ReviewedBy]; ok {
+			d.LatestReview.ReviewedByFirstName = agent.FirstName
+			d.LatestReview.ReviewedByLastName = agent.LastName
+		}
 	}
 
 	s.logger.Info("manual review request detail retrieved",
@@ -1227,6 +1310,7 @@ func (s *kycServiceImpl) GetDocumentHistory(ctx context.Context, userID string, 
 	}
 
 	entries := make([]*domain.DocumentHistoryEntry, 0, len(reviews))
+	var supportUIDs []string
 	for _, r := range reviews {
 		entry := &domain.DocumentHistoryEntry{
 			ReviewID:            r.ReviewID,
@@ -1245,7 +1329,20 @@ func (s *kycServiceImpl) GetDocumentHistory(ctx context.Context, userID string, 
 			UpdatedAt:           r.UpdatedAt,
 			CreatedAt:           r.CreatedAt,
 		}
+		if r.ReviewType == "manual" && r.ReviewedBy != "" {
+			supportUIDs = append(supportUIDs, r.ReviewedBy)
+		}
 		entries = append(entries, entry)
 	}
+
+	// Enrichir avec le prénom/nom de l'agent support ayant revu (dégradation gracieuse).
+	agents := s.resolveSupportAgents(ctx, supportUIDs)
+	for _, entry := range entries {
+		if agent, ok := agents[entry.ReviewedBy]; ok {
+			entry.ReviewedByFirstName = agent.FirstName
+			entry.ReviewedByLastName = agent.LastName
+		}
+	}
+
 	return entries, nil
 }

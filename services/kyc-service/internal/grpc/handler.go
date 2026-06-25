@@ -439,17 +439,17 @@ func (h *KYCHandler) GetManualReviewRequestDetail(ctx context.Context, req *kycp
 			OwnerId:             d.OwnerID,
 			Category:            d.Category,
 			// Métadonnées document (recto / document principal)
-			DocumentUrl:         d.DocumentURL,
-			FileSizeBytes:       d.FileSizeBytes,
-			MimeType:            d.MimeType,
-			DocumentNumber:      d.DocumentNumber,
-			IsCurrent:           d.IsCurrent,
-			UploadedAt:          d.UploadedAt,
-			UpdatedAt:           d.UpdatedAt,
-			IssuedAt:            d.IssuedAt,
-			ExpiredAt:           d.ExpiredAt,
-			IssuingCountry:      d.IssuingCountry,
-			IssuingAuthority:    d.IssuingAuthority,
+			DocumentUrl:      d.DocumentURL,
+			FileSizeBytes:    d.FileSizeBytes,
+			MimeType:         d.MimeType,
+			DocumentNumber:   d.DocumentNumber,
+			IsCurrent:        d.IsCurrent,
+			UploadedAt:       d.UploadedAt,
+			UpdatedAt:        d.UpdatedAt,
+			IssuedAt:         d.IssuedAt,
+			ExpiredAt:        d.ExpiredAt,
+			IssuingCountry:   d.IssuingCountry,
+			IssuingAuthority: d.IssuingAuthority,
 			// Verso recto-verso
 			SecondDocumentId:    d.SecondDocumentID,
 			SecondDocumentUrl:   d.SecondDocumentURL,
@@ -471,13 +471,16 @@ func (h *KYCHandler) GetManualReviewRequestDetail(ctx context.Context, req *kycp
 		}
 		if d.LatestReview != nil {
 			pd.LatestReview = &kycpb.ManualReviewDocumentReview{
-				ReviewId:         d.LatestReview.ReviewID,
-				Status:           d.LatestReview.Status,
-				Decision:         d.LatestReview.Decision,
-				ReasonRejection:  d.LatestReview.ReasonRejection,
-				RejectionDetails: d.LatestReview.RejectionDetails,
-				ReviewType:       d.LatestReview.ReviewType,
-				ReviewedBy:       d.LatestReview.ReviewedBy,
+				ReviewId:                  d.LatestReview.ReviewID,
+				Status:                    d.LatestReview.Status,
+				Decision:                  d.LatestReview.Decision,
+				ReasonRejection:           d.LatestReview.ReasonRejection,
+				RejectionDetails:          d.LatestReview.RejectionDetails,
+				ReviewType:                d.LatestReview.ReviewType,
+				ReviewedBy:                d.LatestReview.ReviewedBy,
+				ReviewedByFirstName:       d.LatestReview.ReviewedByFirstName,
+				ReviewedByLastName:        d.LatestReview.ReviewedByLastName,
+				ReviewedByProfileImageURL: d.LatestReview.ReviewedByProfileImageURL,
 			}
 			if d.LatestReview.ReviewedAt != nil {
 				pd.LatestReview.ReviewedAt = d.LatestReview.ReviewedAt.Format(time.RFC3339)
@@ -519,20 +522,23 @@ func (h *KYCHandler) GetDocumentHistory(ctx context.Context, req *kycpb.GetDocum
 	pbEntries := make([]*kycpb.DocumentHistoryEntry, 0, len(entries))
 	for _, e := range entries {
 		pe := &kycpb.DocumentHistoryEntry{
-			ReviewId:            e.ReviewID,
-			Status:              e.Status,
-			Decision:            e.Decision,
-			ReasonRejection:     e.ReasonRejection,
-			RejectionDetails:    e.RejectionDetails,
-			Notes:               e.Notes,
-			ReviewType:          e.ReviewType,
-			ReviewedBy:          e.ReviewedBy,
-			AttemptNumber:       e.AttemptNumber,
-			DocumentId:          e.DocumentID,
-			SecondDocumentId:    e.SecondDocumentID,
-			LogicalDocumentType: e.LogicalDocumentType,
-			CreatedAt:           e.CreatedAt.Format(time.RFC3339),
-			UpdatedAt:           e.UpdatedAt.Format(time.RFC3339),
+			ReviewId:                  e.ReviewID,
+			Status:                    e.Status,
+			Decision:                  e.Decision,
+			ReasonRejection:           e.ReasonRejection,
+			RejectionDetails:          e.RejectionDetails,
+			Notes:                     e.Notes,
+			ReviewType:                e.ReviewType,
+			ReviewedBy:                e.ReviewedBy,
+			AttemptNumber:             e.AttemptNumber,
+			DocumentId:                e.DocumentID,
+			SecondDocumentId:          e.SecondDocumentID,
+			LogicalDocumentType:       e.LogicalDocumentType,
+			CreatedAt:                 e.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:                 e.UpdatedAt.Format(time.RFC3339),
+			ReviewedByFirstName:       e.ReviewedByFirstName,
+			ReviewedByLastName:        e.ReviewedByLastName,
+			ReviewedByProfileImageURL: e.ReviewedByProfileImageURL,
 		}
 		if e.ReviewedAt != nil {
 			pe.ReviewedAt = e.ReviewedAt.Format(time.RFC3339)
@@ -589,7 +595,9 @@ func toGRPCError(err error) error {
 
 	// 9 - FAILED_PRECONDITION (410 / not overridable)
 	case errors.Is(err, kycErrors.ErrorInquiryNotResumable),
-		errors.Is(err, kycErrors.ErrorReviewNotOverridable):
+		errors.Is(err, kycErrors.ErrorReviewNotOverridable),
+		errors.Is(err, kycErrors.ErrorOnlyRejectionOverridable),
+		errors.Is(err, kycErrors.ErrorDocumentAlreadyReviewed):
 		return status.Error(codes.FailedPrecondition, err.Error())
 
 	// 16 - UNAUTHENTICATED (invalid webhook signature)

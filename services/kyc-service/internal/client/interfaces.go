@@ -83,3 +83,14 @@ type UserClient interface {
 	// Ferme la connexion gRPC
 	Close() error
 }
+
+// SupportClient est l'interface pour communiquer avec support-service via gRPC.
+// Utilisé pour résoudre l'UID d'un agent support (stocké dans review.ReviewedBy)
+// en prénom/nom affichables dans l'historique des reviews.
+type SupportClient interface {
+	// GetSupportUserByID récupère le prénom/nom/rôle d'un agent support par son UID.
+	GetSupportUserByID(ctx context.Context, userID string) (*domain.SupportAgent, error)
+
+	// Ferme la connexion gRPC
+	Close() error
+}

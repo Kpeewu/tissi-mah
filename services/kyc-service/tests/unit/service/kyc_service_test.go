@@ -41,7 +41,8 @@ func newTestService() (*mocks.MockFileServiceClient, *mocks.MockPersonaClient, s
 	// renvoie simplement l'ID reçu.
 	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, mock.AnythingOfType("string")).
 		Return(func(_ context.Context, firebaseUID string) string { return firebaseUID }, nil)
-	svc := service.NewKYCService(mockFileClient, mockPersonaClient, mockUserClient, testTemplateID, testWebhookSecret, nil, zap.NewNop())
+	// supportClient nil : enrichissement prénom/nom désactivé (dégradation gracieuse).
+	svc := service.NewKYCService(mockFileClient, mockPersonaClient, mockUserClient, nil, testTemplateID, testWebhookSecret, nil, zap.NewNop())
 	return mockFileClient, mockPersonaClient, svc
 }
 
@@ -1575,13 +1576,14 @@ func TestGetAdminReview(t *testing.T) {
 func TestOverrideReview(t *testing.T) {
 	now := time.Now().UTC()
 
+	// Seule une review « rejected » est overridable (règle métier).
 	newCompletedReview := func() *domain.Review {
 		return &domain.Review{
 			ReviewID:         "review-override-001",
 			PersonaInquiryID: "inq_override_001",
 			UserDocumentID:   "doc-001",
 			Status:           "completed",
-			Decision:         "approved",
+			Decision:         "rejected",
 			ReviewType:       "automatic",
 			AttemptNumber:    1,
 			CreatedAt:        now,
@@ -1589,32 +1591,15 @@ func TestOverrideReview(t *testing.T) {
 		}
 	}
 
-	t.Run("succès - override approved → rejected", func(t *testing.T) {
+	t.Run("erreur - override d'une approbation interdit", func(t *testing.T) {
 		mockFileClient, _, svc := newTestService()
 		ctx := context.Background()
 
+		approvedReview := newCompletedReview()
+		approvedReview.Decision = "approved"
+
 		mockFileClient.On("GetDocumentReview", mock.Anything, "review-override-001").
-			Return(newCompletedReview(), nil)
-		mockFileClient.On("UpdateDocumentReview", mock.Anything, mock.MatchedBy(func(r *domain.Review) bool {
-			return r.Decision == "rejected" &&
-				r.ReasonRejection == "document_expired" &&
-				r.RejectionDetails == "ID card expired" &&
-				r.ReviewedBy == "admin-001" &&
-				r.ReviewType == "manual" &&
-				r.ReviewedAt != nil &&
-				r.Notes == "Override after manual check"
-		})).Return(&domain.Review{
-			ReviewID:         "review-override-001",
-			PersonaInquiryID: "inq_override_001",
-			Decision:         "rejected",
-			ReasonRejection:  "document_expired",
-			RejectionDetails: "ID card expired",
-			ReviewedBy:       "admin-001",
-			ReviewType:       "manual",
-			ReviewedAt:       &now,
-			Notes:            "Override after manual check",
-			UpdatedAt:        now,
-		}, nil)
+			Return(approvedReview, nil)
 
 		result, err := svc.OverrideReview(ctx, serviceInterfaces.OverrideReviewInput{
 			UserID:           "admin-001",
@@ -1622,15 +1607,28 @@ func TestOverrideReview(t *testing.T) {
 			Decision:         "rejected",
 			ReasonRejection:  "document_expired",
 			RejectionDetails: "ID card expired",
-			Notes:            "Override after manual check",
 		})
-		require.NoError(t, err)
-		assert.Equal(t, "review-override-001", result.ReviewID)
-		assert.Equal(t, "rejected", result.Decision)
-		assert.Equal(t, "document_expired", result.ReasonRejection)
-		assert.Equal(t, "manual", result.ReviewType)
-		assert.Equal(t, "admin-001", result.ReviewedBy)
-		assert.NotEmpty(t, result.ReviewedAt)
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, kycErrors.ErrorOnlyRejectionOverridable)
+	})
+
+	t.Run("erreur - override d'une resoumission interdit", func(t *testing.T) {
+		mockFileClient, _, svc := newTestService()
+		ctx := context.Background()
+
+		resubReview := newCompletedReview()
+		resubReview.Decision = "resubmission"
+
+		mockFileClient.On("GetDocumentReview", mock.Anything, "review-override-001").
+			Return(resubReview, nil)
+
+		result, err := svc.OverrideReview(ctx, serviceInterfaces.OverrideReviewInput{
+			UserID:   "admin-001",
+			ReviewID: "review-override-001",
+			Decision: "approved",
+		})
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, kycErrors.ErrorOnlyRejectionOverridable)
 	})
 
 	t.Run("succès - override rejected → approved", func(t *testing.T) {
@@ -1638,7 +1636,6 @@ func TestOverrideReview(t *testing.T) {
 		ctx := context.Background()
 
 		rejectedReview := newCompletedReview()
-		rejectedReview.Decision = "rejected"
 
 		mockFileClient.On("GetDocumentReview", mock.Anything, "review-override-001").
 			Return(rejectedReview, nil)
@@ -1795,7 +1792,8 @@ func newManualReviewService() (*mocks.MockFileServiceClient, *mocks.MockUserClie
 	mockFileClient := new(mocks.MockFileServiceClient)
 	mockPersonaClient := new(mocks.MockPersonaClient)
 	mockUserClient := new(mocks.MockUserClient)
-	svc := service.NewKYCService(mockFileClient, mockPersonaClient, mockUserClient, testTemplateID, testWebhookSecret, nil, zap.NewNop())
+	// supportClient nil : enrichissement prénom/nom désactivé (dégradation gracieuse).
+	svc := service.NewKYCService(mockFileClient, mockPersonaClient, mockUserClient, nil, testTemplateID, testWebhookSecret, nil, zap.NewNop())
 	return mockFileClient, mockUserClient, svc
 }
 

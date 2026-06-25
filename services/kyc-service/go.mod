@@ -9,8 +9,9 @@ go 1.25.5
 // =============================================================================
 
 require (
-	github.com/Kpeewu/tissi-mah/pkg v0.0.0-00010101000000-000000000000
+	github.com/Kpeewu/tissi-mah/pkg v0.0.0
 	github.com/Kpeewu/tissi-mah/services/file-service v0.0.0-00010101000000-000000000000
+	github.com/Kpeewu/tissi-mah/services/support-service v0.0.0-00010101000000-000000000000
 	github.com/Kpeewu/tissi-mah/services/user-service v0.0.0-00010101000000-000000000000
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/stretchr/testify v1.11.1
@@ -70,3 +71,5 @@ replace github.com/Kpeewu/tissi-mah/pkg => ../../pkg
 replace github.com/Kpeewu/tissi-mah/services/file-service => ../file-service
 
 replace github.com/Kpeewu/tissi-mah/services/user-service => ../user-service
+
+replace github.com/Kpeewu/tissi-mah/services/support-service => ../support-service
