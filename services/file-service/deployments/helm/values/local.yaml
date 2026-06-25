@@ -40,6 +40,8 @@ config:
   s3ForcePathStyle: "true"
   userServiceHost: "user-service"
   userServicePort: "50052"
+  vehicleServiceHost: "vehicle-service"
+  vehicleServicePort: "50055"
   extra: {}
 
 secrets:
