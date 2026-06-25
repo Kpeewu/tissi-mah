@@ -45,6 +45,8 @@ config:
   fileServicePort: "50053"
   userServiceHost: "user-service"
   userServicePort: "50052"
+  supportServiceHost: "support-service"
+  supportServicePort: "50063"
   personaTemplateId: ""
   extra: {}
 

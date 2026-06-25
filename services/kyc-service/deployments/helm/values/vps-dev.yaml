@@ -43,6 +43,8 @@ config:
   fileServicePort: "50053"
   userServiceHost: "user-service"
   userServicePort: "50052"
+  supportServiceHost: "support-service"
+  supportServicePort: "50063"
   personaTemplateId: ""  # Set via CI/CD from KYC_PERSONA_TEMPLATE_ID GitHub secret
   extra: {}
 

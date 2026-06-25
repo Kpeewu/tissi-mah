@@ -21,16 +21,20 @@ const (
 )
 
 // publicMethods : routes publiques (pas besoin de JWT support).
+// GetSupportUserByID est un RPC inter-service (appelé par payment-service et kyc-service
+// pour résoudre l'UID d'un agent en prénom/nom) : intra-cluster, infos non sensibles,
+// non exposé en HTTP via l'api-gateway.
 var publicMethods = map[string]bool{
-	"/support.SupportService/Login":          true,
-	"/support.SupportService/VerifyOTP":      true,
-	"/support.SupportService/ResendOTP":      true,
-	"/support.SupportService/RefreshToken":   true,
-	"/support.SupportService/ForgotPassword": true,
-	"/support.SupportService/ResetPassword":  true,
-	"/support.SupportService/Health":         true,
-	"/grpc.health.v1.Health/Check":           true,
-	"/grpc.health.v1.Health/Watch":           true,
+	"/support.SupportService/Login":              true,
+	"/support.SupportService/VerifyOTP":          true,
+	"/support.SupportService/ResendOTP":          true,
+	"/support.SupportService/RefreshToken":       true,
+	"/support.SupportService/ForgotPassword":     true,
+	"/support.SupportService/ResetPassword":      true,
+	"/support.SupportService/Health":             true,
+	"/support.SupportService/GetSupportUserByID": true,
+	"/grpc.health.v1.Health/Check":               true,
+	"/grpc.health.v1.Health/Watch":               true,
 }
 
 // SupportInterceptor lit x-support-uid / x-support-role depuis la metadata gRPC injectée par api-gateway

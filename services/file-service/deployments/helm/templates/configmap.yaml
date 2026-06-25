@@ -19,6 +19,8 @@ data:
   S3_FORCE_PATH_STYLE: {{ .Values.config.s3ForcePathStyle | default "false" | quote }}
   USER_SERVICE_HOST: {{ .Values.config.userServiceHost | quote }}
   USER_SERVICE_PORT: {{ .Values.config.userServicePort | quote }}
+  VEHICLE_SERVICE_HOST: {{ .Values.config.vehicleServiceHost | quote }}
+  VEHICLE_SERVICE_PORT: {{ .Values.config.vehicleServicePort | quote }}
   {{- range $key, $value := .Values.config.extra }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}
