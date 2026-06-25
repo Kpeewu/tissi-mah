@@ -24,6 +24,7 @@ COPY services/file-service/go.mod services/file-service/go.sum* ./services/file-
 COPY services/user-service/go.mod services/user-service/go.sum* ./services/user-service/
 COPY services/vehicle-service/go.mod services/vehicle-service/go.sum* ./services/vehicle-service/
 COPY services/support-service/go.mod services/support-service/go.sum* ./services/support-service/
+COPY services/email-service/go.mod services/email-service/go.sum* ./services/email-service/
 COPY services/kyc-service/go.mod services/kyc-service/go.sum* ./services/kyc-service/
 
 # pkg-test est un module de test uniquement, mais file-service/go.mod a un replace directive qui
@@ -32,13 +33,14 @@ COPY services/kyc-service/go.mod services/kyc-service/go.sum* ./services/kyc-ser
 RUN mkdir -p pkg-test && \
     printf 'module github.com/Kpeewu/tissi-mah/pkg-test\n\ngo 1.25\n' > pkg-test/go.mod
 
-# Create a scoped go.work with pkg + pkg-test + file-service + user-service + vehicle-service + support-service + kyc-service
+# Create a scoped go.work with pkg + pkg-test + file-service + user-service + vehicle-service + support-service + email-service + kyc-service
 # vehicle-service is required because file-service/go.mod has a replace directive pointing to it;
 # in workspace mode, replace directives for non-workspace modules still apply, so vehicle-service
 # must be present or Go can't resolve the dependency graph.
 # support-service is required because kyc-service importe support-service/proto/gen pour résoudre
 # l'agent support (prénom/nom) qui a revu un document.
-RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/user-service\n\t./services/vehicle-service\n\t./services/support-service\n\t./services/kyc-service\n)\n' > go.work
+# email-service is required because support-service/go.mod has a replace directive pointing to it.
+RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/user-service\n\t./services/vehicle-service\n\t./services/support-service\n\t./services/email-service\n\t./services/kyc-service\n)\n' > go.work
 
 # Download dependencies for all modules
 RUN go mod download -C ./pkg
@@ -46,6 +48,7 @@ RUN go mod download -C ./services/file-service
 RUN go mod download -C ./services/user-service
 RUN go mod download -C ./services/vehicle-service
 RUN go mod download -C ./services/support-service
+RUN go mod download -C ./services/email-service
 RUN go mod download -C ./services/kyc-service
 
 # =============================================================================
@@ -72,6 +75,9 @@ COPY services/vehicle-service/ ./services/vehicle-service/
 
 # Copy support-service source code (required by kyc-service replace directive)
 COPY services/support-service/ ./services/support-service/
+
+# Copy email-service source code (required by support-service replace directive)
+COPY services/email-service/ ./services/email-service/
 
 # Copy kyc-service source code
 COPY services/kyc-service/ ./services/kyc-service/
