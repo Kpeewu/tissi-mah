@@ -25,6 +25,14 @@ func (m *MockVehicleService) GetVehicleDetails(ctx context.Context, userID strin
 	return args.Get(0).(*domain.VehicleDetails), args.Error(1)
 }
 
+func (m *MockVehicleService) GetVehicleInfo(ctx context.Context, vehicleID string) (*domain.Vehicle, error) {
+	args := m.Called(ctx, vehicleID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Vehicle), args.Error(1)
+}
+
 func (m *MockVehicleService) GetUserVehicles(ctx context.Context, userID string) ([]*domain.VehiclePreview, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {

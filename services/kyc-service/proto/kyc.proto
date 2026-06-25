@@ -302,8 +302,12 @@ message ManualReviewDocumentReview {
   string ReasonRejection  = 4;
   string RejectionDetails = 5;
   string ReviewType       = 6;
-  string ReviewedBy       = 7;
+  string ReviewedBy       = 7; // UID de l'agent support
   string ReviewedAt       = 8; // ISO 8601
+  // Identité de l'agent support (résolue via support-service)
+  string ReviewedByFirstName       = 9;
+  string ReviewedByLastName        = 10;
+  string ReviewedByProfileImageURL = 11; // réservé — vide tant que les agents n'ont pas de photo
 }
 
 // Infos véhicule embarquées dans ManualReviewDocument (vehicle docs uniquement).
@@ -366,7 +370,7 @@ message DocumentHistoryEntry {
   string RejectionDetails    = 5;
   string Notes               = 6;
   string ReviewType          = 7;  // manual | automatic
-  string ReviewedBy          = 8;
+  string ReviewedBy          = 8;  // UID de l'agent support
   string ReviewedAt          = 9;  // ISO 8601
   int32  AttemptNumber       = 10;
   string DocumentId          = 11; // recto / face principale
@@ -374,6 +378,10 @@ message DocumentHistoryEntry {
   string LogicalDocumentType = 13;
   string CreatedAt           = 14; // ISO 8601
   string UpdatedAt           = 15; // ISO 8601
+  // Identité de l'agent support (résolue via support-service)
+  string ReviewedByFirstName       = 16;
+  string ReviewedByLastName        = 17;
+  string ReviewedByProfileImageURL = 18; // réservé — vide tant que les agents n'ont pas de photo
 }
 
 message GetDocumentHistoryResponse {

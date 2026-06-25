@@ -11,7 +11,7 @@ type UserProfile struct {
 }
 
 // VehicleInfo contient les informations essentielles d'un véhicule.
-// Source : vehicle-service.GetVehicleDetails.
+// Source : vehicle-service.GetVehicleInfo.
 type VehicleInfo struct {
 	VehicleID    string
 	Brand        string

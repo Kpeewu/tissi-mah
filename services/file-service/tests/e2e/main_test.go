@@ -74,7 +74,10 @@ func TestMain(m *testing.M) {
 
 	srv := grpc.NewServer()
 	mockUserClient := new(mocks.MockUserClient)
-	handler := grpcHandler.NewFileHandler(svc, mockUserClient, mockStorage, logger)
+	mockVehicleClient := new(mocks.MockVehicleClient)
+	// Dégradation gracieuse par défaut : pas d'infos véhicule résolues en e2e.
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, mock.Anything).Return(nil, nil)
+	handler := grpcHandler.NewFileHandler(svc, mockUserClient, mockVehicleClient, mockStorage, logger)
 	filepb.RegisterFileServiceServer(srv, handler)
 
 	go func() {

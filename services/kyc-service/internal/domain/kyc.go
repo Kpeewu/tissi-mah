@@ -229,9 +229,9 @@ type DocumentSummary struct {
 	UploadedAt       string
 	UpdatedAt        string
 	IssuedAt         string
-	ExpiredAt        string         // unifié : ExpiredAt user / ExpireAt vehicle
-	IssuingCountry   string         // user docs uniquement
-	IssuingAuthority string         // vehicle docs uniquement
+	ExpiredAt        string          // unifié : ExpiredAt user / ExpireAt vehicle
+	IssuingCountry   string          // user docs uniquement
+	IssuingAuthority string          // vehicle docs uniquement
 	Vehicle          *VehicleDetails // vehicle docs uniquement
 	// Verso — recto-verso (idCard, driverLicence) ; vide si document singulier
 	SecondDocumentID    string
@@ -252,6 +252,10 @@ type ReviewSummary struct {
 	ReviewType       string
 	ReviewedBy       string
 	ReviewedAt       *time.Time
+	// Identité de l'agent support ayant revu (résolue via support-service)
+	ReviewedByFirstName       string
+	ReviewedByLastName        string
+	ReviewedByProfileImageURL string // réservé — vide tant que les agents n'ont pas de photo
 }
 
 // UserInfo : infos profil utilisateur (récupérées via user-service).
@@ -262,6 +266,15 @@ type UserInfo struct {
 	Email           string
 	PhoneNumber     string
 	ProfileImageURL string
+}
+
+// SupportAgent : infos d'un agent support (récupérées via support-service)
+// pour enrichir les reviews avec le prénom/nom de l'agent ayant revu un document.
+type SupportAgent struct {
+	UserID    string
+	FirstName string
+	LastName  string
+	Role      string
 }
 
 // ManualReviewRequest : entrée de la liste groupée par utilisateur.
@@ -280,21 +293,25 @@ type ManualReviewRequestDetail struct {
 
 // DocumentHistoryEntry : entrée de l'historique d'un document logique (vue support).
 type DocumentHistoryEntry struct {
-	ReviewID             string
-	Status               string
-	Decision             string
-	ReasonRejection      string
-	RejectionDetails     string
-	Notes                string
-	ReviewType           string
-	ReviewedBy           string
-	ReviewedAt           *time.Time
-	AttemptNumber        int32
-	DocumentID           string // recto / face principale
-	SecondDocumentID     string // verso (vide si non recto-verso)
-	LogicalDocumentType  string
-	CreatedAt            time.Time
-	UpdatedAt            time.Time
+	ReviewID            string
+	Status              string
+	Decision            string
+	ReasonRejection     string
+	RejectionDetails    string
+	Notes               string
+	ReviewType          string
+	ReviewedBy          string
+	ReviewedAt          *time.Time
+	AttemptNumber       int32
+	DocumentID          string // recto / face principale
+	SecondDocumentID    string // verso (vide si non recto-verso)
+	LogicalDocumentType string
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	// Identité de l'agent support ayant revu (résolue via support-service)
+	ReviewedByFirstName       string
+	ReviewedByLastName        string
+	ReviewedByProfileImageURL string // réservé — vide tant que les agents n'ont pas de photo
 }
 
 // ToLogicalDocumentType dérive le type logique depuis le type physique.

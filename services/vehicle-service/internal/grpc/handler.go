@@ -138,6 +138,29 @@ func (h *VehicleHandler) GetUserVehicles(ctx context.Context, req *vehiclepb.Get
 	return &vehiclepb.GetUserVehiclesResponse{Vehicles: protoVehicles}, nil
 }
 
+// GetVehicleInfo retourne les infos essentielles d'un véhicule (inter-service, sans auth).
+func (h *VehicleHandler) GetVehicleInfo(ctx context.Context, req *vehiclepb.GetVehicleInfoRequest) (*vehiclepb.GetVehicleInfoResponse, error) {
+	h.logger.Debug("handler: GetVehicleInfo called", zap.String("vehicleID", req.VehicleId))
+
+	vehicle, err := h.service.GetVehicleInfo(ctx, req.VehicleId)
+	if err != nil {
+		h.logger.Error("handler: GetVehicleInfo failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	return &vehiclepb.GetVehicleInfoResponse{
+		Vehicle: &vehiclepb.VehicleInfo{
+			VehicleId:     vehicle.VehicleID,
+			Brand:         vehicle.Brand,
+			BrandModel:    vehicle.BrandModel,
+			Color:         vehicle.Color,
+			LicencePlate:  vehicle.LicencePlate,
+			NumberOfSeats: int32(vehicle.NumberOfSeats),
+			IsVerified:    vehicle.IsVerified,
+		},
+	}, nil
+}
+
 // Health retourne l'état de santé du service (route publique, sans auth).
 func (h *VehicleHandler) Health(_ context.Context, _ *vehiclepb.HealthRequest) (*vehiclepb.HealthResponse, error) {
 	return &vehiclepb.HealthResponse{

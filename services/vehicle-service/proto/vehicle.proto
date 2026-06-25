@@ -25,6 +25,9 @@ service VehicleService {
   rpc GetUserVehicles(GetUserVehiclesRequest) returns (GetUserVehiclesResponse) {
     option (google.api.http) = { post: "/api/v1/vehicle/getUserVehicles" body: "*" };
   }
+  // GetVehicleInfo retourne les informations essentielles d'un véhicule sans contrôle
+  // de propriété ni chargement des documents (inter-service, appelé par file-service).
+  rpc GetVehicleInfo(GetVehicleInfoRequest) returns (GetVehicleInfoResponse);
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = { get: "/api/v1/vehicle/health" };
@@ -133,4 +136,26 @@ message VehiclePreview {
   string LicencePlate = 4;
   bool IsVerified = 5;
   int32 NumberOfSeats = 6;
+}
+
+// GetVehicleInfoRequest identifie le véhicule dont on veut les infos essentielles.
+message GetVehicleInfoRequest {
+  string VehicleId = 1;
+}
+
+// GetVehicleInfoResponse retourne les infos essentielles d'un véhicule.
+message GetVehicleInfoResponse {
+  VehicleInfo Vehicle = 1;
+  string ErrorMessage = 2;
+}
+
+// VehicleInfo contient les informations essentielles d'un véhicule (sans documents).
+message VehicleInfo {
+  string VehicleId = 1;
+  string Brand = 2;
+  string BrandModel = 3;
+  string Color = 4;
+  string LicencePlate = 5;
+  int32 NumberOfSeats = 6;
+  bool IsVerified = 7;
 }

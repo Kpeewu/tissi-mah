@@ -1636,10 +1636,14 @@ type ManualReviewDocumentReview struct {
 	ReasonRejection  string                 `protobuf:"bytes,4,opt,name=ReasonRejection,proto3" json:"ReasonRejection,omitempty"`
 	RejectionDetails string                 `protobuf:"bytes,5,opt,name=RejectionDetails,proto3" json:"RejectionDetails,omitempty"`
 	ReviewType       string                 `protobuf:"bytes,6,opt,name=ReviewType,proto3" json:"ReviewType,omitempty"`
-	ReviewedBy       string                 `protobuf:"bytes,7,opt,name=ReviewedBy,proto3" json:"ReviewedBy,omitempty"`
+	ReviewedBy       string                 `protobuf:"bytes,7,opt,name=ReviewedBy,proto3" json:"ReviewedBy,omitempty"` // UID de l'agent support
 	ReviewedAt       string                 `protobuf:"bytes,8,opt,name=ReviewedAt,proto3" json:"ReviewedAt,omitempty"` // ISO 8601
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Identité de l'agent support (résolue via support-service)
+	ReviewedByFirstName       string `protobuf:"bytes,9,opt,name=ReviewedByFirstName,proto3" json:"ReviewedByFirstName,omitempty"`
+	ReviewedByLastName        string `protobuf:"bytes,10,opt,name=ReviewedByLastName,proto3" json:"ReviewedByLastName,omitempty"`
+	ReviewedByProfileImageURL string `protobuf:"bytes,11,opt,name=ReviewedByProfileImageURL,proto3" json:"ReviewedByProfileImageURL,omitempty"` // réservé — vide tant que les agents n'ont pas de photo
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *ManualReviewDocumentReview) Reset() {
@@ -1724,6 +1728,27 @@ func (x *ManualReviewDocumentReview) GetReviewedBy() string {
 func (x *ManualReviewDocumentReview) GetReviewedAt() string {
 	if x != nil {
 		return x.ReviewedAt
+	}
+	return ""
+}
+
+func (x *ManualReviewDocumentReview) GetReviewedByFirstName() string {
+	if x != nil {
+		return x.ReviewedByFirstName
+	}
+	return ""
+}
+
+func (x *ManualReviewDocumentReview) GetReviewedByLastName() string {
+	if x != nil {
+		return x.ReviewedByLastName
+	}
+	return ""
+}
+
+func (x *ManualReviewDocumentReview) GetReviewedByProfileImageURL() string {
+	if x != nil {
+		return x.ReviewedByProfileImageURL
 	}
 	return ""
 }
@@ -2129,7 +2154,7 @@ type DocumentHistoryEntry struct {
 	RejectionDetails    string                 `protobuf:"bytes,5,opt,name=RejectionDetails,proto3" json:"RejectionDetails,omitempty"`
 	Notes               string                 `protobuf:"bytes,6,opt,name=Notes,proto3" json:"Notes,omitempty"`
 	ReviewType          string                 `protobuf:"bytes,7,opt,name=ReviewType,proto3" json:"ReviewType,omitempty"` // manual | automatic
-	ReviewedBy          string                 `protobuf:"bytes,8,opt,name=ReviewedBy,proto3" json:"ReviewedBy,omitempty"`
+	ReviewedBy          string                 `protobuf:"bytes,8,opt,name=ReviewedBy,proto3" json:"ReviewedBy,omitempty"` // UID de l'agent support
 	ReviewedAt          string                 `protobuf:"bytes,9,opt,name=ReviewedAt,proto3" json:"ReviewedAt,omitempty"` // ISO 8601
 	AttemptNumber       int32                  `protobuf:"varint,10,opt,name=AttemptNumber,proto3" json:"AttemptNumber,omitempty"`
 	DocumentId          string                 `protobuf:"bytes,11,opt,name=DocumentId,proto3" json:"DocumentId,omitempty"`             // recto / face principale
@@ -2137,8 +2162,12 @@ type DocumentHistoryEntry struct {
 	LogicalDocumentType string                 `protobuf:"bytes,13,opt,name=LogicalDocumentType,proto3" json:"LogicalDocumentType,omitempty"`
 	CreatedAt           string                 `protobuf:"bytes,14,opt,name=CreatedAt,proto3" json:"CreatedAt,omitempty"` // ISO 8601
 	UpdatedAt           string                 `protobuf:"bytes,15,opt,name=UpdatedAt,proto3" json:"UpdatedAt,omitempty"` // ISO 8601
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Identité de l'agent support (résolue via support-service)
+	ReviewedByFirstName       string `protobuf:"bytes,16,opt,name=ReviewedByFirstName,proto3" json:"ReviewedByFirstName,omitempty"`
+	ReviewedByLastName        string `protobuf:"bytes,17,opt,name=ReviewedByLastName,proto3" json:"ReviewedByLastName,omitempty"`
+	ReviewedByProfileImageURL string `protobuf:"bytes,18,opt,name=ReviewedByProfileImageURL,proto3" json:"ReviewedByProfileImageURL,omitempty"` // réservé — vide tant que les agents n'ont pas de photo
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *DocumentHistoryEntry) Reset() {
@@ -2272,6 +2301,27 @@ func (x *DocumentHistoryEntry) GetCreatedAt() string {
 func (x *DocumentHistoryEntry) GetUpdatedAt() string {
 	if x != nil {
 		return x.UpdatedAt
+	}
+	return ""
+}
+
+func (x *DocumentHistoryEntry) GetReviewedByFirstName() string {
+	if x != nil {
+		return x.ReviewedByFirstName
+	}
+	return ""
+}
+
+func (x *DocumentHistoryEntry) GetReviewedByLastName() string {
+	if x != nil {
+		return x.ReviewedByLastName
+	}
+	return ""
+}
+
+func (x *DocumentHistoryEntry) GetReviewedByProfileImageURL() string {
+	if x != nil {
+		return x.ReviewedByProfileImageURL
 	}
 	return ""
 }
@@ -3235,7 +3285,7 @@ const file_kyc_proto_rawDesc = "" +
 	"\bRequests\x18\x02 \x03(\v2\x1c.kyc.ManualReviewRequestItemR\bRequests\x12\x14\n" +
 	"\x05Total\x18\x03 \x01(\x05R\x05Total\"=\n" +
 	"#GetManualReviewRequestDetailRequest\x12\x16\n" +
-	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"\xa2\x02\n" +
+	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"\xc2\x03\n" +
 	"\x1aManualReviewDocumentReview\x12\x1a\n" +
 	"\bReviewId\x18\x01 \x01(\tR\bReviewId\x12\x16\n" +
 	"\x06Status\x18\x02 \x01(\tR\x06Status\x12\x1a\n" +
@@ -3250,7 +3300,11 @@ const file_kyc_proto_rawDesc = "" +
 	"ReviewedBy\x12\x1e\n" +
 	"\n" +
 	"ReviewedAt\x18\b \x01(\tR\n" +
-	"ReviewedAt\"\xed\x01\n" +
+	"ReviewedAt\x120\n" +
+	"\x13ReviewedByFirstName\x18\t \x01(\tR\x13ReviewedByFirstName\x12.\n" +
+	"\x12ReviewedByLastName\x18\n" +
+	" \x01(\tR\x12ReviewedByLastName\x12<\n" +
+	"\x19ReviewedByProfileImageURL\x18\v \x01(\tR\x19ReviewedByProfileImageURL\"\xed\x01\n" +
 	"\x17ManualReviewVehicleInfo\x12\x1c\n" +
 	"\tVehicleId\x18\x01 \x01(\tR\tVehicleId\x12\x14\n" +
 	"\x05Brand\x18\x02 \x01(\tR\x05Brand\x12\x1e\n" +
@@ -3297,7 +3351,7 @@ const file_kyc_proto_rawDesc = "" +
 	"\x0fSecondUpdatedAt\x18\x1a \x01(\tR\x0fSecondUpdatedAt\"e\n" +
 	"\x19GetDocumentHistoryRequest\x12\x16\n" +
 	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x120\n" +
-	"\x13LogicalDocumentType\x18\x02 \x01(\tR\x13LogicalDocumentType\"\x92\x04\n" +
+	"\x13LogicalDocumentType\x18\x02 \x01(\tR\x13LogicalDocumentType\"\xb2\x05\n" +
 	"\x14DocumentHistoryEntry\x12\x1a\n" +
 	"\bReviewId\x18\x01 \x01(\tR\bReviewId\x12\x16\n" +
 	"\x06Status\x18\x02 \x01(\tR\x06Status\x12\x1a\n" +
@@ -3322,7 +3376,10 @@ const file_kyc_proto_rawDesc = "" +
 	"\x10SecondDocumentId\x18\f \x01(\tR\x10SecondDocumentId\x120\n" +
 	"\x13LogicalDocumentType\x18\r \x01(\tR\x13LogicalDocumentType\x12\x1c\n" +
 	"\tCreatedAt\x18\x0e \x01(\tR\tCreatedAt\x12\x1c\n" +
-	"\tUpdatedAt\x18\x0f \x01(\tR\tUpdatedAt\"Q\n" +
+	"\tUpdatedAt\x18\x0f \x01(\tR\tUpdatedAt\x120\n" +
+	"\x13ReviewedByFirstName\x18\x10 \x01(\tR\x13ReviewedByFirstName\x12.\n" +
+	"\x12ReviewedByLastName\x18\x11 \x01(\tR\x12ReviewedByLastName\x12<\n" +
+	"\x19ReviewedByProfileImageURL\x18\x12 \x01(\tR\x19ReviewedByProfileImageURL\"Q\n" +
 	"\x1aGetDocumentHistoryResponse\x123\n" +
 	"\aEntries\x18\x01 \x03(\v2\x19.kyc.DocumentHistoryEntryR\aEntries\"\xaf\x02\n" +
 	"$GetManualReviewRequestDetailResponse\x12\"\n" +

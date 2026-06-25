@@ -7,11 +7,12 @@ import (
 )
 
 type Config struct {
-	Server            ServerConfig
-	Environment       EnvironmentConfig
-	FileService       FileServiceConfig
-	UserService       UserServiceConfig
-	Persona           PersonaConfig
+	Server             ServerConfig
+	Environment        EnvironmentConfig
+	FileService        FileServiceConfig
+	UserService        UserServiceConfig
+	SupportService     SupportServiceConfig
+	Persona            PersonaConfig
 	NotificationRedis  RedisConfig
 	LogLevel           string
 	InternalHMACSecret string
@@ -44,6 +45,15 @@ func (c UserServiceConfig) Addr() string {
 	return fmt.Sprintf("%s:%s", c.Address, c.Port)
 }
 
+type SupportServiceConfig struct {
+	Address string
+	Port    string
+}
+
+func (c SupportServiceConfig) Addr() string {
+	return fmt.Sprintf("%s:%s", c.Address, c.Port)
+}
+
 type PersonaConfig struct {
 	APIKey        string
 	TemplateID    string
@@ -71,6 +81,10 @@ func Load() (*Config, error) {
 		UserService: UserServiceConfig{
 			Address: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_HOST", "0.0.0.0"),
 			Port:    sharedconfig.GetStringOrDefault(values, "USER_SERVICE_PORT", "50052"),
+		},
+		SupportService: SupportServiceConfig{
+			Address: sharedconfig.GetStringOrDefault(values, "SUPPORT_SERVICE_HOST", "0.0.0.0"),
+			Port:    sharedconfig.GetStringOrDefault(values, "SUPPORT_SERVICE_PORT", "50063"),
 		},
 		Persona: PersonaConfig{
 			APIKey:        sharedconfig.MustGetString(values, "PERSONA_API_KEY"),
