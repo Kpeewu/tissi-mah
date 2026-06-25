@@ -10,6 +10,9 @@ import (
 type VehicleService interface {
 	AddVehicle(ctx context.Context, input AddVehicleInput) (string, error)
 	GetVehicleDetails(ctx context.Context, userID string, vehicleID string) (*domain.VehicleDetails, error)
+	// GetVehicleInfo retourne les infos essentielles d'un véhicule sans contrôle de
+	// propriété ni chargement des documents (usage inter-service, ex. file-service).
+	GetVehicleInfo(ctx context.Context, vehicleID string) (*domain.Vehicle, error)
 	GetUserVehicles(ctx context.Context, userID string) ([]*domain.VehiclePreview, error)
 	UpdateVehicle(ctx context.Context, input UpdateVehicleInput) error
 	DeleteVehicle(ctx context.Context, userID string, vehicleID string) error

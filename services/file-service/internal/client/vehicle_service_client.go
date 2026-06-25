@@ -50,7 +50,7 @@ func (c *VehicleServiceClient) Close() error {
 func (c *VehicleServiceClient) GetVehicleInfo(ctx context.Context, vehicleID string) (*VehicleInfo, error) {
 	c.logger.Debug("client: GetVehicleInfo called", zap.String("vehicleID", vehicleID))
 
-	resp, err := c.grpcClient.GetVehicleDetails(ctx, &vehiclepb.GetVehicleDetailsRequest{
+	resp, err := c.grpcClient.GetVehicleInfo(ctx, &vehiclepb.GetVehicleInfoRequest{
 		VehicleId: vehicleID,
 	})
 	if err != nil {
@@ -58,7 +58,7 @@ func (c *VehicleServiceClient) GetVehicleInfo(ctx context.Context, vehicleID str
 			c.logger.Debug("client: vehicle not found", zap.String("vehicleID", vehicleID))
 			return nil, nil
 		}
-		c.logger.Warn("client: GetVehicleDetails failed — dégradation gracieuse",
+		c.logger.Warn("client: GetVehicleInfo failed — dégradation gracieuse",
 			zap.String("vehicleID", vehicleID),
 			zap.Error(err),
 		)

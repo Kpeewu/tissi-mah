@@ -137,6 +137,16 @@ func (s *vehicleServiceImpl) GetVehicleDetails(ctx context.Context, userID strin
 	return details, nil
 }
 
+// GetVehicleInfo récupère les infos essentielles d'un véhicule (sans documents ni
+// contrôle de propriété). Destiné aux appels inter-service (ex. file-service qui
+// enrichit les documents véhicule avec marque/modèle/plaque).
+func (s *vehicleServiceImpl) GetVehicleInfo(ctx context.Context, vehicleID string) (*domain.Vehicle, error) {
+	if vehicleID == "" {
+		return nil, vehicleErrors.ErrorInvalidInput
+	}
+	return s.readRepo.GetByID(ctx, vehicleID)
+}
+
 // GetUserVehicles récupère les aperçus de tous les véhicules d'un utilisateur.
 func (s *vehicleServiceImpl) GetUserVehicles(ctx context.Context, userID string) ([]*domain.VehiclePreview, error) {
 	if userID == "" {
