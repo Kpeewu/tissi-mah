@@ -144,7 +144,13 @@ func (h *VehicleHandler) GetVehicleInfo(ctx context.Context, req *vehiclepb.GetV
 
 	vehicle, err := h.service.GetVehicleInfo(ctx, req.VehicleId)
 	if err != nil {
-		h.logger.Error("handler: GetVehicleInfo failed", zap.Error(err))
+		// Véhicule introuvable = cas attendu (appelant inter-service dégrade gracieusement) :
+		// on log en Debug pour éviter une fausse alerte ERROR avec stack trace.
+		if errors.Is(err, vehicleErrors.ErrorVehicleNotFound) {
+			h.logger.Debug("handler: GetVehicleInfo — vehicle not found", zap.String("vehicleID", req.VehicleId))
+		} else {
+			h.logger.Error("handler: GetVehicleInfo failed", zap.Error(err))
+		}
 		return nil, toGRPCError(err)
 	}
 

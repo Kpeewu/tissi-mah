@@ -79,27 +79,33 @@ func (s *vehicleServiceImpl) AddVehicle(ctx context.Context, input serviceInterf
 	return vehicleID, nil
 }
 
-// GetVehicleDetails récupère les détails complets d'un véhicule,
-// incluant ses documents depuis file-service. Utilise le cache Redis.
+// GetVehicleDetails récupère les détails complets d'un véhicule, incluant ses
+// documents depuis file-service. Seules les infos véhicule sont cachées (Redis) ;
+// les documents sont toujours récupérés en temps réel pour éviter qu'un upload
+// récent (via file-service) ne soit masqué par un cache périmé.
 func (s *vehicleServiceImpl) GetVehicleDetails(ctx context.Context, userID string, vehicleID string) (*domain.VehicleDetails, error) {
 	if vehicleID == "" {
 		return nil, vehicleErrors.ErrorInvalidInput
 	}
 
-	// Tentative de lecture depuis le cache
+	// Infos véhicule : depuis le cache si présent, sinon DB (+ mise en cache).
+	var vehicle *domain.Vehicle
 	if s.cache != nil {
-		if cached, err := s.cache.GetVehicleDetails(ctx, vehicleID); err == nil && cached != nil {
-			// Vérification de la propriété sur les données cachées
-			if cached.Vehicle.UserID != userID {
-				return nil, vehicleErrors.ErrorUnauthorized
-			}
-			return cached, nil
+		if cached, err := s.cache.GetVehicle(ctx, vehicleID); err == nil {
+			vehicle = cached
 		}
 	}
-
-	vehicle, err := s.readRepo.GetByID(ctx, vehicleID)
-	if err != nil {
-		return nil, err
+	if vehicle == nil {
+		v, err := s.readRepo.GetByID(ctx, vehicleID)
+		if err != nil {
+			return nil, err
+		}
+		vehicle = v
+		if s.cache != nil {
+			if err := s.cache.SetVehicle(ctx, vehicleID, vehicle); err != nil {
+				s.logger.Warn("failed to cache vehicle", zap.Error(err), zap.String("vehicleID", vehicleID))
+			}
+		}
 	}
 
 	// Vérification de la propriété du véhicule
@@ -111,8 +117,8 @@ func (s *vehicleServiceImpl) GetVehicleDetails(ctx context.Context, userID strin
 		return nil, vehicleErrors.ErrorUnauthorized
 	}
 
-	// Récupération des documents depuis file-service
-	// En cas d'erreur, on retourne le véhicule avec des documents vides (tolérance aux pannes)
+	// Documents : toujours récupérés en temps réel depuis file-service.
+	// En cas d'erreur, on retourne le véhicule avec des documents vides (tolérance aux pannes).
 	docs, err := s.fileClient.GetVehicleDocuments(ctx, vehicleID)
 	if err != nil {
 		s.logger.Warn("failed to fetch vehicle documents from file-service, returning empty documents",
@@ -122,19 +128,10 @@ func (s *vehicleServiceImpl) GetVehicleDetails(ctx context.Context, userID strin
 		docs = domain.VehicleDocuments{}
 	}
 
-	details := &domain.VehicleDetails{
+	return &domain.VehicleDetails{
 		Vehicle:   vehicle,
 		Documents: docs,
-	}
-
-	// Mise en cache du résultat
-	if s.cache != nil {
-		if err := s.cache.SetVehicleDetails(ctx, vehicleID, details); err != nil {
-			s.logger.Warn("failed to cache vehicle details", zap.Error(err), zap.String("vehicleID", vehicleID))
-		}
-	}
-
-	return details, nil
+	}, nil
 }
 
 // GetVehicleInfo récupère les infos essentielles d'un véhicule (sans documents ni
