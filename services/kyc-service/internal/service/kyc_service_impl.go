@@ -842,26 +842,46 @@ func (s *kycServiceImpl) OverrideReview(ctx context.Context, input serviceInterf
 		return nil, kycErrors.ErrorOnlyRejectionOverridable
 	}
 
-	// Appliquer l'override
+	// L'override ne modifie pas la revue rejetée : il en crée une nouvelle, chaînée à
+	// la précédente (AttemptNumber+1 / PreviousReviewID), pour conserver l'historique.
+	// L'ancienne revue reste intacte ; la nouvelle devient la décision courante.
 	now := time.Now().UTC()
-	review.Decision = input.Decision
-	review.ReasonRejection = input.ReasonRejection
-	review.RejectionDetails = input.RejectionDetails
-	review.Notes = input.Notes
-	review.ReviewedBy = input.UserID
-	review.ReviewType = "manual"
-	review.ReviewedAt = &now
-	review.UpdatedAt = now
+	newReview := &domain.Review{
+		UserID:               review.UserID,
+		DocumentType:         review.DocumentType,
+		LogicalDocumentType:  domain.ToLogicalDocumentType(review.DocumentType),
+		UserDocumentID:       review.UserDocumentID,
+		SecondUserDocumentID: review.SecondUserDocumentID,
+		VehicleDocumentID:    review.VehicleDocumentID,
 
-	updatedReview, err := s.fileClient.UpdateDocumentReview(ctx, review)
+		PersonaInquiryID: "", // override manuel — pas d'inquiry Persona
+
+		AttemptNumber:    review.AttemptNumber + 1,
+		PreviousReviewID: review.ReviewID, // chaînage vers la revue overridée
+
+		Status:           "completed",
+		Decision:         input.Decision,
+		ReasonRejection:  input.ReasonRejection,
+		RejectionDetails: input.RejectionDetails,
+		Notes:            input.Notes,
+
+		ReviewedBy: input.UserID, // l'agent support
+		ReviewType: "manual",
+		ReviewedAt: &now,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+
+	created, err := s.fileClient.CreateDocumentReview(ctx, newReview)
 	if err != nil {
-		s.logger.Error("failed to update review for override", zap.Error(err))
+		s.logger.Error("failed to create override review", zap.Error(err))
 		return nil, kycErrors.ErrorFileServiceUnavailable
 	}
 
 	s.logger.Info("review overridden",
-		zap.String("reviewID", updatedReview.ReviewID),
-		zap.String("decision", updatedReview.Decision),
+		zap.String("previousReviewID", review.ReviewID),
+		zap.String("newReviewID", created.ReviewID),
+		zap.String("decision", created.Decision),
 		zap.String("reviewedBy", input.UserID),
 	)
 
@@ -870,16 +890,16 @@ func (s *kycServiceImpl) OverrideReview(ctx context.Context, input serviceInterf
 	// encore de méthode GetDocumentOwnerByDocumentID. À implémenter quand cette méthode sera disponible.
 
 	return &serviceInterfaces.OverrideResult{
-		ReviewID:         updatedReview.ReviewID,
-		PersonaInquiryID: updatedReview.PersonaInquiryID,
-		Decision:         updatedReview.Decision,
-		ReasonRejection:  updatedReview.ReasonRejection,
-		RejectionDetails: updatedReview.RejectionDetails,
-		ReviewedBy:       updatedReview.ReviewedBy,
-		ReviewType:       updatedReview.ReviewType,
-		ReviewedAt:       updatedReview.ReviewedAt.Format(time.RFC3339),
-		Notes:            updatedReview.Notes,
-		UpdatedAt:        updatedReview.UpdatedAt.Format(time.RFC3339),
+		ReviewID:         created.ReviewID,
+		PersonaInquiryID: created.PersonaInquiryID,
+		Decision:         created.Decision,
+		ReasonRejection:  created.ReasonRejection,
+		RejectionDetails: created.RejectionDetails,
+		ReviewedBy:       created.ReviewedBy,
+		ReviewType:       created.ReviewType,
+		ReviewedAt:       created.ReviewedAt.Format(time.RFC3339),
+		Notes:            created.Notes,
+		UpdatedAt:        created.UpdatedAt.Format(time.RFC3339),
 	}, nil
 }
 
