@@ -538,6 +538,7 @@ func (h *FileHandler) ListKycDocuments(ctx context.Context, req *filepb.ListKycD
 			Status:       d.Status,
 			OwnerKind:    d.OwnerKind,
 			UpdatedAt:    d.UpdatedAt,
+			UploadedAt:   d.UploadedAt,
 		})
 	}
 	return &filepb.ListKycDocumentsResponse{Documents: out}, nil

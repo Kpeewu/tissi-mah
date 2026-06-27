@@ -397,6 +397,7 @@ func (s *fileServiceImpl) ListKycDocuments(ctx context.Context, statuses []strin
 			Status:       d.Status,
 			OwnerKind:    "user",
 			UpdatedAt:    d.UpdatedAt.UTC().Format(time.RFC3339),
+			UploadedAt:   d.UploadedAt.UTC().Format(time.RFC3339),
 		})
 	}
 	for _, d := range vehicleDocs {
@@ -408,6 +409,7 @@ func (s *fileServiceImpl) ListKycDocuments(ctx context.Context, statuses []strin
 			Status:       d.Status,
 			OwnerKind:    "vehicle",
 			UpdatedAt:    d.UpdatedAt.UTC().Format(time.RFC3339),
+			UploadedAt:   d.UploadedAt.UTC().Format(time.RFC3339),
 		})
 	}
 	return out, nil

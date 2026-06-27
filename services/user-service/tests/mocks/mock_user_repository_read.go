@@ -19,6 +19,14 @@ func (m *MockUserRepositoryRead) GetByUserID(ctx context.Context, userID string)
 	return args.Get(0).(*domain.User), args.Error(1)
 }
 
+func (m *MockUserRepositoryRead) GetByUserIDs(ctx context.Context, userIDs []string) ([]*domain.User, error) {
+	args := m.Called(ctx, userIDs)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.User), args.Error(1)
+}
+
 func (m *MockUserRepositoryRead) GetByAuthID(ctx context.Context, authID string) (*domain.User, error) {
 	args := m.Called(ctx, authID)
 	if args.Get(0) == nil {

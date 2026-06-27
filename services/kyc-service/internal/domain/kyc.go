@@ -197,6 +197,7 @@ type KycDocument struct {
 	Status       string
 	OwnerKind    string // "user" | "vehicle"
 	UpdatedAt    string
+	UploadedAt   string // ISO 8601 — date de dépôt initial
 }
 
 // VehicleDetails : infos véhicule embarquées dans DocumentSummary (vehicle docs uniquement).
@@ -283,6 +284,7 @@ type ManualReviewRequest struct {
 	PassengerStatus string
 	DriverStatus    string
 	TotalDocuments  int32
+	LastDepositAt   string // ISO 8601 — date du dernier document déposé
 }
 
 // ManualReviewRequestDetail : détail d'une demande (user + tous ses documents).

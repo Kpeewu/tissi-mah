@@ -310,6 +310,7 @@ message KycDocument {
   string Status       = 5;
   string OwnerKind    = 6;
   string UpdatedAt    = 7; // ISO 8601
+  string UploadedAt   = 8; // ISO 8601 — date de dépôt initial
 }
 
 message ListKycDocumentsResponse {

@@ -34,14 +34,14 @@ type FullProfile struct {
 
 // UpdateProfileRequest contient les champs à mettre à jour (optionnels)
 type UpdateProfileRequest struct {
-	UserID            string
-	FirstName         *string
-	LastName          *string
-	BirthDate         *string
-	Email             *string
-	PhoneNumber       *string
-	WithdrawNumber    *string
-	Bio               *string
+	UserID         string
+	FirstName      *string
+	LastName       *string
+	BirthDate      *string
+	Email          *string
+	PhoneNumber    *string
+	WithdrawNumber *string
+	Bio            *string
 }
 
 type UserService interface {
@@ -50,6 +50,7 @@ type UserService interface {
 	GetUserByAuthID(ctx context.Context, authID string) (*domain.User, error)
 	GetUserByFirebaseID(ctx context.Context, firebaseID string) (*domain.User, error)
 	GetUserByUserID(ctx context.Context, userID string) (*domain.User, error)
+	GetUsersByUserIDs(ctx context.Context, userIDs []string) ([]*domain.User, error)
 	GetUserProfileByUserID(ctx context.Context, userID string) (*domain.User, string, string, error) // user, email, phoneNumber, error
 
 	SoftDeleteUser(ctx context.Context, authID string) error

@@ -1035,14 +1035,33 @@ type userBucket struct {
 	passengerStatuses []string
 	driverStatuses    []string
 	total             int32
+	lastDeposit       time.Time // max(uploaded_at) de tous les documents du user
+}
+
+// manualReviewEntry : ligne agrégée par utilisateur avant enrichissement.
+type manualReviewEntry struct {
+	userID          string
+	passengerStatus string
+	driverStatus    string
+	total           int32
+	lastDeposit     time.Time
 }
 
 func (s *kycServiceImpl) GetManualReviewRequests(ctx context.Context, input serviceInterfaces.GetManualReviewRequestsInput) (*serviceInterfaces.GetManualReviewRequestsResult, error) {
 	s.logger.Debug("get manual review requests",
 		zap.String("statusFilter", input.Status),
+		zap.String("name", input.Name),
+		zap.String("firstName", input.FirstName),
 		zap.Int32("page", input.Page),
 		zap.Int32("pageSize", input.PageSize),
 	)
+
+	// Parsing des bornes de date (optionnelles).
+	depositFrom, depositTo, err := parseDepositRange(input.DepositFrom, input.DepositTo)
+	if err != nil {
+		s.logger.Warn("invalid deposit date range", zap.Error(err))
+		return nil, kycErrors.ErrorInvalidDateRange
+	}
 
 	// On récupère tous les documents KYC (tous statuts), le tri/filtre statut se fait
 	// après agrégation pour que le statut par catégorie reste calculé sur l'ensemble.
@@ -1069,27 +1088,45 @@ func (s *kycServiceImpl) GetManualReviewRequests(ctx context.Context, input serv
 			b.driverStatuses = append(b.driverStatuses, d.Status)
 		}
 		b.total++
+		if t, perr := time.Parse(time.RFC3339, d.UploadedAt); perr == nil && t.After(b.lastDeposit) {
+			b.lastDeposit = t
+		}
 	}
 
-	// Calcul des statuts agrégés + filtre statut optionnel.
-	type entry struct {
-		userID          string
-		passengerStatus string
-		driverStatus    string
-		total           int32
-	}
-	entries := make([]entry, 0, len(buckets))
+	// Calcul des statuts agrégés + filtre statut + filtre date de dépôt.
+	entries := make([]manualReviewEntry, 0, len(buckets))
 	for userID, b := range buckets {
 		ps := domain.AggregateStatus(b.passengerStatuses)
 		ds := domain.AggregateStatus(b.driverStatuses)
 		if input.Status != "" && ps != input.Status && ds != input.Status {
 			continue
 		}
-		entries = append(entries, entry{userID: userID, passengerStatus: ps, driverStatus: ds, total: b.total})
+		if !depositFrom.IsZero() && b.lastDeposit.Before(depositFrom) {
+			continue
+		}
+		if !depositTo.IsZero() && b.lastDeposit.After(depositTo) {
+			continue
+		}
+		entries = append(entries, manualReviewEntry{
+			userID: userID, passengerStatus: ps, driverStatus: ds, total: b.total, lastDeposit: b.lastDeposit,
+		})
 	}
 
-	// Tri déterministe pour une pagination stable.
-	sort.Slice(entries, func(i, j int) bool { return entries[i].userID < entries[j].userID })
+	// Filtre nom/prénom : nécessite les infos user (batch léger). Appliqué avant pagination.
+	if input.Name != "" || input.FirstName != "" {
+		entries, err = s.filterByName(ctx, entries, input.Name, input.FirstName)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Tri par date du dernier dépôt décroissante (récent d'abord), userID en tie-breaker.
+	sort.Slice(entries, func(i, j int) bool {
+		if !entries[i].lastDeposit.Equal(entries[j].lastDeposit) {
+			return entries[i].lastDeposit.After(entries[j].lastDeposit)
+		}
+		return entries[i].userID < entries[j].userID
+	})
 
 	total := int32(len(entries))
 	pageSize := input.PageSize
@@ -1114,17 +1151,103 @@ func (s *kycServiceImpl) GetManualReviewRequests(ctx context.Context, input serv
 				zap.String("userID", e.userID), zap.Error(err))
 			userInfo = &domain.UserInfo{UserID: e.userID}
 		}
+
+		// La ProfileImageURL stockée côté user-service est une URL présignée figée
+		// (générée à l'upload) qui finit par expirer. On régénère une URL fraîche à
+		// la lecture à partir du document profilePicture courant. Repli gracieux sur
+		// la valeur stockée si l'utilisateur n'a pas de document ou en cas d'erreur.
+		if userInfo.ProfileImageURL != "" {
+			if ref, derr := s.fileClient.GetCurrentUserDocument(ctx, e.userID, "profilePicture"); derr == nil && ref.DocumentURL != "" {
+				userInfo.ProfileImageURL = ref.DocumentURL
+			}
+		}
+
+		lastDeposit := ""
+		if !e.lastDeposit.IsZero() {
+			lastDeposit = e.lastDeposit.UTC().Format(time.RFC3339)
+		}
 		requests = append(requests, &domain.ManualReviewRequest{
 			User:            userInfo,
 			PassengerStatus: e.passengerStatus,
 			DriverStatus:    e.driverStatus,
 			TotalDocuments:  e.total,
+			LastDepositAt:   lastDeposit,
 		})
 	}
 
 	s.logger.Info("manual review requests retrieved",
 		zap.Int32("total", total), zap.Int("page", len(requests)))
 	return &serviceInterfaces.GetManualReviewRequestsResult{Requests: requests, Total: total}, nil
+}
+
+// filterByName enrichit les entries via un batch user-service léger et ne garde que
+// celles dont le nom/prénom contiennent les termes recherchés (insensible à la casse).
+func (s *kycServiceImpl) filterByName(ctx context.Context, entries []manualReviewEntry, name, firstName string) ([]manualReviewEntry, error) {
+	ids := make([]string, 0, len(entries))
+	for _, e := range entries {
+		ids = append(ids, e.userID)
+	}
+	usersByID, err := s.userClient.GetUsersByUserIDs(ctx, ids)
+	if err != nil {
+		s.logger.Error("failed to batch-fetch users for name filter", zap.Error(err))
+		return nil, kycErrors.ErrorUserNotFound
+	}
+
+	nameQ := strings.ToLower(name)
+	firstQ := strings.ToLower(firstName)
+	filtered := entries[:0]
+	for _, e := range entries {
+		u, ok := usersByID[e.userID]
+		if !ok {
+			continue // utilisateur introuvable → exclu de la recherche
+		}
+		if nameQ != "" && !strings.Contains(strings.ToLower(u.Name), nameQ) {
+			continue
+		}
+		if firstQ != "" && !strings.Contains(strings.ToLower(u.FirstName), firstQ) {
+			continue
+		}
+		filtered = append(filtered, e)
+	}
+	return filtered, nil
+}
+
+// parseDepositRange interprète les bornes de date. Accepte RFC3339 ou YYYY-MM-DD
+// (auquel cas la borne haute couvre toute la journée). Bornes vides = pas de limite.
+func parseDepositRange(from, to string) (time.Time, time.Time, error) {
+	var fromT, toT time.Time
+	if from != "" {
+		t, err := parseFlexibleDate(from, false)
+		if err != nil {
+			return fromT, toT, err
+		}
+		fromT = t
+	}
+	if to != "" {
+		t, err := parseFlexibleDate(to, true)
+		if err != nil {
+			return fromT, toT, err
+		}
+		toT = t
+	}
+	return fromT, toT, nil
+}
+
+// parseFlexibleDate parse une date RFC3339 ou YYYY-MM-DD. Pour une date seule en
+// borne haute (endOfDay), on couvre la fin de journée (23:59:59).
+func parseFlexibleDate(s string, endOfDay bool) (time.Time, error) {
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t.UTC(), nil
+	}
+	t, err := time.Parse("2006-01-02", s)
+	if err != nil {
+		return time.Time{}, err
+	}
+	t = t.UTC()
+	if endOfDay {
+		t = t.Add(24*time.Hour - time.Second)
+	}
+	return t, nil
 }
 
 // =============================================================================

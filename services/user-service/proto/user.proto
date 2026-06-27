@@ -31,6 +31,10 @@ service UserService {
   // GetUserByUserID - Récupère le profil utilisateur par son UserID interne
   rpc GetUserByUserID(GetUserByUserIDRequest) returns (UserProfileResponse);
 
+  // GetUsersByUserIDs - Récupère plusieurs profils en une requête (batch, inter-service).
+  // Léger : pas d'enrichissement email/phone (Email et PhoneNumber restent vides).
+  rpc GetUsersByUserIDs(GetUsersByUserIDsRequest) returns (GetUsersByUserIDsResponse);
+
   // SoftDeleteUser - Anonymise et soft-delete le profil utilisateur
   rpc SoftDeleteUser(SoftDeleteUserRequest) returns (OperationResponse);
 
@@ -106,6 +110,14 @@ message GetUserByFirebaseIDRequest {
 
 message GetUserByUserIDRequest {
   string UserID = 1;
+}
+
+message GetUsersByUserIDsRequest {
+  repeated string UserIDs = 1;
+}
+
+message GetUsersByUserIDsResponse {
+  repeated UserProfileResponse Users = 1;
 }
 
 message SoftDeleteUserRequest {

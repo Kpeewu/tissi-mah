@@ -29,6 +29,7 @@ const (
 	UserService_GetUserByAuthID_FullMethodName      = "/user.UserService/GetUserByAuthID"
 	UserService_GetUserByFirebaseID_FullMethodName  = "/user.UserService/GetUserByFirebaseID"
 	UserService_GetUserByUserID_FullMethodName      = "/user.UserService/GetUserByUserID"
+	UserService_GetUsersByUserIDs_FullMethodName    = "/user.UserService/GetUsersByUserIDs"
 	UserService_SoftDeleteUser_FullMethodName       = "/user.UserService/SoftDeleteUser"
 	UserService_GetMyProfile_FullMethodName         = "/user.UserService/GetMyProfile"
 	UserService_CreateDriverAccount_FullMethodName  = "/user.UserService/CreateDriverAccount"
@@ -50,6 +51,9 @@ type UserServiceClient interface {
 	GetUserByFirebaseID(ctx context.Context, in *GetUserByFirebaseIDRequest, opts ...grpc.CallOption) (*UserProfileResponse, error)
 	// GetUserByUserID - Récupère le profil utilisateur par son UserID interne
 	GetUserByUserID(ctx context.Context, in *GetUserByUserIDRequest, opts ...grpc.CallOption) (*UserProfileResponse, error)
+	// GetUsersByUserIDs - Récupère plusieurs profils en une requête (batch, inter-service).
+	// Léger : pas d'enrichissement email/phone (Email et PhoneNumber restent vides).
+	GetUsersByUserIDs(ctx context.Context, in *GetUsersByUserIDsRequest, opts ...grpc.CallOption) (*GetUsersByUserIDsResponse, error)
 	// SoftDeleteUser - Anonymise et soft-delete le profil utilisateur
 	SoftDeleteUser(ctx context.Context, in *SoftDeleteUserRequest, opts ...grpc.CallOption) (*OperationResponse, error)
 	// GetMyProfile - Récupère le profil complet de l'utilisateur connecté
@@ -108,6 +112,16 @@ func (c *userServiceClient) GetUserByUserID(ctx context.Context, in *GetUserByUs
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(UserProfileResponse)
 	err := c.cc.Invoke(ctx, UserService_GetUserByUserID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) GetUsersByUserIDs(ctx context.Context, in *GetUsersByUserIDsRequest, opts ...grpc.CallOption) (*GetUsersByUserIDsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetUsersByUserIDsResponse)
+	err := c.cc.Invoke(ctx, UserService_GetUsersByUserIDs_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -196,6 +210,9 @@ type UserServiceServer interface {
 	GetUserByFirebaseID(context.Context, *GetUserByFirebaseIDRequest) (*UserProfileResponse, error)
 	// GetUserByUserID - Récupère le profil utilisateur par son UserID interne
 	GetUserByUserID(context.Context, *GetUserByUserIDRequest) (*UserProfileResponse, error)
+	// GetUsersByUserIDs - Récupère plusieurs profils en une requête (batch, inter-service).
+	// Léger : pas d'enrichissement email/phone (Email et PhoneNumber restent vides).
+	GetUsersByUserIDs(context.Context, *GetUsersByUserIDsRequest) (*GetUsersByUserIDsResponse, error)
 	// SoftDeleteUser - Anonymise et soft-delete le profil utilisateur
 	SoftDeleteUser(context.Context, *SoftDeleteUserRequest) (*OperationResponse, error)
 	// GetMyProfile - Récupère le profil complet de l'utilisateur connecté
@@ -231,6 +248,9 @@ func (UnimplementedUserServiceServer) GetUserByFirebaseID(context.Context, *GetU
 }
 func (UnimplementedUserServiceServer) GetUserByUserID(context.Context, *GetUserByUserIDRequest) (*UserProfileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUserByUserID not implemented")
+}
+func (UnimplementedUserServiceServer) GetUsersByUserIDs(context.Context, *GetUsersByUserIDsRequest) (*GetUsersByUserIDsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUsersByUserIDs not implemented")
 }
 func (UnimplementedUserServiceServer) SoftDeleteUser(context.Context, *SoftDeleteUserRequest) (*OperationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SoftDeleteUser not implemented")
@@ -342,6 +362,24 @@ func _UserService_GetUserByUserID_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UserServiceServer).GetUserByUserID(ctx, req.(*GetUserByUserIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_GetUsersByUserIDs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUsersByUserIDsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetUsersByUserIDs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetUsersByUserIDs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetUsersByUserIDs(ctx, req.(*GetUsersByUserIDsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -494,6 +532,10 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUserByUserID",
 			Handler:    _UserService_GetUserByUserID_Handler,
+		},
+		{
+			MethodName: "GetUsersByUserIDs",
+			Handler:    _UserService_GetUsersByUserIDs_Handler,
 		},
 		{
 			MethodName: "SoftDeleteUser",

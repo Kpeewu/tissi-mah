@@ -91,3 +91,30 @@ func (c *UserServiceClient) GetUserByUserID(ctx context.Context, userID string) 
 		ProfileImageURL: resp.ProfileImageURL,
 	}, nil
 }
+
+// GetUsersByUserIDs récupère en batch les infos profil de plusieurs utilisateurs
+// (nom/prénom/photo, sans email/phone). Retourne une map indexée par userID.
+func (c *UserServiceClient) GetUsersByUserIDs(ctx context.Context, userIDs []string) (map[string]*domain.UserInfo, error) {
+	c.logger.Debug("client: GetUsersByUserIDs called", zap.Int("count", len(userIDs)))
+
+	out := make(map[string]*domain.UserInfo, len(userIDs))
+	if len(userIDs) == 0 {
+		return out, nil
+	}
+
+	resp, err := c.grpcClient.GetUsersByUserIDs(ctx, &userpb.GetUsersByUserIDsRequest{UserIDs: userIDs})
+	if err != nil {
+		c.logger.Error("client: GetUsersByUserIDs failed", zap.Error(err))
+		return nil, fmt.Errorf("user-service: GetUsersByUserIDs failed: %w", err)
+	}
+
+	for _, u := range resp.Users {
+		out[u.UserID] = &domain.UserInfo{
+			UserID:          u.UserID,
+			Name:            u.Name,
+			FirstName:       u.FirstName,
+			ProfileImageURL: u.ProfileImageURL,
+		}
+	}
+	return out, nil
+}

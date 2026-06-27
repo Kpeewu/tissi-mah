@@ -390,9 +390,13 @@ func (h *KYCHandler) GetManualReviewRequests(ctx context.Context, req *kycpb.Get
 		zap.String("status", req.Status), zap.Int32("page", req.Page), zap.Int32("pageSize", req.PageSize))
 
 	result, err := h.service.GetManualReviewRequests(ctx, serviceInterfaces.GetManualReviewRequestsInput{
-		Status:   req.Status,
-		Page:     req.Page,
-		PageSize: req.PageSize,
+		Status:      req.Status,
+		Page:        req.Page,
+		PageSize:    req.PageSize,
+		Name:        req.Name,
+		FirstName:   req.FirstName,
+		DepositFrom: req.DepositFrom,
+		DepositTo:   req.DepositTo,
 	})
 	if err != nil {
 		h.logger.Error("handler: GetManualReviewRequests failed", zap.Error(err))
@@ -411,6 +415,7 @@ func (h *KYCHandler) GetManualReviewRequests(ctx context.Context, req *kycpb.Get
 			PassengerStatus: r.PassengerStatus,
 			DriverStatus:    r.DriverStatus,
 			TotalDocuments:  r.TotalDocuments,
+			LastDepositAt:   r.LastDepositAt,
 		})
 	}
 	return &kycpb.GetManualReviewRequestsResponse{Requests: items, Total: result.Total}, nil
@@ -576,6 +581,7 @@ func toGRPCError(err error) error {
 		errors.Is(err, kycErrors.ErrorMissingInquiryID),
 		errors.Is(err, kycErrors.ErrorMissingReviewID),
 		errors.Is(err, kycErrors.ErrorInvalidDecision),
+		errors.Is(err, kycErrors.ErrorInvalidDateRange),
 		errors.Is(err, kycErrors.ErrorVehicleDocumentNotAllowed):
 		return status.Error(codes.InvalidArgument, err.Error())
 
