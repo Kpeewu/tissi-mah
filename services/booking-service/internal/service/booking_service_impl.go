@@ -322,7 +322,14 @@ func (s *bookingServiceImpl) GetBookingDetails(ctx context.Context, input *servi
 		return nil, bookingErrors.ErrorUnauthorized
 	}
 
-	return s.mapBookingToDetailResult(booking, segments, history), nil
+	detail := s.mapBookingToDetailResult(booking, segments, history)
+	// Enrichissement des noms d'auteurs de l'historique + polyline du trajet pour les
+	// requêtes d'un vrai utilisateur uniquement (les appels inter-services passent UserID vide).
+	if input.UserID != "" {
+		s.enrichHistoryActorNames(ctx, detail.History, nil)
+		detail.RoutePolyline = s.fetchRoutePolyline(ctx, booking.TripID)
+	}
+	return detail, nil
 }
 
 // =============================================================================
@@ -1049,6 +1056,51 @@ func (s *bookingServiceImpl) mapBookingToDetailResult(booking *domain.Booking, s
 	return result
 }
 
+// enrichHistoryActorNames résout le nom lisible de l'auteur de chaque changement de statut
+// (ChangedBy → ChangedByName). Les transitions système ne sont pas résolues. La map locale
+// déduplique : au plus un appel user-service par acteur distinct. seed permet d'injecter des
+// noms déjà connus (passager/conducteur) pour éviter des appels supplémentaires.
+func (s *bookingServiceImpl) enrichHistoryActorNames(ctx context.Context, history []serviceInterfaces.StatusHistoryResult, seed map[string]string) {
+	nameByID := map[string]string{}
+	for k, v := range seed {
+		if k != "" && v != "" {
+			nameByID[k] = v
+		}
+	}
+	for i := range history {
+		cb := history[i].ChangedBy
+		if cb == "" || cb == "system" || history[i].ChangedByType == "system" {
+			continue // pas de nom pour les transitions système
+		}
+		if n, ok := nameByID[cb]; ok {
+			history[i].ChangedByName = n
+			continue
+		}
+		n, _, err := s.userClient.GetPassengerInfo(ctx, cb)
+		if err != nil {
+			s.logger.Warn("enrichHistoryActorNames: name failed", zap.String("changedBy", cb), zap.Error(err))
+			continue
+		}
+		nameByID[cb] = n
+		history[i].ChangedByName = n
+	}
+}
+
+// fetchRoutePolyline récupère le polyline du trajet depuis trips-service (best-effort).
+// Retourne une chaîne vide en cas d'erreur ou de trajet introuvable, sans faire échouer
+// la requête détail (le front affiche simplement la carte sans tracé).
+func (s *bookingServiceImpl) fetchRoutePolyline(ctx context.Context, tripID string) string {
+	trip, err := s.tripClient.GetTripDetails(ctx, tripID)
+	if err != nil {
+		s.logger.Warn("fetchRoutePolyline: trip details failed", zap.String("tripID", tripID), zap.Error(err))
+		return ""
+	}
+	if trip == nil {
+		return ""
+	}
+	return trip.RoutePolyline
+}
+
 func (s *bookingServiceImpl) mapPreviewsToResults(previews []*domain.BookingPreview) []*serviceInterfaces.BookingPreviewResult {
 	results := make([]*serviceInterfaces.BookingPreviewResult, 0, len(previews))
 	for _, p := range previews {
@@ -1568,9 +1620,6 @@ func (s *bookingServiceImpl) ListBookingsAdmin(ctx context.Context, input *servi
 
 	filter := domain.BookingAdminFilter{
 		Status:           input.Status,
-		PassengerID:      input.PassengerID,
-		DriverID:         input.DriverID,
-		TripID:           input.TripID,
 		BookingReference: input.BookingReference,
 	}
 	if input.DateFrom != "" {
@@ -1669,6 +1718,13 @@ func (s *bookingServiceImpl) GetBookingDetailAdmin(ctx context.Context, bookingI
 	if err != nil {
 		s.logger.Warn("GetBookingDetailAdmin: driver name failed", zap.String("driverID", booking.DriverID), zap.Error(err))
 	}
+
+	// Enrichissement des noms d'auteurs de l'historique en réutilisant les noms déjà résolus.
+	s.enrichHistoryActorNames(ctx, detail.History, map[string]string{
+		booking.PassengerID: passengerName,
+		booking.DriverID:    driverName,
+	})
+	detail.RoutePolyline = s.fetchRoutePolyline(ctx, booking.TripID)
 
 	return &serviceInterfaces.BookingDetailAdminResult{
 		Booking:       detail,

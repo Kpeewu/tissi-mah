@@ -56,9 +56,6 @@ type RawPassengerSummary struct {
 // Un champ vide/nil signifie « pas de filtre sur ce critère ».
 type BookingAdminFilter struct {
 	Status           string
-	PassengerID      string
-	DriverID         string
-	TripID           string
 	BookingReference string
 	DateFrom         *time.Time
 	DateTo           *time.Time

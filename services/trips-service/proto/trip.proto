@@ -221,6 +221,7 @@ message GetTripByIDResponse {
   string VehicleId                      = 12;
   string VehicleBrand                   = 13;
   string VehiclePlate                   = 14;
+  string RoutePolyline                  = 15; // Google encoded polyline du tracé
 }
 
 // =============================================================================

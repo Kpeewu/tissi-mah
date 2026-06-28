@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/booking-service/fixtures"
+	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/domain"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/service"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/booking-service/internal/service/interfaces"
@@ -628,16 +629,56 @@ func TestGetBookingDetailAdmin(t *testing.T) {
 	t.Run("succès : détail sans contrôle d'appartenance + noms", func(t *testing.T) {
 		d := newTestService()
 		ctx := context.Background()
-		booking := &domain.Booking{BookingID: "b1", PassengerID: "p1", DriverID: "d1", Status: domain.BookingStatusApproved}
+		booking := &domain.Booking{BookingID: "b1", PassengerID: "p1", DriverID: "d1", TripID: "t1", Status: domain.BookingStatusApproved}
 		d.readRepo.On("GetByIDWithDetails", ctx, "b1").Return(booking, []*domain.Segment{}, []*domain.StatusHistoryEntry{}, nil)
 		d.userClient.On("GetPassengerInfo", ctx, "p1").Return("Passenger One", true, nil)
 		d.userClient.On("GetPassengerInfo", ctx, "d1").Return("Driver One", true, nil)
+		d.tripClient.On("GetTripDetails", ctx, "t1").Return(&client.TripDetails{TripID: "t1", RoutePolyline: "abc123"}, nil)
 
 		res, err := d.svc.GetBookingDetailAdmin(ctx, "b1")
 		require.NoError(t, err)
 		assert.Equal(t, "b1", res.Booking.BookingID)
 		assert.Equal(t, "Passenger One", res.PassengerName)
 		assert.Equal(t, "Driver One", res.DriverName)
+		assert.Equal(t, "abc123", res.Booking.RoutePolyline)
+	})
+
+	t.Run("polyline best-effort : trips-service en erreur → polyline vide, pas d'échec", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+		booking := &domain.Booking{BookingID: "b1", PassengerID: "p1", DriverID: "d1", TripID: "t1", Status: domain.BookingStatusApproved}
+		d.readRepo.On("GetByIDWithDetails", ctx, "b1").Return(booking, []*domain.Segment{}, []*domain.StatusHistoryEntry{}, nil)
+		d.userClient.On("GetPassengerInfo", ctx, "p1").Return("Passenger One", true, nil)
+		d.userClient.On("GetPassengerInfo", ctx, "d1").Return("Driver One", true, nil)
+		d.tripClient.On("GetTripDetails", ctx, "t1").Return((*client.TripDetails)(nil), assert.AnError)
+
+		res, err := d.svc.GetBookingDetailAdmin(ctx, "b1")
+		require.NoError(t, err)
+		assert.Empty(t, res.Booking.RoutePolyline)
+	})
+
+	t.Run("historique enrichi des noms d'auteurs (seed passager/conducteur, vide pour system)", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+		booking := &domain.Booking{BookingID: "b1", PassengerID: "p1", DriverID: "d1", TripID: "t1", Status: domain.BookingStatusApproved}
+		history := []*domain.StatusHistoryEntry{
+			{HistoryID: "h1", PreviousStatus: "pendingApproval", NewStatus: "approved", ChangedBy: "d1", ChangedByType: "driver"},
+			{HistoryID: "h2", PreviousStatus: "approved", NewStatus: "inProgress", ChangedBy: "system", ChangedByType: "system"},
+			{HistoryID: "h3", PreviousStatus: "created", NewStatus: "pendingApproval", ChangedBy: "p1", ChangedByType: "passenger"},
+		}
+		d.readRepo.On("GetByIDWithDetails", ctx, "b1").Return(booking, []*domain.Segment{}, history, nil)
+		// Seed couvre p1 et d1 → aucun appel user-service supplémentaire pour l'historique.
+		d.userClient.On("GetPassengerInfo", ctx, "p1").Return("Passenger One", true, nil).Once()
+		d.userClient.On("GetPassengerInfo", ctx, "d1").Return("Driver One", true, nil).Once()
+		d.tripClient.On("GetTripDetails", ctx, "t1").Return(&client.TripDetails{TripID: "t1"}, nil)
+
+		res, err := d.svc.GetBookingDetailAdmin(ctx, "b1")
+		require.NoError(t, err)
+		require.Len(t, res.Booking.History, 3)
+		assert.Equal(t, "Driver One", res.Booking.History[0].ChangedByName)
+		assert.Empty(t, res.Booking.History[1].ChangedByName)
+		assert.Equal(t, "Passenger One", res.Booking.History[2].ChangedByName)
+		d.userClient.AssertExpectations(t)
 	})
 
 	t.Run("bookingID vide → ErrorInvalidInput", func(t *testing.T) {

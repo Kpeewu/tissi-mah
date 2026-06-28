@@ -130,6 +130,7 @@ func toProtoBookingDetail(result *serviceInterfaces.BookingDetailResult) *bookin
 			PreviousStatus: h.PreviousStatus,
 			NewStatus:      h.NewStatus,
 			ChangedBy:      h.ChangedBy,
+			ChangedByName:  h.ChangedByName,
 			ChangedByType:  h.ChangedByType,
 			ChangeReason:   h.ChangeReason,
 			Metadata:       h.Metadata,
@@ -168,6 +169,7 @@ func toProtoBookingDetail(result *serviceInterfaces.BookingDetailResult) *bookin
 		Segments:           pbSegments,
 		History:            pbHistory,
 		PassengerMessage:   result.PassengerMessage,
+		RoutePolyline:      result.RoutePolyline,
 	}
 }
 
@@ -503,13 +505,10 @@ func toProtoBookingCounts(c *serviceInterfaces.BookingCountsResult) *bookingpb.B
 
 // ListBookings retourne la liste paginée et filtrée des réservations (vue support).
 func (h *BookingHandler) ListBookings(ctx context.Context, req *bookingpb.ListBookingsRequest) (*bookingpb.ListBookingsResponse, error) {
-	h.logger.Debug("handler: ListBookings called (support)", zap.String("status", req.Status), zap.String("tripID", req.TripId))
+	h.logger.Debug("handler: ListBookings called (support)", zap.String("status", req.Status), zap.String("bookingReference", req.BookingReference))
 
 	result, err := h.service.ListBookingsAdmin(ctx, &serviceInterfaces.ListBookingsAdminInput{
 		Status:           req.Status,
-		PassengerID:      req.PassengerId,
-		DriverID:         req.DriverId,
-		TripID:           req.TripId,
 		BookingReference: req.BookingReference,
 		DateFrom:         req.DateFrom,
 		DateTo:           req.DateTo,
