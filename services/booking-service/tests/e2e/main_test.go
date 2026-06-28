@@ -67,6 +67,8 @@ func TestMain(m *testing.M) {
 
 	mockUserClient := new(mocks.MockUserClient)
 	mockUserClient.On("UserExists", mock.Anything, mock.Anything).Return(true, nil).Maybe()
+	mockUserClient.On("IsPassengerVerified", mock.Anything, mock.Anything).Return(true, nil).Maybe()
+	mockUserClient.On("GetPassengerInfo", mock.Anything, mock.Anything).Return("Test User", true, nil).Maybe()
 
 	mockPaymentClient := new(mocks.MockPaymentClient)
 	mockPaymentClient.On("RequestRefund", mock.Anything, mock.Anything).Return(nil).Maybe()
