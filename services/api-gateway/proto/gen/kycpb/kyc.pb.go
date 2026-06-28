@@ -1358,9 +1358,13 @@ func (x *HealthResponse) GetTimestamp() int64 {
 
 type GetManualReviewRequestsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        string                 `protobuf:"bytes,1,opt,name=Status,proto3" json:"Status,omitempty"`      // Optionnel — filtre : passenger OU driver == ce statut
-	Page          int32                  `protobuf:"varint,2,opt,name=Page,proto3" json:"Page,omitempty"`         // 0-based
-	PageSize      int32                  `protobuf:"varint,3,opt,name=PageSize,proto3" json:"PageSize,omitempty"` // 0 = défaut
+	Status        string                 `protobuf:"bytes,1,opt,name=Status,proto3" json:"Status,omitempty"`           // Optionnel — filtre : passenger OU driver == ce statut
+	Page          int32                  `protobuf:"varint,2,opt,name=Page,proto3" json:"Page,omitempty"`              // 0-based
+	PageSize      int32                  `protobuf:"varint,3,opt,name=PageSize,proto3" json:"PageSize,omitempty"`      // 0 = défaut
+	Name          string                 `protobuf:"bytes,4,opt,name=Name,proto3" json:"Name,omitempty"`               // Optionnel — recherche partielle (contient, insensible casse) sur le nom
+	FirstName     string                 `protobuf:"bytes,5,opt,name=FirstName,proto3" json:"FirstName,omitempty"`     // Optionnel — recherche partielle (contient, insensible casse) sur le prénom
+	DepositFrom   string                 `protobuf:"bytes,6,opt,name=DepositFrom,proto3" json:"DepositFrom,omitempty"` // Optionnel — borne basse de la date du dernier dépôt (ISO 8601 ou YYYY-MM-DD)
+	DepositTo     string                 `protobuf:"bytes,7,opt,name=DepositTo,proto3" json:"DepositTo,omitempty"`     // Optionnel — borne haute de la date du dernier dépôt (ISO 8601 ou YYYY-MM-DD)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1416,6 +1420,34 @@ func (x *GetManualReviewRequestsRequest) GetPageSize() int32 {
 	return 0
 }
 
+func (x *GetManualReviewRequestsRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *GetManualReviewRequestsRequest) GetFirstName() string {
+	if x != nil {
+		return x.FirstName
+	}
+	return ""
+}
+
+func (x *GetManualReviewRequestsRequest) GetDepositFrom() string {
+	if x != nil {
+		return x.DepositFrom
+	}
+	return ""
+}
+
+func (x *GetManualReviewRequestsRequest) GetDepositTo() string {
+	if x != nil {
+		return x.DepositTo
+	}
+	return ""
+}
+
 type ManualReviewRequestItem struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	UserId          string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"`
@@ -1427,6 +1459,7 @@ type ManualReviewRequestItem struct {
 	PassengerStatus string                 `protobuf:"bytes,7,opt,name=PassengerStatus,proto3" json:"PassengerStatus,omitempty"` // "" si aucun document d'identité
 	DriverStatus    string                 `protobuf:"bytes,8,opt,name=DriverStatus,proto3" json:"DriverStatus,omitempty"`       // "" si aucun document permis/véhicule
 	TotalDocuments  int32                  `protobuf:"varint,9,opt,name=TotalDocuments,proto3" json:"TotalDocuments,omitempty"`
+	LastDepositAt   string                 `protobuf:"bytes,10,opt,name=LastDepositAt,proto3" json:"LastDepositAt,omitempty"` // ISO 8601 — date du dernier document déposé
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1522,6 +1555,13 @@ func (x *ManualReviewRequestItem) GetTotalDocuments() int32 {
 		return x.TotalDocuments
 	}
 	return 0
+}
+
+func (x *ManualReviewRequestItem) GetLastDepositAt() string {
+	if x != nil {
+		return x.LastDepositAt
+	}
+	return ""
 }
 
 type GetManualReviewRequestsResponse struct {
@@ -3265,11 +3305,15 @@ const file_kyc_proto_rawDesc = "" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
 	"\aVersion\x18\x02 \x01(\tR\aVersion\x12\x1c\n" +
-	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp\"h\n" +
+	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp\"\xda\x01\n" +
 	"\x1eGetManualReviewRequestsRequest\x12\x16\n" +
 	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x12\n" +
 	"\x04Page\x18\x02 \x01(\x05R\x04Page\x12\x1a\n" +
-	"\bPageSize\x18\x03 \x01(\x05R\bPageSize\"\xbb\x02\n" +
+	"\bPageSize\x18\x03 \x01(\x05R\bPageSize\x12\x12\n" +
+	"\x04Name\x18\x04 \x01(\tR\x04Name\x12\x1c\n" +
+	"\tFirstName\x18\x05 \x01(\tR\tFirstName\x12 \n" +
+	"\vDepositFrom\x18\x06 \x01(\tR\vDepositFrom\x12\x1c\n" +
+	"\tDepositTo\x18\a \x01(\tR\tDepositTo\"\xe1\x02\n" +
 	"\x17ManualReviewRequestItem\x12\x16\n" +
 	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x12\x12\n" +
 	"\x04Name\x18\x02 \x01(\tR\x04Name\x12\x1c\n" +
@@ -3279,7 +3323,9 @@ const file_kyc_proto_rawDesc = "" +
 	"\x0fProfileImageURL\x18\x06 \x01(\tR\x0fProfileImageURL\x12(\n" +
 	"\x0fPassengerStatus\x18\a \x01(\tR\x0fPassengerStatus\x12\"\n" +
 	"\fDriverStatus\x18\b \x01(\tR\fDriverStatus\x12&\n" +
-	"\x0eTotalDocuments\x18\t \x01(\x05R\x0eTotalDocuments\"\x95\x01\n" +
+	"\x0eTotalDocuments\x18\t \x01(\x05R\x0eTotalDocuments\x12$\n" +
+	"\rLastDepositAt\x18\n" +
+	" \x01(\tR\rLastDepositAt\"\x95\x01\n" +
 	"\x1fGetManualReviewRequestsResponse\x12\"\n" +
 	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x128\n" +
 	"\bRequests\x18\x02 \x03(\v2\x1c.kyc.ManualReviewRequestItemR\bRequests\x12\x14\n" +

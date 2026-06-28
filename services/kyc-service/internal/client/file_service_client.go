@@ -64,6 +64,7 @@ func (c *fileServiceClientImpl) GetCurrentUserDocument(ctx context.Context, user
 	return &domain.DocumentRef{
 		DocumentID:   resp.DocumentId,
 		DocumentType: resp.DocumentType,
+		DocumentURL:  resp.DocumentUrl,
 	}, nil
 }
 
@@ -169,6 +170,7 @@ func (c *fileServiceClientImpl) ListKycDocuments(ctx context.Context, statuses [
 			Status:       d.Status,
 			OwnerKind:    d.OwnerKind,
 			UpdatedAt:    d.UpdatedAt,
+			UploadedAt:   d.UploadedAt,
 		})
 	}
 	return docs, nil

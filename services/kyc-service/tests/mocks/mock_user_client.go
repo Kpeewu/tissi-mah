@@ -28,6 +28,14 @@ func (m *MockUserClient) GetUserIDByFirebaseID(ctx context.Context, firebaseUID 
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockUserClient) GetUsersByUserIDs(ctx context.Context, userIDs []string) (map[string]*domain.UserInfo, error) {
+	args := m.Called(ctx, userIDs)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(map[string]*domain.UserInfo), args.Error(1)
+}
+
 func (m *MockUserClient) Close() error {
 	args := m.Called()
 	return args.Error(0)

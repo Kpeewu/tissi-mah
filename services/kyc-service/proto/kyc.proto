@@ -268,9 +268,13 @@ message HealthResponse {
 // =============================================================================
 
 message GetManualReviewRequestsRequest {
-  string Status   = 1; // Optionnel — filtre : passenger OU driver == ce statut
-  int32  Page     = 2; // 0-based
-  int32  PageSize = 3; // 0 = défaut
+  string Status      = 1; // Optionnel — filtre : passenger OU driver == ce statut
+  int32  Page        = 2; // 0-based
+  int32  PageSize    = 3; // 0 = défaut
+  string Name        = 4; // Optionnel — recherche partielle (contient, insensible casse) sur le nom
+  string FirstName   = 5; // Optionnel — recherche partielle (contient, insensible casse) sur le prénom
+  string DepositFrom = 6; // Optionnel — borne basse de la date du dernier dépôt (ISO 8601 ou YYYY-MM-DD)
+  string DepositTo   = 7; // Optionnel — borne haute de la date du dernier dépôt (ISO 8601 ou YYYY-MM-DD)
 }
 
 message ManualReviewRequestItem {
@@ -283,6 +287,7 @@ message ManualReviewRequestItem {
   string PassengerStatus = 7; // "" si aucun document d'identité
   string DriverStatus    = 8; // "" si aucun document permis/véhicule
   int32  TotalDocuments  = 9;
+  string LastDepositAt   = 10; // ISO 8601 — date du dernier document déposé
 }
 
 message GetManualReviewRequestsResponse {

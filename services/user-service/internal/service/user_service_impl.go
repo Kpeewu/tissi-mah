@@ -123,6 +123,16 @@ func (s *userServiceImpl) GetUserByUserID(ctx context.Context, userID string) (*
 	return user, nil
 }
 
+// GetUsersByUserIDs récupère plusieurs profils par UserID (batch, inter-service).
+// Léger : pas d'enrichissement email/phone (réservé à la page finale côté appelant).
+func (s *userServiceImpl) GetUsersByUserIDs(ctx context.Context, userIDs []string) ([]*domain.User, error) {
+	s.logger.Debug("récupération profils batch par userIDs", zap.Int("count", len(userIDs)))
+	if len(userIDs) == 0 {
+		return []*domain.User{}, nil
+	}
+	return s.readRepo.GetByUserIDs(ctx, userIDs)
+}
+
 // GetUserProfileByUserID récupère le profil utilisateur enrichi avec email/phone depuis auth-service.
 // Utilisé par notification-service pour résoudre les templates et router les notifications.
 func (s *userServiceImpl) GetUserProfileByUserID(ctx context.Context, userID string) (*domain.User, string, string, error) {

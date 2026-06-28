@@ -175,9 +175,13 @@ type ValidateDocumentResult struct {
 
 // GetManualReviewRequestsInput contient les filtres de la liste groupée par utilisateur.
 type GetManualReviewRequestsInput struct {
-	Status   string // Optionnel — ne garder que les users dont une catégorie a ce statut
-	Page     int32  // 0-based
-	PageSize int32  // 0 = défaut
+	Status      string // Optionnel — ne garder que les users dont une catégorie a ce statut
+	Page        int32  // 0-based
+	PageSize    int32  // 0 = défaut
+	Name        string // Optionnel — recherche partielle (contient, insensible casse) sur le nom
+	FirstName   string // Optionnel — recherche partielle (contient, insensible casse) sur le prénom
+	DepositFrom string // Optionnel — borne basse date dernier dépôt (ISO 8601 ou YYYY-MM-DD)
+	DepositTo   string // Optionnel — borne haute date dernier dépôt (ISO 8601 ou YYYY-MM-DD)
 }
 
 // GetManualReviewRequestsResult : page de la liste groupée par utilisateur.

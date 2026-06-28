@@ -30,6 +30,29 @@ func (r *userReadRepository) GetByUserID(ctx context.Context, userID string) (*d
 	return r.findOne(ctx, bson.M{"user_id": userID, "deleted_at": nil})
 }
 
+// GetByUserIDs récupère plusieurs utilisateurs par leurs UserIDs (batch, $in).
+// Les utilisateurs introuvables sont simplement absents du résultat.
+func (r *userReadRepository) GetByUserIDs(ctx context.Context, userIDs []string) ([]*domain.User, error) {
+	r.logger.Debug("recherche utilisateurs par userIDs", zap.Int("count", len(userIDs)))
+	if len(userIDs) == 0 {
+		return []*domain.User{}, nil
+	}
+
+	cursor, err := r.collection.Find(ctx, bson.M{"user_id": bson.M{"$in": userIDs}, "deleted_at": nil})
+	if err != nil {
+		r.logger.Error("erreur lors de la recherche batch MongoDB", zap.Error(err))
+		return nil, userErrors.ErrorDataRetrievalFailed
+	}
+	defer cursor.Close(ctx)
+
+	var users []*domain.User
+	if err := cursor.All(ctx, &users); err != nil {
+		r.logger.Error("erreur lors du décodage batch MongoDB", zap.Error(err))
+		return nil, userErrors.ErrorDataRetrievalFailed
+	}
+	return users, nil
+}
+
 // GetByAuthID récupère un utilisateur par son AuthID
 func (r *userReadRepository) GetByAuthID(ctx context.Context, authID string) (*domain.User, error) {
 	r.logger.Debug("recherche utilisateur par authID", zap.String("auth_id", authID))

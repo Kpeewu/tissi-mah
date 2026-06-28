@@ -94,6 +94,24 @@ func (h *UserHandler) GetUserByUserID(ctx context.Context, req *userpb.GetUserBy
 	return resp, nil
 }
 
+// GetUsersByUserIDs récupère plusieurs profils en une requête (batch, inter-service).
+// Léger : Email et PhoneNumber ne sont pas enrichis (restent vides).
+func (h *UserHandler) GetUsersByUserIDs(ctx context.Context, req *userpb.GetUsersByUserIDsRequest) (*userpb.GetUsersByUserIDsResponse, error) {
+	h.logger.Debug("GetUsersByUserIDs appelé", zap.Int("count", len(req.UserIDs)))
+
+	users, err := h.service.GetUsersByUserIDs(ctx, req.UserIDs)
+	if err != nil {
+		h.logger.Error("GetUsersByUserIDs échoué", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	out := make([]*userpb.UserProfileResponse, 0, len(users))
+	for _, u := range users {
+		out = append(out, toProtoUserProfile(u))
+	}
+	return &userpb.GetUsersByUserIDsResponse{Users: out}, nil
+}
+
 // SoftDeleteUser anonymise et soft-delete le profil utilisateur (appelé par auth-service)
 func (h *UserHandler) SoftDeleteUser(ctx context.Context, req *userpb.SoftDeleteUserRequest) (*userpb.OperationResponse, error) {
 	h.logger.Debug("SoftDeleteUser appelé", zap.String("auth_id", req.AuthID))

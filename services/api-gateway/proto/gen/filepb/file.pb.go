@@ -1589,7 +1589,8 @@ type KycDocument struct {
 	DocumentType  string                 `protobuf:"bytes,4,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"`
 	Status        string                 `protobuf:"bytes,5,opt,name=Status,proto3" json:"Status,omitempty"`
 	OwnerKind     string                 `protobuf:"bytes,6,opt,name=OwnerKind,proto3" json:"OwnerKind,omitempty"`
-	UpdatedAt     string                 `protobuf:"bytes,7,opt,name=UpdatedAt,proto3" json:"UpdatedAt,omitempty"` // ISO 8601
+	UpdatedAt     string                 `protobuf:"bytes,7,opt,name=UpdatedAt,proto3" json:"UpdatedAt,omitempty"`   // ISO 8601
+	UploadedAt    string                 `protobuf:"bytes,8,opt,name=UploadedAt,proto3" json:"UploadedAt,omitempty"` // ISO 8601 — date de dépôt initial
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1669,6 +1670,13 @@ func (x *KycDocument) GetOwnerKind() string {
 func (x *KycDocument) GetUpdatedAt() string {
 	if x != nil {
 		return x.UpdatedAt
+	}
+	return ""
+}
+
+func (x *KycDocument) GetUploadedAt() string {
+	if x != nil {
+		return x.UploadedAt
 	}
 	return ""
 }
@@ -3689,7 +3697,7 @@ const file_file_proto_rawDesc = "" +
 	"\"GetVehicleDocumentsByUserIDRequest\x12\x16\n" +
 	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"5\n" +
 	"\x17ListKycDocumentsRequest\x12\x1a\n" +
-	"\bStatuses\x18\x01 \x03(\tR\bStatuses\"\xdb\x01\n" +
+	"\bStatuses\x18\x01 \x03(\tR\bStatuses\"\xfb\x01\n" +
 	"\vKycDocument\x12\x1e\n" +
 	"\n" +
 	"DocumentId\x18\x01 \x01(\tR\n" +
@@ -3699,7 +3707,10 @@ const file_file_proto_rawDesc = "" +
 	"\fDocumentType\x18\x04 \x01(\tR\fDocumentType\x12\x16\n" +
 	"\x06Status\x18\x05 \x01(\tR\x06Status\x12\x1c\n" +
 	"\tOwnerKind\x18\x06 \x01(\tR\tOwnerKind\x12\x1c\n" +
-	"\tUpdatedAt\x18\a \x01(\tR\tUpdatedAt\"K\n" +
+	"\tUpdatedAt\x18\a \x01(\tR\tUpdatedAt\x12\x1e\n" +
+	"\n" +
+	"UploadedAt\x18\b \x01(\tR\n" +
+	"UploadedAt\"K\n" +
 	"\x18ListKycDocumentsResponse\x12/\n" +
 	"\tDocuments\x18\x01 \x03(\v2\x11.file.KycDocumentR\tDocuments\"7\n" +
 	"\x15DeleteDocumentRequest\x12\x1e\n" +

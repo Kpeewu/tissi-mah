@@ -1639,16 +1639,21 @@ func TestOverrideReview(t *testing.T) {
 
 		mockFileClient.On("GetDocumentReview", mock.Anything, "review-override-001").
 			Return(rejectedReview, nil)
-		mockFileClient.On("UpdateDocumentReview", mock.Anything, mock.MatchedBy(func(r *domain.Review) bool {
-			return r.Decision == "approved" && r.ReviewType == "manual"
+		// L'override crée une NOUVELLE revue chaînée (historique), il ne mute pas l'ancienne.
+		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.MatchedBy(func(r *domain.Review) bool {
+			return r.Decision == "approved" &&
+				r.ReviewType == "manual" &&
+				r.Status == "completed" &&
+				r.AttemptNumber == rejectedReview.AttemptNumber+1 &&
+				r.PreviousReviewID == "review-override-001"
 		})).Return(&domain.Review{
-			ReviewID:         "review-override-001",
-			PersonaInquiryID: "inq_override_001",
-			Decision:         "approved",
-			ReviewedBy:       "admin-001",
-			ReviewType:       "manual",
-			ReviewedAt:       &now,
-			UpdatedAt:        now,
+			ReviewID:   "review-override-002",
+			Decision:   "approved",
+			ReviewedBy: "admin-001",
+			ReviewType: "manual",
+			Status:     "completed",
+			ReviewedAt: &now,
+			UpdatedAt:  now,
 		}, nil)
 
 		result, err := svc.OverrideReview(ctx, serviceInterfaces.OverrideReviewInput{
@@ -1657,6 +1662,7 @@ func TestOverrideReview(t *testing.T) {
 			Decision: "approved",
 		})
 		require.NoError(t, err)
+		assert.Equal(t, "review-override-002", result.ReviewID) // nouvelle revue
 		assert.Equal(t, "approved", result.Decision)
 		assert.Equal(t, "manual", result.ReviewType)
 	})
@@ -1771,7 +1777,7 @@ func TestOverrideReview(t *testing.T) {
 
 		mockFileClient.On("GetDocumentReview", mock.Anything, "review-override-001").
 			Return(newCompletedReview(), nil)
-		mockFileClient.On("UpdateDocumentReview", mock.Anything, mock.AnythingOfType("*domain.Review")).
+		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.AnythingOfType("*domain.Review")).
 			Return(nil, errors.New("file-service down"))
 
 		result, err := svc.OverrideReview(ctx, serviceInterfaces.OverrideReviewInput{

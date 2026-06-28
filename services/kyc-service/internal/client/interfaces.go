@@ -80,6 +80,10 @@ type UserClient interface {
 	// GetUserByUserID récupère les infos profil par UserID interne (vue support).
 	GetUserByUserID(ctx context.Context, userID string) (*domain.UserInfo, error)
 
+	// GetUsersByUserIDs récupère en batch les infos profil (nom/prénom/photo) de
+	// plusieurs utilisateurs. Léger : email/phone non renseignés. Clé = userID.
+	GetUsersByUserIDs(ctx context.Context, userIDs []string) (map[string]*domain.UserInfo, error)
+
 	// Ferme la connexion gRPC
 	Close() error
 }

@@ -19,6 +19,7 @@ type KycDocument struct {
 	Status       string
 	OwnerKind    string // "user" | "vehicle"
 	UpdatedAt    string // ISO 8601
+	UploadedAt   string // ISO 8601 — date de dépôt initial
 }
 
 // UploadUserDocumentInput contient les données nécessaires à l'upload d'un document utilisateur
@@ -77,9 +78,9 @@ type DeleteFileInput struct {
 
 // ChangeDocumentInput contient les données pour remplacer le fichier d'un document existant.
 type ChangeDocumentInput struct {
-	UserID        string
-	FileID        string
-	NewDocument   []byte
+	UserID         string
+	FileID         string
+	NewDocument    []byte
 	DocumentNumber string // vide = conserver l'existant
 	IssuedAt       string // ISO 8601 — vide = conserver
 	ExpireAt       string // ISO 8601 — vide = conserver
@@ -99,10 +100,10 @@ type VehicleDocFileInput struct {
 // UserID, VehicleID et les 3 fichiers sont obligatoires.
 // FirstName / LastName viennent de user-service et servent à construire le docName.
 type UploadVehicleDocumentsInput struct {
-	UserID          string
-	VehicleID       string
-	FirstName       string
-	LastName        string
+	UserID           string
+	VehicleID        string
+	FirstName        string
+	LastName         string
 	DriverLicence    VehicleDocFileInput
 	Assurance        VehicleDocFileInput
 	RegistrationCard VehicleDocFileInput

@@ -10,6 +10,7 @@ var (
 	ErrorUnauthorized            = errors.New("ErrorUnauthorized")
 	ErrorInvalidWebhookSignature = errors.New("ErrorInvalidWebhookSignature")
 	ErrorInvalidDecision         = errors.New("ErrorInvalidDecision")
+	ErrorInvalidDateRange        = errors.New("ErrorInvalidDateRange")
 	ErrorReviewNotOverridable    = errors.New("ErrorReviewNotOverridable")
 	ErrorOnlyRejectionOverridable = errors.New("ErrorOnlyRejectionOverridable")
 	ErrorDocumentAlreadyReviewed = errors.New("ErrorDocumentAlreadyReviewed")
