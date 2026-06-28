@@ -592,14 +592,12 @@ func (s *kycServiceImpl) ProcessWebhook(ctx context.Context, input serviceInterf
 
 	// Notifier l'utilisateur pour les décisions finales (approuvé ou rejeté)
 	if s.notifRedis != nil {
-		var kycEventType, docEventType string
+		var kycEventType string
 		switch input.WebhookEventType {
 		case "inquiry.approved":
 			kycEventType = notification.KycApproved
-			docEventType = notification.DocumentValidated
 		case "inquiry.declined":
 			kycEventType = notification.KycRejected
-			docEventType = notification.DocumentRejected
 		}
 		if kycEventType != "" {
 			// Extraire le userID depuis le champ reference-id du payload Persona
@@ -615,6 +613,7 @@ func (s *kycServiceImpl) ProcessWebhook(ctx context.Context, input serviceInterf
 				userID = personaPayload.Data.Attributes.ReferenceID
 			}
 			if userID != "" {
+				// Statut KYC global (pièce d'identité) — notification générique, inchangée.
 				if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
 					EventType:     kycEventType,
 					UserID:        userID,
@@ -623,14 +622,9 @@ func (s *kycServiceImpl) ProcessWebhook(ctx context.Context, input serviceInterf
 				}); pubErr != nil {
 					s.logger.Error("failed to publish KYC notification", zap.Error(pubErr))
 				}
-				if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
-					EventType:     docEventType,
-					UserID:        userID,
-					ReferenceID:   review.ReviewID,
-					ReferenceType: notification.RefDocument,
-				}); pubErr != nil {
-					s.logger.Error("failed to publish document validation notification", zap.Error(pubErr))
-				}
+				// Notification par document (enrichie : type + statut + motif).
+				s.publishDocumentReviewNotification(ctx, userID, review.DocumentType,
+					review.Decision, review.ReasonRejection, review.RejectionDetails, review.ReviewID)
 			}
 		}
 	}
@@ -789,6 +783,46 @@ func (s *kycServiceImpl) GetAdminReview(ctx context.Context, userID string, revi
 	return detail, nil
 }
 
+// publishDocumentReviewNotification publie l'événement de notification (push + email
+// via le notification-service) destiné au propriétaire d'un document après sa revue.
+// No-op si le Redis de notification n'est pas configuré ou si userID est vide.
+func (s *kycServiceImpl) publishDocumentReviewNotification(ctx context.Context, userID, documentType, decision, reasonRejection, rejectionDetails, reviewID string) {
+	if s.notifRedis == nil || userID == "" {
+		return
+	}
+
+	var eventType, status string
+	switch decision {
+	case "approved":
+		eventType, status = notification.DocumentValidated, "validé"
+	case "rejected":
+		eventType, status = notification.DocumentRejected, "refusé"
+	case "resubmission":
+		eventType, status = notification.DocumentRejected, "à resoumettre"
+	default:
+		return // pending ou autre — pas de notification
+	}
+
+	payload := map[string]string{
+		"document_type": domain.DocumentTypeLabel(documentType),
+		"status":        status,
+	}
+	if eventType == notification.DocumentRejected {
+		payload["reason"] = domain.RejectionReasonText(reasonRejection, rejectionDetails)
+	}
+
+	if err := notification.Publish(ctx, s.notifRedis, notification.Event{
+		EventType:     eventType,
+		UserID:        userID,
+		ReferenceID:   reviewID,
+		ReferenceType: notification.RefDocument,
+		Payload:       payload,
+	}); err != nil {
+		s.logger.Error("failed to publish document review notification",
+			zap.Error(err), zap.String("eventType", eventType), zap.String("userID", userID))
+	}
+}
+
 // =============================================================================
 // OverrideReview
 // =============================================================================
@@ -885,9 +919,9 @@ func (s *kycServiceImpl) OverrideReview(ctx context.Context, input serviceInterf
 		zap.String("reviewedBy", input.UserID),
 	)
 
-	// TODO: publier DOCUMENT_VALIDATED / DOCUMENT_REJECTED pour le propriétaire du document.
-	// Le review.UserDocumentID permet d'identifier le document, mais le file-service ne expose pas
-	// encore de méthode GetDocumentOwnerByDocumentID. À implémenter quand cette méthode sera disponible.
+	// Notifier le propriétaire du document (push + email via notification-service).
+	s.publishDocumentReviewNotification(ctx, review.UserID, review.DocumentType,
+		input.Decision, input.ReasonRejection, input.RejectionDetails, created.ReviewID)
 
 	return &serviceInterfaces.OverrideResult{
 		ReviewID:         created.ReviewID,
@@ -1033,6 +1067,10 @@ func (s *kycServiceImpl) ValidateDocument(ctx context.Context, input serviceInte
 		zap.String("decision", created.Decision),
 		zap.String("supportAgentID", input.SupportAgentID),
 	)
+
+	// Notifier le propriétaire du document (push + email via notification-service).
+	s.publishDocumentReviewNotification(ctx, ownerUserID, documentType,
+		input.Decision, input.ReasonRejection, input.RejectionDetails, created.ReviewID)
 
 	return &serviceInterfaces.ValidateDocumentResult{
 		ReviewID:   created.ReviewID,
