@@ -648,15 +648,6 @@ func buildAdminFilterClause(filter domain.BookingAdminFilter) (string, []interfa
 	if filter.Status != "" {
 		add("b.status = $%d::booking_status", filter.Status)
 	}
-	if filter.PassengerID != "" {
-		add("b.passenger_id = $%d", filter.PassengerID)
-	}
-	if filter.DriverID != "" {
-		add("b.driver_id = $%d", filter.DriverID)
-	}
-	if filter.TripID != "" {
-		add("b.trip_id = $%d", filter.TripID)
-	}
 	if filter.BookingReference != "" {
 		add("b.booking_reference = $%d", filter.BookingReference)
 	}

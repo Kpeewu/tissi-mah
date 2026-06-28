@@ -729,6 +729,7 @@ func (s *tripServiceImpl) GetTripByID(ctx context.Context, input *serviceInterfa
 		VehicleID:                trip.VehicleID,
 		VehicleBrand:             vehicleBrand,
 		VehiclePlate:             vehiclePlate,
+		RoutePolyline:            trip.RoutePolyline,
 		Waypoints:                waypointResults,
 	}, nil
 }

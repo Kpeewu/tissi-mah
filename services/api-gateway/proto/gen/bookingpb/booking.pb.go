@@ -603,7 +603,8 @@ type StatusHistoryEntry struct {
 	ChangedByType  string                 `protobuf:"bytes,5,opt,name=ChangedByType,proto3" json:"ChangedByType,omitempty"`
 	ChangeReason   string                 `protobuf:"bytes,6,opt,name=ChangeReason,proto3" json:"ChangeReason,omitempty"`
 	Metadata       string                 `protobuf:"bytes,7,opt,name=Metadata,proto3" json:"Metadata,omitempty"`
-	CreatedAt      string                 `protobuf:"bytes,8,opt,name=CreatedAt,proto3" json:"CreatedAt,omitempty"` // RFC3339
+	CreatedAt      string                 `protobuf:"bytes,8,opt,name=CreatedAt,proto3" json:"CreatedAt,omitempty"`         // RFC3339
+	ChangedByName  string                 `protobuf:"bytes,9,opt,name=ChangedByName,proto3" json:"ChangedByName,omitempty"` // nom lisible de l'auteur (vide pour les transitions système)
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -694,6 +695,13 @@ func (x *StatusHistoryEntry) GetCreatedAt() string {
 	return ""
 }
 
+func (x *StatusHistoryEntry) GetChangedByName() string {
+	if x != nil {
+		return x.ChangedByName
+	}
+	return ""
+}
+
 type BookingDetail struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	BookingId          string                 `protobuf:"bytes,1,opt,name=BookingId,proto3" json:"BookingId,omitempty"`
@@ -726,6 +734,7 @@ type BookingDetail struct {
 	Segments           []*SegmentDetail       `protobuf:"bytes,28,rep,name=Segments,proto3" json:"Segments,omitempty"`
 	History            []*StatusHistoryEntry  `protobuf:"bytes,29,rep,name=History,proto3" json:"History,omitempty"`
 	PassengerMessage   string                 `protobuf:"bytes,30,opt,name=PassengerMessage,proto3" json:"PassengerMessage,omitempty"` // message laissé par le passager lors de la réservation
+	RoutePolyline      string                 `protobuf:"bytes,31,opt,name=RoutePolyline,proto3" json:"RoutePolyline,omitempty"`       // Google encoded polyline du trajet (vide si indisponible)
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -966,6 +975,13 @@ func (x *BookingDetail) GetHistory() []*StatusHistoryEntry {
 func (x *BookingDetail) GetPassengerMessage() string {
 	if x != nil {
 		return x.PassengerMessage
+	}
+	return ""
+}
+
+func (x *BookingDetail) GetRoutePolyline() string {
+	if x != nil {
+		return x.RoutePolyline
 	}
 	return ""
 }
@@ -3218,9 +3234,6 @@ func (x *GetActivePassengerSummariesForTripResponse) GetErrorMessage() string {
 type ListBookingsRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Status           string                 `protobuf:"bytes,1,opt,name=Status,proto3" json:"Status,omitempty"`                     // filtre optionnel par statut
-	PassengerId      string                 `protobuf:"bytes,2,opt,name=PassengerId,proto3" json:"PassengerId,omitempty"`           // filtre optionnel
-	DriverId         string                 `protobuf:"bytes,3,opt,name=DriverId,proto3" json:"DriverId,omitempty"`                 // filtre optionnel
-	TripId           string                 `protobuf:"bytes,4,opt,name=TripId,proto3" json:"TripId,omitempty"`                     // filtre optionnel
 	BookingReference string                 `protobuf:"bytes,5,opt,name=BookingReference,proto3" json:"BookingReference,omitempty"` // filtre optionnel (recherche exacte)
 	DateFrom         string                 `protobuf:"bytes,6,opt,name=DateFrom,proto3" json:"DateFrom,omitempty"`                 // RFC3339, borne basse sur created_at (optionnel)
 	DateTo           string                 `protobuf:"bytes,7,opt,name=DateTo,proto3" json:"DateTo,omitempty"`                     // RFC3339, borne haute sur created_at (optionnel)
@@ -3263,27 +3276,6 @@ func (*ListBookingsRequest) Descriptor() ([]byte, []int) {
 func (x *ListBookingsRequest) GetStatus() string {
 	if x != nil {
 		return x.Status
-	}
-	return ""
-}
-
-func (x *ListBookingsRequest) GetPassengerId() string {
-	if x != nil {
-		return x.PassengerId
-	}
-	return ""
-}
-
-func (x *ListBookingsRequest) GetDriverId() string {
-	if x != nil {
-		return x.DriverId
-	}
-	return ""
-}
-
-func (x *ListBookingsRequest) GetTripId() string {
-	if x != nil {
-		return x.TripId
 	}
 	return ""
 }
@@ -4019,7 +4011,7 @@ const file_booking_proto_rawDesc = "" +
 	"\x0fDropoffActualAt\x18\x0f \x01(\tR\x0fDropoffActualAt\x124\n" +
 	"\x15SegmentDistanceMeters\x18\x10 \x01(\x05R\x15SegmentDistanceMeters\x126\n" +
 	"\x16SegmentDurationMinutes\x18\x11 \x01(\x05R\x16SegmentDurationMinutes\x12\"\n" +
-	"\fSegmentPrice\x18\x12 \x01(\x05R\fSegmentPrice\"\x9a\x02\n" +
+	"\fSegmentPrice\x18\x12 \x01(\x05R\fSegmentPrice\"\xc0\x02\n" +
 	"\x12StatusHistoryEntry\x12\x1c\n" +
 	"\tHistoryId\x18\x01 \x01(\tR\tHistoryId\x12&\n" +
 	"\x0ePreviousStatus\x18\x02 \x01(\tR\x0ePreviousStatus\x12\x1c\n" +
@@ -4028,7 +4020,8 @@ const file_booking_proto_rawDesc = "" +
 	"\rChangedByType\x18\x05 \x01(\tR\rChangedByType\x12\"\n" +
 	"\fChangeReason\x18\x06 \x01(\tR\fChangeReason\x12\x1a\n" +
 	"\bMetadata\x18\a \x01(\tR\bMetadata\x12\x1c\n" +
-	"\tCreatedAt\x18\b \x01(\tR\tCreatedAt\"\xea\b\n" +
+	"\tCreatedAt\x18\b \x01(\tR\tCreatedAt\x12$\n" +
+	"\rChangedByName\x18\t \x01(\tR\rChangedByName\"\x90\t\n" +
 	"\rBookingDetail\x12\x1c\n" +
 	"\tBookingId\x18\x01 \x01(\tR\tBookingId\x12*\n" +
 	"\x10BookingReference\x18\x02 \x01(\tR\x10BookingReference\x12\x16\n" +
@@ -4068,7 +4061,8 @@ const file_booking_proto_rawDesc = "" +
 	"\tUpdatedAt\x18\x1b \x01(\tR\tUpdatedAt\x122\n" +
 	"\bSegments\x18\x1c \x03(\v2\x16.booking.SegmentDetailR\bSegments\x125\n" +
 	"\aHistory\x18\x1d \x03(\v2\x1b.booking.StatusHistoryEntryR\aHistory\x12*\n" +
-	"\x10PassengerMessage\x18\x1e \x01(\tR\x10PassengerMessage\"q\n" +
+	"\x10PassengerMessage\x18\x1e \x01(\tR\x10PassengerMessage\x12$\n" +
+	"\rRoutePolyline\x18\x1f \x01(\tR\rRoutePolyline\"q\n" +
 	"\x19GetBookingDetailsResponse\x120\n" +
 	"\aBooking\x18\x01 \x01(\v2\x16.booking.BookingDetailR\aBooking\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"y\n" +
@@ -4233,17 +4227,14 @@ const file_booking_proto_rawDesc = "" +
 	"\x06TripId\x18\x01 \x01(\tR\x06TripId\"\x89\x01\n" +
 	"*GetActivePassengerSummariesForTripResponse\x127\n" +
 	"\tSummaries\x18\x01 \x03(\v2\x19.booking.PassengerSummaryR\tSummaries\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\x95\x02\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\xf0\x01\n" +
 	"\x13ListBookingsRequest\x12\x16\n" +
-	"\x06Status\x18\x01 \x01(\tR\x06Status\x12 \n" +
-	"\vPassengerId\x18\x02 \x01(\tR\vPassengerId\x12\x1a\n" +
-	"\bDriverId\x18\x03 \x01(\tR\bDriverId\x12\x16\n" +
-	"\x06TripId\x18\x04 \x01(\tR\x06TripId\x12*\n" +
+	"\x06Status\x18\x01 \x01(\tR\x06Status\x12*\n" +
 	"\x10BookingReference\x18\x05 \x01(\tR\x10BookingReference\x12\x1a\n" +
 	"\bDateFrom\x18\x06 \x01(\tR\bDateFrom\x12\x16\n" +
 	"\x06DateTo\x18\a \x01(\tR\x06DateTo\x12\x14\n" +
 	"\x05Index\x18\b \x01(\x05R\x05Index\x12\x1a\n" +
-	"\bPageSize\x18\t \x01(\x05R\bPageSize\"\xab\x04\n" +
+	"\bPageSize\x18\t \x01(\x05R\bPageSizeJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\vPassengerIdR\bDriverIdR\x06TripId\"\xab\x04\n" +
 	"\x13AdminBookingPreview\x12\x1c\n" +
 	"\tBookingId\x18\x01 \x01(\tR\tBookingId\x12*\n" +
 	"\x10BookingReference\x18\x02 \x01(\tR\x10BookingReference\x12\x16\n" +

@@ -264,6 +264,7 @@ message StatusHistoryEntry {
   string ChangeReason   = 6;
   string Metadata       = 7;
   string CreatedAt      = 8; // RFC3339
+  string ChangedByName  = 9; // nom lisible de l'auteur (vide pour les transitions système)
 }
 
 message BookingDetail {
@@ -297,6 +298,7 @@ message BookingDetail {
   repeated SegmentDetail Segments       = 28;
   repeated StatusHistoryEntry History   = 29;
   string PassengerMessage               = 30; // message laissé par le passager lors de la réservation
+  string RoutePolyline                  = 31; // Google encoded polyline du trajet (vide si indisponible)
 }
 
 message GetBookingDetailsResponse {
@@ -597,10 +599,9 @@ message GetActivePassengerSummariesForTripResponse {
 // =============================================================================
 
 message ListBookingsRequest {
+  reserved 2, 3, 4;
+  reserved "PassengerId", "DriverId", "TripId";
   string Status           = 1; // filtre optionnel par statut
-  string PassengerId      = 2; // filtre optionnel
-  string DriverId         = 3; // filtre optionnel
-  string TripId           = 4; // filtre optionnel
   string BookingReference = 5; // filtre optionnel (recherche exacte)
   string DateFrom         = 6; // RFC3339, borne basse sur created_at (optionnel)
   string DateTo           = 7; // RFC3339, borne haute sur created_at (optionnel)

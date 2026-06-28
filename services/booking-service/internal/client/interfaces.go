@@ -30,6 +30,7 @@ type TripDetails struct {
 	TotalSeats         int
 	PricePerSeat       int
 	AutoApproveEnabled bool
+	RoutePolyline      string
 	Waypoints          []TripWaypoint
 }
 

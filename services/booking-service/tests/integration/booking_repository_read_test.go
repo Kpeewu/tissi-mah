@@ -92,15 +92,6 @@ func TestBookingReadRepository_ListBookingsAdmin(t *testing.T) {
 		assert.Equal(t, 2, total)
 	})
 
-	t.Run("filtre passager + conducteur + trajet combinés", func(t *testing.T) {
-		seed(t)
-		f := domain.BookingAdminFilter{PassengerID: "pax-A", DriverID: "drv-X", TripID: "trip-1"}
-		rows, err := repo.ListBookingsAdmin(ctx, f, 0, 20)
-		require.NoError(t, err)
-		require.Len(t, rows, 1)
-		assert.Equal(t, "adm-1", rows[0].BookingID)
-	})
-
 	t.Run("pagination", func(t *testing.T) {
 		seed(t)
 		page0, err := repo.ListBookingsAdmin(ctx, domain.BookingAdminFilter{}, 0, 2)

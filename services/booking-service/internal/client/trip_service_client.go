@@ -67,6 +67,7 @@ func (c *TripServiceClient) GetTripDetails(ctx context.Context, tripID string) (
 		TotalSeats:         int(resp.TotalSeats),
 		PricePerSeat:       int(resp.PricePerSeat),
 		AutoApproveEnabled: resp.AutoApproveEnabled,
+		RoutePolyline:      resp.RoutePolyline,
 	}
 
 	for _, wp := range resp.Waypoints {

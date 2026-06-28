@@ -279,6 +279,7 @@ type TripDetailResult struct {
 	VehicleID                string
 	VehicleBrand             string
 	VehiclePlate             string
+	RoutePolyline            string
 	Waypoints                []WaypointDetailResult
 }
 

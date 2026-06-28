@@ -219,6 +219,7 @@ type StatusHistoryResult struct {
 	PreviousStatus string
 	NewStatus      string
 	ChangedBy      string
+	ChangedByName  string // nom lisible de l'auteur (vide pour les transitions système)
 	ChangedByType  string
 	ChangeReason   string
 	Metadata       string
@@ -256,6 +257,7 @@ type BookingDetailResult struct {
 	Segments           []SegmentDetailResult
 	History            []StatusHistoryResult
 	PassengerMessage   string
+	RoutePolyline      string // Google encoded polyline du trajet (vide si indisponible)
 }
 
 type BookingPreviewResult struct {
@@ -324,9 +326,6 @@ type PassengerSummaryResult struct {
 // DateFrom/DateTo sont au format RFC3339 (vides = pas de borne).
 type ListBookingsAdminInput struct {
 	Status           string
-	PassengerID      string
-	DriverID         string
-	TripID           string
 	BookingReference string
 	DateFrom         string
 	DateTo           string

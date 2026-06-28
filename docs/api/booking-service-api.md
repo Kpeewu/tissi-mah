@@ -185,11 +185,33 @@ Content-Type: application/json
         "CreatedAt": "2026-04-15T08:00:00Z",
         "UpdatedAt": "2026-04-15T08:05:00Z",
         "Segments": [...],
-        "History": [...]
+        "History": [
+            {
+                "HistoryId": "h-550e8400-e29b-41d4-a716-446655440099",
+                "PreviousStatus": "pendingApproval",
+                "NewStatus": "approved",
+                "ChangedBy": "550e8400-e29b-41d4-a716-446655440001",
+                "ChangedByName": "Ama Mensah",
+                "ChangedByType": "driver",
+                "ChangeReason": "",
+                "Metadata": "",
+                "CreatedAt": "2026-04-15T08:05:00Z"
+            }
+        ],
+        "RoutePolyline": "ki~Fjy~uOnB...",
+        "PassengerMessage": ""
     },
     "ErrorMessage": ""
 }
 ```
+
+> Chaque entrée d'historique inclut `ChangedByName`, le nom lisible de l'auteur du
+> changement (résolu via user-service). Vide pour les transitions automatiques
+> (`ChangedByType` = `system`).
+>
+> `RoutePolyline` est le Google encoded polyline du trajet (récupéré depuis trips-service),
+> destiné à afficher une preview du tracé sur la carte. Vide si le trajet n'a pas de
+> tracé ou si trips-service est indisponible.
 
 #### Errors
 
@@ -752,7 +774,6 @@ Liste paginée et filtrée de toutes les réservations, enrichie des noms passag
 | Param | Description |
 |-------|-------------|
 | `Status` | Filtre par statut (`created`, `paymentPending`, `pendingApproval`, `approved`, `rejected`, `cancelled`, `inProgress`, `completed`, `noShow`, `expired`) |
-| `PassengerId` / `DriverId` / `TripId` | Filtres d'identité |
 | `BookingReference` | Recherche exacte par référence |
 | `DateFrom` / `DateTo` | Bornes RFC3339 sur `created_at` |
 | `Index` | Index de page (0-based) |
@@ -764,7 +785,10 @@ les infos résumées + `PassengerName` / `DriverName` (enrichis via user-service
 ### GET /api/v1/booking/admin/getBookingDetail
 
 Détail complet d'une réservation (segments + historique de statut) **sans** contrôle
-d'appartenance, enrichi de `PassengerName` / `DriverName`.
+d'appartenance, enrichi de `PassengerName` / `DriverName`. Chaque entrée de
+`Booking.History` inclut `ChangedByName`, le nom lisible de l'auteur du changement
+(vide pour les transitions automatiques, `ChangedByType` = `system`). `Booking.RoutePolyline`
+contient le Google encoded polyline du trajet (preview carte ; vide si indisponible).
 
 **Query param** : `BookingId`.
 **Response** : `{ Booking: BookingDetail, PassengerName, DriverName }`.

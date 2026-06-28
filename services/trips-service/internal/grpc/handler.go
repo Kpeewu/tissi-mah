@@ -429,6 +429,7 @@ func (h *TripHandler) GetTripByID(ctx context.Context, req *trippb.GetTripByIDRe
 		VehicleId:                result.VehicleID,
 		VehicleBrand:             result.VehicleBrand,
 		VehiclePlate:             result.VehiclePlate,
+		RoutePolyline:            result.RoutePolyline,
 	}, nil
 }
 
