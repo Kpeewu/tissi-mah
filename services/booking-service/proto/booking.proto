@@ -138,6 +138,14 @@ service BookingService {
     };
   }
 
+  // GetDriverBookings retourne l'historique paginé des réservations d'un conducteur,
+  // tous trajets confondus, filtrable par statut (vide = tous statuts).
+  rpc GetDriverBookings(GetDriverBookingsRequest) returns (GetDriverBookingsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/booking/getDriverBookings"
+    };
+  }
+
   // GetActivePassengerSummariesForTrip retourne les passagers actifs d'un trajet
   // enrichis avec nom, note, statut paiement — pour l'écran de suivi chauffeur.
   rpc GetActivePassengerSummariesForTrip(GetActivePassengerSummariesForTripRequest) returns (GetActivePassengerSummariesForTripResponse) {
@@ -215,6 +223,7 @@ message CreateBookingRequest {
   repeated SegmentInput Segments = 7;
   string PassengerMessage   = 8; // message optionnel du passager au conducteur
   int32  ExtraMinutesDetour = 9; // détour en minutes calculé côté client (0 = inconnu)
+  int32  ExtraDetourPrice   = 10; // surcoût XOF lié au détour (0 = non renseigné)
 }
 
 message CreateBookingResponse {
@@ -546,6 +555,10 @@ message DriverBookingPreview {
   string PaymentMethod       = 16; // mobileMoney | card | paypal | cash
   string CreatedAt           = 17; // RFC3339 — pour affichage "il y a N min"
   int32  ExtraMinutesDetour  = 18; // détour en minutes (0 = inconnu)
+  string PassengerId         = 19; // UUID interne du passager
+  double PickupLat           = 20; // latitude du point de pickup (0 = inconnu)
+  double PickupLng           = 21; // longitude du point de pickup (0 = inconnu)
+  int32  ExtraDetourPrice    = 22; // surcoût XOF lié au détour (0 = non renseigné)
 }
 
 // BookingCounts — compteurs de réservations par statut pour un trajet
@@ -566,6 +579,21 @@ message GetDriverPendingBookingsRequest {
 }
 
 message GetDriverPendingBookingsResponse {
+  repeated DriverBookingPreview Bookings = 1;
+  string ErrorMessage                    = 2;
+}
+
+// =============================================================================
+// GetDriverBookings — historique tous statuts, tous trajets confondus
+// =============================================================================
+
+message GetDriverBookingsRequest {
+  string DriverId     = 1;
+  string StatusFilter = 2; // vide = tous statuts ; sinon : pendingApproval | approved | rejected | cancelled
+  int32  Index        = 3; // index de page (0-based, 10 items par page)
+}
+
+message GetDriverBookingsResponse {
   repeated DriverBookingPreview Bookings = 1;
   string ErrorMessage                    = 2;
 }

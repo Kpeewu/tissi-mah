@@ -16,7 +16,7 @@ type BookingPreview struct {
 }
 
 // RawDriverBookingPreview contient les champs DB bruts avant enrichissement externe.
-// Utilisé par GetDriverPendingBookings et GetDriverTripBookingsRaw.
+// Utilisé par GetDriverPendingBookings, GetDriverTripBookingsRaw et GetDriverBookings.
 type RawDriverBookingPreview struct {
 	BookingID           string
 	BookingReference    string
@@ -27,10 +27,13 @@ type RawDriverBookingPreview struct {
 	TotalAmount         int
 	PickupLocationName  string
 	DropoffLocationName string
+	PickupLat           *float64  // depuis bookings_segments.pickup_lat (NULL si segment absent)
+	PickupLng           *float64  // depuis bookings_segments.pickup_lng
 	DepartureDatetime   time.Time // depuis bookings_segments.pickup_scheduled_at (COALESCE created_at)
 	PaymentMethod       string
 	PassengerMessage    *string
 	ExtraMinutesDetour  *int16
+	ExtraDetourPrice    *int
 	CreatedAt           time.Time
 	PaymentCompletedAt  *time.Time
 }

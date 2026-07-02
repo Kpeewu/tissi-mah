@@ -437,12 +437,13 @@ const rawDriverBookingsBaseSelect = `
 	       b.seats_booked, b.total_amount,
 	       COALESCE(s_pick.pickup_location_name, '') AS pickup_location_name,
 	       COALESCE(s_drop.dropoff_location_name, '') AS dropoff_location_name,
+	       s_pick.pickup_lat, s_pick.pickup_lng,
 	       COALESCE(s_pick.pickup_scheduled_at, b.created_at) AS departure_datetime,
 	       b.payment_method::text, b.passenger_message, b.extra_minutes_detour,
-	       b.created_at, b.payment_completed_at
+	       b.extra_detour_price, b.created_at, b.payment_completed_at
 	FROM bookings b
 	LEFT JOIN LATERAL (
-		SELECT pickup_location_name, pickup_scheduled_at FROM bookings_segments
+		SELECT pickup_location_name, pickup_lat, pickup_lng, pickup_scheduled_at FROM bookings_segments
 		WHERE booking_id = b.booking_id ORDER BY created_at ASC LIMIT 1
 	) s_pick ON true
 	LEFT JOIN LATERAL (
@@ -460,9 +461,10 @@ func (r *bookingReadRepositoryImpl) scanRawDriverBookingPreviews(rows pgx.Rows) 
 			&p.BookingID, &p.BookingReference, &p.TripID, &p.PassengerID, &statusStr,
 			&p.SeatsBooked, &p.TotalAmount,
 			&p.PickupLocationName, &p.DropoffLocationName,
+			&p.PickupLat, &p.PickupLng,
 			&p.DepartureDatetime,
 			&p.PaymentMethod, &p.PassengerMessage, &p.ExtraMinutesDetour,
-			&p.CreatedAt, &p.PaymentCompletedAt,
+			&p.ExtraDetourPrice, &p.CreatedAt, &p.PaymentCompletedAt,
 		); err != nil {
 			r.logger.Error("scanRawDriverBookingPreviews scan failed", zap.Error(err))
 			return nil, bookingErrors.ErrorDataRetrievalFailed
@@ -529,6 +531,35 @@ func (r *bookingReadRepositoryImpl) GetDriverTripBookingCounts(ctx context.Conte
 	}
 
 	return counts, nil
+}
+
+// GetDriverBookings retourne l'historique paginé des réservations d'un conducteur, tous trajets confondus.
+func (r *bookingReadRepositoryImpl) GetDriverBookings(ctx context.Context, driverID string, statusFilter string, pageIndex int) ([]*domain.RawDriverBookingPreview, error) {
+	offset := pageIndex * pageSize
+	var query string
+	var args []any
+	if statusFilter == "" {
+		query = rawDriverBookingsBaseSelect + `
+		WHERE b.driver_id = $1 AND b.deleted_at IS NULL
+		ORDER BY b.created_at DESC
+		LIMIT $2 OFFSET $3`
+		args = []any{driverID, pageSize, offset}
+	} else {
+		query = rawDriverBookingsBaseSelect + `
+		WHERE b.driver_id = $1 AND b.status = $2::booking_status AND b.deleted_at IS NULL
+		ORDER BY b.created_at DESC
+		LIMIT $3 OFFSET $4`
+		args = []any{driverID, statusFilter, pageSize, offset}
+	}
+
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		r.logger.Error("GetDriverBookings failed", zap.Error(err), zap.String("driverID", driverID))
+		return nil, bookingErrors.ErrorDataRetrievalFailed
+	}
+	defer rows.Close()
+
+	return r.scanRawDriverBookingPreviews(rows)
 }
 
 // GetActivePassengerSummariesForTrip retourne les données brutes des passagers actifs d'un trajet.

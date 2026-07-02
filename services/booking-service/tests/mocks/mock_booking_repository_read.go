@@ -100,6 +100,14 @@ func (m *MockBookingRepositoryRead) GetDriverPendingBookings(ctx context.Context
 	return args.Get(0).([]*domain.RawDriverBookingPreview), args.Error(1)
 }
 
+func (m *MockBookingRepositoryRead) GetDriverBookings(ctx context.Context, driverID string, statusFilter string, pageIndex int) ([]*domain.RawDriverBookingPreview, error) {
+	args := m.Called(ctx, driverID, statusFilter, pageIndex)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.RawDriverBookingPreview), args.Error(1)
+}
+
 func (m *MockBookingRepositoryRead) GetDriverTripBookingsRaw(ctx context.Context, driverID, tripID string, pageIndex int) ([]*domain.RawDriverBookingPreview, error) {
 	args := m.Called(ctx, driverID, tripID, pageIndex)
 	if args.Get(0) == nil {

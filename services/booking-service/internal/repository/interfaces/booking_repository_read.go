@@ -78,4 +78,8 @@ type BookingRepositoryRead interface {
 
 	// CountBookingsAdmin retourne le nombre total de réservations correspondant aux filtres support.
 	CountBookingsAdmin(ctx context.Context, filter domain.BookingAdminFilter) (int, error)
+
+	// GetDriverBookings retourne l'historique paginé (10/page) des réservations d'un conducteur,
+	// tous trajets confondus, trié par created_at DESC. statusFilter vide = tous statuts.
+	GetDriverBookings(ctx context.Context, driverID string, statusFilter string, pageIndex int) ([]*domain.RawDriverBookingPreview, error)
 }

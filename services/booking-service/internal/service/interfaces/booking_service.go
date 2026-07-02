@@ -19,6 +19,10 @@ type BookingService interface {
 	// GetDriverPendingBookings retourne la liste agrégée paginée des demandes en attente du conducteur tous trajets confondus.
 	GetDriverPendingBookings(ctx context.Context, input *GetDriverPendingBookingsInput) ([]*DriverBookingPreviewResult, error)
 
+	// GetDriverBookings retourne l'historique paginé des réservations d'un conducteur, tous trajets confondus,
+	// filtrable par statut (vide = tous statuts).
+	GetDriverBookings(ctx context.Context, input *GetDriverBookingsInput) ([]*DriverBookingPreviewResult, error)
+
 	// GetActivePassengerSummariesForTrip retourne les passagers actifs d'un trajet enrichis de leurs informations.
 	GetActivePassengerSummariesForTrip(ctx context.Context, tripID string) ([]*PassengerSummaryResult, error)
 
@@ -105,6 +109,7 @@ type CreateBookingInput struct {
 	Segments           []SegmentInput
 	PassengerMessage   string
 	ExtraMinutesDetour int
+	ExtraDetourPrice   int
 }
 
 type GetBookingDetailsInput struct {
@@ -127,6 +132,12 @@ type GetDriverTripBookingsInput struct {
 type GetDriverPendingBookingsInput struct {
 	DriverID  string
 	PageIndex int
+}
+
+type GetDriverBookingsInput struct {
+	DriverID     string
+	StatusFilter string // vide = tous statuts
+	PageIndex    int
 }
 
 type ApproveBookingInput struct {
@@ -285,6 +296,7 @@ type DriverBookingPreviewResult struct {
 	DropoffLocationName string
 	DepartureDate       string
 	DepartureTime       string
+	PassengerID         string
 	PassengerName       string
 	PassengerRating     float64
 	PassengerTripCount  int
@@ -293,6 +305,9 @@ type DriverBookingPreviewResult struct {
 	PaymentMethod       string
 	CreatedAt           string
 	ExtraMinutesDetour  int
+	PickupLat           float64
+	PickupLng           float64
+	ExtraDetourPrice    int
 }
 
 // BookingCountsResult regroupe les compteurs de réservations par statut.

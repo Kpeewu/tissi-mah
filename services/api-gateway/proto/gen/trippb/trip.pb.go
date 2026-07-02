@@ -175,6 +175,7 @@ type GetTripByIDResponse struct {
 	VehicleId                string                 `protobuf:"bytes,12,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"`
 	VehicleBrand             string                 `protobuf:"bytes,13,opt,name=VehicleBrand,proto3" json:"VehicleBrand,omitempty"`
 	VehiclePlate             string                 `protobuf:"bytes,14,opt,name=VehiclePlate,proto3" json:"VehiclePlate,omitempty"`
+	RoutePolyline            string                 `protobuf:"bytes,15,opt,name=RoutePolyline,proto3" json:"RoutePolyline,omitempty"` // Google encoded polyline du tracé
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -303,6 +304,13 @@ func (x *GetTripByIDResponse) GetVehicleBrand() string {
 func (x *GetTripByIDResponse) GetVehiclePlate() string {
 	if x != nil {
 		return x.VehiclePlate
+	}
+	return ""
+}
+
+func (x *GetTripByIDResponse) GetRoutePolyline() string {
+	if x != nil {
+		return x.RoutePolyline
 	}
 	return ""
 }
@@ -4346,7 +4354,7 @@ const file_trip_proto_rawDesc = "" +
 	"\fLocationName\x18\x04 \x01(\tR\fLocationName\x12\x12\n" +
 	"\x04City\x18\x05 \x01(\tR\x04City\x128\n" +
 	"\x17ScheduledPickupDatetime\x18\x06 \x01(\tR\x17ScheduledPickupDatetime\x12,\n" +
-	"\x11PriceFromPrevious\x18\a \x01(\x05R\x11PriceFromPrevious\"\xa9\x04\n" +
+	"\x11PriceFromPrevious\x18\a \x01(\x05R\x11PriceFromPrevious\"\xcf\x04\n" +
 	"\x13GetTripByIDResponse\x12\x16\n" +
 	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12\x1a\n" +
 	"\bDriverId\x18\x02 \x01(\tR\bDriverId\x12\x16\n" +
@@ -4364,7 +4372,8 @@ const file_trip_proto_rawDesc = "" +
 	"\fErrorMessage\x18\v \x01(\tR\fErrorMessage\x12\x1c\n" +
 	"\tVehicleId\x18\f \x01(\tR\tVehicleId\x12\"\n" +
 	"\fVehicleBrand\x18\r \x01(\tR\fVehicleBrand\x12\"\n" +
-	"\fVehiclePlate\x18\x0e \x01(\tR\fVehiclePlate\"c\n" +
+	"\fVehiclePlate\x18\x0e \x01(\tR\fVehiclePlate\x12$\n" +
+	"\rRoutePolyline\x18\x0f \x01(\tR\rRoutePolyline\"c\n" +
 	"\x1bUpdateAvailableSeatsRequest\x12\x16\n" +
 	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12,\n" +
 	"\x11NewAvailableSeats\x18\x02 \x01(\x05R\x11NewAvailableSeats\"\\\n" +

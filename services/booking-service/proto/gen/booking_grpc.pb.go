@@ -35,6 +35,7 @@ const (
 	BookingService_FailPayment_FullMethodName                        = "/booking.BookingService/FailPayment"
 	BookingService_GetActivePassengerIDsForTrip_FullMethodName       = "/booking.BookingService/GetActivePassengerIDsForTrip"
 	BookingService_GetDriverPendingBookings_FullMethodName           = "/booking.BookingService/GetDriverPendingBookings"
+	BookingService_GetDriverBookings_FullMethodName                  = "/booking.BookingService/GetDriverBookings"
 	BookingService_GetActivePassengerSummariesForTrip_FullMethodName = "/booking.BookingService/GetActivePassengerSummariesForTrip"
 	BookingService_ListBookings_FullMethodName                       = "/booking.BookingService/ListBookings"
 	BookingService_GetBookingDetailAdmin_FullMethodName              = "/booking.BookingService/GetBookingDetailAdmin"
@@ -89,6 +90,9 @@ type BookingServiceClient interface {
 	// GetDriverPendingBookings retourne la liste agrégée paginée des demandes en attente du conducteur
 	// tous trajets confondus, enrichie avec les informations passager (nom, note, KYC, message, détour).
 	GetDriverPendingBookings(ctx context.Context, in *GetDriverPendingBookingsRequest, opts ...grpc.CallOption) (*GetDriverPendingBookingsResponse, error)
+	// GetDriverBookings retourne l'historique paginé des réservations d'un conducteur,
+	// tous trajets confondus, filtrable par statut (vide = tous statuts).
+	GetDriverBookings(ctx context.Context, in *GetDriverBookingsRequest, opts ...grpc.CallOption) (*GetDriverBookingsResponse, error)
 	// GetActivePassengerSummariesForTrip retourne les passagers actifs d'un trajet
 	// enrichis avec nom, note, statut paiement — pour l'écran de suivi chauffeur.
 	GetActivePassengerSummariesForTrip(ctx context.Context, in *GetActivePassengerSummariesForTripRequest, opts ...grpc.CallOption) (*GetActivePassengerSummariesForTripResponse, error)
@@ -280,6 +284,16 @@ func (c *bookingServiceClient) GetDriverPendingBookings(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *bookingServiceClient) GetDriverBookings(ctx context.Context, in *GetDriverBookingsRequest, opts ...grpc.CallOption) (*GetDriverBookingsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDriverBookingsResponse)
+	err := c.cc.Invoke(ctx, BookingService_GetDriverBookings_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *bookingServiceClient) GetActivePassengerSummariesForTrip(ctx context.Context, in *GetActivePassengerSummariesForTripRequest, opts ...grpc.CallOption) (*GetActivePassengerSummariesForTripResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetActivePassengerSummariesForTripResponse)
@@ -395,6 +409,9 @@ type BookingServiceServer interface {
 	// GetDriverPendingBookings retourne la liste agrégée paginée des demandes en attente du conducteur
 	// tous trajets confondus, enrichie avec les informations passager (nom, note, KYC, message, détour).
 	GetDriverPendingBookings(context.Context, *GetDriverPendingBookingsRequest) (*GetDriverPendingBookingsResponse, error)
+	// GetDriverBookings retourne l'historique paginé des réservations d'un conducteur,
+	// tous trajets confondus, filtrable par statut (vide = tous statuts).
+	GetDriverBookings(context.Context, *GetDriverBookingsRequest) (*GetDriverBookingsResponse, error)
 	// GetActivePassengerSummariesForTrip retourne les passagers actifs d'un trajet
 	// enrichis avec nom, note, statut paiement — pour l'écran de suivi chauffeur.
 	GetActivePassengerSummariesForTrip(context.Context, *GetActivePassengerSummariesForTripRequest) (*GetActivePassengerSummariesForTripResponse, error)
@@ -473,6 +490,9 @@ func (UnimplementedBookingServiceServer) GetActivePassengerIDsForTrip(context.Co
 }
 func (UnimplementedBookingServiceServer) GetDriverPendingBookings(context.Context, *GetDriverPendingBookingsRequest) (*GetDriverPendingBookingsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetDriverPendingBookings not implemented")
+}
+func (UnimplementedBookingServiceServer) GetDriverBookings(context.Context, *GetDriverBookingsRequest) (*GetDriverBookingsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDriverBookings not implemented")
 }
 func (UnimplementedBookingServiceServer) GetActivePassengerSummariesForTrip(context.Context, *GetActivePassengerSummariesForTripRequest) (*GetActivePassengerSummariesForTripResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetActivePassengerSummariesForTrip not implemented")
@@ -804,6 +824,24 @@ func _BookingService_GetDriverPendingBookings_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BookingService_GetDriverBookings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDriverBookingsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).GetDriverBookings(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_GetDriverBookings_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).GetDriverBookings(ctx, req.(*GetDriverBookingsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BookingService_GetActivePassengerSummariesForTrip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetActivePassengerSummariesForTripRequest)
 	if err := dec(in); err != nil {
@@ -1000,6 +1038,10 @@ var BookingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDriverPendingBookings",
 			Handler:    _BookingService_GetDriverPendingBookings_Handler,
+		},
+		{
+			MethodName: "GetDriverBookings",
+			Handler:    _BookingService_GetDriverBookings_Handler,
 		},
 		{
 			MethodName: "GetActivePassengerSummariesForTrip",

@@ -74,7 +74,7 @@ func (r *bookingWriteRepositoryImpl) insertBooking(ctx context.Context, tx pgx.T
 			price_per_seat, subtotal, service_fee, total_amount,
 			payment_method, status,
 			payment_completed_at, approved_at,
-			passenger_message, extra_minutes_detour
+			passenger_message, extra_minutes_detour, extra_detour_price
 		) VALUES (
 			$1, $2, $3, $4, $5,
 			$6, $7,
@@ -83,7 +83,7 @@ func (r *bookingWriteRepositoryImpl) insertBooking(ctx context.Context, tx pgx.T
 			$11, $12, $13, $14,
 			$15::booking_payment_method, $16::booking_status,
 			$17, $18,
-			$19, $20
+			$19, $20, $21
 		)`
 
 	_, err := tx.Exec(ctx, query,
@@ -94,7 +94,7 @@ func (r *bookingWriteRepositoryImpl) insertBooking(ctx context.Context, tx pgx.T
 		b.PricePerSeat, b.Subtotal, b.ServiceFee, b.TotalAmount,
 		string(b.PaymentMethod), string(b.Status),
 		b.PaymentCompletedAt, b.ApprovedAt,
-		b.PassengerMessage, b.ExtraMinutesDetour,
+		b.PassengerMessage, b.ExtraMinutesDetour, b.ExtraDetourPrice,
 	)
 	if err != nil {
 		r.logger.Error("insertBooking failed", zap.Error(err), zap.String("bookingID", b.BookingID))

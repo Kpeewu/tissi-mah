@@ -180,6 +180,11 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 		v := int16(input.ExtraMinutesDetour)
 		detourMinutes = &v
 	}
+	var detourPrice *int
+	if input.ExtraDetourPrice != 0 {
+		v := input.ExtraDetourPrice
+		detourPrice = &v
+	}
 
 	booking := &domain.Booking{
 		BookingID:             bookingID,
@@ -201,6 +206,7 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 		ApprovedAt:            approvedAt,
 		PassengerMessage:      passengerMsg,
 		ExtraMinutesDetour:    detourMinutes,
+		ExtraDetourPrice:      detourPrice,
 	}
 
 	// Construire les segments avec prix calculé côté serveur
@@ -1160,6 +1166,23 @@ func (s *bookingServiceImpl) GetDriverPendingBookings(ctx context.Context, input
 }
 
 // =============================================================================
+// GetDriverBookings — historique tous statuts, tous trajets confondus
+// =============================================================================
+
+func (s *bookingServiceImpl) GetDriverBookings(ctx context.Context, input *serviceInterfaces.GetDriverBookingsInput) ([]*serviceInterfaces.DriverBookingPreviewResult, error) {
+	if input.DriverID == "" {
+		return nil, bookingErrors.ErrorInvalidInput
+	}
+
+	raw, err := s.readRepo.GetDriverBookings(ctx, input.DriverID, input.StatusFilter, input.PageIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.enrichDriverBookings(ctx, raw)
+}
+
+// =============================================================================
 // GetActivePassengerSummariesForTrip
 // =============================================================================
 
@@ -1263,6 +1286,7 @@ func (s *bookingServiceImpl) enrichDriverBookings(ctx context.Context, rawBookin
 			DropoffLocationName: b.DropoffLocationName,
 			DepartureDate:       b.DepartureDatetime.Format("2006-01-02"),
 			DepartureTime:       b.DepartureDatetime.Format("15:04"),
+			PassengerID:         b.PassengerID,
 			PassengerName:       ui.name,
 			PassengerRating:     ratingMap[b.PassengerID],
 			PassengerTripCount:  tripCountMap[b.PassengerID],
@@ -1271,6 +1295,9 @@ func (s *bookingServiceImpl) enrichDriverBookings(ctx context.Context, rawBookin
 			PaymentMethod:       b.PaymentMethod,
 			CreatedAt:           b.CreatedAt.Format(time.RFC3339),
 			ExtraMinutesDetour:  derefInt16(b.ExtraMinutesDetour),
+			PickupLat:           derefFloat64(b.PickupLat),
+			PickupLng:           derefFloat64(b.PickupLng),
+			ExtraDetourPrice:    derefInt(b.ExtraDetourPrice),
 		})
 	}
 	return results, nil
@@ -1386,6 +1413,13 @@ func derefInt16(i *int16) int {
 		return 0
 	}
 	return int(*i)
+}
+
+func derefFloat64(f *float64) float64 {
+	if f == nil {
+		return 0
+	}
+	return *f
 }
 
 // =============================================================================
