@@ -1054,11 +1054,17 @@ func validVehicleDocs(vehicleID string) serviceInterfaces.UploadVehicleDocuments
 }
 
 func TestFileService_UploadVehicleDocuments(t *testing.T) {
-	t.Run("should upload 3 vehicle documents", func(t *testing.T) {
+	t.Run("should upload licence as user doc + 2 vehicle documents", func(t *testing.T) {
+		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+		userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
 		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
 		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
 		storage := &mocks.MockStorageClient{}
 
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicence").
+			Return(nil, fileErrors.ErrorDocumentNotFound)
+		userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).
+			Return("udoc-id", nil)
 		vehicleDocRead.On("GetCurrentByVehicleIDAndType", mock.Anything, "vehicle-1", mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
 		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
@@ -1068,15 +1074,68 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		vehicleDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).
 			Return("vdoc-id", nil)
 
-		svc := newService(&mocks.MockUserDocumentRepositoryRead{}, &mocks.MockUserDocumentRepositoryWrite{},
+		svc := newService(userDocRead, userDocWrite,
 			vehicleDocRead, vehicleDocWrite,
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			storage)
 
-		_, err := svc.UploadVehicleDocuments(context.Background(), validVehicleDocs("vehicle-1"))
+		docs, err := svc.UploadVehicleDocuments(context.Background(), validVehicleDocs("vehicle-1"))
 
 		require.NoError(t, err)
+		require.Len(t, docs, 3)
 		storage.AssertNumberOfCalls(t, "Upload", 3)
+		userDocWrite.AssertNumberOfCalls(t, "Create", 1)
+		vehicleDocWrite.AssertNumberOfCalls(t, "Create", 2)
+	})
+
+	t.Run("permis deja soumis: image ignoree, seuls les 2 vehicle docs sont uploades", func(t *testing.T) {
+		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+		userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
+		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
+		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
+		storage := &mocks.MockStorageClient{}
+
+		existing := stubUserDoc("udoc-dl", "user-1", "driverLicence")
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicence").
+			Return(existing, nil)
+		vehicleDocRead.On("GetCurrentByVehicleIDAndType", mock.Anything, "vehicle-1", mock.AnythingOfType("string")).
+			Return(nil, fileErrors.ErrorDocumentNotFound)
+		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
+			Return("https://storage.example.com/file.jpg", nil)
+		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
+			Return("https://presigned.example.com/doc", nil)
+		vehicleDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).
+			Return("vdoc-id", nil)
+
+		svc := newService(userDocRead, userDocWrite,
+			vehicleDocRead, vehicleDocWrite,
+			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			storage)
+
+		docs, err := svc.UploadVehicleDocuments(context.Background(), validVehicleDocs("vehicle-1"))
+
+		require.NoError(t, err)
+		require.Len(t, docs, 2)
+		storage.AssertNumberOfCalls(t, "Upload", 2)
+		userDocWrite.AssertNotCalled(t, "Create")
+	})
+
+	t.Run("pas de permis courant + image absente retourne ErrorDriverLicenceRequired", func(t *testing.T) {
+		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicence").
+			Return(nil, fileErrors.ErrorDocumentNotFound)
+
+		svc := newService(userDocRead, &mocks.MockUserDocumentRepositoryWrite{},
+			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
+			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			&mocks.MockStorageClient{})
+
+		input := validVehicleDocs("vehicle-1")
+		input.DriverLicence.Data = nil
+
+		_, err := svc.UploadVehicleDocuments(context.Background(), input)
+
+		assert.ErrorIs(t, err, fileErrors.ErrorDriverLicenceRequired)
 	})
 
 	t.Run("should return ErrorInvalidDocumentType for empty VehicleID", func(t *testing.T) {
@@ -1093,24 +1152,33 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		assert.ErrorIs(t, err, fileErrors.ErrorInvalidDocumentType)
 	})
 
-	t.Run("should return ErrorInvalidDocumentType when a file is missing", func(t *testing.T) {
-		svc := newService(&mocks.MockUserDocumentRepositoryRead{}, &mocks.MockUserDocumentRepositoryWrite{},
+	t.Run("should return ErrorInvalidDocumentType when a vehicle file is missing", func(t *testing.T) {
+		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+		// Permis déjà soumis → skip, l'assurance manquante déclenche l'erreur immédiatement
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicence").
+			Return(stubUserDoc("udoc-dl", "user-1", "driverLicence"), nil)
+
+		svc := newService(userDocRead, &mocks.MockUserDocumentRepositoryWrite{},
 			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			&mocks.MockStorageClient{})
 
 		input := validVehicleDocs("vehicle-1")
-		input.DriverLicence.Data = nil // premier dans l'ordre — déclenche l'erreur immédiatement
+		input.Assurance.Data = nil
 
 		_, err := svc.UploadVehicleDocuments(context.Background(), input)
 
 		assert.ErrorIs(t, err, fileErrors.ErrorInvalidDocumentType)
 	})
 
-	t.Run("driver licence est stocke avec docType=driverLicence (non insurance)", func(t *testing.T) {
+	t.Run("driver licence est stocke comme user doc, pas comme vehicle doc", func(t *testing.T) {
+		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+		userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
 		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
 		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
 		storage := &mocks.MockStorageClient{}
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicence").
+			Return(nil, fileErrors.ErrorDocumentNotFound)
 		vehicleDocRead.On("GetCurrentByVehicleIDAndType", mock.Anything, "vehicle-1", mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
 		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
@@ -1118,15 +1186,21 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
 			Return("https://presigned.example.com/doc", nil)
 
-		captured := make([]*domain.VehicleDocument, 0, 3)
+		var capturedUser []*domain.UserDocument
+		userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).
+			Run(func(args mock.Arguments) {
+				capturedUser = append(capturedUser, args.Get(1).(*domain.UserDocument))
+			}).
+			Return("udoc-id", nil)
+
+		var capturedVehicle []*domain.VehicleDocument
 		vehicleDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).
 			Run(func(args mock.Arguments) {
-				doc := args.Get(1).(*domain.VehicleDocument)
-				captured = append(captured, doc)
+				capturedVehicle = append(capturedVehicle, args.Get(1).(*domain.VehicleDocument))
 			}).
 			Return("vdoc-id", nil)
 
-		svc := newService(&mocks.MockUserDocumentRepositoryRead{}, &mocks.MockUserDocumentRepositoryWrite{},
+		svc := newService(userDocRead, userDocWrite,
 			vehicleDocRead, vehicleDocWrite,
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			storage)
@@ -1134,25 +1208,25 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		_, err := svc.UploadVehicleDocuments(context.Background(), validVehicleDocs("vehicle-1"))
 
 		require.NoError(t, err)
-		require.Len(t, captured, 3)
-		types := []string{captured[0].DocumentType, captured[1].DocumentType, captured[2].DocumentType}
-		assert.Contains(t, types, "driverLicence")
-		assert.Contains(t, types, "insurance")
-		assert.Contains(t, types, "registrationCard")
-		// le permis ne doit plus etre stocke comme insurance (bug du copier-coller)
-		insuranceCount := 0
-		for _, t := range types {
-			if t == "insurance" {
-				insuranceCount++
-			}
-		}
-		assert.Equal(t, 1, insuranceCount, "un seul doc doit etre de type insurance")
+		require.Len(t, capturedUser, 1)
+		assert.Equal(t, "driverLicence", capturedUser[0].DocumentType)
+		assert.Equal(t, "user-1", capturedUser[0].UserID)
+		assert.Equal(t, "DVLA", capturedUser[0].IssuingCountry, "issuing_authority du permis mappé sur issuing_country du user doc")
+		require.Len(t, capturedVehicle, 2)
+		vehicleTypes := []string{capturedVehicle[0].DocumentType, capturedVehicle[1].DocumentType}
+		assert.Contains(t, vehicleTypes, "insurance")
+		assert.Contains(t, vehicleTypes, "registrationCard")
+		assert.NotContains(t, vehicleTypes, "driverLicence", "le permis ne doit plus etre un document vehicule")
 	})
 
 	t.Run("docName suit le format nom_prenom_date_heure_type", func(t *testing.T) {
+		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+		userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
 		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
 		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
 		storage := &mocks.MockStorageClient{}
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicence").
+			Return(nil, fileErrors.ErrorDocumentNotFound)
 		vehicleDocRead.On("GetCurrentByVehicleIDAndType", mock.Anything, "vehicle-1", mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
 		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
@@ -1160,14 +1234,19 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
 			Return("https://presigned.example.com/doc", nil)
 
-		captured := make([]*domain.VehicleDocument, 0, 3)
+		var capturedNames []string
+		userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).
+			Run(func(args mock.Arguments) {
+				capturedNames = append(capturedNames, args.Get(1).(*domain.UserDocument).DocumentName)
+			}).
+			Return("udoc-id", nil)
 		vehicleDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).
 			Run(func(args mock.Arguments) {
-				captured = append(captured, args.Get(1).(*domain.VehicleDocument))
+				capturedNames = append(capturedNames, args.Get(1).(*domain.VehicleDocument).DocumentName)
 			}).
 			Return("vdoc-id", nil)
 
-		svc := newService(&mocks.MockUserDocumentRepositoryRead{}, &mocks.MockUserDocumentRepositoryWrite{},
+		svc := newService(userDocRead, userDocWrite,
 			vehicleDocRead, vehicleDocWrite,
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			storage)
@@ -1175,18 +1254,22 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		_, err := svc.UploadVehicleDocuments(context.Background(), validVehicleDocs("vehicle-1"))
 
 		require.NoError(t, err)
-		require.Len(t, captured, 3)
+		require.Len(t, capturedNames, 3)
 
 		re := regexp.MustCompile(`^dupont_jean_\d{8}_\d{6}_(driver_licence|assurance|vehicle_registration)$`)
-		for _, doc := range captured {
-			assert.Regexp(t, re, doc.DocumentName, "docName doit matcher le format")
+		for _, name := range capturedNames {
+			assert.Regexp(t, re, name, "docName doit matcher le format")
 		}
 	})
 
 	t.Run("sanitize les noms accentues et apostrophes dans le docName", func(t *testing.T) {
+		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+		userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
 		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
 		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
 		storage := &mocks.MockStorageClient{}
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicence").
+			Return(nil, fileErrors.ErrorDocumentNotFound)
 		vehicleDocRead.On("GetCurrentByVehicleIDAndType", mock.Anything, "vehicle-2", mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
 		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
@@ -1194,14 +1277,19 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
 			Return("https://presigned.example.com/doc", nil)
 
-		captured := make([]*domain.VehicleDocument, 0, 3)
+		var capturedNames []string
+		userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).
+			Run(func(args mock.Arguments) {
+				capturedNames = append(capturedNames, args.Get(1).(*domain.UserDocument).DocumentName)
+			}).
+			Return("udoc-id", nil)
 		vehicleDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).
 			Run(func(args mock.Arguments) {
-				captured = append(captured, args.Get(1).(*domain.VehicleDocument))
+				capturedNames = append(capturedNames, args.Get(1).(*domain.VehicleDocument).DocumentName)
 			}).
 			Return("vdoc-id", nil)
 
-		svc := newService(&mocks.MockUserDocumentRepositoryRead{}, &mocks.MockUserDocumentRepositoryWrite{},
+		svc := newService(userDocRead, userDocWrite,
 			vehicleDocRead, vehicleDocWrite,
 			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 			storage)
@@ -1212,10 +1300,10 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		_, err := svc.UploadVehicleDocuments(context.Background(), input)
 
 		require.NoError(t, err)
-		require.Len(t, captured, 3)
+		require.Len(t, capturedNames, 3)
 		re := regexp.MustCompile(`^dupre_anne-marie_\d{8}_\d{6}_(driver_licence|assurance|vehicle_registration)$`)
-		for _, doc := range captured {
-			assert.Regexp(t, re, doc.DocumentName)
+		for _, name := range capturedNames {
+			assert.Regexp(t, re, name)
 		}
 	})
 }
@@ -1891,29 +1979,42 @@ func TestFileService_UploadIdDocument_AlreadySubmitted(t *testing.T) {
 }
 
 // newVehicleSvcWithReadMock crée un service avec un vehicleDocRead mocké
-// qui répond ErrorDocumentNotFound pour GetCurrentByVehicleIDAndType (pas de doc courant).
+// qui répond ErrorDocumentNotFound pour GetCurrentByVehicleIDAndType (pas de doc courant)
+// et un userDocRead qui renvoie un permis utilisateur existant (permis skippé).
 func newVehicleSvcWithReadMock(vehicleID string) (serviceInterfaces.FileService, *mocks.MockVehicleDocumentRepositoryWrite, *mocks.MockStorageClient) {
+	userDocRead := &mocks.MockUserDocumentRepositoryRead{}
 	vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
 	vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
 	storage := &mocks.MockStorageClient{}
+	userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, mock.AnythingOfType("string"), "driverLicence").
+		Return(stubUserDoc("udoc-dl", "user-1", "driverLicence"), nil)
 	vehicleDocRead.On("GetCurrentByVehicleIDAndType", mock.Anything, vehicleID, mock.AnythingOfType("string")).
 		Return(nil, fileErrors.ErrorDocumentNotFound)
-	svc := newService(&mocks.MockUserDocumentRepositoryRead{}, &mocks.MockUserDocumentRepositoryWrite{},
+	svc := newService(userDocRead, &mocks.MockUserDocumentRepositoryWrite{},
 		vehicleDocRead, vehicleDocWrite,
 		&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 		storage)
 	return svc, vehicleDocWrite, storage
 }
 
+// newNoLicenceSvc crée un service sans permis utilisateur courant (le permis fourni
+// dans l'input passe par la validation métadonnées avant tout appel storage/DB).
+func newNoLicenceSvc() serviceInterfaces.FileService {
+	userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+	userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, mock.AnythingOfType("string"), "driverLicence").
+		Return(nil, fileErrors.ErrorDocumentNotFound)
+	return newService(userDocRead, &mocks.MockUserDocumentRepositoryWrite{},
+		&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
+		&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+		&mocks.MockStorageClient{})
+}
+
 // TestFileService_UploadVehicleDocuments_MissingMetadata vérifie les règles de validation
-// par type de document véhicule.
+// par type de document.
 func TestFileService_UploadVehicleDocuments_MissingMetadata(t *testing.T) {
 	t.Run("driverLicence sans expire_at retourne ErrorMissingDocumentMetadata", func(t *testing.T) {
-		// driverLicence est premier dans la boucle → l'erreur arrive immédiatement, pas de DB call
-		svc := newService(&mocks.MockUserDocumentRepositoryRead{}, &mocks.MockUserDocumentRepositoryWrite{},
-			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
-			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
-			&mocks.MockStorageClient{})
+		// pas de permis courant → la validation métadonnées du permis échoue immédiatement
+		svc := newNoLicenceSvc()
 		input := validVehicleDocs("v-1")
 		input.DriverLicence.ExpireAt = ""
 		_, err := svc.UploadVehicleDocuments(context.Background(), input)
@@ -1921,10 +2022,7 @@ func TestFileService_UploadVehicleDocuments_MissingMetadata(t *testing.T) {
 	})
 
 	t.Run("document_number vide pour driverLicence retourne ErrorMissingDocumentMetadata", func(t *testing.T) {
-		svc := newService(&mocks.MockUserDocumentRepositoryRead{}, &mocks.MockUserDocumentRepositoryWrite{},
-			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
-			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
-			&mocks.MockStorageClient{})
+		svc := newNoLicenceSvc()
 		input := validVehicleDocs("v-1")
 		input.DriverLicence.DocumentNumber = ""
 		_, err := svc.UploadVehicleDocuments(context.Background(), input)
@@ -1932,22 +2030,8 @@ func TestFileService_UploadVehicleDocuments_MissingMetadata(t *testing.T) {
 	})
 
 	t.Run("insurance sans expire_at retourne ErrorMissingDocumentMetadata", func(t *testing.T) {
-		// driverLicence passe en premier (avec GetCurrentByVehicleIDAndType mocké), puis
-		// assurance échoue sur expire_at manquant.
-		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
-		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
-		storage := &mocks.MockStorageClient{}
-		vehicleDocRead.On("GetCurrentByVehicleIDAndType", mock.Anything, "v-ins", "driverLicence").
-			Return(nil, fileErrors.ErrorDocumentNotFound)
-		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
-			Return("https://s3/doc.jpg", nil)
-		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
-			Return("https://presigned/doc", nil)
-		vehicleDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).Return("vdoc-id", nil)
-		svc := newService(&mocks.MockUserDocumentRepositoryRead{}, &mocks.MockUserDocumentRepositoryWrite{},
-			vehicleDocRead, vehicleDocWrite,
-			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
-			storage)
+		// permis déjà soumis (skippé) → l'assurance échoue sur expire_at manquant sans aucun upload
+		svc, _, _ := newVehicleSvcWithReadMock("v-ins")
 
 		input := validVehicleDocs("v-ins")
 		input.Assurance.ExpireAt = ""
@@ -1970,15 +2054,20 @@ func TestFileService_UploadVehicleDocuments_MissingMetadata(t *testing.T) {
 	})
 }
 
-// TestFileService_UploadVehicleDocuments_AlreadySubmitted vérifie le blocage de re-soumission.
+// TestFileService_UploadVehicleDocuments_AlreadySubmitted vérifie le blocage de re-soumission
+// d'un document véhicule (assurance déjà courante sur ce véhicule).
 func TestFileService_UploadVehicleDocuments_AlreadySubmitted(t *testing.T) {
-	vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
-	existingDL := stubVehicleDoc("vdoc-1", "vehicle-X", "driverLicence")
-	existingDL.Status = "underReview"
-	vehicleDocRead.On("GetCurrentByVehicleIDAndType", mock.Anything, "vehicle-X", "driverLicence").
-		Return(existingDL, nil)
+	userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+	userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicence").
+		Return(stubUserDoc("udoc-dl", "user-1", "driverLicence"), nil)
 
-	svc := newService(&mocks.MockUserDocumentRepositoryRead{}, &mocks.MockUserDocumentRepositoryWrite{},
+	vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
+	existingIns := stubVehicleDoc("vdoc-1", "vehicle-X", "insurance")
+	existingIns.Status = "underReview"
+	vehicleDocRead.On("GetCurrentByVehicleIDAndType", mock.Anything, "vehicle-X", "insurance").
+		Return(existingIns, nil)
+
+	svc := newService(userDocRead, &mocks.MockUserDocumentRepositoryWrite{},
 		vehicleDocRead, &mocks.MockVehicleDocumentRepositoryWrite{},
 		&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
 		&mocks.MockStorageClient{})

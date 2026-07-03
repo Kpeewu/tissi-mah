@@ -78,7 +78,7 @@ service KYCService {
   }
 
   // ValidateDocument - Validation manuelle directe d'un document par un agent support (sans Persona)
-  // Obligatoire pour les documents véhicule (insurance, registrationCard, driverLicence avec VehicleId)
+  // Obligatoire pour les documents véhicule (insurance, registrationCard avec VehicleId)
   rpc ValidateDocument(ValidateDocumentRequest) returns (ValidateDocumentResponse) {
     option (google.api.http) = {
       post: "/api/v1/kyc/admin/validateDocument"
@@ -120,7 +120,7 @@ service KYCService {
 // =============================================================================
 
 message CreateInquiryRequest {
-  string DocumentType = 1; // IDCard | Passport | DriverLicence (user) | driverLicence | insurance | registrationCard (vehicle)
+  string DocumentType = 1; // IDCard | Passport | DriverLicence (user) | insurance | registrationCard (vehicle)
   string VehicleId    = 2; // Optionnel : si renseigné, document véhicule
   string DocumentId   = 3; // Identifiant du document à vérifier (recto/front)
   reserved 4;
@@ -349,7 +349,7 @@ message ManualReviewDocument {
   string IssuingCountry      = 18; // user docs uniquement
   string IssuingAuthority    = 19; // vehicle docs uniquement
   ManualReviewVehicleInfo Vehicle = 20; // vehicle docs uniquement
-  // Verso — recto-verso (idCard, driverLicence) uniquement ; vide sinon
+  // Verso — recto-verso (idCard) uniquement ; vide sinon
   string SecondDocumentId    = 21;
   string SecondDocumentUrl   = 22;
   int64  SecondFileSizeBytes = 23;

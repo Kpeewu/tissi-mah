@@ -25,4 +25,5 @@ var (
 	ErrorDocumentAlreadySubmitted  = errors.New("ErrorDocumentAlreadySubmitted")
 	ErrorDocumentNotReplaceable    = errors.New("ErrorDocumentNotReplaceable")
 	ErrorMissingDocumentMetadata   = errors.New("ErrorMissingDocumentMetadata")
+	ErrorDriverLicenceRequired     = errors.New("ErrorDriverLicenceRequired")
 )

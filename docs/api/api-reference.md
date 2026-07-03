@@ -478,6 +478,8 @@ Base : `/file`
 
 `DocumentType` : `IDCard` | `Passport` | `DriverLicence`
 
+Champs fichiers selon le type : `IDCardRecto`+`IDCardVerso` (IDCard), `Passport` (Passport), `DriverLicence` (DriverLicence — image unique, document partagé identité/véhicule).
+
 **Réponse :**
 ```json
 {
@@ -500,6 +502,8 @@ Base : `/file`
   "VehicleRegistration": "<base64>"
 }
 ```
+
+`DriverLicenceImage` : ignoré si l'utilisateur a déjà un permis courant (soumis via `uploadIdDocument` ou un précédent flux véhicule), obligatoire sinon. Le permis est stocké comme document utilisateur (`driverLicence`) et couvre tous les véhicules.
 
 #### `PATCH /api/v1/file/changeDocument` 🔒
 

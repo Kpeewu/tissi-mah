@@ -181,10 +181,9 @@ func TestUploadIdDocument_ResolvesFirebaseToProfileAndForwardsInternalUUID(t *te
 	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
 
 	resp, err := h.UploadIdDocument(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadIdDocumentRequest{
-		UserID:             "firebaseXYZ", // body-supplied, doit etre ignore
-		DocumentType:       "DriverLicence",
-		DriverLicenceRecto: []byte("recto-bytes"),
-		DriverLicenceVerso: []byte("verso-bytes"),
+		UserID:        "firebaseXYZ", // body-supplied, doit etre ignore
+		DocumentType:  "DriverLicence",
+		DriverLicence: []byte("licence-bytes"),
 	})
 
 	require.NoError(t, err)
@@ -196,8 +195,7 @@ func TestUploadIdDocument_ResolvesFirebaseToProfileAndForwardsInternalUUID(t *te
 	assert.Equal(t, "Jean", spy.gotInput.FirstName, "le service doit recevoir le prenom du profil user-service")
 	assert.Equal(t, "Dupont", spy.gotInput.LastName, "le service doit recevoir le nom du profil user-service")
 	assert.Equal(t, "DriverLicence", spy.gotInput.DocumentType)
-	assert.Equal(t, []byte("recto-bytes"), spy.gotInput.DriverLicenceRecto)
-	assert.Equal(t, []byte("verso-bytes"), spy.gotInput.DriverLicenceVerso)
+	assert.Equal(t, []byte("licence-bytes"), spy.gotInput.DriverLicence)
 	mockUser.AssertExpectations(t)
 }
 

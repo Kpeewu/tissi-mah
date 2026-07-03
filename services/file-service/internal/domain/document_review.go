@@ -114,13 +114,11 @@ func IsValidReasonRejection(reason string) bool {
 }
 
 // ToLogicalDocumentType dérive le type logique d'un document depuis son type physique.
-// idCardFront/idCardBack → idCard, driverLicenceFront/driverLicenceBack → driverLicence.
+// idCardFront/idCardBack → idCard ; les autres types (driverLicence, passport, …) sont déjà logiques.
 func ToLogicalDocumentType(documentType string) string {
 	switch documentType {
 	case "idCardFront", "idCardBack":
 		return "idCard"
-	case "driverLicenceFront", "driverLicenceBack":
-		return "driverLicence"
 	default:
 		return documentType
 	}

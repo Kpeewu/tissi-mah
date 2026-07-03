@@ -201,7 +201,7 @@ func (s *userServiceImpl) GetMyProfile(ctx context.Context) (*serviceInterfaces.
 	}
 
 	idExpiry := s.getDocExpiry(ctx, user.UserID, "idCardFront", "idCardBack")
-	drExpiry := s.getDocExpiry(ctx, user.UserID, "driverLicenceFront", "driverLicenceBack")
+	drExpiry := s.getDocExpiry(ctx, user.UserID, "driverLicence")
 
 	s.logger.Info("profil complet récupéré avec succès", zap.String("user_id", user.UserID))
 	return toFullProfile(user, authInfo, idExpiry, drExpiry), nil
@@ -307,7 +307,7 @@ func (s *userServiceImpl) UpdateProfile(ctx context.Context, req serviceInterfac
 	}
 
 	idExpiry := s.getDocExpiry(ctx, updated.UserID, "idCardFront", "idCardBack")
-	drExpiry := s.getDocExpiry(ctx, updated.UserID, "driverLicenceFront", "driverLicenceBack")
+	drExpiry := s.getDocExpiry(ctx, updated.UserID, "driverLicence")
 
 	s.logger.Info("profil mis à jour avec succès", zap.String("profile_id", req.UserID))
 	return toFullProfile(updated, authInfo, idExpiry, drExpiry), nil
@@ -345,19 +345,21 @@ func (s *userServiceImpl) ChangeProfilePicture(ctx context.Context, userID strin
 	}
 
 	idExpiry := s.getDocExpiry(ctx, updated.UserID, "idCardFront", "idCardBack")
-	drExpiry := s.getDocExpiry(ctx, updated.UserID, "driverLicenceFront", "driverLicenceBack")
+	drExpiry := s.getDocExpiry(ctx, updated.UserID, "driverLicence")
 
 	s.logger.Info("photo de profil mise à jour avec succès", zap.String("user_id", userID))
 	return toFullProfile(updated, authInfo, idExpiry, drExpiry), nil
 }
 
-// getDocExpiry récupère expired_at du document courant, en essayant primary puis fallback.
+// getDocExpiry récupère expired_at du document courant, en essayant chaque type dans l'ordre.
 // Retourne "" si aucun document n'est trouvé ou si file-service est indisponible.
-func (s *userServiceImpl) getDocExpiry(ctx context.Context, userID, primary, fallback string) string {
-	if exp := s.fileClient.GetDocumentExpiry(ctx, userID, primary); exp != "" {
-		return exp
+func (s *userServiceImpl) getDocExpiry(ctx context.Context, userID string, types ...string) string {
+	for _, docType := range types {
+		if exp := s.fileClient.GetDocumentExpiry(ctx, userID, docType); exp != "" {
+			return exp
+		}
 	}
-	return s.fileClient.GetDocumentExpiry(ctx, userID, fallback)
+	return ""
 }
 
 // toFullProfile convertit un User + AuthInfo + dates d'expiration en FullProfile

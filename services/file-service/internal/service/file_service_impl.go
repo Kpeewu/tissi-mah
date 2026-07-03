@@ -951,7 +951,7 @@ func (s *fileServiceImpl) ChangeDocument(ctx context.Context, input serviceInter
 
 // UploadIdDocument upload les documents d'identité vers S3/MinIO et sauvegarde les URLs en base.
 // Les fichiers sont uploadés individuellement via UploadUserDocument.
-// Retourne la liste des documents créés (1 pour Passport, 2 pour IDCard / DriverLicence).
+// Retourne la liste des documents créés (1 pour Passport / DriverLicence, 2 pour IDCard).
 func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInterfaces.UploadIdDocumentInput) ([]*serviceInterfaces.UploadedDocument, error) {
 	s.logger.Debug("upload id document", zap.String("profileID", input.UserID), zap.String("type", input.DocumentType))
 
@@ -1011,13 +1011,12 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 			{data: input.Passport, docType: "passport", docName: prefix + "_passport"},
 		}
 	case "DriverLicence":
-		if len(input.DriverLicenceRecto) == 0 || len(input.DriverLicenceVerso) == 0 {
-			s.logger.Error("DriverLicence: recto et verso obligatoires", zap.String("profileID", input.UserID))
+		if len(input.DriverLicence) == 0 {
+			s.logger.Error("DriverLicence: fichier obligatoire", zap.String("profileID", input.UserID))
 			return nil, fileErrors.ErrorInvalidDocumentType
 		}
 		uploads = []fileUpload{
-			{data: input.DriverLicenceRecto, docType: "driverLicenceFront", docName: prefix + "_driver_licence_recto"},
-			{data: input.DriverLicenceVerso, docType: "driverLicenceBack", docName: prefix + "_driver_licence_verso"},
+			{data: input.DriverLicence, docType: "driverLicence", docName: prefix + "_driver_licence"},
 		}
 	default:
 		s.logger.Error("type de document inconnu", zap.String("type", input.DocumentType))
@@ -1074,9 +1073,13 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 	return created, nil
 }
 
-// UploadVehicleDocuments upload le permis de conduire, l'assurance et la carte grise
+// UploadVehicleDocuments upload l'assurance et la carte grise (documents véhicule)
 // vers S3/MinIO et sauvegarde les URLs en base via UploadVehicleDocument.
-// Retourne les 3 documents créés dans l'ordre permis / assurance / carte grise.
+// Le permis de conduire est un document UTILISATEUR partagé identité/véhicule :
+// s'il existe déjà un permis courant (soumis via uploadIdDocument ou un précédent
+// flux véhicule), l'image éventuellement fournie est ignorée ; sinon elle est
+// obligatoire et stockée via UploadUserDocument (type driverLicence).
+// Retourne les documents créés dans l'ordre permis (si uploadé) / assurance / carte grise.
 func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serviceInterfaces.UploadVehicleDocumentsInput) ([]*serviceInterfaces.UploadedDocument, error) {
 	s.logger.Debug("upload vehicle documents",
 		zap.String("profileID", input.UserID),
@@ -1098,13 +1101,89 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 	firstName := sanitizeForDocName(input.FirstName)
 	prefix := fmt.Sprintf("%s_%s_%s", lastName, firstName, timestamp)
 
+	created := make([]*serviceInterfaces.UploadedDocument, 0, 3)
+
+	// --- Permis de conduire (document utilisateur) ---
+	existingLicence, _ := s.userDocRead.GetCurrentByUserIDAndType(ctx, input.UserID, "driverLicence")
+	switch {
+	case existingLicence != nil:
+		// Permis déjà soumis : couvre tous les véhicules de l'utilisateur.
+		if len(input.DriverLicence.Data) > 0 {
+			s.logger.Warn("upload vehicle documents: permis déjà soumis, image ignorée",
+				zap.String("profileID", input.UserID),
+				zap.String("existingID", existingLicence.DocumentID),
+			)
+		}
+	case len(input.DriverLicence.Data) == 0:
+		s.logger.Error("upload vehicle documents: permis obligatoire (aucun permis utilisateur courant)",
+			zap.String("profileID", input.UserID),
+			zap.String("vehicleID", input.VehicleID),
+		)
+		return nil, fileErrors.ErrorDriverLicenceRequired
+	default:
+		licence := input.DriverLicence
+		if licence.DocumentNumber == "" || licence.IssuedAt == "" || licence.ExpireAt == "" || licence.IssuingAuthority == "" {
+			s.logger.Error("upload vehicle documents: métadonnées permis manquantes",
+				zap.String("profileID", input.UserID),
+			)
+			return nil, fileErrors.ErrorMissingDocumentMetadata
+		}
+		licenceIssuedAt, err := parseDateField(licence.IssuedAt)
+		if err != nil {
+			s.logger.Error("upload vehicle documents: issued_at permis invalide", zap.String("value", licence.IssuedAt), zap.Error(err))
+			return nil, fileErrors.ErrorMissingDocumentMetadata
+		}
+		licenceExpireAt, err := parseDateField(licence.ExpireAt)
+		if err != nil {
+			s.logger.Error("upload vehicle documents: expire_at permis invalide", zap.String("value", licence.ExpireAt), zap.Error(err))
+			return nil, fileErrors.ErrorMissingDocumentMetadata
+		}
+		mimeType := detectMimeType(licence.Data)
+		if !allowedMimeTypes[mimeType] {
+			s.logger.Error("upload vehicle documents: unsupported mime type",
+				zap.String("profileID", input.UserID),
+				zap.String("docType", "driverLicence"),
+				zap.String("detectedMime", mimeType),
+			)
+			return nil, fileErrors.ErrorInvalidMimeType
+		}
+		doc, err := s.UploadUserDocument(ctx, serviceInterfaces.UploadUserDocumentInput{
+			UserID:         input.UserID,
+			DocumentName:   prefix + "_driver_licence",
+			DocumentType:   "driverLicence",
+			MimeType:       mimeType,
+			FileSizeBytes:  int64(len(licence.Data)),
+			Data:           bytes.NewReader(licence.Data),
+			DocumentNumber: licence.DocumentNumber,
+			IssuedAt:       &licenceIssuedAt,
+			ExpireAt:       &licenceExpireAt,
+			IssuingCountry: licence.IssuingAuthority,
+		})
+		if err != nil {
+			s.logger.Error("upload vehicle documents: licence upload failed",
+				zap.String("profileID", input.UserID),
+				zap.Error(err),
+			)
+			return nil, err
+		}
+		s.logger.Info("driver licence uploaded (user document)",
+			zap.String("profileID", input.UserID),
+			zap.String("documentID", doc.DocumentID),
+		)
+		presignedURL, _ := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, time.Hour)
+		created = append(created, &serviceInterfaces.UploadedDocument{
+			DocumentID:   doc.DocumentID,
+			DocumentURL:  presignedURL,
+			DocumentType: doc.DocumentType,
+			DocumentName: doc.DocumentName,
+		})
+	}
+
+	// --- Documents véhicule (assurance + carte grise) ---
 	uploads := []fileUpload{
-		{file: input.DriverLicence, docType: "driverLicence", docName: prefix + "_driver_licence"},
 		{file: input.Assurance, docType: "insurance", docName: prefix + "_assurance"},
 		{file: input.RegistrationCard, docType: "registrationCard", docName: prefix + "_vehicle_registration"},
 	}
-
-	created := make([]*serviceInterfaces.UploadedDocument, 0, len(uploads))
 	for _, u := range uploads {
 		if len(u.file.Data) == 0 {
 			s.logger.Error("upload vehicle documents: fichier manquant",
@@ -1122,7 +1201,7 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 			)
 			return nil, fileErrors.ErrorMissingDocumentMetadata
 		}
-		// expire_at obligatoire pour driverLicence et insurance, optionnel pour registrationCard
+		// expire_at obligatoire pour insurance, optionnel pour registrationCard
 		if u.docType != "registrationCard" && u.file.ExpireAt == "" {
 			s.logger.Error("upload vehicle documents: expire_at obligatoire",
 				zap.String("vehicleID", input.VehicleID),

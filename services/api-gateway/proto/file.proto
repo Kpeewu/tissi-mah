@@ -118,10 +118,14 @@ message VehicleDocMetadata {
 message UploadVehicleDocumentsRequest {
   string UserID               = 1;
   string VehicleID            = 2;
+  // Permis : optionnel si l'utilisateur a déjà un permis courant (soumis via
+  // uploadIdDocument ou un précédent flux véhicule) — l'image est alors ignorée.
+  // Obligatoire sinon. Stocké comme document UTILISATEUR (type driverLicence),
+  // jamais comme document véhicule : il couvre tous les véhicules du user.
   bytes  DriverLicenceImage   = 3;
   bytes  Assurance            = 4;
   bytes  VehicleRegistration  = 5;
-  VehicleDocMetadata DriverLicenceMetadata    = 6;
+  VehicleDocMetadata DriverLicenceMetadata    = 6; // Requis uniquement si DriverLicenceImage est fourni et pris en compte
   VehicleDocMetadata AssuranceMetadata        = 7;
   VehicleDocMetadata RegistrationCardMetadata = 8;
 }
@@ -129,7 +133,7 @@ message UploadVehicleDocumentsRequest {
 message UploadVehicleDocumentsResponse {
   bool                     Success      = 1;
   string                   ErrorMessage = 2;
-  repeated UploadedDocument Documents   = 3; // Permis, assurance, carte grise (dans cet ordre)
+  repeated UploadedDocument Documents   = 3; // [Permis (si uploadé),] assurance, carte grise (dans cet ordre)
 }
 
 // UploadedDocument décrit un document fraîchement uploadé/remplacé.
@@ -204,6 +208,9 @@ message ChangeDocumentResponse {
 // =============================================================================
 
 message UploadIdDocumentRequest {
+  reserved 6;
+  reserved "DriverLicenceRecto", "DriverLicenceVerso";
+
   string UserID    = 1;
   // Type : IDCard | Passport | DriverLicence
   string DocumentType = 2;
@@ -212,9 +219,10 @@ message UploadIdDocumentRequest {
   bytes IDCardRecto = 3;
   bytes IDCardVerso = 4;
 
-  // Obligatoire si DocumentType = DriverLicence
-  bytes DriverLicenceRecto = 5;
-  bytes DriverLicenceVerso = 6;
+  // Obligatoire si DocumentType = DriverLicence (image unique).
+  // Le permis est un document utilisateur partagé : validé/refusé pour
+  // l'identité ET la vérification véhicule (tous les véhicules du user).
+  bytes DriverLicence = 5;
 
   // Obligatoire si DocumentType = Passport
   bytes Passport = 7;
@@ -229,7 +237,7 @@ message UploadIdDocumentRequest {
 message UploadIdDocumentResponse {
   bool                     Success      = 1;
   string                   ErrorMessage = 2;
-  repeated UploadedDocument Documents   = 3; // 1 doc pour Passport, 2 pour IDCard / DriverLicence (recto + verso)
+  repeated UploadedDocument Documents   = 3; // 1 doc pour Passport / DriverLicence, 2 pour IDCard (recto + verso)
 }
 
 // =============================================================================
@@ -362,7 +370,7 @@ message CreateDocumentReviewRequest {
 
   // Dénormalisation (migration 000008) — toujours fournis par kyc-service
   string UserId = 21; // Obligatoire — propriétaire de la review
-  string DocumentType = 22; // Type de document (idCardFront, driverLicenceFront, ...)
+  string DocumentType = 22; // Type de document (idCardFront, driverLicence, ...)
 
   // Recto-verso + historique (migration 000010)
   string SecondUserDocumentId = 23; // Optionnel — verso pour les documents recto-verso

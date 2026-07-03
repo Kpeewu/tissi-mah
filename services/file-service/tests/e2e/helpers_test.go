@@ -37,16 +37,22 @@ func uploadUserDoc(t *testing.T, userID, docType string) *filepb.UserDocumentRes
 	stream, err := grpcClient.UploadUserDocument(ctx)
 	require.NoError(t, err)
 
+	meta := &filepb.UserDocumentMetadata{
+		UserId:        userID,
+		DocumentName:  docType + "_doc",
+		DocumentType:  docType,
+		MimeType:      "image/jpeg",
+		FileSizeBytes: int64(len(fakeJPEG())),
+	}
+	// profilePicture est exempt de la contrainte issued_at / expire_at.
+	if docType != "profilePicture" {
+		meta.DocumentNumber = "TEST-001"
+		meta.IssuingCountry = "TG"
+		meta.IssuedAt = "2020-01-01T00:00:00Z"
+		meta.ExpireAt = "2030-01-01T00:00:00Z"
+	}
 	err = stream.Send(&filepb.UploadUserDocumentRequest{
-		Data: &filepb.UploadUserDocumentRequest_Metadata{
-			Metadata: &filepb.UserDocumentMetadata{
-				UserId:        userID,
-				DocumentName:  docType + "_doc",
-				DocumentType:  docType,
-				MimeType:      "image/jpeg",
-				FileSizeBytes: int64(len(fakeJPEG())),
-			},
-		},
+		Data: &filepb.UploadUserDocumentRequest_Metadata{Metadata: meta},
 	})
 	require.NoError(t, err)
 
@@ -74,11 +80,15 @@ func uploadVehicleDoc(t *testing.T, vehicleID, docType string) *filepb.VehicleDo
 	err = stream.Send(&filepb.UploadVehicleDocumentRequest{
 		Data: &filepb.UploadVehicleDocumentRequest_Metadata{
 			Metadata: &filepb.VehicleDocumentMetadata{
-				VehicleId:     vehicleID,
-				DocumentName:  docType + "_doc",
-				DocumentType:  docType,
-				MimeType:      "image/jpeg",
-				FileSizeBytes: int64(len(fakeJPEG())),
+				VehicleId:        vehicleID,
+				DocumentName:     docType + "_doc",
+				DocumentType:     docType,
+				MimeType:         "image/jpeg",
+				FileSizeBytes:    int64(len(fakeJPEG())),
+				DocumentNumber:   "VEH-001",
+				IssuingAuthority: "DVLA-TG",
+				IssuedAt:         "2020-01-01T00:00:00Z",
+				ExpireAt:         "2030-01-01T00:00:00Z",
 			},
 		},
 	})

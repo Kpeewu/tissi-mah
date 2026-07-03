@@ -61,7 +61,7 @@ type KYCServiceClient interface {
 	// OverrideReview - Override manuel d'une revue par un agent de support
 	OverrideReview(ctx context.Context, in *OverrideReviewRequest, opts ...grpc.CallOption) (*OverrideReviewResponse, error)
 	// ValidateDocument - Validation manuelle directe d'un document par un agent support (sans Persona)
-	// Obligatoire pour les documents véhicule (insurance, registrationCard, driverLicence avec VehicleId)
+	// Obligatoire pour les documents véhicule (insurance, registrationCard avec VehicleId)
 	ValidateDocument(ctx context.Context, in *ValidateDocumentRequest, opts ...grpc.CallOption) (*ValidateDocumentResponse, error)
 	// GetManualReviewRequests - Demandes de validation manuelle groupées par utilisateur (support)
 	GetManualReviewRequests(ctx context.Context, in *GetManualReviewRequestsRequest, opts ...grpc.CallOption) (*GetManualReviewRequestsResponse, error)
@@ -232,7 +232,7 @@ type KYCServiceServer interface {
 	// OverrideReview - Override manuel d'une revue par un agent de support
 	OverrideReview(context.Context, *OverrideReviewRequest) (*OverrideReviewResponse, error)
 	// ValidateDocument - Validation manuelle directe d'un document par un agent support (sans Persona)
-	// Obligatoire pour les documents véhicule (insurance, registrationCard, driverLicence avec VehicleId)
+	// Obligatoire pour les documents véhicule (insurance, registrationCard avec VehicleId)
 	ValidateDocument(context.Context, *ValidateDocumentRequest) (*ValidateDocumentResponse, error)
 	// GetManualReviewRequests - Demandes de validation manuelle groupées par utilisateur (support)
 	GetManualReviewRequests(context.Context, *GetManualReviewRequestsRequest) (*GetManualReviewRequestsResponse, error)

@@ -6,7 +6,6 @@ import "time"
 var ValidVehicleDocumentTypes = map[string]bool{
 	"insurance":        true,
 	"registrationCard": true,
-	"driverLicence":    true,
 }
 
 type VehicleDocument struct {
