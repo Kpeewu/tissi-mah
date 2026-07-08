@@ -27,20 +27,29 @@ COPY services/support-service/go.mod services/support-service/go.sum* ./services
 COPY services/email-service/go.mod services/email-service/go.sum* ./services/email-service/
 COPY services/kyc-service/go.mod services/kyc-service/go.sum* ./services/kyc-service/
 
-# pkg-test est un module de test uniquement, mais file-service/go.mod a un replace directive qui
-# pointe vers lui. On crée un stub minimal pour satisfaire la résolution Go sans inclure
-# aucune dépendance de test dans l'image de production.
-RUN mkdir -p pkg-test && \
-    printf 'module github.com/Kpeewu/tissi-mah/pkg-test\n\ngo 1.25\n' > pkg-test/go.mod
-
-# Create a scoped go.work with pkg + pkg-test + file-service + user-service + vehicle-service + support-service + email-service + kyc-service
-# vehicle-service is required because file-service/go.mod has a replace directive pointing to it;
-# in workspace mode, replace directives for non-workspace modules still apply, so vehicle-service
-# must be present or Go can't resolve the dependency graph.
-# support-service is required because kyc-service importe support-service/proto/gen pour résoudre
-# l'agent support (prénom/nom) qui a revu un document.
-# email-service is required because support-service/go.mod has a replace directive pointing to it.
-RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/user-service\n\t./services/vehicle-service\n\t./services/support-service\n\t./services/email-service\n\t./services/kyc-service\n)\n' > go.work
+# Stubs de modules internes + go.work en un seul RUN (layer atomique) :
+#  - pkg-test       : requis par file-service/go.mod (replace directive)
+#  - trips-service  : vehicle-service/go.mod le référence (replace directive) ;
+#                     go.mod minimal sans requires — workspace mode utilise le graphe combiné
+#  - booking-service, rating-service : requis par trips-service/go.mod mais jamais compilés
+# vehicle-service est requis car file-service/go.mod y a un replace directive.
+# support-service est requis car kyc-service importe support-service/proto/gen.
+# email-service est requis car support-service/go.mod y a un replace directive.
+# Tout dans un seul layer : si le contenu change, go.work est aussi invalidé (pas de cache stale).
+RUN mkdir -p pkg-test \
+             services/trips-service/proto/gen \
+             services/booking-service \
+             services/rating-service && \
+    printf 'module github.com/Kpeewu/tissi-mah/pkg-test\n\ngo 1.25\n' \
+        > pkg-test/go.mod && \
+    printf 'module github.com/Kpeewu/tissi-mah/services/trips-service\n\ngo 1.25\n' \
+        > services/trips-service/go.mod && \
+    printf 'module github.com/Kpeewu/tissi-mah/services/booking-service\n\ngo 1.25\n' \
+        > services/booking-service/go.mod && \
+    printf 'module github.com/Kpeewu/tissi-mah/services/rating-service\n\ngo 1.25\n' \
+        > services/rating-service/go.mod && \
+    printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/booking-service\n\t./services/email-service\n\t./services/file-service\n\t./services/kyc-service\n\t./services/rating-service\n\t./services/support-service\n\t./services/trips-service\n\t./services/user-service\n\t./services/vehicle-service\n)\n' \
+        > go.work
 
 # Download dependencies for all modules
 RUN go mod download -C ./pkg
