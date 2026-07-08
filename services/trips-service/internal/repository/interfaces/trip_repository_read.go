@@ -57,4 +57,7 @@ type TripRepositoryRead interface {
 	// HasActiveTripAsDriver vérifie si un conducteur a un trajet en cours (status = inProgress).
 	// Utilisé lors de la vérification d'éligibilité à la suppression de compte.
 	HasActiveTripAsDriver(ctx context.Context, driverID string) (bool, error)
+
+	// GetVehicleCompletedTripCount retourne le nombre de trajets complétés pour un véhicule.
+	GetVehicleCompletedTripCount(ctx context.Context, vehicleID string) (int32, error)
 }

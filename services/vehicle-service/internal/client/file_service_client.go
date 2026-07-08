@@ -9,6 +9,8 @@ import (
 	"github.com/Kpeewu/tissi-mah/services/vehicle-service/internal/domain"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // fileServiceClientImpl est le client gRPC vers file-service.
@@ -64,8 +66,10 @@ func (c *fileServiceClientImpl) GetVehicleDocuments(ctx context.Context, vehicle
 		switch d.DocumentType {
 		case "insurance":
 			docs.AssuranceURL = d.DocumentUrl
+			docs.AssuranceStatus = mapDocStatus(d.Status)
 		case "registrationCard":
 			docs.VehicleRegistrationURL = d.DocumentUrl
+			docs.VehicleRegistrationStatus = mapDocStatus(d.Status)
 		}
 	}
 
@@ -75,4 +79,47 @@ func (c *fileServiceClientImpl) GetVehicleDocuments(ctx context.Context, vehicle
 	)
 
 	return docs, nil
+}
+
+// GetCurrentUserDocument récupère l'URL et le statut du document courant d'un utilisateur.
+// Retourne ("", "MISSING", nil) si aucun document n'est trouvé.
+func (c *fileServiceClientImpl) GetCurrentUserDocument(ctx context.Context, userID string, docType string) (string, string, error) {
+	c.logger.Debug("client: GetCurrentUserDocument called",
+		zap.String("userID", userID),
+		zap.String("docType", docType),
+	)
+
+	resp, err := c.grpcClient.GetCurrentUserDocument(ctx, &filepb.GetCurrentUserDocumentRequest{
+		UserId:       userID,
+		DocumentType: docType,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return "", "MISSING", nil
+		}
+		c.logger.Warn("client: GetCurrentUserDocument failed",
+			zap.Error(err),
+			zap.String("userID", userID),
+			zap.String("docType", docType),
+		)
+		return "", "MISSING", err
+	}
+
+	return resp.DocumentUrl, mapDocStatus(resp.Status), nil
+}
+
+// mapDocStatus convertit un statut file-service vers le statut exposé à l'app.
+func mapDocStatus(s string) string {
+	switch s {
+	case "approved":
+		return "VALIDATED"
+	case "pending", "underReview":
+		return "PENDING"
+	case "rejected":
+		return "REJECTED"
+	case "expired":
+		return "EXPIRED"
+	default:
+		return "MISSING"
+	}
 }

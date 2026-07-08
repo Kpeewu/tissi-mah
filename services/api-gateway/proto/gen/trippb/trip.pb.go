@@ -4337,6 +4337,94 @@ func (x *AnonymizeUserDataResponse) GetErrorMessage() string {
 	return ""
 }
 
+type GetVehicleCompletedTripCountRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	VehicleId     string                 `protobuf:"bytes,1,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetVehicleCompletedTripCountRequest) Reset() {
+	*x = GetVehicleCompletedTripCountRequest{}
+	mi := &file_trip_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetVehicleCompletedTripCountRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetVehicleCompletedTripCountRequest) ProtoMessage() {}
+
+func (x *GetVehicleCompletedTripCountRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetVehicleCompletedTripCountRequest.ProtoReflect.Descriptor instead.
+func (*GetVehicleCompletedTripCountRequest) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *GetVehicleCompletedTripCountRequest) GetVehicleId() string {
+	if x != nil {
+		return x.VehicleId
+	}
+	return ""
+}
+
+type GetVehicleCompletedTripCountResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Count         int32                  `protobuf:"varint,1,opt,name=Count,proto3" json:"Count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetVehicleCompletedTripCountResponse) Reset() {
+	*x = GetVehicleCompletedTripCountResponse{}
+	mi := &file_trip_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetVehicleCompletedTripCountResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetVehicleCompletedTripCountResponse) ProtoMessage() {}
+
+func (x *GetVehicleCompletedTripCountResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_trip_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetVehicleCompletedTripCountResponse.ProtoReflect.Descriptor instead.
+func (*GetVehicleCompletedTripCountResponse) Descriptor() ([]byte, []int) {
+	return file_trip_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *GetVehicleCompletedTripCountResponse) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
 var File_trip_proto protoreflect.FileDescriptor
 
 const file_trip_proto_rawDesc = "" +
@@ -4724,7 +4812,11 @@ const file_trip_proto_rawDesc = "" +
 	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"Y\n" +
 	"\x19AnonymizeUserDataResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\xe0\x17\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"C\n" +
+	"#GetVehicleCompletedTripCountRequest\x12\x1c\n" +
+	"\tVehicleId\x18\x01 \x01(\tR\tVehicleId\"<\n" +
+	"$GetVehicleCompletedTripCountResponse\x12\x14\n" +
+	"\x05Count\x18\x01 \x01(\x05R\x05Count2\xd7\x18\n" +
 	"\vTripService\x12j\n" +
 	"\n" +
 	"CreateTrip\x12\x17.trip.CreateTripRequest\x1a\x18.trip.CreateTripResponse\")\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/api/v1/trip/driver/createTrip\x12\x8e\x01\n" +
@@ -4750,7 +4842,8 @@ const file_trip_proto_rawDesc = "" +
 	"\x17IncrementLegBookedSeats\x12$.trip.IncrementLegBookedSeatsRequest\x1a%.trip.IncrementLegBookedSeatsResponse\x12W\n" +
 	"\x12SyncLegBookedSeats\x12\x1f.trip.SyncLegBookedSeatsRequest\x1a .trip.SyncLegBookedSeatsResponse\x12i\n" +
 	"\x18CheckDeletionEligibility\x12%.trip.CheckDeletionEligibilityRequest\x1a&.trip.CheckDeletionEligibilityResponse\x12T\n" +
-	"\x11AnonymizeUserData\x12\x1e.trip.AnonymizeUserDataRequest\x1a\x1f.trip.AnonymizeUserDataResponse\x12P\n" +
+	"\x11AnonymizeUserData\x12\x1e.trip.AnonymizeUserDataRequest\x1a\x1f.trip.AnonymizeUserDataResponse\x12u\n" +
+	"\x1cGetVehicleCompletedTripCount\x12).trip.GetVehicleCompletedTripCountRequest\x1a*.trip.GetVehicleCompletedTripCountResponse\x12P\n" +
 	"\x06Health\x12\x13.trip.HealthRequest\x1a\x14.trip.HealthResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/api/v1/trip/healthBJZHgithub.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/trippb;trippbb\x06proto3"
 
 var (
@@ -4765,65 +4858,67 @@ func file_trip_proto_rawDescGZIP() []byte {
 	return file_trip_proto_rawDescData
 }
 
-var file_trip_proto_msgTypes = make([]protoimpl.MessageInfo, 57)
+var file_trip_proto_msgTypes = make([]protoimpl.MessageInfo, 59)
 var file_trip_proto_goTypes = []any{
-	(*GetTripByIDRequest)(nil),                // 0: trip.GetTripByIDRequest
-	(*TripWaypointDetail)(nil),                // 1: trip.TripWaypointDetail
-	(*GetTripByIDResponse)(nil),               // 2: trip.GetTripByIDResponse
-	(*UpdateAvailableSeatsRequest)(nil),       // 3: trip.UpdateAvailableSeatsRequest
-	(*UpdateAvailableSeatsResponse)(nil),      // 4: trip.UpdateAvailableSeatsResponse
-	(*WaypointInput)(nil),                     // 5: trip.WaypointInput
-	(*CreateTripRequest)(nil),                 // 6: trip.CreateTripRequest
-	(*CreateTripResponse)(nil),                // 7: trip.CreateTripResponse
-	(*DaysOfWeekInput)(nil),                   // 8: trip.DaysOfWeekInput
-	(*CreateRecurringTripRequest)(nil),        // 9: trip.CreateRecurringTripRequest
-	(*CreateRecurringTripResponse)(nil),       // 10: trip.CreateRecurringTripResponse
-	(*GetTripsPreviewsRequest)(nil),           // 11: trip.GetTripsPreviewsRequest
-	(*TripPreview)(nil),                       // 12: trip.TripPreview
-	(*GetTripsPreviewsResponse)(nil),          // 13: trip.GetTripsPreviewsResponse
-	(*GetCompletedTripsPreviewsRequest)(nil),  // 14: trip.GetCompletedTripsPreviewsRequest
-	(*CompletedTripPreview)(nil),              // 15: trip.CompletedTripPreview
-	(*GetCompletedTripsPreviewsResponse)(nil), // 16: trip.GetCompletedTripsPreviewsResponse
-	(*ChangeTripDateAndTimeRequest)(nil),      // 17: trip.ChangeTripDateAndTimeRequest
-	(*ChangeTripDateAndTimeResponse)(nil),     // 18: trip.ChangeTripDateAndTimeResponse
-	(*ChangeTripVehicleRequest)(nil),          // 19: trip.ChangeTripVehicleRequest
-	(*ChangeTripVehicleResponse)(nil),         // 20: trip.ChangeTripVehicleResponse
-	(*ChangeTripAllowancesRequest)(nil),       // 21: trip.ChangeTripAllowancesRequest
-	(*ChangeTripAllowancesResponse)(nil),      // 22: trip.ChangeTripAllowancesResponse
-	(*ChangeAutoApproveRequest)(nil),          // 23: trip.ChangeAutoApproveRequest
-	(*ChangeAutoApproveResponse)(nil),         // 24: trip.ChangeAutoApproveResponse
-	(*StartTripRequest)(nil),                  // 25: trip.StartTripRequest
-	(*StartTripResponse)(nil),                 // 26: trip.StartTripResponse
-	(*EndTripRequest)(nil),                    // 27: trip.EndTripRequest
-	(*EndTripResponse)(nil),                   // 28: trip.EndTripResponse
-	(*ConfirmWaypointArrivalRequest)(nil),     // 29: trip.ConfirmWaypointArrivalRequest
-	(*ConfirmWaypointArrivalResponse)(nil),    // 30: trip.ConfirmWaypointArrivalResponse
-	(*ConfirmWaypointDepartureRequest)(nil),   // 31: trip.ConfirmWaypointDepartureRequest
-	(*ConfirmWaypointDepartureResponse)(nil),  // 32: trip.ConfirmWaypointDepartureResponse
-	(*CancelTripRequest)(nil),                 // 33: trip.CancelTripRequest
-	(*CancelTripResponse)(nil),                // 34: trip.CancelTripResponse
-	(*CancelWaypointRequest)(nil),             // 35: trip.CancelWaypointRequest
-	(*CancelWaypointResponse)(nil),            // 36: trip.CancelWaypointResponse
-	(*GetScheduledTripsPreviewsRequest)(nil),  // 37: trip.GetScheduledTripsPreviewsRequest
-	(*GetScheduledTripsPreviewsResponse)(nil), // 38: trip.GetScheduledTripsPreviewsResponse
-	(*HealthRequest)(nil),                     // 39: trip.HealthRequest
-	(*HealthResponse)(nil),                    // 40: trip.HealthResponse
-	(*IncrementLegBookedSeatsRequest)(nil),    // 41: trip.IncrementLegBookedSeatsRequest
-	(*IncrementLegBookedSeatsResponse)(nil),   // 42: trip.IncrementLegBookedSeatsResponse
-	(*LegBookedSeatsEntry)(nil),               // 43: trip.LegBookedSeatsEntry
-	(*SyncLegBookedSeatsRequest)(nil),         // 44: trip.SyncLegBookedSeatsRequest
-	(*SyncLegBookedSeatsResponse)(nil),        // 45: trip.SyncLegBookedSeatsResponse
-	(*GetDriverTripDetailsRequest)(nil),       // 46: trip.GetDriverTripDetailsRequest
-	(*DriverWaypointDetail)(nil),              // 47: trip.DriverWaypointDetail
-	(*GetDriverTripDetailsResponse)(nil),      // 48: trip.GetDriverTripDetailsResponse
-	(*DriverBookingPreview)(nil),              // 49: trip.DriverBookingPreview
-	(*GetPassengerTripDetailsRequest)(nil),    // 50: trip.GetPassengerTripDetailsRequest
-	(*PassengerWaypointDetail)(nil),           // 51: trip.PassengerWaypointDetail
-	(*GetPassengerTripDetailsResponse)(nil),   // 52: trip.GetPassengerTripDetailsResponse
-	(*CheckDeletionEligibilityRequest)(nil),   // 53: trip.CheckDeletionEligibilityRequest
-	(*CheckDeletionEligibilityResponse)(nil),  // 54: trip.CheckDeletionEligibilityResponse
-	(*AnonymizeUserDataRequest)(nil),          // 55: trip.AnonymizeUserDataRequest
-	(*AnonymizeUserDataResponse)(nil),         // 56: trip.AnonymizeUserDataResponse
+	(*GetTripByIDRequest)(nil),                   // 0: trip.GetTripByIDRequest
+	(*TripWaypointDetail)(nil),                   // 1: trip.TripWaypointDetail
+	(*GetTripByIDResponse)(nil),                  // 2: trip.GetTripByIDResponse
+	(*UpdateAvailableSeatsRequest)(nil),          // 3: trip.UpdateAvailableSeatsRequest
+	(*UpdateAvailableSeatsResponse)(nil),         // 4: trip.UpdateAvailableSeatsResponse
+	(*WaypointInput)(nil),                        // 5: trip.WaypointInput
+	(*CreateTripRequest)(nil),                    // 6: trip.CreateTripRequest
+	(*CreateTripResponse)(nil),                   // 7: trip.CreateTripResponse
+	(*DaysOfWeekInput)(nil),                      // 8: trip.DaysOfWeekInput
+	(*CreateRecurringTripRequest)(nil),           // 9: trip.CreateRecurringTripRequest
+	(*CreateRecurringTripResponse)(nil),          // 10: trip.CreateRecurringTripResponse
+	(*GetTripsPreviewsRequest)(nil),              // 11: trip.GetTripsPreviewsRequest
+	(*TripPreview)(nil),                          // 12: trip.TripPreview
+	(*GetTripsPreviewsResponse)(nil),             // 13: trip.GetTripsPreviewsResponse
+	(*GetCompletedTripsPreviewsRequest)(nil),     // 14: trip.GetCompletedTripsPreviewsRequest
+	(*CompletedTripPreview)(nil),                 // 15: trip.CompletedTripPreview
+	(*GetCompletedTripsPreviewsResponse)(nil),    // 16: trip.GetCompletedTripsPreviewsResponse
+	(*ChangeTripDateAndTimeRequest)(nil),         // 17: trip.ChangeTripDateAndTimeRequest
+	(*ChangeTripDateAndTimeResponse)(nil),        // 18: trip.ChangeTripDateAndTimeResponse
+	(*ChangeTripVehicleRequest)(nil),             // 19: trip.ChangeTripVehicleRequest
+	(*ChangeTripVehicleResponse)(nil),            // 20: trip.ChangeTripVehicleResponse
+	(*ChangeTripAllowancesRequest)(nil),          // 21: trip.ChangeTripAllowancesRequest
+	(*ChangeTripAllowancesResponse)(nil),         // 22: trip.ChangeTripAllowancesResponse
+	(*ChangeAutoApproveRequest)(nil),             // 23: trip.ChangeAutoApproveRequest
+	(*ChangeAutoApproveResponse)(nil),            // 24: trip.ChangeAutoApproveResponse
+	(*StartTripRequest)(nil),                     // 25: trip.StartTripRequest
+	(*StartTripResponse)(nil),                    // 26: trip.StartTripResponse
+	(*EndTripRequest)(nil),                       // 27: trip.EndTripRequest
+	(*EndTripResponse)(nil),                      // 28: trip.EndTripResponse
+	(*ConfirmWaypointArrivalRequest)(nil),        // 29: trip.ConfirmWaypointArrivalRequest
+	(*ConfirmWaypointArrivalResponse)(nil),       // 30: trip.ConfirmWaypointArrivalResponse
+	(*ConfirmWaypointDepartureRequest)(nil),      // 31: trip.ConfirmWaypointDepartureRequest
+	(*ConfirmWaypointDepartureResponse)(nil),     // 32: trip.ConfirmWaypointDepartureResponse
+	(*CancelTripRequest)(nil),                    // 33: trip.CancelTripRequest
+	(*CancelTripResponse)(nil),                   // 34: trip.CancelTripResponse
+	(*CancelWaypointRequest)(nil),                // 35: trip.CancelWaypointRequest
+	(*CancelWaypointResponse)(nil),               // 36: trip.CancelWaypointResponse
+	(*GetScheduledTripsPreviewsRequest)(nil),     // 37: trip.GetScheduledTripsPreviewsRequest
+	(*GetScheduledTripsPreviewsResponse)(nil),    // 38: trip.GetScheduledTripsPreviewsResponse
+	(*HealthRequest)(nil),                        // 39: trip.HealthRequest
+	(*HealthResponse)(nil),                       // 40: trip.HealthResponse
+	(*IncrementLegBookedSeatsRequest)(nil),       // 41: trip.IncrementLegBookedSeatsRequest
+	(*IncrementLegBookedSeatsResponse)(nil),      // 42: trip.IncrementLegBookedSeatsResponse
+	(*LegBookedSeatsEntry)(nil),                  // 43: trip.LegBookedSeatsEntry
+	(*SyncLegBookedSeatsRequest)(nil),            // 44: trip.SyncLegBookedSeatsRequest
+	(*SyncLegBookedSeatsResponse)(nil),           // 45: trip.SyncLegBookedSeatsResponse
+	(*GetDriverTripDetailsRequest)(nil),          // 46: trip.GetDriverTripDetailsRequest
+	(*DriverWaypointDetail)(nil),                 // 47: trip.DriverWaypointDetail
+	(*GetDriverTripDetailsResponse)(nil),         // 48: trip.GetDriverTripDetailsResponse
+	(*DriverBookingPreview)(nil),                 // 49: trip.DriverBookingPreview
+	(*GetPassengerTripDetailsRequest)(nil),       // 50: trip.GetPassengerTripDetailsRequest
+	(*PassengerWaypointDetail)(nil),              // 51: trip.PassengerWaypointDetail
+	(*GetPassengerTripDetailsResponse)(nil),      // 52: trip.GetPassengerTripDetailsResponse
+	(*CheckDeletionEligibilityRequest)(nil),      // 53: trip.CheckDeletionEligibilityRequest
+	(*CheckDeletionEligibilityResponse)(nil),     // 54: trip.CheckDeletionEligibilityResponse
+	(*AnonymizeUserDataRequest)(nil),             // 55: trip.AnonymizeUserDataRequest
+	(*AnonymizeUserDataResponse)(nil),            // 56: trip.AnonymizeUserDataResponse
+	(*GetVehicleCompletedTripCountRequest)(nil),  // 57: trip.GetVehicleCompletedTripCountRequest
+	(*GetVehicleCompletedTripCountResponse)(nil), // 58: trip.GetVehicleCompletedTripCountResponse
 }
 var file_trip_proto_depIdxs = []int32{
 	1,  // 0: trip.GetTripByIDResponse.Waypoints:type_name -> trip.TripWaypointDetail
@@ -4860,33 +4955,35 @@ var file_trip_proto_depIdxs = []int32{
 	44, // 31: trip.TripService.SyncLegBookedSeats:input_type -> trip.SyncLegBookedSeatsRequest
 	53, // 32: trip.TripService.CheckDeletionEligibility:input_type -> trip.CheckDeletionEligibilityRequest
 	55, // 33: trip.TripService.AnonymizeUserData:input_type -> trip.AnonymizeUserDataRequest
-	39, // 34: trip.TripService.Health:input_type -> trip.HealthRequest
-	7,  // 35: trip.TripService.CreateTrip:output_type -> trip.CreateTripResponse
-	10, // 36: trip.TripService.CreateRecurringTrip:output_type -> trip.CreateRecurringTripResponse
-	13, // 37: trip.TripService.GetTripsPreviews:output_type -> trip.GetTripsPreviewsResponse
-	16, // 38: trip.TripService.GetCompletedTripsPreviews:output_type -> trip.GetCompletedTripsPreviewsResponse
-	18, // 39: trip.TripService.ChangeTripDateAndTime:output_type -> trip.ChangeTripDateAndTimeResponse
-	20, // 40: trip.TripService.ChangeTripVehicle:output_type -> trip.ChangeTripVehicleResponse
-	22, // 41: trip.TripService.ChangeTripAllowances:output_type -> trip.ChangeTripAllowancesResponse
-	24, // 42: trip.TripService.ChangeAutoApprove:output_type -> trip.ChangeAutoApproveResponse
-	26, // 43: trip.TripService.StartTrip:output_type -> trip.StartTripResponse
-	28, // 44: trip.TripService.EndTrip:output_type -> trip.EndTripResponse
-	30, // 45: trip.TripService.ConfirmWaypointArrival:output_type -> trip.ConfirmWaypointArrivalResponse
-	32, // 46: trip.TripService.ConfirmWaypointDeparture:output_type -> trip.ConfirmWaypointDepartureResponse
-	2,  // 47: trip.TripService.GetTripByID:output_type -> trip.GetTripByIDResponse
-	48, // 48: trip.TripService.GetDriverTripDetails:output_type -> trip.GetDriverTripDetailsResponse
-	52, // 49: trip.TripService.GetPassengerTripDetails:output_type -> trip.GetPassengerTripDetailsResponse
-	4,  // 50: trip.TripService.UpdateAvailableSeats:output_type -> trip.UpdateAvailableSeatsResponse
-	34, // 51: trip.TripService.CancelTrip:output_type -> trip.CancelTripResponse
-	36, // 52: trip.TripService.CancelWaypoint:output_type -> trip.CancelWaypointResponse
-	38, // 53: trip.TripService.GetScheduledTripsPreviews:output_type -> trip.GetScheduledTripsPreviewsResponse
-	42, // 54: trip.TripService.IncrementLegBookedSeats:output_type -> trip.IncrementLegBookedSeatsResponse
-	45, // 55: trip.TripService.SyncLegBookedSeats:output_type -> trip.SyncLegBookedSeatsResponse
-	54, // 56: trip.TripService.CheckDeletionEligibility:output_type -> trip.CheckDeletionEligibilityResponse
-	56, // 57: trip.TripService.AnonymizeUserData:output_type -> trip.AnonymizeUserDataResponse
-	40, // 58: trip.TripService.Health:output_type -> trip.HealthResponse
-	35, // [35:59] is the sub-list for method output_type
-	11, // [11:35] is the sub-list for method input_type
+	57, // 34: trip.TripService.GetVehicleCompletedTripCount:input_type -> trip.GetVehicleCompletedTripCountRequest
+	39, // 35: trip.TripService.Health:input_type -> trip.HealthRequest
+	7,  // 36: trip.TripService.CreateTrip:output_type -> trip.CreateTripResponse
+	10, // 37: trip.TripService.CreateRecurringTrip:output_type -> trip.CreateRecurringTripResponse
+	13, // 38: trip.TripService.GetTripsPreviews:output_type -> trip.GetTripsPreviewsResponse
+	16, // 39: trip.TripService.GetCompletedTripsPreviews:output_type -> trip.GetCompletedTripsPreviewsResponse
+	18, // 40: trip.TripService.ChangeTripDateAndTime:output_type -> trip.ChangeTripDateAndTimeResponse
+	20, // 41: trip.TripService.ChangeTripVehicle:output_type -> trip.ChangeTripVehicleResponse
+	22, // 42: trip.TripService.ChangeTripAllowances:output_type -> trip.ChangeTripAllowancesResponse
+	24, // 43: trip.TripService.ChangeAutoApprove:output_type -> trip.ChangeAutoApproveResponse
+	26, // 44: trip.TripService.StartTrip:output_type -> trip.StartTripResponse
+	28, // 45: trip.TripService.EndTrip:output_type -> trip.EndTripResponse
+	30, // 46: trip.TripService.ConfirmWaypointArrival:output_type -> trip.ConfirmWaypointArrivalResponse
+	32, // 47: trip.TripService.ConfirmWaypointDeparture:output_type -> trip.ConfirmWaypointDepartureResponse
+	2,  // 48: trip.TripService.GetTripByID:output_type -> trip.GetTripByIDResponse
+	48, // 49: trip.TripService.GetDriverTripDetails:output_type -> trip.GetDriverTripDetailsResponse
+	52, // 50: trip.TripService.GetPassengerTripDetails:output_type -> trip.GetPassengerTripDetailsResponse
+	4,  // 51: trip.TripService.UpdateAvailableSeats:output_type -> trip.UpdateAvailableSeatsResponse
+	34, // 52: trip.TripService.CancelTrip:output_type -> trip.CancelTripResponse
+	36, // 53: trip.TripService.CancelWaypoint:output_type -> trip.CancelWaypointResponse
+	38, // 54: trip.TripService.GetScheduledTripsPreviews:output_type -> trip.GetScheduledTripsPreviewsResponse
+	42, // 55: trip.TripService.IncrementLegBookedSeats:output_type -> trip.IncrementLegBookedSeatsResponse
+	45, // 56: trip.TripService.SyncLegBookedSeats:output_type -> trip.SyncLegBookedSeatsResponse
+	54, // 57: trip.TripService.CheckDeletionEligibility:output_type -> trip.CheckDeletionEligibilityResponse
+	56, // 58: trip.TripService.AnonymizeUserData:output_type -> trip.AnonymizeUserDataResponse
+	58, // 59: trip.TripService.GetVehicleCompletedTripCount:output_type -> trip.GetVehicleCompletedTripCountResponse
+	40, // 60: trip.TripService.Health:output_type -> trip.HealthResponse
+	36, // [36:61] is the sub-list for method output_type
+	11, // [11:36] is the sub-list for method input_type
 	11, // [11:11] is the sub-list for extension type_name
 	11, // [11:11] is the sub-list for extension extendee
 	0,  // [0:11] is the sub-list for field type_name
@@ -4903,7 +5000,7 @@ func file_trip_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_trip_proto_rawDesc), len(file_trip_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   57,
+			NumMessages:   59,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

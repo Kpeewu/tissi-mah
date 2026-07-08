@@ -106,8 +106,11 @@ func (h *VehicleHandler) GetVehicleDetails(ctx context.Context, req *vehiclepb.G
 			LicencePlate:  details.Vehicle.LicencePlate,
 			IsVerified:    details.Vehicle.IsVerified,
 			Documents: &vehiclepb.VehicleDocuments{
-				AssuranceUrl:           details.Documents.AssuranceURL,
-				VehicleRegistrationUrl: details.Documents.VehicleRegistrationURL,
+				AssuranceUrl:              details.Documents.AssuranceURL,
+				VehicleRegistrationUrl:    details.Documents.VehicleRegistrationURL,
+				DriverLicenceUrl:          details.Documents.DriverLicenceURL,
+				AssuranceStatus:           details.Documents.AssuranceStatus,
+				VehicleRegistrationStatus: details.Documents.VehicleRegistrationStatus,
 			},
 		},
 	}, nil
@@ -126,12 +129,16 @@ func (h *VehicleHandler) GetUserVehicles(ctx context.Context, req *vehiclepb.Get
 	protoVehicles := make([]*vehiclepb.VehiclePreview, 0, len(previews))
 	for _, p := range previews {
 		protoVehicles = append(protoVehicles, &vehiclepb.VehiclePreview{
-			VehicleId:     p.VehicleID,
-			Brand:         p.Brand,
-			BrandModel:    p.BrandModel,
-			LicencePlate:  p.LicencePlate,
-			IsVerified:    p.IsVerified,
-			NumberOfSeats: int32(p.NumberOfSeats),
+			VehicleId:                 p.VehicleID,
+			Brand:                     p.Brand,
+			BrandModel:                p.BrandModel,
+			LicencePlate:              p.LicencePlate,
+			IsVerified:                p.IsVerified,
+			NumberOfSeats:             int32(p.NumberOfSeats),
+			AssuranceStatus:           p.AssuranceStatus,
+			VehicleRegistrationStatus: p.VehicleRegistrationStatus,
+			DriverLicenceStatus:       p.DriverLicenceStatus,
+			TripCount:                 p.TripCount,
 		})
 	}
 

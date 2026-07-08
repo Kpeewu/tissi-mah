@@ -1040,6 +1040,8 @@ type UserDocumentMetadata struct {
 	FileSizeBytes  int64                  `protobuf:"varint,5,opt,name=FileSizeBytes,proto3" json:"FileSizeBytes,omitempty"`
 	DocumentNumber string                 `protobuf:"bytes,6,opt,name=DocumentNumber,proto3" json:"DocumentNumber,omitempty"` // Optionnel
 	IssuingCountry string                 `protobuf:"bytes,7,opt,name=IssuingCountry,proto3" json:"IssuingCountry,omitempty"` // Optionnel
+	IssuedAt       string                 `protobuf:"bytes,8,opt,name=IssuedAt,proto3" json:"IssuedAt,omitempty"`             // ISO 8601 — optionnel pour profilePicture, obligatoire sinon
+	ExpireAt       string                 `protobuf:"bytes,9,opt,name=ExpireAt,proto3" json:"ExpireAt,omitempty"`             // ISO 8601 — optionnel pour profilePicture, obligatoire sinon
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1119,6 +1121,20 @@ func (x *UserDocumentMetadata) GetDocumentNumber() string {
 func (x *UserDocumentMetadata) GetIssuingCountry() string {
 	if x != nil {
 		return x.IssuingCountry
+	}
+	return ""
+}
+
+func (x *UserDocumentMetadata) GetIssuedAt() string {
+	if x != nil {
+		return x.IssuedAt
+	}
+	return ""
+}
+
+func (x *UserDocumentMetadata) GetExpireAt() string {
+	if x != nil {
+		return x.ExpireAt
 	}
 	return ""
 }
@@ -1214,6 +1230,8 @@ type VehicleDocumentMetadata struct {
 	FileSizeBytes    int64                  `protobuf:"varint,5,opt,name=FileSizeBytes,proto3" json:"FileSizeBytes,omitempty"`
 	DocumentNumber   string                 `protobuf:"bytes,6,opt,name=DocumentNumber,proto3" json:"DocumentNumber,omitempty"`     // Optionnel
 	IssuingAuthority string                 `protobuf:"bytes,7,opt,name=IssuingAuthority,proto3" json:"IssuingAuthority,omitempty"` // Optionnel
+	IssuedAt         string                 `protobuf:"bytes,8,opt,name=IssuedAt,proto3" json:"IssuedAt,omitempty"`                 // ISO 8601 — obligatoire pour insurance/registrationCard
+	ExpireAt         string                 `protobuf:"bytes,9,opt,name=ExpireAt,proto3" json:"ExpireAt,omitempty"`                 // ISO 8601 — obligatoire pour insurance, optionnel pour registrationCard
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1293,6 +1311,20 @@ func (x *VehicleDocumentMetadata) GetDocumentNumber() string {
 func (x *VehicleDocumentMetadata) GetIssuingAuthority() string {
 	if x != nil {
 		return x.IssuingAuthority
+	}
+	return ""
+}
+
+func (x *VehicleDocumentMetadata) GetIssuedAt() string {
+	if x != nil {
+		return x.IssuedAt
+	}
+	return ""
+}
+
+func (x *VehicleDocumentMetadata) GetExpireAt() string {
+	if x != nil {
+		return x.ExpireAt
 	}
 	return ""
 }
@@ -3658,7 +3690,7 @@ const file_file_proto_rawDesc = "" +
 	"\x19UploadUserDocumentRequest\x128\n" +
 	"\bmetadata\x18\x01 \x01(\v2\x1a.file.UserDocumentMetadataH\x00R\bmetadata\x12\x16\n" +
 	"\x05Chunk\x18\x02 \x01(\fH\x00R\x05ChunkB\x06\n" +
-	"\x04data\"\x88\x02\n" +
+	"\x04data\"\xc0\x02\n" +
 	"\x14UserDocumentMetadata\x12\x16\n" +
 	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x12\"\n" +
 	"\fDocumentName\x18\x02 \x01(\tR\fDocumentName\x12\"\n" +
@@ -3666,11 +3698,13 @@ const file_file_proto_rawDesc = "" +
 	"\bMimeType\x18\x04 \x01(\tR\bMimeType\x12$\n" +
 	"\rFileSizeBytes\x18\x05 \x01(\x03R\rFileSizeBytes\x12&\n" +
 	"\x0eDocumentNumber\x18\x06 \x01(\tR\x0eDocumentNumber\x12&\n" +
-	"\x0eIssuingCountry\x18\a \x01(\tR\x0eIssuingCountry\"{\n" +
+	"\x0eIssuingCountry\x18\a \x01(\tR\x0eIssuingCountry\x12\x1a\n" +
+	"\bIssuedAt\x18\b \x01(\tR\bIssuedAt\x12\x1a\n" +
+	"\bExpireAt\x18\t \x01(\tR\bExpireAt\"{\n" +
 	"\x1cUploadVehicleDocumentRequest\x12;\n" +
 	"\bmetadata\x18\x01 \x01(\v2\x1d.file.VehicleDocumentMetadataH\x00R\bmetadata\x12\x16\n" +
 	"\x05Chunk\x18\x02 \x01(\fH\x00R\x05ChunkB\x06\n" +
-	"\x04data\"\x95\x02\n" +
+	"\x04data\"\xcd\x02\n" +
 	"\x17VehicleDocumentMetadata\x12\x1c\n" +
 	"\tVehicleId\x18\x01 \x01(\tR\tVehicleId\x12\"\n" +
 	"\fDocumentName\x18\x02 \x01(\tR\fDocumentName\x12\"\n" +
@@ -3678,7 +3712,9 @@ const file_file_proto_rawDesc = "" +
 	"\bMimeType\x18\x04 \x01(\tR\bMimeType\x12$\n" +
 	"\rFileSizeBytes\x18\x05 \x01(\x03R\rFileSizeBytes\x12&\n" +
 	"\x0eDocumentNumber\x18\x06 \x01(\tR\x0eDocumentNumber\x12*\n" +
-	"\x10IssuingAuthority\x18\a \x01(\tR\x10IssuingAuthority\"1\n" +
+	"\x10IssuingAuthority\x18\a \x01(\tR\x10IssuingAuthority\x12\x1a\n" +
+	"\bIssuedAt\x18\b \x01(\tR\bIssuedAt\x12\x1a\n" +
+	"\bExpireAt\x18\t \x01(\tR\bExpireAt\"1\n" +
 	"\x17GetUserDocumentsRequest\x12\x16\n" +
 	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"`\n" +
 	"\x16GetDocumentByIDRequest\x12\x1e\n" +

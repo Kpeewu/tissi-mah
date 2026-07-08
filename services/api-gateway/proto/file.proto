@@ -259,6 +259,8 @@ message UserDocumentMetadata {
   int64 FileSizeBytes = 5;
   string DocumentNumber = 6; // Optionnel
   string IssuingCountry = 7; // Optionnel
+  string IssuedAt = 8;  // ISO 8601 — optionnel pour profilePicture, obligatoire sinon
+  string ExpireAt = 9;  // ISO 8601 — optionnel pour profilePicture, obligatoire sinon
 }
 
 message UploadVehicleDocumentRequest {
@@ -274,8 +276,10 @@ message VehicleDocumentMetadata {
   string DocumentType = 3; // insurance, registrationCard
   string MimeType = 4;
   int64 FileSizeBytes = 5;
-  string DocumentNumber = 6; // Optionnel
-  string IssuingAuthority = 7; // Optionnel
+  string DocumentNumber = 6;    // Optionnel
+  string IssuingAuthority = 7;  // Optionnel
+  string IssuedAt = 8;          // ISO 8601 — obligatoire pour insurance/registrationCard
+  string ExpireAt = 9;          // ISO 8601 — obligatoire pour insurance, optionnel pour registrationCard
 }
 
 // =============================================================================

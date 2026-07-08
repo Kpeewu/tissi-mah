@@ -81,12 +81,21 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer fileClient.Close() //nolint:errcheck
 	logger.Info("file-service client ready", zap.String("address", fileServiceAddr))
 
+	// --- Trips-service client ---
+	tripsServiceAddr := cfg.TripsService.Address()
+	tripsClient, err := client.NewTripsServiceClient(tripsServiceAddr, logger)
+	if err != nil {
+		return fmt.Errorf("trips-service client: %w", err)
+	}
+	defer tripsClient.Close() //nolint:errcheck
+	logger.Info("trips-service client ready", zap.String("address", tripsServiceAddr))
+
 	// --- Repositories ---
 	readRepo := implementations.NewVehicleReadRepository(pool, logger)
 	writeRepo := implementations.NewVehicleWriteRepository(pool, logger)
 
 	// --- Vehicle service ---
-	vehicleService := service.NewVehicleService(readRepo, writeRepo, fileClient, vehicleCache, logger)
+	vehicleService := service.NewVehicleService(readRepo, writeRepo, fileClient, tripsClient, vehicleCache, logger)
 
 	// --- gRPC server ---
 	srv, err := grpcServer.NewVehicleServer(cfg, vehicleService, logger)
@@ -97,6 +106,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	logger.Info("vehicle-service ready",
 		zap.String("port", cfg.Server.Port),
 		zap.String("file-service", fileServiceAddr),
+		zap.String("trips-service", tripsServiceAddr),
 		zap.Bool("cache-enabled", vehicleCache != nil),
 	)
 

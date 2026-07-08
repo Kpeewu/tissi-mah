@@ -160,10 +160,14 @@ func TestGetVehicleDetails_Handler(t *testing.T) {
 }
 
 func TestGetUserVehicles_Handler(t *testing.T) {
-	t.Run("succès - mappe previews", func(t *testing.T) {
+	t.Run("succès - mappe previews avec statuts et TripCount", func(t *testing.T) {
 		svc, h := newMockAndHandler()
 		svc.On("GetUserVehicles", mock.Anything, "u1").Return([]*domain.VehiclePreview{
-			{VehicleID: "v1", Brand: "T", BrandModel: "C", LicencePlate: "AA", IsVerified: true},
+			{
+				VehicleID: "v1", Brand: "T", BrandModel: "C", LicencePlate: "AA", IsVerified: true,
+				AssuranceStatus: "PENDING", VehicleRegistrationStatus: "VALIDATED",
+				DriverLicenceStatus: "MISSING", TripCount: 3,
+			},
 			{VehicleID: "v2", Brand: "T2", BrandModel: "C2", LicencePlate: "BB", IsVerified: false},
 		}, nil)
 
@@ -172,6 +176,10 @@ func TestGetUserVehicles_Handler(t *testing.T) {
 		require.Len(t, resp.Vehicles, 2)
 		assert.Equal(t, "v1", resp.Vehicles[0].VehicleId)
 		assert.True(t, resp.Vehicles[0].IsVerified)
+		assert.Equal(t, "PENDING", resp.Vehicles[0].AssuranceStatus)
+		assert.Equal(t, "VALIDATED", resp.Vehicles[0].VehicleRegistrationStatus)
+		assert.Equal(t, "MISSING", resp.Vehicles[0].DriverLicenceStatus)
+		assert.Equal(t, int32(3), resp.Vehicles[0].TripCount)
 		assert.Equal(t, "v2", resp.Vehicles[1].VehicleId)
 	})
 

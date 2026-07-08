@@ -8,11 +8,12 @@ import (
 
 // Config contient la configuration complète du vehicle-service.
 type Config struct {
-	Server      ServerConfig
-	Environment EnvironmentConfig
-	Database    DatabaseConfig
-	Redis       RedisConfig
-	FileService        FileServiceConfig
+	Server       ServerConfig
+	Environment  EnvironmentConfig
+	Database     DatabaseConfig
+	Redis        RedisConfig
+	FileService  FileServiceConfig
+	TripsService TripsServiceConfig
 	LogLevel           string
 	InternalHMACSecret string
 }
@@ -26,6 +27,17 @@ type FileServiceConfig struct {
 // Address retourne l'adresse host:port du file-service.
 func (f FileServiceConfig) Address() string {
 	return f.Host + ":" + f.Port
+}
+
+// TripsServiceConfig contient l'adresse du trips-service.
+type TripsServiceConfig struct {
+	Host string
+	Port string
+}
+
+// Address retourne l'adresse host:port du trips-service.
+func (t TripsServiceConfig) Address() string {
+	return t.Host + ":" + t.Port
 }
 
 // ServerConfig contient les paramètres du serveur gRPC.
@@ -74,6 +86,10 @@ func Load() (*Config, error) {
 		FileService: FileServiceConfig{
 			Host: sharedconfig.GetStringOrDefault(values, "FILE_SERVICE_HOST", "0.0.0.0"),
 			Port: sharedconfig.GetStringOrDefault(values, "FILE_SERVICE_PORT", "50053"),
+		},
+		TripsService: TripsServiceConfig{
+			Host: sharedconfig.GetStringOrDefault(values, "TRIPS_SERVICE_HOST", "0.0.0.0"),
+			Port: sharedconfig.GetStringOrDefault(values, "TRIPS_SERVICE_PORT", "50057"),
 		},
 		LogLevel:           sharedconfig.MustGetString(values, "LOG_LEVEL"),
 		InternalHMACSecret: sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),

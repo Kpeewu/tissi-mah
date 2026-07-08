@@ -179,6 +179,10 @@ service TripService {
   // Interne uniquement — appelé par auth-service lors de la suppression de compte.
   rpc AnonymizeUserData(AnonymizeUserDataRequest) returns (AnonymizeUserDataResponse);
 
+  // GetVehicleCompletedTripCount retourne le nombre de trajets complétés pour un véhicule donné.
+  // Interne uniquement — appelé par vehicle-service.
+  rpc GetVehicleCompletedTripCount(GetVehicleCompletedTripCountRequest) returns (GetVehicleCompletedTripCountResponse);
+
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -747,4 +751,16 @@ message AnonymizeUserDataRequest {
 message AnonymizeUserDataResponse {
   bool   Success      = 1;
   string ErrorMessage = 2;
+}
+
+// =============================================================================
+// GetVehicleCompletedTripCount (interne — appelé par vehicle-service)
+// =============================================================================
+
+message GetVehicleCompletedTripCountRequest {
+  string VehicleId = 1;
+}
+
+message GetVehicleCompletedTripCountResponse {
+  int32 Count = 1;
 }

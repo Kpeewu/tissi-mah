@@ -19,30 +19,31 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	TripService_CreateTrip_FullMethodName                = "/trip.TripService/CreateTrip"
-	TripService_CreateRecurringTrip_FullMethodName       = "/trip.TripService/CreateRecurringTrip"
-	TripService_GetTripsPreviews_FullMethodName          = "/trip.TripService/GetTripsPreviews"
-	TripService_GetCompletedTripsPreviews_FullMethodName = "/trip.TripService/GetCompletedTripsPreviews"
-	TripService_ChangeTripDateAndTime_FullMethodName     = "/trip.TripService/ChangeTripDateAndTime"
-	TripService_ChangeTripVehicle_FullMethodName         = "/trip.TripService/ChangeTripVehicle"
-	TripService_ChangeTripAllowances_FullMethodName      = "/trip.TripService/ChangeTripAllowances"
-	TripService_ChangeAutoApprove_FullMethodName         = "/trip.TripService/ChangeAutoApprove"
-	TripService_StartTrip_FullMethodName                 = "/trip.TripService/StartTrip"
-	TripService_EndTrip_FullMethodName                   = "/trip.TripService/EndTrip"
-	TripService_ConfirmWaypointArrival_FullMethodName    = "/trip.TripService/ConfirmWaypointArrival"
-	TripService_ConfirmWaypointDeparture_FullMethodName  = "/trip.TripService/ConfirmWaypointDeparture"
-	TripService_GetTripByID_FullMethodName               = "/trip.TripService/GetTripByID"
-	TripService_GetDriverTripDetails_FullMethodName      = "/trip.TripService/GetDriverTripDetails"
-	TripService_GetPassengerTripDetails_FullMethodName   = "/trip.TripService/GetPassengerTripDetails"
-	TripService_UpdateAvailableSeats_FullMethodName      = "/trip.TripService/UpdateAvailableSeats"
-	TripService_CancelTrip_FullMethodName                = "/trip.TripService/CancelTrip"
-	TripService_CancelWaypoint_FullMethodName            = "/trip.TripService/CancelWaypoint"
-	TripService_GetScheduledTripsPreviews_FullMethodName = "/trip.TripService/GetScheduledTripsPreviews"
-	TripService_IncrementLegBookedSeats_FullMethodName   = "/trip.TripService/IncrementLegBookedSeats"
-	TripService_SyncLegBookedSeats_FullMethodName        = "/trip.TripService/SyncLegBookedSeats"
-	TripService_CheckDeletionEligibility_FullMethodName  = "/trip.TripService/CheckDeletionEligibility"
-	TripService_AnonymizeUserData_FullMethodName         = "/trip.TripService/AnonymizeUserData"
-	TripService_Health_FullMethodName                    = "/trip.TripService/Health"
+	TripService_CreateTrip_FullMethodName                   = "/trip.TripService/CreateTrip"
+	TripService_CreateRecurringTrip_FullMethodName          = "/trip.TripService/CreateRecurringTrip"
+	TripService_GetTripsPreviews_FullMethodName             = "/trip.TripService/GetTripsPreviews"
+	TripService_GetCompletedTripsPreviews_FullMethodName    = "/trip.TripService/GetCompletedTripsPreviews"
+	TripService_ChangeTripDateAndTime_FullMethodName        = "/trip.TripService/ChangeTripDateAndTime"
+	TripService_ChangeTripVehicle_FullMethodName            = "/trip.TripService/ChangeTripVehicle"
+	TripService_ChangeTripAllowances_FullMethodName         = "/trip.TripService/ChangeTripAllowances"
+	TripService_ChangeAutoApprove_FullMethodName            = "/trip.TripService/ChangeAutoApprove"
+	TripService_StartTrip_FullMethodName                    = "/trip.TripService/StartTrip"
+	TripService_EndTrip_FullMethodName                      = "/trip.TripService/EndTrip"
+	TripService_ConfirmWaypointArrival_FullMethodName       = "/trip.TripService/ConfirmWaypointArrival"
+	TripService_ConfirmWaypointDeparture_FullMethodName     = "/trip.TripService/ConfirmWaypointDeparture"
+	TripService_GetTripByID_FullMethodName                  = "/trip.TripService/GetTripByID"
+	TripService_GetDriverTripDetails_FullMethodName         = "/trip.TripService/GetDriverTripDetails"
+	TripService_GetPassengerTripDetails_FullMethodName      = "/trip.TripService/GetPassengerTripDetails"
+	TripService_UpdateAvailableSeats_FullMethodName         = "/trip.TripService/UpdateAvailableSeats"
+	TripService_CancelTrip_FullMethodName                   = "/trip.TripService/CancelTrip"
+	TripService_CancelWaypoint_FullMethodName               = "/trip.TripService/CancelWaypoint"
+	TripService_GetScheduledTripsPreviews_FullMethodName    = "/trip.TripService/GetScheduledTripsPreviews"
+	TripService_IncrementLegBookedSeats_FullMethodName      = "/trip.TripService/IncrementLegBookedSeats"
+	TripService_SyncLegBookedSeats_FullMethodName           = "/trip.TripService/SyncLegBookedSeats"
+	TripService_CheckDeletionEligibility_FullMethodName     = "/trip.TripService/CheckDeletionEligibility"
+	TripService_AnonymizeUserData_FullMethodName            = "/trip.TripService/AnonymizeUserData"
+	TripService_GetVehicleCompletedTripCount_FullMethodName = "/trip.TripService/GetVehicleCompletedTripCount"
+	TripService_Health_FullMethodName                       = "/trip.TripService/Health"
 )
 
 // TripServiceClient is the client API for TripService service.
@@ -114,6 +115,9 @@ type TripServiceClient interface {
 	// AnonymizeUserData anonymise les références de l'utilisateur dans trips-service.
 	// Interne uniquement — appelé par auth-service lors de la suppression de compte.
 	AnonymizeUserData(ctx context.Context, in *AnonymizeUserDataRequest, opts ...grpc.CallOption) (*AnonymizeUserDataResponse, error)
+	// GetVehicleCompletedTripCount retourne le nombre de trajets complétés pour un véhicule donné.
+	// Interne uniquement — appelé par vehicle-service.
+	GetVehicleCompletedTripCount(ctx context.Context, in *GetVehicleCompletedTripCountRequest, opts ...grpc.CallOption) (*GetVehicleCompletedTripCountResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -356,6 +360,16 @@ func (c *tripServiceClient) AnonymizeUserData(ctx context.Context, in *Anonymize
 	return out, nil
 }
 
+func (c *tripServiceClient) GetVehicleCompletedTripCount(ctx context.Context, in *GetVehicleCompletedTripCountRequest, opts ...grpc.CallOption) (*GetVehicleCompletedTripCountResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetVehicleCompletedTripCountResponse)
+	err := c.cc.Invoke(ctx, TripService_GetVehicleCompletedTripCount_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *tripServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -435,6 +449,9 @@ type TripServiceServer interface {
 	// AnonymizeUserData anonymise les références de l'utilisateur dans trips-service.
 	// Interne uniquement — appelé par auth-service lors de la suppression de compte.
 	AnonymizeUserData(context.Context, *AnonymizeUserDataRequest) (*AnonymizeUserDataResponse, error)
+	// GetVehicleCompletedTripCount retourne le nombre de trajets complétés pour un véhicule donné.
+	// Interne uniquement — appelé par vehicle-service.
+	GetVehicleCompletedTripCount(context.Context, *GetVehicleCompletedTripCountRequest) (*GetVehicleCompletedTripCountResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedTripServiceServer()
@@ -515,6 +532,9 @@ func (UnimplementedTripServiceServer) CheckDeletionEligibility(context.Context, 
 }
 func (UnimplementedTripServiceServer) AnonymizeUserData(context.Context, *AnonymizeUserDataRequest) (*AnonymizeUserDataResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AnonymizeUserData not implemented")
+}
+func (UnimplementedTripServiceServer) GetVehicleCompletedTripCount(context.Context, *GetVehicleCompletedTripCountRequest) (*GetVehicleCompletedTripCountResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetVehicleCompletedTripCount not implemented")
 }
 func (UnimplementedTripServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -954,6 +974,24 @@ func _TripService_AnonymizeUserData_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TripService_GetVehicleCompletedTripCount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVehicleCompletedTripCountRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TripServiceServer).GetVehicleCompletedTripCount(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TripService_GetVehicleCompletedTripCount_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TripServiceServer).GetVehicleCompletedTripCount(ctx, req.(*GetVehicleCompletedTripCountRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _TripService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -1070,6 +1108,10 @@ var TripService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AnonymizeUserData",
 			Handler:    _TripService_AnonymizeUserData_Handler,
+		},
+		{
+			MethodName: "GetVehicleCompletedTripCount",
+			Handler:    _TripService_GetVehicleCompletedTripCount_Handler,
 		},
 		{
 			MethodName: "Health",

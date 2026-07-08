@@ -98,6 +98,10 @@ type TripService interface {
 
 	// AnonymizeUserData pseudonymise les références de l'utilisateur dans trips et recurring_patterns.
 	AnonymizeUserData(ctx context.Context, userID string) error
+
+	// GetVehicleCompletedTripCount retourne le nombre de trajets complétés pour un véhicule.
+	// Interne — appelé par vehicle-service.
+	GetVehicleCompletedTripCount(ctx context.Context, vehicleID string) (int32, error)
 }
 
 // GetTripsPreviewsInput contient les paramètres de la requête de liste.
