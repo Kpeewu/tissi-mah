@@ -151,3 +151,8 @@ func (m *MockTripService) AnonymizeUserData(ctx context.Context, userID string) 
 	args := m.Called(ctx, userID)
 	return args.Error(0)
 }
+
+func (m *MockTripService) GetVehicleCompletedTripCount(ctx context.Context, vehicleID string) (int32, error) {
+	args := m.Called(ctx, vehicleID)
+	return int32(args.Int(0)), args.Error(1)
+}

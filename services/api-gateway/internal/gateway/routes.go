@@ -49,6 +49,7 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/booking/getPassengerBookings":        true,
 	"/api/v1/booking/getDriverTripBookings":       true,
 	"/api/v1/booking/getDriverPendingBookings":    true,
+	"/api/v1/booking/getDriverBookings":           true,
 	"/api/v1/booking/getActivePassengerSummaries": true,
 	"/api/v1/booking/approveBooking":              true,
 	"/api/v1/booking/rejectBooking":               true,

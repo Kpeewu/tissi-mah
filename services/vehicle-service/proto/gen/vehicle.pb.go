@@ -690,13 +690,16 @@ func (x *HealthResponse) GetTimestamp() int64 {
 	return 0
 }
 
-// VehicleDocuments contient les URLs des documents du véhicule.
+// VehicleDocuments contient les URLs et statuts des documents du véhicule.
 type VehicleDocuments struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	AssuranceUrl           string                 `protobuf:"bytes,1,opt,name=AssuranceUrl,proto3" json:"AssuranceUrl,omitempty"`
-	VehicleRegistrationUrl string                 `protobuf:"bytes,2,opt,name=VehicleRegistrationUrl,proto3" json:"VehicleRegistrationUrl,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	AssuranceUrl              string                 `protobuf:"bytes,1,opt,name=AssuranceUrl,proto3" json:"AssuranceUrl,omitempty"`
+	VehicleRegistrationUrl    string                 `protobuf:"bytes,2,opt,name=VehicleRegistrationUrl,proto3" json:"VehicleRegistrationUrl,omitempty"`
+	DriverLicenceUrl          string                 `protobuf:"bytes,3,opt,name=DriverLicenceUrl,proto3" json:"DriverLicenceUrl,omitempty"`
+	AssuranceStatus           string                 `protobuf:"bytes,4,opt,name=AssuranceStatus,proto3" json:"AssuranceStatus,omitempty"`
+	VehicleRegistrationStatus string                 `protobuf:"bytes,5,opt,name=VehicleRegistrationStatus,proto3" json:"VehicleRegistrationStatus,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *VehicleDocuments) Reset() {
@@ -739,6 +742,27 @@ func (x *VehicleDocuments) GetAssuranceUrl() string {
 func (x *VehicleDocuments) GetVehicleRegistrationUrl() string {
 	if x != nil {
 		return x.VehicleRegistrationUrl
+	}
+	return ""
+}
+
+func (x *VehicleDocuments) GetDriverLicenceUrl() string {
+	if x != nil {
+		return x.DriverLicenceUrl
+	}
+	return ""
+}
+
+func (x *VehicleDocuments) GetAssuranceStatus() string {
+	if x != nil {
+		return x.AssuranceStatus
+	}
+	return ""
+}
+
+func (x *VehicleDocuments) GetVehicleRegistrationStatus() string {
+	if x != nil {
+		return x.VehicleRegistrationStatus
 	}
 	return ""
 }
@@ -854,15 +878,19 @@ func (x *VehicleDetail) GetDocuments() *VehicleDocuments {
 
 // VehiclePreview contient un aperçu réduit d'un véhicule pour les listes.
 type VehiclePreview struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	VehicleId     string                 `protobuf:"bytes,1,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"`
-	Brand         string                 `protobuf:"bytes,2,opt,name=Brand,proto3" json:"Brand,omitempty"`
-	BrandModel    string                 `protobuf:"bytes,3,opt,name=BrandModel,proto3" json:"BrandModel,omitempty"`
-	LicencePlate  string                 `protobuf:"bytes,4,opt,name=LicencePlate,proto3" json:"LicencePlate,omitempty"`
-	IsVerified    bool                   `protobuf:"varint,5,opt,name=IsVerified,proto3" json:"IsVerified,omitempty"`
-	NumberOfSeats int32                  `protobuf:"varint,6,opt,name=NumberOfSeats,proto3" json:"NumberOfSeats,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	VehicleId                 string                 `protobuf:"bytes,1,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"`
+	Brand                     string                 `protobuf:"bytes,2,opt,name=Brand,proto3" json:"Brand,omitempty"`
+	BrandModel                string                 `protobuf:"bytes,3,opt,name=BrandModel,proto3" json:"BrandModel,omitempty"`
+	LicencePlate              string                 `protobuf:"bytes,4,opt,name=LicencePlate,proto3" json:"LicencePlate,omitempty"`
+	IsVerified                bool                   `protobuf:"varint,5,opt,name=IsVerified,proto3" json:"IsVerified,omitempty"`
+	NumberOfSeats             int32                  `protobuf:"varint,6,opt,name=NumberOfSeats,proto3" json:"NumberOfSeats,omitempty"`
+	AssuranceStatus           string                 `protobuf:"bytes,7,opt,name=AssuranceStatus,proto3" json:"AssuranceStatus,omitempty"`
+	VehicleRegistrationStatus string                 `protobuf:"bytes,8,opt,name=VehicleRegistrationStatus,proto3" json:"VehicleRegistrationStatus,omitempty"`
+	DriverLicenceStatus       string                 `protobuf:"bytes,9,opt,name=DriverLicenceStatus,proto3" json:"DriverLicenceStatus,omitempty"`
+	TripCount                 int32                  `protobuf:"varint,10,opt,name=TripCount,proto3" json:"TripCount,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *VehiclePreview) Reset() {
@@ -933,6 +961,34 @@ func (x *VehiclePreview) GetIsVerified() bool {
 func (x *VehiclePreview) GetNumberOfSeats() int32 {
 	if x != nil {
 		return x.NumberOfSeats
+	}
+	return 0
+}
+
+func (x *VehiclePreview) GetAssuranceStatus() string {
+	if x != nil {
+		return x.AssuranceStatus
+	}
+	return ""
+}
+
+func (x *VehiclePreview) GetVehicleRegistrationStatus() string {
+	if x != nil {
+		return x.VehicleRegistrationStatus
+	}
+	return ""
+}
+
+func (x *VehiclePreview) GetDriverLicenceStatus() string {
+	if x != nil {
+		return x.DriverLicenceStatus
+	}
+	return ""
+}
+
+func (x *VehiclePreview) GetTripCount() int32 {
+	if x != nil {
+		return x.TripCount
 	}
 	return 0
 }
@@ -1174,10 +1230,13 @@ const file_vehicle_proto_rawDesc = "" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
 	"\aVersion\x18\x02 \x01(\tR\aVersion\x12\x1c\n" +
-	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp\"n\n" +
+	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp\"\x82\x02\n" +
 	"\x10VehicleDocuments\x12\"\n" +
 	"\fAssuranceUrl\x18\x01 \x01(\tR\fAssuranceUrl\x126\n" +
-	"\x16VehicleRegistrationUrl\x18\x02 \x01(\tR\x16VehicleRegistrationUrl\"\xb4\x02\n" +
+	"\x16VehicleRegistrationUrl\x18\x02 \x01(\tR\x16VehicleRegistrationUrl\x12*\n" +
+	"\x10DriverLicenceUrl\x18\x03 \x01(\tR\x10DriverLicenceUrl\x12(\n" +
+	"\x0fAssuranceStatus\x18\x04 \x01(\tR\x0fAssuranceStatus\x12<\n" +
+	"\x19VehicleRegistrationStatus\x18\x05 \x01(\tR\x19VehicleRegistrationStatus\"\xb4\x02\n" +
 	"\rVehicleDetail\x12\x1c\n" +
 	"\tVehicleId\x18\x01 \x01(\tR\tVehicleId\x12\x16\n" +
 	"\x06UserId\x18\x02 \x01(\tR\x06UserId\x12\x14\n" +
@@ -1191,7 +1250,7 @@ const file_vehicle_proto_rawDesc = "" +
 	"\n" +
 	"IsVerified\x18\b \x01(\bR\n" +
 	"IsVerified\x127\n" +
-	"\tDocuments\x18\t \x01(\v2\x19.vehicle.VehicleDocumentsR\tDocuments\"\xce\x01\n" +
+	"\tDocuments\x18\t \x01(\v2\x19.vehicle.VehicleDocumentsR\tDocuments\"\x86\x03\n" +
 	"\x0eVehiclePreview\x12\x1c\n" +
 	"\tVehicleId\x18\x01 \x01(\tR\tVehicleId\x12\x14\n" +
 	"\x05Brand\x18\x02 \x01(\tR\x05Brand\x12\x1e\n" +
@@ -1202,7 +1261,12 @@ const file_vehicle_proto_rawDesc = "" +
 	"\n" +
 	"IsVerified\x18\x05 \x01(\bR\n" +
 	"IsVerified\x12$\n" +
-	"\rNumberOfSeats\x18\x06 \x01(\x05R\rNumberOfSeats\"5\n" +
+	"\rNumberOfSeats\x18\x06 \x01(\x05R\rNumberOfSeats\x12(\n" +
+	"\x0fAssuranceStatus\x18\a \x01(\tR\x0fAssuranceStatus\x12<\n" +
+	"\x19VehicleRegistrationStatus\x18\b \x01(\tR\x19VehicleRegistrationStatus\x120\n" +
+	"\x13DriverLicenceStatus\x18\t \x01(\tR\x13DriverLicenceStatus\x12\x1c\n" +
+	"\tTripCount\x18\n" +
+	" \x01(\x05R\tTripCount\"5\n" +
 	"\x15GetVehicleInfoRequest\x12\x1c\n" +
 	"\tVehicleId\x18\x01 \x01(\tR\tVehicleId\"l\n" +
 	"\x16GetVehicleInfoResponse\x12.\n" +

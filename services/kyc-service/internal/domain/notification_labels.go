@@ -4,7 +4,7 @@ package domain
 // envoyées après la revue d'un document.
 
 // DocumentTypeLabel retourne un libellé lisible du type de document à partir du
-// type physique (idCardFront, driverLicenceBack, insurance, …). Le type logique
+// type physique (idCardFront, driverLicence, insurance, …). Le type logique
 // est utilisé pour regrouper recto/verso sous un même libellé.
 func DocumentTypeLabel(documentType string) string {
 	switch ToLogicalDocumentType(documentType) {

@@ -189,6 +189,7 @@ type CreateBookingRequest struct {
 	Segments           []*SegmentInput        `protobuf:"bytes,7,rep,name=Segments,proto3" json:"Segments,omitempty"`
 	PassengerMessage   string                 `protobuf:"bytes,8,opt,name=PassengerMessage,proto3" json:"PassengerMessage,omitempty"`      // message optionnel du passager au conducteur
 	ExtraMinutesDetour int32                  `protobuf:"varint,9,opt,name=ExtraMinutesDetour,proto3" json:"ExtraMinutesDetour,omitempty"` // détour en minutes calculé côté client (0 = inconnu)
+	ExtraDetourPrice   int32                  `protobuf:"varint,10,opt,name=ExtraDetourPrice,proto3" json:"ExtraDetourPrice,omitempty"`    // surcoût XOF lié au détour (0 = non renseigné)
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -282,6 +283,13 @@ func (x *CreateBookingRequest) GetPassengerMessage() string {
 func (x *CreateBookingRequest) GetExtraMinutesDetour() int32 {
 	if x != nil {
 		return x.ExtraMinutesDetour
+	}
+	return 0
+}
+
+func (x *CreateBookingRequest) GetExtraDetourPrice() int32 {
+	if x != nil {
+		return x.ExtraDetourPrice
 	}
 	return 0
 }
@@ -2702,6 +2710,10 @@ type DriverBookingPreview struct {
 	PaymentMethod       string                 `protobuf:"bytes,16,opt,name=PaymentMethod,proto3" json:"PaymentMethod,omitempty"`              // mobileMoney | card | paypal | cash
 	CreatedAt           string                 `protobuf:"bytes,17,opt,name=CreatedAt,proto3" json:"CreatedAt,omitempty"`                      // RFC3339 — pour affichage "il y a N min"
 	ExtraMinutesDetour  int32                  `protobuf:"varint,18,opt,name=ExtraMinutesDetour,proto3" json:"ExtraMinutesDetour,omitempty"`   // détour en minutes (0 = inconnu)
+	PassengerId         string                 `protobuf:"bytes,19,opt,name=PassengerId,proto3" json:"PassengerId,omitempty"`                  // UUID interne du passager
+	PickupLat           float64                `protobuf:"fixed64,20,opt,name=PickupLat,proto3" json:"PickupLat,omitempty"`                    // latitude du point de pickup (0 = inconnu)
+	PickupLng           float64                `protobuf:"fixed64,21,opt,name=PickupLng,proto3" json:"PickupLng,omitempty"`                    // longitude du point de pickup (0 = inconnu)
+	ExtraDetourPrice    int32                  `protobuf:"varint,22,opt,name=ExtraDetourPrice,proto3" json:"ExtraDetourPrice,omitempty"`       // surcoût XOF lié au détour (0 = non renseigné)
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -2858,6 +2870,34 @@ func (x *DriverBookingPreview) GetCreatedAt() string {
 func (x *DriverBookingPreview) GetExtraMinutesDetour() int32 {
 	if x != nil {
 		return x.ExtraMinutesDetour
+	}
+	return 0
+}
+
+func (x *DriverBookingPreview) GetPassengerId() string {
+	if x != nil {
+		return x.PassengerId
+	}
+	return ""
+}
+
+func (x *DriverBookingPreview) GetPickupLat() float64 {
+	if x != nil {
+		return x.PickupLat
+	}
+	return 0
+}
+
+func (x *DriverBookingPreview) GetPickupLng() float64 {
+	if x != nil {
+		return x.PickupLng
+	}
+	return 0
+}
+
+func (x *DriverBookingPreview) GetExtraDetourPrice() int32 {
+	if x != nil {
+		return x.ExtraDetourPrice
 	}
 	return 0
 }
@@ -3035,6 +3075,118 @@ func (x *GetDriverPendingBookingsResponse) GetErrorMessage() string {
 	return ""
 }
 
+type GetDriverBookingsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DriverId      string                 `protobuf:"bytes,1,opt,name=DriverId,proto3" json:"DriverId,omitempty"`
+	StatusFilter  string                 `protobuf:"bytes,2,opt,name=StatusFilter,proto3" json:"StatusFilter,omitempty"` // vide = tous statuts ; sinon : pendingApproval | approved | rejected | cancelled
+	Index         int32                  `protobuf:"varint,3,opt,name=Index,proto3" json:"Index,omitempty"`              // index de page (0-based, 10 items par page)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDriverBookingsRequest) Reset() {
+	*x = GetDriverBookingsRequest{}
+	mi := &file_booking_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDriverBookingsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDriverBookingsRequest) ProtoMessage() {}
+
+func (x *GetDriverBookingsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_booking_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDriverBookingsRequest.ProtoReflect.Descriptor instead.
+func (*GetDriverBookingsRequest) Descriptor() ([]byte, []int) {
+	return file_booking_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *GetDriverBookingsRequest) GetDriverId() string {
+	if x != nil {
+		return x.DriverId
+	}
+	return ""
+}
+
+func (x *GetDriverBookingsRequest) GetStatusFilter() string {
+	if x != nil {
+		return x.StatusFilter
+	}
+	return ""
+}
+
+func (x *GetDriverBookingsRequest) GetIndex() int32 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
+}
+
+type GetDriverBookingsResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Bookings      []*DriverBookingPreview `protobuf:"bytes,1,rep,name=Bookings,proto3" json:"Bookings,omitempty"`
+	ErrorMessage  string                  `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDriverBookingsResponse) Reset() {
+	*x = GetDriverBookingsResponse{}
+	mi := &file_booking_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDriverBookingsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDriverBookingsResponse) ProtoMessage() {}
+
+func (x *GetDriverBookingsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_booking_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDriverBookingsResponse.ProtoReflect.Descriptor instead.
+func (*GetDriverBookingsResponse) Descriptor() ([]byte, []int) {
+	return file_booking_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *GetDriverBookingsResponse) GetBookings() []*DriverBookingPreview {
+	if x != nil {
+		return x.Bookings
+	}
+	return nil
+}
+
+func (x *GetDriverBookingsResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
 type PassengerSummary struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PassengerId   string                 `protobuf:"bytes,1,opt,name=PassengerId,proto3" json:"PassengerId,omitempty"`
@@ -3051,7 +3203,7 @@ type PassengerSummary struct {
 
 func (x *PassengerSummary) Reset() {
 	*x = PassengerSummary{}
-	mi := &file_booking_proto_msgTypes[41]
+	mi := &file_booking_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3063,7 +3215,7 @@ func (x *PassengerSummary) String() string {
 func (*PassengerSummary) ProtoMessage() {}
 
 func (x *PassengerSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[41]
+	mi := &file_booking_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3076,7 +3228,7 @@ func (x *PassengerSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PassengerSummary.ProtoReflect.Descriptor instead.
 func (*PassengerSummary) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{41}
+	return file_booking_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *PassengerSummary) GetPassengerId() string {
@@ -3144,7 +3296,7 @@ type GetActivePassengerSummariesForTripRequest struct {
 
 func (x *GetActivePassengerSummariesForTripRequest) Reset() {
 	*x = GetActivePassengerSummariesForTripRequest{}
-	mi := &file_booking_proto_msgTypes[42]
+	mi := &file_booking_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3156,7 +3308,7 @@ func (x *GetActivePassengerSummariesForTripRequest) String() string {
 func (*GetActivePassengerSummariesForTripRequest) ProtoMessage() {}
 
 func (x *GetActivePassengerSummariesForTripRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[42]
+	mi := &file_booking_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3169,7 +3321,7 @@ func (x *GetActivePassengerSummariesForTripRequest) ProtoReflect() protoreflect.
 
 // Deprecated: Use GetActivePassengerSummariesForTripRequest.ProtoReflect.Descriptor instead.
 func (*GetActivePassengerSummariesForTripRequest) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{42}
+	return file_booking_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *GetActivePassengerSummariesForTripRequest) GetTripId() string {
@@ -3189,7 +3341,7 @@ type GetActivePassengerSummariesForTripResponse struct {
 
 func (x *GetActivePassengerSummariesForTripResponse) Reset() {
 	*x = GetActivePassengerSummariesForTripResponse{}
-	mi := &file_booking_proto_msgTypes[43]
+	mi := &file_booking_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3201,7 +3353,7 @@ func (x *GetActivePassengerSummariesForTripResponse) String() string {
 func (*GetActivePassengerSummariesForTripResponse) ProtoMessage() {}
 
 func (x *GetActivePassengerSummariesForTripResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[43]
+	mi := &file_booking_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3214,7 +3366,7 @@ func (x *GetActivePassengerSummariesForTripResponse) ProtoReflect() protoreflect
 
 // Deprecated: Use GetActivePassengerSummariesForTripResponse.ProtoReflect.Descriptor instead.
 func (*GetActivePassengerSummariesForTripResponse) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{43}
+	return file_booking_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *GetActivePassengerSummariesForTripResponse) GetSummaries() []*PassengerSummary {
@@ -3245,7 +3397,7 @@ type ListBookingsRequest struct {
 
 func (x *ListBookingsRequest) Reset() {
 	*x = ListBookingsRequest{}
-	mi := &file_booking_proto_msgTypes[44]
+	mi := &file_booking_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3257,7 +3409,7 @@ func (x *ListBookingsRequest) String() string {
 func (*ListBookingsRequest) ProtoMessage() {}
 
 func (x *ListBookingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[44]
+	mi := &file_booking_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3270,7 +3422,7 @@ func (x *ListBookingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBookingsRequest.ProtoReflect.Descriptor instead.
 func (*ListBookingsRequest) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{44}
+	return file_booking_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *ListBookingsRequest) GetStatus() string {
@@ -3338,7 +3490,7 @@ type AdminBookingPreview struct {
 
 func (x *AdminBookingPreview) Reset() {
 	*x = AdminBookingPreview{}
-	mi := &file_booking_proto_msgTypes[45]
+	mi := &file_booking_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3350,7 +3502,7 @@ func (x *AdminBookingPreview) String() string {
 func (*AdminBookingPreview) ProtoMessage() {}
 
 func (x *AdminBookingPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[45]
+	mi := &file_booking_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3363,7 +3515,7 @@ func (x *AdminBookingPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminBookingPreview.ProtoReflect.Descriptor instead.
 func (*AdminBookingPreview) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{45}
+	return file_booking_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *AdminBookingPreview) GetBookingId() string {
@@ -3482,7 +3634,7 @@ type ListBookingsResponse struct {
 
 func (x *ListBookingsResponse) Reset() {
 	*x = ListBookingsResponse{}
-	mi := &file_booking_proto_msgTypes[46]
+	mi := &file_booking_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3494,7 +3646,7 @@ func (x *ListBookingsResponse) String() string {
 func (*ListBookingsResponse) ProtoMessage() {}
 
 func (x *ListBookingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[46]
+	mi := &file_booking_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3507,7 +3659,7 @@ func (x *ListBookingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBookingsResponse.ProtoReflect.Descriptor instead.
 func (*ListBookingsResponse) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{46}
+	return file_booking_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ListBookingsResponse) GetBookings() []*AdminBookingPreview {
@@ -3540,7 +3692,7 @@ type GetBookingDetailAdminRequest struct {
 
 func (x *GetBookingDetailAdminRequest) Reset() {
 	*x = GetBookingDetailAdminRequest{}
-	mi := &file_booking_proto_msgTypes[47]
+	mi := &file_booking_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3552,7 +3704,7 @@ func (x *GetBookingDetailAdminRequest) String() string {
 func (*GetBookingDetailAdminRequest) ProtoMessage() {}
 
 func (x *GetBookingDetailAdminRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[47]
+	mi := &file_booking_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3565,7 +3717,7 @@ func (x *GetBookingDetailAdminRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBookingDetailAdminRequest.ProtoReflect.Descriptor instead.
 func (*GetBookingDetailAdminRequest) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{47}
+	return file_booking_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *GetBookingDetailAdminRequest) GetBookingId() string {
@@ -3587,7 +3739,7 @@ type GetBookingDetailAdminResponse struct {
 
 func (x *GetBookingDetailAdminResponse) Reset() {
 	*x = GetBookingDetailAdminResponse{}
-	mi := &file_booking_proto_msgTypes[48]
+	mi := &file_booking_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3599,7 +3751,7 @@ func (x *GetBookingDetailAdminResponse) String() string {
 func (*GetBookingDetailAdminResponse) ProtoMessage() {}
 
 func (x *GetBookingDetailAdminResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[48]
+	mi := &file_booking_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3612,7 +3764,7 @@ func (x *GetBookingDetailAdminResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBookingDetailAdminResponse.ProtoReflect.Descriptor instead.
 func (*GetBookingDetailAdminResponse) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{48}
+	return file_booking_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *GetBookingDetailAdminResponse) GetBooking() *BookingDetail {
@@ -3652,7 +3804,7 @@ type CheckDeletionEligibilityRequest struct {
 
 func (x *CheckDeletionEligibilityRequest) Reset() {
 	*x = CheckDeletionEligibilityRequest{}
-	mi := &file_booking_proto_msgTypes[49]
+	mi := &file_booking_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3664,7 +3816,7 @@ func (x *CheckDeletionEligibilityRequest) String() string {
 func (*CheckDeletionEligibilityRequest) ProtoMessage() {}
 
 func (x *CheckDeletionEligibilityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[49]
+	mi := &file_booking_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3677,7 +3829,7 @@ func (x *CheckDeletionEligibilityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckDeletionEligibilityRequest.ProtoReflect.Descriptor instead.
 func (*CheckDeletionEligibilityRequest) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{49}
+	return file_booking_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *CheckDeletionEligibilityRequest) GetUserId() string {
@@ -3698,7 +3850,7 @@ type CheckDeletionEligibilityResponse struct {
 
 func (x *CheckDeletionEligibilityResponse) Reset() {
 	*x = CheckDeletionEligibilityResponse{}
-	mi := &file_booking_proto_msgTypes[50]
+	mi := &file_booking_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3710,7 +3862,7 @@ func (x *CheckDeletionEligibilityResponse) String() string {
 func (*CheckDeletionEligibilityResponse) ProtoMessage() {}
 
 func (x *CheckDeletionEligibilityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[50]
+	mi := &file_booking_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3723,7 +3875,7 @@ func (x *CheckDeletionEligibilityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckDeletionEligibilityResponse.ProtoReflect.Descriptor instead.
 func (*CheckDeletionEligibilityResponse) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{50}
+	return file_booking_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *CheckDeletionEligibilityResponse) GetCanDelete() bool {
@@ -3756,7 +3908,7 @@ type AnonymizeUserDataRequest struct {
 
 func (x *AnonymizeUserDataRequest) Reset() {
 	*x = AnonymizeUserDataRequest{}
-	mi := &file_booking_proto_msgTypes[51]
+	mi := &file_booking_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3768,7 +3920,7 @@ func (x *AnonymizeUserDataRequest) String() string {
 func (*AnonymizeUserDataRequest) ProtoMessage() {}
 
 func (x *AnonymizeUserDataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[51]
+	mi := &file_booking_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3781,7 +3933,7 @@ func (x *AnonymizeUserDataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnonymizeUserDataRequest.ProtoReflect.Descriptor instead.
 func (*AnonymizeUserDataRequest) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{51}
+	return file_booking_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *AnonymizeUserDataRequest) GetUserId() string {
@@ -3801,7 +3953,7 @@ type AnonymizeUserDataResponse struct {
 
 func (x *AnonymizeUserDataResponse) Reset() {
 	*x = AnonymizeUserDataResponse{}
-	mi := &file_booking_proto_msgTypes[52]
+	mi := &file_booking_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3813,7 +3965,7 @@ func (x *AnonymizeUserDataResponse) String() string {
 func (*AnonymizeUserDataResponse) ProtoMessage() {}
 
 func (x *AnonymizeUserDataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[52]
+	mi := &file_booking_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3826,7 +3978,7 @@ func (x *AnonymizeUserDataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnonymizeUserDataResponse.ProtoReflect.Descriptor instead.
 func (*AnonymizeUserDataResponse) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{52}
+	return file_booking_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *AnonymizeUserDataResponse) GetSuccess() bool {
@@ -3852,7 +4004,7 @@ type GetPassengerBookingIDsRequest struct {
 
 func (x *GetPassengerBookingIDsRequest) Reset() {
 	*x = GetPassengerBookingIDsRequest{}
-	mi := &file_booking_proto_msgTypes[53]
+	mi := &file_booking_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3864,7 +4016,7 @@ func (x *GetPassengerBookingIDsRequest) String() string {
 func (*GetPassengerBookingIDsRequest) ProtoMessage() {}
 
 func (x *GetPassengerBookingIDsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[53]
+	mi := &file_booking_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3877,7 +4029,7 @@ func (x *GetPassengerBookingIDsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPassengerBookingIDsRequest.ProtoReflect.Descriptor instead.
 func (*GetPassengerBookingIDsRequest) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{53}
+	return file_booking_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *GetPassengerBookingIDsRequest) GetUserId() string {
@@ -3897,7 +4049,7 @@ type GetPassengerBookingIDsResponse struct {
 
 func (x *GetPassengerBookingIDsResponse) Reset() {
 	*x = GetPassengerBookingIDsResponse{}
-	mi := &file_booking_proto_msgTypes[54]
+	mi := &file_booking_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3909,7 +4061,7 @@ func (x *GetPassengerBookingIDsResponse) String() string {
 func (*GetPassengerBookingIDsResponse) ProtoMessage() {}
 
 func (x *GetPassengerBookingIDsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[54]
+	mi := &file_booking_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3922,7 +4074,7 @@ func (x *GetPassengerBookingIDsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPassengerBookingIDsResponse.ProtoReflect.Descriptor instead.
 func (*GetPassengerBookingIDsResponse) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{54}
+	return file_booking_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *GetPassengerBookingIDsResponse) GetBookingIds() []string {
@@ -3966,7 +4118,7 @@ const file_booking_proto_rawDesc = "" +
 	"\x12DropoffScheduledAt\x18\f \x01(\tR\x12DropoffScheduledAt\x124\n" +
 	"\x15SegmentDistanceMeters\x18\r \x01(\x05R\x15SegmentDistanceMeters\x126\n" +
 	"\x16SegmentDurationMinutes\x18\x0e \x01(\x05R\x16SegmentDurationMinutes\x12\"\n" +
-	"\fSegmentPrice\x18\x0f \x01(\x05R\fSegmentPrice\"\x81\x03\n" +
+	"\fSegmentPrice\x18\x0f \x01(\x05R\fSegmentPrice\"\xad\x03\n" +
 	"\x14CreateBookingRequest\x12 \n" +
 	"\vPassengerId\x18\x01 \x01(\tR\vPassengerId\x12\x16\n" +
 	"\x06TripId\x18\x02 \x01(\tR\x06TripId\x12*\n" +
@@ -3976,7 +4128,9 @@ const file_booking_proto_rawDesc = "" +
 	"\rPaymentMethod\x18\x06 \x01(\tR\rPaymentMethod\x121\n" +
 	"\bSegments\x18\a \x03(\v2\x15.booking.SegmentInputR\bSegments\x12*\n" +
 	"\x10PassengerMessage\x18\b \x01(\tR\x10PassengerMessage\x12.\n" +
-	"\x12ExtraMinutesDetour\x18\t \x01(\x05R\x12ExtraMinutesDetour\"\xbf\x01\n" +
+	"\x12ExtraMinutesDetour\x18\t \x01(\x05R\x12ExtraMinutesDetour\x12*\n" +
+	"\x10ExtraDetourPrice\x18\n" +
+	" \x01(\x05R\x10ExtraDetourPrice\"\xbf\x01\n" +
 	"\x15CreateBookingResponse\x12\x1c\n" +
 	"\tBookingId\x18\x01 \x01(\tR\tBookingId\x12*\n" +
 	"\x10BookingReference\x18\x02 \x01(\tR\x10BookingReference\x12\x16\n" +
@@ -4180,7 +4334,7 @@ const file_booking_proto_rawDesc = "" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
 	"\aVersion\x18\x02 \x01(\tR\aVersion\x12\x1c\n" +
-	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp\"\xd4\x05\n" +
+	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp\"\xde\x06\n" +
 	"\x14DriverBookingPreview\x12\x1c\n" +
 	"\tBookingId\x18\x01 \x01(\tR\tBookingId\x12*\n" +
 	"\x10BookingReference\x18\x02 \x01(\tR\x10BookingReference\x12\x16\n" +
@@ -4200,7 +4354,11 @@ const file_booking_proto_rawDesc = "" +
 	"\x10PassengerMessage\x18\x0f \x01(\tR\x10PassengerMessage\x12$\n" +
 	"\rPaymentMethod\x18\x10 \x01(\tR\rPaymentMethod\x12\x1c\n" +
 	"\tCreatedAt\x18\x11 \x01(\tR\tCreatedAt\x12.\n" +
-	"\x12ExtraMinutesDetour\x18\x12 \x01(\x05R\x12ExtraMinutesDetour\"\x7f\n" +
+	"\x12ExtraMinutesDetour\x18\x12 \x01(\x05R\x12ExtraMinutesDetour\x12 \n" +
+	"\vPassengerId\x18\x13 \x01(\tR\vPassengerId\x12\x1c\n" +
+	"\tPickupLat\x18\x14 \x01(\x01R\tPickupLat\x12\x1c\n" +
+	"\tPickupLng\x18\x15 \x01(\x01R\tPickupLng\x12*\n" +
+	"\x10ExtraDetourPrice\x18\x16 \x01(\x05R\x10ExtraDetourPrice\"\x7f\n" +
 	"\rBookingCounts\x12\x18\n" +
 	"\aPending\x18\x01 \x01(\x05R\aPending\x12\x1a\n" +
 	"\bApproved\x18\x02 \x01(\x05R\bApproved\x12\x1a\n" +
@@ -4210,6 +4368,13 @@ const file_booking_proto_rawDesc = "" +
 	"\bDriverId\x18\x01 \x01(\tR\bDriverId\x12\x14\n" +
 	"\x05Index\x18\x02 \x01(\x05R\x05Index\"\x81\x01\n" +
 	" GetDriverPendingBookingsResponse\x129\n" +
+	"\bBookings\x18\x01 \x03(\v2\x1d.booking.DriverBookingPreviewR\bBookings\x12\"\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"p\n" +
+	"\x18GetDriverBookingsRequest\x12\x1a\n" +
+	"\bDriverId\x18\x01 \x01(\tR\bDriverId\x12\"\n" +
+	"\fStatusFilter\x18\x02 \x01(\tR\fStatusFilter\x12\x14\n" +
+	"\x05Index\x18\x03 \x01(\x05R\x05Index\"z\n" +
+	"\x19GetDriverBookingsResponse\x129\n" +
 	"\bBookings\x18\x01 \x03(\v2\x1d.booking.DriverBookingPreviewR\bBookings\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\x9e\x02\n" +
 	"\x10PassengerSummary\x12 \n" +
@@ -4284,7 +4449,7 @@ const file_booking_proto_rawDesc = "" +
 	"\n" +
 	"BookingIds\x18\x01 \x03(\tR\n" +
 	"BookingIds\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\xae\x19\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\xb6\x1a\n" +
 	"\x0eBookingService\x12x\n" +
 	"\rCreateBooking\x12\x1d.booking.CreateBookingRequest\x1a\x1e.booking.CreateBookingResponse\"(\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/api/v1/booking/createBooking\x12\x85\x01\n" +
 	"\x11GetBookingDetails\x12!.booking.GetBookingDetailsRequest\x1a\".booking.GetBookingDetailsResponse\")\x82\xd3\xe4\x93\x02#\x12!/api/v1/booking/getBookingDetails\x12\x91\x01\n" +
@@ -4301,7 +4466,8 @@ const file_booking_proto_rawDesc = "" +
 	"\x0eConfirmPayment\x12\x1e.booking.ConfirmPaymentRequest\x1a\x1f.booking.ConfirmPaymentResponse\")\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/api/v1/booking/confirmPayment\x12y\n" +
 	"\vFailPayment\x12\x1b.booking.FailPaymentRequest\x1a\x1c.booking.FailPaymentResponse\"/\x82\xd3\xe4\x93\x02):\x01*\"$/api/v1/booking/internal/failPayment\x12\xba\x01\n" +
 	"\x1cGetActivePassengerIDsForTrip\x12,.booking.GetActivePassengerIDsForTripRequest\x1a-.booking.GetActivePassengerIDsForTripResponse\"=\x82\xd3\xe4\x93\x027\x125/api/v1/booking/internal/getActivePassengerIDsForTrip\x12\xa1\x01\n" +
-	"\x18GetDriverPendingBookings\x12(.booking.GetDriverPendingBookingsRequest\x1a).booking.GetDriverPendingBookingsResponse\"0\x82\xd3\xe4\x93\x02*\x12(/api/v1/booking/getDriverPendingBookings\x12\xc2\x01\n" +
+	"\x18GetDriverPendingBookings\x12(.booking.GetDriverPendingBookingsRequest\x1a).booking.GetDriverPendingBookingsResponse\"0\x82\xd3\xe4\x93\x02*\x12(/api/v1/booking/getDriverPendingBookings\x12\x85\x01\n" +
+	"\x11GetDriverBookings\x12!.booking.GetDriverBookingsRequest\x1a\".booking.GetDriverBookingsResponse\")\x82\xd3\xe4\x93\x02#\x12!/api/v1/booking/getDriverBookings\x12\xc2\x01\n" +
 	"\"GetActivePassengerSummariesForTrip\x122.booking.GetActivePassengerSummariesForTripRequest\x1a3.booking.GetActivePassengerSummariesForTripResponse\"3\x82\xd3\xe4\x93\x02-\x12+/api/v1/booking/getActivePassengerSummaries\x12w\n" +
 	"\fListBookings\x12\x1c.booking.ListBookingsRequest\x1a\x1d.booking.ListBookingsResponse\"*\x82\xd3\xe4\x93\x02$\x12\"/api/v1/booking/admin/listBookings\x12\x96\x01\n" +
 	"\x15GetBookingDetailAdmin\x12%.booking.GetBookingDetailAdminRequest\x1a&.booking.GetBookingDetailAdminResponse\".\x82\xd3\xe4\x93\x02(\x12&/api/v1/booking/admin/getBookingDetail\x12Y\n" +
@@ -4322,7 +4488,7 @@ func file_booking_proto_rawDescGZIP() []byte {
 	return file_booking_proto_rawDescData
 }
 
-var file_booking_proto_msgTypes = make([]protoimpl.MessageInfo, 55)
+var file_booking_proto_msgTypes = make([]protoimpl.MessageInfo, 57)
 var file_booking_proto_goTypes = []any{
 	(*SegmentInput)(nil),                               // 0: booking.SegmentInput
 	(*CreateBookingRequest)(nil),                       // 1: booking.CreateBookingRequest
@@ -4365,20 +4531,22 @@ var file_booking_proto_goTypes = []any{
 	(*BookingCounts)(nil),                              // 38: booking.BookingCounts
 	(*GetDriverPendingBookingsRequest)(nil),            // 39: booking.GetDriverPendingBookingsRequest
 	(*GetDriverPendingBookingsResponse)(nil),           // 40: booking.GetDriverPendingBookingsResponse
-	(*PassengerSummary)(nil),                           // 41: booking.PassengerSummary
-	(*GetActivePassengerSummariesForTripRequest)(nil),  // 42: booking.GetActivePassengerSummariesForTripRequest
-	(*GetActivePassengerSummariesForTripResponse)(nil), // 43: booking.GetActivePassengerSummariesForTripResponse
-	(*ListBookingsRequest)(nil),                        // 44: booking.ListBookingsRequest
-	(*AdminBookingPreview)(nil),                        // 45: booking.AdminBookingPreview
-	(*ListBookingsResponse)(nil),                       // 46: booking.ListBookingsResponse
-	(*GetBookingDetailAdminRequest)(nil),               // 47: booking.GetBookingDetailAdminRequest
-	(*GetBookingDetailAdminResponse)(nil),              // 48: booking.GetBookingDetailAdminResponse
-	(*CheckDeletionEligibilityRequest)(nil),            // 49: booking.CheckDeletionEligibilityRequest
-	(*CheckDeletionEligibilityResponse)(nil),           // 50: booking.CheckDeletionEligibilityResponse
-	(*AnonymizeUserDataRequest)(nil),                   // 51: booking.AnonymizeUserDataRequest
-	(*AnonymizeUserDataResponse)(nil),                  // 52: booking.AnonymizeUserDataResponse
-	(*GetPassengerBookingIDsRequest)(nil),              // 53: booking.GetPassengerBookingIDsRequest
-	(*GetPassengerBookingIDsResponse)(nil),             // 54: booking.GetPassengerBookingIDsResponse
+	(*GetDriverBookingsRequest)(nil),                   // 41: booking.GetDriverBookingsRequest
+	(*GetDriverBookingsResponse)(nil),                  // 42: booking.GetDriverBookingsResponse
+	(*PassengerSummary)(nil),                           // 43: booking.PassengerSummary
+	(*GetActivePassengerSummariesForTripRequest)(nil),  // 44: booking.GetActivePassengerSummariesForTripRequest
+	(*GetActivePassengerSummariesForTripResponse)(nil), // 45: booking.GetActivePassengerSummariesForTripResponse
+	(*ListBookingsRequest)(nil),                        // 46: booking.ListBookingsRequest
+	(*AdminBookingPreview)(nil),                        // 47: booking.AdminBookingPreview
+	(*ListBookingsResponse)(nil),                       // 48: booking.ListBookingsResponse
+	(*GetBookingDetailAdminRequest)(nil),               // 49: booking.GetBookingDetailAdminRequest
+	(*GetBookingDetailAdminResponse)(nil),              // 50: booking.GetBookingDetailAdminResponse
+	(*CheckDeletionEligibilityRequest)(nil),            // 51: booking.CheckDeletionEligibilityRequest
+	(*CheckDeletionEligibilityResponse)(nil),           // 52: booking.CheckDeletionEligibilityResponse
+	(*AnonymizeUserDataRequest)(nil),                   // 53: booking.AnonymizeUserDataRequest
+	(*AnonymizeUserDataResponse)(nil),                  // 54: booking.AnonymizeUserDataResponse
+	(*GetPassengerBookingIDsRequest)(nil),              // 55: booking.GetPassengerBookingIDsRequest
+	(*GetPassengerBookingIDsResponse)(nil),             // 56: booking.GetPassengerBookingIDsResponse
 }
 var file_booking_proto_depIdxs = []int32{
 	0,  // 0: booking.CreateBookingRequest.Segments:type_name -> booking.SegmentInput
@@ -4390,60 +4558,63 @@ var file_booking_proto_depIdxs = []int32{
 	37, // 6: booking.GetDriverTripBookingsResponse.DriverBookings:type_name -> booking.DriverBookingPreview
 	38, // 7: booking.GetDriverTripBookingsResponse.Counts:type_name -> booking.BookingCounts
 	37, // 8: booking.GetDriverPendingBookingsResponse.Bookings:type_name -> booking.DriverBookingPreview
-	41, // 9: booking.GetActivePassengerSummariesForTripResponse.Summaries:type_name -> booking.PassengerSummary
-	45, // 10: booking.ListBookingsResponse.Bookings:type_name -> booking.AdminBookingPreview
-	6,  // 11: booking.GetBookingDetailAdminResponse.Booking:type_name -> booking.BookingDetail
-	1,  // 12: booking.BookingService.CreateBooking:input_type -> booking.CreateBookingRequest
-	3,  // 13: booking.BookingService.GetBookingDetails:input_type -> booking.GetBookingDetailsRequest
-	8,  // 14: booking.BookingService.GetPassengerBookings:input_type -> booking.GetPassengerBookingsRequest
-	11, // 15: booking.BookingService.GetDriverTripBookings:input_type -> booking.GetDriverTripBookingsRequest
-	13, // 16: booking.BookingService.ApproveBooking:input_type -> booking.ApproveBookingRequest
-	15, // 17: booking.BookingService.RejectBooking:input_type -> booking.RejectBookingRequest
-	17, // 18: booking.BookingService.CancelBooking:input_type -> booking.CancelBookingRequest
-	19, // 19: booking.BookingService.StartBookingsForWaypoint:input_type -> booking.StartBookingsForWaypointRequest
-	21, // 20: booking.BookingService.CompleteBookingsForWaypoint:input_type -> booking.CompleteBookingsForWaypointRequest
-	23, // 21: booking.BookingService.CancelBookingsForWaypoint:input_type -> booking.CancelBookingsForWaypointRequest
-	25, // 22: booking.BookingService.CancelBookingsForTrip:input_type -> booking.CancelBookingsForTripRequest
-	27, // 23: booking.BookingService.ReportNoShow:input_type -> booking.ReportNoShowRequest
-	29, // 24: booking.BookingService.ConfirmPayment:input_type -> booking.ConfirmPaymentRequest
-	31, // 25: booking.BookingService.FailPayment:input_type -> booking.FailPaymentRequest
-	33, // 26: booking.BookingService.GetActivePassengerIDsForTrip:input_type -> booking.GetActivePassengerIDsForTripRequest
-	39, // 27: booking.BookingService.GetDriverPendingBookings:input_type -> booking.GetDriverPendingBookingsRequest
-	42, // 28: booking.BookingService.GetActivePassengerSummariesForTrip:input_type -> booking.GetActivePassengerSummariesForTripRequest
-	44, // 29: booking.BookingService.ListBookings:input_type -> booking.ListBookingsRequest
-	47, // 30: booking.BookingService.GetBookingDetailAdmin:input_type -> booking.GetBookingDetailAdminRequest
-	35, // 31: booking.BookingService.Health:input_type -> booking.HealthRequest
-	49, // 32: booking.BookingService.CheckDeletionEligibility:input_type -> booking.CheckDeletionEligibilityRequest
-	51, // 33: booking.BookingService.AnonymizeUserData:input_type -> booking.AnonymizeUserDataRequest
-	53, // 34: booking.BookingService.GetPassengerBookingIDs:input_type -> booking.GetPassengerBookingIDsRequest
-	2,  // 35: booking.BookingService.CreateBooking:output_type -> booking.CreateBookingResponse
-	7,  // 36: booking.BookingService.GetBookingDetails:output_type -> booking.GetBookingDetailsResponse
-	10, // 37: booking.BookingService.GetPassengerBookings:output_type -> booking.GetPassengerBookingsResponse
-	12, // 38: booking.BookingService.GetDriverTripBookings:output_type -> booking.GetDriverTripBookingsResponse
-	14, // 39: booking.BookingService.ApproveBooking:output_type -> booking.ApproveBookingResponse
-	16, // 40: booking.BookingService.RejectBooking:output_type -> booking.RejectBookingResponse
-	18, // 41: booking.BookingService.CancelBooking:output_type -> booking.CancelBookingResponse
-	20, // 42: booking.BookingService.StartBookingsForWaypoint:output_type -> booking.StartBookingsForWaypointResponse
-	22, // 43: booking.BookingService.CompleteBookingsForWaypoint:output_type -> booking.CompleteBookingsForWaypointResponse
-	24, // 44: booking.BookingService.CancelBookingsForWaypoint:output_type -> booking.CancelBookingsForWaypointResponse
-	26, // 45: booking.BookingService.CancelBookingsForTrip:output_type -> booking.CancelBookingsForTripResponse
-	28, // 46: booking.BookingService.ReportNoShow:output_type -> booking.ReportNoShowResponse
-	30, // 47: booking.BookingService.ConfirmPayment:output_type -> booking.ConfirmPaymentResponse
-	32, // 48: booking.BookingService.FailPayment:output_type -> booking.FailPaymentResponse
-	34, // 49: booking.BookingService.GetActivePassengerIDsForTrip:output_type -> booking.GetActivePassengerIDsForTripResponse
-	40, // 50: booking.BookingService.GetDriverPendingBookings:output_type -> booking.GetDriverPendingBookingsResponse
-	43, // 51: booking.BookingService.GetActivePassengerSummariesForTrip:output_type -> booking.GetActivePassengerSummariesForTripResponse
-	46, // 52: booking.BookingService.ListBookings:output_type -> booking.ListBookingsResponse
-	48, // 53: booking.BookingService.GetBookingDetailAdmin:output_type -> booking.GetBookingDetailAdminResponse
-	36, // 54: booking.BookingService.Health:output_type -> booking.HealthResponse
-	50, // 55: booking.BookingService.CheckDeletionEligibility:output_type -> booking.CheckDeletionEligibilityResponse
-	52, // 56: booking.BookingService.AnonymizeUserData:output_type -> booking.AnonymizeUserDataResponse
-	54, // 57: booking.BookingService.GetPassengerBookingIDs:output_type -> booking.GetPassengerBookingIDsResponse
-	35, // [35:58] is the sub-list for method output_type
-	12, // [12:35] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	37, // 9: booking.GetDriverBookingsResponse.Bookings:type_name -> booking.DriverBookingPreview
+	43, // 10: booking.GetActivePassengerSummariesForTripResponse.Summaries:type_name -> booking.PassengerSummary
+	47, // 11: booking.ListBookingsResponse.Bookings:type_name -> booking.AdminBookingPreview
+	6,  // 12: booking.GetBookingDetailAdminResponse.Booking:type_name -> booking.BookingDetail
+	1,  // 13: booking.BookingService.CreateBooking:input_type -> booking.CreateBookingRequest
+	3,  // 14: booking.BookingService.GetBookingDetails:input_type -> booking.GetBookingDetailsRequest
+	8,  // 15: booking.BookingService.GetPassengerBookings:input_type -> booking.GetPassengerBookingsRequest
+	11, // 16: booking.BookingService.GetDriverTripBookings:input_type -> booking.GetDriverTripBookingsRequest
+	13, // 17: booking.BookingService.ApproveBooking:input_type -> booking.ApproveBookingRequest
+	15, // 18: booking.BookingService.RejectBooking:input_type -> booking.RejectBookingRequest
+	17, // 19: booking.BookingService.CancelBooking:input_type -> booking.CancelBookingRequest
+	19, // 20: booking.BookingService.StartBookingsForWaypoint:input_type -> booking.StartBookingsForWaypointRequest
+	21, // 21: booking.BookingService.CompleteBookingsForWaypoint:input_type -> booking.CompleteBookingsForWaypointRequest
+	23, // 22: booking.BookingService.CancelBookingsForWaypoint:input_type -> booking.CancelBookingsForWaypointRequest
+	25, // 23: booking.BookingService.CancelBookingsForTrip:input_type -> booking.CancelBookingsForTripRequest
+	27, // 24: booking.BookingService.ReportNoShow:input_type -> booking.ReportNoShowRequest
+	29, // 25: booking.BookingService.ConfirmPayment:input_type -> booking.ConfirmPaymentRequest
+	31, // 26: booking.BookingService.FailPayment:input_type -> booking.FailPaymentRequest
+	33, // 27: booking.BookingService.GetActivePassengerIDsForTrip:input_type -> booking.GetActivePassengerIDsForTripRequest
+	39, // 28: booking.BookingService.GetDriverPendingBookings:input_type -> booking.GetDriverPendingBookingsRequest
+	41, // 29: booking.BookingService.GetDriverBookings:input_type -> booking.GetDriverBookingsRequest
+	44, // 30: booking.BookingService.GetActivePassengerSummariesForTrip:input_type -> booking.GetActivePassengerSummariesForTripRequest
+	46, // 31: booking.BookingService.ListBookings:input_type -> booking.ListBookingsRequest
+	49, // 32: booking.BookingService.GetBookingDetailAdmin:input_type -> booking.GetBookingDetailAdminRequest
+	35, // 33: booking.BookingService.Health:input_type -> booking.HealthRequest
+	51, // 34: booking.BookingService.CheckDeletionEligibility:input_type -> booking.CheckDeletionEligibilityRequest
+	53, // 35: booking.BookingService.AnonymizeUserData:input_type -> booking.AnonymizeUserDataRequest
+	55, // 36: booking.BookingService.GetPassengerBookingIDs:input_type -> booking.GetPassengerBookingIDsRequest
+	2,  // 37: booking.BookingService.CreateBooking:output_type -> booking.CreateBookingResponse
+	7,  // 38: booking.BookingService.GetBookingDetails:output_type -> booking.GetBookingDetailsResponse
+	10, // 39: booking.BookingService.GetPassengerBookings:output_type -> booking.GetPassengerBookingsResponse
+	12, // 40: booking.BookingService.GetDriverTripBookings:output_type -> booking.GetDriverTripBookingsResponse
+	14, // 41: booking.BookingService.ApproveBooking:output_type -> booking.ApproveBookingResponse
+	16, // 42: booking.BookingService.RejectBooking:output_type -> booking.RejectBookingResponse
+	18, // 43: booking.BookingService.CancelBooking:output_type -> booking.CancelBookingResponse
+	20, // 44: booking.BookingService.StartBookingsForWaypoint:output_type -> booking.StartBookingsForWaypointResponse
+	22, // 45: booking.BookingService.CompleteBookingsForWaypoint:output_type -> booking.CompleteBookingsForWaypointResponse
+	24, // 46: booking.BookingService.CancelBookingsForWaypoint:output_type -> booking.CancelBookingsForWaypointResponse
+	26, // 47: booking.BookingService.CancelBookingsForTrip:output_type -> booking.CancelBookingsForTripResponse
+	28, // 48: booking.BookingService.ReportNoShow:output_type -> booking.ReportNoShowResponse
+	30, // 49: booking.BookingService.ConfirmPayment:output_type -> booking.ConfirmPaymentResponse
+	32, // 50: booking.BookingService.FailPayment:output_type -> booking.FailPaymentResponse
+	34, // 51: booking.BookingService.GetActivePassengerIDsForTrip:output_type -> booking.GetActivePassengerIDsForTripResponse
+	40, // 52: booking.BookingService.GetDriverPendingBookings:output_type -> booking.GetDriverPendingBookingsResponse
+	42, // 53: booking.BookingService.GetDriverBookings:output_type -> booking.GetDriverBookingsResponse
+	45, // 54: booking.BookingService.GetActivePassengerSummariesForTrip:output_type -> booking.GetActivePassengerSummariesForTripResponse
+	48, // 55: booking.BookingService.ListBookings:output_type -> booking.ListBookingsResponse
+	50, // 56: booking.BookingService.GetBookingDetailAdmin:output_type -> booking.GetBookingDetailAdminResponse
+	36, // 57: booking.BookingService.Health:output_type -> booking.HealthResponse
+	52, // 58: booking.BookingService.CheckDeletionEligibility:output_type -> booking.CheckDeletionEligibilityResponse
+	54, // 59: booking.BookingService.AnonymizeUserData:output_type -> booking.AnonymizeUserDataResponse
+	56, // 60: booking.BookingService.GetPassengerBookingIDs:output_type -> booking.GetPassengerBookingIDsResponse
+	37, // [37:61] is the sub-list for method output_type
+	13, // [13:37] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_booking_proto_init() }
@@ -4457,7 +4628,7 @@ func file_booking_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_booking_proto_rawDesc), len(file_booking_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   55,
+			NumMessages:   57,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

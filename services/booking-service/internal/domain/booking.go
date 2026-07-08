@@ -63,4 +63,5 @@ type Booking struct {
 	UpdatedAt          time.Time
 	PassengerMessage    *string
 	ExtraMinutesDetour  *int16
+	ExtraDetourPrice    *int
 }

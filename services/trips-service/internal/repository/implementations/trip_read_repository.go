@@ -442,3 +442,17 @@ func (r *tripReadRepositoryImpl) HasActiveTripAsDriver(ctx context.Context, driv
 	}
 	return exists, nil
 }
+
+// GetVehicleCompletedTripCount retourne le nombre de trajets complétés pour un véhicule.
+func (r *tripReadRepositoryImpl) GetVehicleCompletedTripCount(ctx context.Context, vehicleID string) (int32, error) {
+	var count int32
+	err := r.pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM trips WHERE vehicle_id = $1 AND status = 'completed' AND deleted_at IS NULL`,
+		vehicleID,
+	).Scan(&count)
+	if err != nil {
+		r.logger.Error("GetVehicleCompletedTripCount failed", zap.Error(err), zap.String("vehicleID", vehicleID))
+		return 0, tripErrors.ErrorInternalServer
+	}
+	return count, nil
+}

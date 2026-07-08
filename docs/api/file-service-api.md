@@ -86,11 +86,12 @@ Content-Type: application/json
 | `DocumentType` | string | Yes | `IDCard`, `Passport`, or `DriverLicence` |
 | `IDCardRecto` | bytes (base64) | If `IDCard` | Front of ID card |
 | `IDCardVerso` | bytes (base64) | If `IDCard` | Back of ID card |
-| `DriverLicenceRecto` | bytes (base64) | If `DriverLicence` | Front of driver's licence |
-| `DriverLicenceVerso` | bytes (base64) | If `DriverLicence` | Back of driver's licence |
+| `DriverLicence` | bytes (base64) | If `DriverLicence` | Driver's licence scan (single image) |
 | `Passport` | bytes (base64) | If `Passport` | Passport scan |
 
 > **Note:** grpc-gateway automatically handles base64 encoding/decoding for `bytes` fields. Send files as base64 strings in the JSON body.
+
+> **Driver licence sharing:** the driver's licence is a single user-level document shared between identity verification and vehicle verification. Once submitted here (or via `uploadVehicleDocuments`), it covers all the user's vehicles — approval or rejection applies to both contexts.
 
 #### Required fields per DocumentType
 
@@ -98,7 +99,7 @@ Content-Type: application/json
 |--------------|----------------|
 | `IDCard` | `IDCardRecto` + `IDCardVerso` |
 | `Passport` | `Passport` |
-| `DriverLicence` | `DriverLicenceRecto` + `DriverLicenceVerso` |
+| `DriverLicence` | `DriverLicence` |
 
 #### Response (Success)
 
@@ -132,7 +133,7 @@ Content-Type: application/json
 |-------|------|-------------|
 | `Success` | boolean | `true` if all files uploaded successfully |
 | `ErrorMessage` | string | Error identifier if failed, `""` if success |
-| `Documents` | array | Uploaded documents — 1 item for `Passport`, 2 for `IDCard` / `DriverLicence` (recto + verso) |
+| `Documents` | array | Uploaded documents — 1 item for `Passport` / `DriverLicence`, 2 for `IDCard` (recto + verso) |
 | `Documents[].DocumentID` | string | Document UUID — use this ID when calling `/kyc/inquiries/add` |
 | `Documents[].DocumentURL` | string | S3/MinIO URL of the uploaded file |
 | `Documents[].DocumentType` | string | Document type |
@@ -175,7 +176,9 @@ curl -X POST https://api.tissimah.kpeewu.dev/api/v1/file/uploadIdDocument \
 
 ### POST /api/v1/file/uploadVehicleDocuments
 
-Uploads the vehicle documents (driver's licence, insurance, registration card). Files are sent as base64-encoded bytes in the JSON body. The service uploads each file to S3/MinIO and stores the URL in the database.
+Uploads the vehicle documents (insurance, registration card) and, if the user does not already have one, the driver's licence. Files are sent as base64-encoded bytes in the JSON body. The service uploads each file to S3/MinIO and stores the URL in the database.
+
+> **Driver licence sharing:** the driver's licence is stored as a **user document** (type `driverLicence`), not a vehicle document. It is shared between identity verification and vehicle verification and covers all the user's vehicles. If the user already submitted a licence (via `uploadIdDocument` or a previous vehicle upload), `DriverLicenceImage` is ignored; otherwise it is required.
 
 **Authentication:** Required (Firebase JWT)
 
@@ -202,7 +205,7 @@ Content-Type: application/json
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `VehicleID` | string | Yes | Vehicle ID |
-| `DriverLicenceImage` | bytes (base64) | Yes | Driver's licence scan |
+| `DriverLicenceImage` | bytes (base64) | If no current licence | Driver's licence scan — ignored if the user already has a current `driverLicence` document, required otherwise |
 | `Assurance` | bytes (base64) | Yes | Insurance document |
 | `VehicleRegistration` | bytes (base64) | Yes | Vehicle registration card (carte grise) |
 
@@ -244,7 +247,7 @@ Content-Type: application/json
 |-------|------|-------------|
 | `Success` | boolean | `true` if all files uploaded successfully |
 | `ErrorMessage` | string | Error identifier if failed, `""` if success |
-| `Documents` | array | Always 3 items in order: `driverLicence`, `insurance`, `registrationCard` |
+| `Documents` | array | 2 or 3 items in order: `driverLicence` (only if just uploaded), `insurance`, `registrationCard` |
 | `Documents[].DocumentID` | string | Document UUID — use this ID when calling `/kyc/inquiries/add` |
 | `Documents[].DocumentURL` | string | S3/MinIO URL of the uploaded file |
 | `Documents[].DocumentType` | string | `driverLicence`, `insurance`, or `registrationCard` |
@@ -255,6 +258,7 @@ Content-Type: application/json
 | ErrorMessage | HTTP | Description |
 |--------------|------|-------------|
 | `ErrorInvalidDocumentType` | 400 | A required file is missing or `VehicleID` is empty |
+| `ErrorDriverLicenceRequired` | 400 | No current driver licence on file and `DriverLicenceImage` not provided |
 | `ErrorUserServiceUnavailable` | 503 | user-service unreachable (Firebase UID or profile resolution failed) |
 | `ErrorUploadFailed` | 500 | S3/MinIO upload failed |
 | `ErrorInternalServer` | 500 | Internal error |
@@ -498,8 +502,7 @@ rpc UploadUserDocument(stream UploadUserDocumentRequest) returns (UserDocumentRe
 | `idCardFront` | Front of ID card |
 | `idCardBack` | Back of ID card |
 | `passport` | Passport |
-| `driverLicenceFront` | Front of driver's licence |
-| `driverLicenceBack` | Back of driver's licence |
+| `driverLicence` | Driver's licence (single image, shared identity/vehicle) |
 | `profilePicture` | Profile picture |
 
 ---
@@ -518,7 +521,7 @@ rpc UploadVehicleDocument(stream UploadVehicleDocumentRequest) returns (VehicleD
 |-------|------|----------|-------------|
 | `vehicle_id` | string | Yes | Vehicle ID |
 | `document_name` | string | Yes | File name |
-| `document_type` | string | Yes | `driverLicence`, `insurance`, or `registrationCard` |
+| `document_type` | string | Yes | `insurance` or `registrationCard` |
 | `mime_type` | string | Yes | MIME type |
 | `file_size_bytes` | int64 | Yes | Total file size (max 10MB) |
 | `document_number` | string | No | Document number |

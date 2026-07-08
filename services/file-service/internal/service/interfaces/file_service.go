@@ -97,7 +97,10 @@ type VehicleDocFileInput struct {
 }
 
 // UploadVehicleDocumentsInput contient les documents du véhicule à uploader.
-// UserID, VehicleID et les 3 fichiers sont obligatoires.
+// UserID, VehicleID, Assurance et RegistrationCard sont obligatoires.
+// DriverLicence est optionnel si l'utilisateur possède déjà un permis courant
+// (document utilisateur type driverLicence) — l'image est alors ignorée ;
+// sinon il est obligatoire et stocké comme document UTILISATEUR (pas véhicule).
 // FirstName / LastName viennent de user-service et servent à construire le docName.
 type UploadVehicleDocumentsInput struct {
 	UserID           string
@@ -113,25 +116,24 @@ type UploadVehicleDocumentsInput struct {
 // Les champs requis dépendent du DocumentType :
 //   - IDCard       : IDCardRecto + IDCardVerso
 //   - Passport     : Passport
-//   - DriverLicence: DriverLicenceRecto + DriverLicenceVerso
+//   - DriverLicence: DriverLicence (image unique, document partagé identité/véhicule)
 //
 // FirstName / LastName viennent de user-service et servent à construire le docName
 // au format {nom}_{prenom}_{YYYYMMDD}_{HHMMSS}_{type}.
 // DocumentNumber, IssuedAt, ExpireAt, IssuingCountry sont obligatoires pour tous les types.
 type UploadIdDocumentInput struct {
-	UserID             string
-	FirstName          string
-	LastName           string
-	DocumentType       string // IDCard | Passport | DriverLicence
-	IDCardRecto        []byte
-	IDCardVerso        []byte
-	DriverLicenceRecto []byte
-	DriverLicenceVerso []byte
-	Passport           []byte
-	DocumentNumber     string
-	IssuedAt           string // ISO 8601
-	ExpireAt           string // ISO 8601
-	IssuingCountry     string
+	UserID         string
+	FirstName      string
+	LastName       string
+	DocumentType   string // IDCard | Passport | DriverLicence
+	IDCardRecto    []byte
+	IDCardVerso    []byte
+	DriverLicence  []byte
+	Passport       []byte
+	DocumentNumber string
+	IssuedAt       string // ISO 8601
+	ExpireAt       string // ISO 8601
+	IssuingCountry string
 }
 
 // UploadedDocument décrit un document fraîchement uploadé/remplacé,

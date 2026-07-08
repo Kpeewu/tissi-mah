@@ -392,13 +392,13 @@ func TestCreateInquiry(t *testing.T) {
 				ExpiresAt:    expiresAt,
 			}, nil)
 
-		// L'input "DriverLicence" est normalisé en "driverLicenceFront"
+		// L'input "DriverLicence" est normalisé en "driverLicence"
 		// pour rester cohérent avec identityDocumentTypes/driverDocumentTypes.
 		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.MatchedBy(func(r *domain.Review) bool {
-			return r.DocumentType == "driverLicenceFront"
+			return r.DocumentType == "driverLicence"
 		})).Return(&domain.Review{
 			ReviewID:         "review-norm",
-			DocumentType:     "driverLicenceFront",
+			DocumentType:     "driverLicence",
 			PersonaInquiryID: "inq_norm",
 			Status:           "pending",
 			AttemptNumber:    1,
@@ -588,7 +588,7 @@ func TestGetKYCStatus(t *testing.T) {
 				{
 					ReviewID:      "review-dl-approved",
 					UserID:        "user-status-002",
-					DocumentType:  "driverLicenceFront",
+					DocumentType:  "driverLicence",
 					Status:        "completed",
 					Decision:      "approved",
 					ReviewType:    "automatic",
@@ -621,7 +621,7 @@ func TestGetKYCStatus(t *testing.T) {
 				{
 					ReviewID:      "review-dl-only",
 					UserID:        "user-status-003",
-					DocumentType:  "driverLicenceFront",
+					DocumentType:  "driverLicence",
 					Status:        "completed",
 					Decision:      "approved",
 					ReviewType:    "automatic",

@@ -75,3 +75,8 @@ func (m *MockTripRepositoryRead) HasActiveTripAsDriver(ctx context.Context, driv
 	args := m.Called(ctx, driverID)
 	return args.Bool(0), args.Error(1)
 }
+
+func (m *MockTripRepositoryRead) GetVehicleCompletedTripCount(ctx context.Context, vehicleID string) (int32, error) {
+	args := m.Called(ctx, vehicleID)
+	return int32(args.Int(0)), args.Error(1)
+}

@@ -67,7 +67,7 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `DocumentType` | string | Yes | Document type: `IDCard`, `Passport`, `DriverLicence` for identity docs; `driverLicence`, `insurance`, `registrationCard` for vehicle docs |
+| `DocumentType` | string | Yes | Document type: `IDCard`, `Passport`, `DriverLicence` for user docs; `insurance`, `registrationCard` for vehicle docs |
 | `VehicleId` | string | Conditional | Required when submitting a vehicle document |
 | `DocumentId` | string | Yes | ID of the uploaded document — returned by `/api/v1/file/uploadIdDocument` or `/api/v1/file/uploadVehicleDocuments` |
 

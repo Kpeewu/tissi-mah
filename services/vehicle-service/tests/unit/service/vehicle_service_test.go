@@ -21,8 +21,19 @@ func newService() (*mocks.MockVehicleRepositoryRead, *mocks.MockVehicleRepositor
 	r := new(mocks.MockVehicleRepositoryRead)
 	w := new(mocks.MockVehicleRepositoryWrite)
 	f := new(mocks.MockFileServiceClient)
-	svc := service.NewVehicleService(r, w, f, nil, zap.NewNop())
+	t := new(mocks.MockTripsServiceClient)
+	svc := service.NewVehicleService(r, w, f, t, nil, zap.NewNop())
 	return r, w, f, svc
+}
+
+// newServiceWithTrips crée un service avec accès aux mocks trips et file.
+func newServiceWithTrips() (*mocks.MockVehicleRepositoryRead, *mocks.MockFileServiceClient, *mocks.MockTripsServiceClient, serviceInterfaces.VehicleService) {
+	r := new(mocks.MockVehicleRepositoryRead)
+	w := new(mocks.MockVehicleRepositoryWrite)
+	f := new(mocks.MockFileServiceClient)
+	t := new(mocks.MockTripsServiceClient)
+	svc := service.NewVehicleService(r, w, f, t, nil, zap.NewNop())
+	return r, f, t, svc
 }
 
 func newDomainVehicle(userID string) *domain.Vehicle {
@@ -106,12 +117,15 @@ func TestGetVehicleDetails(t *testing.T) {
 		r.On("GetByID", mock.Anything, v.VehicleID).Return(v, nil)
 		f.On("GetVehicleDocuments", mock.Anything, v.VehicleID).
 			Return(domain.VehicleDocuments{AssuranceURL: "a.url", VehicleRegistrationURL: "r.url"}, nil)
+		f.On("GetCurrentUserDocument", mock.Anything, "u1", "driverLicence").
+			Return("https://example.com/permis.jpg", "VALIDATED", nil)
 
 		got, err := svc.GetVehicleDetails(context.Background(), "u1", v.VehicleID)
 		require.NoError(t, err)
 		assert.Equal(t, v.VehicleID, got.Vehicle.VehicleID)
 		assert.Equal(t, "a.url", got.Documents.AssuranceURL)
 		assert.Equal(t, "r.url", got.Documents.VehicleRegistrationURL)
+		assert.Equal(t, "https://example.com/permis.jpg", got.Documents.DriverLicenceURL)
 	})
 
 	t.Run("vehicleID vide → InvalidInput", func(t *testing.T) {
@@ -141,28 +155,71 @@ func TestGetVehicleDetails(t *testing.T) {
 		r.On("GetByID", mock.Anything, v.VehicleID).Return(v, nil)
 		f.On("GetVehicleDocuments", mock.Anything, v.VehicleID).
 			Return(domain.VehicleDocuments{}, errors.New("file service down"))
+		f.On("GetCurrentUserDocument", mock.Anything, "u1", "driverLicence").
+			Return("", "MISSING", errors.New("file service down"))
 
 		got, err := svc.GetVehicleDetails(context.Background(), "u1", v.VehicleID)
 		require.NoError(t, err)
 		assert.Empty(t, got.Documents.AssuranceURL)
 		assert.Empty(t, got.Documents.VehicleRegistrationURL)
+		assert.Empty(t, got.Documents.DriverLicenceURL)
 	})
 }
 
 // ========== GetUserVehicles ==========
 
 func TestGetUserVehicles(t *testing.T) {
-	t.Run("succès", func(t *testing.T) {
-		r, _, _, svc := newService()
+	t.Run("succès — statuts et TripCount populés", func(t *testing.T) {
+		r, f, trips, svc := newServiceWithTrips()
 		previews := []*domain.VehiclePreview{
 			{VehicleID: "v1", Brand: "Toyota", BrandModel: "Corolla", LicencePlate: "AA", IsVerified: true},
 		}
 		r.On("GetByUserID", mock.Anything, "u1").Return(previews, nil)
+		f.On("GetCurrentUserDocument", mock.Anything, "u1", "driverLicence").Return("", "PENDING", nil)
+		f.On("GetVehicleDocuments", mock.Anything, "v1").Return(domain.VehicleDocuments{
+			AssuranceStatus:           "PENDING",
+			VehicleRegistrationStatus: "VALIDATED",
+		}, nil)
+		trips.On("GetVehicleCompletedTripCount", mock.Anything, "v1").Return(5, nil)
 
 		got, err := svc.GetUserVehicles(context.Background(), "u1")
 		require.NoError(t, err)
-		assert.Len(t, got, 1)
+		require.Len(t, got, 1)
 		assert.Equal(t, "v1", got[0].VehicleID)
+		assert.Equal(t, "PENDING", got[0].AssuranceStatus)
+		assert.Equal(t, "VALIDATED", got[0].VehicleRegistrationStatus)
+		assert.Equal(t, "PENDING", got[0].DriverLicenceStatus)
+		assert.Equal(t, int32(5), got[0].TripCount)
+	})
+
+	t.Run("dégradation gracieuse — file-service indisponible → statuts MISSING", func(t *testing.T) {
+		r, f, trips, svc := newServiceWithTrips()
+		previews := []*domain.VehiclePreview{
+			{VehicleID: "v1", Brand: "Toyota", BrandModel: "Corolla", LicencePlate: "AA", IsVerified: true},
+		}
+		r.On("GetByUserID", mock.Anything, "u1").Return(previews, nil)
+		f.On("GetCurrentUserDocument", mock.Anything, "u1", "driverLicence").Return("", "MISSING", errors.New("unavailable"))
+		f.On("GetVehicleDocuments", mock.Anything, "v1").Return(domain.VehicleDocuments{}, errors.New("unavailable"))
+		trips.On("GetVehicleCompletedTripCount", mock.Anything, "v1").Return(0, nil)
+
+		got, err := svc.GetUserVehicles(context.Background(), "u1")
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Equal(t, "MISSING", got[0].AssuranceStatus)
+		assert.Equal(t, "MISSING", got[0].VehicleRegistrationStatus)
+		assert.Equal(t, "MISSING", got[0].DriverLicenceStatus)
+	})
+
+	t.Run("liste vide — pas d'appels inter-service", func(t *testing.T) {
+		r, f, trips, svc := newServiceWithTrips()
+		r.On("GetByUserID", mock.Anything, "u1").Return([]*domain.VehiclePreview{}, nil)
+
+		got, err := svc.GetUserVehicles(context.Background(), "u1")
+		require.NoError(t, err)
+		assert.Empty(t, got)
+		f.AssertNotCalled(t, "GetCurrentUserDocument")
+		f.AssertNotCalled(t, "GetVehicleDocuments")
+		trips.AssertNotCalled(t, "GetVehicleCompletedTripCount")
 	})
 
 	t.Run("userID vide → InvalidInput", func(t *testing.T) {
@@ -171,7 +228,7 @@ func TestGetUserVehicles(t *testing.T) {
 		assert.ErrorIs(t, err, vehicleErrors.ErrorInvalidInput)
 	})
 
-	t.Run("erreur propagée", func(t *testing.T) {
+	t.Run("erreur propagée depuis repo", func(t *testing.T) {
 		r, _, _, svc := newService()
 		r.On("GetByUserID", mock.Anything, "u1").
 			Return(nil, vehicleErrors.ErrorInternalServer)

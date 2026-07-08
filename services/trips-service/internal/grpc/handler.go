@@ -674,6 +674,19 @@ func (h *TripHandler) AnonymizeUserData(ctx context.Context, req *trippb.Anonymi
 	return &trippb.AnonymizeUserDataResponse{Success: true}, nil
 }
 
+// GetVehicleCompletedTripCount retourne le nombre de trajets complétés pour un véhicule.
+func (h *TripHandler) GetVehicleCompletedTripCount(ctx context.Context, req *trippb.GetVehicleCompletedTripCountRequest) (*trippb.GetVehicleCompletedTripCountResponse, error) {
+	h.logger.Debug("handler: GetVehicleCompletedTripCount called", zap.String("vehicleID", req.VehicleId))
+
+	count, err := h.service.GetVehicleCompletedTripCount(ctx, req.VehicleId)
+	if err != nil {
+		h.logger.Error("handler: GetVehicleCompletedTripCount failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	return &trippb.GetVehicleCompletedTripCountResponse{Count: count}, nil
+}
+
 // Health retourne l'état de santé du service.
 func (h *TripHandler) Health(_ context.Context, _ *trippb.HealthRequest) (*trippb.HealthResponse, error) {
 	return &trippb.HealthResponse{

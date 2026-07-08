@@ -735,7 +735,7 @@ func TestGetMyProfile_WithDocumentExpiry(t *testing.T) {
 		mockFileClient.ExpectedCalls = nil
 		mockFileClient.On("GetDocumentExpiry", mock.Anything, "user-expiry-01", "idCardFront").
 			Return("2030-12-31T00:00:00Z")
-		mockFileClient.On("GetDocumentExpiry", mock.Anything, "user-expiry-01", "driverLicenceFront").
+		mockFileClient.On("GetDocumentExpiry", mock.Anything, "user-expiry-01", "driverLicence").
 			Return("2028-06-15T00:00:00Z")
 
 		ctx := ctxWithFirebaseID("firebase-expiry-01")
@@ -772,8 +772,7 @@ func TestGetMyProfile_WithDocumentExpiry(t *testing.T) {
 		mockFileClient.ExpectedCalls = nil
 		mockFileClient.On("GetDocumentExpiry", mock.Anything, "user-expiry-02", "idCardFront").Return("")
 		mockFileClient.On("GetDocumentExpiry", mock.Anything, "user-expiry-02", "idCardBack").Return("2031-01-01T00:00:00Z")
-		mockFileClient.On("GetDocumentExpiry", mock.Anything, "user-expiry-02", "driverLicenceFront").Return("")
-		mockFileClient.On("GetDocumentExpiry", mock.Anything, "user-expiry-02", "driverLicenceBack").Return("")
+		mockFileClient.On("GetDocumentExpiry", mock.Anything, "user-expiry-02", "driverLicence").Return("")
 
 		ctx := ctxWithFirebaseID("firebase-expiry-02")
 		profile, err := svc.GetMyProfile(ctx)

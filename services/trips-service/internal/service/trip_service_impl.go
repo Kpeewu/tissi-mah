@@ -1006,3 +1006,11 @@ func (s *tripServiceImpl) AnonymizeUserData(ctx context.Context, userID string) 
 	return s.writeRepo.AnonymizeDriverRefs(ctx, userID)
 }
 
+// GetVehicleCompletedTripCount retourne le nombre de trajets complétés pour un véhicule.
+func (s *tripServiceImpl) GetVehicleCompletedTripCount(ctx context.Context, vehicleID string) (int32, error) {
+	if vehicleID == "" {
+		return 0, tripErrors.ErrorInvalidInput
+	}
+	return s.readRepo.GetVehicleCompletedTripCount(ctx, vehicleID)
+}
+

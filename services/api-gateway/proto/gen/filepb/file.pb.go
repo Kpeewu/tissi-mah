@@ -96,15 +96,19 @@ func (x *VehicleDocMetadata) GetIssuingAuthority() string {
 }
 
 type UploadVehicleDocumentsRequest struct {
-	state                    protoimpl.MessageState `protogen:"open.v1"`
-	UserID                   string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
-	VehicleID                string                 `protobuf:"bytes,2,opt,name=VehicleID,proto3" json:"VehicleID,omitempty"`
-	DriverLicenceImage       []byte                 `protobuf:"bytes,3,opt,name=DriverLicenceImage,proto3" json:"DriverLicenceImage,omitempty"`
-	Assurance                []byte                 `protobuf:"bytes,4,opt,name=Assurance,proto3" json:"Assurance,omitempty"`
-	VehicleRegistration      []byte                 `protobuf:"bytes,5,opt,name=VehicleRegistration,proto3" json:"VehicleRegistration,omitempty"`
-	DriverLicenceMetadata    *VehicleDocMetadata    `protobuf:"bytes,6,opt,name=DriverLicenceMetadata,proto3" json:"DriverLicenceMetadata,omitempty"`
-	AssuranceMetadata        *VehicleDocMetadata    `protobuf:"bytes,7,opt,name=AssuranceMetadata,proto3" json:"AssuranceMetadata,omitempty"`
-	RegistrationCardMetadata *VehicleDocMetadata    `protobuf:"bytes,8,opt,name=RegistrationCardMetadata,proto3" json:"RegistrationCardMetadata,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	UserID    string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
+	VehicleID string                 `protobuf:"bytes,2,opt,name=VehicleID,proto3" json:"VehicleID,omitempty"`
+	// Permis : optionnel si l'utilisateur a déjà un permis courant (soumis via
+	// uploadIdDocument ou un précédent flux véhicule) — l'image est alors ignorée.
+	// Obligatoire sinon. Stocké comme document UTILISATEUR (type driverLicence),
+	// jamais comme document véhicule : il couvre tous les véhicules du user.
+	DriverLicenceImage       []byte              `protobuf:"bytes,3,opt,name=DriverLicenceImage,proto3" json:"DriverLicenceImage,omitempty"`
+	Assurance                []byte              `protobuf:"bytes,4,opt,name=Assurance,proto3" json:"Assurance,omitempty"`
+	VehicleRegistration      []byte              `protobuf:"bytes,5,opt,name=VehicleRegistration,proto3" json:"VehicleRegistration,omitempty"`
+	DriverLicenceMetadata    *VehicleDocMetadata `protobuf:"bytes,6,opt,name=DriverLicenceMetadata,proto3" json:"DriverLicenceMetadata,omitempty"` // Requis uniquement si DriverLicenceImage est fourni et pris en compte
+	AssuranceMetadata        *VehicleDocMetadata `protobuf:"bytes,7,opt,name=AssuranceMetadata,proto3" json:"AssuranceMetadata,omitempty"`
+	RegistrationCardMetadata *VehicleDocMetadata `protobuf:"bytes,8,opt,name=RegistrationCardMetadata,proto3" json:"RegistrationCardMetadata,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -199,7 +203,7 @@ type UploadVehicleDocumentsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
 	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
-	Documents     []*UploadedDocument    `protobuf:"bytes,3,rep,name=Documents,proto3" json:"Documents,omitempty"` // Permis, assurance, carte grise (dans cet ordre)
+	Documents     []*UploadedDocument    `protobuf:"bytes,3,rep,name=Documents,proto3" json:"Documents,omitempty"` // [Permis (si uploadé),] assurance, carte grise (dans cet ordre)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -770,9 +774,10 @@ type UploadIdDocumentRequest struct {
 	// Obligatoire si DocumentType = IDCard
 	IDCardRecto []byte `protobuf:"bytes,3,opt,name=IDCardRecto,proto3" json:"IDCardRecto,omitempty"`
 	IDCardVerso []byte `protobuf:"bytes,4,opt,name=IDCardVerso,proto3" json:"IDCardVerso,omitempty"`
-	// Obligatoire si DocumentType = DriverLicence
-	DriverLicenceRecto []byte `protobuf:"bytes,5,opt,name=DriverLicenceRecto,proto3" json:"DriverLicenceRecto,omitempty"`
-	DriverLicenceVerso []byte `protobuf:"bytes,6,opt,name=DriverLicenceVerso,proto3" json:"DriverLicenceVerso,omitempty"`
+	// Obligatoire si DocumentType = DriverLicence (image unique).
+	// Le permis est un document utilisateur partagé : validé/refusé pour
+	// l'identité ET la vérification véhicule (tous les véhicules du user).
+	DriverLicence []byte `protobuf:"bytes,5,opt,name=DriverLicence,proto3" json:"DriverLicence,omitempty"`
 	// Obligatoire si DocumentType = Passport
 	Passport []byte `protobuf:"bytes,7,opt,name=Passport,proto3" json:"Passport,omitempty"`
 	// Métadonnées légales — obligatoires pour tous les types
@@ -842,16 +847,9 @@ func (x *UploadIdDocumentRequest) GetIDCardVerso() []byte {
 	return nil
 }
 
-func (x *UploadIdDocumentRequest) GetDriverLicenceRecto() []byte {
+func (x *UploadIdDocumentRequest) GetDriverLicence() []byte {
 	if x != nil {
-		return x.DriverLicenceRecto
-	}
-	return nil
-}
-
-func (x *UploadIdDocumentRequest) GetDriverLicenceVerso() []byte {
-	if x != nil {
-		return x.DriverLicenceVerso
+		return x.DriverLicence
 	}
 	return nil
 }
@@ -895,7 +893,7 @@ type UploadIdDocumentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
 	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
-	Documents     []*UploadedDocument    `protobuf:"bytes,3,rep,name=Documents,proto3" json:"Documents,omitempty"` // 1 doc pour Passport, 2 pour IDCard / DriverLicence (recto + verso)
+	Documents     []*UploadedDocument    `protobuf:"bytes,3,rep,name=Documents,proto3" json:"Documents,omitempty"` // 1 doc pour Passport / DriverLicence, 2 pour IDCard (recto + verso)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1042,6 +1040,8 @@ type UserDocumentMetadata struct {
 	FileSizeBytes  int64                  `protobuf:"varint,5,opt,name=FileSizeBytes,proto3" json:"FileSizeBytes,omitempty"`
 	DocumentNumber string                 `protobuf:"bytes,6,opt,name=DocumentNumber,proto3" json:"DocumentNumber,omitempty"` // Optionnel
 	IssuingCountry string                 `protobuf:"bytes,7,opt,name=IssuingCountry,proto3" json:"IssuingCountry,omitempty"` // Optionnel
+	IssuedAt       string                 `protobuf:"bytes,8,opt,name=IssuedAt,proto3" json:"IssuedAt,omitempty"`             // ISO 8601 — optionnel pour profilePicture, obligatoire sinon
+	ExpireAt       string                 `protobuf:"bytes,9,opt,name=ExpireAt,proto3" json:"ExpireAt,omitempty"`             // ISO 8601 — optionnel pour profilePicture, obligatoire sinon
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1121,6 +1121,20 @@ func (x *UserDocumentMetadata) GetDocumentNumber() string {
 func (x *UserDocumentMetadata) GetIssuingCountry() string {
 	if x != nil {
 		return x.IssuingCountry
+	}
+	return ""
+}
+
+func (x *UserDocumentMetadata) GetIssuedAt() string {
+	if x != nil {
+		return x.IssuedAt
+	}
+	return ""
+}
+
+func (x *UserDocumentMetadata) GetExpireAt() string {
+	if x != nil {
+		return x.ExpireAt
 	}
 	return ""
 }
@@ -1216,6 +1230,8 @@ type VehicleDocumentMetadata struct {
 	FileSizeBytes    int64                  `protobuf:"varint,5,opt,name=FileSizeBytes,proto3" json:"FileSizeBytes,omitempty"`
 	DocumentNumber   string                 `protobuf:"bytes,6,opt,name=DocumentNumber,proto3" json:"DocumentNumber,omitempty"`     // Optionnel
 	IssuingAuthority string                 `protobuf:"bytes,7,opt,name=IssuingAuthority,proto3" json:"IssuingAuthority,omitempty"` // Optionnel
+	IssuedAt         string                 `protobuf:"bytes,8,opt,name=IssuedAt,proto3" json:"IssuedAt,omitempty"`                 // ISO 8601 — obligatoire pour insurance/registrationCard
+	ExpireAt         string                 `protobuf:"bytes,9,opt,name=ExpireAt,proto3" json:"ExpireAt,omitempty"`                 // ISO 8601 — obligatoire pour insurance, optionnel pour registrationCard
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1295,6 +1311,20 @@ func (x *VehicleDocumentMetadata) GetDocumentNumber() string {
 func (x *VehicleDocumentMetadata) GetIssuingAuthority() string {
 	if x != nil {
 		return x.IssuingAuthority
+	}
+	return ""
+}
+
+func (x *VehicleDocumentMetadata) GetIssuedAt() string {
+	if x != nil {
+		return x.IssuedAt
+	}
+	return ""
+}
+
+func (x *VehicleDocumentMetadata) GetExpireAt() string {
+	if x != nil {
+		return x.ExpireAt
 	}
 	return ""
 }
@@ -1799,7 +1829,7 @@ type CreateDocumentReviewRequest struct {
 	SubmittedAt string `protobuf:"bytes,20,opt,name=SubmittedAt,proto3" json:"SubmittedAt,omitempty"` // Optionnel (ISO 8601)
 	// Dénormalisation (migration 000008) — toujours fournis par kyc-service
 	UserId       string `protobuf:"bytes,21,opt,name=UserId,proto3" json:"UserId,omitempty"`             // Obligatoire — propriétaire de la review
-	DocumentType string `protobuf:"bytes,22,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"` // Type de document (idCardFront, driverLicenceFront, ...)
+	DocumentType string `protobuf:"bytes,22,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"` // Type de document (idCardFront, driverLicence, ...)
 	// Recto-verso + historique (migration 000010)
 	SecondUserDocumentId string `protobuf:"bytes,23,opt,name=SecondUserDocumentId,proto3" json:"SecondUserDocumentId,omitempty"` // Optionnel — verso pour les documents recto-verso
 	LogicalDocumentType  string `protobuf:"bytes,24,opt,name=LogicalDocumentType,proto3" json:"LogicalDocumentType,omitempty"`   // idCard, driverLicence, passport… (dérivé de DocumentType)
@@ -3640,20 +3670,19 @@ const file_file_proto_rawDesc = "" +
 	"\x16ChangeDocumentResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\x122\n" +
-	"\bDocument\x18\x03 \x01(\v2\x16.file.UploadedDocumentR\bDocument\"\x9d\x03\n" +
+	"\bDocument\x18\x03 \x01(\v2\x16.file.UploadedDocumentR\bDocument\"\x91\x03\n" +
 	"\x17UploadIdDocumentRequest\x12\x16\n" +
 	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12\"\n" +
 	"\fDocumentType\x18\x02 \x01(\tR\fDocumentType\x12 \n" +
 	"\vIDCardRecto\x18\x03 \x01(\fR\vIDCardRecto\x12 \n" +
-	"\vIDCardVerso\x18\x04 \x01(\fR\vIDCardVerso\x12.\n" +
-	"\x12DriverLicenceRecto\x18\x05 \x01(\fR\x12DriverLicenceRecto\x12.\n" +
-	"\x12DriverLicenceVerso\x18\x06 \x01(\fR\x12DriverLicenceVerso\x12\x1a\n" +
+	"\vIDCardVerso\x18\x04 \x01(\fR\vIDCardVerso\x12$\n" +
+	"\rDriverLicence\x18\x05 \x01(\fR\rDriverLicence\x12\x1a\n" +
 	"\bPassport\x18\a \x01(\fR\bPassport\x12&\n" +
 	"\x0eDocumentNumber\x18\b \x01(\tR\x0eDocumentNumber\x12\x1a\n" +
 	"\bIssuedAt\x18\t \x01(\tR\bIssuedAt\x12\x1a\n" +
 	"\bExpireAt\x18\n" +
 	" \x01(\tR\bExpireAt\x12&\n" +
-	"\x0eIssuingCountry\x18\v \x01(\tR\x0eIssuingCountry\"\x8e\x01\n" +
+	"\x0eIssuingCountry\x18\v \x01(\tR\x0eIssuingCountryJ\x04\b\x06\x10\aR\x12DriverLicenceRectoR\x12DriverLicenceVerso\"\x8e\x01\n" +
 	"\x18UploadIdDocumentResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\x124\n" +
@@ -3661,7 +3690,7 @@ const file_file_proto_rawDesc = "" +
 	"\x19UploadUserDocumentRequest\x128\n" +
 	"\bmetadata\x18\x01 \x01(\v2\x1a.file.UserDocumentMetadataH\x00R\bmetadata\x12\x16\n" +
 	"\x05Chunk\x18\x02 \x01(\fH\x00R\x05ChunkB\x06\n" +
-	"\x04data\"\x88\x02\n" +
+	"\x04data\"\xc0\x02\n" +
 	"\x14UserDocumentMetadata\x12\x16\n" +
 	"\x06UserId\x18\x01 \x01(\tR\x06UserId\x12\"\n" +
 	"\fDocumentName\x18\x02 \x01(\tR\fDocumentName\x12\"\n" +
@@ -3669,11 +3698,13 @@ const file_file_proto_rawDesc = "" +
 	"\bMimeType\x18\x04 \x01(\tR\bMimeType\x12$\n" +
 	"\rFileSizeBytes\x18\x05 \x01(\x03R\rFileSizeBytes\x12&\n" +
 	"\x0eDocumentNumber\x18\x06 \x01(\tR\x0eDocumentNumber\x12&\n" +
-	"\x0eIssuingCountry\x18\a \x01(\tR\x0eIssuingCountry\"{\n" +
+	"\x0eIssuingCountry\x18\a \x01(\tR\x0eIssuingCountry\x12\x1a\n" +
+	"\bIssuedAt\x18\b \x01(\tR\bIssuedAt\x12\x1a\n" +
+	"\bExpireAt\x18\t \x01(\tR\bExpireAt\"{\n" +
 	"\x1cUploadVehicleDocumentRequest\x12;\n" +
 	"\bmetadata\x18\x01 \x01(\v2\x1d.file.VehicleDocumentMetadataH\x00R\bmetadata\x12\x16\n" +
 	"\x05Chunk\x18\x02 \x01(\fH\x00R\x05ChunkB\x06\n" +
-	"\x04data\"\x95\x02\n" +
+	"\x04data\"\xcd\x02\n" +
 	"\x17VehicleDocumentMetadata\x12\x1c\n" +
 	"\tVehicleId\x18\x01 \x01(\tR\tVehicleId\x12\"\n" +
 	"\fDocumentName\x18\x02 \x01(\tR\fDocumentName\x12\"\n" +
@@ -3681,7 +3712,9 @@ const file_file_proto_rawDesc = "" +
 	"\bMimeType\x18\x04 \x01(\tR\bMimeType\x12$\n" +
 	"\rFileSizeBytes\x18\x05 \x01(\x03R\rFileSizeBytes\x12&\n" +
 	"\x0eDocumentNumber\x18\x06 \x01(\tR\x0eDocumentNumber\x12*\n" +
-	"\x10IssuingAuthority\x18\a \x01(\tR\x10IssuingAuthority\"1\n" +
+	"\x10IssuingAuthority\x18\a \x01(\tR\x10IssuingAuthority\x12\x1a\n" +
+	"\bIssuedAt\x18\b \x01(\tR\bIssuedAt\x12\x1a\n" +
+	"\bExpireAt\x18\t \x01(\tR\bExpireAt\"1\n" +
 	"\x17GetUserDocumentsRequest\x12\x16\n" +
 	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"`\n" +
 	"\x16GetDocumentByIDRequest\x12\x1e\n" +

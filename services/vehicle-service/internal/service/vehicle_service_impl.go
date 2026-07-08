@@ -14,11 +14,12 @@ import (
 )
 
 type vehicleServiceImpl struct {
-	readRepo   repoInterfaces.VehicleRepositoryRead
-	writeRepo  repoInterfaces.VehicleRepositoryWrite
-	fileClient clientInterfaces.FileServiceClient
-	cache      *cache.VehicleCache
-	logger     *zap.Logger
+	readRepo    repoInterfaces.VehicleRepositoryRead
+	writeRepo   repoInterfaces.VehicleRepositoryWrite
+	fileClient  clientInterfaces.FileServiceClient
+	tripsClient clientInterfaces.TripsServiceClient
+	cache       *cache.VehicleCache
+	logger      *zap.Logger
 }
 
 // NewVehicleService crée une nouvelle instance du service véhicule.
@@ -26,15 +27,17 @@ func NewVehicleService(
 	readRepo repoInterfaces.VehicleRepositoryRead,
 	writeRepo repoInterfaces.VehicleRepositoryWrite,
 	fileClient clientInterfaces.FileServiceClient,
+	tripsClient clientInterfaces.TripsServiceClient,
 	vehicleCache *cache.VehicleCache,
 	logger *zap.Logger,
 ) serviceInterfaces.VehicleService {
 	return &vehicleServiceImpl{
-		readRepo:   readRepo,
-		writeRepo:  writeRepo,
-		fileClient: fileClient,
-		cache:      vehicleCache,
-		logger:     logger,
+		readRepo:    readRepo,
+		writeRepo:   writeRepo,
+		fileClient:  fileClient,
+		tripsClient: tripsClient,
+		cache:       vehicleCache,
+		logger:      logger,
 	}
 }
 
@@ -117,7 +120,7 @@ func (s *vehicleServiceImpl) GetVehicleDetails(ctx context.Context, userID strin
 		return nil, vehicleErrors.ErrorUnauthorized
 	}
 
-	// Documents : toujours récupérés en temps réel depuis file-service.
+	// Documents véhicule : toujours récupérés en temps réel depuis file-service.
 	// En cas d'erreur, on retourne le véhicule avec des documents vides (tolérance aux pannes).
 	docs, err := s.fileClient.GetVehicleDocuments(ctx, vehicleID)
 	if err != nil {
@@ -127,6 +130,10 @@ func (s *vehicleServiceImpl) GetVehicleDetails(ctx context.Context, userID strin
 		)
 		docs = domain.VehicleDocuments{}
 	}
+
+	// URL du permis du conducteur (document utilisateur).
+	driverLicenceURL, _, _ := s.fileClient.GetCurrentUserDocument(ctx, userID, "driverLicence")
+	docs.DriverLicenceURL = driverLicenceURL
 
 	return &domain.VehicleDetails{
 		Vehicle:   vehicle,
@@ -144,13 +151,59 @@ func (s *vehicleServiceImpl) GetVehicleInfo(ctx context.Context, vehicleID strin
 	return s.readRepo.GetByID(ctx, vehicleID)
 }
 
-// GetUserVehicles récupère les aperçus de tous les véhicules d'un utilisateur.
+// GetUserVehicles récupère les aperçus de tous les véhicules d'un utilisateur,
+// enrichis avec les statuts des documents et le nombre de trajets par véhicule.
 func (s *vehicleServiceImpl) GetUserVehicles(ctx context.Context, userID string) ([]*domain.VehiclePreview, error) {
 	if userID == "" {
 		return nil, vehicleErrors.ErrorInvalidInput
 	}
 
-	return s.readRepo.GetByUserID(ctx, userID)
+	previews, err := s.readRepo.GetByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(previews) == 0 {
+		return previews, nil
+	}
+
+	// Statut du permis : appel unique par userID (le permis est au niveau du conducteur).
+	// Dégradation gracieuse si file-service est indisponible.
+	_, driverLicenceStatus, _ := s.fileClient.GetCurrentUserDocument(ctx, userID, "driverLicence")
+	if driverLicenceStatus == "" {
+		driverLicenceStatus = "MISSING"
+	}
+
+	for _, p := range previews {
+		// Statuts des docs véhicule (assurance + carte grise).
+		docs, err := s.fileClient.GetVehicleDocuments(ctx, p.VehicleID)
+		if err != nil {
+			s.logger.Warn("failed to fetch vehicle documents for preview",
+				zap.Error(err),
+				zap.String("vehicleID", p.VehicleID),
+			)
+		}
+		if docs.AssuranceStatus == "" {
+			docs.AssuranceStatus = "MISSING"
+		}
+		if docs.VehicleRegistrationStatus == "" {
+			docs.VehicleRegistrationStatus = "MISSING"
+		}
+		p.AssuranceStatus = docs.AssuranceStatus
+		p.VehicleRegistrationStatus = docs.VehicleRegistrationStatus
+		p.DriverLicenceStatus = driverLicenceStatus
+
+		// Nombre de trajets complétés avec ce véhicule.
+		count, err := s.tripsClient.GetVehicleCompletedTripCount(ctx, p.VehicleID)
+		if err != nil {
+			s.logger.Warn("failed to fetch trip count for vehicle",
+				zap.Error(err),
+				zap.String("vehicleID", p.VehicleID),
+			)
+		}
+		p.TripCount = count
+	}
+
+	return previews, nil
 }
 
 // UpdateVehicle met à jour les champs modifiables d'un véhicule après vérification de la propriété.

@@ -105,7 +105,7 @@ func mapToFileDocumentType(docType string) string {
 	case "IDCard":
 		return "idCardFront"
 	case "DriverLicence":
-		return "driverLicenceFront"
+		return "driverLicence"
 	case "Passport":
 		return "passport"
 	default:
@@ -169,7 +169,7 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 	// DocumentID arrive vide dans la requête et le file-service n'a aucun document
 	// utilisateur à récupérer — Persona collecte et stocke la pièce directement.
 	// On normalise le type haut-niveau ("IDCard", "DriverLicence") vers le type
-	// concret stocké côté file-service ("idCardFront", "driverLicenceFront"),
+	// concret stocké côté file-service ("idCardFront", "driverLicence"),
 	// pour rester cohérent avec ValidateDocument (qui persiste doc.DocumentType
 	// déjà au format file-service) et avec identityDocumentTypes/driverDocumentTypes.
 	storedDocumentType := mapToFileDocumentType(input.DocumentType)
@@ -328,10 +328,11 @@ var identityDocumentTypes = map[string]bool{
 	"passport":    true,
 }
 
-// Types de documents de permis de conduire
+// Types de documents de permis de conduire.
+// Document unique partagé identité/véhicule : une review approuvée vaut pour
+// le statut driver ET la vérification de tous les véhicules de l'utilisateur.
 var driverDocumentTypes = map[string]bool{
-	"driverLicenceFront": true,
-	"driverLicenceBack":  true,
+	"driverLicence": true,
 }
 
 func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serviceInterfaces.KYCStatus, error) {
@@ -1346,7 +1347,7 @@ func (s *kycServiceImpl) GetManualReviewRequestDetail(ctx context.Context, userI
 	docs := make([]*domain.DocumentSummary, 0, len(userDocs)+len(vehicleDocs))
 
 	// Grouper les user docs par LogicalDocumentType pour fusionner les paires recto-verso
-	// (idCardFront+idCardBack → une seule entrée, idem driverLicenceFront+Back).
+	// (idCardFront+idCardBack → une seule entrée).
 	// Deux passages pour être indépendant de l'ordre de tri : les documents sont triés
 	// par uploaded_at DESC, donc le verso peut précéder le recto. Un passage unique
 	// perdrait alors le verso (recto pas encore enregistré).

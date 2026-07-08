@@ -77,6 +77,18 @@ func (h *FileHandler) UploadUserDocument(stream filepb.FileService_UploadUserDoc
 		}
 	}
 
+	var issuedAt, expireAt *time.Time
+	if metadata.IssuedAt != "" {
+		if t, err := time.Parse(time.RFC3339, metadata.IssuedAt); err == nil {
+			issuedAt = &t
+		}
+	}
+	if metadata.ExpireAt != "" {
+		if t, err := time.Parse(time.RFC3339, metadata.ExpireAt); err == nil {
+			expireAt = &t
+		}
+	}
+
 	input := serviceInterfaces.UploadUserDocumentInput{
 		UserID:         metadata.UserId,
 		DocumentName:   metadata.DocumentName,
@@ -86,6 +98,8 @@ func (h *FileHandler) UploadUserDocument(stream filepb.FileService_UploadUserDoc
 		Data:           &buf,
 		DocumentNumber: metadata.DocumentNumber,
 		IssuingCountry: metadata.IssuingCountry,
+		IssuedAt:       issuedAt,
+		ExpireAt:       expireAt,
 	}
 
 	doc, err := h.service.UploadUserDocument(stream.Context(), input)
@@ -243,19 +257,18 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 	)
 
 	docs, err := h.service.UploadIdDocument(ctx, serviceInterfaces.UploadIdDocumentInput{
-		UserID:             profile.UserID,
-		FirstName:          profile.FirstName,
-		LastName:           profile.LastName,
-		DocumentType:       req.DocumentType,
-		IDCardRecto:        req.IDCardRecto,
-		IDCardVerso:        req.IDCardVerso,
-		DriverLicenceRecto: req.DriverLicenceRecto,
-		DriverLicenceVerso: req.DriverLicenceVerso,
-		Passport:           req.Passport,
-		DocumentNumber:     req.DocumentNumber,
-		IssuedAt:           req.IssuedAt,
-		ExpireAt:           req.ExpireAt,
-		IssuingCountry:     req.IssuingCountry,
+		UserID:         profile.UserID,
+		FirstName:      profile.FirstName,
+		LastName:       profile.LastName,
+		DocumentType:   req.DocumentType,
+		IDCardRecto:    req.IDCardRecto,
+		IDCardVerso:    req.IDCardVerso,
+		DriverLicence:  req.DriverLicence,
+		Passport:       req.Passport,
+		DocumentNumber: req.DocumentNumber,
+		IssuedAt:       req.IssuedAt,
+		ExpireAt:       req.ExpireAt,
+		IssuingCountry: req.IssuingCountry,
 	})
 	if err != nil {
 		h.logger.Error("handler: UploadIdDocument failed",
@@ -407,6 +420,18 @@ func (h *FileHandler) UploadVehicleDocument(stream filepb.FileService_UploadVehi
 		}
 	}
 
+	var vIssuedAt, vExpireAt *time.Time
+	if metadata.IssuedAt != "" {
+		if t, err := time.Parse(time.RFC3339, metadata.IssuedAt); err == nil {
+			vIssuedAt = &t
+		}
+	}
+	if metadata.ExpireAt != "" {
+		if t, err := time.Parse(time.RFC3339, metadata.ExpireAt); err == nil {
+			vExpireAt = &t
+		}
+	}
+
 	input := serviceInterfaces.UploadVehicleDocumentInput{
 		VehicleID:        metadata.VehicleId,
 		DocumentName:     metadata.DocumentName,
@@ -416,6 +441,8 @@ func (h *FileHandler) UploadVehicleDocument(stream filepb.FileService_UploadVehi
 		Data:             &buf,
 		DocumentNumber:   metadata.DocumentNumber,
 		IssuingAuthority: metadata.IssuingAuthority,
+		IssuedAt:         vIssuedAt,
+		ExpireAt:         vExpireAt,
 	}
 
 	doc, err := h.service.UploadVehicleDocument(stream.Context(), input)
@@ -1015,7 +1042,8 @@ func toGRPCError(err error) error {
 	case errors.Is(err, fileErrors.ErrorDocumentNotReplaceable):
 		return status.Error(codes.FailedPrecondition, err.Error())
 
-	case errors.Is(err, fileErrors.ErrorMissingDocumentMetadata):
+	case errors.Is(err, fileErrors.ErrorMissingDocumentMetadata),
+		errors.Is(err, fileErrors.ErrorDriverLicenceRequired):
 		return status.Error(codes.InvalidArgument, err.Error())
 
 	default:

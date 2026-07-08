@@ -269,7 +269,23 @@ func TestE2E_GetCurrentUserDocument(t *testing.T) {
 		cleanTables(t)
 
 		first := uploadUserDoc(t, "e2e-replace-user", "idCardFront")
-		second := uploadUserDoc(t, "e2e-replace-user", "idCardFront")
+
+		// Le remplacement n'est possible qu'après rejet (statut "pending" est bloqué).
+		_, err := testPool.Exec(context.Background(),
+			`UPDATE user_documents SET status = 'rejected' WHERE document_id = $1`,
+			first.DocumentId,
+		)
+		require.NoError(t, err)
+
+		// Le remplacement passe par ChangeDocument, pas par un second UploadUserDocument.
+		changeResp, err := grpcClient.ChangeDocument(ctx, &filepb.ChangeDocumentRequest{
+			UserID:      "e2e-replace-user",
+			FileID:      first.DocumentId,
+			NewDocument: fakeJPEG(),
+		})
+		require.NoError(t, err)
+		require.True(t, changeResp.Success, changeResp.ErrorMessage)
+		secondID := changeResp.Document.DocumentID
 
 		resp, err := grpcClient.GetCurrentUserDocument(ctx, &filepb.GetCurrentUserDocumentRequest{
 			UserId:       "e2e-replace-user",
@@ -277,18 +293,19 @@ func TestE2E_GetCurrentUserDocument(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, second.DocumentId, resp.DocumentId)
+		assert.Equal(t, secondID, resp.DocumentId)
 		assert.NotEqual(t, first.DocumentId, resp.DocumentId)
 	})
 
 	t.Run("document sans date d expiration - ExpiredAt est vide", func(t *testing.T) {
 		cleanTables(t)
 
-		uploadUserDoc(t, "e2e-no-expiry", "idCardFront")
+		// profilePicture est le seul type exempt de la contrainte expire_at NOT NULL.
+		uploadUserDoc(t, "e2e-no-expiry", "profilePicture")
 
 		resp, err := grpcClient.GetCurrentUserDocument(ctx, &filepb.GetCurrentUserDocumentRequest{
 			UserId:       "e2e-no-expiry",
-			DocumentType: "idCardFront",
+			DocumentType: "profilePicture",
 		})
 
 		require.NoError(t, err)
@@ -298,7 +315,7 @@ func TestE2E_GetCurrentUserDocument(t *testing.T) {
 	t.Run("document avec date d expiration - ExpiredAt est rempli", func(t *testing.T) {
 		cleanTables(t)
 
-		uploaded := uploadUserDoc(t, "e2e-with-expiry", "driverLicenceFront")
+		uploaded := uploadUserDoc(t, "e2e-with-expiry", "driverLicence")
 
 		// Mettre à jour expire_at directement en base
 		expiry := time.Date(2032, 3, 1, 0, 0, 0, 0, time.UTC)
@@ -310,7 +327,7 @@ func TestE2E_GetCurrentUserDocument(t *testing.T) {
 
 		resp, err := grpcClient.GetCurrentUserDocument(ctx, &filepb.GetCurrentUserDocumentRequest{
 			UserId:       "e2e-with-expiry",
-			DocumentType: "driverLicenceFront",
+			DocumentType: "driverLicence",
 		})
 
 		require.NoError(t, err)
@@ -871,9 +888,21 @@ func TestE2E_FullScenario(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, reviewsResp.Reviews, 1)
 
-	// 8. Upload un nouveau recto de carte (remplace l'ancien)
-	idCardFront2 := uploadUserDoc(t, userID, "idCardFront")
-	assert.NotEqual(t, idCardFront.DocumentId, idCardFront2.DocumentId)
+	// 8. Remplacer le recto de carte après rejet (le remplacement requiert statut "rejected").
+	_, err = testPool.Exec(ctx,
+		`UPDATE user_documents SET status = 'rejected' WHERE document_id = $1`,
+		idCardFront.DocumentId,
+	)
+	require.NoError(t, err)
+	replaceResp, err := grpcClient.ChangeDocument(ctx, &filepb.ChangeDocumentRequest{
+		UserID:      userID,
+		FileID:      idCardFront.DocumentId,
+		NewDocument: fakeJPEG(),
+	})
+	require.NoError(t, err)
+	require.True(t, replaceResp.Success, replaceResp.ErrorMessage)
+	idCardFront2ID := replaceResp.Document.DocumentID
+	assert.NotEqual(t, idCardFront.DocumentId, idCardFront2ID)
 
 	// 9. Le nouveau document est courant
 	currentDoc, err := grpcClient.GetCurrentUserDocument(ctx, &filepb.GetCurrentUserDocumentRequest{
@@ -881,21 +910,21 @@ func TestE2E_FullScenario(t *testing.T) {
 		DocumentType: "idCardFront",
 	})
 	require.NoError(t, err)
-	assert.Equal(t, idCardFront2.DocumentId, currentDoc.DocumentId)
+	assert.Equal(t, idCardFront2ID, currentDoc.DocumentId)
 
 	// 10. GetDocument avec accès propriétaire
 	docResp, err := grpcClient.GetDocument(ctx, &filepb.GetDocumentRequest{
-		FileID: idCardFront2.DocumentId,
+		FileID: idCardFront2ID,
 		UserID: userID,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, docResp.File)
-	assert.Equal(t, idCardFront2.DocumentId, docResp.File.FileID)
+	assert.Equal(t, idCardFront2ID, docResp.File.FileID)
 
 	// 11. GetDocument avec support bypass (x-support-uid injecté par l'api-gateway)
 	supportCtx := metadata.NewOutgoingContext(ctx, metadata.Pairs("x-support-uid", "support-agent-001"))
 	docRespSupport, err := grpcClient.GetDocument(supportCtx, &filepb.GetDocumentRequest{
-		FileID: idCardFront2.DocumentId,
+		FileID: idCardFront2ID,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, docRespSupport.File)

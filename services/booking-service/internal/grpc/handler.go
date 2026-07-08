@@ -64,6 +64,7 @@ func (h *BookingHandler) CreateBooking(ctx context.Context, req *bookingpb.Creat
 		Segments:           segments,
 		PassengerMessage:   req.PassengerMessage,
 		ExtraMinutesDetour: int(req.ExtraMinutesDetour),
+		ExtraDetourPrice:   int(req.ExtraDetourPrice),
 	}
 
 	result, err := h.service.CreateBooking(ctx, input)
@@ -218,6 +219,22 @@ func (h *BookingHandler) GetDriverPendingBookings(ctx context.Context, req *book
 	}
 
 	return &bookingpb.GetDriverPendingBookingsResponse{
+		Bookings: toProtoDriverBookingPreviews(results),
+	}, nil
+}
+
+// GetDriverBookings retourne l'historique paginé des réservations d'un conducteur, tous statuts confondus.
+func (h *BookingHandler) GetDriverBookings(ctx context.Context, req *bookingpb.GetDriverBookingsRequest) (*bookingpb.GetDriverBookingsResponse, error) {
+	results, err := h.service.GetDriverBookings(ctx, &serviceInterfaces.GetDriverBookingsInput{
+		DriverID:     req.DriverId,
+		StatusFilter: req.StatusFilter,
+		PageIndex:    int(req.Index),
+	})
+	if err != nil {
+		return &bookingpb.GetDriverBookingsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return &bookingpb.GetDriverBookingsResponse{
 		Bookings: toProtoDriverBookingPreviews(results),
 	}, nil
 }
@@ -478,6 +495,7 @@ func toProtoDriverBookingPreviews(results []*serviceInterfaces.DriverBookingPrev
 			DropoffLocationName: r.DropoffLocationName,
 			DepartureDate:       r.DepartureDate,
 			DepartureTime:       r.DepartureTime,
+			PassengerId:         r.PassengerID,
 			PassengerName:       r.PassengerName,
 			PassengerRating:     r.PassengerRating,
 			PassengerTripCount:  int32(r.PassengerTripCount),
@@ -486,6 +504,9 @@ func toProtoDriverBookingPreviews(results []*serviceInterfaces.DriverBookingPrev
 			PaymentMethod:       r.PaymentMethod,
 			CreatedAt:           r.CreatedAt,
 			ExtraMinutesDetour:  int32(r.ExtraMinutesDetour),
+			PickupLat:           r.PickupLat,
+			PickupLng:           r.PickupLng,
+			ExtraDetourPrice:    int32(r.ExtraDetourPrice),
 		})
 	}
 	return previews
