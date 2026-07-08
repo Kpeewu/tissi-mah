@@ -24,16 +24,26 @@ COPY services/file-service/go.mod services/file-service/go.sum* ./services/file-
 COPY services/user-service/go.mod services/user-service/go.sum* ./services/user-service/
 COPY services/vehicle-service/go.mod services/vehicle-service/go.sum* ./services/vehicle-service/
 
-# pkg-test est un module de test uniquement, mais file-service/go.mod a un replace directive qui
-# pointe vers lui. On crée un stub minimal pour satisfaire la résolution Go sans inclure
-# aucune dépendance de test dans l'image de production.
-RUN mkdir -p pkg-test && \
-    printf 'module github.com/Kpeewu/tissi-mah/pkg-test\n\ngo 1.25\n' > pkg-test/go.mod
-
-# Create a scoped go.work with pkg + pkg-test stub + file-service + user-service + vehicle-service
-# user-service and vehicle-service are required because file-service/go.mod has replace directives
-# pointing to them (proto/gen imports for user lookups and vehicle info)
-RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/file-service\n\t./services/user-service\n\t./services/vehicle-service\n)\n' > go.work
+# Stubs de modules internes + go.work en un seul RUN (layer atomique) :
+#  - pkg-test       : requis par file-service/go.mod (replace directive)
+#  - trips-service  : vehicle-service/go.mod le référence (replace directive) ;
+#                     go.mod minimal sans requires — workspace mode utilise le graphe combiné
+#  - booking-service, rating-service : requis par trips-service/go.mod mais jamais compilés
+# Tout dans un seul layer : si le contenu change, go.work est aussi invalidé (pas de cache stale).
+RUN mkdir -p pkg-test \
+             services/trips-service/proto/gen \
+             services/booking-service \
+             services/rating-service && \
+    printf 'module github.com/Kpeewu/tissi-mah/pkg-test\n\ngo 1.25\n' \
+        > pkg-test/go.mod && \
+    printf 'module github.com/Kpeewu/tissi-mah/services/trips-service\n\ngo 1.25\n' \
+        > services/trips-service/go.mod && \
+    printf 'module github.com/Kpeewu/tissi-mah/services/booking-service\n\ngo 1.25\n' \
+        > services/booking-service/go.mod && \
+    printf 'module github.com/Kpeewu/tissi-mah/services/rating-service\n\ngo 1.25\n' \
+        > services/rating-service/go.mod && \
+    printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/booking-service\n\t./services/file-service\n\t./services/rating-service\n\t./services/trips-service\n\t./services/user-service\n\t./services/vehicle-service\n)\n' \
+        > go.work
 
 # Download dependencies for all modules
 RUN go mod download -C ./pkg
