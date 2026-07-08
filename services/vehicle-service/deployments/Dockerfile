@@ -24,13 +24,12 @@ COPY services/file-service/go.mod services/file-service/go.sum* ./services/file-
 COPY services/user-service/go.mod services/user-service/go.sum* ./services/user-service/
 COPY services/vehicle-service/go.mod services/vehicle-service/go.sum* ./services/vehicle-service/
 
-# Stubs de modules internes créés via RUN pour éviter la dépendance au build context :
-#  - pkg-test     : module de test requis par file-service/go.mod
-#  - trips-service: vehicle-service importe trips-service/proto/gen ; on crée un go.mod minimal
-#                   (sans requires externes) — en workspace mode Go utilise le graphe combiné,
-#                   donc grpc/protobuf restent accessibles via vehicle-service/go.mod.
+# Stubs de modules internes + go.work en un seul RUN (layer atomique) :
+#  - pkg-test     : requis par file-service/go.mod (replace directive)
+#  - trips-service: vehicle-service importe trips-service/proto/gen ; go.mod minimal sans requires
+#                   (workspace mode — grpc/protobuf proviennent du graphe combiné via vehicle-service)
 #  - booking-service, rating-service : requis par trips-service/go.mod mais jamais compilés
-#                                      (proto/gen n'importe que grpc/protobuf).
+# Tout dans un seul layer : si le contenu change, go.work est aussi invalidé (pas de cache stale).
 RUN mkdir -p pkg-test \
              services/trips-service/proto/gen \
              services/booking-service \
@@ -42,10 +41,9 @@ RUN mkdir -p pkg-test \
     printf 'module github.com/Kpeewu/tissi-mah/services/booking-service\n\ngo 1.25\n' \
         > services/booking-service/go.mod && \
     printf 'module github.com/Kpeewu/tissi-mah/services/rating-service\n\ngo 1.25\n' \
-        > services/rating-service/go.mod
-
-# Create a scoped go.work with all required modules.
-RUN printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/booking-service\n\t./services/file-service\n\t./services/rating-service\n\t./services/trips-service\n\t./services/user-service\n\t./services/vehicle-service\n)\n' > go.work
+        > services/rating-service/go.mod && \
+    printf 'go 1.25.6\n\nuse (\n\t./pkg\n\t./pkg-test\n\t./services/booking-service\n\t./services/file-service\n\t./services/rating-service\n\t./services/trips-service\n\t./services/user-service\n\t./services/vehicle-service\n)\n' \
+        > go.work
 
 # Download dependencies for all modules
 RUN go mod download -C ./pkg
