@@ -118,14 +118,17 @@ func TestGetVehicleDetails(t *testing.T) {
 		f.On("GetVehicleDocuments", mock.Anything, v.VehicleID).
 			Return(domain.VehicleDocuments{AssuranceURL: "a.url", VehicleRegistrationURL: "r.url"}, nil)
 		f.On("GetCurrentUserDocument", mock.Anything, "u1", "driverLicenceFront").
-			Return("https://example.com/permis.jpg", "VALIDATED", nil)
+			Return("https://example.com/permis-recto.jpg", "VALIDATED", nil)
+		f.On("GetCurrentUserDocument", mock.Anything, "u1", "driverLicenceBack").
+			Return("https://example.com/permis-verso.jpg", "VALIDATED", nil)
 
 		got, err := svc.GetVehicleDetails(context.Background(), "u1", v.VehicleID)
 		require.NoError(t, err)
 		assert.Equal(t, v.VehicleID, got.Vehicle.VehicleID)
 		assert.Equal(t, "a.url", got.Documents.AssuranceURL)
 		assert.Equal(t, "r.url", got.Documents.VehicleRegistrationURL)
-		assert.Equal(t, "https://example.com/permis.jpg", got.Documents.DriverLicenceURL)
+		assert.Equal(t, "https://example.com/permis-recto.jpg", got.Documents.DriverLicenceRectoURL)
+		assert.Equal(t, "https://example.com/permis-verso.jpg", got.Documents.DriverLicenceVersoURL)
 	})
 
 	t.Run("vehicleID vide → InvalidInput", func(t *testing.T) {
@@ -155,14 +158,15 @@ func TestGetVehicleDetails(t *testing.T) {
 		r.On("GetByID", mock.Anything, v.VehicleID).Return(v, nil)
 		f.On("GetVehicleDocuments", mock.Anything, v.VehicleID).
 			Return(domain.VehicleDocuments{}, errors.New("file service down"))
-		f.On("GetCurrentUserDocument", mock.Anything, "u1", "driverLicenceFront").
+		f.On("GetCurrentUserDocument", mock.Anything, "u1", mock.AnythingOfType("string")).
 			Return("", "MISSING", errors.New("file service down"))
 
 		got, err := svc.GetVehicleDetails(context.Background(), "u1", v.VehicleID)
 		require.NoError(t, err)
 		assert.Empty(t, got.Documents.AssuranceURL)
 		assert.Empty(t, got.Documents.VehicleRegistrationURL)
-		assert.Empty(t, got.Documents.DriverLicenceURL)
+		assert.Empty(t, got.Documents.DriverLicenceRectoURL)
+		assert.Empty(t, got.Documents.DriverLicenceVersoURL)
 	})
 }
 

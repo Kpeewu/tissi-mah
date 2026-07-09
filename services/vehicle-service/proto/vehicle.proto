@@ -111,9 +111,14 @@ message HealthResponse {
 
 // VehicleDocuments contient les URLs et statuts des documents du véhicule.
 message VehicleDocuments {
+  reserved 3;
+  reserved "DriverLicenceUrl";
+
   string AssuranceUrl              = 1;
   string VehicleRegistrationUrl    = 2;
-  string DriverLicenceUrl          = 3;
+  // Permis du conducteur (document utilisateur recto-verso, partagé entre tous ses véhicules)
+  string DriverLicenceRectoUrl     = 6;
+  string DriverLicenceVersoUrl     = 7;
   string AssuranceStatus           = 4;
   string VehicleRegistrationStatus = 5;
 }

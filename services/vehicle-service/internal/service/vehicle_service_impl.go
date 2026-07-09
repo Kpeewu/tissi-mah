@@ -131,9 +131,11 @@ func (s *vehicleServiceImpl) GetVehicleDetails(ctx context.Context, userID strin
 		docs = domain.VehicleDocuments{}
 	}
 
-	// URL du permis du conducteur (document utilisateur, face recto).
-	driverLicenceURL, _, _ := s.fileClient.GetCurrentUserDocument(ctx, userID, "driverLicenceFront")
-	docs.DriverLicenceURL = driverLicenceURL
+	// URLs du permis du conducteur (document utilisateur recto-verso).
+	rectoURL, _, _ := s.fileClient.GetCurrentUserDocument(ctx, userID, "driverLicenceFront")
+	versoURL, _, _ := s.fileClient.GetCurrentUserDocument(ctx, userID, "driverLicenceBack")
+	docs.DriverLicenceRectoURL = rectoURL
+	docs.DriverLicenceVersoURL = versoURL
 
 	return &domain.VehicleDetails{
 		Vehicle:   vehicle,
