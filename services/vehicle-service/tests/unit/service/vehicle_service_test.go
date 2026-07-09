@@ -117,7 +117,7 @@ func TestGetVehicleDetails(t *testing.T) {
 		r.On("GetByID", mock.Anything, v.VehicleID).Return(v, nil)
 		f.On("GetVehicleDocuments", mock.Anything, v.VehicleID).
 			Return(domain.VehicleDocuments{AssuranceURL: "a.url", VehicleRegistrationURL: "r.url"}, nil)
-		f.On("GetCurrentUserDocument", mock.Anything, "u1", "driverLicence").
+		f.On("GetCurrentUserDocument", mock.Anything, "u1", "driverLicenceFront").
 			Return("https://example.com/permis.jpg", "VALIDATED", nil)
 
 		got, err := svc.GetVehicleDetails(context.Background(), "u1", v.VehicleID)
@@ -155,7 +155,7 @@ func TestGetVehicleDetails(t *testing.T) {
 		r.On("GetByID", mock.Anything, v.VehicleID).Return(v, nil)
 		f.On("GetVehicleDocuments", mock.Anything, v.VehicleID).
 			Return(domain.VehicleDocuments{}, errors.New("file service down"))
-		f.On("GetCurrentUserDocument", mock.Anything, "u1", "driverLicence").
+		f.On("GetCurrentUserDocument", mock.Anything, "u1", "driverLicenceFront").
 			Return("", "MISSING", errors.New("file service down"))
 
 		got, err := svc.GetVehicleDetails(context.Background(), "u1", v.VehicleID)
@@ -175,7 +175,7 @@ func TestGetUserVehicles(t *testing.T) {
 			{VehicleID: "v1", Brand: "Toyota", BrandModel: "Corolla", LicencePlate: "AA", IsVerified: true},
 		}
 		r.On("GetByUserID", mock.Anything, "u1").Return(previews, nil)
-		f.On("GetCurrentUserDocument", mock.Anything, "u1", "driverLicence").Return("", "PENDING", nil)
+		f.On("GetCurrentUserDocument", mock.Anything, "u1", "driverLicenceFront").Return("", "PENDING", nil)
 		f.On("GetVehicleDocuments", mock.Anything, "v1").Return(domain.VehicleDocuments{
 			AssuranceStatus:           "PENDING",
 			VehicleRegistrationStatus: "VALIDATED",
@@ -198,7 +198,7 @@ func TestGetUserVehicles(t *testing.T) {
 			{VehicleID: "v1", Brand: "Toyota", BrandModel: "Corolla", LicencePlate: "AA", IsVerified: true},
 		}
 		r.On("GetByUserID", mock.Anything, "u1").Return(previews, nil)
-		f.On("GetCurrentUserDocument", mock.Anything, "u1", "driverLicence").Return("", "MISSING", errors.New("unavailable"))
+		f.On("GetCurrentUserDocument", mock.Anything, "u1", "driverLicenceFront").Return("", "MISSING", errors.New("unavailable"))
 		f.On("GetVehicleDocuments", mock.Anything, "v1").Return(domain.VehicleDocuments{}, errors.New("unavailable"))
 		trips.On("GetVehicleCompletedTripCount", mock.Anything, "v1").Return(0, nil)
 

@@ -144,9 +144,10 @@ var passengerDocumentTypes = map[string]bool{
 }
 
 // driverUserDocumentTypes : documents utilisateur relatifs au permis (validation "driver").
-// Le permis est un document unique partagé identité/véhicule.
+// Le permis est un document recto-verso partagé identité/véhicule.
 var driverUserDocumentTypes = map[string]bool{
-	"driverLicence": true,
+	"driverLicenceFront": true,
+	"driverLicenceBack":  true,
 }
 
 // DocumentCategory classe un document en "passenger" / "driver" / "other".
@@ -317,24 +318,30 @@ type DocumentHistoryEntry struct {
 }
 
 // ToLogicalDocumentType dérive le type logique depuis le type physique.
-// Seule la carte d'identité est recto-verso ; les autres types sont déjà logiques.
+// La carte d'identité et le permis sont recto-verso ; les autres types sont déjà logiques.
 func ToLogicalDocumentType(documentType string) string {
 	switch documentType {
 	case "idCardFront", "idCardBack":
 		return "idCard"
+	case "driverLicenceFront", "driverLicenceBack":
+		return "driverLicence"
 	default:
 		return documentType
 	}
 }
 
-// companionDocumentType retourne le type du côté compagnon pour les documents recto-verso (idCard).
-// Retourne "" si le type n'est pas recto-verso.
+// CompanionDocumentType retourne le type du côté compagnon pour les documents
+// recto-verso (idCard, driverLicence). Retourne "" si le type n'est pas recto-verso.
 func CompanionDocumentType(documentType string) string {
 	switch documentType {
 	case "idCardFront":
 		return "idCardBack"
 	case "idCardBack":
 		return "idCardFront"
+	case "driverLicenceFront":
+		return "driverLicenceBack"
+	case "driverLicenceBack":
+		return "driverLicenceFront"
 	default:
 		return ""
 	}

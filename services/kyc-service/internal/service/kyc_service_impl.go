@@ -105,7 +105,7 @@ func mapToFileDocumentType(docType string) string {
 	case "IDCard":
 		return "idCardFront"
 	case "DriverLicence":
-		return "driverLicence"
+		return "driverLicenceFront"
 	case "Passport":
 		return "passport"
 	default:
@@ -169,7 +169,7 @@ func (s *kycServiceImpl) CreateInquiry(ctx context.Context, input serviceInterfa
 	// DocumentID arrive vide dans la requête et le file-service n'a aucun document
 	// utilisateur à récupérer — Persona collecte et stocke la pièce directement.
 	// On normalise le type haut-niveau ("IDCard", "DriverLicence") vers le type
-	// concret stocké côté file-service ("idCardFront", "driverLicence"),
+	// concret stocké côté file-service ("idCardFront", "driverLicenceFront"),
 	// pour rester cohérent avec ValidateDocument (qui persiste doc.DocumentType
 	// déjà au format file-service) et avec identityDocumentTypes/driverDocumentTypes.
 	storedDocumentType := mapToFileDocumentType(input.DocumentType)
@@ -328,11 +328,13 @@ var identityDocumentTypes = map[string]bool{
 	"passport":    true,
 }
 
-// Types de documents de permis de conduire.
-// Document unique partagé identité/véhicule : une review approuvée vaut pour
-// le statut driver ET la vérification de tous les véhicules de l'utilisateur.
+// Types de documents de permis de conduire (recto-verso).
+// Document partagé identité/véhicule : une review approuvée du document logique
+// (recto + verso apparié via SecondUserDocumentID) vaut pour le statut driver
+// ET la vérification de tous les véhicules de l'utilisateur.
 var driverDocumentTypes = map[string]bool{
-	"driverLicence": true,
+	"driverLicenceFront": true,
+	"driverLicenceBack":  true,
 }
 
 func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serviceInterfaces.KYCStatus, error) {
@@ -1028,13 +1030,23 @@ func (s *kycServiceImpl) ValidateDocument(ctx context.Context, input serviceInte
 		}
 	}
 
-	// Auto-découverte du document compagnon pour les documents recto-verso
+	// Auto-découverte du document compagnon pour les documents recto-verso.
+	// Un document recto-verso (idCard, driverLicence) incomplet ne peut pas être
+	// validé : la review couvre les deux faces via SecondUserDocumentID.
 	var secondUserDocumentID string
 	if userDocumentID != "" {
 		if companionType := domain.CompanionDocumentType(documentType); companionType != "" {
-			if companion, err := s.fileClient.GetCurrentUserDocument(ctx, ownerUserID, companionType); err == nil {
-				secondUserDocumentID = companion.DocumentID
+			companion, err := s.fileClient.GetCurrentUserDocument(ctx, ownerUserID, companionType)
+			if err != nil {
+				s.logger.Error("companion document missing for two-sided document",
+					zap.String("userID", ownerUserID),
+					zap.String("documentType", documentType),
+					zap.String("companionType", companionType),
+					zap.Error(err),
+				)
+				return nil, kycErrors.ErrorCompanionDocumentMissing
 			}
+			secondUserDocumentID = companion.DocumentID
 		}
 	}
 

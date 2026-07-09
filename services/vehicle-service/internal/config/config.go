@@ -8,12 +8,12 @@ import (
 
 // Config contient la configuration complète du vehicle-service.
 type Config struct {
-	Server       ServerConfig
-	Environment  EnvironmentConfig
-	Database     DatabaseConfig
-	Redis        RedisConfig
-	FileService  FileServiceConfig
-	TripsService TripsServiceConfig
+	Server             ServerConfig
+	Environment        EnvironmentConfig
+	Database           DatabaseConfig
+	Redis              RedisConfig
+	FileService        FileServiceConfig
+	TripsService       TripsServiceConfig
 	LogLevel           string
 	InternalHMACSecret string
 }

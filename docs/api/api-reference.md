@@ -478,7 +478,7 @@ Base : `/file`
 
 `DocumentType` : `IDCard` | `Passport` | `DriverLicence`
 
-Champs fichiers selon le type : `IDCardRecto`+`IDCardVerso` (IDCard), `Passport` (Passport), `DriverLicence` (DriverLicence — image unique, document partagé identité/véhicule).
+Champs fichiers selon le type : `IDCardRecto`+`IDCardVerso` (IDCard), `Passport` (Passport), `DriverLicenceRecto`+`DriverLicenceVerso` (DriverLicence — recto-verso, document partagé identité/véhicule).
 
 **Réponse :**
 ```json
@@ -497,13 +497,14 @@ Champs fichiers selon le type : `IDCardRecto`+`IDCardVerso` (IDCard), `Passport`
 {
   "UserID": "uuid",
   "VehicleID": "uuid",
-  "DriverLicenceImage": "<base64>",
+  "DriverLicenceRecto": "<base64>",
+  "DriverLicenceVerso": "<base64>",
   "Assurance": "<base64>",
   "VehicleRegistration": "<base64>"
 }
 ```
 
-`DriverLicenceImage` : ignoré si l'utilisateur a déjà un permis courant (soumis via `uploadIdDocument` ou un précédent flux véhicule), obligatoire sinon. Le permis est stocké comme document utilisateur (`driverLicence`) et couvre tous les véhicules.
+`DriverLicenceRecto` / `DriverLicenceVerso` : ignorés si l'utilisateur a déjà un permis courant (soumis via `uploadIdDocument` ou un précédent flux véhicule), obligatoires sinon (les deux faces ensemble). Le permis est stocké comme documents utilisateur (`driverLicenceFront` / `driverLicenceBack`, type logique `driverLicence`) et couvre tous les véhicules.
 
 #### `PATCH /api/v1/file/changeDocument` 🔒
 

@@ -1910,7 +1910,7 @@ type ManualReviewDocument struct {
 	IssuingCountry   string                   `protobuf:"bytes,18,opt,name=IssuingCountry,proto3" json:"IssuingCountry,omitempty"`     // user docs uniquement
 	IssuingAuthority string                   `protobuf:"bytes,19,opt,name=IssuingAuthority,proto3" json:"IssuingAuthority,omitempty"` // vehicle docs uniquement
 	Vehicle          *ManualReviewVehicleInfo `protobuf:"bytes,20,opt,name=Vehicle,proto3" json:"Vehicle,omitempty"`                   // vehicle docs uniquement
-	// Verso — recto-verso (idCard) uniquement ; vide sinon
+	// Verso — recto-verso (idCard, driverLicence) uniquement ; vide sinon
 	SecondDocumentId    string `protobuf:"bytes,21,opt,name=SecondDocumentId,proto3" json:"SecondDocumentId,omitempty"`
 	SecondDocumentUrl   string `protobuf:"bytes,22,opt,name=SecondDocumentUrl,proto3" json:"SecondDocumentUrl,omitempty"`
 	SecondFileSizeBytes int64  `protobuf:"varint,23,opt,name=SecondFileSizeBytes,proto3" json:"SecondFileSizeBytes,omitempty"`

@@ -257,18 +257,19 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 	)
 
 	docs, err := h.service.UploadIdDocument(ctx, serviceInterfaces.UploadIdDocumentInput{
-		UserID:         profile.UserID,
-		FirstName:      profile.FirstName,
-		LastName:       profile.LastName,
-		DocumentType:   req.DocumentType,
-		IDCardRecto:    req.IDCardRecto,
-		IDCardVerso:    req.IDCardVerso,
-		DriverLicence:  req.DriverLicence,
-		Passport:       req.Passport,
-		DocumentNumber: req.DocumentNumber,
-		IssuedAt:       req.IssuedAt,
-		ExpireAt:       req.ExpireAt,
-		IssuingCountry: req.IssuingCountry,
+		UserID:             profile.UserID,
+		FirstName:          profile.FirstName,
+		LastName:           profile.LastName,
+		DocumentType:       req.DocumentType,
+		IDCardRecto:        req.IDCardRecto,
+		IDCardVerso:        req.IDCardVerso,
+		DriverLicenceRecto: req.DriverLicenceRecto,
+		DriverLicenceVerso: req.DriverLicenceVerso,
+		Passport:           req.Passport,
+		DocumentNumber:     req.DocumentNumber,
+		IssuedAt:           req.IssuedAt,
+		ExpireAt:           req.ExpireAt,
+		IssuingCountry:     req.IssuingCountry,
 	})
 	if err != nil {
 		h.logger.Error("handler: UploadIdDocument failed",
@@ -335,8 +336,9 @@ func (h *FileHandler) UploadVehicleDocuments(ctx context.Context, req *filepb.Up
 		VehicleID: req.VehicleID,
 		FirstName: profile.FirstName,
 		LastName:  profile.LastName,
-		DriverLicence: serviceInterfaces.VehicleDocFileInput{
-			Data:             req.DriverLicenceImage,
+		DriverLicence: serviceInterfaces.DriverLicenceFileInput{
+			Recto:            req.DriverLicenceRecto,
+			Verso:            req.DriverLicenceVerso,
 			DocumentNumber:   req.GetDriverLicenceMetadata().GetDocumentNumber(),
 			IssuedAt:         req.GetDriverLicenceMetadata().GetIssuedAt(),
 			ExpireAt:         req.GetDriverLicenceMetadata().GetExpireAt(),

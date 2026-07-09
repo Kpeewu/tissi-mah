@@ -7,17 +7,17 @@ import (
 )
 
 type Config struct {
-	Server             ServerConfig
-	Environment        EnvironmentConfig
-	Database           DatabaseConfig
-	Redis              RedisConfig
-	S3                 S3Config
-	UserService        UserServiceConfig
-	VehicleService     ServiceConfig
-	ModerationService  ServiceConfig
-	ModerationEnabled  bool
+	Server               ServerConfig
+	Environment          EnvironmentConfig
+	Database             DatabaseConfig
+	Redis                RedisConfig
+	S3                   S3Config
+	UserService          UserServiceConfig
+	VehicleService       ServiceConfig
+	ModerationService    ServiceConfig
+	ModerationEnabled    bool
 	ModerationFailClosed bool
-	LogLevel           string
+	LogLevel             string
 }
 
 type ServiceConfig struct {
@@ -47,11 +47,11 @@ type RedisConfig struct {
 }
 
 type S3Config struct {
-	Region         string
-	Bucket         string
-	AccessKey      string
-	SecretKey      string
-	Endpoint       string
+	Region    string
+	Bucket    string
+	AccessKey string
+	SecretKey string
+	Endpoint  string
 	// PublicEndpoint est utilisé exclusivement pour construire les URL présignées
 	// envoyées aux clients. Laissez vide si Endpoint est déjà le domaine public.
 	// Ex: S3_ENDPOINT=http://minio:9000 (interne), S3_PUBLIC_ENDPOINT=https://storage.tissimah.kpeewu.dev
@@ -112,7 +112,7 @@ func Load() (*Config, error) {
 		},
 		ModerationEnabled:    getBoolOrDefault(values, "MODERATION_ENABLED", true),
 		ModerationFailClosed: getBoolOrDefault(values, "MODERATION_FAIL_CLOSED", false),
-		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		LogLevel:             sharedconfig.MustGetString(values, "LOG_LEVEL"),
 	}
 
 	if err := validate(config); err != nil {
@@ -122,7 +122,10 @@ func Load() (*Config, error) {
 	return config, nil
 }
 
-func getBoolOrDefault(v interface{ GetBool(string) bool; IsSet(string) bool }, key string, def bool) bool {
+func getBoolOrDefault(v interface {
+	GetBool(string) bool
+	IsSet(string) bool
+}, key string, def bool) bool {
 	if !v.IsSet(key) {
 		return def
 	}
