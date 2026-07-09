@@ -138,13 +138,14 @@ func (s *ratingServiceImpl) RateUser(ctx context.Context, raterID string, userRa
 	return s.readRepo.GetByID(ctx, ratingID)
 }
 
-// GetUserRatings récupère toutes les notes reçues par un utilisateur
+// GetUserRatings récupère toutes les notes reçues par un utilisateur, enrichies avec
+// le nom et la photo du noteur (un seul appel batch vers user-service).
 func (s *ratingServiceImpl) GetUserRatings(ctx context.Context, userRatedID string) ([]*domain.Rating, error) {
 	if userRatedID == "" {
 		return nil, ratingErrors.ErrorMissingUserRatedID
 	}
 
-	// Vérifier le cache
+	// Vérifier le cache (données déjà enrichies si écrites après ce changement)
 	if s.cache != nil {
 		cached, err := s.cache.GetUserRatings(ctx, userRatedID)
 		if err == nil && cached != nil {
@@ -157,12 +158,53 @@ func (s *ratingServiceImpl) GetUserRatings(ctx context.Context, userRatedID stri
 		return nil, err
 	}
 
-	// Mettre en cache
+	// Enrichissement batch : 1 appel pour N ratings
+	s.enrichWithRaterProfiles(ctx, ratings)
+
+	// Mettre en cache les données enrichies
 	if s.cache != nil {
 		s.cache.SetUserRatings(ctx, userRatedID, ratings) //nolint:errcheck
 	}
 
 	return ratings, nil
+}
+
+// enrichWithRaterProfiles peuple RaterFirstName/RaterLastName/RaterProfileImageURL sur chaque
+// rating via un seul appel batch à user-service. En cas d'erreur, les champs restent vides
+// (dégradation gracieuse — l'écran affichera "Anonyme" plutôt qu'une erreur 500).
+func (s *ratingServiceImpl) enrichWithRaterProfiles(ctx context.Context, ratings []*domain.Rating) {
+	if len(ratings) == 0 {
+		return
+	}
+
+	raterIDs := uniqueIDs(ratings)
+	profiles, err := s.userClient.GetUsersByUserIDs(ctx, raterIDs)
+	if err != nil {
+		s.logger.Warn("enrichWithRaterProfiles: user-service unavailable, returning unenriched ratings",
+			zap.Error(err))
+		return
+	}
+
+	for _, r := range ratings {
+		if p, ok := profiles[r.RaterID]; ok {
+			r.RaterFirstName = p.FirstName
+			r.RaterLastName = p.LastName
+			r.RaterProfileImageURL = p.ProfileImageURL
+		}
+	}
+}
+
+// uniqueIDs extrait les RaterID uniques d'une liste de ratings.
+func uniqueIDs(ratings []*domain.Rating) []string {
+	seen := make(map[string]struct{}, len(ratings))
+	ids := make([]string, 0, len(ratings))
+	for _, r := range ratings {
+		if _, ok := seen[r.RaterID]; !ok {
+			seen[r.RaterID] = struct{}{}
+			ids = append(ids, r.RaterID)
+		}
+	}
+	return ids
 }
 
 // GetUserRatingsAverage récupère la moyenne (1 décimale) et le nombre total de notes d'un utilisateur

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/Kpeewu/tissi-mah/services/rating-service/fixtures"
+	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/domain"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/service"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/rating-service/internal/service/interfaces"
@@ -14,8 +16,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-
-	"github.com/Kpeewu/tissi-mah/services/rating-service/fixtures"
 )
 
 // --- Helpers ---
@@ -226,23 +226,54 @@ func TestRateUser(t *testing.T) {
 // =============================================================================
 
 func TestGetUserRatings(t *testing.T) {
-	t.Run("succès - retourne les notes d'un utilisateur", func(t *testing.T) {
-		mockReadRepo, _, _, svc := newTestService()
+	t.Run("succès - retourne les notes enrichies avec l'identité du noteur", func(t *testing.T) {
+		mockReadRepo, _, mockUserClient, svc := newTestService()
 		ctx := context.Background()
 
+		rater1ID := "ed9f0de2-fedd-4b0b-a5cc-af6d1a7fb30e"
+		rater2ID := "5a959758-72d4-467a-a899-58dcb01eda3b"
 		ratings := []*domain.Rating{
-			fixtures.NewTestRating(fixtures.WithUserRatedID("user-123"), fixtures.WithStars(5)),
-			fixtures.NewTestRating(fixtures.WithUserRatedID("user-123"), fixtures.WithStars(3)),
+			fixtures.NewTestRating(fixtures.WithRaterID(rater1ID), fixtures.WithUserRatedID("user-123"), fixtures.WithStars(5)),
+			fixtures.NewTestRating(fixtures.WithRaterID(rater2ID), fixtures.WithUserRatedID("user-123"), fixtures.WithStars(3)),
 		}
 		mockReadRepo.On("GetByUserRatedID", mock.Anything, "user-123").Return(ratings, nil)
+
+		profiles := map[string]*client.UserProfile{
+			rater1ID: {FirstName: "Kofi", LastName: "Mensah", ProfileImageURL: "https://cdn.example.com/kofi.jpg"},
+			rater2ID: {FirstName: "Ama", LastName: "Asante", ProfileImageURL: ""},
+		}
+		mockUserClient.On("GetUsersByUserIDs", mock.Anything, mock.Anything).Return(profiles, nil)
 
 		result, err := svc.GetUserRatings(ctx, "user-123")
 
 		require.NoError(t, err)
 		assert.Len(t, result, 2)
 		assert.Equal(t, int16(5), result[0].NumberOfStars)
+		assert.Equal(t, "Kofi", result[0].RaterFirstName)
+		assert.Equal(t, "Mensah", result[0].RaterLastName)
+		assert.Equal(t, "https://cdn.example.com/kofi.jpg", result[0].RaterProfileImageURL)
 		assert.Equal(t, int16(3), result[1].NumberOfStars)
+		assert.Equal(t, "Ama", result[1].RaterFirstName)
 		mockReadRepo.AssertExpectations(t)
+		mockUserClient.AssertExpectations(t)
+	})
+
+	t.Run("dégradation gracieuse - user-service indisponible", func(t *testing.T) {
+		mockReadRepo, _, mockUserClient, svc := newTestService()
+		ctx := context.Background()
+
+		ratings := []*domain.Rating{
+			fixtures.NewTestRating(fixtures.WithUserRatedID("user-123"), fixtures.WithStars(4)),
+		}
+		mockReadRepo.On("GetByUserRatedID", mock.Anything, "user-123").Return(ratings, nil)
+		mockUserClient.On("GetUsersByUserIDs", mock.Anything, mock.Anything).Return(nil, errors.New("user-service down"))
+
+		result, err := svc.GetUserRatings(ctx, "user-123")
+
+		require.NoError(t, err)
+		assert.Len(t, result, 1)
+		assert.Empty(t, result[0].RaterFirstName)
+		assert.Empty(t, result[0].RaterProfileImageURL)
 	})
 
 	t.Run("succès - retourne une liste vide si aucune note", func(t *testing.T) {

@@ -18,6 +18,10 @@ type Rating struct {
 	Comment       *string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+	// Enrichissement inter-service (non persisté en base)
+	RaterFirstName       string
+	RaterLastName        string
+	RaterProfileImageURL string
 }
 
 // Retourne le commentaire ou une chaîne vide si nil
