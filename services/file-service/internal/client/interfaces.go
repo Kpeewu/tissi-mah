@@ -13,13 +13,13 @@ type UserProfile struct {
 // VehicleInfo contient les informations essentielles d'un véhicule.
 // Source : vehicle-service.GetVehicleInfo.
 type VehicleInfo struct {
-	VehicleID    string
-	Brand        string
-	BrandModel   string
-	Color        string
-	LicencePlate string
+	VehicleID     string
+	Brand         string
+	BrandModel    string
+	Color         string
+	LicencePlate  string
 	NumberOfSeats int32
-	IsVerified   bool
+	IsVerified    bool
 }
 
 // VehicleClient est l'interface pour communiquer avec vehicle-service via gRPC.

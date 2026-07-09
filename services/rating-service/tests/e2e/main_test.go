@@ -13,6 +13,7 @@ import (
 
 	postgresHelper "github.com/Kpeewu/tissi-mah/pkg-test/postgres"
 	grpcHandler "github.com/Kpeewu/tissi-mah/services/rating-service/internal/grpc"
+	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/middleware"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/repository/implementations"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/service"
@@ -61,6 +62,7 @@ func TestMain(m *testing.M) {
 	// --- Mock user-service client (toujours valide par défaut) ---
 	mockUserClient = new(mocks.MockUserClient)
 	mockUserClient.On("UserExists", mock.Anything, mock.Anything).Return(true, nil)
+	mockUserClient.On("GetUsersByUserIDs", mock.Anything, mock.Anything).Return(map[string]*client.UserProfile{}, nil)
 	mockUserClient.On("Close").Return(nil)
 
 	// --- Service layer ---

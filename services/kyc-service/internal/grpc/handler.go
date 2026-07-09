@@ -603,7 +603,8 @@ func toGRPCError(err error) error {
 	case errors.Is(err, kycErrors.ErrorInquiryNotResumable),
 		errors.Is(err, kycErrors.ErrorReviewNotOverridable),
 		errors.Is(err, kycErrors.ErrorOnlyRejectionOverridable),
-		errors.Is(err, kycErrors.ErrorDocumentAlreadyReviewed):
+		errors.Is(err, kycErrors.ErrorDocumentAlreadyReviewed),
+		errors.Is(err, kycErrors.ErrorCompanionDocumentMissing):
 		return status.Error(codes.FailedPrecondition, err.Error())
 
 	// 16 - UNAUTHENTICATED (invalid webhook signature)

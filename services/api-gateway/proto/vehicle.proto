@@ -25,6 +25,9 @@ service VehicleService {
   rpc GetUserVehicles(GetUserVehiclesRequest) returns (GetUserVehiclesResponse) {
     option (google.api.http) = { post: "/api/v1/vehicle/getUserVehicles" body: "*" };
   }
+  // GetVehicleInfo retourne les informations essentielles d'un véhicule sans contrôle
+  // de propriété ni chargement des documents (inter-service, appelé par file-service).
+  rpc GetVehicleInfo(GetVehicleInfoRequest) returns (GetVehicleInfoResponse);
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = { get: "/api/v1/vehicle/health" };
@@ -106,10 +109,18 @@ message HealthResponse {
   int64 Timestamp = 3;
 }
 
-// VehicleDocuments contient les URLs des documents du véhicule.
+// VehicleDocuments contient les URLs et statuts des documents du véhicule.
 message VehicleDocuments {
-  string AssuranceUrl = 1;
-  string VehicleRegistrationUrl = 2;
+  reserved 3;
+  reserved "DriverLicenceUrl";
+
+  string AssuranceUrl              = 1;
+  string VehicleRegistrationUrl    = 2;
+  // Permis du conducteur (document utilisateur recto-verso, partagé entre tous ses véhicules)
+  string DriverLicenceRectoUrl     = 6;
+  string DriverLicenceVersoUrl     = 7;
+  string AssuranceStatus           = 4;
+  string VehicleRegistrationStatus = 5;
 }
 
 // VehicleDetail contient les informations complètes d'un véhicule.
@@ -127,9 +138,36 @@ message VehicleDetail {
 
 // VehiclePreview contient un aperçu réduit d'un véhicule pour les listes.
 message VehiclePreview {
+  string VehicleId                 = 1;
+  string Brand                     = 2;
+  string BrandModel                = 3;
+  string LicencePlate              = 4;
+  bool   IsVerified                = 5;
+  int32  NumberOfSeats             = 6;
+  string AssuranceStatus           = 7;
+  string VehicleRegistrationStatus = 8;
+  string DriverLicenceStatus       = 9;
+  int32  TripCount                 = 10;
+}
+
+// GetVehicleInfoRequest identifie le véhicule dont on veut les infos essentielles.
+message GetVehicleInfoRequest {
+  string VehicleId = 1;
+}
+
+// GetVehicleInfoResponse retourne les infos essentielles d'un véhicule.
+message GetVehicleInfoResponse {
+  VehicleInfo Vehicle = 1;
+  string ErrorMessage = 2;
+}
+
+// VehicleInfo contient les informations essentielles d'un véhicule (sans documents).
+message VehicleInfo {
   string VehicleId = 1;
   string Brand = 2;
   string BrandModel = 3;
-  string LicencePlate = 4;
-  bool IsVerified = 5;
+  string Color = 4;
+  string LicencePlate = 5;
+  int32 NumberOfSeats = 6;
+  bool IsVerified = 7;
 }

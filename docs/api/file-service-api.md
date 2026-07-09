@@ -86,12 +86,13 @@ Content-Type: application/json
 | `DocumentType` | string | Yes | `IDCard`, `Passport`, or `DriverLicence` |
 | `IDCardRecto` | bytes (base64) | If `IDCard` | Front of ID card |
 | `IDCardVerso` | bytes (base64) | If `IDCard` | Back of ID card |
-| `DriverLicence` | bytes (base64) | If `DriverLicence` | Driver's licence scan (single image) |
+| `DriverLicenceRecto` | bytes (base64) | If `DriverLicence` | Front of driver's licence |
+| `DriverLicenceVerso` | bytes (base64) | If `DriverLicence` | Back of driver's licence |
 | `Passport` | bytes (base64) | If `Passport` | Passport scan |
 
 > **Note:** grpc-gateway automatically handles base64 encoding/decoding for `bytes` fields. Send files as base64 strings in the JSON body.
 
-> **Driver licence sharing:** the driver's licence is a single user-level document shared between identity verification and vehicle verification. Once submitted here (or via `uploadVehicleDocuments`), it covers all the user's vehicles — approval or rejection applies to both contexts.
+> **Driver licence sharing:** the driver's licence is a user-level two-sided document (front + back, paired under the logical type `driverLicence`) shared between identity verification and vehicle verification. Once submitted here (or via `uploadVehicleDocuments`), it covers all the user's vehicles — approval or rejection applies to both contexts.
 
 #### Required fields per DocumentType
 
@@ -99,7 +100,7 @@ Content-Type: application/json
 |--------------|----------------|
 | `IDCard` | `IDCardRecto` + `IDCardVerso` |
 | `Passport` | `Passport` |
-| `DriverLicence` | `DriverLicence` |
+| `DriverLicence` | `DriverLicenceRecto` + `DriverLicenceVerso` |
 
 #### Response (Success)
 
@@ -133,7 +134,7 @@ Content-Type: application/json
 |-------|------|-------------|
 | `Success` | boolean | `true` if all files uploaded successfully |
 | `ErrorMessage` | string | Error identifier if failed, `""` if success |
-| `Documents` | array | Uploaded documents — 1 item for `Passport` / `DriverLicence`, 2 for `IDCard` (recto + verso) |
+| `Documents` | array | Uploaded documents — 1 item for `Passport`, 2 for `IDCard` / `DriverLicence` (recto + verso) |
 | `Documents[].DocumentID` | string | Document UUID — use this ID when calling `/kyc/inquiries/add` |
 | `Documents[].DocumentURL` | string | S3/MinIO URL of the uploaded file |
 | `Documents[].DocumentType` | string | Document type |
@@ -178,7 +179,7 @@ curl -X POST https://api.tissimah.kpeewu.dev/api/v1/file/uploadIdDocument \
 
 Uploads the vehicle documents (insurance, registration card) and, if the user does not already have one, the driver's licence. Files are sent as base64-encoded bytes in the JSON body. The service uploads each file to S3/MinIO and stores the URL in the database.
 
-> **Driver licence sharing:** the driver's licence is stored as a **user document** (type `driverLicence`), not a vehicle document. It is shared between identity verification and vehicle verification and covers all the user's vehicles. If the user already submitted a licence (via `uploadIdDocument` or a previous vehicle upload), `DriverLicenceImage` is ignored; otherwise it is required.
+> **Driver licence sharing:** the driver's licence is stored as **user documents** (types `driverLicenceFront` / `driverLicenceBack`, paired under the logical type `driverLicence`), not vehicle documents. It is shared between identity verification and vehicle verification and covers all the user's vehicles. If the user already submitted a licence (via `uploadIdDocument` or a previous vehicle upload), `DriverLicenceRecto` / `DriverLicenceVerso` are ignored; otherwise both sides are required.
 
 **Authentication:** Required (Firebase JWT)
 
@@ -194,7 +195,8 @@ Content-Type: application/json
 
 {
     "VehicleID": "v-550e8400-e29b-41d4-a716-446655440000",
-    "DriverLicenceImage": "<base64-encoded bytes>",
+    "DriverLicenceRecto": "<base64-encoded bytes>",
+    "DriverLicenceVerso": "<base64-encoded bytes>",
     "Assurance": "<base64-encoded bytes>",
     "VehicleRegistration": "<base64-encoded bytes>"
 }
@@ -205,7 +207,8 @@ Content-Type: application/json
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `VehicleID` | string | Yes | Vehicle ID |
-| `DriverLicenceImage` | bytes (base64) | If no current licence | Driver's licence scan — ignored if the user already has a current `driverLicence` document, required otherwise |
+| `DriverLicenceRecto` | bytes (base64) | If no current licence | Front of driver's licence — ignored if the user already has a current licence, required otherwise |
+| `DriverLicenceVerso` | bytes (base64) | If no current licence | Back of driver's licence — same rule as `DriverLicenceRecto` (both sides required together) |
 | `Assurance` | bytes (base64) | Yes | Insurance document |
 | `VehicleRegistration` | bytes (base64) | Yes | Vehicle registration card (carte grise) |
 
@@ -221,9 +224,15 @@ Content-Type: application/json
     "Documents": [
         {
             "DocumentID": "d-550e8400-e29b-41d4-a716-000000000001",
-            "DocumentURL": "https://storage.example.com/driverLicence/uuid/d-000001.jpg",
-            "DocumentType": "driverLicence",
-            "DocumentName": "dupont_jean_20260425_143052_driver_licence"
+            "DocumentURL": "https://storage.example.com/driverLicenceFront/uuid/d-000001.jpg",
+            "DocumentType": "driverLicenceFront",
+            "DocumentName": "dupont_jean_20260425_143052_driver_licence_recto"
+        },
+        {
+            "DocumentID": "d-550e8400-e29b-41d4-a716-000000000004",
+            "DocumentURL": "https://storage.example.com/driverLicenceBack/uuid/d-000004.jpg",
+            "DocumentType": "driverLicenceBack",
+            "DocumentName": "dupont_jean_20260425_143052_driver_licence_verso"
         },
         {
             "DocumentID": "d-550e8400-e29b-41d4-a716-000000000002",
@@ -247,10 +256,10 @@ Content-Type: application/json
 |-------|------|-------------|
 | `Success` | boolean | `true` if all files uploaded successfully |
 | `ErrorMessage` | string | Error identifier if failed, `""` if success |
-| `Documents` | array | 2 or 3 items in order: `driverLicence` (only if just uploaded), `insurance`, `registrationCard` |
+| `Documents` | array | 2 or 4 items in order: `driverLicenceFront` + `driverLicenceBack` (only if just uploaded), `insurance`, `registrationCard` |
 | `Documents[].DocumentID` | string | Document UUID — use this ID when calling `/kyc/inquiries/add` |
 | `Documents[].DocumentURL` | string | S3/MinIO URL of the uploaded file |
-| `Documents[].DocumentType` | string | `driverLicence`, `insurance`, or `registrationCard` |
+| `Documents[].DocumentType` | string | `driverLicenceFront`, `driverLicenceBack`, `insurance`, or `registrationCard` |
 | `Documents[].DocumentName` | string | Generated name: `{lastname}_{firstname}_{YYYYMMDD}_{HHMMSS}_{type}` |
 
 #### Errors
@@ -258,7 +267,7 @@ Content-Type: application/json
 | ErrorMessage | HTTP | Description |
 |--------------|------|-------------|
 | `ErrorInvalidDocumentType` | 400 | A required file is missing or `VehicleID` is empty |
-| `ErrorDriverLicenceRequired` | 400 | No current driver licence on file and `DriverLicenceImage` not provided |
+| `ErrorDriverLicenceRequired` | 400 | No current driver licence on file and `DriverLicenceRecto` / `DriverLicenceVerso` not both provided |
 | `ErrorUserServiceUnavailable` | 503 | user-service unreachable (Firebase UID or profile resolution failed) |
 | `ErrorUploadFailed` | 500 | S3/MinIO upload failed |
 | `ErrorInternalServer` | 500 | Internal error |
@@ -271,7 +280,8 @@ curl -X POST https://api.tissimah.kpeewu.dev/api/v1/file/uploadVehicleDocuments 
   -H "Content-Type: application/json" \
   -d '{
     "VehicleID": "v-550e8400-e29b-41d4-a716-446655440000",
-    "DriverLicenceImage": "<base64>",
+    "DriverLicenceRecto": "<base64>",
+    "DriverLicenceVerso": "<base64>",
     "Assurance": "<base64>",
     "VehicleRegistration": "<base64>"
   }'
@@ -502,7 +512,8 @@ rpc UploadUserDocument(stream UploadUserDocumentRequest) returns (UserDocumentRe
 | `idCardFront` | Front of ID card |
 | `idCardBack` | Back of ID card |
 | `passport` | Passport |
-| `driverLicence` | Driver's licence (single image, shared identity/vehicle) |
+| `driverLicenceFront` | Front of driver's licence (shared identity/vehicle) |
+| `driverLicenceBack` | Back of driver's licence (shared identity/vehicle) |
 | `profilePicture` | Profile picture |
 
 ---

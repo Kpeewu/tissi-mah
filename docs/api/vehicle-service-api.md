@@ -260,7 +260,7 @@ curl -X POST https://api.tissi-mah.com/api/v1/vehicle/delete \
 
 ### POST /api/v1/vehicle/details
 
-Retrieves full details of a vehicle, including documents fetched from file-service (assurance and registration card URLs).
+Retrieves full details of a vehicle, including documents fetched from file-service (assurance and registration card URLs, plus the driver's licence recto/verso URLs).
 
 **Authentication:** Not required (public)
 
@@ -302,7 +302,9 @@ Content-Type: application/json
         "IsVerified": false,
         "Documents": {
             "AssuranceUrl": "https://storage.tissi-mah.com/files/assurance-abc123.pdf",
-            "VehicleRegistrationUrl": "https://storage.tissi-mah.com/files/carte-grise-abc123.pdf"
+            "VehicleRegistrationUrl": "https://storage.tissi-mah.com/files/carte-grise-abc123.pdf",
+            "DriverLicenceRectoUrl": "https://storage.tissi-mah.com/files/permis-recto-abc123.jpg",
+            "DriverLicenceVersoUrl": "https://storage.tissi-mah.com/files/permis-verso-abc123.jpg"
         }
     },
     "ErrorMessage": ""
@@ -324,6 +326,8 @@ Content-Type: application/json
 | `Vehicle.IsVerified` | boolean | Whether the vehicle has been verified by an admin |
 | `Vehicle.Documents.AssuranceUrl` | string | URL of the assurance document (empty if not uploaded) |
 | `Vehicle.Documents.VehicleRegistrationUrl` | string | URL of the registration card (empty if not uploaded) |
+| `Vehicle.Documents.DriverLicenceRectoUrl` | string | URL of the driver's licence front side — user-level document shared across all the user's vehicles (empty if not uploaded) |
+| `Vehicle.Documents.DriverLicenceVersoUrl` | string | URL of the driver's licence back side (empty if not uploaded) |
 | `ErrorMessage` | string | Error message if failed, empty if success |
 
 > **Note:** `Documents` are fetched from file-service. If file-service is unavailable, document URLs will be empty strings — the vehicle data is still returned.

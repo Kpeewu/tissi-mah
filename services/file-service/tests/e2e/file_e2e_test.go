@@ -315,7 +315,7 @@ func TestE2E_GetCurrentUserDocument(t *testing.T) {
 	t.Run("document avec date d expiration - ExpiredAt est rempli", func(t *testing.T) {
 		cleanTables(t)
 
-		uploaded := uploadUserDoc(t, "e2e-with-expiry", "driverLicence")
+		uploaded := uploadUserDoc(t, "e2e-with-expiry", "driverLicenceFront")
 
 		// Mettre à jour expire_at directement en base
 		expiry := time.Date(2032, 3, 1, 0, 0, 0, 0, time.UTC)
@@ -327,7 +327,7 @@ func TestE2E_GetCurrentUserDocument(t *testing.T) {
 
 		resp, err := grpcClient.GetCurrentUserDocument(ctx, &filepb.GetCurrentUserDocumentRequest{
 			UserId:       "e2e-with-expiry",
-			DocumentType: "driverLicence",
+			DocumentType: "driverLicenceFront",
 		})
 
 		require.NoError(t, err)

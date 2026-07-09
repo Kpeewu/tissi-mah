@@ -46,7 +46,7 @@ type DocumentReview struct {
 	ReviewID             string
 	UserID               string
 	DocumentType         string
-	LogicalDocumentType  string  // type logique : idCard, driverLicence, passport…
+	LogicalDocumentType  string // type logique : idCard, driverLicence, passport…
 	UserDocumentID       *string
 	SecondUserDocumentID *string // verso pour les documents recto-verso
 	VehicleDocumentID    *string
@@ -114,11 +114,14 @@ func IsValidReasonRejection(reason string) bool {
 }
 
 // ToLogicalDocumentType dérive le type logique d'un document depuis son type physique.
-// idCardFront/idCardBack → idCard ; les autres types (driverLicence, passport, …) sont déjà logiques.
+// idCardFront/idCardBack → idCard ; driverLicenceFront/driverLicenceBack → driverLicence ;
+// les autres types (passport, …) sont déjà logiques.
 func ToLogicalDocumentType(documentType string) string {
 	switch documentType {
 	case "idCardFront", "idCardBack":
 		return "idCard"
+	case "driverLicenceFront", "driverLicenceBack":
+		return "driverLicence"
 	default:
 		return documentType
 	}

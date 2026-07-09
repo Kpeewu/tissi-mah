@@ -133,12 +133,15 @@ func toGRPCError(err error) error {
 // Les timestamps sont formatés en ISO 8601 (TIMESTAMPTZ).
 func toProtoRatingDetail(r *domain.Rating) *ratingpb.RatingDetail {
 	detail := &ratingpb.RatingDetail{
-		RatingId:      r.RatingID,
-		RaterId:       r.RaterID,
-		UserRatedId:   r.UserRatedID,
-		NumberOfStars: int32(r.NumberOfStars),
-		CreatedAt:     r.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:     r.UpdatedAt.Format(time.RFC3339),
+		RatingId:             r.RatingID,
+		RaterId:              r.RaterID,
+		UserRatedId:          r.UserRatedID,
+		NumberOfStars:        int32(r.NumberOfStars),
+		CreatedAt:            r.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:            r.UpdatedAt.Format(time.RFC3339),
+		RaterFirstName:       r.RaterFirstName,
+		RaterLastName:        r.RaterLastName,
+		RaterProfileImageURL: r.RaterProfileImageURL,
 	}
 	if r.Comment != nil {
 		detail.Comment = *r.Comment

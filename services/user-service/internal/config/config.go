@@ -7,10 +7,10 @@ import (
 )
 
 type Config struct {
-	Server      ServerConfig
-	Environment EnvironmentConfig
-	MongoDB     MongoDBConfig
-	Redis       RedisConfig
+	Server             ServerConfig
+	Environment        EnvironmentConfig
+	MongoDB            MongoDBConfig
+	Redis              RedisConfig
 	AuthService        AuthServiceConfig
 	FileService        FileServiceConfig
 	LogLevel           string

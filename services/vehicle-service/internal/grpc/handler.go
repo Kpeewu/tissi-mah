@@ -108,7 +108,8 @@ func (h *VehicleHandler) GetVehicleDetails(ctx context.Context, req *vehiclepb.G
 			Documents: &vehiclepb.VehicleDocuments{
 				AssuranceUrl:              details.Documents.AssuranceURL,
 				VehicleRegistrationUrl:    details.Documents.VehicleRegistrationURL,
-				DriverLicenceUrl:          details.Documents.DriverLicenceURL,
+				DriverLicenceRectoUrl:     details.Documents.DriverLicenceRectoURL,
+				DriverLicenceVersoUrl:     details.Documents.DriverLicenceVersoURL,
 				AssuranceStatus:           details.Documents.AssuranceStatus,
 				VehicleRegistrationStatus: details.Documents.VehicleRegistrationStatus,
 			},

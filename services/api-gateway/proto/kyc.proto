@@ -349,7 +349,7 @@ message ManualReviewDocument {
   string IssuingCountry      = 18; // user docs uniquement
   string IssuingAuthority    = 19; // vehicle docs uniquement
   ManualReviewVehicleInfo Vehicle = 20; // vehicle docs uniquement
-  // Verso — recto-verso (idCard) uniquement ; vide sinon
+  // Verso — recto-verso (idCard, driverLicence) uniquement ; vide sinon
   string SecondDocumentId    = 21;
   string SecondDocumentUrl   = 22;
   int64  SecondFileSizeBytes = 23;
@@ -494,7 +494,7 @@ message AdminReviewDetail {
 // 5  - NOT_FOUND           : Resource not found (404)
 // 6  - ALREADY_EXISTS      : Inquiry already active (409)
 // 7  - PERMISSION_DENIED   : Not authorized (403)
-// 9  - FAILED_PRECONDITION : Inquiry not resumable (410) / Review not overridable
+// 9  - FAILED_PRECONDITION : Inquiry not resumable (410) / Review not overridable / Companion document missing (recto-verso)
 // 13 - INTERNAL            : Server error (500)
 // 14 - UNAVAILABLE         : File-service or Persona unavailable (503)
 // 16 - UNAUTHENTICATED     : Invalid webhook signature (401)

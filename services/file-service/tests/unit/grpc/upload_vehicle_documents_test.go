@@ -87,7 +87,8 @@ func TestUploadVehicleDocuments_ResolvesFirebaseAndForwardsProfile(t *testing.T)
 	resp, err := h.UploadVehicleDocuments(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadVehicleDocumentsRequest{
 		UserID:              "firebaseXYZ", // body-supplied, doit etre ignore
 		VehicleID:           "vehicle-1",
-		DriverLicenceImage:  []byte("permis"),
+		DriverLicenceRecto:  []byte("permis-recto"),
+		DriverLicenceVerso:  []byte("permis-verso"),
 		Assurance:           []byte("assurance"),
 		VehicleRegistration: []byte("carte-grise"),
 	})
@@ -100,7 +101,8 @@ func TestUploadVehicleDocuments_ResolvesFirebaseAndForwardsProfile(t *testing.T)
 	assert.Equal(t, "Jean", spy.gotVehicleInput.FirstName)
 	assert.Equal(t, "Dupont", spy.gotVehicleInput.LastName)
 	assert.Equal(t, "vehicle-1", spy.gotVehicleInput.VehicleID)
-	assert.Equal(t, []byte("permis"), spy.gotVehicleInput.DriverLicence.Data)
+	assert.Equal(t, []byte("permis-recto"), spy.gotVehicleInput.DriverLicence.Recto)
+	assert.Equal(t, []byte("permis-verso"), spy.gotVehicleInput.DriverLicence.Verso)
 	mockUser.AssertExpectations(t)
 }
 
@@ -119,7 +121,8 @@ func TestUploadVehicleDocuments_IgnoresBodyUserID(t *testing.T) {
 	resp, err := h.UploadVehicleDocuments(ctxWithFirebaseUID("legitFirebaseUID"), &filepb.UploadVehicleDocumentsRequest{
 		UserID:              "forgedFirebaseUIDOfAnotherUser",
 		VehicleID:           "vehicle-2",
-		DriverLicenceImage:  []byte("x"),
+		DriverLicenceRecto:  []byte("x-recto"),
+		DriverLicenceVerso:  []byte("x-verso"),
 		Assurance:           []byte("y"),
 		VehicleRegistration: []byte("z"),
 	})
@@ -157,7 +160,8 @@ func TestUploadVehicleDocuments_ForwardsPerDocMetadata(t *testing.T) {
 
 	resp, err := h.UploadVehicleDocuments(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadVehicleDocumentsRequest{
 		VehicleID:           "vehicle-1",
-		DriverLicenceImage:  []byte("permis"),
+		DriverLicenceRecto:  []byte("permis-recto"),
+		DriverLicenceVerso:  []byte("permis-verso"),
 		Assurance:           []byte("assurance"),
 		VehicleRegistration: []byte("carte"),
 		DriverLicenceMetadata: &filepb.VehicleDocMetadata{
@@ -185,7 +189,8 @@ func TestUploadVehicleDocuments_ForwardsPerDocMetadata(t *testing.T) {
 	require.NotNil(t, spy.gotVehicleInput)
 
 	dl := spy.gotVehicleInput.DriverLicence
-	assert.Equal(t, []byte("permis"), dl.Data)
+	assert.Equal(t, []byte("permis-recto"), dl.Recto)
+	assert.Equal(t, []byte("permis-verso"), dl.Verso)
 	assert.Equal(t, "DL-001", dl.DocumentNumber)
 	assert.Equal(t, "2022-01-01T00:00:00Z", dl.IssuedAt)
 	assert.Equal(t, "2026-01-01T00:00:00Z", dl.ExpireAt)

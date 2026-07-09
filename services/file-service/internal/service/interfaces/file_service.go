@@ -96,18 +96,30 @@ type VehicleDocFileInput struct {
 	IssuingAuthority string
 }
 
+// DriverLicenceFileInput regroupe les deux faces du permis et ses métadonnées
+// légales (partagées recto/verso).
+type DriverLicenceFileInput struct {
+	Recto            []byte
+	Verso            []byte
+	DocumentNumber   string
+	IssuedAt         string // ISO 8601
+	ExpireAt         string // ISO 8601
+	IssuingAuthority string
+}
+
 // UploadVehicleDocumentsInput contient les documents du véhicule à uploader.
 // UserID, VehicleID, Assurance et RegistrationCard sont obligatoires.
 // DriverLicence est optionnel si l'utilisateur possède déjà un permis courant
-// (document utilisateur type driverLicence) — l'image est alors ignorée ;
-// sinon il est obligatoire et stocké comme document UTILISATEUR (pas véhicule).
+// (documents utilisateur driverLicenceFront/driverLicenceBack) — les images sont
+// alors ignorées ; sinon recto + verso sont obligatoires et stockés comme
+// documents UTILISATEUR (pas véhicule).
 // FirstName / LastName viennent de user-service et servent à construire le docName.
 type UploadVehicleDocumentsInput struct {
 	UserID           string
 	VehicleID        string
 	FirstName        string
 	LastName         string
-	DriverLicence    VehicleDocFileInput
+	DriverLicence    DriverLicenceFileInput
 	Assurance        VehicleDocFileInput
 	RegistrationCard VehicleDocFileInput
 }
@@ -116,24 +128,25 @@ type UploadVehicleDocumentsInput struct {
 // Les champs requis dépendent du DocumentType :
 //   - IDCard       : IDCardRecto + IDCardVerso
 //   - Passport     : Passport
-//   - DriverLicence: DriverLicence (image unique, document partagé identité/véhicule)
+//   - DriverLicence: DriverLicenceRecto + DriverLicenceVerso (document partagé identité/véhicule)
 //
 // FirstName / LastName viennent de user-service et servent à construire le docName
 // au format {nom}_{prenom}_{YYYYMMDD}_{HHMMSS}_{type}.
 // DocumentNumber, IssuedAt, ExpireAt, IssuingCountry sont obligatoires pour tous les types.
 type UploadIdDocumentInput struct {
-	UserID         string
-	FirstName      string
-	LastName       string
-	DocumentType   string // IDCard | Passport | DriverLicence
-	IDCardRecto    []byte
-	IDCardVerso    []byte
-	DriverLicence  []byte
-	Passport       []byte
-	DocumentNumber string
-	IssuedAt       string // ISO 8601
-	ExpireAt       string // ISO 8601
-	IssuingCountry string
+	UserID             string
+	FirstName          string
+	LastName           string
+	DocumentType       string // IDCard | Passport | DriverLicence
+	IDCardRecto        []byte
+	IDCardVerso        []byte
+	DriverLicenceRecto []byte
+	DriverLicenceVerso []byte
+	Passport           []byte
+	DocumentNumber     string
+	IssuedAt           string // ISO 8601
+	ExpireAt           string // ISO 8601
+	IssuingCountry     string
 }
 
 // UploadedDocument décrit un document fraîchement uploadé/remplacé,

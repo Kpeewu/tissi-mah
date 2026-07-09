@@ -528,7 +528,7 @@ message VehicleDocumentMetadata {
 
 | Category | Types |
 |----------|-------|
-| User documents | `idCardFront`, `idCardBack`, `passport`, `driverLicence`, `profilePicture` |
+| User documents | `idCardFront`, `idCardBack`, `passport`, `driverLicenceFront`, `driverLicenceBack`, `profilePicture` |
 | Vehicle documents | `insurance`, `registrationCard` |
 
 ### Document Statuses

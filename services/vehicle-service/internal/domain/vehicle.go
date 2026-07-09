@@ -31,11 +31,12 @@ type VehiclePreview struct {
 }
 
 // VehicleDocuments contient les URLs des documents du véhicule (assurance, carte grise)
-// ainsi que leurs statuts de revue et l'URL du permis de conduire du conducteur.
+// ainsi que leurs statuts de revue et les URLs recto/verso du permis du conducteur.
 type VehicleDocuments struct {
 	AssuranceURL              string
 	VehicleRegistrationURL    string
-	DriverLicenceURL          string
+	DriverLicenceRectoURL     string
+	DriverLicenceVersoURL     string
 	AssuranceStatus           string
 	VehicleRegistrationStatus string
 }

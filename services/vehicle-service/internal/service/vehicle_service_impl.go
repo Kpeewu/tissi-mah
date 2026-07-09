@@ -131,9 +131,11 @@ func (s *vehicleServiceImpl) GetVehicleDetails(ctx context.Context, userID strin
 		docs = domain.VehicleDocuments{}
 	}
 
-	// URL du permis du conducteur (document utilisateur).
-	driverLicenceURL, _, _ := s.fileClient.GetCurrentUserDocument(ctx, userID, "driverLicence")
-	docs.DriverLicenceURL = driverLicenceURL
+	// URLs du permis du conducteur (document utilisateur recto-verso).
+	rectoURL, _, _ := s.fileClient.GetCurrentUserDocument(ctx, userID, "driverLicenceFront")
+	versoURL, _, _ := s.fileClient.GetCurrentUserDocument(ctx, userID, "driverLicenceBack")
+	docs.DriverLicenceRectoURL = rectoURL
+	docs.DriverLicenceVersoURL = versoURL
 
 	return &domain.VehicleDetails{
 		Vehicle:   vehicle,
@@ -166,9 +168,9 @@ func (s *vehicleServiceImpl) GetUserVehicles(ctx context.Context, userID string)
 		return previews, nil
 	}
 
-	// Statut du permis : appel unique par userID (le permis est au niveau du conducteur).
-	// Dégradation gracieuse si file-service est indisponible.
-	_, driverLicenceStatus, _ := s.fileClient.GetCurrentUserDocument(ctx, userID, "driverLicence")
+	// Statut du permis : appel unique par userID (le permis est au niveau du conducteur,
+	// statut porté par la face recto). Dégradation gracieuse si file-service est indisponible.
+	_, driverLicenceStatus, _ := s.fileClient.GetCurrentUserDocument(ctx, userID, "driverLicenceFront")
 	if driverLicenceStatus == "" {
 		driverLicenceStatus = "MISSING"
 	}

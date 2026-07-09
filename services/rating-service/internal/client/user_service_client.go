@@ -64,3 +64,29 @@ func (c *UserServiceClient) UserExists(ctx context.Context, userID string) (bool
 
 	return true, nil
 }
+
+// GetUsersByUserIDs récupère en batch les profils (nom/prénom/photo) de plusieurs utilisateurs.
+// Retourne une map indexée par UserID. En cas d'erreur, retourne une map vide (dégradation gracieuse).
+func (c *UserServiceClient) GetUsersByUserIDs(ctx context.Context, userIDs []string) (map[string]*UserProfile, error) {
+	c.logger.Debug("client: GetUsersByUserIDs called", zap.Int("count", len(userIDs)))
+
+	out := make(map[string]*UserProfile, len(userIDs))
+	if len(userIDs) == 0 {
+		return out, nil
+	}
+
+	resp, err := c.grpcClient.GetUsersByUserIDs(ctx, &userpb.GetUsersByUserIDsRequest{UserIDs: userIDs})
+	if err != nil {
+		c.logger.Error("client: GetUsersByUserIDs failed", zap.Error(err))
+		return nil, fmt.Errorf("user-service: GetUsersByUserIDs failed: %w", err)
+	}
+
+	for _, u := range resp.Users {
+		out[u.UserID] = &UserProfile{
+			FirstName:       u.FirstName,
+			LastName:        u.Name,
+			ProfileImageURL: u.ProfileImageURL,
+		}
+	}
+	return out, nil
+}

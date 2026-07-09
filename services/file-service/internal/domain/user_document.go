@@ -4,11 +4,12 @@ import "time"
 
 // Types de documents utilisateur autorisés
 var ValidUserDocumentTypes = map[string]bool{
-	"idCardFront":    true,
-	"idCardBack":     true,
-	"passport":       true,
-	"driverLicence":  true,
-	"profilePicture": true,
+	"idCardFront":        true,
+	"idCardBack":         true,
+	"passport":           true,
+	"driverLicenceFront": true,
+	"driverLicenceBack":  true,
+	"profilePicture":     true,
 }
 
 type UserDocument struct {

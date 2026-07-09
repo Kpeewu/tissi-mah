@@ -845,6 +845,69 @@ func TestFileService_UploadIdDocument(t *testing.T) {
 		storage.AssertNumberOfCalls(t, "Upload", 2)
 	})
 
+	t.Run("should upload DriverLicence (recto + verso)", func(t *testing.T) {
+		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+		userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
+		storage := &mocks.MockStorageClient{}
+
+		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
+			Return("https://storage.example.com/driverLicenceFront/user-1/doc.jpg", nil)
+		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
+			Return("https://presigned.example.com/doc", nil)
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
+			Return(nil, fileErrors.ErrorDocumentNotFound)
+
+		var capturedTypes []string
+		userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).
+			Run(func(args mock.Arguments) {
+				capturedTypes = append(capturedTypes, args.Get(1).(*domain.UserDocument).DocumentType)
+			}).
+			Return("doc-id", nil)
+
+		svc := newService(userDocRead, userDocWrite,
+			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
+			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			storage)
+
+		docs, err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
+			UserID:             "user-1",
+			DocumentType:       "DriverLicence",
+			DriverLicenceRecto: fakeJPEG(),
+			DriverLicenceVerso: fakeJPEG(),
+			DocumentNumber:     "DL-001",
+			IssuedAt:           "2022-01-01T00:00:00Z",
+			ExpireAt:           "2027-01-01T00:00:00Z",
+			IssuingCountry:     "TG",
+		})
+
+		require.NoError(t, err)
+		require.Len(t, docs, 2)
+		// 2 uploads : recto + verso
+		storage.AssertNumberOfCalls(t, "Upload", 2)
+		assert.Contains(t, capturedTypes, "driverLicenceFront")
+		assert.Contains(t, capturedTypes, "driverLicenceBack")
+	})
+
+	t.Run("should return ErrorInvalidDocumentType for DriverLicence missing verso", func(t *testing.T) {
+		svc := newService(&mocks.MockUserDocumentRepositoryRead{}, &mocks.MockUserDocumentRepositoryWrite{},
+			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
+			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			&mocks.MockStorageClient{})
+
+		_, err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
+			UserID:             "user-1",
+			DocumentType:       "DriverLicence",
+			DriverLicenceRecto: fakeJPEG(),
+			DriverLicenceVerso: nil, // manquant
+			DocumentNumber:     "DL-001",
+			IssuedAt:           "2022-01-01T00:00:00Z",
+			ExpireAt:           "2027-01-01T00:00:00Z",
+			IssuingCountry:     "TG",
+		})
+
+		assert.ErrorIs(t, err, fileErrors.ErrorInvalidDocumentType)
+	})
+
 	t.Run("should upload Passport", func(t *testing.T) {
 		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
 		userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
@@ -1029,8 +1092,9 @@ func validVehicleDocs(vehicleID string) serviceInterfaces.UploadVehicleDocuments
 		VehicleID: vehicleID,
 		FirstName: "Jean",
 		LastName:  "Dupont",
-		DriverLicence: serviceInterfaces.VehicleDocFileInput{
-			Data:             fakeJPEG(),
+		DriverLicence: serviceInterfaces.DriverLicenceFileInput{
+			Recto:            fakeJPEG(),
+			Verso:            fakeJPEG(),
 			DocumentNumber:   "DL-001",
 			IssuedAt:         "2022-01-01T00:00:00Z",
 			ExpireAt:         "2026-01-01T00:00:00Z",
@@ -1061,7 +1125,7 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
 		storage := &mocks.MockStorageClient{}
 
-		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicence").
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
 		userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).
 			Return("udoc-id", nil)
@@ -1082,21 +1146,21 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		docs, err := svc.UploadVehicleDocuments(context.Background(), validVehicleDocs("vehicle-1"))
 
 		require.NoError(t, err)
-		require.Len(t, docs, 3)
-		storage.AssertNumberOfCalls(t, "Upload", 3)
-		userDocWrite.AssertNumberOfCalls(t, "Create", 1)
+		require.Len(t, docs, 4)
+		storage.AssertNumberOfCalls(t, "Upload", 4)
+		userDocWrite.AssertNumberOfCalls(t, "Create", 2)
 		vehicleDocWrite.AssertNumberOfCalls(t, "Create", 2)
 	})
 
-	t.Run("permis deja soumis: image ignoree, seuls les 2 vehicle docs sont uploades", func(t *testing.T) {
+	t.Run("permis deja soumis: images ignorees, seuls les 2 vehicle docs sont uploades", func(t *testing.T) {
 		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
 		userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
 		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
 		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
 		storage := &mocks.MockStorageClient{}
 
-		existing := stubUserDoc("udoc-dl", "user-1", "driverLicence")
-		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicence").
+		existing := stubUserDoc("udoc-dl", "user-1", "driverLicenceFront")
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicenceFront").
 			Return(existing, nil)
 		vehicleDocRead.On("GetCurrentByVehicleIDAndType", mock.Anything, "vehicle-1", mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
@@ -1120,9 +1184,9 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		userDocWrite.AssertNotCalled(t, "Create")
 	})
 
-	t.Run("pas de permis courant + image absente retourne ErrorDriverLicenceRequired", func(t *testing.T) {
+	t.Run("pas de permis courant + images absentes retourne ErrorDriverLicenceRequired", func(t *testing.T) {
 		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
-		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicence").
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
 
 		svc := newService(userDocRead, &mocks.MockUserDocumentRepositoryWrite{},
@@ -1131,7 +1195,26 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 			&mocks.MockStorageClient{})
 
 		input := validVehicleDocs("vehicle-1")
-		input.DriverLicence.Data = nil
+		input.DriverLicence.Recto = nil
+		input.DriverLicence.Verso = nil
+
+		_, err := svc.UploadVehicleDocuments(context.Background(), input)
+
+		assert.ErrorIs(t, err, fileErrors.ErrorDriverLicenceRequired)
+	})
+
+	t.Run("pas de permis courant + verso manquant retourne ErrorDriverLicenceRequired", func(t *testing.T) {
+		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", mock.AnythingOfType("string")).
+			Return(nil, fileErrors.ErrorDocumentNotFound)
+
+		svc := newService(userDocRead, &mocks.MockUserDocumentRepositoryWrite{},
+			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
+			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			&mocks.MockStorageClient{})
+
+		input := validVehicleDocs("vehicle-1")
+		input.DriverLicence.Verso = nil
 
 		_, err := svc.UploadVehicleDocuments(context.Background(), input)
 
@@ -1155,8 +1238,8 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 	t.Run("should return ErrorInvalidDocumentType when a vehicle file is missing", func(t *testing.T) {
 		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
 		// Permis déjà soumis → skip, l'assurance manquante déclenche l'erreur immédiatement
-		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicence").
-			Return(stubUserDoc("udoc-dl", "user-1", "driverLicence"), nil)
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicenceFront").
+			Return(stubUserDoc("udoc-dl", "user-1", "driverLicenceFront"), nil)
 
 		svc := newService(userDocRead, &mocks.MockUserDocumentRepositoryWrite{},
 			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
@@ -1177,7 +1260,7 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
 		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
 		storage := &mocks.MockStorageClient{}
-		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicence").
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
 		vehicleDocRead.On("GetCurrentByVehicleIDAndType", mock.Anything, "vehicle-1", mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
@@ -1208,15 +1291,18 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		_, err := svc.UploadVehicleDocuments(context.Background(), validVehicleDocs("vehicle-1"))
 
 		require.NoError(t, err)
-		require.Len(t, capturedUser, 1)
-		assert.Equal(t, "driverLicence", capturedUser[0].DocumentType)
+		require.Len(t, capturedUser, 2)
+		userTypes := []string{capturedUser[0].DocumentType, capturedUser[1].DocumentType}
+		assert.Contains(t, userTypes, "driverLicenceFront")
+		assert.Contains(t, userTypes, "driverLicenceBack")
 		assert.Equal(t, "user-1", capturedUser[0].UserID)
 		assert.Equal(t, "DVLA", capturedUser[0].IssuingCountry, "issuing_authority du permis mappé sur issuing_country du user doc")
 		require.Len(t, capturedVehicle, 2)
 		vehicleTypes := []string{capturedVehicle[0].DocumentType, capturedVehicle[1].DocumentType}
 		assert.Contains(t, vehicleTypes, "insurance")
 		assert.Contains(t, vehicleTypes, "registrationCard")
-		assert.NotContains(t, vehicleTypes, "driverLicence", "le permis ne doit plus etre un document vehicule")
+		assert.NotContains(t, vehicleTypes, "driverLicenceFront", "le permis ne doit plus etre un document vehicule")
+		assert.NotContains(t, vehicleTypes, "driverLicenceBack", "le permis ne doit plus etre un document vehicule")
 	})
 
 	t.Run("docName suit le format nom_prenom_date_heure_type", func(t *testing.T) {
@@ -1225,7 +1311,7 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
 		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
 		storage := &mocks.MockStorageClient{}
-		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicence").
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
 		vehicleDocRead.On("GetCurrentByVehicleIDAndType", mock.Anything, "vehicle-1", mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
@@ -1254,9 +1340,9 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		_, err := svc.UploadVehicleDocuments(context.Background(), validVehicleDocs("vehicle-1"))
 
 		require.NoError(t, err)
-		require.Len(t, capturedNames, 3)
+		require.Len(t, capturedNames, 4)
 
-		re := regexp.MustCompile(`^dupont_jean_\d{8}_\d{6}_(driver_licence|assurance|vehicle_registration)$`)
+		re := regexp.MustCompile(`^dupont_jean_\d{8}_\d{6}_(driver_licence_recto|driver_licence_verso|assurance|vehicle_registration)$`)
 		for _, name := range capturedNames {
 			assert.Regexp(t, re, name, "docName doit matcher le format")
 		}
@@ -1268,7 +1354,7 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
 		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
 		storage := &mocks.MockStorageClient{}
-		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicence").
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
 		vehicleDocRead.On("GetCurrentByVehicleIDAndType", mock.Anything, "vehicle-2", mock.AnythingOfType("string")).
 			Return(nil, fileErrors.ErrorDocumentNotFound)
@@ -1300,8 +1386,8 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		_, err := svc.UploadVehicleDocuments(context.Background(), input)
 
 		require.NoError(t, err)
-		require.Len(t, capturedNames, 3)
-		re := regexp.MustCompile(`^dupre_anne-marie_\d{8}_\d{6}_(driver_licence|assurance|vehicle_registration)$`)
+		require.Len(t, capturedNames, 4)
+		re := regexp.MustCompile(`^dupre_anne-marie_\d{8}_\d{6}_(driver_licence_recto|driver_licence_verso|assurance|vehicle_registration)$`)
 		for _, name := range capturedNames {
 			assert.Regexp(t, re, name)
 		}
@@ -1877,8 +1963,8 @@ func TestFileService_UploadIdDocument_MissingMetadata(t *testing.T) {
 	}
 
 	cases := []struct {
-		name    string
-		mutate  func(*serviceInterfaces.UploadIdDocumentInput)
+		name   string
+		mutate func(*serviceInterfaces.UploadIdDocumentInput)
 	}{
 		{"document_number vide", func(i *serviceInterfaces.UploadIdDocumentInput) { i.DocumentNumber = "" }},
 		{"issued_at vide", func(i *serviceInterfaces.UploadIdDocumentInput) { i.IssuedAt = "" }},
@@ -1986,8 +2072,8 @@ func newVehicleSvcWithReadMock(vehicleID string) (serviceInterfaces.FileService,
 	vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
 	vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
 	storage := &mocks.MockStorageClient{}
-	userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, mock.AnythingOfType("string"), "driverLicence").
-		Return(stubUserDoc("udoc-dl", "user-1", "driverLicence"), nil)
+	userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, mock.AnythingOfType("string"), "driverLicenceFront").
+		Return(stubUserDoc("udoc-dl", "user-1", "driverLicenceFront"), nil)
 	vehicleDocRead.On("GetCurrentByVehicleIDAndType", mock.Anything, vehicleID, mock.AnythingOfType("string")).
 		Return(nil, fileErrors.ErrorDocumentNotFound)
 	svc := newService(userDocRead, &mocks.MockUserDocumentRepositoryWrite{},
@@ -2001,7 +2087,7 @@ func newVehicleSvcWithReadMock(vehicleID string) (serviceInterfaces.FileService,
 // dans l'input passe par la validation métadonnées avant tout appel storage/DB).
 func newNoLicenceSvc() serviceInterfaces.FileService {
 	userDocRead := &mocks.MockUserDocumentRepositoryRead{}
-	userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, mock.AnythingOfType("string"), "driverLicence").
+	userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, mock.AnythingOfType("string"), "driverLicenceFront").
 		Return(nil, fileErrors.ErrorDocumentNotFound)
 	return newService(userDocRead, &mocks.MockUserDocumentRepositoryWrite{},
 		&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
@@ -2058,8 +2144,8 @@ func TestFileService_UploadVehicleDocuments_MissingMetadata(t *testing.T) {
 // d'un document véhicule (assurance déjà courante sur ce véhicule).
 func TestFileService_UploadVehicleDocuments_AlreadySubmitted(t *testing.T) {
 	userDocRead := &mocks.MockUserDocumentRepositoryRead{}
-	userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicence").
-		Return(stubUserDoc("udoc-dl", "user-1", "driverLicence"), nil)
+	userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "driverLicenceFront").
+		Return(stubUserDoc("udoc-dl", "user-1", "driverLicenceFront"), nil)
 
 	vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
 	existingIns := stubVehicleDoc("vdoc-1", "vehicle-X", "insurance")
@@ -2233,11 +2319,11 @@ func TestFileService_ChangeDocument_MetadataOverride(t *testing.T) {
 		storage)
 
 	_, err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{
-		UserID:        "user-1",
-		FileID:        "doc-1",
-		NewDocument:   fakeJPEG(),
+		UserID:         "user-1",
+		FileID:         "doc-1",
+		NewDocument:    fakeJPEG(),
 		DocumentNumber: "NEW-NUM",
-		IssuingPlace:  "GH",
+		IssuingPlace:   "GH",
 	})
 
 	require.NoError(t, err)
