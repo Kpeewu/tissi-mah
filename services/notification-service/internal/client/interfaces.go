@@ -16,6 +16,7 @@ type UserInfo struct {
 
 // UserClient récupère les informations utilisateur via gRPC.
 type UserClient interface {
+	GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error)
 	GetUserByUserID(ctx context.Context, userID string) (*UserInfo, error)
 	Close() error
 }

@@ -93,14 +93,14 @@ func run(bootstrapLogger *zap.Logger) error {
 
 	// --- grpc-gateway mux ---
 	gwMux, err := gateway.NewGatewayMux(ctx, gateway.MuxConfig{
-		AuthServiceAddr:    cfg.AuthService.Address(),
-		UserServiceAddr:    cfg.UserService.Address(),
-		RatingServiceAddr:  cfg.RatingService.Address(),
-		FileServiceAddr:    cfg.FileService.Address(),
-		VehicleServiceAddr: cfg.VehicleService.Address(),
-		TripsServiceAddr:   cfg.TripsService.Address(),
-		KYCServiceAddr:     cfg.KYCService.Address(),
-		BookingServiceAddr: cfg.BookingService.Address(),
+		AuthServiceAddr:         cfg.AuthService.Address(),
+		UserServiceAddr:         cfg.UserService.Address(),
+		RatingServiceAddr:       cfg.RatingService.Address(),
+		FileServiceAddr:         cfg.FileService.Address(),
+		VehicleServiceAddr:      cfg.VehicleService.Address(),
+		TripsServiceAddr:        cfg.TripsService.Address(),
+		KYCServiceAddr:          cfg.KYCService.Address(),
+		BookingServiceAddr:      cfg.BookingService.Address(),
 		PaymentServiceAddr:      cfg.PaymentService.Address(),
 		NotificationServiceAddr: cfg.NotificationService.Address(),
 		SupportServiceAddr:      cfg.SupportService.Address(),
@@ -142,16 +142,18 @@ func run(bootstrapLogger *zap.Logger) error {
 // buildHandler construit la chaîne de middlewares HTTP.
 //
 // Ordre d'exécution :
-//  1. PanicRecovery   — intercepte les panics, renvoie 500 JSON
-//  2. RequestID       — génère/propage X-Request-ID
-//  3. SecurityHeaders — HSTS, X-Frame-Options, etc.
-//  4. BodySizeLimit   — limite à 1 Mo par défaut
-//  5. CORS            — gestion des preflight
-//  6. JWT Firebase    — valide Bearer token Firebase (routes protégées mobile)
-//  7. JWT Support     — valide Bearer token support (routes back-office)
-//  8. RateLimit       — sliding window par UID (si authentifié) ou par IP
-//  9. AppID           — vérifie X-App-ID contre whitelist mobile / support
-// 10. mux (grpc-gateway)
+//  1. PanicRecovery         — intercepte les panics, renvoie 500 JSON
+//  2. RequestID             — génère/propage X-Request-ID
+//  3. StripInboundAuthHeaders — supprime les headers d'identité forgés par le client
+//  4. SecurityHeaders       — HSTS, X-Frame-Options, etc.
+//  5. BodySizeLimit         — limite à 1 Mo par défaut
+//  6. CORS                  — gestion des preflight
+//  7. JWT Firebase          — valide Bearer token Firebase (routes protégées mobile)
+//  8. JWT Support           — valide Bearer token support (routes back-office)
+//  9. RateLimit             — sliding window par UID (si authentifié) ou par IP
+//
+// 10. AppID                 — vérifie X-App-ID contre whitelist mobile / support
+// 11. mux (grpc-gateway)
 func buildHandler(
 	cfg *config.Config,
 	gwMux http.Handler,
@@ -182,13 +184,22 @@ func buildHandler(
 		Environment:    cfg.Environment.Mode,
 	})
 
+	// Lookups de routes tenant compte des paramètres de chemin ({inbox_id}...).
+	// Un lookup exact dans la map manquerait les routes templated (ex:
+	// /api/v1/notifications/inbox/{inbox_id}/read), qui seraient alors traitées
+	// comme publiques. Construits une fois ici et partagés par les middlewares.
+	protectedLookup := gateway.NewRouteLookup(gateway.ProtectedRoutes)
+	dualLookup := gateway.NewRouteLookup(gateway.DualProtectedRoutes)
+	supportLookup := gateway.NewRouteLookup(gateway.SupportProtectedRoutes)
+	rateTierLookup := gateway.NewRouteLookup(gateway.RouteRateLimitConfig)
+
 	// JWT Firebase — maintenant AVANT le rate limit pour que l'UID soit
 	// disponible comme clé de rate limiting.
 	// isDual : routes acceptant Firebase OU Support JWT (ex: getDocument).
 	jwtMW := middleware.JWTFirebase(
 		validator,
-		func(path string) bool { return gateway.ProtectedRoutes[path] },
-		func(path string) bool { return gateway.DualProtectedRoutes[path] },
+		protectedLookup.Matches,
+		dualLookup.Matches,
 		suspensionRedis,
 		logger,
 	)
@@ -196,7 +207,7 @@ func buildHandler(
 	// JWT Support (back-office admin / agents) — canal d'auth séparé de Firebase.
 	// Couvre SupportProtectedRoutes + DualProtectedRoutes.
 	jwtSupportMW := middleware.JWTSupport(cfg.SupportJWTSecret, func(path string) bool {
-		return gateway.SupportProtectedRoutes[path] || gateway.DualProtectedRoutes[path]
+		return supportLookup.Matches(path) || dualLookup.Matches(path)
 	}, logger)
 
 	// Rate limiting — clé hybride UID (si JWT précédent a setté x-firebase-uid)
@@ -222,7 +233,7 @@ func buildHandler(
 			},
 		},
 		GetTier: func(path string) string {
-			if tier, ok := gateway.RouteRateLimitConfig[path]; ok {
+			if tier, ok := rateTierLookup.Lookup(path); ok {
 				return string(tier)
 			}
 			return string(gateway.TierGlobal)
@@ -246,19 +257,22 @@ func buildHandler(
 	appIDMW := middleware.AppID(
 		mobileIDs,
 		supportIDs,
-		func(path string) bool { return gateway.ProtectedRoutes[path] || gateway.DualProtectedRoutes[path] },
-		func(path string) bool { return gateway.SupportProtectedRoutes[path] || gateway.DualProtectedRoutes[path] },
+		func(path string) bool { return protectedLookup.Matches(path) || dualLookup.Matches(path) },
+		func(path string) bool { return supportLookup.Matches(path) || dualLookup.Matches(path) },
 		logger,
 	)
 
 	// Stack complet :
-	// panic → reqID → secHeaders → bodySize → cors → jwt → jwtSupport → rateLimit → appID → mux
+	// panic → reqID → stripAuthHeaders → secHeaders → bodySize → cors → jwt → jwtSupport → rateLimit → appID → mux
+	// stripAuthHeaders s'exécute avant jwt (et l'annotator du mux) pour qu'aucun
+	// header d'identité forgé par le client ne survive jusqu'aux services internes.
 	return middleware.PanicRecovery(logger)(
 		middleware.RequestID()(
-			middleware.SecurityHeaders(cfg.Security.EnableHSTS)(
-				middleware.BodySizeLimit(cfg.Security.BodySizeMaxBytes)(
-					corsMW(
-						jwtMW(jwtSupportMW(
-							rateLimitMW(
-								appIDMW(rootMux)))))))))
+			middleware.StripInboundAuthHeaders(
+				middleware.SecurityHeaders(cfg.Security.EnableHSTS)(
+					middleware.BodySizeLimit(cfg.Security.BodySizeMaxBytes)(
+						corsMW(
+							jwtMW(jwtSupportMW(
+								rateLimitMW(
+									appIDMW(rootMux))))))))))
 }

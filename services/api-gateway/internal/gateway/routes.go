@@ -86,12 +86,12 @@ var ProtectedRoutes = map[string]bool{
 	// trip/passenger/getScheduledTripsPreviews est public (@SkipAuth côté app) → hors map
 
 	// notification-service
-	"/api/v1/notifications/inbox":                 true,
-	"/api/v1/notifications/inbox/{inbox_id}/read": true,
-	"/api/v1/notifications/inbox/readAll":         true,
-	"/api/v1/notifications/inbox/unreadCount":     true,
-	"/api/v1/notifications/preferences":           true,
-	"/api/v1/notifications/deviceToken":           true,
+	"/api/v1/notifications/inbox":                true,
+	"/api/v1/notifications/inbox/{InboxId}/read": true,
+	"/api/v1/notifications/inbox/readAll":        true,
+	"/api/v1/notifications/inbox/unreadCount":    true,
+	"/api/v1/notifications/preferences":          true,
+	"/api/v1/notifications/deviceToken":          true,
 	// notification-service — health est public (pas de JWT)
 
 	// geolocation-service (Firebase JWT requis pendant la création de trajet)
@@ -101,10 +101,10 @@ var ProtectedRoutes = map[string]bool{
 	// geolocation-service — health est public (pas de JWT)
 
 	// chat-service (passager-chauffeur, après réservation acceptée)
-	"/api/v1/chat/threads":                      true, // POST GetOrCreateThread + GET GetUserThreads
-	"/api/v1/chat/threads/{thread_id}/messages": true, // POST SendMessage + GET GetMessages
-	"/api/v1/chat/threads/{thread_id}/read":     true, // PATCH MarkRead
-	"/api/v1/chat/messages/{message_id}/flag":   true, // POST FlagMessage
+	"/api/v1/chat/threads":                     true, // POST GetOrCreateThread + GET GetUserThreads
+	"/api/v1/chat/threads/{ThreadId}/messages": true, // POST SendMessage + GET GetMessages
+	"/api/v1/chat/threads/{ThreadId}/read":     true, // PATCH MarkRead
+	"/api/v1/chat/messages/{MessageId}/flag":   true, // POST FlagMessage
 	// chat-service — health public ; GetFlaggedMessageContent côté Support (cf. SupportProtectedRoutes)
 }
 
@@ -139,7 +139,7 @@ var SupportProtectedRoutes = map[string]bool{
 	"/api/v1/payment/support/triggerManualPayout": true,
 
 	// chat-service — accès support au contenu déchiffré d'un message signalé
-	"/api/v1/chat/messages/{message_id}/flagged-content": true,
+	"/api/v1/chat/messages/{MessageId}/flagged-content": true,
 
 	// kyc-service — validation et consultation des revues de documents (réservé support)
 	"/api/v1/kyc/admin/reviews/getReviews":          true,
@@ -176,8 +176,8 @@ var RouteRateLimitConfig = map[string]RateLimitTier{
 
 	// chat-service — POST de messages = anti-spam léger via TierCreateAccount,
 	// flag = sensible (modération support)
-	"/api/v1/chat/threads/{thread_id}/messages": TierCreateAccount,
-	"/api/v1/chat/messages/{message_id}/flag":   TierSensitive,
+	"/api/v1/chat/threads/{ThreadId}/messages": TierCreateAccount,
+	"/api/v1/chat/messages/{MessageId}/flag":   TierSensitive,
 
 	// support-service — mot de passe oublié (public) : anti-abus / anti-email-bombing
 	"/api/v1/support/forgotPassword": TierSensitive,
