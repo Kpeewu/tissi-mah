@@ -41,6 +41,11 @@ func newTestService() (*mocks.MockFileServiceClient, *mocks.MockPersonaClient, s
 	// renvoie simplement l'ID reçu.
 	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, mock.AnythingOfType("string")).
 		Return(func(_ context.Context, firebaseUID string) string { return firebaseUID }, nil)
+	// Propagation best-effort de la vérification KYC vers user-service (appelée après
+	// ValidateDocument / OverrideReview). Optionnelle : .Maybe() car tous les chemins
+	// ne l'atteignent pas et le mock userClient n'est pas asserté.
+	mockUserClient.On("UpdateProfileVerification", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil).Maybe()
 	// supportClient nil : enrichissement prénom/nom désactivé (dégradation gracieuse).
 	svc := service.NewKYCService(mockFileClient, mockPersonaClient, mockUserClient, nil, testTemplateID, testWebhookSecret, nil, zap.NewNop())
 	return mockFileClient, mockPersonaClient, svc
@@ -564,39 +569,34 @@ func TestGetKYCStatus(t *testing.T) {
 		mockFileClient.AssertExpectations(t)
 	})
 
-	t.Run("succès - identité ET permis vérifiés", func(t *testing.T) {
+	t.Run("succès - conducteur entièrement vérifié (permis + assurance + carte grise)", func(t *testing.T) {
 		mockFileClient, _, svc := newTestService()
 		ctx := context.Background()
 
 		now := time.Now().UTC()
 		reviewedAt := now.Add(-1 * time.Hour)
 
+		approvedReview := func(id, docType string) *domain.Review {
+			return &domain.Review{
+				ReviewID:      id,
+				UserID:        "user-status-002",
+				DocumentType:  docType,
+				Status:        "completed",
+				Decision:      "approved",
+				ReviewType:    "automatic",
+				ReviewedAt:    &reviewedAt,
+				AttemptNumber: 1,
+				CreatedAt:     now,
+				UpdatedAt:     now,
+			}
+		}
+
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-status-002").
 			Return([]*domain.Review{
-				{
-					ReviewID:      "review-id-approved",
-					UserID:        "user-status-002",
-					DocumentType:  "idCardFront",
-					Status:        "completed",
-					Decision:      "approved",
-					ReviewType:    "automatic",
-					ReviewedAt:    &reviewedAt,
-					AttemptNumber: 1,
-					CreatedAt:     now,
-					UpdatedAt:     now,
-				},
-				{
-					ReviewID:      "review-dl-approved",
-					UserID:        "user-status-002",
-					DocumentType:  "driverLicenceFront",
-					Status:        "completed",
-					Decision:      "approved",
-					ReviewType:    "automatic",
-					ReviewedAt:    &reviewedAt,
-					AttemptNumber: 1,
-					CreatedAt:     now,
-					UpdatedAt:     now,
-				},
+				approvedReview("review-id-approved", "idCardFront"),
+				approvedReview("review-dl-approved", "driverLicenceFront"),
+				approvedReview("review-ins-approved", "insurance"),
+				approvedReview("review-reg-approved", "registrationCard"),
 			}, nil)
 
 		result, err := svc.GetKYCStatus(ctx, "user-status-002")
@@ -608,14 +608,15 @@ func TestGetKYCStatus(t *testing.T) {
 		mockFileClient.AssertExpectations(t)
 	})
 
-	t.Run("succès - permis approuvé mais identité non vérifiée → driver_verified = false", func(t *testing.T) {
+	t.Run("succès - permis vaut pièce d'identité (passager vérifié, conducteur non car assurance/carte grise manquantes)", func(t *testing.T) {
 		mockFileClient, _, svc := newTestService()
 		ctx := context.Background()
 
 		now := time.Now().UTC()
 		reviewedAt := now.Add(-1 * time.Hour)
 
-		// Uniquement un permis approuvé, pas d'identité
+		// Uniquement un permis approuvé : il vaut pièce d'identité (passager vérifié),
+		// mais le profil conducteur exige aussi assurance + carte grise.
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-status-003").
 			Return([]*domain.Review{
 				{
@@ -635,8 +636,8 @@ func TestGetKYCStatus(t *testing.T) {
 		result, err := svc.GetKYCStatus(ctx, "user-status-003")
 
 		require.NoError(t, err)
-		assert.False(t, result.IdentityVerified)
-		assert.False(t, result.DriverVerified) // car identité non vérifiée
+		assert.True(t, result.IdentityVerified)  // le permis vaut pièce d'identité
+		assert.False(t, result.DriverVerified)   // assurance + carte grise manquantes
 
 		mockFileClient.AssertExpectations(t)
 	})
@@ -1636,9 +1637,13 @@ func TestOverrideReview(t *testing.T) {
 		ctx := context.Background()
 
 		rejectedReview := newCompletedReview()
+		rejectedReview.UserID = "user-override-001"
 
 		mockFileClient.On("GetDocumentReview", mock.Anything, "review-override-001").
 			Return(rejectedReview, nil)
+		// Propagation best-effort : recharge les reviews du user pour recalculer les flags.
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-override-001").
+			Return([]*domain.Review{}, nil)
 		// L'override crée une NOUVELLE revue chaînée (historique), il ne mute pas l'ancienne.
 		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.MatchedBy(func(r *domain.Review) bool {
 			return r.Decision == "approved" &&

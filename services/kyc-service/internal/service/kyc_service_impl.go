@@ -321,22 +321,6 @@ func (s *kycServiceImpl) GetInquiry(ctx context.Context, userID string, personaI
 // GetKYCStatus
 // =============================================================================
 
-// Types de documents d'identité
-var identityDocumentTypes = map[string]bool{
-	"idCardFront": true,
-	"idCardBack":  true,
-	"passport":    true,
-}
-
-// Types de documents de permis de conduire (recto-verso).
-// Document partagé identité/véhicule : une review approuvée du document logique
-// (recto + verso apparié via SecondUserDocumentID) vaut pour le statut driver
-// ET la vérification de tous les véhicules de l'utilisateur.
-var driverDocumentTypes = map[string]bool{
-	"driverLicenceFront": true,
-	"driverLicenceBack":  true,
-}
-
 func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serviceInterfaces.KYCStatus, error) {
 	s.logger.Debug("get kyc status", zap.String("firebaseUID", userID))
 
@@ -357,8 +341,6 @@ func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serv
 		return nil, kycErrors.ErrorFileServiceUnavailable
 	}
 
-	identityVerified := false
-	driverVerified := false
 	var pendingReviews []*domain.PendingReview
 	var latestRejection *domain.LatestRejection
 
@@ -376,15 +358,6 @@ func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serv
 			})
 		}
 
-		if review.Decision == "approved" {
-			if identityDocumentTypes[review.DocumentType] {
-				identityVerified = true
-			}
-			if driverDocumentTypes[review.DocumentType] {
-				driverVerified = true
-			}
-		}
-
 		// Latest rejection : la plus récente par reviewed_at
 		if review.Decision == "rejected" && review.ReviewedAt != nil {
 			if latestRejection == nil || (review.ReviewedAt.After(*latestRejection.ReviewedAt)) {
@@ -399,10 +372,9 @@ func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serv
 		}
 	}
 
-	// driver_verified nécessite identity_verified
-	if !identityVerified {
-		driverVerified = false
-	}
+	// Vérification identité (passager) / conducteur — règle centralisée (permis vaut
+	// pièce d'identité ; conducteur = permis + assurance + carte grise).
+	identityVerified, driverVerified := domain.ComputeProfileVerification(reviews)
 
 	s.logger.Info("kyc status retrieved",
 		zap.String("userID", internalUserID),
@@ -826,6 +798,36 @@ func (s *kycServiceImpl) publishDocumentReviewNotification(ctx context.Context, 
 	}
 }
 
+// propagateProfileVerification recalcule l'état de vérification KYC complet d'un
+// utilisateur à partir de toutes ses reviews et le pousse vers user-service.
+//
+// internalUserID est l'UserID interne MongoDB (celui stocké côté file-service et
+// attendu par user-service). Best-effort : une erreur est loggée mais ne fait pas
+// échouer l'action support — la review est déjà persistée et le recompte, idempotent,
+// est auto-réparateur au prochain passage.
+func (s *kycServiceImpl) propagateProfileVerification(ctx context.Context, internalUserID string) {
+	reviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, internalUserID)
+	if err != nil {
+		s.logger.Error("propagate verification: failed to load reviews",
+			zap.Error(err), zap.String("userID", internalUserID))
+		return
+	}
+
+	passengerVerified, driverVerified := domain.ComputeProfileVerification(reviews)
+
+	if err := s.userClient.UpdateProfileVerification(ctx, internalUserID, driverVerified, passengerVerified); err != nil {
+		s.logger.Error("propagate verification: user-service update failed",
+			zap.Error(err), zap.String("userID", internalUserID))
+		return
+	}
+
+	s.logger.Info("profile verification propagated",
+		zap.String("userID", internalUserID),
+		zap.Bool("passenger", passengerVerified),
+		zap.Bool("driver", driverVerified),
+	)
+}
+
 // =============================================================================
 // OverrideReview
 // =============================================================================
@@ -925,6 +927,9 @@ func (s *kycServiceImpl) OverrideReview(ctx context.Context, input serviceInterf
 	// Notifier le propriétaire du document (push + email via notification-service).
 	s.publishDocumentReviewNotification(ctx, review.UserID, review.DocumentType,
 		input.Decision, input.ReasonRejection, input.RejectionDetails, created.ReviewID)
+
+	// Propager l'état de vérification KYC recalculé vers user-service (best-effort).
+	s.propagateProfileVerification(ctx, review.UserID)
 
 	return &serviceInterfaces.OverrideResult{
 		ReviewID:         created.ReviewID,
@@ -1084,6 +1089,9 @@ func (s *kycServiceImpl) ValidateDocument(ctx context.Context, input serviceInte
 	// Notifier le propriétaire du document (push + email via notification-service).
 	s.publishDocumentReviewNotification(ctx, ownerUserID, documentType,
 		input.Decision, input.ReasonRejection, input.RejectionDetails, created.ReviewID)
+
+	// Propager l'état de vérification KYC recalculé vers user-service (best-effort).
+	s.propagateProfileVerification(ctx, ownerUserID)
 
 	return &serviceInterfaces.ValidateDocumentResult{
 		ReviewID:   created.ReviewID,

@@ -84,6 +84,10 @@ type UserClient interface {
 	// plusieurs utilisateurs. Léger : email/phone non renseignés. Clé = userID.
 	GetUsersByUserIDs(ctx context.Context, userIDs []string) (map[string]*domain.UserInfo, error)
 
+	// UpdateProfileVerification met à jour les flags de vérification KYC du profil
+	// (passager / conducteur) après validation des documents par le support.
+	UpdateProfileVerification(ctx context.Context, userID string, driver, passenger bool) error
+
 	// Ferme la connexion gRPC
 	Close() error
 }

@@ -118,3 +118,25 @@ func (c *UserServiceClient) GetUsersByUserIDs(ctx context.Context, userIDs []str
 	}
 	return out, nil
 }
+
+// UpdateProfileVerification met à jour les flags de vérification KYC (passager /
+// conducteur) du profil user-service par UserID interne.
+func (c *UserServiceClient) UpdateProfileVerification(ctx context.Context, userID string, driver, passenger bool) error {
+	c.logger.Debug("client: UpdateProfileVerification called",
+		zap.String("userID", userID),
+		zap.Bool("driver", driver),
+		zap.Bool("passenger", passenger),
+	)
+
+	_, err := c.grpcClient.UpdateProfileVerification(ctx, &userpb.UpdateProfileVerificationRequest{
+		UserID:                     userID,
+		IsDriverProfileVerified:    &driver,
+		IsPassengerProfileVerified: &passenger,
+	})
+	if err != nil {
+		c.logger.Error("client: UpdateProfileVerification failed", zap.Error(err), zap.String("userID", userID))
+		return fmt.Errorf("user-service: UpdateProfileVerification failed: %w", err)
+	}
+
+	return nil
+}

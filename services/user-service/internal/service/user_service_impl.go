@@ -237,6 +237,40 @@ func (s *userServiceImpl) CreateDriverAccount(ctx context.Context, profileID str
 	return nil
 }
 
+// UpdateProfileVerification met à jour les flags de vérification KYC (appelé par kyc-service).
+func (s *userServiceImpl) UpdateProfileVerification(ctx context.Context, userID string, driver, passenger *bool) error {
+	s.logger.Debug("mise à jour vérification profil",
+		zap.String("user_id", userID),
+		zap.Any("driver", driver),
+		zap.Any("passenger", passenger),
+	)
+
+	if userID == "" {
+		return userErrors.ErrorInvalidUserID
+	}
+
+	user, err := s.readRepo.GetByUserID(ctx, userID)
+	if err != nil {
+		s.logger.Error("échec de la récupération du profil pour vérification", zap.Error(err), zap.String("user_id", userID))
+		return err
+	}
+
+	user.SetProfileVerification(driver, passenger)
+
+	_, err = s.writeRepo.Update(ctx, user)
+	if err != nil {
+		s.logger.Error("échec de la mise à jour de la vérification du profil", zap.Error(err), zap.String("user_id", userID))
+		return err
+	}
+
+	s.logger.Info("vérification du profil mise à jour avec succès",
+		zap.String("user_id", userID),
+		zap.Bool("is_driver_verified", user.IsDriverProfileVerified),
+		zap.Bool("is_passenger_verified", user.IsPassengerProfileVerified),
+	)
+	return nil
+}
+
 // AddTripPreferences ajoute les préférences de trajet
 func (s *userServiceImpl) AddTripPreferences(ctx context.Context, profileID string, preferences []domain.TripPreference) error {
 	s.logger.Debug("ajout préférences de trajet", zap.String("profile_id", profileID), zap.Int("nb_preferences", len(preferences)))

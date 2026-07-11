@@ -38,6 +38,9 @@ service UserService {
   // SoftDeleteUser - Anonymise et soft-delete le profil utilisateur
   rpc SoftDeleteUser(SoftDeleteUserRequest) returns (OperationResponse);
 
+  // UpdateProfileVerification - Met à jour les flags de vérification KYC (appelé par kyc-service)
+  rpc UpdateProfileVerification(UpdateProfileVerificationRequest) returns (OperationResponse);
+
   // Client-facing RPCs (JWT Firebase requis)
 
   // GetMyProfile - Récupère le profil complet de l'utilisateur connecté
@@ -122,6 +125,12 @@ message GetUsersByUserIDsResponse {
 
 message SoftDeleteUserRequest {
   string AuthID = 1;
+}
+
+message UpdateProfileVerificationRequest {
+  string UserID                            = 1;
+  optional bool IsDriverProfileVerified    = 2;
+  optional bool IsPassengerProfileVerified = 3;
 }
 
 // =============================================================================

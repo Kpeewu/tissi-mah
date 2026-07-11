@@ -126,6 +126,24 @@ func (h *UserHandler) SoftDeleteUser(ctx context.Context, req *userpb.SoftDelete
 	return &userpb.OperationResponse{Success: true}, nil
 }
 
+// UpdateProfileVerification met à jour les flags de vérification KYC (appelé par kyc-service)
+func (h *UserHandler) UpdateProfileVerification(ctx context.Context, req *userpb.UpdateProfileVerificationRequest) (*userpb.OperationResponse, error) {
+	h.logger.Debug("UpdateProfileVerification appelé",
+		zap.String("user_id", req.UserID),
+		zap.Any("driver", req.IsDriverProfileVerified),
+		zap.Any("passenger", req.IsPassengerProfileVerified),
+	)
+
+	err := h.service.UpdateProfileVerification(ctx, req.UserID, req.IsDriverProfileVerified, req.IsPassengerProfileVerified)
+	if err != nil {
+		h.logger.Error("UpdateProfileVerification échoué", zap.Error(err), zap.String("user_id", req.UserID))
+		return nil, toGRPCError(err)
+	}
+
+	h.logger.Info("UpdateProfileVerification réussi", zap.String("user_id", req.UserID))
+	return &userpb.OperationResponse{Success: true}, nil
+}
+
 // --- Client-facing RPCs ---
 
 // GetMyProfile récupère le profil complet de l'utilisateur connecté
