@@ -330,6 +330,31 @@ func ToLogicalDocumentType(documentType string) string {
 	}
 }
 
+// ComputeProfileVerification dérive les flags de vérification KYC (passager / conducteur)
+// à partir de l'ensemble des reviews d'un utilisateur.
+//
+// Règles :
+//   - Le permis de conduire vaut pièce d'identité (il peut être soumis comme telle) →
+//     identité approuvée = idCard OU passport OU driverLicence.
+//   - Passager vérifié dès qu'une pièce d'identité est approuvée.
+//   - Conducteur vérifié quand permis + assurance (insurance) + carte grise
+//     (registrationCard) sont tous approuvés — le permis couvrant aussi l'identité,
+//     celle-ci est donc implicitement satisfaite.
+func ComputeProfileVerification(reviews []*Review) (identityVerified, driverVerified bool) {
+	approved := make(map[string]bool)
+	for _, r := range reviews {
+		if r.Decision == "approved" {
+			// Dérive le type logique depuis le type physique (recto/verso → logique).
+			approved[ToLogicalDocumentType(r.DocumentType)] = true
+		}
+	}
+
+	licenceVerified := approved["driverLicence"]
+	identityVerified = approved["idCard"] || approved["passport"] || licenceVerified
+	driverVerified = licenceVerified && approved["insurance"] && approved["registrationCard"]
+	return
+}
+
 // CompanionDocumentType retourne le type du côté compagnon pour les documents
 // recto-verso (idCard, driverLicence). Retourne "" si le type n'est pas recto-verso.
 func CompanionDocumentType(documentType string) string {

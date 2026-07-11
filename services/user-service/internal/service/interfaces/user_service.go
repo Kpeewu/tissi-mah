@@ -54,6 +54,7 @@ type UserService interface {
 	GetUserProfileByUserID(ctx context.Context, userID string) (*domain.User, string, string, error) // user, email, phoneNumber, error
 
 	SoftDeleteUser(ctx context.Context, authID string) error
+	UpdateProfileVerification(ctx context.Context, userID string, driver, passenger *bool) error
 
 	// Client-facing
 	GetMyProfile(ctx context.Context) (*FullProfile, error)

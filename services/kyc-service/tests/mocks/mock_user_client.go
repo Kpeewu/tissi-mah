@@ -36,6 +36,11 @@ func (m *MockUserClient) GetUsersByUserIDs(ctx context.Context, userIDs []string
 	return args.Get(0).(map[string]*domain.UserInfo), args.Error(1)
 }
 
+func (m *MockUserClient) UpdateProfileVerification(ctx context.Context, userID string, driver, passenger bool) error {
+	args := m.Called(ctx, userID, driver, passenger)
+	return args.Error(0)
+}
+
 func (m *MockUserClient) Close() error {
 	args := m.Called()
 	return args.Error(0)

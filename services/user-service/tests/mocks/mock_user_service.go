@@ -98,3 +98,8 @@ func (m *MockUserService) SoftDeleteUser(ctx context.Context, authID string) err
 	args := m.Called(ctx, authID)
 	return args.Error(0)
 }
+
+func (m *MockUserService) UpdateProfileVerification(ctx context.Context, userID string, driver, passenger *bool) error {
+	args := m.Called(ctx, userID, driver, passenger)
+	return args.Error(0)
+}

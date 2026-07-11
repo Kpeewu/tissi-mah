@@ -47,6 +47,18 @@ func (u *User) DisableDriverAccount() {
 	u.UpdatedAt = time.Now().UTC()
 }
 
+// SetProfileVerification met à jour les flags de vérification KYC.
+// Chaque flag n'est modifié que si une valeur non-nil est fournie.
+func (u *User) SetProfileVerification(driver, passenger *bool) {
+	if driver != nil {
+		u.IsDriverProfileVerified = *driver
+	}
+	if passenger != nil {
+		u.IsPassengerProfileVerified = *passenger
+	}
+	u.UpdatedAt = time.Now().UTC()
+}
+
 // SetTripPreferences met à jour les préférences de trajet
 func (u *User) SetTripPreferences(preferences []TripPreference) {
 	u.TripPreferences = preferences

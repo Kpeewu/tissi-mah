@@ -25,18 +25,19 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	UserService_CreateUser_FullMethodName           = "/user.UserService/CreateUser"
-	UserService_GetUserByAuthID_FullMethodName      = "/user.UserService/GetUserByAuthID"
-	UserService_GetUserByFirebaseID_FullMethodName  = "/user.UserService/GetUserByFirebaseID"
-	UserService_GetUserByUserID_FullMethodName      = "/user.UserService/GetUserByUserID"
-	UserService_GetUsersByUserIDs_FullMethodName    = "/user.UserService/GetUsersByUserIDs"
-	UserService_SoftDeleteUser_FullMethodName       = "/user.UserService/SoftDeleteUser"
-	UserService_GetMyProfile_FullMethodName         = "/user.UserService/GetMyProfile"
-	UserService_CreateDriverAccount_FullMethodName  = "/user.UserService/CreateDriverAccount"
-	UserService_AddTripPreferences_FullMethodName   = "/user.UserService/AddTripPreferences"
-	UserService_UpdateProfile_FullMethodName        = "/user.UserService/UpdateProfile"
-	UserService_ChangeProfilePicture_FullMethodName = "/user.UserService/ChangeProfilePicture"
-	UserService_Health_FullMethodName               = "/user.UserService/Health"
+	UserService_CreateUser_FullMethodName                = "/user.UserService/CreateUser"
+	UserService_GetUserByAuthID_FullMethodName           = "/user.UserService/GetUserByAuthID"
+	UserService_GetUserByFirebaseID_FullMethodName       = "/user.UserService/GetUserByFirebaseID"
+	UserService_GetUserByUserID_FullMethodName           = "/user.UserService/GetUserByUserID"
+	UserService_GetUsersByUserIDs_FullMethodName         = "/user.UserService/GetUsersByUserIDs"
+	UserService_SoftDeleteUser_FullMethodName            = "/user.UserService/SoftDeleteUser"
+	UserService_UpdateProfileVerification_FullMethodName = "/user.UserService/UpdateProfileVerification"
+	UserService_GetMyProfile_FullMethodName              = "/user.UserService/GetMyProfile"
+	UserService_CreateDriverAccount_FullMethodName       = "/user.UserService/CreateDriverAccount"
+	UserService_AddTripPreferences_FullMethodName        = "/user.UserService/AddTripPreferences"
+	UserService_UpdateProfile_FullMethodName             = "/user.UserService/UpdateProfile"
+	UserService_ChangeProfilePicture_FullMethodName      = "/user.UserService/ChangeProfilePicture"
+	UserService_Health_FullMethodName                    = "/user.UserService/Health"
 )
 
 // UserServiceClient is the client API for UserService service.
@@ -56,6 +57,8 @@ type UserServiceClient interface {
 	GetUsersByUserIDs(ctx context.Context, in *GetUsersByUserIDsRequest, opts ...grpc.CallOption) (*GetUsersByUserIDsResponse, error)
 	// SoftDeleteUser - Anonymise et soft-delete le profil utilisateur
 	SoftDeleteUser(ctx context.Context, in *SoftDeleteUserRequest, opts ...grpc.CallOption) (*OperationResponse, error)
+	// UpdateProfileVerification - Met à jour les flags de vérification KYC (appelé par kyc-service)
+	UpdateProfileVerification(ctx context.Context, in *UpdateProfileVerificationRequest, opts ...grpc.CallOption) (*OperationResponse, error)
 	// GetMyProfile - Récupère le profil complet de l'utilisateur connecté
 	GetMyProfile(ctx context.Context, in *GetMyProfileRequest, opts ...grpc.CallOption) (*GetMyProfileResponse, error)
 	// CreateDriverAccount - Active le statut conducteur sur le profil
@@ -132,6 +135,16 @@ func (c *userServiceClient) SoftDeleteUser(ctx context.Context, in *SoftDeleteUs
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(OperationResponse)
 	err := c.cc.Invoke(ctx, UserService_SoftDeleteUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) UpdateProfileVerification(ctx context.Context, in *UpdateProfileVerificationRequest, opts ...grpc.CallOption) (*OperationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OperationResponse)
+	err := c.cc.Invoke(ctx, UserService_UpdateProfileVerification_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -215,6 +228,8 @@ type UserServiceServer interface {
 	GetUsersByUserIDs(context.Context, *GetUsersByUserIDsRequest) (*GetUsersByUserIDsResponse, error)
 	// SoftDeleteUser - Anonymise et soft-delete le profil utilisateur
 	SoftDeleteUser(context.Context, *SoftDeleteUserRequest) (*OperationResponse, error)
+	// UpdateProfileVerification - Met à jour les flags de vérification KYC (appelé par kyc-service)
+	UpdateProfileVerification(context.Context, *UpdateProfileVerificationRequest) (*OperationResponse, error)
 	// GetMyProfile - Récupère le profil complet de l'utilisateur connecté
 	GetMyProfile(context.Context, *GetMyProfileRequest) (*GetMyProfileResponse, error)
 	// CreateDriverAccount - Active le statut conducteur sur le profil
@@ -254,6 +269,9 @@ func (UnimplementedUserServiceServer) GetUsersByUserIDs(context.Context, *GetUse
 }
 func (UnimplementedUserServiceServer) SoftDeleteUser(context.Context, *SoftDeleteUserRequest) (*OperationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SoftDeleteUser not implemented")
+}
+func (UnimplementedUserServiceServer) UpdateProfileVerification(context.Context, *UpdateProfileVerificationRequest) (*OperationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateProfileVerification not implemented")
 }
 func (UnimplementedUserServiceServer) GetMyProfile(context.Context, *GetMyProfileRequest) (*GetMyProfileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetMyProfile not implemented")
@@ -402,6 +420,24 @@ func _UserService_SoftDeleteUser_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserService_UpdateProfileVerification_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateProfileVerificationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).UpdateProfileVerification(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_UpdateProfileVerification_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).UpdateProfileVerification(ctx, req.(*UpdateProfileVerificationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _UserService_GetMyProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetMyProfileRequest)
 	if err := dec(in); err != nil {
@@ -540,6 +576,10 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SoftDeleteUser",
 			Handler:    _UserService_SoftDeleteUser_Handler,
+		},
+		{
+			MethodName: "UpdateProfileVerification",
+			Handler:    _UserService_UpdateProfileVerification_Handler,
 		},
 		{
 			MethodName: "GetMyProfile",
