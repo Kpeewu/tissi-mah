@@ -115,6 +115,7 @@ type PendingReview struct {
 	Status           string
 	AttemptNumber    int32
 	SessionExpiresAt *time.Time
+	DocumentType     string
 }
 
 // LatestRejection contient les informations du dernier rejet

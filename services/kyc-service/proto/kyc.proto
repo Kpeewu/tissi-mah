@@ -432,6 +432,7 @@ message PendingReviewItem {
   string Status = 3;
   int32 AttemptNumber = 4;
   string SessionExpiresAt = 5; // ISO 8601
+  string DocumentType = 6;
 }
 
 message LatestRejectionItem {
