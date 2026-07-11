@@ -232,3 +232,33 @@ func TestParseAppIDs_CSV(t *testing.T) {
 	assert.True(t, ok2)
 	assert.True(t, ok3)
 }
+
+// ============================================================
+// StripInboundAuthHeaders
+// ============================================================
+
+func TestStripInboundAuthHeaders_RemovesSpoofedIdentity(t *testing.T) {
+	var seen http.Header
+	handler := middleware.StripInboundAuthHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = r.Header.Clone()
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest("GET", "/api/v1/notifications/inbox", nil)
+	req.Header.Set(middleware.FirebaseUIDHeader, "victim-uid")
+	req.Header.Set(middleware.SupportUIDHeader, "victim-support")
+	req.Header.Set(middleware.SupportRoleHeader, "admin")
+	req.Header.Set("x-firebase-uid-sig", "forged-sig")
+	req.Header.Set(middleware.RequestIDHeader, "req-123")
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Empty(t, seen.Get(middleware.FirebaseUIDHeader), "x-firebase-uid should be stripped")
+	assert.Empty(t, seen.Get(middleware.SupportUIDHeader), "x-support-uid should be stripped")
+	assert.Empty(t, seen.Get(middleware.SupportRoleHeader), "x-support-role should be stripped")
+	assert.Empty(t, seen.Get("x-firebase-uid-sig"), "x-firebase-uid-sig should be stripped")
+	// x-request-id est légitime et doit être préservé
+	assert.Equal(t, "req-123", seen.Get(middleware.RequestIDHeader), "x-request-id should be preserved")
+}

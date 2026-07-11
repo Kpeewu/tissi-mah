@@ -8,14 +8,23 @@ import (
 
 // SearchTripsParams contient les filtres pour la recherche de trajets passager.
 type SearchTripsParams struct {
+	// Coordonnées de la zone de départ choisie : si fournies, le départ matche
+	// par nom fuzzy OU par appartenance au rayon (sémantique OU).
 	PassengerLng          *float64
 	PassengerLat          *float64
 	DistanceRangeMeters   int     // converti en mètres (défaut 5000)
-	DepartureLocationName string  // obligatoire
-	ArrivalLocationName   string  // obligatoire
+	DepartureLocationName string  // obligatoire, fuzzy sur location_name + city
+	ArrivalLocationName   string  // obligatoire, fuzzy sur location_name + city
 	TripStartDate         *string // "YYYY-MM-DD" (UTC)
 	TripStartHour         *string // "HH:MM" (UTC)
 	TripArrivalHour       *string // "HH:MM" (UTC)
+	SortBy                string  // "relevance" (défaut) | "departure_time" | "price"
+	MaxPrice              int     // prix max du segment en FCFA, 0 = pas de filtre
+	MinSeats              int     // places requises sur le segment, <=0 = 1
+	AllowLuggages         bool    // true = uniquement les trajets acceptant les bagages
+	AllowPets             bool    // true = uniquement les trajets acceptant les animaux
+	AllowFood             bool    // true = uniquement les trajets acceptant la nourriture
+	AllowSmoking          bool    // true = uniquement les trajets fumeur
 	PageIndex             int
 	PageSize              int // 10 par défaut
 }

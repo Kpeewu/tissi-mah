@@ -129,6 +129,8 @@ type TripPreviewResult struct {
 	SegmentDurationMinutes int
 	DriverProfileImageURL  string
 	DriverRatingAverage    float64
+	// Score de pertinence 0..1 (recherche passager uniquement, 0 sinon)
+	RelevanceScore float64
 }
 
 // CompletedTripPreviewResult contient les données enrichies d'un trajet complété.
@@ -320,14 +322,23 @@ type CancelWaypointInput struct {
 
 // GetScheduledTripsPreviewsInput contient les paramètres de recherche passager.
 type GetScheduledTripsPreviewsInput struct {
+	// Coordonnées de la zone de départ choisie : si fournies, le départ matche
+	// par nom fuzzy OU par appartenance au rayon (sémantique OU).
 	PassengerPositionLng  *float64
 	PassengerPositionLat  *float64
 	DistanceRange         *int    // km, défaut 5
-	DepartureLocationName string  // obligatoire
-	ArrivalLocationName   string  // obligatoire
+	DepartureLocationName string  // obligatoire, fuzzy sur location_name + city
+	ArrivalLocationName   string  // obligatoire, fuzzy sur location_name + city
 	TripStartDate         *string // "YYYY-MM-DD" (UTC)
 	TripStartHour         *string // "HH:MM" (UTC)
 	TripArrivalHour       *string // "HH:MM" (UTC)
+	SortBy                string  // "" ou "relevance" (défaut) | "departure_time" | "price"
+	MaxPrice              int     // prix max du segment en FCFA, 0 = pas de filtre
+	MinSeats              int     // places requises sur le segment, 0 = 1
+	AllowLuggages         bool    // true = uniquement les trajets acceptant les bagages
+	AllowPets             bool    // true = uniquement les trajets acceptant les animaux
+	AllowFood             bool    // true = uniquement les trajets acceptant la nourriture
+	AllowSmoking          bool    // true = uniquement les trajets fumeur
 	PageIndex             int
 }
 

@@ -134,10 +134,30 @@ func (s *tripServiceImpl) GetCompletedTripsPreviews(ctx context.Context, input *
 	return results, nil
 }
 
+// validSearchSortBy liste les valeurs SortBy acceptées pour la recherche passager.
+var validSearchSortBy = map[string]bool{
+	"relevance":      true,
+	"departure_time": true,
+	"price":          true,
+}
+
 // GetScheduledTripsPreviews recherche les trajets/segments disponibles pour un passager.
 // Utilise le cache Redis pour les résultats de recherche (TTL 60s) et l'enrichissement standard.
 func (s *tripServiceImpl) GetScheduledTripsPreviews(ctx context.Context, input *serviceInterfaces.GetScheduledTripsPreviewsInput) (*serviceInterfaces.ScheduledTripsPreviewsResult, error) {
 	if input.DepartureLocationName == "" || input.ArrivalLocationName == "" {
+		return nil, tripErrors.ErrorInvalidInput
+	}
+
+	// Tri : défaut pertinence, valeur inconnue rejetée
+	sortBy := input.SortBy
+	if sortBy == "" {
+		sortBy = "relevance"
+	}
+	if !validSearchSortBy[sortBy] {
+		return nil, tripErrors.ErrorInvalidInput
+	}
+
+	if input.MaxPrice < 0 || input.MinSeats < 0 {
 		return nil, tripErrors.ErrorInvalidInput
 	}
 
@@ -149,6 +169,11 @@ func (s *tripServiceImpl) GetScheduledTripsPreviews(ctx context.Context, input *
 		distanceMeters = *input.DistanceRange * 1000
 	}
 
+	minSeats := input.MinSeats
+	if minSeats <= 0 {
+		minSeats = 1
+	}
+
 	params := &repoInterfaces.SearchTripsParams{
 		PassengerLng:          input.PassengerPositionLng,
 		PassengerLat:          input.PassengerPositionLat,
@@ -158,18 +183,19 @@ func (s *tripServiceImpl) GetScheduledTripsPreviews(ctx context.Context, input *
 		TripStartDate:         input.TripStartDate,
 		TripStartHour:         input.TripStartHour,
 		TripArrivalHour:       input.TripArrivalHour,
+		SortBy:                sortBy,
+		MaxPrice:              input.MaxPrice,
+		MinSeats:              minSeats,
+		AllowLuggages:         input.AllowLuggages,
+		AllowPets:             input.AllowPets,
+		AllowFood:             input.AllowFood,
+		AllowSmoking:          input.AllowSmoking,
 		PageIndex:             input.PageIndex,
 		PageSize:              pageSize,
 	}
 
 	// Générer la clé de cache normalisée
-	cacheKey := cache.BuildSearchCacheKey(
-		params.PassengerLng, params.PassengerLat,
-		params.DistanceRangeMeters,
-		params.DepartureLocationName, params.ArrivalLocationName,
-		params.TripStartDate, params.TripStartHour, params.TripArrivalHour,
-		params.PageIndex,
-	)
+	cacheKey := cache.BuildSearchCacheKey(params)
 
 	// Essayer le cache Redis
 	var previews []*domain.TripPreview
@@ -252,6 +278,7 @@ func (s *tripServiceImpl) GetScheduledTripsPreviews(ctx context.Context, input *
 			SegmentDurationMinutes: p.SegmentDurationMinutes,
 			DriverProfileImageURL:  d.profileImageURL,
 			DriverRatingAverage:    d.ratingAverage,
+			RelevanceScore:         p.RelevanceScore,
 		})
 	}
 

@@ -1071,14 +1071,19 @@ Content-Type: application/json
 
 ### GET /api/v1/trip/passenger/getScheduledTripsPreviews
 
-Searches scheduled trips matching a passenger's origin/destination, time window, and optional GPS radius. Returns paginated results enriched with segment pricing, duration, and the driver's public profile.
+Searches scheduled trips matching a passenger's origin/destination, time window, and optional departure zone radius. Returns paginated results enriched with segment pricing, duration, the driver's public profile and a relevance score.
+
+**Matching engine:**
+- **Fuzzy, accent-insensitive** matching on both `location_name` and `city` of the waypoints (pg_trgm `word_similarity`, threshold 0.30): a search for `Abalpedo` matches a waypoint named `Gare d'Agbalkpédo, Lomé`.
+- **Departure zone (OR semantics):** if `PassengerPositionLng/Lat` are provided, a trip matches when its departure name is similar **or** its departure waypoint lies within `DistanceRange` km of the given point (front geocodes the chosen zone via `GET /api/v1/geolocation/geocode`).
+- **Relevance score** per result (`RelevanceScore`, 0..1): `0.4×departure similarity + 0.4×arrival similarity + 0.2×geo proximity` (name-only weights `0.5/0.5` when no coordinates are provided).
 
 **Authentication:** Not required (public)
 
 #### Request
 
 ```http
-GET /api/v1/trip/passenger/getScheduledTripsPreviews?DepartureLocationName=Dakar&ArrivalLocationName=Saint-Louis&TripStartDate=2026-04-15&TripStartHour=07:00&TripArrivalHour=14:00&Index=0 HTTP/1.1
+GET /api/v1/trip/passenger/getScheduledTripsPreviews?DepartureLocationName=Dakar&ArrivalLocationName=Saint-Louis&TripStartDate=2026-04-15&TripStartHour=07:00&TripArrivalHour=14:00&Index=0&SortBy=relevance&MaxPrice=6000&MinSeats=2 HTTP/1.1
 Host: api.tissi-mah.com
 ```
 
@@ -1086,15 +1091,22 @@ Host: api.tissi-mah.com
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `DepartureLocationName` | string | Yes | Fuzzy-matched departure city/area |
-| `ArrivalLocationName` | string | Yes | Fuzzy-matched arrival city/area |
-| `TripStartDate` | string | Yes | `YYYY-MM-DD` (UTC) |
-| `TripStartHour` | string | Yes | `HH:MM` (UTC) — lower bound of the departure window |
-| `TripArrivalHour` | string | Yes | `HH:MM` (UTC) — upper bound of the arrival window |
+| `DepartureLocationName` | string | Yes | Fuzzy-matched departure city/area (matches `location_name` and `city`) |
+| `ArrivalLocationName` | string | Yes | Fuzzy-matched arrival city/area (matches `location_name` and `city`) |
 | `Index` | integer | Yes | Page index (0-based) |
-| `PassengerPositionLng` | float | No | Passenger longitude (`0` = not provided) |
-| `PassengerPositionLat` | float | No | Passenger latitude (`0` = not provided) |
-| `DistanceRange` | integer | No | Radius in km around passenger position (default 5 if 0) |
+| `TripStartDate` | string | No | `YYYY-MM-DD` (UTC) |
+| `TripStartHour` | string | No | `HH:MM` (UTC) — lower bound of the departure window |
+| `TripArrivalHour` | string | No | `HH:MM` (UTC) — upper bound of the arrival window |
+| `PassengerPositionLng` | float | No | Departure zone longitude (`0` = not provided) |
+| `PassengerPositionLat` | float | No | Departure zone latitude (`0` = not provided) |
+| `DistanceRange` | integer | No | Radius in km around the departure zone (default 5 if 0) |
+| `SortBy` | string | No | `relevance` (default), `departure_time` or `price` — unknown value → 400 |
+| `MaxPrice` | integer | No | Maximum segment price in FCFA (`0` = no filter) |
+| `MinSeats` | integer | No | Minimum available seats on the segment (`0` = 1) |
+| `AllowLuggages` | boolean | No | `true` = only trips allowing luggage |
+| `AllowPets` | boolean | No | `true` = only trips allowing pets |
+| `AllowFood` | boolean | No | `true` = only trips allowing food |
+| `AllowSmoking` | boolean | No | `true` = only trips allowing smoking |
 
 #### Response (Success)
 
@@ -1122,7 +1134,8 @@ Content-Type: application/json
             "SegmentPrice": 5000,
             "SegmentDurationMinutes": 240,
             "DriverProfileImageURL": "https://cdn.tissi-mah.com/users/550e8400/avatar.jpg",
-            "DriverRatingAverage": 4.7
+            "DriverRatingAverage": 4.7,
+            "RelevanceScore": 0.82
         }
     ],
     "ErrorMessage": "",
@@ -1135,7 +1148,7 @@ Content-Type: application/json
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `TripsPreviews` | array | Matching trips (see `TripPreview` schema above) |
+| `TripsPreviews` | array | Matching trips (see `TripPreview` schema above, plus `RelevanceScore` 0..1) |
 | `NextIndex` | integer | Next page index (`-1` if no more results) |
 | `TotalCount` | integer | Total number of matches across all pages |
 | `ErrorMessage` | string | Error identifier if failed, empty if success |
@@ -1144,7 +1157,7 @@ Content-Type: application/json
 
 | Error | HTTP Code | Description |
 |-------|-----------|-------------|
-| `ErrorInvalidInput` | 400 | Missing required search fields |
+| `ErrorInvalidInput` | 400 | Missing required search fields, unknown `SortBy`, or negative `MaxPrice`/`MinSeats` |
 | `ErrorInvalidDatetime` | 400 | Invalid date/hour format |
 | `ErrorDataRetrievalFailed` | 500 | Database query failed |
 | `ErrorInternalServer` | 500 | Internal server error |

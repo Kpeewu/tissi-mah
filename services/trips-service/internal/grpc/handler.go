@@ -744,6 +744,13 @@ func (h *TripHandler) GetScheduledTripsPreviews(ctx context.Context, req *trippb
 	input := &serviceInterfaces.GetScheduledTripsPreviewsInput{
 		DepartureLocationName: req.DepartureLocationName,
 		ArrivalLocationName:   req.ArrivalLocationName,
+		SortBy:                req.SortBy,
+		MaxPrice:              int(req.MaxPrice),
+		MinSeats:              int(req.MinSeats),
+		AllowLuggages:         req.AllowLuggages,
+		AllowPets:             req.AllowPets,
+		AllowFood:             req.AllowFood,
+		AllowSmoking:          req.AllowSmoking,
 		PageIndex:             int(req.Index),
 	}
 
@@ -800,6 +807,7 @@ func (h *TripHandler) GetScheduledTripsPreviews(ctx context.Context, req *trippb
 			SegmentDurationMinutes: int32(r.SegmentDurationMinutes),
 			DriverProfileImageURL:  r.DriverProfileImageURL,
 			DriverRatingAverage:    r.DriverRatingAverage,
+			RelevanceScore:         r.RelevanceScore,
 		})
 	}
 

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
+	repoInterfaces "github.com/Kpeewu/tissi-mah/services/trips-service/internal/repository/interfaces"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
@@ -488,39 +489,56 @@ func (c *TripCache) SetSearchResults(ctx context.Context, cacheKey string, previ
 
 // BuildSearchCacheKey génère une clé de cache normalisée à partir des paramètres de recherche.
 // Arrondit lng/lat à 3 décimales (~111m) pour regrouper les requêtes proches.
-func BuildSearchCacheKey(
-	passengerLng, passengerLat *float64,
-	distanceRangeMeters int,
-	departureLocationName, arrivalLocationName string,
-	tripStartDate, tripStartHour, tripArrivalHour *string,
-	pageIndex int,
-) string {
-	parts := make([]string, 0, 10)
+// Tout paramètre influençant le résultat DOIT entrer dans la clé (sinon collisions).
+func BuildSearchCacheKey(params *repoInterfaces.SearchTripsParams) string {
+	parts := make([]string, 0, 16)
 
 	// Normaliser les noms en minuscules pour le hash
-	parts = append(parts, "dep="+strings.ToLower(departureLocationName))
-	parts = append(parts, "arr="+strings.ToLower(arrivalLocationName))
+	parts = append(parts, "dep="+strings.ToLower(params.DepartureLocationName))
+	parts = append(parts, "arr="+strings.ToLower(params.ArrivalLocationName))
 
-	if passengerLng != nil && passengerLat != nil {
+	if params.PassengerLng != nil && params.PassengerLat != nil {
 		// Arrondir à 3 décimales (~111m de précision)
-		lng := math.Round(*passengerLng*1000) / 1000
-		lat := math.Round(*passengerLat*1000) / 1000
+		lng := math.Round(*params.PassengerLng*1000) / 1000
+		lat := math.Round(*params.PassengerLat*1000) / 1000
 		parts = append(parts, fmt.Sprintf("lng=%.3f", lng))
 		parts = append(parts, fmt.Sprintf("lat=%.3f", lat))
-		parts = append(parts, fmt.Sprintf("dist=%d", distanceRangeMeters))
+		parts = append(parts, fmt.Sprintf("dist=%d", params.DistanceRangeMeters))
 	}
 
-	if tripStartDate != nil && *tripStartDate != "" {
-		parts = append(parts, "date="+*tripStartDate)
+	if params.TripStartDate != nil && *params.TripStartDate != "" {
+		parts = append(parts, "date="+*params.TripStartDate)
 	}
-	if tripStartHour != nil && *tripStartHour != "" {
-		parts = append(parts, "sh="+*tripStartHour)
+	if params.TripStartHour != nil && *params.TripStartHour != "" {
+		parts = append(parts, "sh="+*params.TripStartHour)
 	}
-	if tripArrivalHour != nil && *tripArrivalHour != "" {
-		parts = append(parts, "ah="+*tripArrivalHour)
+	if params.TripArrivalHour != nil && *params.TripArrivalHour != "" {
+		parts = append(parts, "ah="+*params.TripArrivalHour)
 	}
 
-	parts = append(parts, fmt.Sprintf("p=%d", pageIndex))
+	if params.SortBy != "" {
+		parts = append(parts, "sort="+params.SortBy)
+	}
+	if params.MaxPrice > 0 {
+		parts = append(parts, fmt.Sprintf("maxp=%d", params.MaxPrice))
+	}
+	if params.MinSeats > 1 {
+		parts = append(parts, fmt.Sprintf("seats=%d", params.MinSeats))
+	}
+	if params.AllowLuggages {
+		parts = append(parts, "lug=1")
+	}
+	if params.AllowPets {
+		parts = append(parts, "pets=1")
+	}
+	if params.AllowFood {
+		parts = append(parts, "food=1")
+	}
+	if params.AllowSmoking {
+		parts = append(parts, "smoke=1")
+	}
+
+	parts = append(parts, fmt.Sprintf("p=%d", params.PageIndex))
 
 	sort.Strings(parts)
 	raw := strings.Join(parts, "|")

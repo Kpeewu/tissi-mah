@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
@@ -213,12 +214,35 @@ func (r *tripReadRepositoryImpl) scanTripPreviews(ctx context.Context, query str
 	return previews, nil
 }
 
+// searchWordSimilarityThreshold est le seuil de word_similarity pour le fuzzy matching.
+// word_similarity mesure la meilleure correspondance du terme recherché contre une portion
+// du texte : « abalpedo » vs « Gare d'Agbalkpédo, Lomé » ≈ 0.33. À 0.30 on tolère les fautes
+// de frappe usuelles sans ramener trop de bruit.
+const searchWordSimilarityThreshold = 0.30
+
+// searchSortByOrderClauses mappe les valeurs SortBy autorisées vers leur clause ORDER BY.
+// Whitelist stricte : l'input utilisateur n'est jamais interpolé dans le SQL.
+var searchSortByOrderClauses = map[string]string{
+	"relevance":      "relevance_score DESC, departure_datetime ASC",
+	"departure_time": "departure_datetime ASC, relevance_score DESC",
+	"price":          "segment_price ASC, relevance_score DESC",
+}
+
 // SearchScheduledTripSegments recherche les trajets/segments disponibles avec pagination.
-// Construit une requête SQL dynamique avec self-join pour générer les segments pertinents.
+// Construit une requête SQL dynamique avec self-join pour générer les segments, fuzzy
+// matching accent-insensitive (word_similarity sur location_name + city), zone de départ
+// en OU (nom OU rayon autour des coordonnées fournies) et score de pertinence.
+//
+// Les prédicats fuzzy/spatiaux s'appliquent en filtre sur les segments candidats (entrée
+// par l'index partiel idx_trips_scheduled_search + index de join). Si la volumétrie de
+// trajets scheduled explose, passer à l'opérateur <% avec
+// ALTER DATABASE ... SET pg_trgm.word_similarity_threshold pour exploiter les index GIN
+// trigramme (idx_trips_waypoints_location_name_trgm / idx_trips_waypoints_city_trgm).
 func (r *tripReadRepositoryImpl) SearchScheduledTripSegments(ctx context.Context, params *i.SearchTripsParams) (*i.SearchTripsResult, error) {
 	r.logger.Debug("SearchScheduledTripSegments",
 		zap.String("departure", params.DepartureLocationName),
 		zap.String("arrival", params.ArrivalLocationName),
+		zap.String("sortBy", params.SortBy),
 		zap.Int("pageIndex", params.PageIndex),
 	)
 
@@ -227,52 +251,49 @@ func (r *tripReadRepositoryImpl) SearchScheduledTripSegments(ctx context.Context
 		pageSize = 10
 	}
 
-	// Construction de la requête dynamique
-	var conditions []string
-	args := make([]any, 0, 10)
+	args := make([]any, 0, 16)
 	argIdx := 1
 
-	// Clause FROM commune avec self-join pour les segments
-	fromClause := `
-		FROM trips t
-		JOIN trips_waypoints dep_wp
-			ON dep_wp.trip_id = t.trip_id
-			AND dep_wp.cancelled_at IS NULL
-			AND dep_wp.deleted_at IS NULL
-		JOIN trips_waypoints arr_wp
-			ON arr_wp.trip_id = t.trip_id
-			AND arr_wp.cancelled_at IS NULL
-			AND arr_wp.deleted_at IS NULL
-			AND arr_wp.sequencer_order > dep_wp.sequencer_order`
-
-	// Conditions de base
-	conditions = append(conditions, "t.status = 'scheduled'::trip_status")
-	conditions = append(conditions, "t.available_seats > 0")
-	conditions = append(conditions, "t.deleted_at IS NULL")
-
-	// Filtre textuel obligatoire sur le départ (fuzzy, accent-insensitive)
-	conditions = append(conditions, fmt.Sprintf(
-		"similarity(f_unaccent(dep_wp.location_name), f_unaccent($%d)) > 0.3", argIdx))
+	// Arguments toujours présents : noms recherchés + seuil de similarité
+	depArg := argIdx
 	args = append(args, params.DepartureLocationName)
 	argIdx++
-
-	// Filtre textuel obligatoire sur l'arrivée (fuzzy, accent-insensitive)
-	conditions = append(conditions, fmt.Sprintf(
-		"similarity(f_unaccent(arr_wp.location_name), f_unaccent($%d)) > 0.3", argIdx))
+	arrArg := argIdx
 	args = append(args, params.ArrivalLocationName)
 	argIdx++
+	thresholdArg := argIdx
+	args = append(args, searchWordSimilarityThreshold)
+	argIdx++
 
-	// Filtre spatial optionnel sur le waypoint de départ
-	if params.PassengerLng != nil && params.PassengerLat != nil {
+	// Expressions géographiques : neutres si pas de coordonnées de zone de départ
+	hasCoords := params.PassengerLng != nil && params.PassengerLat != nil
+	depGeoWithinExpr := "FALSE"
+	geoScoreExpr := "0::float8"
+	relevanceExpr := "0.5 * dep_name_score + 0.5 * arr_name_score"
+	if hasCoords {
 		distanceMeters := params.DistanceRangeMeters
 		if distanceMeters <= 0 {
 			distanceMeters = 5000
 		}
-		conditions = append(conditions, fmt.Sprintf(
-			"ST_DWithin(dep_wp.position, ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography, $%d)",
-			argIdx, argIdx+1, argIdx+2))
-		args = append(args, *params.PassengerLng, *params.PassengerLat, distanceMeters)
-		argIdx += 3
+		pointExpr := fmt.Sprintf("ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography", argIdx, argIdx+1)
+		args = append(args, *params.PassengerLng, *params.PassengerLat)
+		argIdx += 2
+		radiusArg := argIdx
+		args = append(args, distanceMeters)
+		argIdx++
+
+		depGeoWithinExpr = fmt.Sprintf("ST_DWithin(dep_wp.position, %s, $%d)", pointExpr, radiusArg)
+		// 1 au point exact, 0 au bord du rayon (et au-delà)
+		geoScoreExpr = fmt.Sprintf(
+			"GREATEST(0::float8, 1 - ST_Distance(dep_wp.position, %s) / $%d)", pointExpr, radiusArg)
+		relevanceExpr = "0.4 * dep_name_score + 0.4 * arr_name_score + 0.2 * geo_score"
+	}
+
+	// Conditions de la CTE candidates (avant scoring)
+	conditions := []string{
+		"t.status = 'scheduled'::trip_status",
+		"t.available_seats > 0",
+		"t.deleted_at IS NULL",
 	}
 
 	// Filtre date de départ (UTC)
@@ -299,49 +320,132 @@ func (r *tripReadRepositoryImpl) SearchScheduledTripSegments(ctx context.Context
 		argIdx++
 	}
 
-	whereClause := "WHERE " + strings.Join(conditions, "\n  AND ")
+	// Filtres options : uniquement les trajets qui autorisent l'option demandée
+	if params.AllowLuggages {
+		conditions = append(conditions, "t.allow_luggages = TRUE")
+	}
+	if params.AllowPets {
+		conditions = append(conditions, "t.allow_pets = TRUE")
+	}
+	if params.AllowFood {
+		conditions = append(conditions, "t.allow_food = TRUE")
+	}
+	if params.AllowSmoking {
+		conditions = append(conditions, "t.allow_smoking = TRUE")
+	}
 
-	// Exécuter le count et la requête de données en parallèle
-	selectClause := `
+	// Conditions de la CTE filtered (sur scores et agrégats)
+	depMatchCond := "dep_name_score >= $" + strconv.Itoa(thresholdArg)
+	if hasCoords {
+		// Zone de départ en OU : le nom matche approximativement OU le départ est dans le rayon
+		depMatchCond = fmt.Sprintf("(dep_name_score >= $%d OR dep_geo_within)", thresholdArg)
+	}
+	filteredConditions := []string{
+		depMatchCond,
+		fmt.Sprintf("arr_name_score >= $%d", thresholdArg),
+	}
+
+	minSeats := params.MinSeats
+	if minSeats <= 0 {
+		minSeats = 1
+	}
+	filteredConditions = append(filteredConditions, fmt.Sprintf("available_seats >= $%d", argIdx))
+	args = append(args, minSeats)
+	argIdx++
+
+	if params.MaxPrice > 0 {
+		filteredConditions = append(filteredConditions, fmt.Sprintf("segment_price <= $%d", argIdx))
+		args = append(args, params.MaxPrice)
+		argIdx++
+	}
+
+	// CTE partagée entre count et data : segments candidats + scores, puis filtrage
+	// (les agrégats prix/sièges ne sont filtrables qu'après leur calcul, d'où la CTE)
+	cteClause := fmt.Sprintf(`
+		WITH candidates AS (
+			SELECT
+				t.trip_id,
+				t.driver_id,
+				t.vehicle_id,
+				t.departure_datetime,
+				t.total_seats,
+				-- Places disponibles par segment : total - MAX(booked_seats) sur les legs couverts
+				t.total_seats - COALESCE((
+					SELECT MAX(leg.booked_seats)
+					FROM trips_waypoints leg
+					WHERE leg.trip_id = t.trip_id
+					  AND leg.sequencer_order >= dep_wp.sequencer_order
+					  AND leg.sequencer_order < arr_wp.sequencer_order
+					  AND leg.cancelled_at IS NULL
+					  AND leg.deleted_at IS NULL
+				), 0) AS available_seats,
+				dep_wp.location_name AS departure_location_name,
+				arr_wp.location_name AS arrival_location_name,
+				dep_wp.waypoint_id AS departure_waypoint_id,
+				arr_wp.waypoint_id AS arrival_waypoint_id,
+				-- Prix du segment : somme des price_from_previous entre dep+1 et arr
+				COALESCE((
+					SELECT SUM(seg.price_from_previous)
+					FROM trips_waypoints seg
+					WHERE seg.trip_id = t.trip_id
+					  AND seg.sequencer_order > dep_wp.sequencer_order
+					  AND seg.sequencer_order <= arr_wp.sequencer_order
+					  AND seg.cancelled_at IS NULL
+					  AND seg.deleted_at IS NULL
+				), 0) AS segment_price,
+				-- Durée du segment en minutes
+				arr_wp.minutes_from_departure - dep_wp.minutes_from_departure AS segment_duration_minutes,
+				-- Similarité fuzzy accent-insensitive sur location_name OU city
+				GREATEST(
+					word_similarity(f_unaccent($%[1]d), f_unaccent(dep_wp.location_name)),
+					word_similarity(f_unaccent($%[1]d), f_unaccent(COALESCE(dep_wp.city, '')))
+				) AS dep_name_score,
+				GREATEST(
+					word_similarity(f_unaccent($%[2]d), f_unaccent(arr_wp.location_name)),
+					word_similarity(f_unaccent($%[2]d), f_unaccent(COALESCE(arr_wp.city, '')))
+				) AS arr_name_score,
+				%[3]s AS dep_geo_within,
+				%[4]s AS geo_score
+			FROM trips t
+			JOIN trips_waypoints dep_wp
+				ON dep_wp.trip_id = t.trip_id
+				AND dep_wp.cancelled_at IS NULL
+				AND dep_wp.deleted_at IS NULL
+			JOIN trips_waypoints arr_wp
+				ON arr_wp.trip_id = t.trip_id
+				AND arr_wp.cancelled_at IS NULL
+				AND arr_wp.deleted_at IS NULL
+				AND arr_wp.sequencer_order > dep_wp.sequencer_order
+			WHERE %[5]s
+		),
+		filtered AS (
+			SELECT *, %[6]s AS relevance_score
+			FROM candidates
+			WHERE %[7]s
+		)`,
+		depArg, arrArg, depGeoWithinExpr, geoScoreExpr,
+		strings.Join(conditions, "\n  AND "),
+		relevanceExpr,
+		strings.Join(filteredConditions, "\n  AND "),
+	)
+
+	// Tri whitelisté (défaut : pertinence) — validé en amont par le service
+	orderBy, ok := searchSortByOrderClauses[params.SortBy]
+	if !ok {
+		orderBy = searchSortByOrderClauses["relevance"]
+	}
+
+	countQuery := cteClause + "\nSELECT COUNT(*) FROM filtered"
+	dataQuery := cteClause + fmt.Sprintf(`
 		SELECT
-			t.trip_id,
-			t.driver_id,
-			t.vehicle_id,
-			t.departure_datetime,
-			t.total_seats,
-			-- Places disponibles par segment : total - MAX(booked_seats) sur les legs couverts
-			t.total_seats - COALESCE((
-				SELECT MAX(leg.booked_seats)
-				FROM trips_waypoints leg
-				WHERE leg.trip_id = t.trip_id
-				  AND leg.sequencer_order >= dep_wp.sequencer_order
-				  AND leg.sequencer_order < arr_wp.sequencer_order
-				  AND leg.cancelled_at IS NULL
-				  AND leg.deleted_at IS NULL
-			), 0) AS available_seats,
-			dep_wp.location_name AS departure_location_name,
-			arr_wp.location_name AS arrival_location_name,
-			dep_wp.waypoint_id AS departure_waypoint_id,
-			arr_wp.waypoint_id AS arrival_waypoint_id,
-			-- Prix du segment : somme des price_from_previous entre dep+1 et arr
-			COALESCE((
-				SELECT SUM(seg.price_from_previous)
-				FROM trips_waypoints seg
-				WHERE seg.trip_id = t.trip_id
-				  AND seg.sequencer_order > dep_wp.sequencer_order
-				  AND seg.sequencer_order <= arr_wp.sequencer_order
-				  AND seg.cancelled_at IS NULL
-				  AND seg.deleted_at IS NULL
-			), 0) AS segment_price,
-			-- Durée du segment en minutes
-			arr_wp.minutes_from_departure - dep_wp.minutes_from_departure AS segment_duration_minutes`
-
-	orderClause := "\nORDER BY t.departure_datetime ASC"
-	paginationClause := fmt.Sprintf("\nLIMIT $%d OFFSET $%d", argIdx, argIdx+1)
+			trip_id, driver_id, vehicle_id, departure_datetime, total_seats,
+			available_seats, departure_location_name, arrival_location_name,
+			departure_waypoint_id, arrival_waypoint_id, segment_price,
+			segment_duration_minutes, relevance_score
+		FROM filtered
+		ORDER BY %s
+		LIMIT $%d OFFSET $%d`, orderBy, argIdx, argIdx+1)
 	dataArgs := append(append([]any{}, args...), pageSize, params.PageIndex*pageSize)
-
-	countQuery := "SELECT COUNT(*)" + fromClause + "\n" + whereClause
-	dataQuery := selectClause + fromClause + "\n" + whereClause + orderClause + paginationClause
 
 	var totalCount int
 	var previews []*domain.TripPreview
@@ -374,6 +478,7 @@ func (r *tripReadRepositoryImpl) SearchScheduledTripSegments(ctx context.Context
 				&p.ArrivalWaypointID,
 				&p.SegmentPrice,
 				&p.SegmentDurationMinutes,
+				&p.RelevanceScore,
 			); err != nil {
 				return err
 			}

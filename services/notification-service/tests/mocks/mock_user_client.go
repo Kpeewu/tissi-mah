@@ -11,6 +11,11 @@ type MockUserClient struct {
 	mock.Mock
 }
 
+func (m *MockUserClient) GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error) {
+	args := m.Called(ctx, firebaseUID)
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockUserClient) GetUserByUserID(ctx context.Context, userID string) (*client.UserInfo, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {

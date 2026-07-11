@@ -92,7 +92,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer emailClient.Close()
 
 	// --- Service ---
-	notifService := service.NewNotificationService(inboxRepo, preferenceRepo, deviceRepo, logger)
+	notifService := service.NewNotificationService(inboxRepo, preferenceRepo, deviceRepo, userClient, logger)
 
 	// --- Dispatcher ---
 	disp := dispatcher.NewDispatcher(

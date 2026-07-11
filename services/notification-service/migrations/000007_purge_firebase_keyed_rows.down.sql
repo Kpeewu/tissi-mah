@@ -1,0 +1,3 @@
+-- No-op : les lignes purgées (device tokens / préférences keyées sur Firebase UID)
+-- ne peuvent pas être restaurées. Les device tokens se recréent à la ré-inscription
+-- de l'app, les préférences repassent au défaut.

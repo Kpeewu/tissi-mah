@@ -356,6 +356,7 @@ message TripPreview {
   int32  SegmentDurationMinutes = 16; // Durée estimée du segment en minutes
   string DriverProfileImageURL  = 17; // URL photo de profil du conducteur
   double DriverRatingAverage    = 18; // Note moyenne du conducteur (0 si aucune note)
+  double RelevanceScore         = 19; // Score de pertinence 0..1 (recherche passager uniquement)
 }
 
 message GetTripsPreviewsResponse {
@@ -551,15 +552,24 @@ message CancelWaypointResponse {
 // =============================================================================
 
 message GetScheduledTripsPreviewsRequest {
+  // Coordonnées de la zone de départ choisie (géocodées côté front).
+  // Si fournies, un trajet matche si son départ est dans le rayon OU si le nom correspond (fuzzy).
   double PassengerPositionLng  = 1;  // 0 = non renseigné
   double PassengerPositionLat  = 2;  // 0 = non renseigné
-  int32  DistanceRange         = 3;  // km, défaut 5 si 0
-  string DepartureLocationName = 4;  // recherche floue (obligatoire)
-  string ArrivalLocationName   = 5;  // recherche floue (obligatoire)
+  int32  DistanceRange         = 3;  // rayon en km autour de la zone de départ, défaut 5 si 0
+  string DepartureLocationName = 4;  // recherche floue sur location_name + city (obligatoire)
+  string ArrivalLocationName   = 5;  // recherche floue sur location_name + city (obligatoire)
   string TripStartDate         = 6;  // "YYYY-MM-DD" (UTC)
   string TripStartHour         = 7;  // "HH:MM" (UTC)
   string TripArrivalHour       = 8;  // "HH:MM" (UTC)
   int32  Index                 = 9;  // pagination 0-based
+  string SortBy                = 10; // "relevance" (défaut si vide) | "departure_time" | "price"
+  int32  MaxPrice              = 11; // prix max du segment en FCFA, 0 = pas de filtre
+  int32  MinSeats              = 12; // places requises sur le segment, 0 = défaut 1
+  bool   AllowLuggages         = 13; // true = uniquement les trajets acceptant les bagages
+  bool   AllowPets             = 14; // true = uniquement les trajets acceptant les animaux
+  bool   AllowFood             = 15; // true = uniquement les trajets acceptant la nourriture
+  bool   AllowSmoking          = 16; // true = uniquement les trajets fumeur
 }
 
 message GetScheduledTripsPreviewsResponse {
