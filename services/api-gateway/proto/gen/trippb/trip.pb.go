@@ -1103,6 +1103,7 @@ type TripPreview struct {
 	SegmentDurationMinutes int32   `protobuf:"varint,16,opt,name=SegmentDurationMinutes,proto3" json:"SegmentDurationMinutes,omitempty"` // Durée estimée du segment en minutes
 	DriverProfileImageURL  string  `protobuf:"bytes,17,opt,name=DriverProfileImageURL,proto3" json:"DriverProfileImageURL,omitempty"`    // URL photo de profil du conducteur
 	DriverRatingAverage    float64 `protobuf:"fixed64,18,opt,name=DriverRatingAverage,proto3" json:"DriverRatingAverage,omitempty"`      // Note moyenne du conducteur (0 si aucune note)
+	RelevanceScore         float64 `protobuf:"fixed64,19,opt,name=RelevanceScore,proto3" json:"RelevanceScore,omitempty"`                // Score de pertinence 0..1 (recherche passager uniquement)
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -1259,6 +1260,13 @@ func (x *TripPreview) GetDriverProfileImageURL() string {
 func (x *TripPreview) GetDriverRatingAverage() float64 {
 	if x != nil {
 		return x.DriverRatingAverage
+	}
+	return 0
+}
+
+func (x *TripPreview) GetRelevanceScore() float64 {
+	if x != nil {
+		return x.RelevanceScore
 	}
 	return 0
 }
@@ -2665,16 +2673,25 @@ func (x *CancelWaypointResponse) GetErrorMessage() string {
 }
 
 type GetScheduledTripsPreviewsRequest struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	PassengerPositionLng  float64                `protobuf:"fixed64,1,opt,name=PassengerPositionLng,proto3" json:"PassengerPositionLng,omitempty"` // 0 = non renseigné
-	PassengerPositionLat  float64                `protobuf:"fixed64,2,opt,name=PassengerPositionLat,proto3" json:"PassengerPositionLat,omitempty"` // 0 = non renseigné
-	DistanceRange         int32                  `protobuf:"varint,3,opt,name=DistanceRange,proto3" json:"DistanceRange,omitempty"`                // km, défaut 5 si 0
-	DepartureLocationName string                 `protobuf:"bytes,4,opt,name=DepartureLocationName,proto3" json:"DepartureLocationName,omitempty"` // recherche floue (obligatoire)
-	ArrivalLocationName   string                 `protobuf:"bytes,5,opt,name=ArrivalLocationName,proto3" json:"ArrivalLocationName,omitempty"`     // recherche floue (obligatoire)
-	TripStartDate         string                 `protobuf:"bytes,6,opt,name=TripStartDate,proto3" json:"TripStartDate,omitempty"`                 // "YYYY-MM-DD" (UTC)
-	TripStartHour         string                 `protobuf:"bytes,7,opt,name=TripStartHour,proto3" json:"TripStartHour,omitempty"`                 // "HH:MM" (UTC)
-	TripArrivalHour       string                 `protobuf:"bytes,8,opt,name=TripArrivalHour,proto3" json:"TripArrivalHour,omitempty"`             // "HH:MM" (UTC)
-	Index                 int32                  `protobuf:"varint,9,opt,name=Index,proto3" json:"Index,omitempty"`                                // pagination 0-based
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Coordonnées de la zone de départ choisie (géocodées côté front).
+	// Si fournies, un trajet matche si son départ est dans le rayon OU si le nom correspond (fuzzy).
+	PassengerPositionLng  float64 `protobuf:"fixed64,1,opt,name=PassengerPositionLng,proto3" json:"PassengerPositionLng,omitempty"` // 0 = non renseigné
+	PassengerPositionLat  float64 `protobuf:"fixed64,2,opt,name=PassengerPositionLat,proto3" json:"PassengerPositionLat,omitempty"` // 0 = non renseigné
+	DistanceRange         int32   `protobuf:"varint,3,opt,name=DistanceRange,proto3" json:"DistanceRange,omitempty"`                // rayon en km autour de la zone de départ, défaut 5 si 0
+	DepartureLocationName string  `protobuf:"bytes,4,opt,name=DepartureLocationName,proto3" json:"DepartureLocationName,omitempty"` // recherche floue sur location_name + city (obligatoire)
+	ArrivalLocationName   string  `protobuf:"bytes,5,opt,name=ArrivalLocationName,proto3" json:"ArrivalLocationName,omitempty"`     // recherche floue sur location_name + city (obligatoire)
+	TripStartDate         string  `protobuf:"bytes,6,opt,name=TripStartDate,proto3" json:"TripStartDate,omitempty"`                 // "YYYY-MM-DD" (UTC)
+	TripStartHour         string  `protobuf:"bytes,7,opt,name=TripStartHour,proto3" json:"TripStartHour,omitempty"`                 // "HH:MM" (UTC)
+	TripArrivalHour       string  `protobuf:"bytes,8,opt,name=TripArrivalHour,proto3" json:"TripArrivalHour,omitempty"`             // "HH:MM" (UTC)
+	Index                 int32   `protobuf:"varint,9,opt,name=Index,proto3" json:"Index,omitempty"`                                // pagination 0-based
+	SortBy                string  `protobuf:"bytes,10,opt,name=SortBy,proto3" json:"SortBy,omitempty"`                              // "relevance" (défaut si vide) | "departure_time" | "price"
+	MaxPrice              int32   `protobuf:"varint,11,opt,name=MaxPrice,proto3" json:"MaxPrice,omitempty"`                         // prix max du segment en FCFA, 0 = pas de filtre
+	MinSeats              int32   `protobuf:"varint,12,opt,name=MinSeats,proto3" json:"MinSeats,omitempty"`                         // places requises sur le segment, 0 = défaut 1
+	AllowLuggages         bool    `protobuf:"varint,13,opt,name=AllowLuggages,proto3" json:"AllowLuggages,omitempty"`               // true = uniquement les trajets acceptant les bagages
+	AllowPets             bool    `protobuf:"varint,14,opt,name=AllowPets,proto3" json:"AllowPets,omitempty"`                       // true = uniquement les trajets acceptant les animaux
+	AllowFood             bool    `protobuf:"varint,15,opt,name=AllowFood,proto3" json:"AllowFood,omitempty"`                       // true = uniquement les trajets acceptant la nourriture
+	AllowSmoking          bool    `protobuf:"varint,16,opt,name=AllowSmoking,proto3" json:"AllowSmoking,omitempty"`                 // true = uniquement les trajets fumeur
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -2770,6 +2787,55 @@ func (x *GetScheduledTripsPreviewsRequest) GetIndex() int32 {
 		return x.Index
 	}
 	return 0
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetSortBy() string {
+	if x != nil {
+		return x.SortBy
+	}
+	return ""
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetMaxPrice() int32 {
+	if x != nil {
+		return x.MaxPrice
+	}
+	return 0
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetMinSeats() int32 {
+	if x != nil {
+		return x.MinSeats
+	}
+	return 0
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetAllowLuggages() bool {
+	if x != nil {
+		return x.AllowLuggages
+	}
+	return false
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetAllowPets() bool {
+	if x != nil {
+		return x.AllowPets
+	}
+	return false
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetAllowFood() bool {
+	if x != nil {
+		return x.AllowFood
+	}
+	return false
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetAllowSmoking() bool {
+	if x != nil {
+		return x.AllowSmoking
+	}
+	return false
 }
 
 type GetScheduledTripsPreviewsResponse struct {
@@ -4532,7 +4598,7 @@ const file_trip_proto_rawDesc = "" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"K\n" +
 	"\x17GetTripsPreviewsRequest\x12\x1a\n" +
 	"\bDriverId\x18\x01 \x01(\tR\bDriverId\x12\x14\n" +
-	"\x05Index\x18\x02 \x01(\x05R\x05Index\"\xe7\x05\n" +
+	"\x05Index\x18\x02 \x01(\x05R\x05Index\"\x8f\x06\n" +
 	"\vTripPreview\x12\x16\n" +
 	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12\x1a\n" +
 	"\bDriverId\x18\x02 \x01(\tR\bDriverId\x12\x1e\n" +
@@ -4556,7 +4622,8 @@ const file_trip_proto_rawDesc = "" +
 	"\fSegmentPrice\x18\x0f \x01(\x05R\fSegmentPrice\x126\n" +
 	"\x16SegmentDurationMinutes\x18\x10 \x01(\x05R\x16SegmentDurationMinutes\x124\n" +
 	"\x15DriverProfileImageURL\x18\x11 \x01(\tR\x15DriverProfileImageURL\x120\n" +
-	"\x13DriverRatingAverage\x18\x12 \x01(\x01R\x13DriverRatingAverage\"w\n" +
+	"\x13DriverRatingAverage\x18\x12 \x01(\x01R\x13DriverRatingAverage\x12&\n" +
+	"\x0eRelevanceScore\x18\x13 \x01(\x01R\x0eRelevanceScore\"w\n" +
 	"\x18GetTripsPreviewsResponse\x127\n" +
 	"\rTripsPreviews\x18\x01 \x03(\v2\x11.trip.TripPreviewR\rTripsPreviews\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"T\n" +
@@ -4658,7 +4725,7 @@ const file_trip_proto_rawDesc = "" +
 	"\x12CancellationReason\x18\x03 \x01(\tR\x12CancellationReason\"V\n" +
 	"\x16CancelWaypointResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\xa4\x03\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\xfa\x04\n" +
 	" GetScheduledTripsPreviewsRequest\x122\n" +
 	"\x14PassengerPositionLng\x18\x01 \x01(\x01R\x14PassengerPositionLng\x122\n" +
 	"\x14PassengerPositionLat\x18\x02 \x01(\x01R\x14PassengerPositionLat\x12$\n" +
@@ -4668,7 +4735,15 @@ const file_trip_proto_rawDesc = "" +
 	"\rTripStartDate\x18\x06 \x01(\tR\rTripStartDate\x12$\n" +
 	"\rTripStartHour\x18\a \x01(\tR\rTripStartHour\x12(\n" +
 	"\x0fTripArrivalHour\x18\b \x01(\tR\x0fTripArrivalHour\x12\x14\n" +
-	"\x05Index\x18\t \x01(\x05R\x05Index\"\xbe\x01\n" +
+	"\x05Index\x18\t \x01(\x05R\x05Index\x12\x16\n" +
+	"\x06SortBy\x18\n" +
+	" \x01(\tR\x06SortBy\x12\x1a\n" +
+	"\bMaxPrice\x18\v \x01(\x05R\bMaxPrice\x12\x1a\n" +
+	"\bMinSeats\x18\f \x01(\x05R\bMinSeats\x12$\n" +
+	"\rAllowLuggages\x18\r \x01(\bR\rAllowLuggages\x12\x1c\n" +
+	"\tAllowPets\x18\x0e \x01(\bR\tAllowPets\x12\x1c\n" +
+	"\tAllowFood\x18\x0f \x01(\bR\tAllowFood\x12\"\n" +
+	"\fAllowSmoking\x18\x10 \x01(\bR\fAllowSmoking\"\xbe\x01\n" +
 	"!GetScheduledTripsPreviewsResponse\x127\n" +
 	"\rTripsPreviews\x18\x01 \x03(\v2\x11.trip.TripPreviewR\rTripsPreviews\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\x12\x1c\n" +

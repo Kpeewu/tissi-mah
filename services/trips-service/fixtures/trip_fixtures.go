@@ -39,6 +39,21 @@ func WithTotalSeats(n int16) TripOption {
 	}
 }
 
+// WithDepartureDatetime définit la date/heure de départ du trajet.
+func WithDepartureDatetime(dt time.Time) TripOption {
+	return func(t *domain.Trip) { t.DepartureDatetime = dt }
+}
+
+// WithAllowOptions définit les options du trajet (bagages, animaux, nourriture, fumeur).
+func WithAllowOptions(luggages, pets, food, smoking bool) TripOption {
+	return func(t *domain.Trip) {
+		t.AllowLuggages = luggages
+		t.AllowPets = pets
+		t.AllowFood = food
+		t.AllowSmoking = smoking
+	}
+}
+
 // NewTestTrip crée un trajet de test avec des valeurs par défaut cohérentes.
 // Par défaut : IDs générés par UUID, départ dans 1h, arrivée dans 3h,
 // statut scheduled, 4 places, méthode de paiement "cash".
@@ -95,6 +110,24 @@ func WithSequencerOrder(order int16) WaypointOption {
 // WithCity définit la ville du waypoint.
 func WithCity(city string) WaypointOption {
 	return func(w *domain.Waypoint) { w.City = city }
+}
+
+// WithLocationName définit le nom du lieu du waypoint.
+func WithLocationName(name string) WaypointOption {
+	return func(w *domain.Waypoint) { w.LocationName = name }
+}
+
+// WithWaypointCoordinates définit les coordonnées WGS84 du waypoint.
+func WithWaypointCoordinates(lng, lat float64) WaypointOption {
+	return func(w *domain.Waypoint) {
+		w.LocationLng = lng
+		w.LocationLat = lat
+	}
+}
+
+// WithPriceFromPrevious définit le prix depuis le waypoint précédent.
+func WithPriceFromPrevious(price int) WaypointOption {
+	return func(w *domain.Waypoint) { w.PriceFromPrevious = price }
 }
 
 // NewTestWaypoint crée un waypoint de test avec des valeurs par défaut.

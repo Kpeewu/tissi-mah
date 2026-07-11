@@ -207,4 +207,34 @@ func TestGetScheduledTripsPreviews(t *testing.T) {
 		})
 		require.Error(t, err)
 	})
+
+	t.Run("erreur - SortBy invalide → InvalidInput", func(t *testing.T) {
+		_, _, _, _, svc := newTestService()
+		_, err := svc.GetScheduledTripsPreviews(context.Background(), &serviceInterfaces.GetScheduledTripsPreviewsInput{
+			DepartureLocationName: "A", ArrivalLocationName: "B", SortBy: "banana",
+		})
+		assert.ErrorIs(t, err, tripErrors.ErrorInvalidInput)
+	})
+
+	t.Run("erreur - MaxPrice négatif → InvalidInput", func(t *testing.T) {
+		_, _, _, _, svc := newTestService()
+		_, err := svc.GetScheduledTripsPreviews(context.Background(), &serviceInterfaces.GetScheduledTripsPreviewsInput{
+			DepartureLocationName: "A", ArrivalLocationName: "B", MaxPrice: -1,
+		})
+		assert.ErrorIs(t, err, tripErrors.ErrorInvalidInput)
+	})
+
+	t.Run("défauts - SortBy vide → relevance, MinSeats 0 → 1 transmis au repo", func(t *testing.T) {
+		readRepo, _, _, _, svc := newTestService()
+		ctx := context.Background()
+		readRepo.On("SearchScheduledTripSegments", ctx, mock.MatchedBy(func(p *repoInterfaces.SearchTripsParams) bool {
+			return p.SortBy == "relevance" && p.MinSeats == 1
+		})).Return(&repoInterfaces.SearchTripsResult{Previews: nil, TotalCount: 0}, nil)
+
+		_, err := svc.GetScheduledTripsPreviews(ctx, &serviceInterfaces.GetScheduledTripsPreviewsInput{
+			DepartureLocationName: "A", ArrivalLocationName: "B",
+		})
+		require.NoError(t, err)
+		readRepo.AssertExpectations(t)
+	})
 }

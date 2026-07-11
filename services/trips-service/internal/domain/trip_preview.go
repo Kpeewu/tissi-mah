@@ -17,4 +17,6 @@ type TripPreview struct {
 	ArrivalWaypointID      string
 	SegmentPrice           int
 	SegmentDurationMinutes int
+	// Score de pertinence 0..1 (recherche passager uniquement, 0 sinon)
+	RelevanceScore float64
 }
