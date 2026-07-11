@@ -355,6 +355,7 @@ func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serv
 				Status:           review.Status,
 				AttemptNumber:    review.AttemptNumber,
 				SessionExpiresAt: review.SessionExpiresAt,
+				DocumentType:     review.DocumentType,
 			})
 		}
 
@@ -1055,29 +1056,70 @@ func (s *kycServiceImpl) ValidateDocument(ctx context.Context, input serviceInte
 		}
 	}
 
-	now := time.Now().UTC()
-	review := &domain.Review{
-		UserID:               ownerUserID,
-		DocumentType:         documentType,
-		LogicalDocumentType:  domain.ToLogicalDocumentType(documentType),
-		PersonaInquiryID:     "",
-		ReviewType:           "manual",
-		Status:               "completed",
-		Decision:             input.Decision,
-		ReasonRejection:      input.ReasonRejection,
-		RejectionDetails:     input.RejectionDetails,
-		Notes:                input.Notes,
-		ReviewedBy:           input.SupportAgentID,
-		ReviewedAt:           &now,
-		UserDocumentID:       userDocumentID,
-		SecondUserDocumentID: secondUserDocumentID,
-		VehicleDocumentID:    vehicleDocumentID,
+	// Chercher une review non terminale (créée à l'upload) déjà en place pour ce
+	// document : si trouvée, la faire passer à "completed" via Update plutôt que
+	// d'en créer une nouvelle. Sinon (documents uploadés avant ce correctif, ou
+	// tout autre cas limite), fallback vers le comportement historique (Create).
+	var existingPendingReview *domain.Review
+	for _, r := range existingReviews {
+		if r.Status == "completed" {
+			continue
+		}
+		if vehicleDocumentID != "" {
+			if r.VehicleDocumentID == vehicleDocumentID {
+				existingPendingReview = r
+				break
+			}
+		} else if r.VehicleDocumentID == "" && r.LogicalDocumentType == logicalType {
+			existingPendingReview = r
+			break
+		}
 	}
 
-	created, err := s.fileClient.CreateDocumentReview(ctx, review)
-	if err != nil {
-		s.logger.Error("failed to create manual document review", zap.Error(err))
-		return nil, kycErrors.ErrorFileServiceUnavailable
+	now := time.Now().UTC()
+	var created *domain.Review
+
+	if existingPendingReview != nil {
+		existingPendingReview.Status = "completed"
+		existingPendingReview.Decision = input.Decision
+		existingPendingReview.ReasonRejection = input.ReasonRejection
+		existingPendingReview.RejectionDetails = input.RejectionDetails
+		existingPendingReview.Notes = input.Notes
+		existingPendingReview.ReviewedBy = input.SupportAgentID
+		existingPendingReview.ReviewType = "manual"
+		existingPendingReview.ReviewedAt = &now // valeur locale ; file-service recalcule reviewed_at server-side
+
+		updated, err := s.fileClient.UpdateDocumentReview(ctx, existingPendingReview)
+		if err != nil {
+			s.logger.Error("failed to update pending document review to completed", zap.Error(err), zap.String("reviewID", existingPendingReview.ReviewID))
+			return nil, kycErrors.ErrorFileServiceUnavailable
+		}
+		created = updated
+	} else {
+		review := &domain.Review{
+			UserID:               ownerUserID,
+			DocumentType:         documentType,
+			LogicalDocumentType:  domain.ToLogicalDocumentType(documentType),
+			PersonaInquiryID:     "",
+			ReviewType:           "manual",
+			Status:               "completed",
+			Decision:             input.Decision,
+			ReasonRejection:      input.ReasonRejection,
+			RejectionDetails:     input.RejectionDetails,
+			Notes:                input.Notes,
+			ReviewedBy:           input.SupportAgentID,
+			ReviewedAt:           &now,
+			UserDocumentID:       userDocumentID,
+			SecondUserDocumentID: secondUserDocumentID,
+			VehicleDocumentID:    vehicleDocumentID,
+		}
+
+		c, err := s.fileClient.CreateDocumentReview(ctx, review)
+		if err != nil {
+			s.logger.Error("failed to create manual document review", zap.Error(err))
+			return nil, kycErrors.ErrorFileServiceUnavailable
+		}
+		created = c
 	}
 
 	s.logger.Info("document validated manually",

@@ -74,6 +74,49 @@ func NewFileService(
 	}
 }
 
+// createPendingReview insère directement une review "pending" via reviewWrite,
+// sans passer par CreateDocumentReview — évite son effet de bord de
+// synchronisation du statut des documents liés. Cet effet de bord est neutre
+// à l'upload initial (le document venant d'être créé est déjà "pending"),
+// mais dangereux lors d'une resoumission via ChangeDocument : la face
+// compagnon d'un document recto-verso n'a pas forcément été touchée par
+// l'opération en cours et ne doit pas voir son statut ("rejected"/"expired")
+// écrasé tant qu'elle n'a pas été explicitement resoumise.
+func (s *fileServiceImpl) createPendingReview(ctx context.Context, userID, documentType, userDocumentID, secondUserDocumentID, vehicleDocumentID string) {
+	var userDocPtr, secondDocPtr, vehicleDocPtr *string
+	if userDocumentID != "" {
+		userDocPtr = &userDocumentID
+	}
+	if secondUserDocumentID != "" {
+		secondDocPtr = &secondUserDocumentID
+	}
+	if vehicleDocumentID != "" {
+		vehicleDocPtr = &vehicleDocumentID
+	}
+
+	review := &domain.DocumentReview{
+		ReviewID:             uuid.New().String(),
+		UserID:               userID,
+		DocumentType:         documentType,
+		LogicalDocumentType:  domain.ToLogicalDocumentType(documentType),
+		UserDocumentID:       userDocPtr,
+		SecondUserDocumentID: secondDocPtr,
+		VehicleDocumentID:    vehicleDocPtr,
+		AttemptNumber:        1,
+		Status:               "pending",
+		Decision:             "pending",
+		ReviewType:           "manual",
+		UpdatedAt:            time.Now().UTC(),
+	}
+	if _, err := s.reviewWrite.Create(ctx, review); err != nil {
+		s.logger.Error("failed to create pending review",
+			zap.String("userID", userID),
+			zap.String("documentType", documentType),
+			zap.Error(err),
+		)
+	}
+}
+
 // --- Documents utilisateur ---
 
 func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceInterfaces.UploadUserDocumentInput) (*domain.UserDocument, error) {
@@ -848,6 +891,50 @@ func (s *fileServiceImpl) ChangeDocument(ctx context.Context, input serviceInter
 		}
 		_ = s.userDocWrite.MarkAsReplaced(ctx, userDoc.DocumentID, documentID)
 
+		// Chercher une review non terminale déjà en cours pour ce document logique
+		// (2e face d'un doc recto-verso déjà repointée par un précédent appel dans
+		// ce même cycle de resoumission) : si trouvée, ne rien faire (elle rend déjà
+		// le document visible comme "pending" ; ValidateDocument re-résout la face
+		// compagnon à jour au moment de la décision, indépendamment du FK stocké
+		// sur la review). Sinon, créer une nouvelle review "pending" référençant
+		// l'état courant des deux faces (convention : front = UserDocumentID,
+		// back = SecondUserDocumentID, quelle que soit la face qui vient d'être
+		// remplacée).
+		logicalType := domain.ToLogicalDocumentType(userDoc.DocumentType)
+		existingReviews, _ := s.reviewRead.GetByUserID(ctx, input.UserID)
+		hasNonCompletedReview := false
+		for _, r := range existingReviews {
+			if r.VehicleDocumentID == nil && r.LogicalDocumentType == logicalType && r.Status != "completed" {
+				hasNonCompletedReview = true
+				break
+			}
+		}
+		if !hasNonCompletedReview {
+			companionType := domain.CompanionDocumentType(userDoc.DocumentType)
+			var reviewDocType, primaryDocID, secondDocID string
+			switch {
+			case companionType == "":
+				// Type à face unique (passport).
+				reviewDocType = newDoc.DocumentType
+				primaryDocID = newDoc.DocumentID
+			case userDoc.DocumentType == "idCardBack" || userDoc.DocumentType == "driverLicenceBack":
+				// On vient de remplacer le verso : front = companion courant.
+				reviewDocType = companionType
+				secondDocID = newDoc.DocumentID
+				if frontDoc, ferr := s.userDocRead.GetCurrentByUserIDAndType(ctx, input.UserID, companionType); ferr == nil && frontDoc != nil {
+					primaryDocID = frontDoc.DocumentID
+				}
+			default:
+				// On vient de remplacer le recto (front).
+				reviewDocType = newDoc.DocumentType
+				primaryDocID = newDoc.DocumentID
+				if backDoc, berr := s.userDocRead.GetCurrentByUserIDAndType(ctx, input.UserID, companionType); berr == nil && backDoc != nil {
+					secondDocID = backDoc.DocumentID
+				}
+			}
+			s.createPendingReview(ctx, input.UserID, reviewDocType, primaryDocID, secondDocID, "")
+		}
+
 		presignedURL, _ := s.storage.GeneratePresignedURL(ctx, newDoc.DocumentKey, time.Hour)
 		s.logger.Info("user document changed",
 			zap.String("oldFileID", input.FileID),
@@ -932,6 +1019,20 @@ func (s *fileServiceImpl) ChangeDocument(ctx context.Context, input serviceInter
 		return nil, fileErrors.ErrorInternalServer
 	}
 	_ = s.vehicleDocWrite.MarkAsReplaced(ctx, vehicleDoc.DocumentID, documentID)
+
+	// Document véhicule à face unique : pas de compagnon à résoudre, simple
+	// garde de non-duplication avant de créer la nouvelle review "pending".
+	existingVehicleReviews, _ := s.reviewRead.GetByUserID(ctx, input.UserID)
+	hasNonCompletedVehicleReview := false
+	for _, r := range existingVehicleReviews {
+		if r.VehicleDocumentID != nil && *r.VehicleDocumentID == vehicleDoc.DocumentID && r.Status != "completed" {
+			hasNonCompletedVehicleReview = true
+			break
+		}
+	}
+	if !hasNonCompletedVehicleReview {
+		s.createPendingReview(ctx, input.UserID, newVehicleDoc.DocumentType, "", "", newVehicleDoc.DocumentID)
+	}
 
 	presignedURL, _ := s.storage.GeneratePresignedURL(ctx, newVehicleDoc.DocumentKey, time.Hour)
 	s.logger.Info("vehicle document changed",
@@ -1071,6 +1172,18 @@ func (s *fileServiceImpl) UploadIdDocument(ctx context.Context, input serviceInt
 		})
 	}
 
+	// Créer une review "pending" dès l'upload pour rendre le document visible
+	// dans GetKYCStatus entre l'upload et la décision manuelle. ValidateDocument
+	// mettra à jour cette review (Update) au moment de la décision plutôt que
+	// d'en créer une nouvelle.
+	if len(created) > 0 {
+		var secondDocID string
+		if len(created) > 1 {
+			secondDocID = created[1].DocumentID
+		}
+		s.createPendingReview(ctx, input.UserID, created[0].DocumentType, created[0].DocumentID, secondDocID, "")
+	}
+
 	return created, nil
 }
 
@@ -1191,6 +1304,11 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 				DocumentName: doc.DocumentName,
 			})
 		}
+
+		// Créer une review "pending" pour le permis fraîchement uploadé (recto + verso).
+		if len(created) >= 2 {
+			s.createPendingReview(ctx, input.UserID, created[0].DocumentType, created[0].DocumentID, created[1].DocumentID, "")
+		}
 	}
 
 	// --- Documents véhicule (assurance + carte grise) ---
@@ -1282,6 +1400,9 @@ func (s *fileServiceImpl) UploadVehicleDocuments(ctx context.Context, input serv
 			DocumentType: doc.DocumentType,
 			DocumentName: doc.DocumentName,
 		})
+
+		// Créer une review "pending" pour ce document véhicule fraîchement uploadé.
+		s.createPendingReview(ctx, input.UserID, u.docType, "", "", doc.DocumentID)
 	}
 
 	return created, nil

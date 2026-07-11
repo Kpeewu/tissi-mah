@@ -23,10 +23,11 @@ import (
 )
 
 var (
-	testPool    *pgxpool.Pool
-	grpcClient  filepb.FileServiceClient
-	grpcConn    *grpc.ClientConn
-	mockStorage *mocks.MockStorageClient
+	testPool       *pgxpool.Pool
+	grpcClient     filepb.FileServiceClient
+	grpcConn       *grpc.ClientConn
+	mockStorage    *mocks.MockStorageClient
+	mockUserClient *mocks.MockUserClient
 )
 
 func TestMain(m *testing.M) {
@@ -73,7 +74,11 @@ func TestMain(m *testing.M) {
 	}
 
 	srv := grpc.NewServer()
-	mockUserClient := new(mocks.MockUserClient)
+	// mockUserClient : UploadIdDocument/UploadVehicleDocuments résolvent le Firebase UID
+	// (injecté via metadata x-firebase-uid) en profil utilisateur via user-service. Les
+	// tests qui exercent ces RPCs enregistrent leur propre attente via stubUserProfile
+	// (le mock testify sous-jacent ne supporte pas les valeurs de retour dynamiques).
+	mockUserClient = new(mocks.MockUserClient)
 	mockVehicleClient := new(mocks.MockVehicleClient)
 	// Dégradation gracieuse par défaut : pas d'infos véhicule résolues en e2e.
 	mockVehicleClient.On("GetVehicleInfo", mock.Anything, mock.Anything).Return(nil, nil)

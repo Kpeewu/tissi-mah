@@ -70,6 +70,34 @@ func stubVehicleDoc(docID, vehicleID, docType string) *domain.VehicleDocument {
 	}
 }
 
+// allowPendingReviewCreation configure des mocks passe-partout (optionnels via
+// .Maybe()) pour que les appels internes à CreateDocumentReview — désormais
+// déclenchés depuis UploadIdDocument/UploadVehicleDocuments/ChangeDocument
+// pour créer la review "pending" à l'upload — n'échouent pas les tests qui ne
+// portent pas spécifiquement sur ce comportement. À appeler après les mocks
+// spécifiques du test (pour ne pas les masquer), avant newService(...).
+func allowPendingReviewCreation(
+	userDocRead *mocks.MockUserDocumentRepositoryRead,
+	userDocWrite *mocks.MockUserDocumentRepositoryWrite,
+	vehicleDocRead *mocks.MockVehicleDocumentRepositoryRead,
+	vehicleDocWrite *mocks.MockVehicleDocumentRepositoryWrite,
+	reviewRead *mocks.MockDocumentReviewRepositoryRead,
+	reviewWrite *mocks.MockDocumentReviewRepositoryWrite,
+) {
+	userDocRead.On("GetByID", mock.Anything, mock.AnythingOfType("string")).
+		Return(&domain.UserDocument{DocumentID: "any", Status: "pending"}, nil).Maybe()
+	userDocWrite.On("Update", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).
+		Return(&domain.UserDocument{}, nil).Maybe()
+	vehicleDocRead.On("GetByID", mock.Anything, mock.AnythingOfType("string")).
+		Return(&domain.VehicleDocument{DocumentID: "any", Status: "pending"}, nil).Maybe()
+	vehicleDocWrite.On("Update", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).
+		Return(&domain.VehicleDocument{}, nil).Maybe()
+	reviewRead.On("GetByUserID", mock.Anything, mock.AnythingOfType("string")).
+		Return([]*domain.DocumentReview{}, nil).Maybe()
+	reviewWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.DocumentReview")).
+		Return("review-id", nil).Maybe()
+}
+
 // fakeJPEG retourne un slice de bytes valide pour simuler un fichier JPEG (magic bytes).
 func fakeJPEG() []byte {
 	// JPEG magic bytes : FF D8 FF
@@ -718,6 +746,8 @@ func TestFileService_ChangeDocument(t *testing.T) {
 		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
 		userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
 		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
+		reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+		reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
 		storage := &mocks.MockStorageClient{}
 
 		existing := stubUserDoc("doc-1", "user-1", "idCardFront")
@@ -731,9 +761,17 @@ func TestFileService_ChangeDocument(t *testing.T) {
 		userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).Return("new-doc", nil)
 		userDocWrite.On("MarkAsReplaced", mock.Anything, "doc-1", mock.AnythingOfType("string")).Return(nil)
 
+		// Création de la review "pending" pour le document remplacé : aucune review
+		// non terminale déjà en cours, pas de face compagnon (idCardBack) trouvée.
+		reviewRead.On("GetByUserID", mock.Anything, "user-1").Return([]*domain.DocumentReview{}, nil)
+		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "idCardBack").Return(nil, fileErrors.ErrorDocumentNotFound)
+		userDocRead.On("GetByID", mock.Anything, mock.AnythingOfType("string")).Return(existing, nil)
+		userDocWrite.On("Update", mock.Anything, mock.Anything).Return(existing, nil)
+		reviewWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.DocumentReview")).Return("review-1", nil)
+
 		svc := newService(userDocRead, userDocWrite,
 			vehicleDocRead, &mocks.MockVehicleDocumentRepositoryWrite{},
-			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			reviewRead, reviewWrite,
 			storage)
 
 		result, err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{
@@ -745,6 +783,50 @@ func TestFileService_ChangeDocument(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, result.DocumentID)
 		userDocWrite.AssertCalled(t, "MarkAsReplaced", mock.Anything, "doc-1", mock.AnythingOfType("string"))
+		reviewWrite.AssertCalled(t, "Create", mock.Anything, mock.MatchedBy(func(r *domain.DocumentReview) bool {
+			return r.Status == "pending" && r.Decision == "pending" && r.DocumentType == "idCardFront"
+		}))
+	})
+
+	t.Run("should not create a duplicate pending review when one already covers the logical document", func(t *testing.T) {
+		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+		userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
+		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
+		reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+		reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+		storage := &mocks.MockStorageClient{}
+
+		existing := stubUserDoc("doc-2", "user-1", "idCardBack")
+		existing.Status = "rejected"
+		userDocRead.On("GetByID", mock.Anything, "doc-2").Return(existing, nil)
+		vehicleDocRead.On("GetByID", mock.Anything, "doc-2").Return(nil, fileErrors.ErrorDocumentNotFound)
+		storage.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("int64")).
+			Return("https://storage.example.com/idCardBack/user-1/new.jpg", nil)
+		storage.On("GeneratePresignedURL", mock.Anything, mock.Anything, mock.Anything).
+			Return("https://presigned.example.com/doc", nil)
+		userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).Return("new-doc", nil)
+		userDocWrite.On("MarkAsReplaced", mock.Anything, "doc-2", mock.AnythingOfType("string")).Return(nil)
+
+		// La face recto (idCardFront) a déjà été resoumise juste avant dans le même
+		// cycle : une review non terminale couvre déjà idCard pour cet utilisateur.
+		reviewRead.On("GetByUserID", mock.Anything, "user-1").Return([]*domain.DocumentReview{
+			{ReviewID: "review-existing", LogicalDocumentType: "idCard", Status: "pending"},
+		}, nil)
+
+		svc := newService(userDocRead, userDocWrite,
+			vehicleDocRead, &mocks.MockVehicleDocumentRepositoryWrite{},
+			reviewRead, reviewWrite,
+			storage)
+
+		result, err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{
+			UserID:      "user-1",
+			FileID:      "doc-2",
+			NewDocument: fakeJPEG(),
+		})
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, result.DocumentID)
+		reviewWrite.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 	})
 
 	t.Run("should return ErrorInvalidDocumentType for empty new document", func(t *testing.T) {
@@ -824,9 +906,15 @@ func TestFileService_UploadIdDocument(t *testing.T) {
 		userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).
 			Return("doc-id", nil)
 
+		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
+		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
+		reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+		reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+		allowPendingReviewCreation(userDocRead, userDocWrite, vehicleDocRead, vehicleDocWrite, reviewRead, reviewWrite)
+
 		svc := newService(userDocRead, userDocWrite,
-			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
-			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			vehicleDocRead, vehicleDocWrite,
+			reviewRead, reviewWrite,
 			storage)
 
 		_, err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
@@ -864,9 +952,15 @@ func TestFileService_UploadIdDocument(t *testing.T) {
 			}).
 			Return("doc-id", nil)
 
+		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
+		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
+		reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+		reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+		allowPendingReviewCreation(userDocRead, userDocWrite, vehicleDocRead, vehicleDocWrite, reviewRead, reviewWrite)
+
 		svc := newService(userDocRead, userDocWrite,
-			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
-			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			vehicleDocRead, vehicleDocWrite,
+			reviewRead, reviewWrite,
 			storage)
 
 		docs, err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
@@ -922,9 +1016,15 @@ func TestFileService_UploadIdDocument(t *testing.T) {
 		userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).
 			Return("doc-id", nil)
 
+		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
+		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
+		reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+		reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+		allowPendingReviewCreation(userDocRead, userDocWrite, vehicleDocRead, vehicleDocWrite, reviewRead, reviewWrite)
+
 		svc := newService(userDocRead, userDocWrite,
-			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
-			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			vehicleDocRead, vehicleDocWrite,
+			reviewRead, reviewWrite,
 			storage)
 
 		_, err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
@@ -1013,9 +1113,15 @@ func TestFileService_UploadIdDocument(t *testing.T) {
 			}).
 			Return("doc-id", nil)
 
+		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
+		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
+		reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+		reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+		allowPendingReviewCreation(userDocRead, userDocWrite, vehicleDocRead, vehicleDocWrite, reviewRead, reviewWrite)
+
 		svc := newService(userDocRead, userDocWrite,
-			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
-			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			vehicleDocRead, vehicleDocWrite,
+			reviewRead, reviewWrite,
 			storage)
 
 		_, err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
@@ -1057,9 +1163,15 @@ func TestFileService_UploadIdDocument(t *testing.T) {
 			}).
 			Return("doc-id", nil)
 
+		vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
+		vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
+		reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+		reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+		allowPendingReviewCreation(userDocRead, userDocWrite, vehicleDocRead, vehicleDocWrite, reviewRead, reviewWrite)
+
 		svc := newService(userDocRead, userDocWrite,
-			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
-			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			vehicleDocRead, vehicleDocWrite,
+			reviewRead, reviewWrite,
 			storage)
 
 		_, err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
@@ -1138,9 +1250,13 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		vehicleDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).
 			Return("vdoc-id", nil)
 
+		reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+		reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+		allowPendingReviewCreation(userDocRead, userDocWrite, vehicleDocRead, vehicleDocWrite, reviewRead, reviewWrite)
+
 		svc := newService(userDocRead, userDocWrite,
 			vehicleDocRead, vehicleDocWrite,
-			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			reviewRead, reviewWrite,
 			storage)
 
 		docs, err := svc.UploadVehicleDocuments(context.Background(), validVehicleDocs("vehicle-1"))
@@ -1171,9 +1287,13 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 		vehicleDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).
 			Return("vdoc-id", nil)
 
+		reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+		reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+		allowPendingReviewCreation(userDocRead, userDocWrite, vehicleDocRead, vehicleDocWrite, reviewRead, reviewWrite)
+
 		svc := newService(userDocRead, userDocWrite,
 			vehicleDocRead, vehicleDocWrite,
-			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			reviewRead, reviewWrite,
 			storage)
 
 		docs, err := svc.UploadVehicleDocuments(context.Background(), validVehicleDocs("vehicle-1"))
@@ -1283,9 +1403,13 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 			}).
 			Return("vdoc-id", nil)
 
+		reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+		reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+		allowPendingReviewCreation(userDocRead, userDocWrite, vehicleDocRead, vehicleDocWrite, reviewRead, reviewWrite)
+
 		svc := newService(userDocRead, userDocWrite,
 			vehicleDocRead, vehicleDocWrite,
-			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			reviewRead, reviewWrite,
 			storage)
 
 		_, err := svc.UploadVehicleDocuments(context.Background(), validVehicleDocs("vehicle-1"))
@@ -1332,9 +1456,13 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 			}).
 			Return("vdoc-id", nil)
 
+		reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+		reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+		allowPendingReviewCreation(userDocRead, userDocWrite, vehicleDocRead, vehicleDocWrite, reviewRead, reviewWrite)
+
 		svc := newService(userDocRead, userDocWrite,
 			vehicleDocRead, vehicleDocWrite,
-			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			reviewRead, reviewWrite,
 			storage)
 
 		_, err := svc.UploadVehicleDocuments(context.Background(), validVehicleDocs("vehicle-1"))
@@ -1375,9 +1503,13 @@ func TestFileService_UploadVehicleDocuments(t *testing.T) {
 			}).
 			Return("vdoc-id", nil)
 
+		reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+		reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+		allowPendingReviewCreation(userDocRead, userDocWrite, vehicleDocRead, vehicleDocWrite, reviewRead, reviewWrite)
+
 		svc := newService(userDocRead, userDocWrite,
 			vehicleDocRead, vehicleDocWrite,
-			&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+			reviewRead, reviewWrite,
 			storage)
 
 		input := validVehicleDocs("vehicle-2")
@@ -1807,6 +1939,8 @@ func TestFileService_ChangeDocument_DetectsHEIC(t *testing.T) {
 	userDocRead := &mocks.MockUserDocumentRepositoryRead{}
 	vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
 	userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
+	reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+	reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
 	storage := &mocks.MockStorageClient{}
 
 	existing := stubUserDoc("doc-1", "user-1", "idCardFront")
@@ -1814,6 +1948,11 @@ func TestFileService_ChangeDocument_DetectsHEIC(t *testing.T) {
 	userDocRead.On("GetByID", mock.Anything, "doc-1").Return(existing, nil)
 	vehicleDocRead.On("GetByID", mock.Anything, "doc-1").Return(nil, fileErrors.ErrorDocumentNotFound)
 	userDocWrite.On("MarkAsReplaced", mock.Anything, "doc-1", mock.AnythingOfType("string")).Return(nil)
+	reviewRead.On("GetByUserID", mock.Anything, "user-1").Return([]*domain.DocumentReview{}, nil)
+	userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "idCardBack").Return(nil, fileErrors.ErrorDocumentNotFound)
+	userDocRead.On("GetByID", mock.Anything, mock.AnythingOfType("string")).Return(existing, nil)
+	userDocWrite.On("Update", mock.Anything, mock.Anything).Return(existing, nil)
+	reviewWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.DocumentReview")).Return("review-1", nil)
 
 	var capturedKey string
 	storage.On("Upload",
@@ -1833,7 +1972,7 @@ func TestFileService_ChangeDocument_DetectsHEIC(t *testing.T) {
 
 	svc := newService(userDocRead, userDocWrite,
 		vehicleDocRead, &mocks.MockVehicleDocumentRepositoryWrite{},
-		&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+		reviewRead, reviewWrite,
 		storage)
 
 	_, err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{
@@ -2009,9 +2148,15 @@ func TestFileService_UploadIdDocument_MetadataSharedBetweenFrontAndBack(t *testi
 		Run(func(args mock.Arguments) { captured = append(captured, args.Get(1).(*domain.UserDocument)) }).
 		Return("new-id", nil)
 
+	vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
+	vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
+	reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+	reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+	allowPendingReviewCreation(userDocRead, userDocWrite, vehicleDocRead, vehicleDocWrite, reviewRead, reviewWrite)
+
 	svc := newService(userDocRead, userDocWrite,
-		&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
-		&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+		vehicleDocRead, vehicleDocWrite,
+		reviewRead, reviewWrite,
 		storage)
 
 	_, err := svc.UploadIdDocument(context.Background(), serviceInterfaces.UploadIdDocumentInput{
@@ -2069,16 +2214,20 @@ func TestFileService_UploadIdDocument_AlreadySubmitted(t *testing.T) {
 // et un userDocRead qui renvoie un permis utilisateur existant (permis skippé).
 func newVehicleSvcWithReadMock(vehicleID string) (serviceInterfaces.FileService, *mocks.MockVehicleDocumentRepositoryWrite, *mocks.MockStorageClient) {
 	userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+	userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
 	vehicleDocRead := &mocks.MockVehicleDocumentRepositoryRead{}
 	vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
+	reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+	reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
 	storage := &mocks.MockStorageClient{}
 	userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, mock.AnythingOfType("string"), "driverLicenceFront").
 		Return(stubUserDoc("udoc-dl", "user-1", "driverLicenceFront"), nil)
 	vehicleDocRead.On("GetCurrentByVehicleIDAndType", mock.Anything, vehicleID, mock.AnythingOfType("string")).
 		Return(nil, fileErrors.ErrorDocumentNotFound)
-	svc := newService(userDocRead, &mocks.MockUserDocumentRepositoryWrite{},
+	allowPendingReviewCreation(userDocRead, userDocWrite, vehicleDocRead, vehicleDocWrite, reviewRead, reviewWrite)
+	svc := newService(userDocRead, userDocWrite,
 		vehicleDocRead, vehicleDocWrite,
-		&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+		reviewRead, reviewWrite,
 		storage)
 	return svc, vehicleDocWrite, storage
 }
@@ -2210,9 +2359,14 @@ func TestFileService_ChangeDocument_StatusRules(t *testing.T) {
 			userDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.UserDocument")).Return("new-id", nil)
 			userDocWrite.On("MarkAsReplaced", mock.Anything, "doc-1", mock.AnythingOfType("string")).Return(nil)
 
+			vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
+			reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+			reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+			allowPendingReviewCreation(userDocRead, userDocWrite, vehicleDocRead, vehicleDocWrite, reviewRead, reviewWrite)
+
 			svc := newService(userDocRead, userDocWrite,
-				vehicleDocRead, &mocks.MockVehicleDocumentRepositoryWrite{},
-				&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+				vehicleDocRead, vehicleDocWrite,
+				reviewRead, reviewWrite,
 				storage)
 
 			result, err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{
@@ -2270,9 +2424,14 @@ func TestFileService_ChangeDocument_ReplaceVehicleDocument(t *testing.T) {
 	vehicleDocWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.VehicleDocument")).Return("new-vdoc", nil)
 	vehicleDocWrite.On("MarkAsReplaced", mock.Anything, "vdoc-1", mock.AnythingOfType("string")).Return(nil)
 
-	svc := newService(userDocRead, &mocks.MockUserDocumentRepositoryWrite{},
+	userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
+	reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+	reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+	allowPendingReviewCreation(userDocRead, userDocWrite, vehicleDocRead, vehicleDocWrite, reviewRead, reviewWrite)
+
+	svc := newService(userDocRead, userDocWrite,
 		vehicleDocRead, vehicleDocWrite,
-		&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+		reviewRead, reviewWrite,
 		storage)
 
 	result, err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{
@@ -2313,9 +2472,14 @@ func TestFileService_ChangeDocument_MetadataOverride(t *testing.T) {
 		Return("new-id", nil)
 	userDocWrite.On("MarkAsReplaced", mock.Anything, "doc-1", mock.AnythingOfType("string")).Return(nil)
 
+	vehicleDocWrite := &mocks.MockVehicleDocumentRepositoryWrite{}
+	reviewRead := &mocks.MockDocumentReviewRepositoryRead{}
+	reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+	allowPendingReviewCreation(userDocRead, userDocWrite, vehicleDocRead, vehicleDocWrite, reviewRead, reviewWrite)
+
 	svc := newService(userDocRead, userDocWrite,
-		vehicleDocRead, &mocks.MockVehicleDocumentRepositoryWrite{},
-		&mocks.MockDocumentReviewRepositoryRead{}, &mocks.MockDocumentReviewRepositoryWrite{},
+		vehicleDocRead, vehicleDocWrite,
+		reviewRead, reviewWrite,
 		storage)
 
 	_, err := svc.ChangeDocument(context.Background(), serviceInterfaces.ChangeDocumentInput{

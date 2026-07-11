@@ -2673,6 +2673,7 @@ type PendingReviewItem struct {
 	Status           string                 `protobuf:"bytes,3,opt,name=Status,proto3" json:"Status,omitempty"`
 	AttemptNumber    int32                  `protobuf:"varint,4,opt,name=AttemptNumber,proto3" json:"AttemptNumber,omitempty"`
 	SessionExpiresAt string                 `protobuf:"bytes,5,opt,name=SessionExpiresAt,proto3" json:"SessionExpiresAt,omitempty"` // ISO 8601
+	DocumentType     string                 `protobuf:"bytes,6,opt,name=DocumentType,proto3" json:"DocumentType,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -2738,6 +2739,13 @@ func (x *PendingReviewItem) GetAttemptNumber() int32 {
 func (x *PendingReviewItem) GetSessionExpiresAt() string {
 	if x != nil {
 		return x.SessionExpiresAt
+	}
+	return ""
+}
+
+func (x *PendingReviewItem) GetDocumentType() string {
+	if x != nil {
+		return x.DocumentType
 	}
 	return ""
 }
@@ -3457,13 +3465,14 @@ const file_kyc_proto_rawDesc = "" +
 	"ReviewedAt\x18\r \x01(\tR\n" +
 	"ReviewedAt\x12\x1c\n" +
 	"\tCreatedAt\x18\x0e \x01(\tR\tCreatedAt\x12\x1c\n" +
-	"\tUpdatedAt\x18\x0f \x01(\tR\tUpdatedAt\"\xc5\x01\n" +
+	"\tUpdatedAt\x18\x0f \x01(\tR\tUpdatedAt\"\xe9\x01\n" +
 	"\x11PendingReviewItem\x12\x1a\n" +
 	"\bReviewId\x18\x01 \x01(\tR\bReviewId\x12*\n" +
 	"\x10PersonaInquiryId\x18\x02 \x01(\tR\x10PersonaInquiryId\x12\x16\n" +
 	"\x06Status\x18\x03 \x01(\tR\x06Status\x12$\n" +
 	"\rAttemptNumber\x18\x04 \x01(\x05R\rAttemptNumber\x12*\n" +
-	"\x10SessionExpiresAt\x18\x05 \x01(\tR\x10SessionExpiresAt\"\xc7\x01\n" +
+	"\x10SessionExpiresAt\x18\x05 \x01(\tR\x10SessionExpiresAt\x12\"\n" +
+	"\fDocumentType\x18\x06 \x01(\tR\fDocumentType\"\xc7\x01\n" +
 	"\x13LatestRejectionItem\x12\x1a\n" +
 	"\bReviewId\x18\x01 \x01(\tR\bReviewId\x12(\n" +
 	"\x0fReasonRejection\x18\x02 \x01(\tR\x0fReasonRejection\x12*\n" +

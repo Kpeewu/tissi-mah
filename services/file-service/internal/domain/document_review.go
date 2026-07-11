@@ -126,3 +126,21 @@ func ToLogicalDocumentType(documentType string) string {
 		return documentType
 	}
 }
+
+// CompanionDocumentType retourne le type physique de la face complémentaire
+// d'un document recto-verso (idCard, driverLicence). Chaîne vide si le type
+// est déjà logique/à face unique (passport, insurance, registrationCard…).
+func CompanionDocumentType(documentType string) string {
+	switch documentType {
+	case "idCardFront":
+		return "idCardBack"
+	case "idCardBack":
+		return "idCardFront"
+	case "driverLicenceFront":
+		return "driverLicenceBack"
+	case "driverLicenceBack":
+		return "driverLicenceFront"
+	default:
+		return ""
+	}
+}

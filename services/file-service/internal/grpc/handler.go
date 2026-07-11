@@ -739,6 +739,10 @@ func (h *FileHandler) UpdateDocumentReview(ctx context.Context, req *filepb.Upda
 	}
 	if req.Decision != "" {
 		existing.Decision = req.Decision
+		// Une décision est appliquée/modifiée : rafraîchir reviewed_at pour
+		// refléter l'heure réelle de la décision plutôt que de rester figé
+		// à l'heure de création de la ligne.
+		existing.ReviewedAt = time.Now().UTC()
 	}
 	if req.ReasonRejection != "" {
 		existing.ReasonRejection = req.ReasonRejection

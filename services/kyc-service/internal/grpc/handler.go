@@ -150,6 +150,7 @@ func (h *KYCHandler) GetKYCStatus(ctx context.Context, _ *kycpb.GetKYCStatusRequ
 			PersonaInquiryId: pr.PersonaInquiryID,
 			Status:           pr.Status,
 			AttemptNumber:    pr.AttemptNumber,
+			DocumentType:     pr.DocumentType,
 		}
 		if pr.SessionExpiresAt != nil {
 			item.SessionExpiresAt = pr.SessionExpiresAt.Format(time.RFC3339)

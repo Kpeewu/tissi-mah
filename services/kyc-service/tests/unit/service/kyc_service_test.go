@@ -51,6 +51,10 @@ func newTestService() (*mocks.MockFileServiceClient, *mocks.MockPersonaClient, s
 	return mockFileClient, mockPersonaClient, svc
 }
 
+func timePtr(t time.Time) *time.Time {
+	return &t
+}
+
 // =============================================================================
 // CreateInquiry
 // =============================================================================
@@ -680,8 +684,10 @@ func TestGetKYCStatus(t *testing.T) {
 		assert.Len(t, result.PendingReviews, 2)
 		assert.Equal(t, "review-pending-001", result.PendingReviews[0].ReviewID)
 		assert.Equal(t, "pending", result.PendingReviews[0].Status)
+		assert.Equal(t, "passport", result.PendingReviews[0].DocumentType)
 		assert.Equal(t, "review-submitted-001", result.PendingReviews[1].ReviewID)
 		assert.Equal(t, "submitted", result.PendingReviews[1].Status)
+		assert.Equal(t, "idCardFront", result.PendingReviews[1].DocumentType)
 
 		mockFileClient.AssertExpectations(t)
 	})
@@ -1567,6 +1573,157 @@ func TestGetAdminReview(t *testing.T) {
 		detail, err := svc.GetAdminReview(ctx, "admin-001", "review-unknown")
 		assert.Nil(t, detail)
 		assert.ErrorIs(t, err, kycErrors.ErrorReviewNotFound)
+	})
+}
+
+// =============================================================================
+// ValidateDocument
+// =============================================================================
+
+func TestValidateDocument(t *testing.T) {
+	t.Run("succès - review pending existante (document utilisateur) mise à jour via Update", func(t *testing.T) {
+		mockFileClient, _, svc := newTestService()
+		ctx := context.Background()
+
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-1").
+			Return(&domain.DocumentRef{DocumentID: "doc-1", DocumentType: "passport", OwnerID: "user-1"}, nil)
+
+		pendingReview := &domain.Review{
+			ReviewID:            "review-pending-1",
+			UserID:              "user-1",
+			DocumentType:        "passport",
+			LogicalDocumentType: "passport",
+			Status:              "pending",
+			Decision:            "pending",
+			ReviewType:          "manual",
+		}
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-1").
+			Return([]*domain.Review{pendingReview}, nil)
+		mockFileClient.On("UpdateDocumentReview", mock.Anything, mock.MatchedBy(func(r *domain.Review) bool {
+			return r.ReviewID == "review-pending-1" &&
+				r.Status == "completed" &&
+				r.Decision == "approved" &&
+				r.ReviewedBy == "agent-001" &&
+				r.ReviewType == "manual"
+		})).Return(&domain.Review{
+			ReviewID:   "review-pending-1",
+			Decision:   "approved",
+			ReviewedBy: "agent-001",
+			ReviewType: "manual",
+			Status:     "completed",
+			ReviewedAt: timePtr(time.Now().UTC()),
+		}, nil)
+
+		result, err := svc.ValidateDocument(ctx, serviceInterfaces.ValidateDocumentInput{
+			SupportAgentID: "agent-001",
+			DocumentID:     "doc-1",
+			Decision:       "approved",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, "review-pending-1", result.ReviewID)
+		assert.Equal(t, "approved", result.Decision)
+		mockFileClient.AssertNotCalled(t, "CreateDocumentReview", mock.Anything, mock.Anything)
+	})
+
+	t.Run("succès - aucune review pending existante, fallback vers Create (non-régression)", func(t *testing.T) {
+		mockFileClient, _, svc := newTestService()
+		ctx := context.Background()
+
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-2").
+			Return(&domain.DocumentRef{DocumentID: "doc-2", DocumentType: "passport", OwnerID: "user-2"}, nil)
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-2").
+			Return([]*domain.Review{}, nil)
+		mockFileClient.On("CreateDocumentReview", mock.Anything, mock.MatchedBy(func(r *domain.Review) bool {
+			return r.UserID == "user-2" &&
+				r.Status == "completed" &&
+				r.Decision == "approved" &&
+				r.UserDocumentID == "doc-2"
+		})).Return(&domain.Review{
+			ReviewID:   "review-new-1",
+			Decision:   "approved",
+			ReviewedBy: "agent-001",
+			ReviewType: "manual",
+			Status:     "completed",
+			ReviewedAt: timePtr(time.Now().UTC()),
+		}, nil)
+
+		result, err := svc.ValidateDocument(ctx, serviceInterfaces.ValidateDocumentInput{
+			SupportAgentID: "agent-001",
+			DocumentID:     "doc-2",
+			Decision:       "approved",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, "review-new-1", result.ReviewID)
+		mockFileClient.AssertNotCalled(t, "UpdateDocumentReview", mock.Anything, mock.Anything)
+	})
+
+	t.Run("succès - review pending existante (document véhicule) mise à jour via Update", func(t *testing.T) {
+		mockFileClient, _, svc := newTestService()
+		ctx := context.Background()
+
+		mockFileClient.On("GetVehicleDocument", mock.Anything, "vdoc-1").
+			Return(&domain.DocumentRef{DocumentID: "vdoc-1", DocumentType: "insurance", OwnerID: "vehicle-1", UserID: "user-3"}, nil)
+
+		pendingReview := &domain.Review{
+			ReviewID:            "review-pending-2",
+			UserID:              "user-3",
+			DocumentType:        "insurance",
+			LogicalDocumentType: "insurance",
+			VehicleDocumentID:   "vdoc-1",
+			Status:              "pending",
+			Decision:            "pending",
+			ReviewType:          "manual",
+		}
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-3").
+			Return([]*domain.Review{pendingReview}, nil)
+		mockFileClient.On("UpdateDocumentReview", mock.Anything, mock.MatchedBy(func(r *domain.Review) bool {
+			return r.ReviewID == "review-pending-2" &&
+				r.Status == "completed" &&
+				r.Decision == "rejected" &&
+				r.ReasonRejection == "document_expired"
+		})).Return(&domain.Review{
+			ReviewID:   "review-pending-2",
+			Decision:   "rejected",
+			ReviewedBy: "agent-001",
+			ReviewType: "manual",
+			Status:     "completed",
+			ReviewedAt: timePtr(time.Now().UTC()),
+		}, nil)
+
+		result, err := svc.ValidateDocument(ctx, serviceInterfaces.ValidateDocumentInput{
+			SupportAgentID:  "agent-001",
+			DocumentID:      "vdoc-1",
+			VehicleID:       "vehicle-1",
+			Decision:        "rejected",
+			ReasonRejection: "document_expired",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, "review-pending-2", result.ReviewID)
+		mockFileClient.AssertNotCalled(t, "CreateDocumentReview", mock.Anything, mock.Anything)
+	})
+
+	t.Run("erreur - review déjà complétée pour ce document renvoie ErrorDocumentAlreadyReviewed", func(t *testing.T) {
+		mockFileClient, _, svc := newTestService()
+		ctx := context.Background()
+
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-3").
+			Return(&domain.DocumentRef{DocumentID: "doc-3", DocumentType: "passport", OwnerID: "user-4"}, nil)
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-4").
+			Return([]*domain.Review{
+				{ReviewID: "review-done", UserID: "user-4", LogicalDocumentType: "passport", Status: "completed", Decision: "approved"},
+			}, nil)
+
+		result, err := svc.ValidateDocument(ctx, serviceInterfaces.ValidateDocumentInput{
+			SupportAgentID: "agent-001",
+			DocumentID:     "doc-3",
+			Decision:       "approved",
+		})
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, kycErrors.ErrorDocumentAlreadyReviewed)
 	})
 }
 
