@@ -13,7 +13,7 @@ import (
 // CreateTrip → StartTrip → ConfirmWaypointDeparture (dep) → ConfirmWaypointArrival (arr) → EndTrip.
 func TestE2E_FullLifecycle_HappyPath(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -23,6 +23,8 @@ func TestE2E_FullLifecycle_HappyPath(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 
 	// 1. Create
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
@@ -48,7 +50,7 @@ func TestE2E_FullLifecycle_HappyPath(t *testing.T) {
 // par le même conducteur (pas de contrainte d'unicité hors "in-progress").
 func TestE2E_CreateMultipleTrips_SameDriver(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -58,6 +60,8 @@ func TestE2E_CreateMultipleTrips_SameDriver(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 
 	r1, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 	require.NoError(t, err)

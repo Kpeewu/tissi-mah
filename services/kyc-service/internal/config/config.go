@@ -12,7 +12,7 @@ type Config struct {
 	FileService        FileServiceConfig
 	UserService        UserServiceConfig
 	SupportService     SupportServiceConfig
-	Persona            PersonaConfig
+	VehicleService     VehicleServiceConfig
 	NotificationRedis  RedisConfig
 	LogLevel           string
 	InternalHMACSecret string
@@ -54,10 +54,13 @@ func (c SupportServiceConfig) Addr() string {
 	return fmt.Sprintf("%s:%s", c.Address, c.Port)
 }
 
-type PersonaConfig struct {
-	APIKey        string
-	TemplateID    string
-	WebhookSecret string
+type VehicleServiceConfig struct {
+	Address string
+	Port    string
+}
+
+func (c VehicleServiceConfig) Addr() string {
+	return fmt.Sprintf("%s:%s", c.Address, c.Port)
 }
 
 func Load() (*Config, error) {
@@ -69,7 +72,7 @@ func Load() (*Config, error) {
 	config := &Config{
 		Server: ServerConfig{
 			Host: sharedconfig.GetStringOrDefault(values, "GRPC_ADDRESS", "0.0.0.0"),
-			Port: sharedconfig.GetStringOrDefault(values, "GRPC_PORT", "50055"),
+			Port: sharedconfig.GetStringOrDefault(values, "GRPC_PORT", "50057"),
 		},
 		Environment: EnvironmentConfig{
 			Mode: sharedconfig.MustGetString(values, "ENVIRONMENT"),
@@ -86,10 +89,9 @@ func Load() (*Config, error) {
 			Address: sharedconfig.GetStringOrDefault(values, "SUPPORT_SERVICE_HOST", "0.0.0.0"),
 			Port:    sharedconfig.GetStringOrDefault(values, "SUPPORT_SERVICE_PORT", "50063"),
 		},
-		Persona: PersonaConfig{
-			APIKey:        sharedconfig.MustGetString(values, "PERSONA_API_KEY"),
-			TemplateID:    sharedconfig.GetStringOrDefault(values, "PERSONA_TEMPLATE_ID", "itmpl_default"),
-			WebhookSecret: sharedconfig.MustGetString(values, "PERSONA_WEBHOOK_SECRET"),
+		VehicleService: VehicleServiceConfig{
+			Address: sharedconfig.GetStringOrDefault(values, "VEHICLE_SERVICE_HOST", "0.0.0.0"),
+			Port:    sharedconfig.GetStringOrDefault(values, "VEHICLE_SERVICE_PORT", "50055"),
 		},
 		NotificationRedis: RedisConfig{
 			URL: sharedconfig.MustGetString(values, "NOTIFICATION_REDIS_URL"),
@@ -108,12 +110,6 @@ func Load() (*Config, error) {
 func validate(cfg *Config) error {
 	if cfg.Server.Port == "" {
 		return fmt.Errorf("GRPC_PORT is required")
-	}
-	if cfg.Persona.APIKey == "" {
-		return fmt.Errorf("PERSONA_API_KEY is required")
-	}
-	if cfg.Persona.WebhookSecret == "" {
-		return fmt.Errorf("PERSONA_WEBHOOK_SECRET is required")
 	}
 	if cfg.NotificationRedis.URL == "" {
 		return fmt.Errorf("NOTIFICATION_REDIS_URL is required")

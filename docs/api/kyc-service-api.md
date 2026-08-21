@@ -1,6 +1,10 @@
 # KYC Service API
 
-This document describes the HTTP/REST API exposed by the kyc-service through the api-gateway (grpc-gateway). The KYC service integrates with [Persona](https://withpersona.com) for identity verification.
+Ce document décrit l'API HTTP/REST exposée par le kyc-service via l'api-gateway (grpc-gateway).
+
+La vérification d'identité est **100 % manuelle** : les documents sont soumis via le
+file-service, puis validés par un agent support depuis le back-office. Il n'y a plus
+de fournisseur d'identité externe.
 
 ## Base URL
 
@@ -13,160 +17,78 @@ This document describes the HTTP/REST API exposed by the kyc-service through the
 
 ## Authentication
 
-All `/api/v1/kyc/inquiries/*` and `/api/v1/kyc/me/*` endpoints require a valid **Firebase JWT**.
-The `/api/v1/kyc/admin/*` endpoints require a JWT with admin privileges.
-The `/api/v1/kyc/webhooks/persona` and `/api/v1/kyc/health` endpoints are **public**.
+| Routes | Authentification |
+|--------|------------------|
+| `/api/v1/kyc/me/*` | **JWT Firebase** (utilisateur mobile) |
+| `/api/v1/kyc/admin/*` | **JWT support** (back-office) — rôle `support` ou `admin` |
+| `/api/v1/kyc/health` | publique |
+
+`POST /api/v1/kyc/admin/reviews/override` exige en plus le rôle **`admin`** :
+annuler un rejet est une action sensible.
 
 ```http
-Authorization: Bearer <firebase-id-token>
+Authorization: Bearer <firebase-id-token>   # routes /me
+Authorization: Bearer <support-jwt>         # routes /admin
 ```
 
 ## Common Headers
 
 | Header | Required | Description |
 |--------|----------|-------------|
-| `Content-Type` | Yes (POST) | `application/json` |
-| `Authorization` | Yes (protected routes) | `Bearer <firebase-id-token>` |
+| `Content-Type` | Oui (POST) | `application/json` |
+| `Authorization` | Oui (routes protégées) | `Bearer <token>` |
+| `X-App-ID` | Oui | UUID de l'app (mobile ou back-office support) |
 
 ## Error Response Format
 
 ```json
 {
-    "ErrorMessage": "ErrorInquiryNotFound"
+    "ErrorMessage": "ErrorDocumentAlreadyReviewed"
 }
 ```
+
+---
+
+## Règles de vérification
+
+Les flags sont calculés à partir des **documents courants** (`is_current = true`) et de
+leur statut — jamais depuis l'historique des reviews. Toute resoumission, tout
+remplacement de selfie et tout override sont donc pris en compte uniformément.
+
+```
+selfieOK   = selfie approuvé
+idProofOK  = (idCardFront + idCardBack) | passport | (driverLicenceFront + driverLicenceBack) approuvés
+licenceOK  = driverLicenceFront + driverLicenceBack approuvés
+vehicleOK(v) = insurance(v) ET registrationCard(v) approuvées
+
+IdentityVerified (passager) = selfieOK ET idProofOK
+DriverVerified              = selfieOK ET licenceOK ET ∃ véhicule v : vehicleOK(v)
+vehicles.is_verified[v]     = vehicleOK(v)
+```
+
+**Points clés**
+
+- Le **selfie est obligatoire** : une pièce approuvée seule ne suffit pas. Le support
+  compare le selfie à la pièce d'identité. Le selfie sert aussi de photo de profil.
+- Le **permis a un double rôle explicite** : il vaut pièce d'identité *et* preuve du
+  droit de conduire. Une seule décision support débloque les deux ; il appartient donc
+  aux deux catégories (`passenger` et `driver`) dans la file de validation.
+- **Vérification par véhicule** : `DriverVerified` exige au moins un véhicule
+  entièrement validé. Chaque véhicule doit être individuellement validé
+  (`is_verified`) pour être utilisable dans `POST /api/v1/trip/driver/createTrip`.
+- **Unité de validation = document logique** : un recto-verso (CNI, permis) est un
+  seul document. Le support voit et valide les deux faces ensemble ; une décision
+  s'applique aux deux.
 
 ---
 
 ## Endpoints
 
-### POST /api/v1/kyc/inquiries/add
-
-Starts a new Persona identity verification inquiry for a document already uploaded via the file-service.
-
-**Authentication:** Firebase JWT required
-
-> **Flow:** Upload the document first with `/api/v1/file/uploadIdDocument` or `/api/v1/file/uploadVehicleDocuments`, then pass the returned `DocumentID` to this endpoint. The service verifies that the document exists and belongs to the authenticated user before submitting it to Persona.
-
-#### Request
-
-```http
-POST /api/v1/kyc/inquiries/add HTTP/1.1
-Host: api.tissi-mah.com
-Authorization: Bearer <firebase-id-token>
-Content-Type: application/json
-
-{
-    "DocumentType": "IDCard",
-    "VehicleId": "",
-    "DocumentId": "d-550e8400-e29b-41d4-a716-446655440001"
-}
-```
-
-#### Request Fields
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `DocumentType` | string | Yes | Document type: `IDCard`, `Passport`, `DriverLicence` for user docs; `insurance`, `registrationCard` for vehicle docs |
-| `VehicleId` | string | Conditional | Required when submitting a vehicle document |
-| `DocumentId` | string | Yes | ID of the uploaded document — returned by `/api/v1/file/uploadIdDocument` or `/api/v1/file/uploadVehicleDocuments` |
-
-#### Response (Success)
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "ReviewId": "rev-550e8400-e29b-41d4-a716-446655440000",
-    "PersonaInquiryId": "inq_abc123",
-    "PersonaTemplateId": "itmpl_default",
-    "SessionToken": "eyJhbGci...",
-    "SessionExpiresAt": "2026-04-15T09:00:00Z",
-    "Status": "pending",
-    "AttemptNumber": 1,
-    "CreatedAt": "2026-04-15T08:00:00Z",
-    "ErrorMessage": ""
-}
-```
-
-#### Errors
-
-| Error | HTTP Code | Description |
-|-------|-----------|-------------|
-| `ErrorInvalidInput` | 400 | Missing required fields |
-| `ErrorMissingDocumentID` | 400 | `DocumentId` is absent or empty |
-| `ErrorDocumentMismatch` | 400 | Document type does not match `DocumentType`, or the document does not belong to the authenticated user |
-| `ErrorInquiryAlreadyActive` | 409 | An inquiry is already in progress |
-| `ErrorFileServiceUnavailable` | 503 | file-service is unreachable |
-| `ErrorPersonaUnavailable` | 503 | Persona API is unreachable |
-| `ErrorInternalServer` | 500 | Internal server error |
-
----
-
-### GET /api/v1/kyc/inquiries/getInquiry
-
-Returns the details of a specific Persona inquiry.
-
-**Authentication:** Firebase JWT required
-
-#### Request
-
-```http
-GET /api/v1/kyc/inquiries/getInquiry?PersonaInquiryId=inq_abc123 HTTP/1.1
-Host: api.tissi-mah.com
-Authorization: Bearer <firebase-id-token>
-```
-
-#### Query Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `PersonaInquiryId` | string | Yes | Persona inquiry ID |
-
-#### Response (Success)
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "Inquiry": {
-        "ReviewId": "rev-550e8400-e29b-41d4-a716-446655440000",
-        "PersonaInquiryId": "inq_abc123",
-        "PersonaTemplateId": "itmpl_default",
-        "Status": "pending",
-        "Decision": "",
-        "AttemptNumber": 1,
-        "CreatedAt": "2026-04-15T08:00:00Z",
-        "UpdatedAt": "2026-04-15T08:00:00Z"
-    },
-    "ErrorMessage": ""
-}
-```
-
-#### Errors
-
-| Error | HTTP Code | Description |
-|-------|-----------|-------------|
-| `ErrorInquiryNotFound` | 404 | Inquiry does not exist |
-| `ErrorInternalServer` | 500 | Internal server error |
-
----
-
 ### GET /api/v1/kyc/me/getStatus
 
-Returns the KYC status of the currently authenticated user.
+Statut KYC de l'utilisateur connecté.
 
-**Authentication:** Firebase JWT required
-
-#### Request
-
-```http
-GET /api/v1/kyc/me/getStatus HTTP/1.1
-Host: api.tissi-mah.com
-Authorization: Bearer <firebase-id-token>
-```
+**Authentification :** JWT Firebase
 
 #### Response (Success)
 
@@ -179,217 +101,257 @@ Content-Type: application/json
     "DriverVerified": false,
     "PendingReviews": [
         {
-            "ReviewId": "rev-550e8400-e29b-41d4-a716-446655440001",
-            "PersonaInquiryId": "inq_xyz789",
+            "ReviewId": "rev-550e8400-e29b-41d4-a716-446655440000",
             "Status": "pending",
             "AttemptNumber": 1,
-            "SessionExpiresAt": "2026-04-15T09:00:00Z"
+            "DocumentType": "insurance"
         }
     ],
-    "LatestRejection": null,
+    "LatestRejection": {
+        "ReviewId": "rev-1c2d…",
+        "ReasonRejection": "document_illegible",
+        "RejectionDetails": "Photo floue",
+        "ReviewType": "manual",
+        "ReviewedAt": "2026-04-15T09:12:00Z"
+    },
     "ErrorMessage": ""
 }
 ```
 
-#### Response Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `IdentityVerified` | boolean | True if identity document is approved |
-| `DriverVerified` | boolean | True if driver license is approved |
-| `PendingReviews` | array | Active inquiries awaiting completion |
-| `LatestRejection` | object\|null | Most recent rejection detail |
+`PendingReviews` liste les documents en attente de décision support (une entrée par
+document logique). `LatestRejection` est le rejet le plus récent, pour afficher le
+motif à l'utilisateur.
 
 ---
 
-### POST /api/v1/kyc/inquiries/resume
+### GET /api/v1/kyc/admin/manualReviews/requests
 
-Resumes an interrupted Persona verification session.
+File de validation, groupée par utilisateur.
 
-**Authentication:** Firebase JWT required
+**Authentification :** JWT support
 
-#### Request
+#### Query Parameters
 
-```http
-POST /api/v1/kyc/inquiries/resume HTTP/1.1
-Host: api.tissi-mah.com
-Authorization: Bearer <firebase-id-token>
-Content-Type: application/json
+Les paramètres suivent la casse des champs proto (**PascalCase**).
 
-{
-    "PersonaInquiryId": "inq_abc123"
-}
-```
-
-#### Response (Success)
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "ReviewId": "rev-550e8400-e29b-41d4-a716-446655440000",
-    "PersonaInquiryId": "inq_abc123",
-    "SessionToken": "eyJhbGci...",
-    "SessionExpiresAt": "2026-04-15T09:00:00Z",
-    "Status": "pending",
-    "AttemptNumber": 1,
-    "ErrorMessage": ""
-}
-```
-
-#### Errors
-
-| Error | HTTP Code | Description |
-|-------|-----------|-------------|
-| `ErrorInquiryNotFound` | 404 | Inquiry does not exist |
-| `ErrorInquiryNotResumable` | 410 | Inquiry cannot be resumed (wrong status) |
-| `ErrorPersonaUnavailable` | 503 | Persona API is unreachable |
-| `ErrorInternalServer` | 500 | Internal server error |
-
----
-
-### POST /api/v1/kyc/webhooks/persona
-
-Receives and processes a Persona webhook event. Called by Persona's servers after an inquiry is completed.
-
-**Authentication:** Not required (public — Persona webhook signature verified internally)
-
-#### Request
-
-```http
-POST /api/v1/kyc/webhooks/persona HTTP/1.1
-Host: api.tissi-mah.com
-Content-Type: application/json
-
-{
-    "Signature": "t=...,v1=...",
-    "PersonaInquiryId": "inq_abc123",
-    "WebhookEventType": "inquiry.completed",
-    "OccurredAt": "2026-04-15T08:30:00Z",
-    "PersonaRawPayload": "<base64-encoded JSON>"
-}
-```
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `Page` | integer | Non | Page 0-based (défaut 20/page) |
+| `PageSize` | integer | Non | Taille de page |
+| `Status` | string | Non | Garde les users dont `PassengerStatus` OU `DriverStatus` vaut ce statut |
+| `Name` / `FirstName` | string | Non | Recherche partielle, insensible à la casse |
+| `DepositFrom` / `DepositTo` | string | Non | Bornes du dernier dépôt (ISO 8601 ou `YYYY-MM-DD`) |
 
 #### Response (Success)
 
 ```json
-{ "Success": true, "ErrorMessage": "" }
-```
-
-#### Errors
-
-| Error | HTTP Code | Description |
-|-------|-----------|-------------|
-| `ErrorInvalidSignature` | 401 | Invalid Persona webhook signature |
-| `ErrorInvalidInput` | 400 | Malformed payload |
-| `ErrorInternalServer` | 500 | Internal server error |
-
----
-
-### GET /api/v1/kyc/admin/reviews/getReviews
-
-Lists all reviews with optional filters. Admin only.
-
-**Authentication:** Firebase JWT required (admin)
-
-#### Query Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `UserId` | string | No | Filter by user ID |
-| `Status` | string | No | Filter by status (`pending`, `completed`, …) |
-| `Decision` | string | No | Filter by decision (`approved`, `rejected`, …) |
-| `Index` | integer | No | Page index (0-based, 20 items/page) |
-
-#### Response (Success)
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
 {
-    "Reviews": [
+    "Requests": [
         {
-            "ReviewId": "rev-550e8400-e29b-41d4-a716-446655440000",
-            "PersonaInquiryId": "inq_abc123",
-            "Status": "completed",
-            "Decision": "approved",
-            "AttemptNumber": 1,
-            "CreatedAt": "2026-04-15T08:00:00Z"
+            "UserId": "usr-550e…",
+            "Name": "Diallo",
+            "FirstName": "Amadou",
+            "Email": "amadou@example.com",
+            "PhoneNumber": "+22890000000",
+            "ProfileImageURL": "https://…",
+            "PassengerStatus": "pending",
+            "DriverStatus": "rejected",
+            "TotalDocuments": 4,
+            "LastDepositAt": "2026-04-15T08:00:00Z"
         }
     ],
+    "Total": 1,
     "ErrorMessage": ""
 }
 ```
 
+- `PassengerStatus` agrège selfie + pièces d'identité (**permis inclus**).
+- `DriverStatus` agrège permis + documents véhicule.
+- `TotalDocuments` compte les documents **logiques** (un recto-verso = 1) ; la photo
+  de profil historique n'est pas comptée.
+- Agrégation par précédence : `rejected` > `underReview` > `pending` > `expired` > `approved`.
+
 ---
 
-### GET /api/v1/kyc/admin/reviews/getReview
+### GET /api/v1/kyc/admin/manualReviews/requestDetail
 
-Returns the full detail of a single review. Admin only.
+Détail d'une demande : tous les documents soumis par l'utilisateur.
 
-**Authentication:** Firebase JWT required (admin)
+**Authentification :** JWT support
 
 #### Query Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `ReviewId` | string | Yes | Review UUID |
+| `UserId` | string | Oui | UserID interne |
+
+#### Response (extrait)
+
+```json
+{
+    "UserId": "usr-550e…",
+    "Documents": [
+        {
+            "DocumentId": "doc-front",
+            "DocumentType": "driverLicenceFront",
+            "LogicalDocumentType": "driverLicence",
+            "Status": "pending",
+            "OwnerKind": "user",
+            "Category": "driver",
+            "Categories": ["passenger", "driver"],
+            "DocumentUrl": "https://…/recto.jpg",
+            "SecondDocumentId": "doc-back",
+            "SecondDocumentUrl": "https://…/verso.jpg",
+            "LatestReview": {
+                "ReviewId": "rev-…",
+                "Status": "pending",
+                "Decision": "pending",
+                "Notes": "",
+                "AttemptNumber": 2,
+                "PreviousReviewId": "rev-precedente"
+            }
+        }
+    ]
+}
+```
+
+Chaque document recto-verso est **une seule entrée** portant les deux faces
+(`DocumentUrl` + `SecondDocumentUrl`) : l'agent les compare ensemble. Le selfie
+apparaît comme document `selfie` (catégorie `passenger`).
+
+---
+
+### POST /api/v1/kyc/admin/validateDocument
+
+Décision d'un agent support sur un document.
+
+**Authentification :** JWT support
+
+#### Request
+
+```json
+{
+    "DocumentId": "doc-550e…",
+    "VehicleId": "",
+    "Decision": "approved",
+    "ReasonRejection": "",
+    "RejectionDetails": "",
+    "Notes": "Selfie conforme à la pièce"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `DocumentId` | string | Oui | ID du document — **n'importe quelle face** d'un recto-verso |
+| `VehicleId` | string | Conditionnel | Requis pour un document véhicule (assurance, carte grise) |
+| `Decision` | string | Oui | `approved` \| `rejected` \| `resubmission` — `pending` refusé |
+| `ReasonRejection` | string | Conditionnel | Requis si `rejected` |
+| `RejectionDetails` | string | Non | Commentaire libre |
+| `Notes` | string | Non | Note interne (visible dans le détail et l'historique) |
+
+Motifs de rejet : `document_expired`, `document_incomplete`, `document_illegible`,
+`photo_missmatch`, `information_missmatch`, `wrong_document_type`, `other`.
+
+#### Response (Success)
+
+```json
+{
+    "ReviewId": "rev-…",
+    "Decision": "approved",
+    "ReviewedBy": "support-uid",
+    "ReviewType": "manual",
+    "ReviewedAt": "2026-04-15T09:30:00Z",
+    "Notes": "Selfie conforme à la pièce",
+    "DocumentId": "doc-recto",
+    "SecondDocumentId": "doc-verso",
+    "LogicalDocumentType": "idCard"
+}
+```
+
+#### Effets
+
+1. Le statut des documents concernés (**les deux faces**) est synchronisé sur la décision.
+2. Les flags de vérification sont recalculés depuis les documents courants et poussés
+   vers user-service ; `is_verified` est poussé par véhicule vers vehicle-service.
+3. L'utilisateur est notifié (push + email). Sur bascule `false → true` : notification
+   « identité vérifiée » / « conducteur vérifié ».
+
+#### Errors
+
+| Error | HTTP | Description |
+|-------|------|-------------|
+| `ErrorInvalidDecision` | 400 | Décision invalide (dont `pending`) ou motif manquant sur un rejet |
+| `ErrorDocumentMismatch` | 400 | Le document véhicule n'appartient pas au `VehicleId` fourni |
+| `ErrorDocumentNotFound` | 404 | Document inexistant |
+| `ErrorDocumentAlreadyReviewed` | 412 | Document déjà validé → passer par `override` |
+| `ErrorCompanionDocumentMissing` | 412 | Recto-verso incomplet : l'autre face manque |
+| `ErrorFileServiceUnavailable` | 503 | file-service injoignable |
 
 ---
 
 ### POST /api/v1/kyc/admin/reviews/override
 
-Manually overrides a review decision. Admin only.
+Annule un **rejet** en créant une nouvelle review chaînée (l'historique est conservé).
 
-**Authentication:** Firebase JWT required (admin)
+**Authentification :** JWT support — **rôle `admin` requis**
 
 #### Request
 
-```http
-POST /api/v1/kyc/admin/reviews/override HTTP/1.1
-Host: api.tissi-mah.com
-Authorization: Bearer <firebase-id-token>
-Content-Type: application/json
-
+```json
 {
-    "ReviewId": "rev-550e8400-e29b-41d4-a716-446655440000",
-    "Decision": "rejected",
-    "ReasonRejection": "Document expired",
-    "RejectionDetails": "Expiration date: 2025-01-01",
-    "Notes": "Manual review by support agent"
+    "ReviewId": "rev-550e…",
+    "Decision": "approved",
+    "ReasonRejection": "",
+    "RejectionDetails": "",
+    "Notes": "Pièce vérifiée manuellement auprès de l'usager"
 }
 ```
 
-#### Request Fields
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `ReviewId` | string | Yes | Review to override |
-| `Decision` | string | Yes | `approved` or `rejected` |
-| `ReasonRejection` | string | Conditional | Required if `Decision = rejected` |
-| `RejectionDetails` | string | No | Additional rejection details |
-| `Notes` | string | No | Internal notes |
+Seules les reviews `completed` **et** `rejected` sont overridables. `Decision` accepte
+`approved` | `rejected` | `resubmission` (jamais `pending`).
 
 #### Errors
 
-| Error | HTTP Code | Description |
-|-------|-----------|-------------|
-| `ErrorReviewNotFound` | 404 | Review does not exist |
-| `ErrorReviewNotOverridable` | 410 | Review cannot be overridden in its current state |
-| `ErrorInvalidInput` | 400 | Missing required fields |
-| `ErrorInternalServer` | 500 | Internal server error |
+| Error | HTTP | Description |
+|-------|------|-------------|
+| `ErrorReviewNotFound` | 404 | Review inexistante |
+| `ErrorReviewNotOverridable` | 412 | Review non terminée |
+| `ErrorOnlyRejectionOverridable` | 412 | Seul un rejet peut être overridé |
+
+---
+
+### GET /api/v1/kyc/admin/reviews/getReviews
+
+Liste paginée des reviews (filtres `UserId`, `Status`, `Decision`, `Index` — 20/page).
+
+**Authentification :** JWT support
+
+### GET /api/v1/kyc/admin/reviews/getReview
+
+Détail complet d'une review (`ReviewId` en query).
+
+**Authentification :** JWT support
+
+### GET /api/v1/kyc/admin/documentHistory
+
+Historique chronologique complet d'un document logique.
+
+**Authentification :** JWT support
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `UserId` | string | Oui | Propriétaire |
+| `LogicalDocumentType` | string | Oui | `idCard` \| `passport` \| `driverLicence` \| `selfie` \| `insurance` \| `registrationCard` |
+
+Chaque entrée expose la décision, le motif, les notes, `AttemptNumber`,
+`PreviousReviewId`, l'agent ayant tranché, et les IDs des documents concernés
+(`DocumentId` — y compris pour les documents véhicule — et `SecondDocumentId`).
 
 ---
 
 ### GET /api/v1/kyc/health
 
-Health check endpoint.
-
-**Authentication:** Not required (public)
-
-#### Response
+Health check (public).
 
 ```json
 {
@@ -401,30 +363,46 @@ Health check endpoint.
 
 ---
 
-## KYC Statuses
+## Statuts
 
-| Status | Description |
+### Statut d'un document
+
+| Statut | Description |
 |--------|-------------|
-| `pending` | Inquiry created, waiting for user to complete the flow |
-| `completed` | User completed the flow, waiting for Persona decision |
-| `approved` | Document approved by Persona |
-| `rejected` | Document rejected |
-| `expired` | Session expired before completion |
+| `pending` | Déposé, en attente de décision support |
+| `approved` | Validé par le support |
+| `rejected` | Refusé (ou resoumission demandée) — resoumission possible via `changeDocument` |
+| `expired` | Expiré |
+| `underReview` | Hérité, plus écrit |
+
+### Statut d'une review
+
+| Statut | Description |
+|--------|-------------|
+| `pending` | Créée à l'upload, aucune décision |
+| `completed` | Décision prise (`approved`, `rejected` ou `resubmission`) |
+| `expired` / `failed` | États terminaux résiduels |
+
+Une review `pending` n'a **pas** de `ReviewedAt` : cette date n'est renseignée qu'au
+moment de la décision.
 
 ## Error Reference
 
-| Error | HTTP Code | gRPC Code | Description |
-|-------|-----------|-----------|-------------|
-| `ErrorInvalidInput` | 400 | INVALID_ARGUMENT (3) | Missing or invalid fields |
-| `ErrorMissingDocumentID` | 400 | INVALID_ARGUMENT (3) | `DocumentId` absent or empty in CreateInquiry |
-| `ErrorDocumentMismatch` | 400 | INVALID_ARGUMENT (3) | Document type mismatch or document does not belong to the user |
-| `ErrorInquiryNotFound` | 404 | NOT_FOUND (5) | Inquiry does not exist |
-| `ErrorReviewNotFound` | 404 | NOT_FOUND (5) | Review does not exist |
-| `ErrorInquiryAlreadyActive` | 409 | ALREADY_EXISTS (6) | Inquiry already in progress |
-| `ErrorPermissionDenied` | 403 | PERMISSION_DENIED (7) | Not authorized |
-| `ErrorInquiryNotResumable` | 410 | FAILED_PRECONDITION (9) | Inquiry cannot be resumed |
-| `ErrorReviewNotOverridable` | 410 | FAILED_PRECONDITION (9) | Review cannot be overridden |
-| `ErrorInternalServer` | 500 | INTERNAL (13) | Internal server error |
-| `ErrorFileServiceUnavailable` | 503 | UNAVAILABLE (14) | file-service unreachable |
-| `ErrorPersonaUnavailable` | 503 | UNAVAILABLE (14) | Persona API unreachable |
-| `ErrorInvalidSignature` | 401 | UNAUTHENTICATED (16) | Invalid webhook signature |
+| Error | HTTP | gRPC | Description |
+|-------|------|------|-------------|
+| `ErrorInvalidDecision` | 400 | INVALID_ARGUMENT (3) | Décision invalide ou motif de rejet manquant |
+| `ErrorMissingUserID` | 400 | INVALID_ARGUMENT (3) | Identifiant utilisateur absent |
+| `ErrorMissingDocumentID` | 400 | INVALID_ARGUMENT (3) | `DocumentId` absent |
+| `ErrorMissingReviewID` | 400 | INVALID_ARGUMENT (3) | `ReviewId` absent |
+| `ErrorDocumentMismatch` | 400 | INVALID_ARGUMENT (3) | Document véhicule / `VehicleId` incohérents |
+| `ErrorInvalidDateRange` | 400 | INVALID_ARGUMENT (3) | Bornes `DepositFrom`/`DepositTo` invalides |
+| `ErrorDocumentNotFound` | 404 | NOT_FOUND (5) | Document inexistant |
+| `ErrorReviewNotFound` | 404 | NOT_FOUND (5) | Review inexistante |
+| `ErrorUserNotFound` | 404 | NOT_FOUND (5) | Utilisateur inexistant |
+| `ErrorUnauthorized` | 403 | PERMISSION_DENIED (7) | Non autorisé (rôle support/admin) |
+| `ErrorDocumentAlreadyReviewed` | 412 | FAILED_PRECONDITION (9) | Document déjà validé |
+| `ErrorReviewNotOverridable` | 412 | FAILED_PRECONDITION (9) | Review non overridable |
+| `ErrorOnlyRejectionOverridable` | 412 | FAILED_PRECONDITION (9) | Seul un rejet est overridable |
+| `ErrorCompanionDocumentMissing` | 412 | FAILED_PRECONDITION (9) | Face compagnon manquante |
+| `ErrorInternalServer` | 500 | INTERNAL (13) | Erreur interne |
+| `ErrorFileServiceUnavailable` | 503 | UNAVAILABLE (14) | file-service injoignable |

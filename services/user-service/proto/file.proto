@@ -1,43 +1,604 @@
+// File Service Proto Definition
+// Gère l'upload de fichiers vers S3/MinIO et le stockage des métadonnées
+// Certains endpoints sont exposés via api-gateway (HTTP), d'autres sont inter-service uniquement
+
 syntax = "proto3";
 
 package file;
 
-option go_package = "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen/filepb;filepb";
+option go_package = "github.com/Kpeewu/tissi-mah/services/file-service/proto/gen;file";
 
-// Stub minimal — seuls les RPCs utilisés par user-service sont déclarés.
-// Les numéros de champs correspondent exactement au fichier file.proto d'origine
-// pour la compatibilité wire format.
+import "google/api/annotations.proto";
+
+// =============================================================================
+// File Service
+// =============================================================================
 
 service FileService {
-  rpc GetCurrentUserDocument(GetCurrentUserDocumentRequest) returns (UserDocumentResponse);
+  // --- Upload streaming (inter-service) ---
+  // 1er message = métadonnées, messages suivants = chunks binaires (64KB)
   rpc UploadUserDocument(stream UploadUserDocumentRequest) returns (UserDocumentResponse);
+  rpc UploadVehicleDocument(stream UploadVehicleDocumentRequest) returns (VehicleDocumentResponse);
+
+  // --- Upload identité (HTTP via api-gateway) ---
+  // Upload un ou plusieurs documents d'identité (base64 dans JSON)
+  // Les fichiers sont uploadés dans S3/MinIO et les URLs stockées en base
+  rpc UploadIdDocument(UploadIdDocumentRequest) returns (UploadIdDocumentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/file/uploadIdDocument"
+      body: "*"
+    };
+  }
+
+  // --- Upload documents véhicule (HTTP via api-gateway) ---
+  // Upload le permis de conduire, l'assurance et la carte grise du véhicule (base64 dans JSON)
+  // Les fichiers sont uploadés dans S3/MinIO et les URLs stockées en base
+  rpc UploadVehicleDocuments(UploadVehicleDocumentsRequest) returns (UploadVehicleDocumentsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/file/uploadVehicleDocuments"
+      body: "*"
+    };
+  }
+
+  // --- Upload selfie (HTTP via api-gateway) ---
+  // Upload le selfie d'identité (base64 dans JSON). Le selfie devient immédiatement
+  // la photo de profil (après modération d'image) et entre en validation support
+  // (comparaison selfie ↔ pièce d'identité). Remplaçable à tout moment : un nouveau
+  // selfie supplante le courant et repasse en validation.
+  rpc UploadSelfie(UploadSelfieRequest) returns (UploadSelfieResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/file/uploadSelfie"
+      body: "*"
+    };
+  }
+
+  // --- Remplacement de document (HTTP via api-gateway) ---
+  // Remplace le fichier d'un document existant par un nouveau (base64 dans JSON)
+  rpc ChangeDocument(ChangeDocumentRequest) returns (ChangeDocumentResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/file/changeDocument"
+      body: "*"
+    };
+  }
+
+  // --- Lecture document (HTTP via api-gateway) ---
+  // Récupère un document par son ID.
+  // Si UserID fourni : vérifie la propriété. Si x-support-uid en metadata : accès direct.
+  rpc GetDocument(GetDocumentRequest) returns (GetDocumentResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/file/getDocument"
+    };
+  }
+
+  // --- Lecture (inter-service) ---
+  rpc GetUserDocuments(GetUserDocumentsRequest) returns (GetUserDocumentsResponse);
+  rpc GetUserDocument(GetDocumentByIDRequest) returns (UserDocumentResponse);
+  rpc GetCurrentUserDocument(GetCurrentUserDocumentRequest) returns (UserDocumentResponse);
+  rpc GetVehicleDocuments(GetVehicleDocumentsRequest) returns (GetVehicleDocumentsResponse);
+  rpc GetVehicleDocument(GetDocumentByIDRequest) returns (VehicleDocumentResponse);
+  rpc GetVehicleDocumentsByUserID(GetVehicleDocumentsByUserIDRequest) returns (GetVehicleDocumentsResponse);
+
+  // ListKycDocuments — file de validation manuelle (inter-service, appelé par kyc-service).
+  // Liste les documents KYC courants (user + vehicle) filtrés par statut.
+  rpc ListKycDocuments(ListKycDocumentsRequest) returns (ListKycDocumentsResponse);
+
+  // --- Suppression document (HTTP via api-gateway) ---
+  // Supprime un fichier après vérification de la propriété (UserID doit être propriétaire)
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/file/deleteFile"
+      body: "*"
+    };
+  }
+
+  // --- Suppression (inter-service) ---
+  rpc DeleteUserDocument(DeleteDocumentRequest) returns (OperationResponse);
+  rpc DeleteVehicleDocument(DeleteDocumentRequest) returns (OperationResponse);
+
+  // --- Revues (inter-service) ---
+  rpc CreateDocumentReview(CreateDocumentReviewRequest) returns (DocumentReviewResponse);
+  rpc GetDocumentReview(GetDocumentReviewByIDRequest) returns (DocumentReviewResponse);
+  rpc GetDocumentReviews(GetDocumentReviewsRequest) returns (GetDocumentReviewsResponse);
+  rpc GetDocumentReviewsByUserID(GetDocumentReviewsByUserIDRequest) returns (GetDocumentReviewsResponse);
+  rpc UpdateDocumentReview(UpdateDocumentReviewRequest) returns (DocumentReviewResponse);
+  rpc ListDocumentReviews(ListDocumentReviewsRequest) returns (GetDocumentReviewsResponse);
+  // Historique complet d'un document logique pour un utilisateur (inter-service, appelé par kyc-service)
+  rpc GetDocumentReviewHistory(GetDocumentReviewHistoryRequest) returns (GetDocumentReviewHistoryResponse);
+
+  // --- Health ---
+  rpc Health(HealthRequest) returns (HealthResponse);
+
+  // --- Suppression compte (inter-service) ---
+  // Supprime tous les documents (user + vehicle) d'un utilisateur ainsi que les fichiers S3/MinIO.
+  // Interne uniquement — appelé par auth-service lors de la suppression de compte.
+  rpc DeleteAllUserFiles(DeleteAllUserFilesRequest) returns (DeleteAllUserFilesResponse);
 }
 
-message GetCurrentUserDocumentRequest {
-  string UserId       = 1;
-  string DocumentType = 2;
+// =============================================================================
+// Upload documents véhicule (HTTP)
+// =============================================================================
+
+// Métadonnées légales d'un document véhicule
+message VehicleDocMetadata {
+  string DocumentNumber   = 1;
+  string IssuedAt         = 2; // ISO 8601
+  string ExpireAt         = 3; // ISO 8601 — optionnel pour registrationCard
+  string IssuingAuthority = 4;
 }
+
+message UploadVehicleDocumentsRequest {
+  reserved 3;
+  reserved "DriverLicenceImage";
+
+  string UserID               = 1;
+  string VehicleID            = 2;
+  // Permis : optionnel si l'utilisateur a déjà un permis courant (soumis via
+  // uploadIdDocument ou un précédent flux véhicule) — les images sont alors ignorées.
+  // Obligatoire sinon (recto + verso). Stocké comme documents UTILISATEUR
+  // (types driverLicenceFront/driverLicenceBack), jamais comme document véhicule :
+  // il couvre tous les véhicules du user.
+  bytes  DriverLicenceRecto   = 9;
+  bytes  DriverLicenceVerso   = 10;
+  bytes  Assurance            = 4;
+  bytes  VehicleRegistration  = 5;
+  VehicleDocMetadata DriverLicenceMetadata    = 6; // Requis uniquement si le permis est fourni et pris en compte (partagée recto/verso)
+  VehicleDocMetadata AssuranceMetadata        = 7;
+  VehicleDocMetadata RegistrationCardMetadata = 8;
+}
+
+message UploadVehicleDocumentsResponse {
+  bool                     Success      = 1;
+  string                   ErrorMessage = 2;
+  repeated UploadedDocument Documents   = 3; // [Permis recto + verso (si uploadé),] assurance, carte grise (dans cet ordre)
+}
+
+// UploadedDocument décrit un document fraîchement uploadé/remplacé.
+// Renvoyé par UploadIdDocument, UploadVehicleDocuments et ChangeDocument
+// pour que le front affiche la ressource sans avoir à la re-fetcher.
+message UploadedDocument {
+  string DocumentID           = 1;
+  string DocumentURL          = 2;
+  string DocumentType         = 3;
+  string DocumentName         = 4;
+  string LogicalDocumentType  = 5; // idCard, driverLicence, passport, insurance…
+}
+
+// =============================================================================
+// Upload selfie (HTTP)
+// =============================================================================
+
+message UploadSelfieRequest {
+  // Le propriétaire est résolu depuis x-firebase-uid (metadata gRPC injectée
+  // par l'api-gateway) — aucun UserID accepté dans le body.
+  bytes Selfie = 1;
+}
+
+message UploadSelfieResponse {
+  bool             Success      = 1;
+  string           ErrorMessage = 2;
+  UploadedDocument Document     = 3;
+}
+
+// =============================================================================
+// Suppression document (HTTP)
+// =============================================================================
+
+message DeleteFileRequest {
+  string UserID = 1;
+  string FileID = 2;
+}
+
+message DeleteFileResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// Lecture document (HTTP)
+// =============================================================================
+
+message GetDocumentRequest {
+  string FileID  = 1;
+  string UserID  = 2; // Optionnel — vérifie la propriété
+  // SupportID supprimé : le contrôle support passe par x-support-uid en metadata gRPC
+}
+
+message DocumentFile {
+  string FileID                = 1;
+  string FileURL               = 2;  // URL présignée (1 h)
+  string FileType              = 3;
+  string PresignedUrlExpiresAt = 4;  // ISO 8601
+}
+
+message GetDocumentResponse {
+  string       ErrorMessage = 1;
+  DocumentFile File         = 2;
+}
+
+// =============================================================================
+// Remplacement de document (HTTP)
+// =============================================================================
+
+message ChangeDocumentRequest {
+  string UserID      = 1;
+  string FileID      = 2;
+  bytes  NewDocument = 3;
+  string DocumentNumber = 4; // Optionnel — remplace l'existant si fourni
+  string IssuedAt       = 5; // Optionnel
+  string ExpireAt       = 6; // Optionnel
+  string IssuingPlace   = 7; // Optionnel (country pour user doc, authority pour vehicle doc)
+}
+
+message ChangeDocumentResponse {
+  bool             Success      = 1;
+  string           ErrorMessage = 2;
+  UploadedDocument Document     = 3;
+}
+
+// =============================================================================
+// Upload identité (HTTP)
+// =============================================================================
+
+message UploadIdDocumentRequest {
+  reserved 5, 6;
+  reserved "DriverLicence";
+
+  string UserID    = 1;
+  // Type : IDCard | Passport | DriverLicence
+  string DocumentType = 2;
+
+  // Obligatoires si DocumentType = IDCard
+  bytes IDCardRecto = 3;
+  bytes IDCardVerso = 4;
+
+  // Obligatoires si DocumentType = DriverLicence (recto + verso).
+  // Le permis est un document utilisateur partagé : validé/refusé pour
+  // l'identité ET la vérification véhicule (tous les véhicules du user).
+  bytes DriverLicenceRecto = 12;
+  bytes DriverLicenceVerso = 13;
+
+  // Obligatoire si DocumentType = Passport
+  bytes Passport = 7;
+
+  // Métadonnées légales — obligatoires pour tous les types
+  string DocumentNumber = 8;
+  string IssuedAt       = 9;  // ISO 8601
+  string ExpireAt       = 10; // ISO 8601
+  string IssuingCountry = 11;
+}
+
+message UploadIdDocumentResponse {
+  bool                     Success      = 1;
+  string                   ErrorMessage = 2;
+  repeated UploadedDocument Documents   = 3; // 1 doc pour Passport, 2 pour IDCard / DriverLicence (recto + verso)
+}
+
+// =============================================================================
+// Upload Request Messages (streaming, inter-service)
+// =============================================================================
 
 message UploadUserDocumentRequest {
   oneof data {
     UserDocumentMetadata metadata = 1;
-    bytes                chunk    = 2;
+    bytes Chunk = 2;
   }
 }
 
 message UserDocumentMetadata {
-  string UserId        = 1;
-  string DocumentName  = 2;
-  string DocumentType  = 3;
-  string MimeType      = 4;
-  int64  FileSizeBytes = 5;
+  string UserId = 1;
+  string DocumentName = 2;
+  string DocumentType = 3; // idCardFront, idCardBack, passport, etc.
+  string MimeType = 4;
+  int64 FileSizeBytes = 5;
+  string DocumentNumber = 6; // Optionnel
+  string IssuingCountry = 7; // Optionnel
+  string IssuedAt = 8;  // ISO 8601 — optionnel pour profilePicture, obligatoire sinon
+  string ExpireAt = 9;  // ISO 8601 — optionnel pour profilePicture, obligatoire sinon
 }
 
-message UserDocumentResponse {
+message UploadVehicleDocumentRequest {
+  oneof data {
+    VehicleDocumentMetadata metadata = 1;
+    bytes Chunk = 2;
+  }
+}
+
+message VehicleDocumentMetadata {
+  string VehicleId = 1;
+  string DocumentName = 2;
+  string DocumentType = 3; // insurance, registrationCard
+  string MimeType = 4;
+  int64 FileSizeBytes = 5;
+  string DocumentNumber = 6;    // Optionnel
+  string IssuingAuthority = 7;  // Optionnel
+  string IssuedAt = 8;          // ISO 8601 — obligatoire pour insurance/registrationCard
+  string ExpireAt = 9;          // ISO 8601 — obligatoire pour insurance, optionnel pour registrationCard
+}
+
+// =============================================================================
+// Read Request Messages
+// =============================================================================
+
+message GetUserDocumentsRequest {
+  string UserId = 1;
+}
+
+message GetDocumentByIDRequest {
+  string DocumentId    = 1;
+  int64  PresignTTLSecs = 2;  // 0 = défaut 1 h
+}
+
+message GetCurrentUserDocumentRequest {
+  string UserId = 1;
+  string DocumentType = 2;
+}
+
+message GetVehicleDocumentsRequest {
+  string VehicleId = 1;
+}
+
+message GetVehicleDocumentsByUserIDRequest {
+  string UserId = 1;
+}
+
+message ListKycDocumentsRequest {
+  repeated string Statuses = 1; // vide = tous les statuts
+}
+
+// KycDocument : vue unifiée d'un document KYC (user ou véhicule) pour la file
+// de validation manuelle. OwnerKind = "user" | "vehicle".
+message KycDocument {
   string DocumentId   = 1;
+  string UserId       = 2;
+  string VehicleId    = 3; // vide pour un document utilisateur
   string DocumentType = 4;
-  string DocumentUrl  = 5;
-  string Status       = 10;
-  bool   IsCurrent    = 11;
-  string ExpiredAt    = 14; // ISO 8601 ou "" si non défini
+  string Status       = 5;
+  string OwnerKind    = 6;
+  string UpdatedAt    = 7; // ISO 8601
+  string UploadedAt   = 8; // ISO 8601 — date de dépôt initial
+}
+
+message ListKycDocumentsResponse {
+  repeated KycDocument Documents = 1;
+}
+
+message DeleteDocumentRequest {
+  string DocumentId = 1;
+}
+
+// =============================================================================
+// Review Request Messages
+// =============================================================================
+
+message CreateDocumentReviewRequest {
+  reserved 3, 4, 5, 6, 7, 8, 9; // Persona (intégration supprimée)
+  reserved "PersonaInquiryId", "PersonaTemplateId", "PersonaSessionToken",
+           "SessionExpiresAt", "WebhookEventType", "WebhookReceivedAt", "PersonaRawPayload";
+
+  string UserDocumentId = 1; // Optionnel
+  string VehicleDocumentId = 2; // Optionnel
+
+  // Retry / versioning
+  int32 AttemptNumber = 10; // Défaut 1
+  string PreviousReviewId = 11; // Optionnel
+
+  // Décision
+  string Status = 12; // pending | completed | expired | failed
+  string Decision = 13; // approved, rejected, resubmission
+  string ReasonRejection = 14; // Optionnel (enum)
+  string RejectionDetails = 15; // Optionnel
+
+  // Réviseur
+  string ReviewedBy = 16;
+  string ReviewType = 17; // manual
+
+  string Notes = 18; // Optionnel
+  bytes ExtractedData = 19; // Optionnel (JSON)
+
+  // Timestamps
+  string SubmittedAt = 20; // Optionnel (ISO 8601)
+
+  // Dénormalisation (migration 000008) — toujours fournis par kyc-service
+  string UserId = 21; // Obligatoire — propriétaire de la review
+  string DocumentType = 22; // Type de document (idCardFront, driverLicenceFront, ...)
+
+  // Recto-verso + historique (migration 000010)
+  string SecondUserDocumentId = 23; // Optionnel — verso pour les documents recto-verso
+  string LogicalDocumentType = 24;  // idCard, driverLicence, passport… (dérivé de DocumentType)
+}
+
+message GetDocumentReviewsRequest {
+  string UserDocumentId = 1; // Optionnel
+  string VehicleDocumentId = 2; // Optionnel
+}
+
+message GetDocumentReviewByIDRequest {
+  string ReviewId = 1;
+}
+
+message GetDocumentReviewsByUserIDRequest {
+  string UserId = 1;
+}
+
+message UpdateDocumentReviewRequest {
+  reserved 2, 3, 4, 5, 6; // Persona (intégration supprimée)
+  reserved "PersonaSessionToken", "SessionExpiresAt", "WebhookEventType",
+           "WebhookReceivedAt", "PersonaRawPayload";
+
+  string ReviewId = 1;
+
+  // Décision
+  string Status = 7; // Optionnel
+  string Decision = 8; // Optionnel
+  string ReasonRejection = 9; // Optionnel
+  string RejectionDetails = 10; // Optionnel
+
+  // Réviseur
+  string ReviewedBy = 11; // Optionnel
+  string ReviewType = 12; // Optionnel
+
+  string Notes = 13; // Optionnel
+
+  // Timestamps
+  string SubmittedAt = 14; // Optionnel (ISO 8601)
+
+  // Recto-verso : verso résolu par kyc-service au moment de la décision.
+  // Si vide pour un type recto-verso, le file-service résout la face compagnon
+  // courante lui-même avant de synchroniser les statuts.
+  string SecondUserDocumentId = 15; // Optionnel
+}
+
+message ListDocumentReviewsRequest {
+  string UserId = 1; // Optionnel — filtre par utilisateur
+  string Status = 2; // Optionnel — filtre par statut
+  string Decision = 3; // Optionnel — filtre par décision
+  int32 Page = 4; // Numéro de page (0-based)
+  int32 PageSize = 5; // Nombre de résultats par page
+}
+
+message HealthRequest {}
+
+// =============================================================================
+// Response Messages
+// =============================================================================
+
+message UserDocumentResponse {
+  string DocumentId          = 1;
+  string UserId              = 2;
+  string DocumentName        = 3;
+  string DocumentType        = 4;
+  string DocumentUrl         = 5;
+  int64  FileSizeBytes       = 6;
+  string MimeType            = 7;
+  string DocumentNumber      = 8;
+  string IssuingCountry      = 9;
+  string Status              = 10;
+  bool   IsCurrent           = 11;
+  string UploadedAt          = 12;
+  string UpdatedAt           = 13;
+  string ExpiredAt           = 14; // ISO 8601 ou "" si non défini
+  string LogicalDocumentType = 15; // idCard, driverLicence, passport…
+  string IssuedAt            = 16; // ISO 8601 ou "" si non défini
+}
+
+// VehicleInfo embarque les données essentielles du véhicule dans la réponse document.
+message VehicleInfo {
+  string VehicleId    = 1;
+  string Brand        = 2;
+  string BrandModel   = 3;
+  string Color        = 4;
+  string LicencePlate = 5;
+  int32  NumberOfSeats = 6;
+  bool   IsVerified   = 7;
+}
+
+message VehicleDocumentResponse {
+  string DocumentId       = 1;
+  string VehicleId        = 2;
+  string DocumentName     = 3;
+  string DocumentType     = 4;
+  string DocumentUrl      = 5;
+  int64  FileSizeBytes    = 6;
+  string MimeType         = 7;
+  string DocumentNumber   = 8;
+  string IssuingAuthority = 9;
+  string Status           = 10;
+  bool   IsCurrent        = 11;
+  string UploadedAt       = 12;
+  string UpdatedAt        = 13;
+  string UserId           = 14; // Propriétaire (driver) — dénormalisation migration 000005
+  string IssuedAt         = 15; // ISO 8601 ou "" si non défini
+  string ExpireAt         = 16; // ISO 8601 ou "" si non défini
+  VehicleInfo Vehicle     = 17; // Détails du véhicule (null si non résolu)
+}
+
+message GetUserDocumentsResponse {
+  repeated UserDocumentResponse documents = 1;
+}
+
+message GetVehicleDocumentsResponse {
+  repeated VehicleDocumentResponse documents = 1;
+}
+
+message OperationResponse {
+  bool Success = 1;
+}
+
+message DocumentReviewResponse {
+  reserved 4, 5, 6, 7, 8, 9, 10; // Persona (intégration supprimée)
+  reserved "PersonaInquiryId", "PersonaTemplateId", "PersonaSessionToken",
+           "SessionExpiresAt", "WebhookEventType", "WebhookReceivedAt", "PersonaRawPayload";
+
+  string ReviewId = 1;
+  string UserDocumentId = 2;
+  string VehicleDocumentId = 3;
+
+  // Retry / versioning
+  int32 AttemptNumber = 11;
+  string PreviousReviewId = 12;
+
+  // Décision
+  string Status = 13;
+  string Decision = 14;
+  string ReasonRejection = 15;
+  string RejectionDetails = 16;
+
+  // Réviseur
+  string ReviewedBy = 17;
+  string ReviewType = 18;
+  string ReviewedAt = 19; // ISO 8601
+
+  string Notes = 20;
+  bytes ExtractedData = 21; // JSON
+
+  // Timestamps
+  string SubmittedAt = 22; // ISO 8601
+  string UpdatedAt = 23; // ISO 8601
+
+  // Dénormalisation (migration 000008) — toujours présents
+  string UserId = 24; // Propriétaire de la review
+  string DocumentType = 25; // Type de document
+
+  // Recto-verso + historique (migration 000010)
+  string SecondUserDocumentId = 26; // verso pour les documents recto-verso
+  string LogicalDocumentType = 27;  // idCard, driverLicence, passport…
+
+  // Timestamps créé/modifié
+  string CreatedAt = 28; // ISO 8601
+}
+
+message GetDocumentReviewsResponse {
+  repeated DocumentReviewResponse Reviews = 1;
+}
+
+message HealthResponse {
+  string Status = 1;
+  string Version = 2;
+  int64 Timestamp = 3;
+}
+
+// =============================================================================
+// DeleteAllUserFiles — suppression de compte
+// =============================================================================
+
+message DeleteAllUserFilesRequest {
+  string UserID = 1; // UserID interne (user-service)
+}
+
+message DeleteAllUserFilesResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// GetDocumentReviewHistory — historique complet d'un document logique (inter-service)
+// =============================================================================
+
+message GetDocumentReviewHistoryRequest {
+  string UserId              = 1; // Propriétaire des documents
+  string LogicalDocumentType = 2; // idCard | driverLicence | passport | insurance | registrationCard
+}
+
+message GetDocumentReviewHistoryResponse {
+  repeated DocumentReviewResponse Reviews = 1; // Triées par date décroissante (plus récente en premier)
 }

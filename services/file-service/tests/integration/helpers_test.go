@@ -137,7 +137,7 @@ func newReviewForUserDoc(doc *domain.UserDocument) *domain.DocumentReview {
 		ReviewedBy:     "admin-1",
 		ReviewType:     "manual",
 		AttemptNumber:  1,
-		ReviewedAt:     now,
+		ReviewedAt:     &now,
 		UpdatedAt:      now,
 	}
 }
@@ -158,7 +158,7 @@ func newReviewForVehicleDoc(doc *domain.VehicleDocument) *domain.DocumentReview 
 		ReviewedBy:        "bot-1",
 		ReviewType:        "automatic",
 		AttemptNumber:     1,
-		ReviewedAt:        now,
+		ReviewedAt:        &now,
 		UpdatedAt:         now,
 	}
 }

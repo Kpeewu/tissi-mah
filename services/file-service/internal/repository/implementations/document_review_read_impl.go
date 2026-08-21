@@ -24,13 +24,11 @@ func NewDocumentReviewReadRepository(pool *pgxpool.Pool, logger *zap.Logger) i.D
 }
 
 const reviewSelectColumns = `review_id, user_id, document_type, logical_document_type, user_document_id, second_user_document_id, vehicle_document_id,
-	persona_inquiry_id, persona_template_id, persona_session_token, session_expires_at,
-	webhook_event_type, webhook_received_at, persona_raw_payload,
 	attempt_number, previous_review_id,
 	status, decision, reason_rejection, rejection_details,
 	reviewed_by, review_type, reviewed_at,
 	notes, extracted_data,
-	submitted_at, updated_at`
+	submitted_at, created_at, updated_at`
 
 func scanReview(row interface {
 	Scan(dest ...any) error
@@ -38,13 +36,11 @@ func scanReview(row interface {
 	return row.Scan(
 		&review.ReviewID, &review.UserID, &review.DocumentType, &review.LogicalDocumentType,
 		&review.UserDocumentID, &review.SecondUserDocumentID, &review.VehicleDocumentID,
-		&review.PersonaInquiryID, &review.PersonaTemplateID, &review.PersonaSessionToken, &review.SessionExpiresAt,
-		&review.WebhookEventType, &review.WebhookReceivedAt, &review.PersonaRawPayload,
 		&review.AttemptNumber, &review.PreviousReviewID,
 		&review.Status, &review.Decision, &review.ReasonRejection, &review.RejectionDetails,
 		&review.ReviewedBy, &review.ReviewType, &review.ReviewedAt,
 		&review.Notes, &review.ExtractedData,
-		&review.SubmittedAt, &review.UpdatedAt,
+		&review.SubmittedAt, &review.CreatedAt, &review.UpdatedAt,
 	)
 }
 
@@ -84,24 +80,6 @@ func (r *documentReviewReadImpl) GetByVehicleDocumentID(ctx context.Context, veh
 	          ORDER BY COALESCE(reviewed_at, updated_at) DESC`
 
 	return r.queryReviews(ctx, query, vehicleDocumentID)
-}
-
-func (r *documentReviewReadImpl) GetByPersonaInquiryID(ctx context.Context, personaInquiryID string) (*domain.DocumentReview, error) {
-	r.logger.Debug("récupération de la revue par persona_inquiry_id", zap.String("personaInquiryID", personaInquiryID))
-
-	query := `SELECT ` + reviewSelectColumns + ` FROM document_reviews WHERE persona_inquiry_id = $1`
-
-	review := &domain.DocumentReview{}
-	err := scanReview(r.pool.QueryRow(ctx, query, personaInquiryID), review)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			r.logger.Debug("revue non trouvée par persona_inquiry_id", zap.String("personaInquiryID", personaInquiryID))
-			return nil, fileErrors.ErrorReviewNotFound
-		}
-		r.logger.Error("erreur récupération revue par persona_inquiry_id", zap.String("personaInquiryID", personaInquiryID), zap.Error(err))
-		return nil, fileErrors.ErrorDataRetrievalFailed
-	}
-	return review, nil
 }
 
 func (r *documentReviewReadImpl) GetByUserID(ctx context.Context, userID string) ([]*domain.DocumentReview, error) {
@@ -160,7 +138,7 @@ func (r *documentReviewReadImpl) GetHistoryByUserIDAndLogicalType(ctx context.Co
 	query := `SELECT ` + reviewSelectColumns + `
 	          FROM document_reviews
 	          WHERE user_id = $1 AND logical_document_type = $2
-	          ORDER BY COALESCE(reviewed_at, updated_at) DESC`
+	          ORDER BY created_at DESC`
 
 	return r.queryReviewsArgs(ctx, query, userID, logicalType)
 }

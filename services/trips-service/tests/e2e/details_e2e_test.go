@@ -24,11 +24,10 @@ func TestE2E_GetDriverTripDetails_Success(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 	require.NoError(t, err)
-
-	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
-		Return("Toyota", "AA-1234", 4, nil).Maybe()
 
 	resp, err := client.GetDriverTripDetails(ctx, &trippb.GetDriverTripDetailsRequest{TripId: createResp.TripId})
 	require.NoError(t, err)
@@ -39,7 +38,7 @@ func TestE2E_GetDriverTripDetails_Success(t *testing.T) {
 
 func TestE2E_GetDriverTripDetails_NotOwner(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -49,6 +48,8 @@ func TestE2E_GetDriverTripDetails_NotOwner(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, ownerDriverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, ownerDriverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, ownerDriverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(ownerDriverID, vehicleID))
 	require.NoError(t, err)
 
@@ -86,13 +87,15 @@ func TestE2E_GetPassengerTripDetails_Success(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 	require.NoError(t, err)
 
 	mockUserClient.On("GetDriverInfo", mock.Anything, driverID).Return("Jean", "https://img", nil).Maybe()
 	mockUserClient.On("GetDriverName", mock.Anything, driverID).Return("Jean Test", nil).Maybe()
 	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
-		Return("Toyota", "AA-1234", 4, nil).Maybe()
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 
 	// Route passager = publique, pas besoin d'UID metadata
 	resp, err := client.GetPassengerTripDetails(context.Background(), &trippb.GetPassengerTripDetailsRequest{TripId: createResp.TripId})

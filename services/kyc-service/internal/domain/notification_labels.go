@@ -14,6 +14,8 @@ func DocumentTypeLabel(documentType string) string {
 		return "Passeport"
 	case "driverLicence":
 		return "Permis de conduire"
+	case "selfie":
+		return "Selfie d'identité"
 	case "insurance":
 		return "Assurance"
 	case "registrationCard":

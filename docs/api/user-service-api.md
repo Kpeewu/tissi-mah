@@ -21,6 +21,11 @@ Authorization: Bearer <firebase_id_token>
 
 L'api-gateway valide le token Firebase, puis injecte le `x-firebase-uid` en metadata gRPC. L'intercepteur du user-service lit ce UID et l'injecte dans le contexte via `middleware.FirebaseIDKey`. Le `UserID` interne n'est **jamais** lu depuis le JWT — le service résout lui-même l'association FirebaseUID → UserID via MongoDB.
 
+> ⚠️ **Le champ `UserID` du body est ignoré** sur tous les endpoints client-facing
+> (`createDriverAccount`, `addTripPreferences`, `updateProfile`). L'utilisateur cible est
+> toujours résolu depuis le Firebase UID du contexte : un client ne peut pas agir sur le
+> profil d'autrui en changeant le body. Le champ reste dans le proto pour compatibilité.
+
 ## En-têtes communs
 
 | En-tête | Requis | Description |
@@ -410,86 +415,23 @@ curl -X PATCH https://api.tissi-mah.com/api/v1/userProfile/updateProfile \
 
 ---
 
-### PATCH /api/v1/userProfile/changeProfilePicture
+### Photo de profil — endpoint supprimé
 
-Change la photo de profil de l'utilisateur. L'image est uploadée via `file-service`, puis l'URL est enregistrée dans MongoDB.
+`PATCH /api/v1/userProfile/changeProfilePicture` **n'existe plus**.
 
-**Authentification :** Requise (Firebase JWT)
-**Rate limit :** `global` (60/min, 1000/hr)
+La photo de profil est désormais le **selfie d'identité** : elle se soumet via
+`POST /api/v1/file/uploadSelfie` (file-service) et passe par la validation support
+(comparaison selfie ↔ pièce d'identité). Le selfie devient la photo de profil dès
+l'upload, après modération d'image.
 
-> ⚠️ **Le champ `NewProfilePicture` doit être envoyé en base64.** Le grpc-gateway transcrit les champs `bytes` proto en chaînes base64 standard dans le JSON. La taille maximum de l'image dépend de la configuration de l'api-gateway et de file-service.
+Conséquences côté client :
 
-Flux interne :
-1. Validation des champs (`UserID` et `NewProfilePicture` non vides)
-2. Lookup du profil MongoDB
-3. Upload via **file-service** → obtention de l'URL
-4. Mise à jour de `ProfileImageURL` et `HasProfileImage` dans MongoDB
-5. Enrichissement via **auth-service** + **file-service** (dates d'expiration)
-
-#### Requête
-
-```http
-PATCH /api/v1/userProfile/changeProfilePicture HTTP/1.1
-Host: api.tissi-mah.com
-Authorization: Bearer <firebase_id_token>
-Content-Type: application/json
-
-{
-    "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
-    "NewProfilePicture": "<base64-encoded-image-bytes>"
-}
-```
-
-#### Champs de la requête
-
-| Champ | Type | Requis | Description |
-|-------|------|--------|-------------|
-| `UserID` | string (UUID) | Oui | ID profil MongoDB |
-| `NewProfilePicture` | string (base64) | Oui | Image encodée en base64 (JPEG ou PNG recommandé) |
-
-#### Réponse (succès)
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "ErrorMessage": "",
-    "User": {
-        "AuthID": "8b1518f9-0949-4872-92a4-5dbdfb7863d9",
-        "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
-        "Name": "Doe",
-        "FirstName": "Samuel",
-        "ProfileImageURL": "https://tissi-mah-files.s3.amazonaws.com/profiles/8b1d4173.jpg",
-        "HasProfileImage": true,
-        "..."  : "..."
-    }
-}
-```
-
-Le profil retourné a la même structure que la réponse de `GET /api/v1/user/me`.
-
-#### Erreurs
-
-| ErrorMessage | HTTP | Cause |
-|--------------|------|-------|
-| `ErrorInvalidUserID` | 400 | `UserID` vide |
-| `"new_profile_picture est requis"` | 400 | `NewProfilePicture` vide ou absent |
-| `ErrorUserNotFound` | 404 | Profil introuvable |
-| `ErrorAuthServiceUnavailable` | 503 | auth-service indisponible pour l'enrichissement post-upload |
-| `ErrorInternalServer` | 500 | Échec upload file-service ou erreur MongoDB |
-
-#### Exemple (cURL)
-
-```bash
-# Encoder l'image en base64
-IMAGE_B64=$(base64 -i photo.jpg)
-
-curl -X PATCH https://api.tissi-mah.com/api/v1/userProfile/changeProfilePicture \
-  -H "Authorization: Bearer <firebase_token>" \
-  -H "Content-Type: application/json" \
-  -d "{\"UserID\": \"8b1d4173-d563-4f81-aeb1-8bf565816545\", \"NewProfilePicture\": \"$IMAGE_B64\"}"
-```
+- Pour changer de photo → envoyer un nouveau selfie sur `/api/v1/file/uploadSelfie`.
+  L'identité (`IsPassengerProfileVerified`) retombe en attente jusqu'à sa revalidation.
+- `ProfileImageURL` est une **URL présignée résolue à la lecture** (selfie courant,
+  repli sur l'historique `profilePicture`) : elle expire et ne doit jamais être mise
+  en cache durablement côté client.
+- `UpdateProfile` ne modifie pas la photo (le champ `ProfilePictureURL` y est réservé).
 
 ---
 
@@ -635,7 +577,6 @@ rpc SoftDeleteUser(SoftDeleteUserRequest) returns (OperationResponse);
 | `PATCH` | `/api/v1/userProfile/createDriverAccount` | JWT | `global` | Mise à jour flag |
 | `PATCH` | `/api/v1/userProfile/addTripPreferences` | JWT | `global` | Remplacement préférences |
 | `PATCH` | `/api/v1/userProfile/updateProfile` | JWT | `global` | Mise à jour partielle |
-| `PATCH` | `/api/v1/userProfile/changeProfilePicture` | JWT | `global` | Upload + mise à jour |
 | `GET` | `/api/v1/user/health` | — | `global` | Health |
 | gRPC | `CreateUser` | — | — | Inter-service |
 | gRPC | `GetUserByAuthID` | — | — | Inter-service |

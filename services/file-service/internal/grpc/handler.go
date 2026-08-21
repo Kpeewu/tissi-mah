@@ -89,11 +89,21 @@ func (h *FileHandler) UploadUserDocument(stream filepb.FileService_UploadUserDoc
 		}
 	}
 
+	// Sniffer le MIME réel depuis le contenu plutôt que de faire confiance à la
+	// metadata cliente (un PNG annoncé image/jpeg serait stocké avec la mauvaise
+	// extension et le mauvais Content-Type).
+	mimeType := metadata.MimeType
+	if buf.Len() > 0 {
+		if detected := domain.DetectMimeType(buf.Bytes()); detected != "application/octet-stream" {
+			mimeType = detected
+		}
+	}
+
 	input := serviceInterfaces.UploadUserDocumentInput{
 		UserID:         metadata.UserId,
 		DocumentName:   metadata.DocumentName,
 		DocumentType:   metadata.DocumentType,
-		MimeType:       metadata.MimeType,
+		MimeType:       mimeType,
 		FileSizeBytes:  metadata.FileSizeBytes,
 		Data:           &buf,
 		DocumentNumber: metadata.DocumentNumber,
@@ -291,6 +301,67 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 	return &filepb.UploadIdDocumentResponse{
 		Success:   true,
 		Documents: toProtoUploadedDocuments(docs),
+	}, nil
+}
+
+// UploadSelfie reçoit le selfie d'identité en base64 JSON, le modère, l'upload
+// vers S3/MinIO et l'enregistre comme document "selfie" courant (photo de profil
+// immédiate + review "pending" pour validation support).
+//
+// Sécurité : le Firebase UID est lu depuis la metadata gRPC x-firebase-uid
+// (injectée par l'api-gateway après validation JWT) puis résolu via user-service.
+// Aucun UserID n'est accepté dans le body.
+func (h *FileHandler) UploadSelfie(ctx context.Context, req *filepb.UploadSelfieRequest) (*filepb.UploadSelfieResponse, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		h.logger.Error("handler: UploadSelfie - missing metadata")
+		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	}
+	uids := md.Get("x-firebase-uid")
+	if len(uids) == 0 || uids[0] == "" {
+		h.logger.Error("handler: UploadSelfie - missing x-firebase-uid")
+		return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
+	}
+	firebaseUID := uids[0]
+
+	profile, err := h.userClient.GetUserProfileByFirebaseID(ctx, firebaseUID)
+	if err != nil {
+		h.logger.Error("handler: UploadSelfie - failed to resolve firebaseUID",
+			zap.String("firebaseUID", firebaseUID),
+			zap.Error(err),
+		)
+		return &filepb.UploadSelfieResponse{
+			Success:      false,
+			ErrorMessage: fileErrors.ErrorUserServiceUnavailable.Error(),
+		}, nil
+	}
+
+	doc, err := h.service.UploadSelfie(ctx, serviceInterfaces.UploadSelfieInput{
+		UserID:    profile.UserID,
+		FirstName: profile.FirstName,
+		LastName:  profile.LastName,
+		Selfie:    req.Selfie,
+	})
+	if err != nil {
+		h.logger.Error("handler: UploadSelfie failed",
+			zap.String("firebaseUID", firebaseUID),
+			zap.String("internalUserID", profile.UserID),
+			zap.Error(err),
+		)
+		return &filepb.UploadSelfieResponse{
+			Success:      false,
+			ErrorMessage: err.Error(),
+		}, nil
+	}
+
+	h.logger.Info("handler: UploadSelfie success",
+		zap.String("firebaseUID", firebaseUID),
+		zap.String("internalUserID", profile.UserID),
+		zap.String("documentID", doc.DocumentID),
+	)
+	return &filepb.UploadSelfieResponse{
+		Success:  true,
+		Document: toProtoUploadedDocument(doc),
 	}, nil
 }
 
@@ -611,15 +682,6 @@ func (h *FileHandler) CreateDocumentReview(ctx context.Context, req *filepb.Crea
 		SecondUserDocumentID: req.SecondUserDocumentId,
 		VehicleDocumentID:    req.VehicleDocumentId,
 
-		PersonaInquiryID:    req.PersonaInquiryId,
-		PersonaTemplateID:   req.PersonaTemplateId,
-		PersonaSessionToken: req.PersonaSessionToken,
-		SessionExpiresAt:    req.SessionExpiresAt,
-
-		WebhookEventType:  req.WebhookEventType,
-		WebhookReceivedAt: req.WebhookReceivedAt,
-		PersonaRawPayload: req.PersonaRawPayload,
-
 		AttemptNumber:    req.AttemptNumber,
 		PreviousReviewID: req.PreviousReviewId,
 
@@ -675,17 +737,6 @@ func (h *FileHandler) GetDocumentReviews(ctx context.Context, req *filepb.GetDoc
 	return &filepb.GetDocumentReviewsResponse{Reviews: protoReviews}, nil
 }
 
-func (h *FileHandler) GetDocumentReviewByPersonaInquiryID(ctx context.Context, req *filepb.GetDocumentReviewByPersonaInquiryIDRequest) (*filepb.DocumentReviewResponse, error) {
-	h.logger.Debug("handler: GetDocumentReviewByPersonaInquiryID", zap.String("personaInquiryID", req.PersonaInquiryId))
-
-	review, err := h.service.GetDocumentReviewByPersonaInquiryID(ctx, req.PersonaInquiryId)
-	if err != nil {
-		h.logHandlerError("handler: GetDocumentReviewByPersonaInquiryID", err)
-		return nil, toGRPCError(err)
-	}
-	return toProtoDocumentReview(review), nil
-}
-
 func (h *FileHandler) GetDocumentReviewsByUserID(ctx context.Context, req *filepb.GetDocumentReviewsByUserIDRequest) (*filepb.GetDocumentReviewsResponse, error) {
 	h.logger.Debug("handler: GetDocumentReviewsByUserID", zap.String("userID", req.UserId))
 
@@ -713,36 +764,18 @@ func (h *FileHandler) UpdateDocumentReview(ctx context.Context, req *filepb.Upda
 	}
 
 	// Appliquer les champs non vides du request sur la revue existante
-	if req.PersonaSessionToken != "" {
-		existing.PersonaSessionToken = req.PersonaSessionToken
-	}
-	if req.SessionExpiresAt != "" {
-		t, err := time.Parse(time.RFC3339, req.SessionExpiresAt)
-		if err == nil {
-			existing.SessionExpiresAt = &t
-		}
-	}
-	if req.WebhookEventType != "" {
-		existing.WebhookEventType = req.WebhookEventType
-	}
-	if req.WebhookReceivedAt != "" {
-		t, err := time.Parse(time.RFC3339, req.WebhookReceivedAt)
-		if err == nil {
-			existing.WebhookReceivedAt = &t
-		}
-	}
-	if len(req.PersonaRawPayload) > 0 {
-		existing.PersonaRawPayload = req.PersonaRawPayload
-	}
 	if req.Status != "" {
 		existing.Status = req.Status
 	}
 	if req.Decision != "" {
 		existing.Decision = req.Decision
-		// Une décision est appliquée/modifiée : rafraîchir reviewed_at pour
-		// refléter l'heure réelle de la décision plutôt que de rester figé
-		// à l'heure de création de la ligne.
-		existing.ReviewedAt = time.Now().UTC()
+		// Une décision est appliquée/modifiée : renseigner reviewed_at avec
+		// l'heure réelle de la décision.
+		now := time.Now().UTC()
+		existing.ReviewedAt = &now
+	}
+	if req.SecondUserDocumentId != "" {
+		existing.SecondUserDocumentID = &req.SecondUserDocumentId
 	}
 	if req.ReasonRejection != "" {
 		existing.ReasonRejection = req.ReasonRejection
@@ -951,13 +984,6 @@ func toProtoDocumentReview(review *domain.DocumentReview) *filepb.DocumentReview
 		UserId:       review.UserID,
 		DocumentType: review.DocumentType,
 
-		PersonaInquiryId:    review.PersonaInquiryID,
-		PersonaTemplateId:   review.PersonaTemplateID,
-		PersonaSessionToken: review.PersonaSessionToken,
-
-		WebhookEventType:  review.WebhookEventType,
-		PersonaRawPayload: review.PersonaRawPayload,
-
 		AttemptNumber: int32(review.AttemptNumber),
 
 		Status:           review.Status,
@@ -967,11 +993,12 @@ func toProtoDocumentReview(review *domain.DocumentReview) *filepb.DocumentReview
 
 		ReviewedBy: review.ReviewedBy,
 		ReviewType: review.ReviewType,
-		ReviewedAt: review.ReviewedAt.Format(time.RFC3339),
+		ReviewedAt: formatTimeOrEmpty(review.ReviewedAt),
 
 		Notes:         review.Notes,
 		ExtractedData: review.ExtractedData,
 
+		CreatedAt: review.CreatedAt.Format(time.RFC3339),
 		UpdatedAt: review.UpdatedAt.Format(time.RFC3339),
 	}
 	if review.UserDocumentID != nil {
@@ -979,12 +1006,6 @@ func toProtoDocumentReview(review *domain.DocumentReview) *filepb.DocumentReview
 	}
 	if review.VehicleDocumentID != nil {
 		resp.VehicleDocumentId = *review.VehicleDocumentID
-	}
-	if review.SessionExpiresAt != nil {
-		resp.SessionExpiresAt = review.SessionExpiresAt.Format(time.RFC3339)
-	}
-	if review.WebhookReceivedAt != nil {
-		resp.WebhookReceivedAt = review.WebhookReceivedAt.Format(time.RFC3339)
 	}
 	if review.PreviousReviewID != nil {
 		resp.PreviousReviewId = *review.PreviousReviewID
@@ -1045,11 +1066,13 @@ func toGRPCError(err error) error {
 	case errors.Is(err, fileErrors.ErrorDocumentAlreadySubmitted):
 		return status.Error(codes.AlreadyExists, err.Error())
 
-	case errors.Is(err, fileErrors.ErrorDocumentNotReplaceable):
+	case errors.Is(err, fileErrors.ErrorDocumentNotReplaceable),
+		errors.Is(err, fileErrors.ErrorReviewAlreadyCompleted):
 		return status.Error(codes.FailedPrecondition, err.Error())
 
 	case errors.Is(err, fileErrors.ErrorMissingDocumentMetadata),
-		errors.Is(err, fileErrors.ErrorDriverLicenceRequired):
+		errors.Is(err, fileErrors.ErrorDriverLicenceRequired),
+		errors.Is(err, fileErrors.ErrorInvalidInput):
 		return status.Error(codes.InvalidArgument, err.Error())
 
 	default:

@@ -171,8 +171,37 @@ func (h *VehicleHandler) GetVehicleInfo(ctx context.Context, req *vehiclepb.GetV
 			LicencePlate:  vehicle.LicencePlate,
 			NumberOfSeats: int32(vehicle.NumberOfSeats),
 			IsVerified:    vehicle.IsVerified,
+			UserId:        vehicle.UserID,
 		},
 	}, nil
+}
+
+// SetVehicleVerification fixe le flag is_verified d'un véhicule (inter-service,
+// appelé par kyc-service quand l'assurance + la carte grise du véhicule sont
+// toutes deux approuvées — ou cessent de l'être).
+func (h *VehicleHandler) SetVehicleVerification(ctx context.Context, req *vehiclepb.SetVehicleVerificationRequest) (*vehiclepb.SetVehicleVerificationResponse, error) {
+	h.logger.Debug("handler: SetVehicleVerification called",
+		zap.String("vehicleID", req.VehicleId),
+		zap.Bool("isVerified", req.IsVerified),
+	)
+
+	if err := h.service.VerifyVehicle(ctx, req.VehicleId, req.IsVerified); err != nil {
+		if errors.Is(err, vehicleErrors.ErrorVehicleNotFound) {
+			h.logger.Debug("handler: SetVehicleVerification — vehicle not found", zap.String("vehicleID", req.VehicleId))
+		} else {
+			h.logger.Error("handler: SetVehicleVerification failed", zap.Error(err))
+		}
+		return &vehiclepb.SetVehicleVerificationResponse{
+			Success:      false,
+			ErrorMessage: err.Error(),
+		}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: SetVehicleVerification success",
+		zap.String("vehicleID", req.VehicleId),
+		zap.Bool("isVerified", req.IsVerified),
+	)
+	return &vehiclepb.SetVehicleVerificationResponse{Success: true}, nil
 }
 
 // Health retourne l'état de santé du service (route publique, sans auth).

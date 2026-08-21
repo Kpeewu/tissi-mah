@@ -347,7 +347,7 @@ func TestCreateDriverAccount_Success(t *testing.T) {
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
-	mockService.On("CreateDriverAccount", ctx, "profile-123", true).Return(nil)
+	mockService.On("CreateDriverAccount", ctx, true).Return(nil)
 
 	req := &userpb.CreateDriverAccountRequest{
 		UserID:              "profile-123",
@@ -367,7 +367,7 @@ func TestCreateDriverAccount_InvalidProfileID(t *testing.T) {
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
-	mockService.On("CreateDriverAccount", ctx, "invalid-id", true).Return(userErrors.ErrorInvalidUserID)
+	mockService.On("CreateDriverAccount", ctx, true).Return(userErrors.ErrorInvalidUserID)
 
 	req := &userpb.CreateDriverAccountRequest{
 		UserID:              "invalid-id",
@@ -386,7 +386,7 @@ func TestCreateDriverAccount_NotFound(t *testing.T) {
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
-	mockService.On("CreateDriverAccount", ctx, "profile-unknown", true).Return(userErrors.ErrorUserNotFound)
+	mockService.On("CreateDriverAccount", ctx, true).Return(userErrors.ErrorUserNotFound)
 
 	req := &userpb.CreateDriverAccountRequest{
 		UserID:              "profile-unknown",
@@ -405,7 +405,7 @@ func TestCreateDriverAccount_InternalError(t *testing.T) {
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
-	mockService.On("CreateDriverAccount", ctx, "profile-123", false).Return(userErrors.ErrorInternalServer)
+	mockService.On("CreateDriverAccount", ctx, false).Return(userErrors.ErrorInternalServer)
 
 	req := &userpb.CreateDriverAccountRequest{
 		UserID:              "profile-123",
@@ -434,7 +434,7 @@ func TestAddTripPreferences_Success(t *testing.T) {
 		{Preference: "pets", IsAllowed: true},
 	}
 
-	mockService.On("AddTripPreferences", ctx, "profile-123", expectedPrefs).Return(nil)
+	mockService.On("AddTripPreferences", ctx, expectedPrefs).Return(nil)
 
 	req := &userpb.AddTripPreferencesRequest{
 		UserID: "profile-123",
@@ -458,7 +458,7 @@ func TestAddTripPreferences_InvalidProfileID(t *testing.T) {
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
-	mockService.On("AddTripPreferences", ctx, "bad-id", mock.Anything).Return(userErrors.ErrorInvalidUserID)
+	mockService.On("AddTripPreferences", ctx, mock.Anything).Return(userErrors.ErrorInvalidUserID)
 
 	req := &userpb.AddTripPreferencesRequest{
 		UserID: "bad-id",
@@ -479,7 +479,7 @@ func TestAddTripPreferences_InternalError(t *testing.T) {
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
-	mockService.On("AddTripPreferences", ctx, "profile-123", mock.Anything).Return(userErrors.ErrorInternalServer)
+	mockService.On("AddTripPreferences", ctx, mock.Anything).Return(userErrors.ErrorInternalServer)
 
 	req := &userpb.AddTripPreferencesRequest{
 		UserID: "profile-123",
@@ -500,7 +500,7 @@ func TestAddTripPreferences_EmptyList(t *testing.T) {
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
-	mockService.On("AddTripPreferences", ctx, "profile-123", []domain.TripPreference{}).Return(nil)
+	mockService.On("AddTripPreferences", ctx, []domain.TripPreference{}).Return(nil)
 
 	req := &userpb.AddTripPreferencesRequest{
 		UserID:      "profile-123",
@@ -526,8 +526,7 @@ func TestUpdateProfile_SuccessAllFields(t *testing.T) {
 	profile := newFullProfile()
 
 	mockService.On("UpdateProfile", ctx, mock.MatchedBy(func(req serviceInterfaces.UpdateProfileRequest) bool {
-		return req.UserID == "profile-456" &&
-			req.FirstName != nil && *req.FirstName == "Jean" &&
+		return req.FirstName != nil && *req.FirstName == "Jean" &&
 			req.LastName != nil && *req.LastName == "Dupont" &&
 			req.BirthDate != nil && *req.BirthDate == "1992-05-20" &&
 			req.Email != nil && *req.Email == "jean@example.com" &&
@@ -564,8 +563,7 @@ func TestUpdateProfile_SuccessPartialFields(t *testing.T) {
 	profile := newFullProfile()
 
 	mockService.On("UpdateProfile", ctx, mock.MatchedBy(func(req serviceInterfaces.UpdateProfileRequest) bool {
-		return req.UserID == "profile-456" &&
-			req.FirstName != nil && *req.FirstName == "Marie" &&
+		return req.FirstName != nil && *req.FirstName == "Marie" &&
 			req.LastName == nil &&
 			req.BirthDate == nil &&
 			req.Email == nil &&
@@ -591,9 +589,7 @@ func TestUpdateProfile_InvalidProfileID(t *testing.T) {
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
-	mockService.On("UpdateProfile", ctx, mock.MatchedBy(func(req serviceInterfaces.UpdateProfileRequest) bool {
-		return req.UserID == "bad-id"
-	})).Return(nil, userErrors.ErrorInvalidUserID)
+	mockService.On("UpdateProfile", ctx, mock.Anything).Return(nil, userErrors.ErrorInvalidUserID)
 
 	req := &userpb.UpdateProfileRequest{
 		UserID:    "bad-id",
@@ -612,9 +608,7 @@ func TestUpdateProfile_InternalError(t *testing.T) {
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
-	mockService.On("UpdateProfile", ctx, mock.MatchedBy(func(req serviceInterfaces.UpdateProfileRequest) bool {
-		return req.UserID == "profile-456"
-	})).Return(nil, userErrors.ErrorInternalServer)
+	mockService.On("UpdateProfile", ctx, mock.Anything).Return(nil, userErrors.ErrorInternalServer)
 
 	req := &userpb.UpdateProfileRequest{
 		UserID: "profile-456",
@@ -647,111 +641,6 @@ func TestHealth_Success(t *testing.T) {
 	assert.Equal(t, "1.0.0", resp.Version)
 	assert.GreaterOrEqual(t, resp.Timestamp, before)
 	assert.LessOrEqual(t, resp.Timestamp, after)
-}
-
-// ============================================================================
-// Tests ChangeProfilePicture
-// ============================================================================
-
-func TestChangeProfilePicture_Success(t *testing.T) {
-	// Vérifie que ChangeProfilePicture retourne le profil mis à jour avec la nouvelle URL
-	mockService, handler := newMockAndHandler()
-	ctx := context.Background()
-	profile := newFullProfile()
-	profile.ProfileImageURL = "https://s3.amazonaws.com/photo.jpg"
-	profile.HasProfileImage = true
-
-	imageBytes := []byte{0xFF, 0xD8, 0xFF}
-	mockService.On("ChangeProfilePicture", ctx, "profile-456", imageBytes).Return(profile, nil)
-
-	req := &userpb.ChangeProfilePictureRequest{
-		UserID:            "profile-456",
-		NewProfilePicture: imageBytes,
-	}
-
-	resp, err := handler.ChangeProfilePicture(ctx, req)
-
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	require.NotNil(t, resp.User)
-	assert.Equal(t, "https://s3.amazonaws.com/photo.jpg", resp.User.ProfileImageURL)
-	assert.True(t, resp.User.HasProfileImage)
-	assert.Equal(t, profile.UserID, resp.User.UserID)
-	assert.Equal(t, profile.IsDriver, resp.User.IsDriver)
-	assert.Equal(t, profile.IDCardExpirationDate, resp.User.IDCardExpirationDate)
-	mockService.AssertExpectations(t)
-}
-
-func TestChangeProfilePicture_EmptyUserID(t *testing.T) {
-	// Vérifie que UserID vide retourne codes.InvalidArgument sans appel au service
-	_, handler := newMockAndHandler()
-	ctx := context.Background()
-
-	req := &userpb.ChangeProfilePictureRequest{
-		UserID:            "",
-		NewProfilePicture: []byte{0xFF, 0xD8, 0xFF},
-	}
-
-	resp, err := handler.ChangeProfilePicture(ctx, req)
-
-	assert.Nil(t, resp)
-	assertGRPCCode(t, err, codes.InvalidArgument)
-}
-
-func TestChangeProfilePicture_EmptyImage(t *testing.T) {
-	// Vérifie que l'absence d'image retourne codes.InvalidArgument sans appel au service
-	_, handler := newMockAndHandler()
-	ctx := context.Background()
-
-	req := &userpb.ChangeProfilePictureRequest{
-		UserID:            "profile-456",
-		NewProfilePicture: []byte{},
-	}
-
-	resp, err := handler.ChangeProfilePicture(ctx, req)
-
-	assert.Nil(t, resp)
-	assertGRPCCode(t, err, codes.InvalidArgument)
-}
-
-func TestChangeProfilePicture_UserNotFound(t *testing.T) {
-	// Vérifie que ErrorUserNotFound est traduit en codes.NotFound
-	mockService, handler := newMockAndHandler()
-	ctx := context.Background()
-	imageBytes := []byte{0xFF, 0xD8, 0xFF}
-
-	mockService.On("ChangeProfilePicture", ctx, "unknown-id", imageBytes).Return(nil, userErrors.ErrorUserNotFound)
-
-	req := &userpb.ChangeProfilePictureRequest{
-		UserID:            "unknown-id",
-		NewProfilePicture: imageBytes,
-	}
-
-	resp, err := handler.ChangeProfilePicture(ctx, req)
-
-	assert.Nil(t, resp)
-	assertGRPCCode(t, err, codes.NotFound)
-	mockService.AssertExpectations(t)
-}
-
-func TestChangeProfilePicture_UploadFails(t *testing.T) {
-	// Vérifie qu'une erreur d'upload est traduite en codes.Internal
-	mockService, handler := newMockAndHandler()
-	ctx := context.Background()
-	imageBytes := []byte{0xFF, 0xD8, 0xFF}
-
-	mockService.On("ChangeProfilePicture", ctx, "profile-456", imageBytes).Return(nil, userErrors.ErrorInternalServer)
-
-	req := &userpb.ChangeProfilePictureRequest{
-		UserID:            "profile-456",
-		NewProfilePicture: imageBytes,
-	}
-
-	resp, err := handler.ChangeProfilePicture(ctx, req)
-
-	assert.Nil(t, resp)
-	assertGRPCCode(t, err, codes.Internal)
-	mockService.AssertExpectations(t)
 }
 
 // ============================================================================
@@ -790,7 +679,7 @@ func TestToGRPCError_ErrorInvalidUserID(t *testing.T) {
 	mockService, handler := newMockAndHandler()
 	ctx := context.Background()
 
-	mockService.On("CreateDriverAccount", ctx, "bad", true).Return(userErrors.ErrorInvalidUserID)
+	mockService.On("CreateDriverAccount", ctx, true).Return(userErrors.ErrorInvalidUserID)
 
 	_, err := handler.CreateDriverAccount(ctx, &userpb.CreateDriverAccountRequest{
 		UserID: "bad", CreateDriverAccount: true,

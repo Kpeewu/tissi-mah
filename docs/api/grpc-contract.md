@@ -692,7 +692,8 @@ user-service     ──gRPC──> auth-service      (GetAuthInfo)
 user-service     ──gRPC──> file-service      (Upload/Get/Delete documents)
 rating-service   ──gRPC──> user-service      (GetUserByUserID — validate user exists)
 vehicle-service  ──gRPC──> file-service      (Upload/Get vehicle documents)
-kyc-service      ──gRPC──> file-service      (GetDocument — get document for Persona inquiry)
+kyc-service      ──gRPC──> file-service      (documents + reviews for support validation)
+kyc-service      ──gRPC──> vehicle-service   (SetVehicleVerification — is_verified per vehicle)
 trips-service    ──gRPC──> user-service      (GetDriverName — enrichment)
 trips-service    ──gRPC──> vehicle-service   (GetVehicleInfo — enrichment + seat check)
 trips-service    ──gRPC──> booking-service   (StartBookingsForWaypoint, CompleteBookingsForWaypoint)
@@ -769,14 +770,14 @@ api-gateway      ──gRPC──> booking-service   (HTTP transcoding via grpc-
 
 | RPC | Type | HTTP Route | Auth | Description |
 |-----|------|------------|------|-------------|
-| `CreateInquiry` | Unary | `POST /api/v1/kyc/inquiries/add` | JWT | Start a Persona identity verification |
-| `GetInquiry` | Unary | `GET /api/v1/kyc/inquiries/getInquiry` | JWT | Get inquiry detail |
-| `GetKYCStatus` | Unary | `GET /api/v1/kyc/me/getStatus` | JWT | Get user's KYC status |
-| `ResumeInquiry` | Unary | `POST /api/v1/kyc/inquiries/resume` | JWT | Resume an interrupted verification |
-| `ProcessWebhook` | Unary | `POST /api/v1/kyc/webhooks/persona` | Public | Receive Persona webhook |
-| `GetAdminReviews` | Unary | `GET /api/v1/kyc/admin/reviews/getReviews` | JWT (admin) | List reviews with filters |
-| `GetAdminReview` | Unary | `GET /api/v1/kyc/admin/reviews/getReview` | JWT (admin) | Get full review detail |
-| `OverrideReview` | Unary | `POST /api/v1/kyc/admin/reviews/override` | JWT (admin) | Manual review override |
+| `GetKYCStatus` | Unary | `GET /api/v1/kyc/me/getStatus` | JWT Firebase | Get user's KYC status |
+| `GetManualReviewRequests` | Unary | `GET /api/v1/kyc/admin/manualReviews/requests` | JWT support | Validation queue grouped by user |
+| `GetManualReviewRequestDetail` | Unary | `GET /api/v1/kyc/admin/manualReviews/requestDetail` | JWT support | All documents of one user |
+| `ValidateDocument` | Unary | `POST /api/v1/kyc/admin/validateDocument` | JWT support | Support decision on a logical document |
+| `GetAdminReviews` | Unary | `GET /api/v1/kyc/admin/reviews/getReviews` | JWT support | List reviews with filters |
+| `GetAdminReview` | Unary | `GET /api/v1/kyc/admin/reviews/getReview` | JWT support | Get full review detail |
+| `OverrideReview` | Unary | `POST /api/v1/kyc/admin/reviews/override` | JWT support (**admin**) | Override a rejection |
+| `GetDocumentHistory` | Unary | `GET /api/v1/kyc/admin/documentHistory` | JWT support | Full history of a logical document |
 | `Health` | Unary | `GET /api/v1/kyc/health` | Public | Health check |
 
 ---

@@ -51,6 +51,9 @@ func TestMain(m *testing.M) {
 	// --- Mock file client ---
 	mockFileClient = new(mocks.MockFileClient)
 	mockFileClient.On("GetDocumentExpiry", mock.Anything, mock.Anything, mock.Anything).Return("").Maybe()
+	// Photo de profil résolue à la lecture (selfie courant, repli profilePicture) :
+	// aucun document par défaut → l'URL stockée reste inchangée.
+	mockFileClient.On("GetCurrentDocumentURL", mock.Anything, mock.Anything, mock.Anything).Return("").Maybe()
 
 	// --- Repositories réels ---
 	logger := zap.NewNop()

@@ -71,9 +71,13 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer supportClient.Close()
 	logger.Info("support-service client ready", zap.String("address", cfg.SupportService.Addr()))
 
-	// --- Persona HTTP client ---
-	personaClient := client.NewPersonaClient(cfg.Persona.APIKey, logger)
-	logger.Info("persona client ready")
+	// --- Vehicle-service gRPC client (propagation is_verified par véhicule) ---
+	vehicleClient, err := client.NewVehicleServiceClient(cfg.VehicleService.Addr(), logger)
+	if err != nil {
+		return fmt.Errorf("vehicle-service client: %w", err)
+	}
+	defer vehicleClient.Close()
+	logger.Info("vehicle-service client ready", zap.String("address", cfg.VehicleService.Addr()))
 
 	// --- Notification Redis (stream publication) ---
 	notifRedis, err := pkgDatabase.NewRedisClientFromURL(ctx, cfg.NotificationRedis.URL)
@@ -86,11 +90,9 @@ func run(bootstrapLogger *zap.Logger) error {
 	// --- KYC Service ---
 	kycService := service.NewKYCService(
 		fileClient,
-		personaClient,
 		userClient,
 		supportClient,
-		cfg.Persona.TemplateID,
-		cfg.Persona.WebhookSecret,
+		vehicleClient,
 		notifRedis,
 		logger,
 	)

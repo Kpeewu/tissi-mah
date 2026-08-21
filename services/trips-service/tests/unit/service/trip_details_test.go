@@ -42,7 +42,7 @@ func TestGetDriverTripDetails(t *testing.T) {
 		trip, wps := buildTripWithWaypoints("trip-1", "driver-1", "vehicle-1")
 		readRepo.On("GetTripByID", ctx, "trip-1").Return(trip, wps, nil)
 		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
-		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").Return("Toyota", "AA-1234", 4, nil)
+		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").Return("Toyota", "AA-1234", 4, true, nil)
 
 		res, err := svc.GetDriverTripDetails(ctx, &serviceInterfaces.GetDriverTripDetailsInput{
 			TripID: "trip-1", DriverID: "driver-1",
@@ -100,7 +100,7 @@ func TestGetPassengerTripDetails(t *testing.T) {
 		ctx := context.Background()
 		trip, wps := buildTripWithWaypoints("trip-1", "driver-1", "vehicle-1")
 		readRepo.On("GetTripByID", ctx, "trip-1").Return(trip, wps, nil)
-		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").Return("Toyota", "AA-1234", 4, nil).Maybe()
+		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 		userClient.On("GetDriverInfo", ctx, "driver-1").Return("Jean", "https://img", nil).Maybe()
 		userClient.On("GetDriverName", ctx, "driver-1").Return("Jean", nil).Maybe()
 

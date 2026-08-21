@@ -134,12 +134,14 @@ func (s *userServiceImpl) GetUsersByUserIDs(ctx context.Context, userIDs []strin
 }
 
 // GetUserProfileByUserID récupère le profil utilisateur enrichi avec email/phone depuis auth-service.
-// Utilisé par notification-service pour résoudre les templates et router les notifications.
+// Utilisé par notification-service et le back-office support (photo de profil fraîche incluse).
 func (s *userServiceImpl) GetUserProfileByUserID(ctx context.Context, userID string) (*domain.User, string, string, error) {
 	user, err := s.GetUserByUserID(ctx, userID)
 	if err != nil {
 		return nil, "", "", err
 	}
+
+	s.refreshProfileImage(ctx, user)
 
 	authInfo, err := s.authClient.GetAuthInfo(ctx, user.AuthID)
 	if err != nil {
@@ -176,20 +178,45 @@ func (s *userServiceImpl) SoftDeleteUser(ctx context.Context, authID string) err
 	return nil
 }
 
-// GetMyProfile récupère le profil complet de l'utilisateur connecté avec enrichissement auth
-func (s *userServiceImpl) GetMyProfile(ctx context.Context) (*serviceInterfaces.FullProfile, error) {
-	s.logger.Debug("récupération du profil de l'utilisateur connecté")
-
+// resolveContextUser résout l'utilisateur connecté depuis le Firebase UID stocké
+// dans le contexte gRPC (middleware.FirebaseIDKey). Les endpoints client-facing
+// ne font JAMAIS confiance à un UserID fourni dans le body.
+func (s *userServiceImpl) resolveContextUser(ctx context.Context) (*domain.User, error) {
 	firebaseID, ok := ctx.Value(middleware.FirebaseIDKey).(string)
 	if !ok || firebaseID == "" {
 		s.logger.Error("firebase ID manquant dans le contexte")
 		return nil, userErrors.ErrorInternalServer
 	}
-
-	// Lookup par Firebase ID dans MongoDB
 	user, err := s.readRepo.GetByFirebaseID(ctx, firebaseID)
 	if err != nil {
 		s.logger.Error("échec de la récupération du profil par firebaseID", zap.Error(err), zap.String("firebase_id", firebaseID))
+		return nil, err
+	}
+	return user, nil
+}
+
+// refreshProfileImage résout la photo de profil À LA LECTURE : URL présignée
+// fraîche du selfie courant (fallback profilePicture historique). Les URLs
+// présignées expirent — la valeur MongoDB ne sert que de repli (ex : photo
+// externe importée à la création du compte).
+func (s *userServiceImpl) refreshProfileImage(ctx context.Context, user *domain.User) {
+	if url := s.fileClient.GetCurrentDocumentURL(ctx, user.UserID, "selfie"); url != "" {
+		user.ProfileImageURL = url
+		user.HasProfileImage = true
+		return
+	}
+	if url := s.fileClient.GetCurrentDocumentURL(ctx, user.UserID, "profilePicture"); url != "" {
+		user.ProfileImageURL = url
+		user.HasProfileImage = true
+	}
+}
+
+// GetMyProfile récupère le profil complet de l'utilisateur connecté avec enrichissement auth
+func (s *userServiceImpl) GetMyProfile(ctx context.Context) (*serviceInterfaces.FullProfile, error) {
+	s.logger.Debug("récupération du profil de l'utilisateur connecté")
+
+	user, err := s.resolveContextUser(ctx)
+	if err != nil {
 		return nil, err
 	}
 
@@ -202,22 +229,19 @@ func (s *userServiceImpl) GetMyProfile(ctx context.Context) (*serviceInterfaces.
 
 	idExpiry := s.getDocExpiry(ctx, user.UserID, "idCardFront", "idCardBack")
 	drExpiry := s.getDocExpiry(ctx, user.UserID, "driverLicenceFront", "driverLicenceBack")
+	s.refreshProfileImage(ctx, user)
 
 	s.logger.Info("profil complet récupéré avec succès", zap.String("user_id", user.UserID))
 	return toFullProfile(user, authInfo, idExpiry, drExpiry), nil
 }
 
-// CreateDriverAccount active ou désactive le statut conducteur
-func (s *userServiceImpl) CreateDriverAccount(ctx context.Context, profileID string, createDriver bool) error {
-	s.logger.Debug("modification statut conducteur", zap.String("profile_id", profileID), zap.Bool("create_driver", createDriver))
+// CreateDriverAccount active ou désactive le statut conducteur.
+// L'utilisateur est résolu depuis le Firebase UID du contexte (jamais du body).
+func (s *userServiceImpl) CreateDriverAccount(ctx context.Context, createDriver bool) error {
+	s.logger.Debug("modification statut conducteur", zap.Bool("create_driver", createDriver))
 
-	if profileID == "" {
-		return userErrors.ErrorInvalidUserID
-	}
-
-	user, err := s.readRepo.GetByUserID(ctx, profileID)
+	user, err := s.resolveContextUser(ctx)
 	if err != nil {
-		s.logger.Error("échec de la récupération du profil pour statut conducteur", zap.Error(err), zap.String("profile_id", profileID))
 		return err
 	}
 
@@ -229,16 +253,18 @@ func (s *userServiceImpl) CreateDriverAccount(ctx context.Context, profileID str
 
 	_, err = s.writeRepo.Update(ctx, user)
 	if err != nil {
-		s.logger.Error("échec de la mise à jour du statut conducteur", zap.Error(err), zap.String("profile_id", profileID))
+		s.logger.Error("échec de la mise à jour du statut conducteur", zap.Error(err), zap.String("profile_id", user.UserID))
 		return err
 	}
 
-	s.logger.Info("statut conducteur mis à jour avec succès", zap.String("profile_id", profileID), zap.Bool("is_driver", createDriver))
+	s.logger.Info("statut conducteur mis à jour avec succès", zap.String("profile_id", user.UserID), zap.Bool("is_driver", createDriver))
 	return nil
 }
 
-// UpdateProfileVerification met à jour les flags de vérification KYC (appelé par kyc-service).
-func (s *userServiceImpl) UpdateProfileVerification(ctx context.Context, userID string, driver, passenger *bool) error {
+// UpdateProfileVerification met à jour les flags de vérification KYC (appelé par
+// kyc-service). Retourne les valeurs PRÉCÉDENTES des flags pour que kyc-service
+// détecte les bascules false→true et publie les notifications correspondantes.
+func (s *userServiceImpl) UpdateProfileVerification(ctx context.Context, userID string, driver, passenger *bool) (bool, bool, error) {
 	s.logger.Debug("mise à jour vérification profil",
 		zap.String("user_id", userID),
 		zap.Any("driver", driver),
@@ -246,21 +272,24 @@ func (s *userServiceImpl) UpdateProfileVerification(ctx context.Context, userID 
 	)
 
 	if userID == "" {
-		return userErrors.ErrorInvalidUserID
+		return false, false, userErrors.ErrorInvalidUserID
 	}
 
 	user, err := s.readRepo.GetByUserID(ctx, userID)
 	if err != nil {
 		s.logger.Error("échec de la récupération du profil pour vérification", zap.Error(err), zap.String("user_id", userID))
-		return err
+		return false, false, err
 	}
+
+	prevDriver := user.IsDriverProfileVerified
+	prevPassenger := user.IsPassengerProfileVerified
 
 	user.SetProfileVerification(driver, passenger)
 
 	_, err = s.writeRepo.Update(ctx, user)
 	if err != nil {
 		s.logger.Error("échec de la mise à jour de la vérification du profil", zap.Error(err), zap.String("user_id", userID))
-		return err
+		return false, false, err
 	}
 
 	s.logger.Info("vérification du profil mise à jour avec succès",
@@ -268,20 +297,16 @@ func (s *userServiceImpl) UpdateProfileVerification(ctx context.Context, userID 
 		zap.Bool("is_driver_verified", user.IsDriverProfileVerified),
 		zap.Bool("is_passenger_verified", user.IsPassengerProfileVerified),
 	)
-	return nil
+	return prevDriver, prevPassenger, nil
 }
 
-// AddTripPreferences ajoute les préférences de trajet
-func (s *userServiceImpl) AddTripPreferences(ctx context.Context, profileID string, preferences []domain.TripPreference) error {
-	s.logger.Debug("ajout préférences de trajet", zap.String("profile_id", profileID), zap.Int("nb_preferences", len(preferences)))
+// AddTripPreferences ajoute les préférences de trajet.
+// L'utilisateur est résolu depuis le Firebase UID du contexte (jamais du body).
+func (s *userServiceImpl) AddTripPreferences(ctx context.Context, preferences []domain.TripPreference) error {
+	s.logger.Debug("ajout préférences de trajet", zap.Int("nb_preferences", len(preferences)))
 
-	if profileID == "" {
-		return userErrors.ErrorInvalidUserID
-	}
-
-	user, err := s.readRepo.GetByUserID(ctx, profileID)
+	user, err := s.resolveContextUser(ctx)
 	if err != nil {
-		s.logger.Error("échec de la récupération du profil pour préférences", zap.Error(err), zap.String("profile_id", profileID))
 		return err
 	}
 
@@ -289,25 +314,23 @@ func (s *userServiceImpl) AddTripPreferences(ctx context.Context, profileID stri
 
 	_, err = s.writeRepo.Update(ctx, user)
 	if err != nil {
-		s.logger.Error("échec de la mise à jour des préférences", zap.Error(err), zap.String("profile_id", profileID))
+		s.logger.Error("échec de la mise à jour des préférences", zap.Error(err), zap.String("profile_id", user.UserID))
 		return err
 	}
 
-	s.logger.Info("préférences de trajet mises à jour avec succès", zap.String("profile_id", profileID))
+	s.logger.Info("préférences de trajet mises à jour avec succès", zap.String("profile_id", user.UserID))
 	return nil
 }
 
-// UpdateProfile met à jour les informations du profil
+// UpdateProfile met à jour les informations du profil.
+// L'utilisateur est résolu depuis le Firebase UID du contexte (jamais du body).
+// NB : la photo de profil n'est PAS modifiable ici — c'est le selfie d'identité,
+// soumis via POST /api/v1/file/uploadSelfie et validé par le support.
 func (s *userServiceImpl) UpdateProfile(ctx context.Context, req serviceInterfaces.UpdateProfileRequest) (*serviceInterfaces.FullProfile, error) {
-	s.logger.Debug("mise à jour du profil", zap.String("profile_id", req.UserID))
+	s.logger.Debug("mise à jour du profil")
 
-	if req.UserID == "" {
-		return nil, userErrors.ErrorInvalidUserID
-	}
-
-	user, err := s.readRepo.GetByUserID(ctx, req.UserID)
+	user, err := s.resolveContextUser(ctx)
 	if err != nil {
-		s.logger.Error("échec de la récupération du profil pour mise à jour", zap.Error(err), zap.String("profile_id", req.UserID))
 		return nil, err
 	}
 
@@ -329,7 +352,7 @@ func (s *userServiceImpl) UpdateProfile(ctx context.Context, req serviceInterfac
 	}
 	updated, err := s.writeRepo.Update(ctx, user)
 	if err != nil {
-		s.logger.Error("échec de la mise à jour du profil", zap.Error(err), zap.String("profile_id", req.UserID))
+		s.logger.Error("échec de la mise à jour du profil", zap.Error(err), zap.String("profile_id", user.UserID))
 		return nil, err
 	}
 
@@ -342,46 +365,9 @@ func (s *userServiceImpl) UpdateProfile(ctx context.Context, req serviceInterfac
 
 	idExpiry := s.getDocExpiry(ctx, updated.UserID, "idCardFront", "idCardBack")
 	drExpiry := s.getDocExpiry(ctx, updated.UserID, "driverLicenceFront", "driverLicenceBack")
+	s.refreshProfileImage(ctx, updated)
 
-	s.logger.Info("profil mis à jour avec succès", zap.String("profile_id", req.UserID))
-	return toFullProfile(updated, authInfo, idExpiry, drExpiry), nil
-}
-
-// ChangeProfilePicture uploade la nouvelle photo de profil via file-service et met à jour MongoDB.
-func (s *userServiceImpl) ChangeProfilePicture(ctx context.Context, userID string, imageBytes []byte) (*serviceInterfaces.FullProfile, error) {
-	s.logger.Debug("changement de photo de profil", zap.String("user_id", userID))
-
-	user, err := s.readRepo.GetByUserID(ctx, userID)
-	if err != nil {
-		s.logger.Error("utilisateur non trouvé pour changement de photo", zap.Error(err), zap.String("user_id", userID))
-		return nil, err
-	}
-
-	imageURL, err := s.fileClient.UploadProfilePicture(ctx, userID, imageBytes)
-	if err != nil {
-		s.logger.Error("échec de l'upload de la photo de profil", zap.Error(err), zap.String("user_id", userID))
-		return nil, userErrors.ErrorInternalServer
-	}
-
-	user.ProfileImageURL = imageURL
-	user.HasProfileImage = true
-
-	updated, err := s.writeRepo.Update(ctx, user)
-	if err != nil {
-		s.logger.Error("échec de la mise à jour après upload photo", zap.Error(err), zap.String("user_id", userID))
-		return nil, err
-	}
-
-	authInfo, err := s.authClient.GetAuthInfo(ctx, updated.AuthID)
-	if err != nil {
-		s.logger.Error("échec de la récupération des données auth après changement photo", zap.Error(err), zap.String("auth_id", updated.AuthID))
-		return nil, userErrors.ErrorAuthServiceUnavailable
-	}
-
-	idExpiry := s.getDocExpiry(ctx, updated.UserID, "idCardFront", "idCardBack")
-	drExpiry := s.getDocExpiry(ctx, updated.UserID, "driverLicenceFront", "driverLicenceBack")
-
-	s.logger.Info("photo de profil mise à jour avec succès", zap.String("user_id", userID))
+	s.logger.Info("profil mis à jour avec succès", zap.String("profile_id", updated.UserID))
 	return toFullProfile(updated, authInfo, idExpiry, drExpiry), nil
 }
 

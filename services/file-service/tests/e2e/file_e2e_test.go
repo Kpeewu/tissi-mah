@@ -85,18 +85,20 @@ func TestE2E_UploadUserDocument(t *testing.T) {
 		stream, err := grpcClient.UploadUserDocument(ctx)
 		require.NoError(t, err)
 
+		// Le MIME est sniffé depuis le CONTENU : envoyer du texte brut, pas une
+		// image mal étiquetée (la métadonnée cliente n'est plus de confiance).
 		_ = stream.Send(&filepb.UploadUserDocumentRequest{
 			Data: &filepb.UploadUserDocumentRequest_Metadata{
 				Metadata: &filepb.UserDocumentMetadata{
 					UserId:        "e2e-user-3",
 					DocumentType:  "passport",
-					MimeType:      "text/plain",
+					MimeType:      "image/jpeg", // mensonge côté client
 					FileSizeBytes: 512,
 				},
 			},
 		})
 		_ = stream.Send(&filepb.UploadUserDocumentRequest{
-			Data: &filepb.UploadUserDocumentRequest_Chunk{Chunk: fakeJPEG()},
+			Data: &filepb.UploadUserDocumentRequest_Chunk{Chunk: []byte("ceci n'est pas une image")},
 		})
 
 		_, err = stream.CloseAndRecv()

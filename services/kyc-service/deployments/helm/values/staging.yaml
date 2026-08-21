@@ -47,13 +47,12 @@ config:
   userServicePort: "50052"
   supportServiceHost: "support-service"
   supportServicePort: "50063"
-  personaTemplateId: ""
+  vehicleServiceHost: "vehicle-service"
+  vehicleServicePort: "50055"
   extra: {}
 
 # Secrets should be provided via AWS Secrets Manager or external secret management
 secrets:
-  personaApiKey: ""
-  personaWebhookSecret: ""
   extra: {}
 
 probes:

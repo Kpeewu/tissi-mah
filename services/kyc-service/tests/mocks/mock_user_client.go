@@ -36,12 +36,27 @@ func (m *MockUserClient) GetUsersByUserIDs(ctx context.Context, userIDs []string
 	return args.Get(0).(map[string]*domain.UserInfo), args.Error(1)
 }
 
-func (m *MockUserClient) UpdateProfileVerification(ctx context.Context, userID string, driver, passenger bool) error {
+func (m *MockUserClient) UpdateProfileVerification(ctx context.Context, userID string, driver, passenger bool) (bool, bool, error) {
 	args := m.Called(ctx, userID, driver, passenger)
-	return args.Error(0)
+	return args.Bool(0), args.Bool(1), args.Error(2)
 }
 
 func (m *MockUserClient) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+// MockVehicleClient simule le client vehicle-service (SetVehicleVerification).
+type MockVehicleClient struct {
+	mock.Mock
+}
+
+func (m *MockVehicleClient) SetVehicleVerification(ctx context.Context, vehicleID string, isVerified bool) error {
+	args := m.Called(ctx, vehicleID, isVerified)
+	return args.Error(0)
+}
+
+func (m *MockVehicleClient) Close() error {
 	args := m.Called()
 	return args.Error(0)
 }

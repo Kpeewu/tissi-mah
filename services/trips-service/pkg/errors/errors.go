@@ -14,6 +14,7 @@ var (
 	ErrorDataRetrievalFailed          = errors.New("ErrorDataRetrievalFailed")
 	ErrorTripNotScheduled             = errors.New("ErrorTripNotScheduled")
 	ErrorVehicleNotFound              = errors.New("ErrorVehicleNotFound")
+	ErrorVehicleNotVerified           = errors.New("ErrorVehicleNotVerified")
 	ErrorVehicleInsufficientSeats     = errors.New("ErrorVehicleInsufficientSeats")
 	ErrorTripDepartureTooSoon         = errors.New("ErrorTripDepartureTooSoon")
 	ErrorDriverAlreadyHasActiveTrip   = errors.New("ErrorDriverAlreadyHasActiveTrip")

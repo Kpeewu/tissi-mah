@@ -436,6 +436,75 @@ func (x *UpdateProfileVerificationRequest) GetIsPassengerProfileVerified() bool 
 	return false
 }
 
+type UpdateProfileVerificationResponse struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	ErrorMessage string                 `protobuf:"bytes,1,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	Success      bool                   `protobuf:"varint,2,opt,name=Success,proto3" json:"Success,omitempty"`
+	// Valeurs AVANT mise à jour — pour détecter les bascules false→true
+	PreviousDriverVerified    bool `protobuf:"varint,3,opt,name=PreviousDriverVerified,proto3" json:"PreviousDriverVerified,omitempty"`
+	PreviousPassengerVerified bool `protobuf:"varint,4,opt,name=PreviousPassengerVerified,proto3" json:"PreviousPassengerVerified,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *UpdateProfileVerificationResponse) Reset() {
+	*x = UpdateProfileVerificationResponse{}
+	mi := &file_user_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateProfileVerificationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateProfileVerificationResponse) ProtoMessage() {}
+
+func (x *UpdateProfileVerificationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateProfileVerificationResponse.ProtoReflect.Descriptor instead.
+func (*UpdateProfileVerificationResponse) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *UpdateProfileVerificationResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *UpdateProfileVerificationResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *UpdateProfileVerificationResponse) GetPreviousDriverVerified() bool {
+	if x != nil {
+		return x.PreviousDriverVerified
+	}
+	return false
+}
+
+func (x *UpdateProfileVerificationResponse) GetPreviousPassengerVerified() bool {
+	if x != nil {
+		return x.PreviousPassengerVerified
+	}
+	return false
+}
+
 type GetMyProfileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -444,7 +513,7 @@ type GetMyProfileRequest struct {
 
 func (x *GetMyProfileRequest) Reset() {
 	*x = GetMyProfileRequest{}
-	mi := &file_user_proto_msgTypes[8]
+	mi := &file_user_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -456,7 +525,7 @@ func (x *GetMyProfileRequest) String() string {
 func (*GetMyProfileRequest) ProtoMessage() {}
 
 func (x *GetMyProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[8]
+	mi := &file_user_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -469,12 +538,12 @@ func (x *GetMyProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMyProfileRequest.ProtoReflect.Descriptor instead.
 func (*GetMyProfileRequest) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{8}
+	return file_user_proto_rawDescGZIP(), []int{9}
 }
 
 type CreateDriverAccountRequest struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
-	UserID              string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
+	UserID              string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"` // Déprécié/ignoré — l'utilisateur est résolu depuis le JWT (x-firebase-uid)
 	CreateDriverAccount bool                   `protobuf:"varint,2,opt,name=CreateDriverAccount,proto3" json:"CreateDriverAccount,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
@@ -482,7 +551,7 @@ type CreateDriverAccountRequest struct {
 
 func (x *CreateDriverAccountRequest) Reset() {
 	*x = CreateDriverAccountRequest{}
-	mi := &file_user_proto_msgTypes[9]
+	mi := &file_user_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -494,7 +563,7 @@ func (x *CreateDriverAccountRequest) String() string {
 func (*CreateDriverAccountRequest) ProtoMessage() {}
 
 func (x *CreateDriverAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[9]
+	mi := &file_user_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -507,7 +576,7 @@ func (x *CreateDriverAccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateDriverAccountRequest.ProtoReflect.Descriptor instead.
 func (*CreateDriverAccountRequest) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{9}
+	return file_user_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CreateDriverAccountRequest) GetUserID() string {
@@ -526,7 +595,7 @@ func (x *CreateDriverAccountRequest) GetCreateDriverAccount() bool {
 
 type AddTripPreferencesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserID        string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
+	UserID        string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"` // Déprécié/ignoré — l'utilisateur est résolu depuis le JWT (x-firebase-uid)
 	Preferences   []*TripPreference      `protobuf:"bytes,2,rep,name=Preferences,proto3" json:"Preferences,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -534,7 +603,7 @@ type AddTripPreferencesRequest struct {
 
 func (x *AddTripPreferencesRequest) Reset() {
 	*x = AddTripPreferencesRequest{}
-	mi := &file_user_proto_msgTypes[10]
+	mi := &file_user_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -546,7 +615,7 @@ func (x *AddTripPreferencesRequest) String() string {
 func (*AddTripPreferencesRequest) ProtoMessage() {}
 
 func (x *AddTripPreferencesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[10]
+	mi := &file_user_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -559,7 +628,7 @@ func (x *AddTripPreferencesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddTripPreferencesRequest.ProtoReflect.Descriptor instead.
 func (*AddTripPreferencesRequest) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{10}
+	return file_user_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AddTripPreferencesRequest) GetUserID() string {
@@ -578,7 +647,7 @@ func (x *AddTripPreferencesRequest) GetPreferences() []*TripPreference {
 
 type UpdateProfileRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	UserID         string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
+	UserID         string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"` // Déprécié/ignoré — l'utilisateur est résolu depuis le JWT (x-firebase-uid)
 	FirstName      *string                `protobuf:"bytes,2,opt,name=FirstName,proto3,oneof" json:"FirstName,omitempty"`
 	LastName       *string                `protobuf:"bytes,3,opt,name=LastName,proto3,oneof" json:"LastName,omitempty"`
 	BirthDate      *string                `protobuf:"bytes,4,opt,name=BirthDate,proto3,oneof" json:"BirthDate,omitempty"`
@@ -592,7 +661,7 @@ type UpdateProfileRequest struct {
 
 func (x *UpdateProfileRequest) Reset() {
 	*x = UpdateProfileRequest{}
-	mi := &file_user_proto_msgTypes[11]
+	mi := &file_user_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -604,7 +673,7 @@ func (x *UpdateProfileRequest) String() string {
 func (*UpdateProfileRequest) ProtoMessage() {}
 
 func (x *UpdateProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[11]
+	mi := &file_user_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -617,7 +686,7 @@ func (x *UpdateProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateProfileRequest.ProtoReflect.Descriptor instead.
 func (*UpdateProfileRequest) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{11}
+	return file_user_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *UpdateProfileRequest) GetUserID() string {
@@ -684,7 +753,7 @@ type HealthRequest struct {
 
 func (x *HealthRequest) Reset() {
 	*x = HealthRequest{}
-	mi := &file_user_proto_msgTypes[12]
+	mi := &file_user_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -696,7 +765,7 @@ func (x *HealthRequest) String() string {
 func (*HealthRequest) ProtoMessage() {}
 
 func (x *HealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[12]
+	mi := &file_user_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -709,7 +778,7 @@ func (x *HealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthRequest.ProtoReflect.Descriptor instead.
 func (*HealthRequest) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{12}
+	return file_user_proto_rawDescGZIP(), []int{13}
 }
 
 // TripPreference — préférence de trajet individuelle
@@ -723,7 +792,7 @@ type TripPreference struct {
 
 func (x *TripPreference) Reset() {
 	*x = TripPreference{}
-	mi := &file_user_proto_msgTypes[13]
+	mi := &file_user_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -735,7 +804,7 @@ func (x *TripPreference) String() string {
 func (*TripPreference) ProtoMessage() {}
 
 func (x *TripPreference) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[13]
+	mi := &file_user_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -748,7 +817,7 @@ func (x *TripPreference) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TripPreference.ProtoReflect.Descriptor instead.
 func (*TripPreference) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{13}
+	return file_user_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *TripPreference) GetPreference() string {
@@ -794,7 +863,7 @@ type UserProfileResponse struct {
 
 func (x *UserProfileResponse) Reset() {
 	*x = UserProfileResponse{}
-	mi := &file_user_proto_msgTypes[14]
+	mi := &file_user_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -806,7 +875,7 @@ func (x *UserProfileResponse) String() string {
 func (*UserProfileResponse) ProtoMessage() {}
 
 func (x *UserProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[14]
+	mi := &file_user_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -819,7 +888,7 @@ func (x *UserProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserProfileResponse.ProtoReflect.Descriptor instead.
 func (*UserProfileResponse) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{14}
+	return file_user_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *UserProfileResponse) GetUserID() string {
@@ -973,7 +1042,7 @@ type GetMyProfileResponse struct {
 
 func (x *GetMyProfileResponse) Reset() {
 	*x = GetMyProfileResponse{}
-	mi := &file_user_proto_msgTypes[15]
+	mi := &file_user_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -985,7 +1054,7 @@ func (x *GetMyProfileResponse) String() string {
 func (*GetMyProfileResponse) ProtoMessage() {}
 
 func (x *GetMyProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[15]
+	mi := &file_user_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -998,7 +1067,7 @@ func (x *GetMyProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMyProfileResponse.ProtoReflect.Descriptor instead.
 func (*GetMyProfileResponse) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{15}
+	return file_user_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetMyProfileResponse) GetErrorMessage() string {
@@ -1046,7 +1115,7 @@ type FullUserProfile struct {
 
 func (x *FullUserProfile) Reset() {
 	*x = FullUserProfile{}
-	mi := &file_user_proto_msgTypes[16]
+	mi := &file_user_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1058,7 +1127,7 @@ func (x *FullUserProfile) String() string {
 func (*FullUserProfile) ProtoMessage() {}
 
 func (x *FullUserProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[16]
+	mi := &file_user_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1071,7 +1140,7 @@ func (x *FullUserProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FullUserProfile.ProtoReflect.Descriptor instead.
 func (*FullUserProfile) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{16}
+	return file_user_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *FullUserProfile) GetAuthID() string {
@@ -1239,7 +1308,7 @@ type UserFile struct {
 
 func (x *UserFile) Reset() {
 	*x = UserFile{}
-	mi := &file_user_proto_msgTypes[17]
+	mi := &file_user_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1251,7 +1320,7 @@ func (x *UserFile) String() string {
 func (*UserFile) ProtoMessage() {}
 
 func (x *UserFile) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[17]
+	mi := &file_user_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1264,7 +1333,7 @@ func (x *UserFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserFile.ProtoReflect.Descriptor instead.
 func (*UserFile) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{17}
+	return file_user_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *UserFile) GetFileID() string {
@@ -1298,7 +1367,7 @@ type OperationResponse struct {
 
 func (x *OperationResponse) Reset() {
 	*x = OperationResponse{}
-	mi := &file_user_proto_msgTypes[18]
+	mi := &file_user_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1310,7 +1379,7 @@ func (x *OperationResponse) String() string {
 func (*OperationResponse) ProtoMessage() {}
 
 func (x *OperationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[18]
+	mi := &file_user_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1323,7 +1392,7 @@ func (x *OperationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperationResponse.ProtoReflect.Descriptor instead.
 func (*OperationResponse) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{18}
+	return file_user_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *OperationResponse) GetErrorMessage() string {
@@ -1350,7 +1419,7 @@ type UpdateProfileResponse struct {
 
 func (x *UpdateProfileResponse) Reset() {
 	*x = UpdateProfileResponse{}
-	mi := &file_user_proto_msgTypes[19]
+	mi := &file_user_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1362,7 +1431,7 @@ func (x *UpdateProfileResponse) String() string {
 func (*UpdateProfileResponse) ProtoMessage() {}
 
 func (x *UpdateProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[19]
+	mi := &file_user_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1375,7 +1444,7 @@ func (x *UpdateProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateProfileResponse.ProtoReflect.Descriptor instead.
 func (*UpdateProfileResponse) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{19}
+	return file_user_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *UpdateProfileResponse) GetErrorMessage() string {
@@ -1386,110 +1455,6 @@ func (x *UpdateProfileResponse) GetErrorMessage() string {
 }
 
 func (x *UpdateProfileResponse) GetUser() *FullUserProfile {
-	if x != nil {
-		return x.User
-	}
-	return nil
-}
-
-type ChangeProfilePictureRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	UserID            string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
-	NewProfilePicture []byte                 `protobuf:"bytes,2,opt,name=NewProfilePicture,proto3" json:"NewProfilePicture,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
-}
-
-func (x *ChangeProfilePictureRequest) Reset() {
-	*x = ChangeProfilePictureRequest{}
-	mi := &file_user_proto_msgTypes[20]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ChangeProfilePictureRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ChangeProfilePictureRequest) ProtoMessage() {}
-
-func (x *ChangeProfilePictureRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[20]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ChangeProfilePictureRequest.ProtoReflect.Descriptor instead.
-func (*ChangeProfilePictureRequest) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{20}
-}
-
-func (x *ChangeProfilePictureRequest) GetUserID() string {
-	if x != nil {
-		return x.UserID
-	}
-	return ""
-}
-
-func (x *ChangeProfilePictureRequest) GetNewProfilePicture() []byte {
-	if x != nil {
-		return x.NewProfilePicture
-	}
-	return nil
-}
-
-type ChangeProfilePictureResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ErrorMessage  string                 `protobuf:"bytes,1,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
-	User          *FullUserProfile       `protobuf:"bytes,2,opt,name=User,proto3" json:"User,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ChangeProfilePictureResponse) Reset() {
-	*x = ChangeProfilePictureResponse{}
-	mi := &file_user_proto_msgTypes[21]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ChangeProfilePictureResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ChangeProfilePictureResponse) ProtoMessage() {}
-
-func (x *ChangeProfilePictureResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[21]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ChangeProfilePictureResponse.ProtoReflect.Descriptor instead.
-func (*ChangeProfilePictureResponse) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{21}
-}
-
-func (x *ChangeProfilePictureResponse) GetErrorMessage() string {
-	if x != nil {
-		return x.ErrorMessage
-	}
-	return ""
-}
-
-func (x *ChangeProfilePictureResponse) GetUser() *FullUserProfile {
 	if x != nil {
 		return x.User
 	}
@@ -1507,7 +1472,7 @@ type HealthResponse struct {
 
 func (x *HealthResponse) Reset() {
 	*x = HealthResponse{}
-	mi := &file_user_proto_msgTypes[22]
+	mi := &file_user_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1519,7 +1484,7 @@ func (x *HealthResponse) String() string {
 func (*HealthResponse) ProtoMessage() {}
 
 func (x *HealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_user_proto_msgTypes[22]
+	mi := &file_user_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1532,7 +1497,7 @@ func (x *HealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
 func (*HealthResponse) Descriptor() ([]byte, []int) {
-	return file_user_proto_rawDescGZIP(), []int{22}
+	return file_user_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *HealthResponse) GetStatus() string {
@@ -1590,7 +1555,12 @@ const file_user_proto_rawDesc = "" +
 	"\x17IsDriverProfileVerified\x18\x02 \x01(\bH\x00R\x17IsDriverProfileVerified\x88\x01\x01\x12C\n" +
 	"\x1aIsPassengerProfileVerified\x18\x03 \x01(\bH\x01R\x1aIsPassengerProfileVerified\x88\x01\x01B\x1a\n" +
 	"\x18_IsDriverProfileVerifiedB\x1d\n" +
-	"\x1b_IsPassengerProfileVerified\"\x15\n" +
+	"\x1b_IsPassengerProfileVerified\"\xd7\x01\n" +
+	"!UpdateProfileVerificationResponse\x12\"\n" +
+	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12\x18\n" +
+	"\aSuccess\x18\x02 \x01(\bR\aSuccess\x126\n" +
+	"\x16PreviousDriverVerified\x18\x03 \x01(\bR\x16PreviousDriverVerified\x12<\n" +
+	"\x19PreviousPassengerVerified\x18\x04 \x01(\bR\x19PreviousPassengerVerified\"\x15\n" +
 	"\x13GetMyProfileRequest\"f\n" +
 	"\x1aCreateDriverAccountRequest\x12\x16\n" +
 	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x120\n" +
@@ -1680,18 +1650,11 @@ const file_user_proto_rawDesc = "" +
 	"\aSuccess\x18\x02 \x01(\bR\aSuccess\"f\n" +
 	"\x15UpdateProfileResponse\x12\"\n" +
 	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12)\n" +
-	"\x04User\x18\x02 \x01(\v2\x15.user.FullUserProfileR\x04User\"c\n" +
-	"\x1bChangeProfilePictureRequest\x12\x16\n" +
-	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12,\n" +
-	"\x11NewProfilePicture\x18\x02 \x01(\fR\x11NewProfilePicture\"m\n" +
-	"\x1cChangeProfilePictureResponse\x12\"\n" +
-	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12)\n" +
 	"\x04User\x18\x02 \x01(\v2\x15.user.FullUserProfileR\x04User\"`\n" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
 	"\aVersion\x18\x02 \x01(\tR\aVersion\x12\x1c\n" +
-	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp2\x81\n" +
-	"\n" +
+	"\tTimestamp\x18\x03 \x01(\x03R\tTimestamp2\xfc\b\n" +
 	"\vUserService\x12@\n" +
 	"\n" +
 	"CreateUser\x12\x17.user.CreateUserRequest\x1a\x19.user.UserProfileResponse\x12J\n" +
@@ -1699,13 +1662,12 @@ const file_user_proto_rawDesc = "" +
 	"\x13GetUserByFirebaseID\x12 .user.GetUserByFirebaseIDRequest\x1a\x19.user.UserProfileResponse\x12J\n" +
 	"\x0fGetUserByUserID\x12\x1c.user.GetUserByUserIDRequest\x1a\x19.user.UserProfileResponse\x12T\n" +
 	"\x11GetUsersByUserIDs\x12\x1e.user.GetUsersByUserIDsRequest\x1a\x1f.user.GetUsersByUserIDsResponse\x12F\n" +
-	"\x0eSoftDeleteUser\x12\x1b.user.SoftDeleteUserRequest\x1a\x17.user.OperationResponse\x12\\\n" +
-	"\x19UpdateProfileVerification\x12&.user.UpdateProfileVerificationRequest\x1a\x17.user.OperationResponse\x12^\n" +
+	"\x0eSoftDeleteUser\x12\x1b.user.SoftDeleteUserRequest\x1a\x17.user.OperationResponse\x12l\n" +
+	"\x19UpdateProfileVerification\x12&.user.UpdateProfileVerificationRequest\x1a'.user.UpdateProfileVerificationResponse\x12^\n" +
 	"\fGetMyProfile\x12\x19.user.GetMyProfileRequest\x1a\x1a.user.GetMyProfileResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/api/v1/user/me\x12\x84\x01\n" +
 	"\x13CreateDriverAccount\x12 .user.CreateDriverAccountRequest\x1a\x17.user.OperationResponse\"2\x82\xd3\xe4\x93\x02,:\x01*2'/api/v1/userProfile/createDriverAccount\x12\x81\x01\n" +
 	"\x12AddTripPreferences\x12\x1f.user.AddTripPreferencesRequest\x1a\x17.user.OperationResponse\"1\x82\xd3\xe4\x93\x02+:\x01*2&/api/v1/userProfile/addTripPreferences\x12v\n" +
-	"\rUpdateProfile\x12\x1a.user.UpdateProfileRequest\x1a\x1b.user.UpdateProfileResponse\",\x82\xd3\xe4\x93\x02&:\x01*2!/api/v1/userProfile/updateProfile\x12\x92\x01\n" +
-	"\x14ChangeProfilePicture\x12!.user.ChangeProfilePictureRequest\x1a\".user.ChangeProfilePictureResponse\"3\x82\xd3\xe4\x93\x02-:\x01*2(/api/v1/userProfile/changeProfilePicture\x12P\n" +
+	"\rUpdateProfile\x12\x1a.user.UpdateProfileRequest\x1a\x1b.user.UpdateProfileResponse\",\x82\xd3\xe4\x93\x02&:\x01*2!/api/v1/userProfile/updateProfile\x12P\n" +
 	"\x06Health\x12\x13.user.HealthRequest\x1a\x14.user.HealthResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/api/v1/user/healthBBZ@github.com/Kpeewu/tissi-mah/services/user-service/proto/gen;userb\x06proto3"
 
 var (
@@ -1720,71 +1682,67 @@ func file_user_proto_rawDescGZIP() []byte {
 	return file_user_proto_rawDescData
 }
 
-var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_user_proto_goTypes = []any{
-	(*CreateUserRequest)(nil),                // 0: user.CreateUserRequest
-	(*GetUserByAuthIDRequest)(nil),           // 1: user.GetUserByAuthIDRequest
-	(*GetUserByFirebaseIDRequest)(nil),       // 2: user.GetUserByFirebaseIDRequest
-	(*GetUserByUserIDRequest)(nil),           // 3: user.GetUserByUserIDRequest
-	(*GetUsersByUserIDsRequest)(nil),         // 4: user.GetUsersByUserIDsRequest
-	(*GetUsersByUserIDsResponse)(nil),        // 5: user.GetUsersByUserIDsResponse
-	(*SoftDeleteUserRequest)(nil),            // 6: user.SoftDeleteUserRequest
-	(*UpdateProfileVerificationRequest)(nil), // 7: user.UpdateProfileVerificationRequest
-	(*GetMyProfileRequest)(nil),              // 8: user.GetMyProfileRequest
-	(*CreateDriverAccountRequest)(nil),       // 9: user.CreateDriverAccountRequest
-	(*AddTripPreferencesRequest)(nil),        // 10: user.AddTripPreferencesRequest
-	(*UpdateProfileRequest)(nil),             // 11: user.UpdateProfileRequest
-	(*HealthRequest)(nil),                    // 12: user.HealthRequest
-	(*TripPreference)(nil),                   // 13: user.TripPreference
-	(*UserProfileResponse)(nil),              // 14: user.UserProfileResponse
-	(*GetMyProfileResponse)(nil),             // 15: user.GetMyProfileResponse
-	(*FullUserProfile)(nil),                  // 16: user.FullUserProfile
-	(*UserFile)(nil),                         // 17: user.UserFile
-	(*OperationResponse)(nil),                // 18: user.OperationResponse
-	(*UpdateProfileResponse)(nil),            // 19: user.UpdateProfileResponse
-	(*ChangeProfilePictureRequest)(nil),      // 20: user.ChangeProfilePictureRequest
-	(*ChangeProfilePictureResponse)(nil),     // 21: user.ChangeProfilePictureResponse
-	(*HealthResponse)(nil),                   // 22: user.HealthResponse
+	(*CreateUserRequest)(nil),                 // 0: user.CreateUserRequest
+	(*GetUserByAuthIDRequest)(nil),            // 1: user.GetUserByAuthIDRequest
+	(*GetUserByFirebaseIDRequest)(nil),        // 2: user.GetUserByFirebaseIDRequest
+	(*GetUserByUserIDRequest)(nil),            // 3: user.GetUserByUserIDRequest
+	(*GetUsersByUserIDsRequest)(nil),          // 4: user.GetUsersByUserIDsRequest
+	(*GetUsersByUserIDsResponse)(nil),         // 5: user.GetUsersByUserIDsResponse
+	(*SoftDeleteUserRequest)(nil),             // 6: user.SoftDeleteUserRequest
+	(*UpdateProfileVerificationRequest)(nil),  // 7: user.UpdateProfileVerificationRequest
+	(*UpdateProfileVerificationResponse)(nil), // 8: user.UpdateProfileVerificationResponse
+	(*GetMyProfileRequest)(nil),               // 9: user.GetMyProfileRequest
+	(*CreateDriverAccountRequest)(nil),        // 10: user.CreateDriverAccountRequest
+	(*AddTripPreferencesRequest)(nil),         // 11: user.AddTripPreferencesRequest
+	(*UpdateProfileRequest)(nil),              // 12: user.UpdateProfileRequest
+	(*HealthRequest)(nil),                     // 13: user.HealthRequest
+	(*TripPreference)(nil),                    // 14: user.TripPreference
+	(*UserProfileResponse)(nil),               // 15: user.UserProfileResponse
+	(*GetMyProfileResponse)(nil),              // 16: user.GetMyProfileResponse
+	(*FullUserProfile)(nil),                   // 17: user.FullUserProfile
+	(*UserFile)(nil),                          // 18: user.UserFile
+	(*OperationResponse)(nil),                 // 19: user.OperationResponse
+	(*UpdateProfileResponse)(nil),             // 20: user.UpdateProfileResponse
+	(*HealthResponse)(nil),                    // 21: user.HealthResponse
 }
 var file_user_proto_depIdxs = []int32{
-	14, // 0: user.GetUsersByUserIDsResponse.Users:type_name -> user.UserProfileResponse
-	13, // 1: user.AddTripPreferencesRequest.Preferences:type_name -> user.TripPreference
-	13, // 2: user.UserProfileResponse.TripPreferences:type_name -> user.TripPreference
-	16, // 3: user.GetMyProfileResponse.User:type_name -> user.FullUserProfile
-	13, // 4: user.FullUserProfile.TripPreferences:type_name -> user.TripPreference
-	16, // 5: user.UpdateProfileResponse.User:type_name -> user.FullUserProfile
-	16, // 6: user.ChangeProfilePictureResponse.User:type_name -> user.FullUserProfile
-	0,  // 7: user.UserService.CreateUser:input_type -> user.CreateUserRequest
-	1,  // 8: user.UserService.GetUserByAuthID:input_type -> user.GetUserByAuthIDRequest
-	2,  // 9: user.UserService.GetUserByFirebaseID:input_type -> user.GetUserByFirebaseIDRequest
-	3,  // 10: user.UserService.GetUserByUserID:input_type -> user.GetUserByUserIDRequest
-	4,  // 11: user.UserService.GetUsersByUserIDs:input_type -> user.GetUsersByUserIDsRequest
-	6,  // 12: user.UserService.SoftDeleteUser:input_type -> user.SoftDeleteUserRequest
-	7,  // 13: user.UserService.UpdateProfileVerification:input_type -> user.UpdateProfileVerificationRequest
-	8,  // 14: user.UserService.GetMyProfile:input_type -> user.GetMyProfileRequest
-	9,  // 15: user.UserService.CreateDriverAccount:input_type -> user.CreateDriverAccountRequest
-	10, // 16: user.UserService.AddTripPreferences:input_type -> user.AddTripPreferencesRequest
-	11, // 17: user.UserService.UpdateProfile:input_type -> user.UpdateProfileRequest
-	20, // 18: user.UserService.ChangeProfilePicture:input_type -> user.ChangeProfilePictureRequest
-	12, // 19: user.UserService.Health:input_type -> user.HealthRequest
-	14, // 20: user.UserService.CreateUser:output_type -> user.UserProfileResponse
-	14, // 21: user.UserService.GetUserByAuthID:output_type -> user.UserProfileResponse
-	14, // 22: user.UserService.GetUserByFirebaseID:output_type -> user.UserProfileResponse
-	14, // 23: user.UserService.GetUserByUserID:output_type -> user.UserProfileResponse
-	5,  // 24: user.UserService.GetUsersByUserIDs:output_type -> user.GetUsersByUserIDsResponse
-	18, // 25: user.UserService.SoftDeleteUser:output_type -> user.OperationResponse
-	18, // 26: user.UserService.UpdateProfileVerification:output_type -> user.OperationResponse
-	15, // 27: user.UserService.GetMyProfile:output_type -> user.GetMyProfileResponse
-	18, // 28: user.UserService.CreateDriverAccount:output_type -> user.OperationResponse
-	18, // 29: user.UserService.AddTripPreferences:output_type -> user.OperationResponse
-	19, // 30: user.UserService.UpdateProfile:output_type -> user.UpdateProfileResponse
-	21, // 31: user.UserService.ChangeProfilePicture:output_type -> user.ChangeProfilePictureResponse
-	22, // 32: user.UserService.Health:output_type -> user.HealthResponse
-	20, // [20:33] is the sub-list for method output_type
-	7,  // [7:20] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	15, // 0: user.GetUsersByUserIDsResponse.Users:type_name -> user.UserProfileResponse
+	14, // 1: user.AddTripPreferencesRequest.Preferences:type_name -> user.TripPreference
+	14, // 2: user.UserProfileResponse.TripPreferences:type_name -> user.TripPreference
+	17, // 3: user.GetMyProfileResponse.User:type_name -> user.FullUserProfile
+	14, // 4: user.FullUserProfile.TripPreferences:type_name -> user.TripPreference
+	17, // 5: user.UpdateProfileResponse.User:type_name -> user.FullUserProfile
+	0,  // 6: user.UserService.CreateUser:input_type -> user.CreateUserRequest
+	1,  // 7: user.UserService.GetUserByAuthID:input_type -> user.GetUserByAuthIDRequest
+	2,  // 8: user.UserService.GetUserByFirebaseID:input_type -> user.GetUserByFirebaseIDRequest
+	3,  // 9: user.UserService.GetUserByUserID:input_type -> user.GetUserByUserIDRequest
+	4,  // 10: user.UserService.GetUsersByUserIDs:input_type -> user.GetUsersByUserIDsRequest
+	6,  // 11: user.UserService.SoftDeleteUser:input_type -> user.SoftDeleteUserRequest
+	7,  // 12: user.UserService.UpdateProfileVerification:input_type -> user.UpdateProfileVerificationRequest
+	9,  // 13: user.UserService.GetMyProfile:input_type -> user.GetMyProfileRequest
+	10, // 14: user.UserService.CreateDriverAccount:input_type -> user.CreateDriverAccountRequest
+	11, // 15: user.UserService.AddTripPreferences:input_type -> user.AddTripPreferencesRequest
+	12, // 16: user.UserService.UpdateProfile:input_type -> user.UpdateProfileRequest
+	13, // 17: user.UserService.Health:input_type -> user.HealthRequest
+	15, // 18: user.UserService.CreateUser:output_type -> user.UserProfileResponse
+	15, // 19: user.UserService.GetUserByAuthID:output_type -> user.UserProfileResponse
+	15, // 20: user.UserService.GetUserByFirebaseID:output_type -> user.UserProfileResponse
+	15, // 21: user.UserService.GetUserByUserID:output_type -> user.UserProfileResponse
+	5,  // 22: user.UserService.GetUsersByUserIDs:output_type -> user.GetUsersByUserIDsResponse
+	19, // 23: user.UserService.SoftDeleteUser:output_type -> user.OperationResponse
+	8,  // 24: user.UserService.UpdateProfileVerification:output_type -> user.UpdateProfileVerificationResponse
+	16, // 25: user.UserService.GetMyProfile:output_type -> user.GetMyProfileResponse
+	19, // 26: user.UserService.CreateDriverAccount:output_type -> user.OperationResponse
+	19, // 27: user.UserService.AddTripPreferences:output_type -> user.OperationResponse
+	20, // 28: user.UserService.UpdateProfile:output_type -> user.UpdateProfileResponse
+	21, // 29: user.UserService.Health:output_type -> user.HealthResponse
+	18, // [18:30] is the sub-list for method output_type
+	6,  // [6:18] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_user_proto_init() }
@@ -1793,14 +1751,14 @@ func file_user_proto_init() {
 		return
 	}
 	file_user_proto_msgTypes[7].OneofWrappers = []any{}
-	file_user_proto_msgTypes[11].OneofWrappers = []any{}
+	file_user_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_proto_rawDesc), len(file_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

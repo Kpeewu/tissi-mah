@@ -1110,6 +1110,7 @@ type VehicleInfo struct {
 	LicencePlate  string                 `protobuf:"bytes,5,opt,name=LicencePlate,proto3" json:"LicencePlate,omitempty"`
 	NumberOfSeats int32                  `protobuf:"varint,6,opt,name=NumberOfSeats,proto3" json:"NumberOfSeats,omitempty"`
 	IsVerified    bool                   `protobuf:"varint,7,opt,name=IsVerified,proto3" json:"IsVerified,omitempty"`
+	UserId        string                 `protobuf:"bytes,8,opt,name=UserId,proto3" json:"UserId,omitempty"` // Propriétaire — pour les contrôles de propriété inter-service
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1191,6 +1192,119 @@ func (x *VehicleInfo) GetIsVerified() bool {
 		return x.IsVerified
 	}
 	return false
+}
+
+func (x *VehicleInfo) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+// SetVehicleVerificationRequest fixe le flag de vérification d'un véhicule.
+type SetVehicleVerificationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	VehicleId     string                 `protobuf:"bytes,1,opt,name=VehicleId,proto3" json:"VehicleId,omitempty"`
+	IsVerified    bool                   `protobuf:"varint,2,opt,name=IsVerified,proto3" json:"IsVerified,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetVehicleVerificationRequest) Reset() {
+	*x = SetVehicleVerificationRequest{}
+	mi := &file_vehicle_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetVehicleVerificationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetVehicleVerificationRequest) ProtoMessage() {}
+
+func (x *SetVehicleVerificationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vehicle_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetVehicleVerificationRequest.ProtoReflect.Descriptor instead.
+func (*SetVehicleVerificationRequest) Descriptor() ([]byte, []int) {
+	return file_vehicle_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *SetVehicleVerificationRequest) GetVehicleId() string {
+	if x != nil {
+		return x.VehicleId
+	}
+	return ""
+}
+
+func (x *SetVehicleVerificationRequest) GetIsVerified() bool {
+	if x != nil {
+		return x.IsVerified
+	}
+	return false
+}
+
+// SetVehicleVerificationResponse indique si la mise à jour a réussi.
+type SetVehicleVerificationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetVehicleVerificationResponse) Reset() {
+	*x = SetVehicleVerificationResponse{}
+	mi := &file_vehicle_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetVehicleVerificationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetVehicleVerificationResponse) ProtoMessage() {}
+
+func (x *SetVehicleVerificationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vehicle_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetVehicleVerificationResponse.ProtoReflect.Descriptor instead.
+func (*SetVehicleVerificationResponse) Descriptor() ([]byte, []int) {
+	return file_vehicle_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *SetVehicleVerificationResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *SetVehicleVerificationResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
 }
 
 var File_vehicle_proto protoreflect.FileDescriptor
@@ -1281,7 +1395,7 @@ const file_vehicle_proto_rawDesc = "" +
 	"\tVehicleId\x18\x01 \x01(\tR\tVehicleId\"l\n" +
 	"\x16GetVehicleInfoResponse\x12.\n" +
 	"\aVehicle\x18\x01 \x01(\v2\x14.vehicle.VehicleInfoR\aVehicle\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\xe1\x01\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\xf9\x01\n" +
 	"\vVehicleInfo\x12\x1c\n" +
 	"\tVehicleId\x18\x01 \x01(\tR\tVehicleId\x12\x14\n" +
 	"\x05Brand\x18\x02 \x01(\tR\x05Brand\x12\x1e\n" +
@@ -1293,7 +1407,16 @@ const file_vehicle_proto_rawDesc = "" +
 	"\rNumberOfSeats\x18\x06 \x01(\x05R\rNumberOfSeats\x12\x1e\n" +
 	"\n" +
 	"IsVerified\x18\a \x01(\bR\n" +
-	"IsVerified2\x8e\x06\n" +
+	"IsVerified\x12\x16\n" +
+	"\x06UserId\x18\b \x01(\tR\x06UserId\"]\n" +
+	"\x1dSetVehicleVerificationRequest\x12\x1c\n" +
+	"\tVehicleId\x18\x01 \x01(\tR\tVehicleId\x12\x1e\n" +
+	"\n" +
+	"IsVerified\x18\x02 \x01(\bR\n" +
+	"IsVerified\"^\n" +
+	"\x1eSetVehicleVerificationResponse\x12\x18\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\xf9\x06\n" +
 	"\x0eVehicleService\x12e\n" +
 	"\n" +
 	"AddVehicle\x12\x1a.vehicle.AddVehicleRequest\x1a\x1b.vehicle.AddVehicleResponse\"\x1e\x82\xd3\xe4\x93\x02\x18:\x01*\"\x13/api/v1/vehicle/add\x12q\n" +
@@ -1301,7 +1424,8 @@ const file_vehicle_proto_rawDesc = "" +
 	"\rDeleteVehicle\x12\x1d.vehicle.DeleteVehicleRequest\x1a\x1e.vehicle.DeleteVehicleResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/api/v1/vehicle/delete\x12~\n" +
 	"\x11GetVehicleDetails\x12!.vehicle.GetVehicleDetailsRequest\x1a\".vehicle.GetVehicleDetailsResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/api/v1/vehicle/details\x12\x80\x01\n" +
 	"\x0fGetUserVehicles\x12\x1f.vehicle.GetUserVehiclesRequest\x1a .vehicle.GetUserVehiclesResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/api/v1/vehicle/getUserVehicles\x12Q\n" +
-	"\x0eGetVehicleInfo\x12\x1e.vehicle.GetVehicleInfoRequest\x1a\x1f.vehicle.GetVehicleInfoResponse\x12Y\n" +
+	"\x0eGetVehicleInfo\x12\x1e.vehicle.GetVehicleInfoRequest\x1a\x1f.vehicle.GetVehicleInfoResponse\x12i\n" +
+	"\x16SetVehicleVerification\x12&.vehicle.SetVehicleVerificationRequest\x1a'.vehicle.SetVehicleVerificationResponse\x12Y\n" +
 	"\x06Health\x12\x16.vehicle.HealthRequest\x1a\x17.vehicle.HealthResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/api/v1/vehicle/healthBPZNgithub.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/vehiclepb;vehiclepbb\x06proto3"
 
 var (
@@ -1316,26 +1440,28 @@ func file_vehicle_proto_rawDescGZIP() []byte {
 	return file_vehicle_proto_rawDescData
 }
 
-var file_vehicle_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_vehicle_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_vehicle_proto_goTypes = []any{
-	(*AddVehicleRequest)(nil),         // 0: vehicle.AddVehicleRequest
-	(*AddVehicleResponse)(nil),        // 1: vehicle.AddVehicleResponse
-	(*UpdateVehicleRequest)(nil),      // 2: vehicle.UpdateVehicleRequest
-	(*UpdateVehicleResponse)(nil),     // 3: vehicle.UpdateVehicleResponse
-	(*DeleteVehicleRequest)(nil),      // 4: vehicle.DeleteVehicleRequest
-	(*DeleteVehicleResponse)(nil),     // 5: vehicle.DeleteVehicleResponse
-	(*GetVehicleDetailsRequest)(nil),  // 6: vehicle.GetVehicleDetailsRequest
-	(*GetVehicleDetailsResponse)(nil), // 7: vehicle.GetVehicleDetailsResponse
-	(*GetUserVehiclesRequest)(nil),    // 8: vehicle.GetUserVehiclesRequest
-	(*GetUserVehiclesResponse)(nil),   // 9: vehicle.GetUserVehiclesResponse
-	(*HealthRequest)(nil),             // 10: vehicle.HealthRequest
-	(*HealthResponse)(nil),            // 11: vehicle.HealthResponse
-	(*VehicleDocuments)(nil),          // 12: vehicle.VehicleDocuments
-	(*VehicleDetail)(nil),             // 13: vehicle.VehicleDetail
-	(*VehiclePreview)(nil),            // 14: vehicle.VehiclePreview
-	(*GetVehicleInfoRequest)(nil),     // 15: vehicle.GetVehicleInfoRequest
-	(*GetVehicleInfoResponse)(nil),    // 16: vehicle.GetVehicleInfoResponse
-	(*VehicleInfo)(nil),               // 17: vehicle.VehicleInfo
+	(*AddVehicleRequest)(nil),              // 0: vehicle.AddVehicleRequest
+	(*AddVehicleResponse)(nil),             // 1: vehicle.AddVehicleResponse
+	(*UpdateVehicleRequest)(nil),           // 2: vehicle.UpdateVehicleRequest
+	(*UpdateVehicleResponse)(nil),          // 3: vehicle.UpdateVehicleResponse
+	(*DeleteVehicleRequest)(nil),           // 4: vehicle.DeleteVehicleRequest
+	(*DeleteVehicleResponse)(nil),          // 5: vehicle.DeleteVehicleResponse
+	(*GetVehicleDetailsRequest)(nil),       // 6: vehicle.GetVehicleDetailsRequest
+	(*GetVehicleDetailsResponse)(nil),      // 7: vehicle.GetVehicleDetailsResponse
+	(*GetUserVehiclesRequest)(nil),         // 8: vehicle.GetUserVehiclesRequest
+	(*GetUserVehiclesResponse)(nil),        // 9: vehicle.GetUserVehiclesResponse
+	(*HealthRequest)(nil),                  // 10: vehicle.HealthRequest
+	(*HealthResponse)(nil),                 // 11: vehicle.HealthResponse
+	(*VehicleDocuments)(nil),               // 12: vehicle.VehicleDocuments
+	(*VehicleDetail)(nil),                  // 13: vehicle.VehicleDetail
+	(*VehiclePreview)(nil),                 // 14: vehicle.VehiclePreview
+	(*GetVehicleInfoRequest)(nil),          // 15: vehicle.GetVehicleInfoRequest
+	(*GetVehicleInfoResponse)(nil),         // 16: vehicle.GetVehicleInfoResponse
+	(*VehicleInfo)(nil),                    // 17: vehicle.VehicleInfo
+	(*SetVehicleVerificationRequest)(nil),  // 18: vehicle.SetVehicleVerificationRequest
+	(*SetVehicleVerificationResponse)(nil), // 19: vehicle.SetVehicleVerificationResponse
 }
 var file_vehicle_proto_depIdxs = []int32{
 	13, // 0: vehicle.GetVehicleDetailsResponse.Vehicle:type_name -> vehicle.VehicleDetail
@@ -1348,16 +1474,18 @@ var file_vehicle_proto_depIdxs = []int32{
 	6,  // 7: vehicle.VehicleService.GetVehicleDetails:input_type -> vehicle.GetVehicleDetailsRequest
 	8,  // 8: vehicle.VehicleService.GetUserVehicles:input_type -> vehicle.GetUserVehiclesRequest
 	15, // 9: vehicle.VehicleService.GetVehicleInfo:input_type -> vehicle.GetVehicleInfoRequest
-	10, // 10: vehicle.VehicleService.Health:input_type -> vehicle.HealthRequest
-	1,  // 11: vehicle.VehicleService.AddVehicle:output_type -> vehicle.AddVehicleResponse
-	3,  // 12: vehicle.VehicleService.UpdateVehicle:output_type -> vehicle.UpdateVehicleResponse
-	5,  // 13: vehicle.VehicleService.DeleteVehicle:output_type -> vehicle.DeleteVehicleResponse
-	7,  // 14: vehicle.VehicleService.GetVehicleDetails:output_type -> vehicle.GetVehicleDetailsResponse
-	9,  // 15: vehicle.VehicleService.GetUserVehicles:output_type -> vehicle.GetUserVehiclesResponse
-	16, // 16: vehicle.VehicleService.GetVehicleInfo:output_type -> vehicle.GetVehicleInfoResponse
-	11, // 17: vehicle.VehicleService.Health:output_type -> vehicle.HealthResponse
-	11, // [11:18] is the sub-list for method output_type
-	4,  // [4:11] is the sub-list for method input_type
+	18, // 10: vehicle.VehicleService.SetVehicleVerification:input_type -> vehicle.SetVehicleVerificationRequest
+	10, // 11: vehicle.VehicleService.Health:input_type -> vehicle.HealthRequest
+	1,  // 12: vehicle.VehicleService.AddVehicle:output_type -> vehicle.AddVehicleResponse
+	3,  // 13: vehicle.VehicleService.UpdateVehicle:output_type -> vehicle.UpdateVehicleResponse
+	5,  // 14: vehicle.VehicleService.DeleteVehicle:output_type -> vehicle.DeleteVehicleResponse
+	7,  // 15: vehicle.VehicleService.GetVehicleDetails:output_type -> vehicle.GetVehicleDetailsResponse
+	9,  // 16: vehicle.VehicleService.GetUserVehicles:output_type -> vehicle.GetUserVehiclesResponse
+	16, // 17: vehicle.VehicleService.GetVehicleInfo:output_type -> vehicle.GetVehicleInfoResponse
+	19, // 18: vehicle.VehicleService.SetVehicleVerification:output_type -> vehicle.SetVehicleVerificationResponse
+	11, // 19: vehicle.VehicleService.Health:output_type -> vehicle.HealthResponse
+	12, // [12:20] is the sub-list for method output_type
+	4,  // [4:12] is the sub-list for method input_type
 	4,  // [4:4] is the sub-list for extension type_name
 	4,  // [4:4] is the sub-list for extension extendee
 	0,  // [0:4] is the sub-list for field type_name
@@ -1374,7 +1502,7 @@ func file_vehicle_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vehicle_proto_rawDesc), len(file_vehicle_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

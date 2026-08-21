@@ -111,9 +111,10 @@ USER appuser
 # Expose gRPC port
 EXPOSE 50064
 
-# Health check using grpc health protocol
+# Health check via le protocole gRPC health (grpc.health.v1.Health).
+# Mêmes options que les probes Kubernetes : TLS intra-cluster, certificat non vérifié.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD ["/app/geolocation-service", "health"] || exit 1
+    CMD grpc_health_probe -addr=:${GRPC_PORT} -tls -tls-no-verify || exit 1
 
 # Default environment variables (OSRM_URL / NOMINATIM_URL / REDIS_URL doivent être
 # fournies par le déploiement K8s — pas de valeurs par défaut sensibles ici).

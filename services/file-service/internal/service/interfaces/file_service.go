@@ -65,9 +65,18 @@ type GetDocumentInput struct {
 // GetDocumentResult contient le document récupéré avec une URL présignée.
 type GetDocumentResult struct {
 	FileID                string
-	FileURL               string // URL présignée (30 min)
+	FileURL               string // URL présignée (1 h)
 	FileType              string
 	PresignedURLExpiresAt string // ISO 8601
+}
+
+// UploadSelfieInput contient le selfie d'identité à uploader.
+// FirstName / LastName viennent de user-service et servent à construire le docName.
+type UploadSelfieInput struct {
+	UserID    string
+	FirstName string
+	LastName  string
+	Selfie    []byte
 }
 
 // DeleteFileInput contient les données pour supprimer un fichier avec vérification de propriété.
@@ -166,17 +175,6 @@ type CreateReviewInput struct {
 	SecondUserDocumentID string // verso pour les documents recto-verso
 	VehicleDocumentID    string
 
-	// Persona
-	PersonaInquiryID    string
-	PersonaTemplateID   string
-	PersonaSessionToken string
-	SessionExpiresAt    string // ISO 8601
-
-	// Webhook
-	WebhookEventType  string
-	WebhookReceivedAt string // ISO 8601
-	PersonaRawPayload []byte // JSON
-
 	// Retry / versioning
 	AttemptNumber    int32
 	PreviousReviewID string
@@ -251,6 +249,12 @@ type FileService interface {
 	// Retourne le document fraîchement créé (ID + URL S3).
 	ChangeDocument(ctx context.Context, input ChangeDocumentInput) (*UploadedDocument, error)
 
+	// --- Selfie ---
+
+	// UploadSelfie enregistre le selfie d'identité : modération, photo de profil
+	// immédiate, remplacement de l'ancien selfie courant, review "pending" support.
+	UploadSelfie(ctx context.Context, input UploadSelfieInput) (*UploadedDocument, error)
+
 	// --- Upload identité ---
 
 	// Upload les documents d'identité vers S3/MinIO et sauvegarde les URLs en base.
@@ -274,9 +278,6 @@ type FileService interface {
 
 	// Récupère les revues d'un document (user ou vehicle)
 	GetDocumentReviews(ctx context.Context, userDocumentID string, vehicleDocumentID string) ([]*domain.DocumentReview, error)
-
-	// Récupère une revue par persona_inquiry_id
-	GetDocumentReviewByPersonaInquiryID(ctx context.Context, personaInquiryID string) (*domain.DocumentReview, error)
 
 	// Récupère toutes les revues liées aux documents d'un utilisateur
 	GetDocumentReviewsByUserID(ctx context.Context, userID string) ([]*domain.DocumentReview, error)

@@ -99,6 +99,12 @@ func (s *tripServiceImpl) CreateTrip(ctx context.Context, input *serviceInterfac
 		return nil, err
 	}
 
+	// Vérification : le véhicule existe, appartient au conducteur et est
+	// entièrement validé par le support (assurance + carte grise approuvées).
+	if _, err := s.validateUsableVehicle(ctx, driverUserID, input.VehicleID); err != nil {
+		return nil, err
+	}
+
 	// Construction du domaine
 	trip, waypoints := s.buildTripAndWaypoints(input, departure, estimatedArrival)
 
@@ -191,21 +197,10 @@ func (s *tripServiceImpl) ChangeTripVehicle(ctx context.Context, input *serviceI
 		return err
 	}
 
-	// Vérification : le véhicule existe et appartient au conducteur
-	brand, _, vehicleSeats, err := s.vehicleClient.GetVehicleInfo(ctx, driverUserID, input.VehicleID)
+	// Vérification : le véhicule existe, appartient au conducteur et est validé
+	vehicleSeats, err := s.validateUsableVehicle(ctx, driverUserID, input.VehicleID)
 	if err != nil {
-		s.logger.Error("vehicle-service check failed",
-			zap.Error(err),
-			zap.String("vehicleID", input.VehicleID),
-		)
-		return tripErrors.ErrorInternalServer
-	}
-	if brand == "" {
-		s.logger.Warn("vehicle not found or does not belong to driver",
-			zap.String("driverID", driverUserID),
-			zap.String("vehicleID", input.VehicleID),
-		)
-		return tripErrors.ErrorVehicleNotFound
+		return err
 	}
 
 	// Vérification : le véhicule doit avoir au moins autant de places que le trajet
@@ -574,6 +569,35 @@ func (s *tripServiceImpl) parseDatetimes(departureStr, arrivalStr string) (time.
 	}
 
 	return departure, estimatedArrival, nil
+}
+
+// validateUsableVehicle vérifie qu'un véhicule est UTILISABLE pour un trajet :
+// il existe, appartient au conducteur, et est entièrement validé par le support
+// (is_verified = assurance + carte grise approuvées). Retourne son nombre de places.
+func (s *tripServiceImpl) validateUsableVehicle(ctx context.Context, driverUserID, vehicleID string) (int, error) {
+	brand, _, vehicleSeats, isVerified, err := s.vehicleClient.GetVehicleInfo(ctx, driverUserID, vehicleID)
+	if err != nil {
+		s.logger.Error("vehicle-service check failed",
+			zap.Error(err),
+			zap.String("vehicleID", vehicleID),
+		)
+		return 0, tripErrors.ErrorInternalServer
+	}
+	if brand == "" {
+		s.logger.Warn("vehicle not found or does not belong to driver",
+			zap.String("driverID", driverUserID),
+			zap.String("vehicleID", vehicleID),
+		)
+		return 0, tripErrors.ErrorVehicleNotFound
+	}
+	if !isVerified {
+		s.logger.Warn("vehicle not verified — documents not fully approved",
+			zap.String("driverID", driverUserID),
+			zap.String("vehicleID", vehicleID),
+		)
+		return 0, tripErrors.ErrorVehicleNotVerified
+	}
+	return vehicleSeats, nil
 }
 
 // validateVerifiedDriver vérifie que le conducteur a un profil conducteur certifié.

@@ -30,11 +30,19 @@ type spyFileService struct {
 	gotVehicleInput  *serviceInterfaces.UploadVehicleDocumentsInput
 	uploadVehicleErr error
 	uploadVehicleRet []*serviceInterfaces.UploadedDocument
+	gotSelfieInput   *serviceInterfaces.UploadSelfieInput
+	uploadSelfieErr  error
+	uploadSelfieRet  *serviceInterfaces.UploadedDocument
 }
 
 func (s *spyFileService) UploadIdDocument(_ context.Context, input serviceInterfaces.UploadIdDocumentInput) ([]*serviceInterfaces.UploadedDocument, error) {
 	s.gotInput = &input
 	return s.uploadIdReturn, s.uploadIdErr
+}
+
+func (s *spyFileService) UploadSelfie(_ context.Context, input serviceInterfaces.UploadSelfieInput) (*serviceInterfaces.UploadedDocument, error) {
+	s.gotSelfieInput = &input
+	return s.uploadSelfieRet, s.uploadSelfieErr
 }
 
 func (s *spyFileService) UploadVehicleDocuments(_ context.Context, input serviceInterfaces.UploadVehicleDocumentsInput) ([]*serviceInterfaces.UploadedDocument, error) {
@@ -93,9 +101,6 @@ func (s *spyFileService) GetDocumentReview(context.Context, string) (*domain.Doc
 	panic("not implemented")
 }
 func (s *spyFileService) GetDocumentReviews(context.Context, string, string) ([]*domain.DocumentReview, error) {
-	panic("not implemented")
-}
-func (s *spyFileService) GetDocumentReviewByPersonaInquiryID(context.Context, string) (*domain.DocumentReview, error) {
 	panic("not implemented")
 }
 func (s *spyFileService) GetDocumentReviewsByUserID(context.Context, string) ([]*domain.DocumentReview, error) {

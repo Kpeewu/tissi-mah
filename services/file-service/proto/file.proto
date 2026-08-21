@@ -40,6 +40,18 @@ service FileService {
     };
   }
 
+  // --- Upload selfie (HTTP via api-gateway) ---
+  // Upload le selfie d'identité (base64 dans JSON). Le selfie devient immédiatement
+  // la photo de profil (après modération d'image) et entre en validation support
+  // (comparaison selfie ↔ pièce d'identité). Remplaçable à tout moment : un nouveau
+  // selfie supplante le courant et repasse en validation.
+  rpc UploadSelfie(UploadSelfieRequest) returns (UploadSelfieResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/file/uploadSelfie"
+      body: "*"
+    };
+  }
+
   // --- Remplacement de document (HTTP via api-gateway) ---
   // Remplace le fichier d'un document existant par un nouveau (base64 dans JSON)
   rpc ChangeDocument(ChangeDocumentRequest) returns (ChangeDocumentResponse) {
@@ -87,7 +99,6 @@ service FileService {
   rpc CreateDocumentReview(CreateDocumentReviewRequest) returns (DocumentReviewResponse);
   rpc GetDocumentReview(GetDocumentReviewByIDRequest) returns (DocumentReviewResponse);
   rpc GetDocumentReviews(GetDocumentReviewsRequest) returns (GetDocumentReviewsResponse);
-  rpc GetDocumentReviewByPersonaInquiryID(GetDocumentReviewByPersonaInquiryIDRequest) returns (DocumentReviewResponse);
   rpc GetDocumentReviewsByUserID(GetDocumentReviewsByUserIDRequest) returns (GetDocumentReviewsResponse);
   rpc UpdateDocumentReview(UpdateDocumentReviewRequest) returns (DocumentReviewResponse);
   rpc ListDocumentReviews(ListDocumentReviewsRequest) returns (GetDocumentReviewsResponse);
@@ -153,6 +164,22 @@ message UploadedDocument {
 }
 
 // =============================================================================
+// Upload selfie (HTTP)
+// =============================================================================
+
+message UploadSelfieRequest {
+  // Le propriétaire est résolu depuis x-firebase-uid (metadata gRPC injectée
+  // par l'api-gateway) — aucun UserID accepté dans le body.
+  bytes Selfie = 1;
+}
+
+message UploadSelfieResponse {
+  bool             Success      = 1;
+  string           ErrorMessage = 2;
+  UploadedDocument Document     = 3;
+}
+
+// =============================================================================
 // Suppression document (HTTP)
 // =============================================================================
 
@@ -178,7 +205,7 @@ message GetDocumentRequest {
 
 message DocumentFile {
   string FileID                = 1;
-  string FileURL               = 2;  // URL présignée (30 min)
+  string FileURL               = 2;  // URL présignée (1 h)
   string FileType              = 3;
   string PresignedUrlExpiresAt = 4;  // ISO 8601
 }
@@ -298,7 +325,7 @@ message GetUserDocumentsRequest {
 
 message GetDocumentByIDRequest {
   string DocumentId    = 1;
-  int64  PresignTTLSecs = 2;  // 0 = défaut 30 min ; 86400 pour Persona (KYC)
+  int64  PresignTTLSecs = 2;  // 0 = défaut 1 h
 }
 
 message GetCurrentUserDocumentRequest {
@@ -344,33 +371,26 @@ message DeleteDocumentRequest {
 // =============================================================================
 
 message CreateDocumentReviewRequest {
-  string UserDocumentId = 1; // Optionnel — peut être vide (Persona 100%)
-  string VehicleDocumentId = 2; // Optionnel — peut être vide (Persona 100%)
+  reserved 3, 4, 5, 6, 7, 8, 9; // Persona (intégration supprimée)
+  reserved "PersonaInquiryId", "PersonaTemplateId", "PersonaSessionToken",
+           "SessionExpiresAt", "WebhookEventType", "WebhookReceivedAt", "PersonaRawPayload";
 
-  // Persona
-  string PersonaInquiryId = 3; // Optionnel
-  string PersonaTemplateId = 4; // Optionnel
-  string PersonaSessionToken = 5; // Optionnel
-  string SessionExpiresAt = 6; // Optionnel (ISO 8601)
-
-  // Webhook
-  string WebhookEventType = 7; // Optionnel
-  string WebhookReceivedAt = 8; // Optionnel (ISO 8601)
-  bytes PersonaRawPayload = 9; // Optionnel (JSON)
+  string UserDocumentId = 1; // Optionnel
+  string VehicleDocumentId = 2; // Optionnel
 
   // Retry / versioning
   int32 AttemptNumber = 10; // Défaut 1
   string PreviousReviewId = 11; // Optionnel
 
   // Décision
-  string Status = 12; // pending | inProgress | submitted | completed | expired | failed
+  string Status = 12; // pending | completed | expired | failed
   string Decision = 13; // approved, rejected, resubmission
   string ReasonRejection = 14; // Optionnel (enum)
   string RejectionDetails = 15; // Optionnel
 
   // Réviseur
   string ReviewedBy = 16;
-  string ReviewType = 17; // manual, automatic
+  string ReviewType = 17; // manual
 
   string Notes = 18; // Optionnel
   bytes ExtractedData = 19; // Optionnel (JSON)
@@ -396,25 +416,16 @@ message GetDocumentReviewByIDRequest {
   string ReviewId = 1;
 }
 
-message GetDocumentReviewByPersonaInquiryIDRequest {
-  string PersonaInquiryId = 1;
-}
-
 message GetDocumentReviewsByUserIDRequest {
   string UserId = 1;
 }
 
 message UpdateDocumentReviewRequest {
+  reserved 2, 3, 4, 5, 6; // Persona (intégration supprimée)
+  reserved "PersonaSessionToken", "SessionExpiresAt", "WebhookEventType",
+           "WebhookReceivedAt", "PersonaRawPayload";
+
   string ReviewId = 1;
-
-  // Persona
-  string PersonaSessionToken = 2; // Optionnel
-  string SessionExpiresAt = 3; // Optionnel (ISO 8601)
-
-  // Webhook
-  string WebhookEventType = 4; // Optionnel
-  string WebhookReceivedAt = 5; // Optionnel (ISO 8601)
-  bytes PersonaRawPayload = 6; // Optionnel (JSON)
 
   // Décision
   string Status = 7; // Optionnel
@@ -430,6 +441,11 @@ message UpdateDocumentReviewRequest {
 
   // Timestamps
   string SubmittedAt = 14; // Optionnel (ISO 8601)
+
+  // Recto-verso : verso résolu par kyc-service au moment de la décision.
+  // Si vide pour un type recto-verso, le file-service résout la face compagnon
+  // courante lui-même avant de synchroniser les statuts.
+  string SecondUserDocumentId = 15; // Optionnel
 }
 
 message ListDocumentReviewsRequest {
@@ -509,20 +525,13 @@ message OperationResponse {
 }
 
 message DocumentReviewResponse {
+  reserved 4, 5, 6, 7, 8, 9, 10; // Persona (intégration supprimée)
+  reserved "PersonaInquiryId", "PersonaTemplateId", "PersonaSessionToken",
+           "SessionExpiresAt", "WebhookEventType", "WebhookReceivedAt", "PersonaRawPayload";
+
   string ReviewId = 1;
   string UserDocumentId = 2;
   string VehicleDocumentId = 3;
-
-  // Persona
-  string PersonaInquiryId = 4;
-  string PersonaTemplateId = 5;
-  string PersonaSessionToken = 6;
-  string SessionExpiresAt = 7; // ISO 8601
-
-  // Webhook
-  string WebhookEventType = 8;
-  string WebhookReceivedAt = 9; // ISO 8601
-  bytes PersonaRawPayload = 10; // JSON
 
   // Retry / versioning
   int32 AttemptNumber = 11;

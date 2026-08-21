@@ -26,10 +26,9 @@ const SupportRoleKey contextKey = "supportRole"
 
 // Routes gRPC publiques (pas de JWT requis)
 var publicMethods = map[string]bool{
-	"/kyc.KYCService/Health":         true,
-	"/kyc.KYCService/ProcessWebhook": true,
-	"/grpc.health.v1.Health/Check":   true, // Readiness probe Kubernetes
-	"/grpc.health.v1.Health/Watch":   true, // Liveness probe Kubernetes
+	"/kyc.KYCService/Health":       true,
+	"/grpc.health.v1.Health/Check": true, // Readiness probe Kubernetes
+	"/grpc.health.v1.Health/Watch": true, // Liveness probe Kubernetes
 }
 
 // Méthodes réservées aux agents support (JWT support, pas Firebase)
@@ -43,9 +42,22 @@ var adminMethods = map[string]bool{
 	"/kyc.KYCService/GetDocumentHistory":           true,
 }
 
+// adminOnlyMethods : sous-ensemble des méthodes admin réservé au rôle "admin".
+// L'override d'une décision (annulation d'un rejet) est une action sensible.
+var adminOnlyMethods = map[string]bool{
+	"/kyc.KYCService/OverrideReview": true,
+}
+
+// allowedSupportRoles : rôles support acceptés sur les méthodes admin.
+var allowedSupportRoles = map[string]bool{
+	"admin":   true,
+	"support": true,
+}
+
 // KYCInterceptor retourne un intercepteur gRPC unaire qui :
-//  1. Laisse passer les routes publiques (Health, ProcessWebhook)
-//  2. Pour les méthodes admin : extrait x-support-uid → SupportIDKey
+//  1. Laisse passer les routes publiques (Health)
+//  2. Pour les méthodes admin : extrait x-support-uid → SupportIDKey et
+//     vérifie le rôle (x-support-role) — OverrideReview exige "admin"
 //  3. Pour les autres méthodes : extrait x-firebase-uid → FirebaseIDKey
 func KYCInterceptor(secret []byte) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
@@ -63,10 +75,18 @@ func KYCInterceptor(secret []byte) grpc.UnaryServerInterceptor {
 			if len(uids) == 0 || uids[0] == "" {
 				return nil, status.Error(codes.Unauthenticated, "missing support uid")
 			}
-			ctx = context.WithValue(ctx, SupportIDKey, uids[0])
+			var role string
 			if roles := md.Get("x-support-role"); len(roles) > 0 {
-				ctx = context.WithValue(ctx, SupportRoleKey, roles[0])
+				role = roles[0]
 			}
+			if !allowedSupportRoles[role] {
+				return nil, status.Error(codes.PermissionDenied, "invalid support role")
+			}
+			if adminOnlyMethods[info.FullMethod] && role != "admin" {
+				return nil, status.Error(codes.PermissionDenied, "admin role required")
+			}
+			ctx = context.WithValue(ctx, SupportIDKey, uids[0])
+			ctx = context.WithValue(ctx, SupportRoleKey, role)
 			return handler(ctx, req)
 		}
 

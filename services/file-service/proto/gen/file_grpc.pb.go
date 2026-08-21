@@ -23,32 +23,32 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	FileService_UploadUserDocument_FullMethodName                  = "/file.FileService/UploadUserDocument"
-	FileService_UploadVehicleDocument_FullMethodName               = "/file.FileService/UploadVehicleDocument"
-	FileService_UploadIdDocument_FullMethodName                    = "/file.FileService/UploadIdDocument"
-	FileService_UploadVehicleDocuments_FullMethodName              = "/file.FileService/UploadVehicleDocuments"
-	FileService_ChangeDocument_FullMethodName                      = "/file.FileService/ChangeDocument"
-	FileService_GetDocument_FullMethodName                         = "/file.FileService/GetDocument"
-	FileService_GetUserDocuments_FullMethodName                    = "/file.FileService/GetUserDocuments"
-	FileService_GetUserDocument_FullMethodName                     = "/file.FileService/GetUserDocument"
-	FileService_GetCurrentUserDocument_FullMethodName              = "/file.FileService/GetCurrentUserDocument"
-	FileService_GetVehicleDocuments_FullMethodName                 = "/file.FileService/GetVehicleDocuments"
-	FileService_GetVehicleDocument_FullMethodName                  = "/file.FileService/GetVehicleDocument"
-	FileService_GetVehicleDocumentsByUserID_FullMethodName         = "/file.FileService/GetVehicleDocumentsByUserID"
-	FileService_ListKycDocuments_FullMethodName                    = "/file.FileService/ListKycDocuments"
-	FileService_DeleteFile_FullMethodName                          = "/file.FileService/DeleteFile"
-	FileService_DeleteUserDocument_FullMethodName                  = "/file.FileService/DeleteUserDocument"
-	FileService_DeleteVehicleDocument_FullMethodName               = "/file.FileService/DeleteVehicleDocument"
-	FileService_CreateDocumentReview_FullMethodName                = "/file.FileService/CreateDocumentReview"
-	FileService_GetDocumentReview_FullMethodName                   = "/file.FileService/GetDocumentReview"
-	FileService_GetDocumentReviews_FullMethodName                  = "/file.FileService/GetDocumentReviews"
-	FileService_GetDocumentReviewByPersonaInquiryID_FullMethodName = "/file.FileService/GetDocumentReviewByPersonaInquiryID"
-	FileService_GetDocumentReviewsByUserID_FullMethodName          = "/file.FileService/GetDocumentReviewsByUserID"
-	FileService_UpdateDocumentReview_FullMethodName                = "/file.FileService/UpdateDocumentReview"
-	FileService_ListDocumentReviews_FullMethodName                 = "/file.FileService/ListDocumentReviews"
-	FileService_GetDocumentReviewHistory_FullMethodName            = "/file.FileService/GetDocumentReviewHistory"
-	FileService_Health_FullMethodName                              = "/file.FileService/Health"
-	FileService_DeleteAllUserFiles_FullMethodName                  = "/file.FileService/DeleteAllUserFiles"
+	FileService_UploadUserDocument_FullMethodName          = "/file.FileService/UploadUserDocument"
+	FileService_UploadVehicleDocument_FullMethodName       = "/file.FileService/UploadVehicleDocument"
+	FileService_UploadIdDocument_FullMethodName            = "/file.FileService/UploadIdDocument"
+	FileService_UploadVehicleDocuments_FullMethodName      = "/file.FileService/UploadVehicleDocuments"
+	FileService_UploadSelfie_FullMethodName                = "/file.FileService/UploadSelfie"
+	FileService_ChangeDocument_FullMethodName              = "/file.FileService/ChangeDocument"
+	FileService_GetDocument_FullMethodName                 = "/file.FileService/GetDocument"
+	FileService_GetUserDocuments_FullMethodName            = "/file.FileService/GetUserDocuments"
+	FileService_GetUserDocument_FullMethodName             = "/file.FileService/GetUserDocument"
+	FileService_GetCurrentUserDocument_FullMethodName      = "/file.FileService/GetCurrentUserDocument"
+	FileService_GetVehicleDocuments_FullMethodName         = "/file.FileService/GetVehicleDocuments"
+	FileService_GetVehicleDocument_FullMethodName          = "/file.FileService/GetVehicleDocument"
+	FileService_GetVehicleDocumentsByUserID_FullMethodName = "/file.FileService/GetVehicleDocumentsByUserID"
+	FileService_ListKycDocuments_FullMethodName            = "/file.FileService/ListKycDocuments"
+	FileService_DeleteFile_FullMethodName                  = "/file.FileService/DeleteFile"
+	FileService_DeleteUserDocument_FullMethodName          = "/file.FileService/DeleteUserDocument"
+	FileService_DeleteVehicleDocument_FullMethodName       = "/file.FileService/DeleteVehicleDocument"
+	FileService_CreateDocumentReview_FullMethodName        = "/file.FileService/CreateDocumentReview"
+	FileService_GetDocumentReview_FullMethodName           = "/file.FileService/GetDocumentReview"
+	FileService_GetDocumentReviews_FullMethodName          = "/file.FileService/GetDocumentReviews"
+	FileService_GetDocumentReviewsByUserID_FullMethodName  = "/file.FileService/GetDocumentReviewsByUserID"
+	FileService_UpdateDocumentReview_FullMethodName        = "/file.FileService/UpdateDocumentReview"
+	FileService_ListDocumentReviews_FullMethodName         = "/file.FileService/ListDocumentReviews"
+	FileService_GetDocumentReviewHistory_FullMethodName    = "/file.FileService/GetDocumentReviewHistory"
+	FileService_Health_FullMethodName                      = "/file.FileService/Health"
+	FileService_DeleteAllUserFiles_FullMethodName          = "/file.FileService/DeleteAllUserFiles"
 )
 
 // FileServiceClient is the client API for FileService service.
@@ -67,6 +67,12 @@ type FileServiceClient interface {
 	// Upload le permis de conduire, l'assurance et la carte grise du véhicule (base64 dans JSON)
 	// Les fichiers sont uploadés dans S3/MinIO et les URLs stockées en base
 	UploadVehicleDocuments(ctx context.Context, in *UploadVehicleDocumentsRequest, opts ...grpc.CallOption) (*UploadVehicleDocumentsResponse, error)
+	// --- Upload selfie (HTTP via api-gateway) ---
+	// Upload le selfie d'identité (base64 dans JSON). Le selfie devient immédiatement
+	// la photo de profil (après modération d'image) et entre en validation support
+	// (comparaison selfie ↔ pièce d'identité). Remplaçable à tout moment : un nouveau
+	// selfie supplante le courant et repasse en validation.
+	UploadSelfie(ctx context.Context, in *UploadSelfieRequest, opts ...grpc.CallOption) (*UploadSelfieResponse, error)
 	// --- Remplacement de document (HTTP via api-gateway) ---
 	// Remplace le fichier d'un document existant par un nouveau (base64 dans JSON)
 	ChangeDocument(ctx context.Context, in *ChangeDocumentRequest, opts ...grpc.CallOption) (*ChangeDocumentResponse, error)
@@ -94,7 +100,6 @@ type FileServiceClient interface {
 	CreateDocumentReview(ctx context.Context, in *CreateDocumentReviewRequest, opts ...grpc.CallOption) (*DocumentReviewResponse, error)
 	GetDocumentReview(ctx context.Context, in *GetDocumentReviewByIDRequest, opts ...grpc.CallOption) (*DocumentReviewResponse, error)
 	GetDocumentReviews(ctx context.Context, in *GetDocumentReviewsRequest, opts ...grpc.CallOption) (*GetDocumentReviewsResponse, error)
-	GetDocumentReviewByPersonaInquiryID(ctx context.Context, in *GetDocumentReviewByPersonaInquiryIDRequest, opts ...grpc.CallOption) (*DocumentReviewResponse, error)
 	GetDocumentReviewsByUserID(ctx context.Context, in *GetDocumentReviewsByUserIDRequest, opts ...grpc.CallOption) (*GetDocumentReviewsResponse, error)
 	UpdateDocumentReview(ctx context.Context, in *UpdateDocumentReviewRequest, opts ...grpc.CallOption) (*DocumentReviewResponse, error)
 	ListDocumentReviews(ctx context.Context, in *ListDocumentReviewsRequest, opts ...grpc.CallOption) (*GetDocumentReviewsResponse, error)
@@ -156,6 +161,16 @@ func (c *fileServiceClient) UploadVehicleDocuments(ctx context.Context, in *Uplo
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(UploadVehicleDocumentsResponse)
 	err := c.cc.Invoke(ctx, FileService_UploadVehicleDocuments_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fileServiceClient) UploadSelfie(ctx context.Context, in *UploadSelfieRequest, opts ...grpc.CallOption) (*UploadSelfieResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UploadSelfieResponse)
+	err := c.cc.Invoke(ctx, FileService_UploadSelfie_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -312,16 +327,6 @@ func (c *fileServiceClient) GetDocumentReviews(ctx context.Context, in *GetDocum
 	return out, nil
 }
 
-func (c *fileServiceClient) GetDocumentReviewByPersonaInquiryID(ctx context.Context, in *GetDocumentReviewByPersonaInquiryIDRequest, opts ...grpc.CallOption) (*DocumentReviewResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DocumentReviewResponse)
-	err := c.cc.Invoke(ctx, FileService_GetDocumentReviewByPersonaInquiryID_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *fileServiceClient) GetDocumentReviewsByUserID(ctx context.Context, in *GetDocumentReviewsByUserIDRequest, opts ...grpc.CallOption) (*GetDocumentReviewsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetDocumentReviewsResponse)
@@ -398,6 +403,12 @@ type FileServiceServer interface {
 	// Upload le permis de conduire, l'assurance et la carte grise du véhicule (base64 dans JSON)
 	// Les fichiers sont uploadés dans S3/MinIO et les URLs stockées en base
 	UploadVehicleDocuments(context.Context, *UploadVehicleDocumentsRequest) (*UploadVehicleDocumentsResponse, error)
+	// --- Upload selfie (HTTP via api-gateway) ---
+	// Upload le selfie d'identité (base64 dans JSON). Le selfie devient immédiatement
+	// la photo de profil (après modération d'image) et entre en validation support
+	// (comparaison selfie ↔ pièce d'identité). Remplaçable à tout moment : un nouveau
+	// selfie supplante le courant et repasse en validation.
+	UploadSelfie(context.Context, *UploadSelfieRequest) (*UploadSelfieResponse, error)
 	// --- Remplacement de document (HTTP via api-gateway) ---
 	// Remplace le fichier d'un document existant par un nouveau (base64 dans JSON)
 	ChangeDocument(context.Context, *ChangeDocumentRequest) (*ChangeDocumentResponse, error)
@@ -425,7 +436,6 @@ type FileServiceServer interface {
 	CreateDocumentReview(context.Context, *CreateDocumentReviewRequest) (*DocumentReviewResponse, error)
 	GetDocumentReview(context.Context, *GetDocumentReviewByIDRequest) (*DocumentReviewResponse, error)
 	GetDocumentReviews(context.Context, *GetDocumentReviewsRequest) (*GetDocumentReviewsResponse, error)
-	GetDocumentReviewByPersonaInquiryID(context.Context, *GetDocumentReviewByPersonaInquiryIDRequest) (*DocumentReviewResponse, error)
 	GetDocumentReviewsByUserID(context.Context, *GetDocumentReviewsByUserIDRequest) (*GetDocumentReviewsResponse, error)
 	UpdateDocumentReview(context.Context, *UpdateDocumentReviewRequest) (*DocumentReviewResponse, error)
 	ListDocumentReviews(context.Context, *ListDocumentReviewsRequest) (*GetDocumentReviewsResponse, error)
@@ -458,6 +468,9 @@ func (UnimplementedFileServiceServer) UploadIdDocument(context.Context, *UploadI
 }
 func (UnimplementedFileServiceServer) UploadVehicleDocuments(context.Context, *UploadVehicleDocumentsRequest) (*UploadVehicleDocumentsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UploadVehicleDocuments not implemented")
+}
+func (UnimplementedFileServiceServer) UploadSelfie(context.Context, *UploadSelfieRequest) (*UploadSelfieResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UploadSelfie not implemented")
 }
 func (UnimplementedFileServiceServer) ChangeDocument(context.Context, *ChangeDocumentRequest) (*ChangeDocumentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ChangeDocument not implemented")
@@ -503,9 +516,6 @@ func (UnimplementedFileServiceServer) GetDocumentReview(context.Context, *GetDoc
 }
 func (UnimplementedFileServiceServer) GetDocumentReviews(context.Context, *GetDocumentReviewsRequest) (*GetDocumentReviewsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetDocumentReviews not implemented")
-}
-func (UnimplementedFileServiceServer) GetDocumentReviewByPersonaInquiryID(context.Context, *GetDocumentReviewByPersonaInquiryIDRequest) (*DocumentReviewResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetDocumentReviewByPersonaInquiryID not implemented")
 }
 func (UnimplementedFileServiceServer) GetDocumentReviewsByUserID(context.Context, *GetDocumentReviewsByUserIDRequest) (*GetDocumentReviewsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetDocumentReviewsByUserID not implemented")
@@ -592,6 +602,24 @@ func _FileService_UploadVehicleDocuments_Handler(srv interface{}, ctx context.Co
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(FileServiceServer).UploadVehicleDocuments(ctx, req.(*UploadVehicleDocumentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FileService_UploadSelfie_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UploadSelfieRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FileServiceServer).UploadSelfie(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FileService_UploadSelfie_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FileServiceServer).UploadSelfie(ctx, req.(*UploadSelfieRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -866,24 +894,6 @@ func _FileService_GetDocumentReviews_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
-func _FileService_GetDocumentReviewByPersonaInquiryID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetDocumentReviewByPersonaInquiryIDRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(FileServiceServer).GetDocumentReviewByPersonaInquiryID(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: FileService_GetDocumentReviewByPersonaInquiryID_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FileServiceServer).GetDocumentReviewByPersonaInquiryID(ctx, req.(*GetDocumentReviewByPersonaInquiryIDRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _FileService_GetDocumentReviewsByUserID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetDocumentReviewsByUserIDRequest)
 	if err := dec(in); err != nil {
@@ -1008,6 +1018,10 @@ var FileService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _FileService_UploadVehicleDocuments_Handler,
 		},
 		{
+			MethodName: "UploadSelfie",
+			Handler:    _FileService_UploadSelfie_Handler,
+		},
+		{
 			MethodName: "ChangeDocument",
 			Handler:    _FileService_ChangeDocument_Handler,
 		},
@@ -1066,10 +1080,6 @@ var FileService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDocumentReviews",
 			Handler:    _FileService_GetDocumentReviews_Handler,
-		},
-		{
-			MethodName: "GetDocumentReviewByPersonaInquiryID",
-			Handler:    _FileService_GetDocumentReviewByPersonaInquiryID_Handler,
 		},
 		{
 			MethodName: "GetDocumentReviewsByUserID",

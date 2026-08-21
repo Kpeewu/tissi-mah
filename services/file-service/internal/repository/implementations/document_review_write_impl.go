@@ -28,28 +28,24 @@ func (r *documentReviewWriteImpl) Create(ctx context.Context, review *domain.Doc
 	query := `INSERT INTO document_reviews
 	          (review_id, user_id, document_type, logical_document_type,
 	           user_document_id, second_user_document_id, vehicle_document_id,
-	           persona_inquiry_id, persona_template_id, persona_session_token, session_expires_at,
-	           webhook_event_type, webhook_received_at, persona_raw_payload,
 	           attempt_number, previous_review_id,
 	           status, decision, reason_rejection, rejection_details,
-	           reviewed_by, review_type,
+	           reviewed_by, review_type, reviewed_at,
 	           notes, extracted_data,
-	           submitted_at, updated_at)
+	           submitted_at, created_at, updated_at)
 	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
-	                  $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+	                  $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
 	          RETURNING review_id`
 
 	var reviewID string
 	err := r.pool.QueryRow(ctx, query,
 		review.ReviewID, review.UserID, review.DocumentType, review.LogicalDocumentType,
 		review.UserDocumentID, review.SecondUserDocumentID, review.VehicleDocumentID,
-		review.PersonaInquiryID, review.PersonaTemplateID, review.PersonaSessionToken, review.SessionExpiresAt,
-		review.WebhookEventType, review.WebhookReceivedAt, review.PersonaRawPayload,
 		review.AttemptNumber, review.PreviousReviewID,
 		review.Status, review.Decision, review.ReasonRejection, review.RejectionDetails,
-		review.ReviewedBy, review.ReviewType,
+		review.ReviewedBy, review.ReviewType, review.ReviewedAt,
 		review.Notes, review.ExtractedData,
-		review.SubmittedAt, review.UpdatedAt,
+		review.SubmittedAt, review.CreatedAt, review.UpdatedAt,
 	).Scan(&reviewID)
 
 	if err != nil {
@@ -69,31 +65,47 @@ func (r *documentReviewWriteImpl) Update(ctx context.Context, review *domain.Doc
 	r.logger.Debug("mise à jour d'une revue de document", zap.String("reviewID", review.ReviewID))
 
 	query := `UPDATE document_reviews SET
-	           persona_session_token = $2, session_expires_at = $3,
-	           webhook_event_type = $4, webhook_received_at = $5, persona_raw_payload = $6,
-	           status = $7, decision = $8, reason_rejection = $9, rejection_details = $10,
-	           reviewed_by = $11, review_type = $12, reviewed_at = $13,
-	           notes = $14,
-	           submitted_at = $15, updated_at = $16,
-	           logical_document_type = $17, second_user_document_id = $18
+	           status = $2, decision = $3, reason_rejection = $4, rejection_details = $5,
+	           reviewed_by = $6, review_type = $7, reviewed_at = $8,
+	           notes = $9,
+	           submitted_at = $10, updated_at = $11,
+	           logical_document_type = $12, second_user_document_id = $13
 	          WHERE review_id = $1`
-
-	result, err := r.pool.Exec(ctx, query,
+	args := []interface{}{
 		review.ReviewID,
-		review.PersonaSessionToken, review.SessionExpiresAt,
-		review.WebhookEventType, review.WebhookReceivedAt, review.PersonaRawPayload,
 		review.Status, review.Decision, review.ReasonRejection, review.RejectionDetails,
 		review.ReviewedBy, review.ReviewType, review.ReviewedAt,
 		review.Notes,
 		review.SubmittedAt, review.UpdatedAt,
 		review.LogicalDocumentType, review.SecondUserDocumentID,
-	)
+	}
+
+	// Compare-and-set : une review ne peut être complétée qu'une seule fois.
+	// Deux agents support validant le même document en concurrence → le second
+	// échoue proprement (ErrorReviewAlreadyCompleted) au lieu d'écraser la décision.
+	completing := review.Status == "completed"
+	if completing {
+		query += ` AND status <> 'completed'`
+	}
+
+	result, err := r.pool.Exec(ctx, query, args...)
 	if err != nil {
 		r.logger.Error("erreur mise à jour revue", zap.String("reviewID", review.ReviewID), zap.Error(err))
 		return fileErrors.ErrorInternalServer
 	}
 
 	if result.RowsAffected() == 0 {
+		if completing {
+			// Distinguer "introuvable" de "déjà complétée"
+			var exists bool
+			if scanErr := r.pool.QueryRow(ctx,
+				`SELECT EXISTS(SELECT 1 FROM document_reviews WHERE review_id = $1)`,
+				review.ReviewID,
+			).Scan(&exists); scanErr == nil && exists {
+				r.logger.Warn("revue déjà complétée (validation concurrente)", zap.String("reviewID", review.ReviewID))
+				return fileErrors.ErrorReviewAlreadyCompleted
+			}
+		}
 		r.logger.Debug("revue non trouvée pour mise à jour", zap.String("reviewID", review.ReviewID))
 		return fileErrors.ErrorReviewNotFound
 	}

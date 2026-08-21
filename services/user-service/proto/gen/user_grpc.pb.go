@@ -36,7 +36,6 @@ const (
 	UserService_CreateDriverAccount_FullMethodName       = "/user.UserService/CreateDriverAccount"
 	UserService_AddTripPreferences_FullMethodName        = "/user.UserService/AddTripPreferences"
 	UserService_UpdateProfile_FullMethodName             = "/user.UserService/UpdateProfile"
-	UserService_ChangeProfilePicture_FullMethodName      = "/user.UserService/ChangeProfilePicture"
 	UserService_Health_FullMethodName                    = "/user.UserService/Health"
 )
 
@@ -57,8 +56,10 @@ type UserServiceClient interface {
 	GetUsersByUserIDs(ctx context.Context, in *GetUsersByUserIDsRequest, opts ...grpc.CallOption) (*GetUsersByUserIDsResponse, error)
 	// SoftDeleteUser - Anonymise et soft-delete le profil utilisateur
 	SoftDeleteUser(ctx context.Context, in *SoftDeleteUserRequest, opts ...grpc.CallOption) (*OperationResponse, error)
-	// UpdateProfileVerification - Met à jour les flags de vérification KYC (appelé par kyc-service)
-	UpdateProfileVerification(ctx context.Context, in *UpdateProfileVerificationRequest, opts ...grpc.CallOption) (*OperationResponse, error)
+	// UpdateProfileVerification - Met à jour les flags de vérification KYC (appelé par kyc-service).
+	// Retourne les valeurs précédentes des flags pour détecter les bascules false→true
+	// (déclenchement des notifications KYC côté kyc-service).
+	UpdateProfileVerification(ctx context.Context, in *UpdateProfileVerificationRequest, opts ...grpc.CallOption) (*UpdateProfileVerificationResponse, error)
 	// GetMyProfile - Récupère le profil complet de l'utilisateur connecté
 	GetMyProfile(ctx context.Context, in *GetMyProfileRequest, opts ...grpc.CallOption) (*GetMyProfileResponse, error)
 	// CreateDriverAccount - Active le statut conducteur sur le profil
@@ -67,8 +68,6 @@ type UserServiceClient interface {
 	AddTripPreferences(ctx context.Context, in *AddTripPreferencesRequest, opts ...grpc.CallOption) (*OperationResponse, error)
 	// UpdateProfile - Met à jour les informations du profil
 	UpdateProfile(ctx context.Context, in *UpdateProfileRequest, opts ...grpc.CallOption) (*UpdateProfileResponse, error)
-	// ChangeProfilePicture - Change la photo de profil (upload vers S3 via file-service)
-	ChangeProfilePicture(ctx context.Context, in *ChangeProfilePictureRequest, opts ...grpc.CallOption) (*ChangeProfilePictureResponse, error)
 	// Health - Health check endpoint (pas de JWT requis)
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -141,9 +140,9 @@ func (c *userServiceClient) SoftDeleteUser(ctx context.Context, in *SoftDeleteUs
 	return out, nil
 }
 
-func (c *userServiceClient) UpdateProfileVerification(ctx context.Context, in *UpdateProfileVerificationRequest, opts ...grpc.CallOption) (*OperationResponse, error) {
+func (c *userServiceClient) UpdateProfileVerification(ctx context.Context, in *UpdateProfileVerificationRequest, opts ...grpc.CallOption) (*UpdateProfileVerificationResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(OperationResponse)
+	out := new(UpdateProfileVerificationResponse)
 	err := c.cc.Invoke(ctx, UserService_UpdateProfileVerification_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -191,16 +190,6 @@ func (c *userServiceClient) UpdateProfile(ctx context.Context, in *UpdateProfile
 	return out, nil
 }
 
-func (c *userServiceClient) ChangeProfilePicture(ctx context.Context, in *ChangeProfilePictureRequest, opts ...grpc.CallOption) (*ChangeProfilePictureResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ChangeProfilePictureResponse)
-	err := c.cc.Invoke(ctx, UserService_ChangeProfilePicture_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *userServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -228,8 +217,10 @@ type UserServiceServer interface {
 	GetUsersByUserIDs(context.Context, *GetUsersByUserIDsRequest) (*GetUsersByUserIDsResponse, error)
 	// SoftDeleteUser - Anonymise et soft-delete le profil utilisateur
 	SoftDeleteUser(context.Context, *SoftDeleteUserRequest) (*OperationResponse, error)
-	// UpdateProfileVerification - Met à jour les flags de vérification KYC (appelé par kyc-service)
-	UpdateProfileVerification(context.Context, *UpdateProfileVerificationRequest) (*OperationResponse, error)
+	// UpdateProfileVerification - Met à jour les flags de vérification KYC (appelé par kyc-service).
+	// Retourne les valeurs précédentes des flags pour détecter les bascules false→true
+	// (déclenchement des notifications KYC côté kyc-service).
+	UpdateProfileVerification(context.Context, *UpdateProfileVerificationRequest) (*UpdateProfileVerificationResponse, error)
 	// GetMyProfile - Récupère le profil complet de l'utilisateur connecté
 	GetMyProfile(context.Context, *GetMyProfileRequest) (*GetMyProfileResponse, error)
 	// CreateDriverAccount - Active le statut conducteur sur le profil
@@ -238,8 +229,6 @@ type UserServiceServer interface {
 	AddTripPreferences(context.Context, *AddTripPreferencesRequest) (*OperationResponse, error)
 	// UpdateProfile - Met à jour les informations du profil
 	UpdateProfile(context.Context, *UpdateProfileRequest) (*UpdateProfileResponse, error)
-	// ChangeProfilePicture - Change la photo de profil (upload vers S3 via file-service)
-	ChangeProfilePicture(context.Context, *ChangeProfilePictureRequest) (*ChangeProfilePictureResponse, error)
 	// Health - Health check endpoint (pas de JWT requis)
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedUserServiceServer()
@@ -270,7 +259,7 @@ func (UnimplementedUserServiceServer) GetUsersByUserIDs(context.Context, *GetUse
 func (UnimplementedUserServiceServer) SoftDeleteUser(context.Context, *SoftDeleteUserRequest) (*OperationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SoftDeleteUser not implemented")
 }
-func (UnimplementedUserServiceServer) UpdateProfileVerification(context.Context, *UpdateProfileVerificationRequest) (*OperationResponse, error) {
+func (UnimplementedUserServiceServer) UpdateProfileVerification(context.Context, *UpdateProfileVerificationRequest) (*UpdateProfileVerificationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateProfileVerification not implemented")
 }
 func (UnimplementedUserServiceServer) GetMyProfile(context.Context, *GetMyProfileRequest) (*GetMyProfileResponse, error) {
@@ -284,9 +273,6 @@ func (UnimplementedUserServiceServer) AddTripPreferences(context.Context, *AddTr
 }
 func (UnimplementedUserServiceServer) UpdateProfile(context.Context, *UpdateProfileRequest) (*UpdateProfileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateProfile not implemented")
-}
-func (UnimplementedUserServiceServer) ChangeProfilePicture(context.Context, *ChangeProfilePictureRequest) (*ChangeProfilePictureResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ChangeProfilePicture not implemented")
 }
 func (UnimplementedUserServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -510,24 +496,6 @@ func _UserService_UpdateProfile_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-func _UserService_ChangeProfilePicture_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ChangeProfilePictureRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(UserServiceServer).ChangeProfilePicture(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: UserService_ChangeProfilePicture_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserServiceServer).ChangeProfilePicture(ctx, req.(*ChangeProfilePictureRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _UserService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -596,10 +564,6 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateProfile",
 			Handler:    _UserService_UpdateProfile_Handler,
-		},
-		{
-			MethodName: "ChangeProfilePicture",
-			Handler:    _UserService_ChangeProfilePicture_Handler,
 		},
 		{
 			MethodName: "Health",

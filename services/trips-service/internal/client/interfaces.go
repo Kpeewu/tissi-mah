@@ -17,8 +17,11 @@ type UserClient interface {
 
 // VehicleClient définit le contrat pour appeler vehicle-service depuis trips-service.
 type VehicleClient interface {
-	// GetVehicleInfo retourne la marque, la plaque d'immatriculation et le nombre de places d'un véhicule.
-	GetVehicleInfo(ctx context.Context, driverID, vehicleID string) (brand, plate string, numberOfSeats int, err error)
+	// GetVehicleInfo retourne la marque, la plaque d'immatriculation, le nombre de
+	// places et l'état de vérification (is_verified) d'un véhicule.
+	// La requête est scopée par driverID : un véhicule d'un autre utilisateur
+	// remonte comme introuvable (brand vide).
+	GetVehicleInfo(ctx context.Context, driverID, vehicleID string) (brand, plate string, numberOfSeats int, isVerified bool, err error)
 	Close() error
 }
 

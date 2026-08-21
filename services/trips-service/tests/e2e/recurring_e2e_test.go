@@ -35,7 +35,7 @@ func validRecurringRequest(driverID, vehicleID string) *trippb.CreateRecurringTr
 
 func TestE2E_CreateRecurringTrip_WeeklySuccess(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -45,6 +45,8 @@ func TestE2E_CreateRecurringTrip_WeeklySuccess(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 
 	resp, err := client.CreateRecurringTrip(ctx, validRecurringRequest(driverID, vehicleID))
 	require.NoError(t, err)

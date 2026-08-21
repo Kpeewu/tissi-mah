@@ -32,9 +32,10 @@ type FullProfile struct {
 	WithdrawNumber             string
 }
 
-// UpdateProfileRequest contient les champs à mettre à jour (optionnels)
+// UpdateProfileRequest contient les champs à mettre à jour (optionnels).
+// L'utilisateur cible est résolu depuis le Firebase UID du contexte — jamais
+// depuis un UserID fourni par le client.
 type UpdateProfileRequest struct {
-	UserID         string
 	FirstName      *string
 	LastName       *string
 	BirthDate      *string
@@ -54,12 +55,14 @@ type UserService interface {
 	GetUserProfileByUserID(ctx context.Context, userID string) (*domain.User, string, string, error) // user, email, phoneNumber, error
 
 	SoftDeleteUser(ctx context.Context, authID string) error
-	UpdateProfileVerification(ctx context.Context, userID string, driver, passenger *bool) error
+	// UpdateProfileVerification retourne les valeurs PRÉCÉDENTES des flags
+	// (détection des bascules false→true côté kyc-service).
+	UpdateProfileVerification(ctx context.Context, userID string, driver, passenger *bool) (prevDriver, prevPassenger bool, err error)
 
-	// Client-facing
+	// Client-facing — l'utilisateur est résolu depuis le Firebase UID du contexte
+	// (middleware.FirebaseIDKey), jamais depuis un UserID du body.
 	GetMyProfile(ctx context.Context) (*FullProfile, error)
-	CreateDriverAccount(ctx context.Context, profileID string, createDriver bool) error
-	AddTripPreferences(ctx context.Context, profileID string, preferences []domain.TripPreference) error
+	CreateDriverAccount(ctx context.Context, createDriver bool) error
+	AddTripPreferences(ctx context.Context, preferences []domain.TripPreference) error
 	UpdateProfile(ctx context.Context, req UpdateProfileRequest) (*FullProfile, error)
-	ChangeProfilePicture(ctx context.Context, userID string, imageBytes []byte) (*FullProfile, error)
 }
