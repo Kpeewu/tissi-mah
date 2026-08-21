@@ -897,7 +897,8 @@ func toGRPCError(err error) error {
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, tripErrors.ErrorVehicleNotFound):
 		return status.Error(codes.NotFound, err.Error())
-	case errors.Is(err, tripErrors.ErrorVehicleInsufficientSeats):
+	case errors.Is(err, tripErrors.ErrorVehicleNotVerified),
+		errors.Is(err, tripErrors.ErrorVehicleInsufficientSeats):
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, tripErrors.ErrorTripDepartureTooSoon),
 		errors.Is(err, tripErrors.ErrorDepartureAfterArrival):

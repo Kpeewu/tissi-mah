@@ -46,7 +46,7 @@ func TestGetTripsPreviews_Fallbacks(t *testing.T) {
 		readRepo.On("GetDriverTripsPreviews", ctx, "driver-1", 0).Return(previews, nil)
 		userClient.On("GetDriverName", ctx, "driver-1").Return("Jean", nil)
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-bad").
-			Return("", "", 0, errors.New("vehicle svc down"))
+			Return("", "", 0, false, errors.New("vehicle svc down"))
 
 		res, err := svc.GetTripsPreviews(ctx, &serviceInterfaces.GetTripsPreviewsInput{DriverID: "driver-1"})
 		require.NoError(t, err)
@@ -60,7 +60,7 @@ func TestGetTripsPreviews_Fallbacks(t *testing.T) {
 		previews := []*domain.TripPreview{samplePreview("trip-1", "driver-1", "vehicle-1")}
 		readRepo.On("GetDriverTripsPreviews", ctx, "driver-1", 0).Return(previews, nil)
 		userClient.On("GetDriverName", ctx, "driver-1").Return("", errors.New("user svc down"))
-		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").Return("Toyota", "AA", 4, nil)
+		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").Return("Toyota", "AA", 4, true, nil)
 
 		res, err := svc.GetTripsPreviews(ctx, &serviceInterfaces.GetTripsPreviewsInput{DriverID: "driver-1"})
 		require.NoError(t, err)
@@ -82,7 +82,7 @@ func TestGetTripsPreviews_Fallbacks(t *testing.T) {
 		}
 		readRepo.On("GetDriverTripsPreviews", ctx, "driver-1", 0).Return(previews, nil)
 		userClient.On("GetDriverName", ctx, "driver-1").Return("Jean", nil)
-		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").Return("Toyota", "AA", 4, nil).Once()
+		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").Return("Toyota", "AA", 4, true, nil).Once()
 
 		res, err := svc.GetTripsPreviews(ctx, &serviceInterfaces.GetTripsPreviewsInput{DriverID: "driver-1"})
 		require.NoError(t, err)
@@ -98,7 +98,7 @@ func TestGetCompletedTripsPreviews(t *testing.T) {
 		previews := []*domain.TripPreview{samplePreview("trip-done", "driver-1", "vehicle-1")}
 		readRepo.On("GetDriverCompletedTripsPreviews", ctx, "driver-1", 0).Return(previews, nil)
 		userClient.On("GetDriverName", ctx, "driver-1").Return("Jean", nil)
-		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").Return("Toyota", "AA-1234", 4, nil)
+		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").Return("Toyota", "AA-1234", 4, true, nil)
 
 		res, err := svc.GetCompletedTripsPreviews(ctx, &serviceInterfaces.GetTripsPreviewsInput{DriverID: "driver-1"})
 		require.NoError(t, err)
@@ -137,8 +137,8 @@ func TestGetScheduledTripsPreviews(t *testing.T) {
 
 		userClient.On("GetDriverInfo", ctx, "driver-A").Return("Alice", "urlA", nil)
 		userClient.On("GetDriverInfo", ctx, "driver-B").Return("Bob", "urlB", nil)
-		vehicleClient.On("GetVehicleInfo", ctx, "driver-A", "veh-A").Return("Toyota", "AA-1", 4, nil)
-		vehicleClient.On("GetVehicleInfo", ctx, "driver-B", "veh-B").Return("Honda", "BB-2", 4, nil)
+		vehicleClient.On("GetVehicleInfo", ctx, "driver-A", "veh-A").Return("Toyota", "AA-1", 4, true, nil)
+		vehicleClient.On("GetVehicleInfo", ctx, "driver-B", "veh-B").Return("Honda", "BB-2", 4, true, nil)
 
 		res, err := svc.GetScheduledTripsPreviews(ctx, &serviceInterfaces.GetScheduledTripsPreviewsInput{
 			DepartureLocationName: "Lomé",
@@ -157,7 +157,7 @@ func TestGetScheduledTripsPreviews(t *testing.T) {
 		readRepo.On("SearchScheduledTripSegments", ctx, mock.AnythingOfType("*interfaces.SearchTripsParams")).
 			Return(&repoInterfaces.SearchTripsResult{Previews: previews, TotalCount: 100}, nil)
 		userClient.On("GetDriverInfo", ctx, "d1").Return("D1", "", nil)
-		vehicleClient.On("GetVehicleInfo", ctx, "d1", "v1").Return("T", "P", 4, nil)
+		vehicleClient.On("GetVehicleInfo", ctx, "d1", "v1").Return("T", "P", 4, true, nil)
 
 		res, err := svc.GetScheduledTripsPreviews(ctx, &serviceInterfaces.GetScheduledTripsPreviewsInput{
 			DepartureLocationName: "A", ArrivalLocationName: "B", PageIndex: 0,

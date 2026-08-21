@@ -1,7 +1,8 @@
 # =============================================================================
 # KYC Service Dockerfile
 # Multi-stage build for optimized production image
-# Supports Go workspace with shared pkg, file-service and user-service
+# Supports Go workspace with shared pkg, file-service, user-service,
+# vehicle-service and support-service
 # =============================================================================
 
 # Build arguments
@@ -32,7 +33,9 @@ COPY services/kyc-service/go.mod services/kyc-service/go.sum* ./services/kyc-ser
 #  - trips-service  : vehicle-service/go.mod le référence (replace directive) ;
 #                     go.mod minimal sans requires — workspace mode utilise le graphe combiné
 #  - booking-service, rating-service : requis par trips-service/go.mod mais jamais compilés
-# vehicle-service est requis car file-service/go.mod y a un replace directive.
+# vehicle-service est requis à double titre : dépendance directe de kyc-service
+#   (client SetVehicleVerification — is_verified par véhicule) et replace directive
+#   de file-service/go.mod.
 # support-service est requis car kyc-service importe support-service/proto/gen.
 # email-service est requis car support-service/go.mod y a un replace directive.
 # Tout dans un seul layer : si le contenu change, go.work est aussi invalidé (pas de cache stale).
@@ -78,8 +81,10 @@ COPY pkg/ ./pkg/
 # Copy file-service source code (required by kyc-service replace directive)
 COPY services/file-service/ ./services/file-service/
 
-# Copy user-service and vehicle-service source code (required by file-service replace directives)
+# Copy user-service source code (required by file-service replace directive)
 COPY services/user-service/ ./services/user-service/
+
+# Copy vehicle-service source code (kyc-service client + file-service replace directive)
 COPY services/vehicle-service/ ./services/vehicle-service/
 
 # Copy support-service source code (required by kyc-service replace directive)
@@ -150,10 +155,10 @@ USER appuser
 # Expose gRPC port and metrics port
 EXPOSE 50057 9090
 
-# Health check using grpc health protocol
-# Note: This requires the service to implement grpc.health.v1.Health
+# Health check via le protocole gRPC health (grpc.health.v1.Health).
+# Mêmes options que les probes Kubernetes : TLS intra-cluster, certificat non vérifié.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD ["/app/kyc-service", "health"] || exit 1
+    CMD grpc_health_probe -addr=:${GRPC_PORT} -tls -tls-no-verify || exit 1
 
 # Default environment variables
 ENV ENVIRONMENT=production \

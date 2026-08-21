@@ -26,8 +26,13 @@ service VehicleService {
     option (google.api.http) = { post: "/api/v1/vehicle/getUserVehicles" body: "*" };
   }
   // GetVehicleInfo retourne les informations essentielles d'un véhicule sans contrôle
-  // de propriété ni chargement des documents (inter-service, appelé par file-service).
+  // de propriété ni chargement des documents (inter-service, appelé par file-service
+  // et trips-service).
   rpc GetVehicleInfo(GetVehicleInfoRequest) returns (GetVehicleInfoResponse);
+  // SetVehicleVerification fixe le flag is_verified d'un véhicule (inter-service,
+  // appelé par kyc-service quand assurance + carte grise du véhicule sont toutes
+  // deux approuvées — ou ne le sont plus). Pas d'annotation HTTP : jamais exposé.
+  rpc SetVehicleVerification(SetVehicleVerificationRequest) returns (SetVehicleVerificationResponse);
   // Health retourne l'état de santé du service.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = { get: "/api/v1/vehicle/health" };
@@ -170,4 +175,17 @@ message VehicleInfo {
   string LicencePlate = 5;
   int32 NumberOfSeats = 6;
   bool IsVerified = 7;
+  string UserId = 8; // Propriétaire — pour les contrôles de propriété inter-service
+}
+
+// SetVehicleVerificationRequest fixe le flag de vérification d'un véhicule.
+message SetVehicleVerificationRequest {
+  string VehicleId = 1;
+  bool IsVerified = 2;
+}
+
+// SetVehicleVerificationResponse indique si la mise à jour a réussi.
+message SetVehicleVerificationResponse {
+  bool Success = 1;
+  string ErrorMessage = 2;
 }

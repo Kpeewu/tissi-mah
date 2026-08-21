@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 	"time"
 	"unicode"
@@ -94,19 +93,51 @@ func (s *fileServiceImpl) createPendingReview(ctx context.Context, userID, docum
 		vehicleDocPtr = &vehicleDocumentID
 	}
 
+	// Chaîner sur l'historique : si des reviews existent déjà pour ce document
+	// logique (resoumission, remplacement de selfie…), la nouvelle review pointe
+	// la plus récente via previous_review_id et incrémente attempt_number.
+	// Requis par les index uniques uq_reviews_completed_* (migration 000016) :
+	// seule la review de 1re tentative peut être completed sans previous_review_id.
+	logicalType := domain.ToLogicalDocumentType(documentType)
+	attemptNumber := int16(1)
+	var previousReviewID *string
+	if history, histErr := s.reviewRead.GetHistoryByUserIDAndLogicalType(ctx, userID, logicalType); histErr == nil {
+		for _, prev := range history {
+			// Pour un document véhicule, ne chaîner que sur le même document
+			// (l'historique par type logique mélange les véhicules).
+			if vehicleDocPtr != nil {
+				if prev.VehicleDocumentID == nil || *prev.VehicleDocumentID != *vehicleDocPtr {
+					// Une review d'un autre document du même type : chaîner quand
+					// même si elle porte sur le même véhicule est impossible à
+					// déterminer ici — on chaîne sur la plus récente du même doc.
+					continue
+				}
+			} else if prev.VehicleDocumentID != nil {
+				continue
+			}
+			prevID := prev.ReviewID
+			previousReviewID = &prevID
+			attemptNumber = prev.AttemptNumber + 1
+			break
+		}
+	}
+
+	now := time.Now().UTC()
 	review := &domain.DocumentReview{
 		ReviewID:             uuid.New().String(),
 		UserID:               userID,
 		DocumentType:         documentType,
-		LogicalDocumentType:  domain.ToLogicalDocumentType(documentType),
+		LogicalDocumentType:  logicalType,
 		UserDocumentID:       userDocPtr,
 		SecondUserDocumentID: secondDocPtr,
 		VehicleDocumentID:    vehicleDocPtr,
-		AttemptNumber:        1,
+		AttemptNumber:        attemptNumber,
+		PreviousReviewID:     previousReviewID,
 		Status:               "pending",
 		Decision:             "pending",
 		ReviewType:           "manual",
-		UpdatedAt:            time.Now().UTC(),
+		CreatedAt:            now,
+		UpdatedAt:            now,
 	}
 	if _, err := s.reviewWrite.Create(ctx, review); err != nil {
 		s.logger.Error("failed to create pending review",
@@ -115,6 +146,67 @@ func (s *fileServiceImpl) createPendingReview(ctx context.Context, userID, docum
 			zap.Error(err),
 		)
 	}
+}
+
+// syncDocumentStatusesForReview répercute la décision d'une review COMPLÉTÉE sur
+// le statut des documents concernés (face principale, verso éventuel, document
+// véhicule). No-op si la review n'est pas complétée ou sans décision finale —
+// une review "pending" ne doit jamais toucher les statuts.
+// Les erreurs sont PROPAGÉES : une décision à moitié appliquée ne doit pas
+// passer pour un succès (le kyc-service ne doit ni notifier ni propager).
+func (s *fileServiceImpl) syncDocumentStatusesForReview(ctx context.Context, review *domain.DocumentReview) error {
+	if review.Status != "completed" || !domain.IsFinalReviewDecision(review.Decision) {
+		return nil
+	}
+
+	newStatus := mapDecisionToStatus(review.Decision)
+
+	updateUserDoc := func(docID string) error {
+		doc, err := s.userDocRead.GetByID(ctx, docID)
+		if err != nil {
+			return err
+		}
+		doc.Status = newStatus
+		_, err = s.userDocWrite.Update(ctx, doc)
+		return err
+	}
+
+	if review.UserDocumentID != nil && *review.UserDocumentID != "" {
+		if err := updateUserDoc(*review.UserDocumentID); err != nil {
+			s.logger.Error("status sync failed (user document)",
+				zap.String("reviewID", review.ReviewID),
+				zap.String("documentID", *review.UserDocumentID),
+				zap.Error(err),
+			)
+			return fileErrors.ErrorStatusSyncFailed
+		}
+	}
+	if review.SecondUserDocumentID != nil && *review.SecondUserDocumentID != "" {
+		if err := updateUserDoc(*review.SecondUserDocumentID); err != nil {
+			s.logger.Error("status sync failed (second user document)",
+				zap.String("reviewID", review.ReviewID),
+				zap.String("documentID", *review.SecondUserDocumentID),
+				zap.Error(err),
+			)
+			return fileErrors.ErrorStatusSyncFailed
+		}
+	}
+	if review.VehicleDocumentID != nil && *review.VehicleDocumentID != "" {
+		doc, err := s.vehicleDocRead.GetByID(ctx, *review.VehicleDocumentID)
+		if err == nil {
+			doc.Status = newStatus
+			_, err = s.vehicleDocWrite.Update(ctx, doc)
+		}
+		if err != nil {
+			s.logger.Error("status sync failed (vehicle document)",
+				zap.String("reviewID", review.ReviewID),
+				zap.String("documentID", *review.VehicleDocumentID),
+				zap.Error(err),
+			)
+			return fileErrors.ErrorStatusSyncFailed
+		}
+	}
+	return nil
 }
 
 // --- Documents utilisateur ---
@@ -142,8 +234,10 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 		return nil, fileErrors.ErrorFileTooLarge
 	}
 
-	// Bloquer si un document courant existe déjà pour ce type (hors profilePicture qui peut être mis à jour librement)
-	if input.DocumentType != "profilePicture" {
+	// Bloquer si un document courant existe déjà pour ce type.
+	// Exceptions : selfie et profilePicture, remplaçables à tout moment
+	// (le selfie supplante l'ancien via MarkAsReplaced dans UploadSelfie).
+	if !domain.SelfExemptMetadataTypes[input.DocumentType] {
 		existing, _ := s.userDocRead.GetCurrentByUserIDAndType(ctx, input.UserID, input.DocumentType)
 		if existing != nil {
 			s.logger.Warn("document already submitted",
@@ -159,8 +253,9 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 	ext := extensionFromMimeType(input.MimeType)
 	s3Key := fmt.Sprintf("documents/%s%s", documentID, ext)
 
-	// Modération synchrone pour les photos de profil (avant upload S3).
-	if input.DocumentType == "profilePicture" && s.moderationClient != nil {
+	// Modération synchrone pour les images de personnes affichées publiquement
+	// (selfie, ex-profilePicture) — avant upload S3.
+	if domain.ModeratedDocumentTypes[input.DocumentType] && s.moderationClient != nil {
 		imageData, readErr := io.ReadAll(input.Data)
 		if readErr != nil {
 			s.logger.Error("failed to read image data for moderation", zap.Error(readErr))
@@ -171,8 +266,9 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 
 		modResult, modErr := s.moderationClient.ModerateImage(ctx, documentID, input.UserID, imageData, input.MimeType)
 		if modErr == nil && modResult.Decision == fileClient.ModerationBlocked {
-			s.logger.Info("profile picture blocked by moderation",
+			s.logger.Info("image blocked by moderation",
 				zap.String("userID", input.UserID),
+				zap.String("type", input.DocumentType),
 				zap.String("reason", modResult.Reason),
 			)
 			return nil, fileErrors.ErrorContentBlocked
@@ -211,6 +307,88 @@ func (s *fileServiceImpl) UploadUserDocument(ctx context.Context, input serviceI
 
 	s.logger.Info("user document uploaded", zap.String("documentID", documentID), zap.String("userID", input.UserID))
 	return doc, nil
+}
+
+// UploadSelfie enregistre le selfie d'identité de l'utilisateur.
+// Le selfie passe la modération d'image (via UploadUserDocument), devient
+// immédiatement la photo de profil (résolue à la lecture côté user-service),
+// supplante l'ancien selfie courant (MarkAsReplaced) et entre en validation
+// support via une review "pending" (comparaison selfie ↔ pièce d'identité).
+// Contrairement aux pièces d'identité, il est remplaçable à tout moment —
+// y compris approuvé : le nouveau selfie repasse alors en validation et la
+// vérification d'identité retombe en attente.
+func (s *fileServiceImpl) UploadSelfie(ctx context.Context, input serviceInterfaces.UploadSelfieInput) (*serviceInterfaces.UploadedDocument, error) {
+	s.logger.Debug("upload selfie", zap.String("userID", input.UserID), zap.Int("size", len(input.Selfie)))
+
+	if input.UserID == "" || len(input.Selfie) == 0 {
+		return nil, fileErrors.ErrorInvalidInput
+	}
+
+	mimeType := detectMimeType(input.Selfie)
+	if !allowedMimeTypes[mimeType] || mimeType == "application/pdf" {
+		s.logger.Error("upload selfie: unsupported mime type",
+			zap.String("userID", input.UserID),
+			zap.String("detectedMime", mimeType),
+		)
+		return nil, fileErrors.ErrorInvalidMimeType
+	}
+
+	// Mémoriser l'ancien selfie courant pour le marquer remplacé après création.
+	previous, _ := s.userDocRead.GetCurrentByUserIDAndType(ctx, input.UserID, "selfie")
+
+	timestamp := time.Now().UTC().Format("20060102_150405")
+	docName := fmt.Sprintf("%s_%s_%s_selfie",
+		sanitizeForDocName(input.LastName),
+		sanitizeForDocName(input.FirstName),
+		timestamp,
+	)
+
+	doc, err := s.UploadUserDocument(ctx, serviceInterfaces.UploadUserDocumentInput{
+		UserID:        input.UserID,
+		DocumentName:  docName,
+		DocumentType:  "selfie",
+		MimeType:      mimeType,
+		FileSizeBytes: int64(len(input.Selfie)),
+		Data:          bytes.NewReader(input.Selfie),
+	})
+	if err != nil {
+		s.logger.Error("upload selfie failed", zap.String("userID", input.UserID), zap.Error(err))
+		return nil, err
+	}
+
+	if previous != nil {
+		if markErr := s.userDocWrite.MarkAsReplaced(ctx, previous.DocumentID, doc.DocumentID); markErr != nil {
+			s.logger.Warn("upload selfie: failed to mark previous selfie replaced",
+				zap.String("previousID", previous.DocumentID),
+				zap.Error(markErr),
+			)
+		}
+	}
+
+	// Le selfie entre en validation support. Si une review non terminée existe
+	// déjà (selfie précédent pas encore décidé), on ne crée pas de doublon :
+	// la décision re-résout le selfie courant au moment de la validation.
+	hasOpenReview := false
+	if reviews, revErr := s.reviewRead.GetHistoryByUserIDAndLogicalType(ctx, input.UserID, "selfie"); revErr == nil {
+		for _, r := range reviews {
+			if r.Status != "completed" {
+				hasOpenReview = true
+				break
+			}
+		}
+	}
+	if !hasOpenReview {
+		s.createPendingReview(ctx, input.UserID, "selfie", doc.DocumentID, "", "")
+	}
+
+	presignedURL, _ := s.storage.GeneratePresignedURL(ctx, doc.DocumentKey, time.Hour)
+	s.logger.Info("selfie uploaded", zap.String("documentID", doc.DocumentID), zap.String("userID", input.UserID))
+	return &serviceInterfaces.UploadedDocument{
+		DocumentID:   doc.DocumentID,
+		DocumentURL:  presignedURL,
+		DocumentType: doc.DocumentType,
+		DocumentName: doc.DocumentName,
+	}, nil
 }
 
 func (s *fileServiceImpl) GetUserDocuments(ctx context.Context, userID string) ([]*domain.UserDocument, error) {
@@ -286,7 +464,7 @@ func (s *fileServiceImpl) GetDocument(ctx context.Context, input serviceInterfac
 		FileID:                documentID,
 		FileURL:               presignedURL,
 		FileType:              documentType,
-		PresignedURLExpiresAt: time.Now().UTC().Add(30 * time.Minute).Format(time.RFC3339),
+		PresignedURLExpiresAt: time.Now().UTC().Add(time.Hour).Format(time.RFC3339),
 	}, nil
 }
 
@@ -488,8 +666,7 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 		zap.String("decision", input.Decision),
 	)
 
-	// user_id est obligatoire (dénormalisé depuis la migration 000008 pour
-	// permettre les reviews Persona 100% sans FK doc).
+	// user_id est obligatoire (dénormalisé depuis la migration 000008).
 	if input.UserID == "" {
 		s.logger.Error("review must include user_id")
 		return nil, fileErrors.ErrorMissingUserID
@@ -551,31 +728,6 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 		extractedData = input.ExtractedData
 	}
 
-	var personaRawPayload json.RawMessage
-	if len(input.PersonaRawPayload) > 0 {
-		personaRawPayload = input.PersonaRawPayload
-	}
-
-	var sessionExpiresAt *time.Time
-	if input.SessionExpiresAt != "" {
-		t, err := time.Parse(time.RFC3339, input.SessionExpiresAt)
-		if err != nil {
-			s.logger.Error("invalid session_expires_at format", zap.String("value", input.SessionExpiresAt), zap.Error(err))
-			return nil, fileErrors.ErrorInternalServer
-		}
-		sessionExpiresAt = &t
-	}
-
-	var webhookReceivedAt *time.Time
-	if input.WebhookReceivedAt != "" {
-		t, err := time.Parse(time.RFC3339, input.WebhookReceivedAt)
-		if err != nil {
-			s.logger.Error("invalid webhook_received_at format", zap.String("value", input.WebhookReceivedAt), zap.Error(err))
-			return nil, fileErrors.ErrorInternalServer
-		}
-		webhookReceivedAt = &t
-	}
-
 	var submittedAt *time.Time
 	if input.SubmittedAt != "" {
 		t, err := time.Parse(time.RFC3339, input.SubmittedAt)
@@ -602,6 +754,13 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 	}
 
 	now := time.Now().UTC()
+
+	// reviewed_at n'est renseigné que si une décision est effectivement prise.
+	var reviewedAt *time.Time
+	if reviewStatus == "completed" && domain.IsFinalReviewDecision(input.Decision) {
+		reviewedAt = &now
+	}
+
 	review := &domain.DocumentReview{
 		ReviewID:             reviewID,
 		UserID:               input.UserID,
@@ -610,15 +769,6 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 		UserDocumentID:       userDocID,
 		SecondUserDocumentID: secondUserDocID,
 		VehicleDocumentID:    vehicleDocID,
-
-		PersonaInquiryID:    input.PersonaInquiryID,
-		PersonaTemplateID:   input.PersonaTemplateID,
-		PersonaSessionToken: input.PersonaSessionToken,
-		SessionExpiresAt:    sessionExpiresAt,
-
-		WebhookEventType:  input.WebhookEventType,
-		WebhookReceivedAt: webhookReceivedAt,
-		PersonaRawPayload: personaRawPayload,
 
 		AttemptNumber:    attemptNumber,
 		PreviousReviewID: previousReviewID,
@@ -630,12 +780,13 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 
 		ReviewedBy: input.ReviewedBy,
 		ReviewType: input.ReviewType,
-		ReviewedAt: now,
+		ReviewedAt: reviewedAt,
 
 		Notes:         input.Notes,
 		ExtractedData: extractedData,
 
 		SubmittedAt: submittedAt,
+		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
 
@@ -645,27 +796,9 @@ func (s *fileServiceImpl) CreateDocumentReview(ctx context.Context, input servic
 		return nil, fileErrors.ErrorInternalServer
 	}
 
-	newStatus := mapDecisionToStatus(input.Decision)
-	if input.UserDocumentID != "" {
-		doc, _ := s.userDocRead.GetByID(ctx, input.UserDocumentID)
-		if doc != nil {
-			doc.Status = newStatus
-			_, _ = s.userDocWrite.Update(ctx, doc)
-		}
-	}
-	if input.SecondUserDocumentID != "" {
-		doc, _ := s.userDocRead.GetByID(ctx, input.SecondUserDocumentID)
-		if doc != nil {
-			doc.Status = newStatus
-			_, _ = s.userDocWrite.Update(ctx, doc)
-		}
-	}
-	if input.VehicleDocumentID != "" {
-		doc, _ := s.vehicleDocRead.GetByID(ctx, input.VehicleDocumentID)
-		if doc != nil {
-			doc.Status = newStatus
-			_, _ = s.vehicleDocWrite.Update(ctx, doc)
-		}
+	// Répercuter la décision sur le statut des documents (erreurs propagées).
+	if syncErr := s.syncDocumentStatusesForReview(ctx, review); syncErr != nil {
+		return nil, syncErr
 	}
 
 	s.logger.Info("document review created", zap.String("reviewID", reviewID), zap.String("decision", input.Decision))
@@ -688,11 +821,6 @@ func (s *fileServiceImpl) GetDocumentReviews(ctx context.Context, userDocumentID
 	return nil, fileErrors.ErrorDocumentNotFound
 }
 
-func (s *fileServiceImpl) GetDocumentReviewByPersonaInquiryID(ctx context.Context, personaInquiryID string) (*domain.DocumentReview, error) {
-	s.logger.Debug("get document review by persona_inquiry_id", zap.String("personaInquiryID", personaInquiryID))
-	return s.reviewRead.GetByPersonaInquiryID(ctx, personaInquiryID)
-}
-
 func (s *fileServiceImpl) GetDocumentReviewsByUserID(ctx context.Context, userID string) ([]*domain.DocumentReview, error) {
 	s.logger.Debug("get document reviews by userID", zap.String("userID", userID))
 	return s.reviewRead.GetByUserID(ctx, userID)
@@ -701,9 +829,45 @@ func (s *fileServiceImpl) GetDocumentReviewsByUserID(ctx context.Context, userID
 func (s *fileServiceImpl) UpdateDocumentReview(ctx context.Context, review *domain.DocumentReview) (*domain.DocumentReview, error) {
 	s.logger.Debug("update document review", zap.String("reviewID", review.ReviewID))
 
+	// Au moment d'une décision finale, re-résoudre les documents COURANTS :
+	// après une resoumission (ChangeDocument / nouveau selfie), la review pending
+	// peut encore référencer des documents remplacés. La décision s'applique aux
+	// faces courantes, et les FK de la review sont rafraîchies en conséquence.
+	deciding := review.Status == "completed" && domain.IsFinalReviewDecision(review.Decision)
+	if deciding {
+		if review.VehicleDocumentID != nil && *review.VehicleDocumentID != "" {
+			if refDoc, err := s.vehicleDocRead.GetByID(ctx, *review.VehicleDocumentID); err == nil && !refDoc.IsCurrent {
+				if cur, curErr := s.vehicleDocRead.GetCurrentByVehicleIDAndType(ctx, refDoc.VehicleID, refDoc.DocumentType); curErr == nil && cur != nil {
+					review.VehicleDocumentID = &cur.DocumentID
+				}
+			}
+		} else if review.UserDocumentID != nil || review.SecondUserDocumentID != nil {
+			if cur, curErr := s.userDocRead.GetCurrentByUserIDAndType(ctx, review.UserID, review.DocumentType); curErr == nil && cur != nil {
+				review.UserDocumentID = &cur.DocumentID
+			}
+			if companionType := domain.CompanionDocumentType(review.DocumentType); companionType != "" {
+				if curBack, backErr := s.userDocRead.GetCurrentByUserIDAndType(ctx, review.UserID, companionType); backErr == nil && curBack != nil {
+					review.SecondUserDocumentID = &curBack.DocumentID
+				} else {
+					s.logger.Warn("update review: companion document missing at decision time",
+						zap.String("reviewID", review.ReviewID),
+						zap.String("companionType", companionType),
+					)
+				}
+			}
+		}
+	}
+
 	if err := s.reviewWrite.Update(ctx, review); err != nil {
 		s.logger.Error("failed to update document review", zap.String("reviewID", review.ReviewID), zap.Error(err))
 		return nil, err
+	}
+
+	// Répercuter la décision sur le statut des documents (erreurs propagées) —
+	// c'était le chaînon manquant : seul CreateDocumentReview synchronisait,
+	// or la validation support passe quasi toujours par cette branche Update.
+	if syncErr := s.syncDocumentStatusesForReview(ctx, review); syncErr != nil {
+		return nil, syncErr
 	}
 
 	// Relire la revue mise à jour
@@ -757,24 +921,9 @@ func extensionFromMimeType(mimeType string) string {
 	}
 }
 
-// detectMimeType complète http.DetectContentType avec un sniff HEIC/HEIF
-// car la stdlib ne reconnaît pas ces formats (retourne application/octet-stream).
-// Signature ISO/IEC 14496-12 : octets 4-7 = "ftyp", octets 8-11 = brand.
+// detectMimeType délègue à domain.DetectMimeType (sniff HEIC/HEIF inclus).
 func detectMimeType(data []byte) string {
-	mime := http.DetectContentType(data)
-	if mime != "application/octet-stream" {
-		return mime
-	}
-	if len(data) < 12 || !bytes.Equal(data[4:8], []byte("ftyp")) {
-		return mime
-	}
-	switch string(data[8:12]) {
-	case "heic", "heix", "hevc", "hevx":
-		return "image/heic"
-	case "mif1", "msf1", "heim", "heis", "hevm", "hevs":
-		return "image/heif"
-	}
-	return mime
+	return domain.DetectMimeType(data)
 }
 
 // --- Remplacement de document ---

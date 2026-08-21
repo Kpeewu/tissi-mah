@@ -33,10 +33,12 @@ func validRecurringInput(driverID, vehicleID string) *serviceInterfaces.CreateRe
 
 func TestCreateRecurringTrip(t *testing.T) {
 	t.Run("succès weekly", func(t *testing.T) {
-		_, writeRepo, userClient, _, svc := newTestService()
+		_, writeRepo, userClient, vehicleClient, svc := newTestService()
 		ctx := context.Background()
 		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(true, nil)
+		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").
+			Return("Toyota", "AB1234", 5, true, nil)
 		writeRepo.On("CreateRecurringPattern", ctx, mock.Anything, mock.Anything).Return("pattern-1", nil)
 
 		id, err := svc.CreateRecurringTrip(ctx, validRecurringInput("driver-1", "vehicle-1"))
@@ -45,10 +47,12 @@ func TestCreateRecurringTrip(t *testing.T) {
 	})
 
 	t.Run("succès daily (days_of_week ignoré)", func(t *testing.T) {
-		_, writeRepo, userClient, _, svc := newTestService()
+		_, writeRepo, userClient, vehicleClient, svc := newTestService()
 		ctx := context.Background()
 		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(true, nil)
+		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").
+			Return("Toyota", "AB1234", 5, true, nil)
 		writeRepo.On("CreateRecurringPattern", ctx, mock.Anything, mock.Anything).Return("pattern-daily", nil)
 
 		input := validRecurringInput("driver-1", "vehicle-1")

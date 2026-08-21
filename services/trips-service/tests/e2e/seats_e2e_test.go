@@ -13,7 +13,7 @@ import (
 
 func TestE2E_IncrementLegBookedSeats_Success(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -23,6 +23,8 @@ func TestE2E_IncrementLegBookedSeats_Success(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 	require.NoError(t, err)
 
@@ -72,7 +74,7 @@ func TestE2E_IncrementLegBookedSeats_ZeroDelta(t *testing.T) {
 
 func TestE2E_SyncLegBookedSeats_Success(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -82,6 +84,8 @@ func TestE2E_SyncLegBookedSeats_Success(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 	require.NoError(t, err)
 

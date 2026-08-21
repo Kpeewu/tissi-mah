@@ -91,14 +91,6 @@ func (m *MockFileServiceClient) GetDocumentReview(ctx context.Context, reviewID 
 	return args.Get(0).(*domain.Review), args.Error(1)
 }
 
-func (m *MockFileServiceClient) GetDocumentReviewByPersonaInquiryID(ctx context.Context, personaInquiryID string) (*domain.Review, error) {
-	args := m.Called(ctx, personaInquiryID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*domain.Review), args.Error(1)
-}
-
 func (m *MockFileServiceClient) GetDocumentReviewsByUserID(ctx context.Context, userID string) ([]*domain.Review, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {

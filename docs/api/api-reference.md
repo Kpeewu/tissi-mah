@@ -386,14 +386,9 @@ Active le compte conducteur.
 }
 ```
 
-#### `PATCH /api/v1/userProfile/changeProfilePicture` 🔒
-
-```json
-{
-  "UserID": "uuid",
-  "NewProfilePicture": "<base64-encoded-bytes>"
-}
-```
+> **Photo de profil** : `changeProfilePicture` a été supprimé. La photo de profil est le
+> selfie d'identité, soumis via `POST /api/v1/file/uploadSelfie` et validé par le support.
+> `ProfileImageURL` est une URL présignée résolue à la lecture (ne pas la persister).
 
 ---
 
@@ -465,6 +460,29 @@ Base : `/file`
 > Les fichiers sont envoyés en **bytes encodés en base64** dans le corps JSON.
 > Limite globale : 10 Mo par requête.
 
+#### `POST /api/v1/file/uploadSelfie` 🔒
+
+Selfie d'identité — devient la photo de profil dès l'upload (après modération) et entre
+en validation support (comparaison avec la pièce d'identité).
+
+```json
+{
+  "Selfie": "<base64>"
+}
+```
+
+Images uniquement (JPEG/PNG/WebP/HEIC/TIFF — pas de PDF). Remplaçable à tout moment,
+y compris après approbation : l'identité repasse alors en attente.
+
+**Réponse :**
+```json
+{
+  "Success": true,
+  "ErrorMessage": "",
+  "Document": { "DocumentID": "uuid", "DocumentURL": "https://...", "DocumentType": "selfie", "LogicalDocumentType": "selfie" }
+}
+```
+
 #### `POST /api/v1/file/uploadIdDocument` 🔒
 
 ```json
@@ -530,54 +548,30 @@ Champs fichiers selon le type : `IDCardRecto`+`IDCardVerso` (IDCard), `Passport`
 
 Base : `/api/v1/kyc`
 
-#### `POST /api/v1/kyc/inquiries/add` 🔒
-
-Démarre une vérification d'identité via Persona.
-
-```json
-{
-  "DocumentType": "IDCard",
-  "DocumentId": "uuid-du-document-uploadé",
-  "DocumentIdBack": "uuid-verso-optionnel",
-  "VehicleId": "uuid-si-vérification-véhicule"
-}
-```
-
-**Réponse :**
-```json
-{
-  "ErrorMessage": "",
-  "ReviewId": "uuid",
-  "PersonaInquiryId": "inq_xxx",
-  "PersonaTemplateId": "tmpl_xxx",
-  "SessionToken": "xxx",
-  "SessionExpiresAt": "2024-12-01T09:00:00Z",
-  "Status": "pending",
-  "AttemptNumber": 1
-}
-```
-
-Utiliser `SessionToken` pour ouvrir le SDK Persona côté client.
-
 #### `GET /api/v1/kyc/me/getStatus` 🔒
+
+Statut KYC de l'utilisateur connecté.
 
 ```json
 {
   "ErrorMessage": "",
   "IdentityVerified": false,
   "DriverVerified": false,
-  "PendingReviews": [],
+  "PendingReviews": [
+    { "ReviewId": "uuid", "Status": "pending", "AttemptNumber": 1, "DocumentType": "selfie" }
+  ],
   "LatestRejection": null
 }
 ```
 
-#### `POST /api/v1/kyc/inquiries/resume` 🔒
+Règles (calculées sur les documents courants) :
 
-Reprendre une vérification interrompue.
+- `IdentityVerified` = selfie approuvé **ET** pièce approuvée (CNI | passeport | permis).
+- `DriverVerified` = selfie + permis approuvés **ET** au moins un véhicule entièrement
+  validé (assurance + carte grise).
 
-```json
-{ "PersonaInquiryId": "inq_xxx" }
-```
+La validation est **100 % manuelle** (back-office support) — voir
+[kyc-service-api.md](kyc-service-api.md) pour les endpoints `/api/v1/kyc/admin/*`.
 
 ---
 

@@ -153,8 +153,12 @@ func TestDocumentReviewRead_GetByVehicleDocumentID(t *testing.T) {
 		cleanTables(t)
 		vehicleDoc := newVehicleDoc("vehicle-rr-1", "insurance")
 		insertVehicleDoc(t, vehicleDoc)
+		// Une seule décision de 1re tentative par document (index uq_reviews_completed_vehicle) :
+		// la seconde review est un override, chaîné à la première.
 		review1 := newReviewForVehicleDoc(vehicleDoc)
 		review2 := newReviewForVehicleDoc(vehicleDoc)
+		review2.AttemptNumber = 2
+		review2.PreviousReviewID = &review1.ReviewID
 		insertReview(t, review1)
 		insertReview(t, review2)
 

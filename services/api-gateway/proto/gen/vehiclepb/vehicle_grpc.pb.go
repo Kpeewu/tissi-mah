@@ -19,13 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	VehicleService_AddVehicle_FullMethodName        = "/vehicle.VehicleService/AddVehicle"
-	VehicleService_UpdateVehicle_FullMethodName     = "/vehicle.VehicleService/UpdateVehicle"
-	VehicleService_DeleteVehicle_FullMethodName     = "/vehicle.VehicleService/DeleteVehicle"
-	VehicleService_GetVehicleDetails_FullMethodName = "/vehicle.VehicleService/GetVehicleDetails"
-	VehicleService_GetUserVehicles_FullMethodName   = "/vehicle.VehicleService/GetUserVehicles"
-	VehicleService_GetVehicleInfo_FullMethodName    = "/vehicle.VehicleService/GetVehicleInfo"
-	VehicleService_Health_FullMethodName            = "/vehicle.VehicleService/Health"
+	VehicleService_AddVehicle_FullMethodName             = "/vehicle.VehicleService/AddVehicle"
+	VehicleService_UpdateVehicle_FullMethodName          = "/vehicle.VehicleService/UpdateVehicle"
+	VehicleService_DeleteVehicle_FullMethodName          = "/vehicle.VehicleService/DeleteVehicle"
+	VehicleService_GetVehicleDetails_FullMethodName      = "/vehicle.VehicleService/GetVehicleDetails"
+	VehicleService_GetUserVehicles_FullMethodName        = "/vehicle.VehicleService/GetUserVehicles"
+	VehicleService_GetVehicleInfo_FullMethodName         = "/vehicle.VehicleService/GetVehicleInfo"
+	VehicleService_SetVehicleVerification_FullMethodName = "/vehicle.VehicleService/SetVehicleVerification"
+	VehicleService_Health_FullMethodName                 = "/vehicle.VehicleService/Health"
 )
 
 // VehicleServiceClient is the client API for VehicleService service.
@@ -45,8 +46,13 @@ type VehicleServiceClient interface {
 	// GetUserVehicles retourne la liste des véhicules d'un utilisateur.
 	GetUserVehicles(ctx context.Context, in *GetUserVehiclesRequest, opts ...grpc.CallOption) (*GetUserVehiclesResponse, error)
 	// GetVehicleInfo retourne les informations essentielles d'un véhicule sans contrôle
-	// de propriété ni chargement des documents (inter-service, appelé par file-service).
+	// de propriété ni chargement des documents (inter-service, appelé par file-service
+	// et trips-service).
 	GetVehicleInfo(ctx context.Context, in *GetVehicleInfoRequest, opts ...grpc.CallOption) (*GetVehicleInfoResponse, error)
+	// SetVehicleVerification fixe le flag is_verified d'un véhicule (inter-service,
+	// appelé par kyc-service quand assurance + carte grise du véhicule sont toutes
+	// deux approuvées — ou ne le sont plus). Pas d'annotation HTTP : jamais exposé.
+	SetVehicleVerification(ctx context.Context, in *SetVehicleVerificationRequest, opts ...grpc.CallOption) (*SetVehicleVerificationResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
@@ -119,6 +125,16 @@ func (c *vehicleServiceClient) GetVehicleInfo(ctx context.Context, in *GetVehicl
 	return out, nil
 }
 
+func (c *vehicleServiceClient) SetVehicleVerification(ctx context.Context, in *SetVehicleVerificationRequest, opts ...grpc.CallOption) (*SetVehicleVerificationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetVehicleVerificationResponse)
+	err := c.cc.Invoke(ctx, VehicleService_SetVehicleVerification_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *vehicleServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -146,8 +162,13 @@ type VehicleServiceServer interface {
 	// GetUserVehicles retourne la liste des véhicules d'un utilisateur.
 	GetUserVehicles(context.Context, *GetUserVehiclesRequest) (*GetUserVehiclesResponse, error)
 	// GetVehicleInfo retourne les informations essentielles d'un véhicule sans contrôle
-	// de propriété ni chargement des documents (inter-service, appelé par file-service).
+	// de propriété ni chargement des documents (inter-service, appelé par file-service
+	// et trips-service).
 	GetVehicleInfo(context.Context, *GetVehicleInfoRequest) (*GetVehicleInfoResponse, error)
+	// SetVehicleVerification fixe le flag is_verified d'un véhicule (inter-service,
+	// appelé par kyc-service quand assurance + carte grise du véhicule sont toutes
+	// deux approuvées — ou ne le sont plus). Pas d'annotation HTTP : jamais exposé.
+	SetVehicleVerification(context.Context, *SetVehicleVerificationRequest) (*SetVehicleVerificationResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	mustEmbedUnimplementedVehicleServiceServer()
@@ -177,6 +198,9 @@ func (UnimplementedVehicleServiceServer) GetUserVehicles(context.Context, *GetUs
 }
 func (UnimplementedVehicleServiceServer) GetVehicleInfo(context.Context, *GetVehicleInfoRequest) (*GetVehicleInfoResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetVehicleInfo not implemented")
+}
+func (UnimplementedVehicleServiceServer) SetVehicleVerification(context.Context, *SetVehicleVerificationRequest) (*SetVehicleVerificationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetVehicleVerification not implemented")
 }
 func (UnimplementedVehicleServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -310,6 +334,24 @@ func _VehicleService_GetVehicleInfo_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _VehicleService_SetVehicleVerification_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetVehicleVerificationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VehicleServiceServer).SetVehicleVerification(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: VehicleService_SetVehicleVerification_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VehicleServiceServer).SetVehicleVerification(ctx, req.(*SetVehicleVerificationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _VehicleService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -358,6 +400,10 @@ var VehicleService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetVehicleInfo",
 			Handler:    _VehicleService_GetVehicleInfo_Handler,
+		},
+		{
+			MethodName: "SetVehicleVerification",
+			Handler:    _VehicleService_SetVehicleVerification_Handler,
 		},
 		{
 			MethodName: "Health",

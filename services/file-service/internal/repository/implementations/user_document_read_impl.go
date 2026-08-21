@@ -151,7 +151,9 @@ func (r *userDocumentReadImpl) GetCurrentByUserIDAndType(ctx context.Context, us
 	                 status, is_current, replaced_by,
 	                 uploaded_at, updated_at
 	          FROM user_documents
-	          WHERE user_id = $1 AND document_type = $2 AND is_current = true`
+	          WHERE user_id = $1 AND document_type = $2 AND is_current = true
+	          ORDER BY uploaded_at DESC
+	          LIMIT 1`
 
 	doc := &domain.UserDocument{}
 	err := r.pool.QueryRow(ctx, query, userID, documentType).Scan(

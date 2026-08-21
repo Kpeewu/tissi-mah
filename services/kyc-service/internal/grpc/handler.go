@@ -51,76 +51,6 @@ func getSupportID(ctx context.Context) (string, error) {
 }
 
 // =============================================================================
-// CreateInquiry
-// =============================================================================
-
-func (h *KYCHandler) CreateInquiry(ctx context.Context, req *kycpb.CreateInquiryRequest) (*kycpb.CreateInquiryResponse, error) {
-	userID, err := getUserID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if req.VehicleId != "" {
-		return nil, status.Error(codes.InvalidArgument, "vehicle documents must be validated manually via ValidateDocument")
-	}
-
-	h.logger.Debug("handler: CreateInquiry called",
-		zap.String("userID", userID),
-		zap.String("documentType", req.DocumentType),
-		zap.String("documentID", req.DocumentId),
-	)
-
-	result, err := h.service.CreateInquiry(ctx, serviceInterfaces.CreateInquiryInput{
-		UserID:       userID,
-		DocumentID:   req.DocumentId,
-		DocumentType: req.DocumentType,
-		VehicleID:    req.VehicleId,
-	})
-	if err != nil {
-		h.logger.Error("handler: CreateInquiry failed", zap.Error(err))
-		return nil, toGRPCError(err)
-	}
-
-	h.logger.Info("handler: CreateInquiry success", zap.String("reviewID", result.ReviewID))
-	return &kycpb.CreateInquiryResponse{
-		ReviewId:          result.ReviewID,
-		PersonaInquiryId:  result.PersonaInquiryID,
-		PersonaTemplateId: result.PersonaTemplateID,
-		SessionToken:      result.SessionToken,
-		SessionExpiresAt:  result.SessionExpiresAt,
-		Status:            result.Status,
-		AttemptNumber:     result.AttemptNumber,
-		CreatedAt:         result.CreatedAt,
-	}, nil
-}
-
-// =============================================================================
-// GetInquiry
-// =============================================================================
-
-func (h *KYCHandler) GetInquiry(ctx context.Context, req *kycpb.GetInquiryRequest) (*kycpb.GetInquiryResponse, error) {
-	userID, err := getUserID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	h.logger.Debug("handler: GetInquiry called",
-		zap.String("userID", userID),
-		zap.String("personaInquiryID", req.PersonaInquiryId),
-	)
-
-	detail, err := h.service.GetInquiry(ctx, userID, req.PersonaInquiryId)
-	if err != nil {
-		h.logger.Error("handler: GetInquiry failed", zap.Error(err))
-		return nil, toGRPCError(err)
-	}
-
-	return &kycpb.GetInquiryResponse{
-		Inquiry: toProtoInquiryDetail(detail),
-	}, nil
-}
-
-// =============================================================================
 // GetKYCStatus
 // =============================================================================
 
@@ -145,17 +75,12 @@ func (h *KYCHandler) GetKYCStatus(ctx context.Context, _ *kycpb.GetKYCStatusRequ
 
 	// Pending reviews
 	for _, pr := range kycStatus.PendingReviews {
-		item := &kycpb.PendingReviewItem{
-			ReviewId:         pr.ReviewID,
-			PersonaInquiryId: pr.PersonaInquiryID,
-			Status:           pr.Status,
-			AttemptNumber:    pr.AttemptNumber,
-			DocumentType:     pr.DocumentType,
-		}
-		if pr.SessionExpiresAt != nil {
-			item.SessionExpiresAt = pr.SessionExpiresAt.Format(time.RFC3339)
-		}
-		resp.PendingReviews = append(resp.PendingReviews, item)
+		resp.PendingReviews = append(resp.PendingReviews, &kycpb.PendingReviewItem{
+			ReviewId:      pr.ReviewID,
+			Status:        pr.Status,
+			AttemptNumber: pr.AttemptNumber,
+			DocumentType:  pr.DocumentType,
+		})
 	}
 
 	// Latest rejection
@@ -173,62 +98,6 @@ func (h *KYCHandler) GetKYCStatus(ctx context.Context, _ *kycpb.GetKYCStatusRequ
 	}
 
 	return resp, nil
-}
-
-// =============================================================================
-// ResumeInquiry
-// =============================================================================
-
-func (h *KYCHandler) ResumeInquiry(ctx context.Context, req *kycpb.ResumeInquiryRequest) (*kycpb.ResumeInquiryResponse, error) {
-	userID, err := getUserID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	h.logger.Debug("handler: ResumeInquiry called",
-		zap.String("userID", userID),
-		zap.String("personaInquiryID", req.PersonaInquiryId),
-	)
-
-	result, err := h.service.ResumeInquiry(ctx, userID, req.PersonaInquiryId)
-	if err != nil {
-		h.logger.Error("handler: ResumeInquiry failed", zap.Error(err))
-		return nil, toGRPCError(err)
-	}
-
-	return &kycpb.ResumeInquiryResponse{
-		ReviewId:         result.ReviewID,
-		PersonaInquiryId: result.PersonaInquiryID,
-		SessionToken:     result.SessionToken,
-		SessionExpiresAt: result.SessionExpiresAt,
-		Status:           result.Status,
-		AttemptNumber:    result.AttemptNumber,
-	}, nil
-}
-
-// =============================================================================
-// ProcessWebhook
-// =============================================================================
-
-func (h *KYCHandler) ProcessWebhook(ctx context.Context, req *kycpb.ProcessWebhookRequest) (*kycpb.ProcessWebhookResponse, error) {
-	h.logger.Debug("handler: ProcessWebhook called",
-		zap.String("eventType", req.WebhookEventType),
-		zap.String("personaInquiryID", req.PersonaInquiryId),
-	)
-
-	err := h.service.ProcessWebhook(ctx, serviceInterfaces.WebhookInput{
-		Signature:         req.Signature,
-		PersonaInquiryID:  req.PersonaInquiryId,
-		WebhookEventType:  req.WebhookEventType,
-		OccurredAt:        req.OccurredAt,
-		PersonaRawPayload: req.PersonaRawPayload,
-	})
-	if err != nil {
-		h.logger.Error("handler: ProcessWebhook failed", zap.Error(err))
-		return nil, toGRPCError(err)
-	}
-
-	return &kycpb.ProcessWebhookResponse{Success: true}, nil
 }
 
 // =============================================================================
@@ -322,7 +191,6 @@ func (h *KYCHandler) OverrideReview(ctx context.Context, req *kycpb.OverrideRevi
 
 	return &kycpb.OverrideReviewResponse{
 		ReviewId:         result.ReviewID,
-		PersonaInquiryId: result.PersonaInquiryID,
 		Decision:         result.Decision,
 		ReasonRejection:  result.ReasonRejection,
 		RejectionDetails: result.RejectionDetails,
@@ -370,12 +238,15 @@ func (h *KYCHandler) ValidateDocument(ctx context.Context, req *kycpb.ValidateDo
 		zap.String("decision", result.Decision),
 	)
 	return &kycpb.ValidateDocumentResponse{
-		ReviewId:   result.ReviewID,
-		Decision:   result.Decision,
-		ReviewedBy: result.ReviewedBy,
-		ReviewType: result.ReviewType,
-		ReviewedAt: result.ReviewedAt,
-		Notes:      result.Notes,
+		ReviewId:            result.ReviewID,
+		Decision:            result.Decision,
+		ReviewedBy:          result.ReviewedBy,
+		ReviewType:          result.ReviewType,
+		ReviewedAt:          result.ReviewedAt,
+		Notes:               result.Notes,
+		DocumentId:          result.DocumentID,
+		SecondDocumentId:    result.SecondDocumentID,
+		LogicalDocumentType: result.LogicalDocumentType,
 	}, nil
 }
 
@@ -444,6 +315,7 @@ func (h *KYCHandler) GetManualReviewRequestDetail(ctx context.Context, req *kycp
 			OwnerKind:           d.OwnerKind,
 			OwnerId:             d.OwnerID,
 			Category:            d.Category,
+			Categories:          d.Categories,
 			// Métadonnées document (recto / document principal)
 			DocumentUrl:      d.DocumentURL,
 			FileSizeBytes:    d.FileSizeBytes,
@@ -484,6 +356,9 @@ func (h *KYCHandler) GetManualReviewRequestDetail(ctx context.Context, req *kycp
 				RejectionDetails:          d.LatestReview.RejectionDetails,
 				ReviewType:                d.LatestReview.ReviewType,
 				ReviewedBy:                d.LatestReview.ReviewedBy,
+				Notes:                     d.LatestReview.Notes,
+				AttemptNumber:             d.LatestReview.AttemptNumber,
+				PreviousReviewId:          d.LatestReview.PreviousReviewID,
 				ReviewedByFirstName:       d.LatestReview.ReviewedByFirstName,
 				ReviewedByLastName:        d.LatestReview.ReviewedByLastName,
 				ReviewedByProfileImageURL: d.LatestReview.ReviewedByProfileImageURL,
@@ -576,45 +451,32 @@ func toGRPCError(err error) error {
 	switch {
 	// 3 - INVALID_ARGUMENT
 	case errors.Is(err, kycErrors.ErrorMissingUserID),
-		errors.Is(err, kycErrors.ErrorMissingDocumentType),
 		errors.Is(err, kycErrors.ErrorMissingDocumentID),
 		errors.Is(err, kycErrors.ErrorDocumentMismatch),
-		errors.Is(err, kycErrors.ErrorMissingInquiryID),
 		errors.Is(err, kycErrors.ErrorMissingReviewID),
 		errors.Is(err, kycErrors.ErrorInvalidDecision),
-		errors.Is(err, kycErrors.ErrorInvalidDateRange),
-		errors.Is(err, kycErrors.ErrorVehicleDocumentNotAllowed):
+		errors.Is(err, kycErrors.ErrorInvalidDateRange):
 		return status.Error(codes.InvalidArgument, err.Error())
 
 	// 5 - NOT_FOUND
-	case errors.Is(err, kycErrors.ErrorInquiryNotFound),
-		errors.Is(err, kycErrors.ErrorReviewNotFound),
-		errors.Is(err, kycErrors.ErrorUserNotFound):
+	case errors.Is(err, kycErrors.ErrorReviewNotFound),
+		errors.Is(err, kycErrors.ErrorUserNotFound),
+		errors.Is(err, kycErrors.ErrorDocumentNotFound):
 		return status.Error(codes.NotFound, err.Error())
-
-	// 6 - ALREADY_EXISTS (409)
-	case errors.Is(err, kycErrors.ErrorInquiryAlreadyActive):
-		return status.Error(codes.AlreadyExists, err.Error())
 
 	// 7 - PERMISSION_DENIED (403)
 	case errors.Is(err, kycErrors.ErrorUnauthorized):
 		return status.Error(codes.PermissionDenied, err.Error())
 
-	// 9 - FAILED_PRECONDITION (410 / not overridable)
-	case errors.Is(err, kycErrors.ErrorInquiryNotResumable),
-		errors.Is(err, kycErrors.ErrorReviewNotOverridable),
+	// 9 - FAILED_PRECONDITION
+	case errors.Is(err, kycErrors.ErrorReviewNotOverridable),
 		errors.Is(err, kycErrors.ErrorOnlyRejectionOverridable),
 		errors.Is(err, kycErrors.ErrorDocumentAlreadyReviewed),
 		errors.Is(err, kycErrors.ErrorCompanionDocumentMissing):
 		return status.Error(codes.FailedPrecondition, err.Error())
 
-	// 16 - UNAUTHENTICATED (invalid webhook signature)
-	case errors.Is(err, kycErrors.ErrorInvalidWebhookSignature):
-		return status.Error(codes.Unauthenticated, err.Error())
-
 	// 14 - UNAVAILABLE (503)
-	case errors.Is(err, kycErrors.ErrorFileServiceUnavailable),
-		errors.Is(err, kycErrors.ErrorPersonaUnavailable):
+	case errors.Is(err, kycErrors.ErrorFileServiceUnavailable):
 		return status.Error(codes.Unavailable, err.Error())
 
 	// 13 - INTERNAL
@@ -630,30 +492,9 @@ func toGRPCError(err error) error {
 // Proto converters
 // =============================================================================
 
-func toProtoInquiryDetail(d *serviceInterfaces.InquiryDetail) *kycpb.InquiryDetail {
-	return &kycpb.InquiryDetail{
-		ReviewId:          d.ReviewID,
-		PersonaInquiryId:  d.PersonaInquiryID,
-		UserDocumentId:    d.UserDocumentID,
-		PersonaTemplateId: d.PersonaTemplateID,
-		VehicleDocumentId: d.VehicleDocumentID,
-		Status:            d.Status,
-		Decision:          d.Decision,
-		ReasonRejection:   d.ReasonRejection,
-		RejectionDetails:  d.RejectionDetails,
-		AttemptNumber:     d.AttemptNumber,
-		PreviousReviewId:  d.PreviousReviewID,
-		ReviewType:        d.ReviewType,
-		ReviewedAt:        d.ReviewedAt,
-		CreatedAt:         d.CreatedAt,
-		UpdatedAt:         d.UpdatedAt,
-	}
-}
-
 func toProtoAdminReviewItem(item *serviceInterfaces.AdminReviewItem) *kycpb.AdminReviewItem {
 	return &kycpb.AdminReviewItem{
 		ReviewId:          item.ReviewID,
-		PersonaInquiryId:  item.PersonaInquiryID,
 		UserDocumentId:    item.UserDocumentID,
 		VehicleDocumentId: item.VehicleDocumentID,
 		Status:            item.Status,
@@ -664,8 +505,6 @@ func toProtoAdminReviewItem(item *serviceInterfaces.AdminReviewItem) *kycpb.Admi
 		ReviewedAt:        item.ReviewedAt,
 		AttemptNumber:     item.AttemptNumber,
 		PreviousReviewId:  item.PreviousReviewID,
-		WebhookEventType:  item.WebhookEventType,
-		WebhookReceivedAt: item.WebhookReceivedAt,
 		CreatedAt:         item.CreatedAt,
 		UpdatedAt:         item.UpdatedAt,
 	}
@@ -674,8 +513,6 @@ func toProtoAdminReviewItem(item *serviceInterfaces.AdminReviewItem) *kycpb.Admi
 func toProtoAdminReviewDetail(d *serviceInterfaces.AdminReviewDetail) *kycpb.AdminReviewDetail {
 	return &kycpb.AdminReviewDetail{
 		ReviewId:          d.ReviewID,
-		PersonaInquiryId:  d.PersonaInquiryID,
-		PersonaTemplateId: d.PersonaTemplateID,
 		UserDocumentId:    d.UserDocumentID,
 		VehicleDocumentId: d.VehicleDocumentID,
 		Status:            d.Status,
@@ -687,11 +524,8 @@ func toProtoAdminReviewDetail(d *serviceInterfaces.AdminReviewDetail) *kycpb.Adm
 		ReviewedAt:        d.ReviewedAt,
 		Notes:             d.Notes,
 		ExtractedData:     d.ExtractedData,
-		WebhookEventType:  d.WebhookEventType,
-		WebhookReceivedAt: d.WebhookReceivedAt,
 		AttemptNumber:     d.AttemptNumber,
 		PreviousReviewId:  d.PreviousReviewID,
-		SessionExpiresAt:  d.SessionExpiresAt,
 		CreatedAt:         d.CreatedAt,
 		UpdatedAt:         d.UpdatedAt,
 	}

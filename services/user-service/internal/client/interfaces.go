@@ -13,7 +13,10 @@ type AuthClient interface {
 type FileClient interface {
 	// GetDocumentExpiry retourne expired_at du document courant, "" si non trouvé ou erreur (non-bloquant).
 	GetDocumentExpiry(ctx context.Context, userID, documentType string) string
-	// UploadProfilePicture uploade l'image sur S3 via file-service et retourne l'URL (bloquant).
-	UploadProfilePicture(ctx context.Context, userID string, imageBytes []byte) (string, error)
+	// GetCurrentDocumentURL retourne l'URL présignée FRAÎCHE du document courant
+	// du type donné, "" si non trouvé ou erreur (non-bloquant). Utilisé pour
+	// résoudre la photo de profil (selfie) à la lecture — les URLs présignées
+	// expirent et ne doivent jamais être persistées.
+	GetCurrentDocumentURL(ctx context.Context, userID, documentType string) string
 	Close() error
 }

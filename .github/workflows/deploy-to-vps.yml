@@ -206,10 +206,6 @@ jobs:
           PAYMENT_FEDAPAY_LIVE_API_URL: ${{ secrets.PAYMENT_FEDAPAY_LIVE_API_URL }}
           PAYMENT_FEDAPAY_LIVE_API_KEY: ${{ secrets.PAYMENT_FEDAPAY_LIVE_API_KEY }}
           PAYMENT_FEDAPAY_LIVE_WEBHOOK_SECRET: ${{ secrets.PAYMENT_FEDAPAY_LIVE_WEBHOOK_SECRET }}
-          # kyc-service secrets
-          KYC_PERSONA_API_KEY: ${{ secrets.KYC_PERSONA_API_KEY }}
-          KYC_PERSONA_WEBHOOK_SECRET: ${{ secrets.KYC_PERSONA_WEBHOOK_SECRET }}
-          KYC_PERSONA_TEMPLATE_ID: ${{ secrets.KYC_PERSONA_TEMPLATE_ID }}
           # email-service secrets
           EMAIL_SMTP_USERNAME: ${{ secrets.EMAIL_SMTP_USERNAME }}
           EMAIL_SMTP_PASSWORD: ${{ secrets.EMAIL_SMTP_PASSWORD }}
@@ -336,12 +332,7 @@ jobs:
 
           elif service == "kyc-service":
               data = {
-                  'config': {
-                      'personaTemplateId': os.environ.get('KYC_PERSONA_TEMPLATE_ID', ''),
-                  },
                   'secrets': {
-                      'personaApiKey': os.environ.get('KYC_PERSONA_API_KEY', ''),
-                      'personaWebhookSecret': os.environ.get('KYC_PERSONA_WEBHOOK_SECRET', ''),
                       'notificationRedisUrl': os.environ.get('NOTIFICATION_REDIS_URL', ''),
                   },
               }
@@ -708,9 +699,8 @@ jobs:
 #      - PAYMENT_FEDAPAY_LIVE_API_KEY           : cle API FedaPay live (utilise sur vps-dev, staging, prod)
 #      - PAYMENT_FEDAPAY_LIVE_WEBHOOK_SECRET    : secret HMAC webhook FedaPay live
 #
-#  12. Secrets GitHub pour kyc-service:
-#      - KYC_PERSONA_API_KEY       : cle API Persona (sandbox ou production)
-#      - KYC_PERSONA_WEBHOOK_SECRET : secret HMAC pour valider les webhooks Persona
+#  12. kyc-service : aucun secret dedie (validation KYC 100%% manuelle par le support).
+#      Utilise NOTIFICATION_REDIS_URL, partage avec les autres services.
 #
 #  13. Secrets GitHub pour geolocation-service:
 #      - GEOLOCATION_REDIS_URL     : redis://host:6391/0 (cache routes/geocoding)

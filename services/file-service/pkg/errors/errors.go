@@ -26,4 +26,6 @@ var (
 	ErrorDocumentNotReplaceable    = errors.New("ErrorDocumentNotReplaceable")
 	ErrorMissingDocumentMetadata   = errors.New("ErrorMissingDocumentMetadata")
 	ErrorDriverLicenceRequired     = errors.New("ErrorDriverLicenceRequired")
+	ErrorReviewAlreadyCompleted    = errors.New("ErrorReviewAlreadyCompleted")
+	ErrorStatusSyncFailed          = errors.New("ErrorStatusSyncFailed")
 )

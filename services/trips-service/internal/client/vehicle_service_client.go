@@ -45,9 +45,11 @@ func (c *VehicleServiceClient) Close() error {
 	return c.conn.Close()
 }
 
-// GetVehicleInfo retourne la marque, la plaque d'immatriculation et le nombre de places d'un véhicule.
-// Retourne des chaînes vides et 0 si le véhicule n'est pas trouvé.
-func (c *VehicleServiceClient) GetVehicleInfo(ctx context.Context, driverID, vehicleID string) (brand, plate string, numberOfSeats int, err error) {
+// GetVehicleInfo retourne la marque, la plaque d'immatriculation, le nombre de
+// places et l'état de vérification (is_verified) d'un véhicule.
+// Retourne des valeurs zéro si le véhicule n'est pas trouvé (ou n'appartient pas
+// au driverID — la requête GetVehicleDetails est scopée propriétaire).
+func (c *VehicleServiceClient) GetVehicleInfo(ctx context.Context, driverID, vehicleID string) (brand, plate string, numberOfSeats int, isVerified bool, err error) {
 	c.logger.Debug("client: GetVehicleInfo called",
 		zap.String("driverID", driverID),
 		zap.String("vehicleID", vehicleID),
@@ -59,14 +61,14 @@ func (c *VehicleServiceClient) GetVehicleInfo(ctx context.Context, driverID, veh
 	})
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-			return "", "", 0, nil
+			return "", "", 0, false, nil
 		}
 		c.logger.Error("client: GetVehicleDetails failed", zap.Error(err))
-		return "", "", 0, fmt.Errorf("vehicle-service: GetVehicleDetails failed: %w", err)
+		return "", "", 0, false, fmt.Errorf("vehicle-service: GetVehicleDetails failed: %w", err)
 	}
 
 	if resp.Vehicle == nil {
-		return "", "", 0, nil
+		return "", "", 0, false, nil
 	}
-	return resp.Vehicle.Brand, resp.Vehicle.LicencePlate, int(resp.Vehicle.NumberOfSeats), nil
+	return resp.Vehicle.Brand, resp.Vehicle.LicencePlate, int(resp.Vehicle.NumberOfSeats), resp.Vehicle.IsVerified, nil
 }

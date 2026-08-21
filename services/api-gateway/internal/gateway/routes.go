@@ -9,11 +9,12 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/auth/deleteAccount": true,
 
 	// user-service
-	"/api/v1/user/me":                          true,
-	"/api/v1/userProfile/createDriverAccount":  true,
-	"/api/v1/userProfile/addTripPreferences":   true,
-	"/api/v1/userProfile/updateProfile":        true,
-	"/api/v1/userProfile/changeProfilePicture": true,
+	"/api/v1/user/me":                         true,
+	"/api/v1/userProfile/createDriverAccount": true,
+	"/api/v1/userProfile/addTripPreferences":  true,
+	"/api/v1/userProfile/updateProfile":       true,
+	// changeProfilePicture supprimé : la photo de profil est le selfie d'identité,
+	// soumis via /api/v1/file/uploadSelfie et validé par le support.
 
 	// rating-service
 	"/api/v1/ratings/rateUser":                   true,
@@ -23,6 +24,7 @@ var ProtectedRoutes = map[string]bool{
 
 	// file-service
 	"/api/v1/file/uploadIdDocument":       true,
+	"/api/v1/file/uploadSelfie":           true,
 	"/api/v1/file/uploadVehicleDocuments": true,
 	"/api/v1/file/changeDocument":         true,
 	"/api/v1/file/deleteFile":             true,
@@ -35,12 +37,10 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/vehicle/details":         true,
 	"/api/v1/vehicle/getUserVehicles": true,
 
-	// kyc-service (user-facing)
-	"/api/v1/kyc/inquiries/add":        true,
-	"/api/v1/kyc/inquiries/getInquiry": true,
-	"/api/v1/kyc/me/getStatus":         true,
-	"/api/v1/kyc/inquiries/resume":     true,
-	// kyc-service — webhook et health sont publics (pas de JWT)
+	// kyc-service (user-facing) — validation 100 % manuelle par le support :
+	// les endpoints inquiries/webhook Persona ont été supprimés.
+	"/api/v1/kyc/me/getStatus": true,
+	// kyc-service — health est public (pas de JWT)
 	// kyc-service admin → SupportProtectedRoutes
 
 	// booking-service (internal/* et health sont publics)
@@ -182,4 +182,13 @@ var RouteRateLimitConfig = map[string]RateLimitTier{
 	// support-service — mot de passe oublié (public) : anti-abus / anti-email-bombing
 	"/api/v1/support/forgotPassword": TierSensitive,
 	"/api/v1/support/resetPassword":  TierSensitive,
+
+	// file-service — upload de documents KYC (images) : anti-spam
+	"/api/v1/file/uploadIdDocument":       TierCreateAccount,
+	"/api/v1/file/uploadSelfie":           TierCreateAccount,
+	"/api/v1/file/uploadVehicleDocuments": TierCreateAccount,
+
+	// kyc-service — décisions support sur les documents : opérations sensibles
+	"/api/v1/kyc/admin/validateDocument": TierSensitive,
+	"/api/v1/kyc/admin/reviews/override": TierSensitive,
 }

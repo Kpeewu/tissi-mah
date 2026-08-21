@@ -187,7 +187,7 @@ func validCreateTripRequest(driverID, vehicleID string) *trippb.CreateTripReques
 
 func TestE2E_CreateTrip_Success(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -198,6 +198,8 @@ func TestE2E_CreateTrip_Success(t *testing.T) {
 	// Conducteur vérifié
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 
 	resp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 
@@ -209,7 +211,7 @@ func TestE2E_CreateTrip_Success(t *testing.T) {
 
 func TestE2E_StartTrip_Success(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -220,6 +222,8 @@ func TestE2E_StartTrip_Success(t *testing.T) {
 	// Créer un trajet
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 	require.NoError(t, err)
 	require.NotEmpty(t, createResp.TripId)
@@ -238,7 +242,7 @@ func TestE2E_StartTrip_Success(t *testing.T) {
 
 func TestE2E_StartTrip_AlreadyActive(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -248,6 +252,8 @@ func TestE2E_StartTrip_AlreadyActive(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 
 	// Créer le premier trajet et le démarrer
 	createResp1, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
@@ -322,7 +328,7 @@ func TestE2E_Health(t *testing.T) {
 
 func TestE2E_CreateTrip_UnverifiedDriver(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -334,6 +340,8 @@ func TestE2E_CreateTrip_UnverifiedDriver(t *testing.T) {
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(false, nil)
 
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	_, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 
 	require.Error(t, err)
@@ -417,6 +425,8 @@ func TestE2E_GetTripsPreviews_WithTrips(t *testing.T) {
 	// Créer 2 trajets via l'API
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil)
 
 	req1 := validCreateTripRequest(driverID, vehicleID)
 	_, err := client.CreateTrip(ctx, req1)
@@ -430,8 +440,6 @@ func TestE2E_GetTripsPreviews_WithTrips(t *testing.T) {
 
 	// Enrichissement : GetDriverName + GetVehicleInfo (1 véhicule unique)
 	mockUserClient.On("GetDriverName", mock.Anything, driverID).Return("Jean Test", nil)
-	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
-		Return("Toyota", "AA-1234", 4, nil)
 
 	resp, err := client.GetTripsPreviews(ctx, &trippb.GetTripsPreviewsRequest{
 		DriverId: driverID,
@@ -462,6 +470,8 @@ func TestE2E_GetCompletedTripsPreviews(t *testing.T) {
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
 
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 	require.NoError(t, err)
 	require.NotEmpty(t, createResp.TripId)
@@ -475,7 +485,7 @@ func TestE2E_GetCompletedTripsPreviews(t *testing.T) {
 	// Enrichissement pour GetCompletedTripsPreviews (1 trajet)
 	mockUserClient.On("GetDriverName", mock.Anything, driverID).Return("Jean Test", nil)
 	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
-		Return("Toyota", "AA-1234", 4, nil)
+		Return("Toyota", "AA-1234", 4, true, nil)
 
 	// Le trajet doit apparaître dans les trajets complétés
 	completed, err := client.GetCompletedTripsPreviews(ctx, &trippb.GetCompletedTripsPreviewsRequest{
@@ -505,7 +515,7 @@ func TestE2E_GetCompletedTripsPreviews(t *testing.T) {
 
 func TestE2E_ChangeTripDateAndTime_Success(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -515,6 +525,8 @@ func TestE2E_ChangeTripDateAndTime_Success(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 	require.NoError(t, err)
 
@@ -569,12 +581,14 @@ func TestE2E_ChangeTripVehicle_Success(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 	require.NoError(t, err)
 
 	// Nouveau véhicule avec assez de places (trip a 4 places)
 	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, newVehicleID).
-		Return("Toyota", "AA-1234", 5, nil)
+		Return("Toyota", "AA-1234", 5, true, nil)
 
 	resp, err := client.ChangeTripVehicle(ctx, &trippb.ChangeTripVehicleRequest{
 		DriverId:  driverID,
@@ -601,12 +615,14 @@ func TestE2E_ChangeTripVehicle_VehicleNotFound(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 	require.NoError(t, err)
 
 	// GetVehicleInfo retourne brand="" → véhicule introuvable
 	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, badVehicleID).
-		Return("", "", 0, nil)
+		Return("", "", 0, false, nil)
 
 	_, err = client.ChangeTripVehicle(ctx, &trippb.ChangeTripVehicleRequest{
 		DriverId:  driverID,
@@ -634,13 +650,15 @@ func TestE2E_ChangeTripVehicle_InsufficientSeats(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	// Créer un trajet avec 4 places
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 	require.NoError(t, err)
 
 	// Nouveau véhicule avec seulement 2 places — insuffisant
 	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, smallVehicleID).
-		Return("Renault", "BB-5678", 2, nil)
+		Return("Renault", "BB-5678", 2, true, nil)
 
 	_, err = client.ChangeTripVehicle(ctx, &trippb.ChangeTripVehicleRequest{
 		DriverId:  driverID,
@@ -661,7 +679,7 @@ func TestE2E_ChangeTripVehicle_InsufficientSeats(t *testing.T) {
 
 func TestE2E_ChangeTripAllowances_Success(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -671,6 +689,8 @@ func TestE2E_ChangeTripAllowances_Success(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 
 	// Le repo exige departure > NOW() + 24h
 	req := validCreateTripRequest(driverID, vehicleID)
@@ -700,7 +720,7 @@ func TestE2E_ChangeTripAllowances_Success(t *testing.T) {
 
 func TestE2E_ChangeAutoApprove_Success(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -710,6 +730,8 @@ func TestE2E_ChangeAutoApprove_Success(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 	require.NoError(t, err)
 
@@ -730,7 +752,7 @@ func TestE2E_ChangeAutoApprove_Success(t *testing.T) {
 
 func TestE2E_EndTrip_Success(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -740,6 +762,8 @@ func TestE2E_EndTrip_Success(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 	require.NoError(t, err)
@@ -762,7 +786,7 @@ func TestE2E_EndTrip_Success(t *testing.T) {
 
 func TestE2E_EndTrip_NotStarted(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -772,6 +796,8 @@ func TestE2E_EndTrip_NotStarted(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 	require.NoError(t, err)
 
@@ -794,7 +820,7 @@ func TestE2E_EndTrip_NotStarted(t *testing.T) {
 
 func TestE2E_ConfirmWaypoint_StopFlow(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -805,6 +831,8 @@ func TestE2E_ConfirmWaypoint_StopFlow(t *testing.T) {
 	// Créer un trajet avec 3 waypoints (départ, stop, arrivée)
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	req := validCreateTripRequest(driverID, vehicleID)
 	// Remplacer l'arrivée par ordre 3 et ajouter un stop en ordre 2
 	req.TripWaypoints = []*trippb.WaypointInput{
@@ -892,6 +920,8 @@ func TestE2E_GetTripByID_Success(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 	require.NoError(t, err)
 	require.NotEmpty(t, createResp.TripId)
@@ -900,7 +930,7 @@ func TestE2E_GetTripByID_Success(t *testing.T) {
 	mockUserClient.On("GetDriverName", mock.Anything, driverID).Return("Jean Test", nil).Maybe()
 	mockUserClient.On("GetDriverInfo", mock.Anything, driverID).Return("Jean", "+228", nil).Maybe()
 	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
-		Return("Toyota", "AA-1234", 4, nil).Maybe()
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 
 	resp, err := client.GetTripByID(ctx, &trippb.GetTripByIDRequest{TripId: createResp.TripId})
 
@@ -933,7 +963,7 @@ func TestE2E_GetTripByID_NotFound(t *testing.T) {
 
 func TestE2E_UpdateAvailableSeats_Success(t *testing.T) {
 	ctx := ctxWithUID("e2e-test-user")
-	conn, mockUserClient, _, cleanup := setupServer(t)
+	conn, mockUserClient, mockVehicleClient, cleanup := setupServer(t)
 	defer cleanup()
 	cleanupTripsE2E(t, ctx)
 
@@ -943,6 +973,8 @@ func TestE2E_UpdateAvailableSeats_Success(t *testing.T) {
 
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
+	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
+		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
 	createResp, err := client.CreateTrip(ctx, validCreateTripRequest(driverID, vehicleID))
 	require.NoError(t, err)
 	require.NotEmpty(t, createResp.TripId)

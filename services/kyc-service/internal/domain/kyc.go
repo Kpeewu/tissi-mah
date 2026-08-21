@@ -6,7 +6,7 @@ import (
 )
 
 // Décisions de revue valides
-// "pending" = état initial à la création (pas encore de décision Persona).
+// "pending" = état initial à la création (pas encore de décision support).
 var ValidDecisions = map[string]bool{
 	"pending":      true,
 	"approved":     true,
@@ -14,7 +14,16 @@ var ValidDecisions = map[string]bool{
 	"resubmission": true,
 }
 
-// Statuts de revue valides
+// FinalDecisions : décisions prononçables par un agent support.
+// "pending" en est exclu — c'est un état initial, pas une décision : l'accepter
+// produirait une review "completed/pending" impossible à re-valider ou overrider.
+var FinalDecisions = map[string]bool{
+	"approved":     true,
+	"rejected":     true,
+	"resubmission": true,
+}
+
+// Statuts de revue valides ("inProgress"/"submitted" : héritage Persona, lecture seule)
 var ValidReviewStatuses = map[string]bool{
 	"pending":    true,
 	"inProgress": true,
@@ -24,20 +33,14 @@ var ValidReviewStatuses = map[string]bool{
 	"failed":     true,
 }
 
-// Statuts actifs (empêchent la création d'une nouvelle inquiry)
-var ActiveReviewStatuses = map[string]bool{
-	"pending":    true,
-	"inProgress": true,
-}
-
 // IsValidDecision vérifie si la décision est valide
 func IsValidDecision(decision string) bool {
 	return ValidDecisions[decision]
 }
 
-// IsActiveStatus vérifie si le statut bloque la création d'une nouvelle inquiry
-func IsActiveStatus(status string) bool {
-	return ActiveReviewStatuses[status]
+// IsFinalDecision vérifie qu'une décision est prononçable par un agent support.
+func IsFinalDecision(decision string) bool {
+	return FinalDecisions[decision]
 }
 
 // Review représente une revue de document telle que retournée par le file-service
@@ -49,15 +52,6 @@ type Review struct {
 	UserDocumentID       string
 	SecondUserDocumentID string // verso pour les documents recto-verso
 	VehicleDocumentID    string
-
-	PersonaInquiryID    string
-	PersonaTemplateID   string
-	PersonaSessionToken string
-	SessionExpiresAt    *time.Time
-
-	WebhookEventType  string
-	WebhookReceivedAt *time.Time
-	PersonaRawPayload json.RawMessage
 
 	AttemptNumber    int32
 	PreviousReviewID string
@@ -79,25 +73,9 @@ type Review struct {
 	UpdatedAt   time.Time
 }
 
-// PersonaInquiry représente la réponse de l'API Persona lors de la création d'une inquiry
-type PersonaInquiry struct {
-	InquiryID    string
-	TemplateID   string
-	SessionToken string
-	ExpiresAt    time.Time
-}
-
-// PersonaSession représente un renouvellement de session Persona
-type PersonaSession struct {
-	SessionToken string
-	ExpiresAt    time.Time
-}
-
 // DocumentRef contient l'identifiant d'un document retourné par le file-service.
 // OwnerID est l'UUID interne (user_id pour user_documents, vehicle_id pour vehicle_documents)
 // — utilisé pour vérifier que le document appartient bien à l'appelant.
-// DocumentURL est l'URL S3/MinIO publique — utilisée pour soumettre les
-// documents à Persona via SubmitGovernmentID.
 type DocumentRef struct {
 	DocumentID   string
 	DocumentType string
@@ -106,16 +84,17 @@ type DocumentRef struct {
 	// UserID est renseigné uniquement pour les documents véhicule, où OwnerID
 	// est le vehicle_id. Pour les documents utilisateur OwnerID est déjà le user_id.
 	UserID string
+	// Status du document (pending/approved/rejected/expired) — utilisé par le
+	// calcul de vérification basé documents.
+	Status string
 }
 
 // PendingReview est une vue allégée pour le statut KYC
 type PendingReview struct {
-	ReviewID         string
-	PersonaInquiryID string
-	Status           string
-	AttemptNumber    int32
-	SessionExpiresAt *time.Time
-	DocumentType     string
+	ReviewID      string
+	Status        string
+	AttemptNumber int32
+	DocumentType  string
 }
 
 // LatestRejection contient les informations du dernier rejet
@@ -138,30 +117,51 @@ const (
 )
 
 // passengerDocumentTypes : documents d'identité (validation "passenger").
+// Le selfie en fait partie : l'identité exige une pièce approuvée ET un selfie
+// approuvé (comparaison visuelle par le support).
 var passengerDocumentTypes = map[string]bool{
 	"idCardFront": true,
 	"idCardBack":  true,
 	"passport":    true,
+	"selfie":      true,
 }
 
 // driverUserDocumentTypes : documents utilisateur relatifs au permis (validation "driver").
-// Le permis est un document recto-verso partagé identité/véhicule.
+// Le permis est un document recto-verso à DOUBLE RÔLE : preuve du droit de
+// conduire ET pièce d'identité valable — il appartient donc aux deux catégories.
 var driverUserDocumentTypes = map[string]bool{
 	"driverLicenceFront": true,
 	"driverLicenceBack":  true,
 }
 
-// DocumentCategory classe un document en "passenger" / "driver" / "other".
-// Tout document véhicule (ownerKind == "vehicle") relève du "driver".
-func DocumentCategory(documentType, ownerKind string) string {
+// DocumentCategories classe un document dans ses catégories.
+// Un document peut appartenir à plusieurs catégories : le permis (double rôle
+// explicite) compte à la fois pour "passenger" (pièce d'identité) et "driver".
+// profilePicture (héritage) et types inconnus → aucune catégorie (exclus des
+// files de validation).
+func DocumentCategories(documentType, ownerKind string) []string {
 	if ownerKind == "vehicle" {
+		return []string{CategoryDriver}
+	}
+	if driverUserDocumentTypes[documentType] {
+		return []string{CategoryPassenger, CategoryDriver}
+	}
+	if passengerDocumentTypes[documentType] {
+		return []string{CategoryPassenger}
+	}
+	return nil
+}
+
+// DocumentCategory retourne la catégorie PRINCIPALE d'un document (affichage) :
+// le permis reste étiqueté "driver" (son groupe d'affichage historique) même
+// s'il compte aussi côté passenger — cf. DocumentCategories pour la vérité
+// multi-catégories.
+func DocumentCategory(documentType, ownerKind string) string {
+	if ownerKind == "vehicle" || driverUserDocumentTypes[documentType] {
 		return CategoryDriver
 	}
 	if passengerDocumentTypes[documentType] {
 		return CategoryPassenger
-	}
-	if driverUserDocumentTypes[documentType] {
-		return CategoryDriver
 	}
 	return CategoryOther
 }
@@ -221,7 +221,8 @@ type DocumentSummary struct {
 	Status              string
 	OwnerKind           string // "user" | "vehicle"
 	OwnerID             string // user_id ou vehicle_id selon OwnerKind
-	Category            string // passenger | driver | other
+	Category            string   // catégorie principale (affichage) : passenger | driver | other
+	Categories          []string // toutes les catégories — le permis = [passenger, driver]
 	LatestReview        *ReviewSummary
 	// Métadonnées document (recto / document principal)
 	DocumentURL      string
@@ -255,6 +256,9 @@ type ReviewSummary struct {
 	ReviewType       string
 	ReviewedBy       string
 	ReviewedAt       *time.Time
+	Notes            string
+	AttemptNumber    int32
+	PreviousReviewID string
 	// Identité de l'agent support ayant revu (résolue via support-service)
 	ReviewedByFirstName       string
 	ReviewedByLastName        string
@@ -331,28 +335,80 @@ func ToLogicalDocumentType(documentType string) string {
 	}
 }
 
-// ComputeProfileVerification dérive les flags de vérification KYC (passager / conducteur)
-// à partir de l'ensemble des reviews d'un utilisateur.
+// VerificationDocument : vue minimale d'un document COURANT pour le calcul de
+// vérification (type physique + statut ; VehicleID renseigné pour un document véhicule).
+type VerificationDocument struct {
+	DocumentType string
+	Status       string
+	VehicleID    string // vide pour un document utilisateur
+}
+
+// ComputeVehicleVerification retourne, par véhicule, si tous ses documents requis
+// (assurance + carte grise) sont approuvés. La clé couvre TOUS les véhicules ayant
+// au moins un document courant (y compris non vérifiés — pour pouvoir dé-vérifier).
+func ComputeVehicleVerification(vehicleDocs []*VerificationDocument) map[string]bool {
+	type vState struct{ insurance, registration bool }
+	states := make(map[string]*vState)
+	for _, d := range vehicleDocs {
+		if d.VehicleID == "" {
+			continue
+		}
+		st := states[d.VehicleID]
+		if st == nil {
+			st = &vState{}
+			states[d.VehicleID] = st
+		}
+		if d.Status != "approved" {
+			continue
+		}
+		switch d.DocumentType {
+		case "insurance":
+			st.insurance = true
+		case "registrationCard":
+			st.registration = true
+		}
+	}
+	out := make(map[string]bool, len(states))
+	for vehicleID, st := range states {
+		out[vehicleID] = st.insurance && st.registration
+	}
+	return out
+}
+
+// ComputeProfileVerification dérive les flags de vérification KYC (passager /
+// conducteur) à partir des documents COURANTS de l'utilisateur — plus des reviews :
+// resoumission, override et remplacement de selfie sont ainsi couverts uniformément
+// (le statut des documents courants est la source de vérité, synchronisé par le
+// file-service à chaque décision).
 //
 // Règles :
-//   - Le permis de conduire vaut pièce d'identité (il peut être soumis comme telle) →
-//     identité approuvée = idCard OU passport OU driverLicence.
-//   - Passager vérifié dès qu'une pièce d'identité est approuvée.
-//   - Conducteur vérifié quand permis + assurance (insurance) + carte grise
-//     (registrationCard) sont tous approuvés — le permis couvrant aussi l'identité,
-//     celle-ci est donc implicitement satisfaite.
-func ComputeProfileVerification(reviews []*Review) (identityVerified, driverVerified bool) {
+//   - Identité (passager) = selfie approuvé ET une pièce approuvée
+//     (CNI recto+verso OU passeport OU permis recto+verso — double rôle du permis).
+//   - Conducteur = selfie + permis approuvés ET au moins UN véhicule entièrement
+//     validé (assurance + carte grise approuvées pour ce même véhicule).
+func ComputeProfileVerification(userDocs, vehicleDocs []*VerificationDocument) (identityVerified, driverVerified bool) {
 	approved := make(map[string]bool)
-	for _, r := range reviews {
-		if r.Decision == "approved" {
-			// Dérive le type logique depuis le type physique (recto/verso → logique).
-			approved[ToLogicalDocumentType(r.DocumentType)] = true
+	for _, d := range userDocs {
+		if d.Status == "approved" {
+			approved[d.DocumentType] = true
 		}
 	}
 
-	licenceVerified := approved["driverLicence"]
-	identityVerified = approved["idCard"] || approved["passport"] || licenceVerified
-	driverVerified = licenceVerified && approved["insurance"] && approved["registrationCard"]
+	selfieOK := approved["selfie"]
+	idCardOK := approved["idCardFront"] && approved["idCardBack"]
+	licenceOK := approved["driverLicenceFront"] && approved["driverLicenceBack"]
+	idProofOK := idCardOK || approved["passport"] || licenceOK
+
+	anyVehicleOK := false
+	for _, ok := range ComputeVehicleVerification(vehicleDocs) {
+		if ok {
+			anyVehicleOK = true
+			break
+		}
+	}
+
+	identityVerified = selfieOK && idProofOK
+	driverVerified = selfieOK && licenceOK && anyVehicleOK
 	return
 }
 

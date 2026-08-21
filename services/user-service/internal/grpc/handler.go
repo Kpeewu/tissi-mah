@@ -126,22 +126,28 @@ func (h *UserHandler) SoftDeleteUser(ctx context.Context, req *userpb.SoftDelete
 	return &userpb.OperationResponse{Success: true}, nil
 }
 
-// UpdateProfileVerification met à jour les flags de vérification KYC (appelé par kyc-service)
-func (h *UserHandler) UpdateProfileVerification(ctx context.Context, req *userpb.UpdateProfileVerificationRequest) (*userpb.OperationResponse, error) {
+// UpdateProfileVerification met à jour les flags de vérification KYC (appelé par
+// kyc-service). Retourne les valeurs précédentes des flags pour la détection des
+// bascules false→true (notifications).
+func (h *UserHandler) UpdateProfileVerification(ctx context.Context, req *userpb.UpdateProfileVerificationRequest) (*userpb.UpdateProfileVerificationResponse, error) {
 	h.logger.Debug("UpdateProfileVerification appelé",
 		zap.String("user_id", req.UserID),
 		zap.Any("driver", req.IsDriverProfileVerified),
 		zap.Any("passenger", req.IsPassengerProfileVerified),
 	)
 
-	err := h.service.UpdateProfileVerification(ctx, req.UserID, req.IsDriverProfileVerified, req.IsPassengerProfileVerified)
+	prevDriver, prevPassenger, err := h.service.UpdateProfileVerification(ctx, req.UserID, req.IsDriverProfileVerified, req.IsPassengerProfileVerified)
 	if err != nil {
 		h.logger.Error("UpdateProfileVerification échoué", zap.Error(err), zap.String("user_id", req.UserID))
 		return nil, toGRPCError(err)
 	}
 
 	h.logger.Info("UpdateProfileVerification réussi", zap.String("user_id", req.UserID))
-	return &userpb.OperationResponse{Success: true}, nil
+	return &userpb.UpdateProfileVerificationResponse{
+		Success:                   true,
+		PreviousDriverVerified:    prevDriver,
+		PreviousPassengerVerified: prevPassenger,
+	}, nil
 }
 
 // --- Client-facing RPCs ---
@@ -162,23 +168,25 @@ func (h *UserHandler) GetMyProfile(ctx context.Context, _ *userpb.GetMyProfileRe
 	}, nil
 }
 
-// CreateDriverAccount active ou désactive le statut conducteur
+// CreateDriverAccount active ou désactive le statut conducteur.
+// L'utilisateur est résolu depuis le Firebase UID du contexte — req.UserID est ignoré.
 func (h *UserHandler) CreateDriverAccount(ctx context.Context, req *userpb.CreateDriverAccountRequest) (*userpb.OperationResponse, error) {
-	h.logger.Debug("CreateDriverAccount appelé", zap.String("profile_id", req.UserID), zap.Bool("create_driver", req.CreateDriverAccount))
+	h.logger.Debug("CreateDriverAccount appelé", zap.Bool("create_driver", req.CreateDriverAccount))
 
-	err := h.service.CreateDriverAccount(ctx, req.UserID, req.CreateDriverAccount)
+	err := h.service.CreateDriverAccount(ctx, req.CreateDriverAccount)
 	if err != nil {
-		h.logger.Error("CreateDriverAccount échoué", zap.Error(err), zap.String("profile_id", req.UserID))
+		h.logger.Error("CreateDriverAccount échoué", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
 
-	h.logger.Info("CreateDriverAccount réussi", zap.String("profile_id", req.UserID))
+	h.logger.Info("CreateDriverAccount réussi")
 	return &userpb.OperationResponse{Success: true}, nil
 }
 
-// AddTripPreferences ajoute les préférences de trajet
+// AddTripPreferences ajoute les préférences de trajet.
+// L'utilisateur est résolu depuis le Firebase UID du contexte — req.UserID est ignoré.
 func (h *UserHandler) AddTripPreferences(ctx context.Context, req *userpb.AddTripPreferencesRequest) (*userpb.OperationResponse, error) {
-	h.logger.Debug("AddTripPreferences appelé", zap.String("profile_id", req.UserID), zap.Int("nb_preferences", len(req.Preferences)))
+	h.logger.Debug("AddTripPreferences appelé", zap.Int("nb_preferences", len(req.Preferences)))
 
 	prefs := make([]domain.TripPreference, len(req.Preferences))
 	for i, p := range req.Preferences {
@@ -188,23 +196,22 @@ func (h *UserHandler) AddTripPreferences(ctx context.Context, req *userpb.AddTri
 		}
 	}
 
-	err := h.service.AddTripPreferences(ctx, req.UserID, prefs)
+	err := h.service.AddTripPreferences(ctx, prefs)
 	if err != nil {
-		h.logger.Error("AddTripPreferences échoué", zap.Error(err), zap.String("profile_id", req.UserID))
+		h.logger.Error("AddTripPreferences échoué", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
 
-	h.logger.Info("AddTripPreferences réussi", zap.String("profile_id", req.UserID))
+	h.logger.Info("AddTripPreferences réussi")
 	return &userpb.OperationResponse{Success: true}, nil
 }
 
-// UpdateProfile met à jour les informations du profil
+// UpdateProfile met à jour les informations du profil.
+// L'utilisateur est résolu depuis le Firebase UID du contexte — req.UserID est ignoré.
 func (h *UserHandler) UpdateProfile(ctx context.Context, req *userpb.UpdateProfileRequest) (*userpb.UpdateProfileResponse, error) {
-	h.logger.Debug("UpdateProfile appelé", zap.String("profile_id", req.UserID))
+	h.logger.Debug("UpdateProfile appelé")
 
-	updateReq := serviceInterfaces.UpdateProfileRequest{
-		UserID: req.UserID,
-	}
+	updateReq := serviceInterfaces.UpdateProfileRequest{}
 
 	if req.FirstName != nil {
 		v := *req.FirstName
@@ -236,38 +243,18 @@ func (h *UserHandler) UpdateProfile(ctx context.Context, req *userpb.UpdateProfi
 	}
 	profile, err := h.service.UpdateProfile(ctx, updateReq)
 	if err != nil {
-		h.logger.Error("UpdateProfile échoué", zap.Error(err), zap.String("profile_id", req.UserID))
+		h.logger.Error("UpdateProfile échoué", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
 
-	h.logger.Info("UpdateProfile réussi", zap.String("profile_id", req.UserID))
+	h.logger.Info("UpdateProfile réussi", zap.String("profile_id", profile.UserID))
 	return &userpb.UpdateProfileResponse{
 		User: toProtoFullProfile(profile),
 	}, nil
 }
 
-// ChangeProfilePicture uploade la nouvelle photo de profil et met à jour le profil.
-func (h *UserHandler) ChangeProfilePicture(ctx context.Context, req *userpb.ChangeProfilePictureRequest) (*userpb.ChangeProfilePictureResponse, error) {
-	h.logger.Debug("ChangeProfilePicture appelé", zap.String("user_id", req.UserID))
-
-	if req.UserID == "" {
-		return nil, status.Error(codes.InvalidArgument, "user_id est requis")
-	}
-	if len(req.NewProfilePicture) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "new_profile_picture est requis")
-	}
-
-	profile, err := h.service.ChangeProfilePicture(ctx, req.UserID, req.NewProfilePicture)
-	if err != nil {
-		h.logger.Error("ChangeProfilePicture échoué", zap.Error(err), zap.String("user_id", req.UserID))
-		return nil, toGRPCError(err)
-	}
-
-	h.logger.Info("ChangeProfilePicture réussi", zap.String("user_id", req.UserID))
-	return &userpb.ChangeProfilePictureResponse{
-		User: toProtoFullProfile(profile),
-	}, nil
-}
+// ChangeProfilePicture supprimé : la photo de profil est le selfie d'identité,
+// soumis via POST /api/v1/file/uploadSelfie (file-service) et validé par le support.
 
 // Health retourne l'état de santé du service (route publique, sans auth).
 func (h *UserHandler) Health(_ context.Context, _ *userpb.HealthRequest) (*userpb.HealthResponse, error) {

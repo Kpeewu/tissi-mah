@@ -381,7 +381,7 @@ func (s *tripServiceImpl) getCachedOrFetchVehicleInfo(ctx context.Context, drive
 	}
 
 	// Fallback gRPC
-	brand, plate, _, err := s.vehicleClient.GetVehicleInfo(ctx, driverID, vehicleID)
+	brand, plate, _, _, err := s.vehicleClient.GetVehicleInfo(ctx, driverID, vehicleID)
 	if err != nil {
 		s.logger.Warn("GetVehicleInfo failed, using empty values",
 			zap.Error(err),

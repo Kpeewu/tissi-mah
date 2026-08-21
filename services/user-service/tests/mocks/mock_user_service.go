@@ -68,13 +68,13 @@ func (m *MockUserService) GetMyProfile(ctx context.Context) (*serviceInterfaces.
 	return args.Get(0).(*serviceInterfaces.FullProfile), args.Error(1)
 }
 
-func (m *MockUserService) CreateDriverAccount(ctx context.Context, profileID string, createDriver bool) error {
-	args := m.Called(ctx, profileID, createDriver)
+func (m *MockUserService) CreateDriverAccount(ctx context.Context, createDriver bool) error {
+	args := m.Called(ctx, createDriver)
 	return args.Error(0)
 }
 
-func (m *MockUserService) AddTripPreferences(ctx context.Context, profileID string, preferences []domain.TripPreference) error {
-	args := m.Called(ctx, profileID, preferences)
+func (m *MockUserService) AddTripPreferences(ctx context.Context, preferences []domain.TripPreference) error {
+	args := m.Called(ctx, preferences)
 	return args.Error(0)
 }
 
@@ -86,20 +86,12 @@ func (m *MockUserService) UpdateProfile(ctx context.Context, req serviceInterfac
 	return args.Get(0).(*serviceInterfaces.FullProfile), args.Error(1)
 }
 
-func (m *MockUserService) ChangeProfilePicture(ctx context.Context, userID string, imageBytes []byte) (*serviceInterfaces.FullProfile, error) {
-	args := m.Called(ctx, userID, imageBytes)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*serviceInterfaces.FullProfile), args.Error(1)
-}
-
 func (m *MockUserService) SoftDeleteUser(ctx context.Context, authID string) error {
 	args := m.Called(ctx, authID)
 	return args.Error(0)
 }
 
-func (m *MockUserService) UpdateProfileVerification(ctx context.Context, userID string, driver, passenger *bool) error {
+func (m *MockUserService) UpdateProfileVerification(ctx context.Context, userID string, driver, passenger *bool) (bool, bool, error) {
 	args := m.Called(ctx, userID, driver, passenger)
-	return args.Error(0)
+	return args.Bool(0), args.Bool(1), args.Error(2)
 }

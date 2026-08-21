@@ -25,11 +25,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	KYCService_CreateInquiry_FullMethodName                = "/kyc.KYCService/CreateInquiry"
-	KYCService_GetInquiry_FullMethodName                   = "/kyc.KYCService/GetInquiry"
 	KYCService_GetKYCStatus_FullMethodName                 = "/kyc.KYCService/GetKYCStatus"
-	KYCService_ResumeInquiry_FullMethodName                = "/kyc.KYCService/ResumeInquiry"
-	KYCService_ProcessWebhook_FullMethodName               = "/kyc.KYCService/ProcessWebhook"
 	KYCService_GetAdminReviews_FullMethodName              = "/kyc.KYCService/GetAdminReviews"
 	KYCService_GetAdminReview_FullMethodName               = "/kyc.KYCService/GetAdminReview"
 	KYCService_OverrideReview_FullMethodName               = "/kyc.KYCService/OverrideReview"
@@ -44,24 +40,18 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type KYCServiceClient interface {
-	// CreateInquiry - Démarre une nouvelle vérification d'identité
-	CreateInquiry(ctx context.Context, in *CreateInquiryRequest, opts ...grpc.CallOption) (*CreateInquiryResponse, error)
-	// GetInquiry - Récupère le détail d'une inquiry
-	GetInquiry(ctx context.Context, in *GetInquiryRequest, opts ...grpc.CallOption) (*GetInquiryResponse, error)
 	// GetKYCStatus - Récupère le statut KYC global de l'utilisateur connecté
 	GetKYCStatus(ctx context.Context, in *GetKYCStatusRequest, opts ...grpc.CallOption) (*GetKYCStatusResponse, error)
-	// ResumeInquiry - Reprend une session de vérification interrompue
-	ResumeInquiry(ctx context.Context, in *ResumeInquiryRequest, opts ...grpc.CallOption) (*ResumeInquiryResponse, error)
-	// ProcessWebhook - Reçoit et traite un webhook Persona
-	ProcessWebhook(ctx context.Context, in *ProcessWebhookRequest, opts ...grpc.CallOption) (*ProcessWebhookResponse, error)
 	// GetAdminReviews - Liste les revues pour l'admin (avec filtres et pagination)
 	GetAdminReviews(ctx context.Context, in *GetAdminReviewsRequest, opts ...grpc.CallOption) (*GetAdminReviewsResponse, error)
 	// GetAdminReview - Récupère le détail complet d'une revue pour l'admin
 	GetAdminReview(ctx context.Context, in *GetAdminReviewRequest, opts ...grpc.CallOption) (*GetAdminReviewResponse, error)
 	// OverrideReview - Override manuel d'une revue par un agent de support
 	OverrideReview(ctx context.Context, in *OverrideReviewRequest, opts ...grpc.CallOption) (*OverrideReviewResponse, error)
-	// ValidateDocument - Validation manuelle directe d'un document par un agent support (sans Persona)
-	// Obligatoire pour les documents véhicule (insurance, registrationCard avec VehicleId)
+	// ValidateDocument - Validation manuelle d'un document par un agent support.
+	// Unité de validation = document LOGIQUE : pour un recto-verso (idCard, driverLicence),
+	// le DocumentId de n'importe quelle face est accepté et la décision s'applique aux deux.
+	// Documents véhicule : insurance / registrationCard avec VehicleId.
 	ValidateDocument(ctx context.Context, in *ValidateDocumentRequest, opts ...grpc.CallOption) (*ValidateDocumentResponse, error)
 	// GetManualReviewRequests - Demandes de validation manuelle groupées par utilisateur (support)
 	GetManualReviewRequests(ctx context.Context, in *GetManualReviewRequestsRequest, opts ...grpc.CallOption) (*GetManualReviewRequestsResponse, error)
@@ -81,50 +71,10 @@ func NewKYCServiceClient(cc grpc.ClientConnInterface) KYCServiceClient {
 	return &kYCServiceClient{cc}
 }
 
-func (c *kYCServiceClient) CreateInquiry(ctx context.Context, in *CreateInquiryRequest, opts ...grpc.CallOption) (*CreateInquiryResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CreateInquiryResponse)
-	err := c.cc.Invoke(ctx, KYCService_CreateInquiry_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *kYCServiceClient) GetInquiry(ctx context.Context, in *GetInquiryRequest, opts ...grpc.CallOption) (*GetInquiryResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetInquiryResponse)
-	err := c.cc.Invoke(ctx, KYCService_GetInquiry_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *kYCServiceClient) GetKYCStatus(ctx context.Context, in *GetKYCStatusRequest, opts ...grpc.CallOption) (*GetKYCStatusResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetKYCStatusResponse)
 	err := c.cc.Invoke(ctx, KYCService_GetKYCStatus_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *kYCServiceClient) ResumeInquiry(ctx context.Context, in *ResumeInquiryRequest, opts ...grpc.CallOption) (*ResumeInquiryResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ResumeInquiryResponse)
-	err := c.cc.Invoke(ctx, KYCService_ResumeInquiry_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *kYCServiceClient) ProcessWebhook(ctx context.Context, in *ProcessWebhookRequest, opts ...grpc.CallOption) (*ProcessWebhookResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ProcessWebhookResponse)
-	err := c.cc.Invoke(ctx, KYCService_ProcessWebhook_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -215,24 +165,18 @@ func (c *kYCServiceClient) Health(ctx context.Context, in *HealthRequest, opts .
 // All implementations must embed UnimplementedKYCServiceServer
 // for forward compatibility.
 type KYCServiceServer interface {
-	// CreateInquiry - Démarre une nouvelle vérification d'identité
-	CreateInquiry(context.Context, *CreateInquiryRequest) (*CreateInquiryResponse, error)
-	// GetInquiry - Récupère le détail d'une inquiry
-	GetInquiry(context.Context, *GetInquiryRequest) (*GetInquiryResponse, error)
 	// GetKYCStatus - Récupère le statut KYC global de l'utilisateur connecté
 	GetKYCStatus(context.Context, *GetKYCStatusRequest) (*GetKYCStatusResponse, error)
-	// ResumeInquiry - Reprend une session de vérification interrompue
-	ResumeInquiry(context.Context, *ResumeInquiryRequest) (*ResumeInquiryResponse, error)
-	// ProcessWebhook - Reçoit et traite un webhook Persona
-	ProcessWebhook(context.Context, *ProcessWebhookRequest) (*ProcessWebhookResponse, error)
 	// GetAdminReviews - Liste les revues pour l'admin (avec filtres et pagination)
 	GetAdminReviews(context.Context, *GetAdminReviewsRequest) (*GetAdminReviewsResponse, error)
 	// GetAdminReview - Récupère le détail complet d'une revue pour l'admin
 	GetAdminReview(context.Context, *GetAdminReviewRequest) (*GetAdminReviewResponse, error)
 	// OverrideReview - Override manuel d'une revue par un agent de support
 	OverrideReview(context.Context, *OverrideReviewRequest) (*OverrideReviewResponse, error)
-	// ValidateDocument - Validation manuelle directe d'un document par un agent support (sans Persona)
-	// Obligatoire pour les documents véhicule (insurance, registrationCard avec VehicleId)
+	// ValidateDocument - Validation manuelle d'un document par un agent support.
+	// Unité de validation = document LOGIQUE : pour un recto-verso (idCard, driverLicence),
+	// le DocumentId de n'importe quelle face est accepté et la décision s'applique aux deux.
+	// Documents véhicule : insurance / registrationCard avec VehicleId.
 	ValidateDocument(context.Context, *ValidateDocumentRequest) (*ValidateDocumentResponse, error)
 	// GetManualReviewRequests - Demandes de validation manuelle groupées par utilisateur (support)
 	GetManualReviewRequests(context.Context, *GetManualReviewRequestsRequest) (*GetManualReviewRequestsResponse, error)
@@ -252,20 +196,8 @@ type KYCServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedKYCServiceServer struct{}
 
-func (UnimplementedKYCServiceServer) CreateInquiry(context.Context, *CreateInquiryRequest) (*CreateInquiryResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method CreateInquiry not implemented")
-}
-func (UnimplementedKYCServiceServer) GetInquiry(context.Context, *GetInquiryRequest) (*GetInquiryResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetInquiry not implemented")
-}
 func (UnimplementedKYCServiceServer) GetKYCStatus(context.Context, *GetKYCStatusRequest) (*GetKYCStatusResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetKYCStatus not implemented")
-}
-func (UnimplementedKYCServiceServer) ResumeInquiry(context.Context, *ResumeInquiryRequest) (*ResumeInquiryResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ResumeInquiry not implemented")
-}
-func (UnimplementedKYCServiceServer) ProcessWebhook(context.Context, *ProcessWebhookRequest) (*ProcessWebhookResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ProcessWebhook not implemented")
 }
 func (UnimplementedKYCServiceServer) GetAdminReviews(context.Context, *GetAdminReviewsRequest) (*GetAdminReviewsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAdminReviews not implemented")
@@ -312,42 +244,6 @@ func RegisterKYCServiceServer(s grpc.ServiceRegistrar, srv KYCServiceServer) {
 	s.RegisterService(&KYCService_ServiceDesc, srv)
 }
 
-func _KYCService_CreateInquiry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateInquiryRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(KYCServiceServer).CreateInquiry(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: KYCService_CreateInquiry_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(KYCServiceServer).CreateInquiry(ctx, req.(*CreateInquiryRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _KYCService_GetInquiry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetInquiryRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(KYCServiceServer).GetInquiry(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: KYCService_GetInquiry_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(KYCServiceServer).GetInquiry(ctx, req.(*GetInquiryRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _KYCService_GetKYCStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetKYCStatusRequest)
 	if err := dec(in); err != nil {
@@ -362,42 +258,6 @@ func _KYCService_GetKYCStatus_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(KYCServiceServer).GetKYCStatus(ctx, req.(*GetKYCStatusRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _KYCService_ResumeInquiry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ResumeInquiryRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(KYCServiceServer).ResumeInquiry(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: KYCService_ResumeInquiry_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(KYCServiceServer).ResumeInquiry(ctx, req.(*ResumeInquiryRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _KYCService_ProcessWebhook_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ProcessWebhookRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(KYCServiceServer).ProcessWebhook(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: KYCService_ProcessWebhook_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(KYCServiceServer).ProcessWebhook(ctx, req.(*ProcessWebhookRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -554,24 +414,8 @@ var KYCService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*KYCServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CreateInquiry",
-			Handler:    _KYCService_CreateInquiry_Handler,
-		},
-		{
-			MethodName: "GetInquiry",
-			Handler:    _KYCService_GetInquiry_Handler,
-		},
-		{
 			MethodName: "GetKYCStatus",
 			Handler:    _KYCService_GetKYCStatus_Handler,
-		},
-		{
-			MethodName: "ResumeInquiry",
-			Handler:    _KYCService_ResumeInquiry_Handler,
-		},
-		{
-			MethodName: "ProcessWebhook",
-			Handler:    _KYCService_ProcessWebhook_Handler,
 		},
 		{
 			MethodName: "GetAdminReviews",

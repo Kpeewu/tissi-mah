@@ -14,9 +14,8 @@ data:
   USER_SERVICE_PORT: {{ .Values.config.userServicePort | quote }}
   SUPPORT_SERVICE_HOST: {{ .Values.config.supportServiceHost | quote }}
   SUPPORT_SERVICE_PORT: {{ .Values.config.supportServicePort | quote }}
-  {{- if .Values.config.personaTemplateId }}
-  PERSONA_TEMPLATE_ID: {{ .Values.config.personaTemplateId | quote }}
-  {{- end }}
+  VEHICLE_SERVICE_HOST: {{ .Values.config.vehicleServiceHost | quote }}
+  VEHICLE_SERVICE_PORT: {{ .Values.config.vehicleServicePort | quote }}
   {{- range $key, $value := .Values.config.extra }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}

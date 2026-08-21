@@ -38,8 +38,10 @@ service UserService {
   // SoftDeleteUser - Anonymise et soft-delete le profil utilisateur
   rpc SoftDeleteUser(SoftDeleteUserRequest) returns (OperationResponse);
 
-  // UpdateProfileVerification - Met à jour les flags de vérification KYC (appelé par kyc-service)
-  rpc UpdateProfileVerification(UpdateProfileVerificationRequest) returns (OperationResponse);
+  // UpdateProfileVerification - Met à jour les flags de vérification KYC (appelé par kyc-service).
+  // Retourne les valeurs précédentes des flags pour détecter les bascules false→true
+  // (déclenchement des notifications KYC côté kyc-service).
+  rpc UpdateProfileVerification(UpdateProfileVerificationRequest) returns (UpdateProfileVerificationResponse);
 
   // Client-facing RPCs (JWT Firebase requis)
 
@@ -74,13 +76,8 @@ service UserService {
     };
   }
 
-  // ChangeProfilePicture - Change la photo de profil (upload vers S3 via file-service)
-  rpc ChangeProfilePicture(ChangeProfilePictureRequest) returns (ChangeProfilePictureResponse) {
-    option (google.api.http) = {
-      patch: "/api/v1/userProfile/changeProfilePicture"
-      body: "*"
-    };
-  }
+  // ChangeProfilePicture supprimé : la photo de profil est le selfie d'identité,
+  // soumis via POST /api/v1/file/uploadSelfie (file-service) et validé par le support.
 
   // Health - Health check endpoint (pas de JWT requis)
   rpc Health(HealthRequest) returns (HealthResponse) {
@@ -133,6 +130,14 @@ message UpdateProfileVerificationRequest {
   optional bool IsPassengerProfileVerified = 3;
 }
 
+message UpdateProfileVerificationResponse {
+  string ErrorMessage                 = 1;
+  bool   Success                      = 2;
+  // Valeurs AVANT mise à jour — pour détecter les bascules false→true
+  bool   PreviousDriverVerified       = 3;
+  bool   PreviousPassengerVerified    = 4;
+}
+
 // =============================================================================
 // Client-facing Request Messages
 // =============================================================================
@@ -142,17 +147,17 @@ message GetMyProfileRequest {
 }
 
 message CreateDriverAccountRequest {
-  string UserID              = 1;
+  string UserID              = 1; // Déprécié/ignoré — l'utilisateur est résolu depuis le JWT (x-firebase-uid)
   bool   CreateDriverAccount = 2;
 }
 
 message AddTripPreferencesRequest {
-  string UserID                         = 1;
+  string UserID                         = 1; // Déprécié/ignoré — l'utilisateur est résolu depuis le JWT (x-firebase-uid)
   repeated TripPreference Preferences   = 2;
 }
 
 message UpdateProfileRequest {
-  string UserID          = 1;
+  string UserID          = 1; // Déprécié/ignoré — l'utilisateur est résolu depuis le JWT (x-firebase-uid)
   optional string FirstName       = 2;
   optional string LastName        = 3;
   optional string BirthDate       = 4;
@@ -248,16 +253,6 @@ message OperationResponse {
 message UpdateProfileResponse {
   string ErrorMessage   = 1;
   FullUserProfile User  = 2;
-}
-
-message ChangeProfilePictureRequest {
-  string UserID            = 1;
-  bytes  NewProfilePicture = 2;
-}
-
-message ChangeProfilePictureResponse {
-  string          ErrorMessage = 1;
-  FullUserProfile User         = 2;
 }
 
 message HealthResponse {

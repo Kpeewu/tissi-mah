@@ -161,10 +161,10 @@ USER appuser
 # Expose gRPC port and metrics port
 EXPOSE 50059 9090
 
-# Health check using grpc health protocol
-# Note: This requires the service to implement grpc.health.v1.Health
+# Health check via le protocole gRPC health (grpc.health.v1.Health).
+# Mêmes options que les probes Kubernetes : TLS intra-cluster, certificat non vérifié.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD ["/app/payment-service", "health"] || exit 1
+    CMD grpc_health_probe -addr=:${GRPC_PORT} -tls -tls-no-verify || exit 1
 
 # Default environment variables
 ENV ENVIRONMENT=production \

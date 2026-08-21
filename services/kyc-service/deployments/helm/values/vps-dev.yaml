@@ -45,13 +45,12 @@ config:
   userServicePort: "50052"
   supportServiceHost: "support-service"
   supportServicePort: "50063"
-  personaTemplateId: ""  # Set via CI/CD from KYC_PERSONA_TEMPLATE_ID GitHub secret
+  vehicleServiceHost: "vehicle-service"
+  vehicleServicePort: "50055"
   extra: {}
 
 # Secrets should be provided via external secret management
 secrets:
-  personaApiKey: ""
-  personaWebhookSecret: ""
   notificationRedisUrl: ""
   extra: {}
 

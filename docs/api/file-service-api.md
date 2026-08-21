@@ -289,6 +289,76 @@ curl -X POST https://api.tissimah.kpeewu.dev/api/v1/file/uploadVehicleDocuments 
 
 ---
 
+### POST /api/v1/file/uploadSelfie
+
+Uploads the user's identity selfie. The selfie **is** the account profile picture and
+is also the document a support agent compares against the identity document.
+
+**Authentication:** Required (Firebase JWT)
+
+The owner is resolved from the `x-firebase-uid` metadata injected by the api-gateway —
+**no `UserID` is accepted in the body**.
+
+#### Request
+
+```http
+POST /api/v1/file/uploadSelfie HTTP/1.1
+Host: api.tissi-mah.com
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+
+{
+    "Selfie": "<base64-encoded-image>"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `Selfie` | bytes (base64) | Yes | Image only — JPEG, PNG, WebP, HEIC/HEIF or TIFF. PDF is rejected. |
+
+#### Response (Success)
+
+```json
+{
+    "Success": true,
+    "ErrorMessage": "",
+    "Document": {
+        "DocumentID": "doc-550e8400-e29b-41d4-a716-446655440000",
+        "DocumentURL": "https://…presigned…",
+        "DocumentType": "selfie",
+        "DocumentName": "diallo_amadou_20260415_093000_selfie",
+        "LogicalDocumentType": "selfie"
+    }
+}
+```
+
+#### Behaviour
+
+1. The image goes through **synchronous moderation**; blocked content returns
+   `ErrorContentBlocked`.
+2. The selfie becomes the profile picture immediately — user-service resolves a fresh
+   presigned URL at read time (`GET /api/v1/user/me`).
+3. The previous current selfie is marked as replaced.
+4. A `pending` review is opened for support validation (no duplicate is created if one
+   is already open).
+
+Unlike identity documents, a selfie can be replaced **at any time**, including after
+approval — no prior rejection is needed. Replacing it puts identity verification back
+in the pending state until the new selfie is approved.
+
+No legal metadata (document number, dates, issuing country) applies to a selfie.
+
+#### Errors
+
+| Error | HTTP | Description |
+|-------|------|-------------|
+| `ErrorInvalidInput` | 400 | Empty image |
+| `ErrorInvalidMimeType` | 400 | Unsupported type (e.g. PDF) |
+| `ErrorContentBlocked` | 400 | Rejected by image moderation |
+| `ErrorFileTooLarge` | 429 | Above 10 MB |
+
+---
+
 ### PATCH /api/v1/file/changeDocument
 
 Replaces the file of an existing document with a new one. The old file is deleted from S3/MinIO and a new document record is created.
@@ -391,10 +461,14 @@ Content-Type: application/json
     "File": {
         "FileID": "d-550e8400-e29b-41d4-a716-446655440001",
         "FileURL": "https://storage.example.com/IDCard/uuid/d-550e8400.jpg",
-        "FileType": "image/jpeg"
+        "FileType": "image/jpeg",
+        "PresignedUrlExpiresAt": "2026-04-15T10:30:00Z"
     }
 }
 ```
+
+`FileURL` is a **presigned URL valid for 1 hour** (`PresignedUrlExpiresAt` states the
+exact expiry). Never persist it — resolve a fresh URL when the file is displayed.
 
 #### Errors
 
@@ -512,9 +586,10 @@ rpc UploadUserDocument(stream UploadUserDocumentRequest) returns (UserDocumentRe
 | `idCardFront` | Front of ID card |
 | `idCardBack` | Back of ID card |
 | `passport` | Passport |
-| `driverLicenceFront` | Front of driver's licence (shared identity/vehicle) |
-| `driverLicenceBack` | Back of driver's licence (shared identity/vehicle) |
-| `profilePicture` | Profile picture |
+| `driverLicenceFront` | Front of driver's licence (dual role: identity **and** driving) |
+| `driverLicenceBack` | Back of driver's licence (dual role: identity **and** driving) |
+| `selfie` | Identity selfie — also the account profile picture (see `uploadSelfie`) |
+| `profilePicture` | Legacy profile picture — read-only, superseded by `selfie` |
 
 ---
 
@@ -677,19 +752,24 @@ rpc GetDocumentReviews(GetDocumentReviewsRequest) returns (GetDocumentReviewsRes
 ## Document Status Lifecycle
 
 ```
-pending -> underReview -> approved
-                       -> rejected
-                       -> pending (resubmission)
-                       -> expired
+pending -> approved                  (support approval)
+        -> rejected                  (support rejection or resubmission request)
+                 -> pending          (user resubmits via changeDocument / uploadSelfie)
+        -> expired
 ```
 
 | Status | Description |
 |--------|-------------|
-| `pending` | Document uploaded, awaiting review |
-| `underReview` | Document is being reviewed |
+| `pending` | Document uploaded, awaiting support decision |
 | `approved` | Document verified and accepted |
-| `rejected` | Document rejected |
+| `rejected` | Document rejected — the user can resubmit it |
 | `expired` | Document has expired |
+| `underReview` | Legacy value, no longer written |
+
+Every upload opens a `pending` review. When a support agent decides
+(`POST /api/v1/kyc/admin/validateDocument`), the review is completed **and the status of
+the documents it covers is synchronised** — including both faces of a two-sided
+document (ID card, driver licence), which always share a single decision.
 
 ## S3 Storage
 

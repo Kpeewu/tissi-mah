@@ -29,6 +29,12 @@ func newService(
 	reviewWrite *mocks.MockDocumentReviewRepositoryWrite,
 	storage *mocks.MockStorageClient,
 ) serviceInterfaces.FileService {
+	// Défaut : pas d'historique de review pour le chaînage previous_review_id
+	// effectué par createPendingReview. Les tests qui vérifient le chaînage
+	// surchargent avec une attente explicite (déclarée avant cet appel).
+	reviewRead.On("GetHistoryByUserIDAndLogicalType", mock.Anything, mock.Anything, mock.Anything).
+		Return([]*domain.DocumentReview{}, nil).Maybe()
+
 	return service.NewFileService(
 		userDocRead,
 		userDocWrite,
@@ -764,6 +770,9 @@ func TestFileService_ChangeDocument(t *testing.T) {
 		// Création de la review "pending" pour le document remplacé : aucune review
 		// non terminale déjà en cours, pas de face compagnon (idCardBack) trouvée.
 		reviewRead.On("GetByUserID", mock.Anything, "user-1").Return([]*domain.DocumentReview{}, nil)
+		// Chaînage previous_review_id : aucun historique sur ce type logique.
+		reviewRead.On("GetHistoryByUserIDAndLogicalType", mock.Anything, "user-1", "idCard").
+			Return([]*domain.DocumentReview{}, nil)
 		userDocRead.On("GetCurrentByUserIDAndType", mock.Anything, "user-1", "idCardBack").Return(nil, fileErrors.ErrorDocumentNotFound)
 		userDocRead.On("GetByID", mock.Anything, mock.AnythingOfType("string")).Return(existing, nil)
 		userDocWrite.On("Update", mock.Anything, mock.Anything).Return(existing, nil)
@@ -1687,7 +1696,7 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 		assert.ErrorIs(t, err, fileErrors.ErrorDocumentNotFound)
 	})
 
-	t.Run("should return ErrorInternalServer on invalid SessionExpiresAt format", func(t *testing.T) {
+	t.Run("should return ErrorInternalServer on invalid SubmittedAt format", func(t *testing.T) {
 		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
 		doc := stubUserDoc("doc-1", "user-1", "idCardFront")
 		userDocRead.On("GetByID", mock.Anything, "doc-1").Return(doc, nil)
@@ -1698,12 +1707,12 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 			&mocks.MockStorageClient{})
 
 		_, err := svc.CreateDocumentReview(context.Background(), serviceInterfaces.CreateReviewInput{
-			UserID:           "user-1",
-			DocumentType:     "idCardFront",
-			UserDocumentID:   "doc-1",
-			Decision:         "approved",
-			ReviewType:       "manual",
-			SessionExpiresAt: "not-a-date",
+			UserID:         "user-1",
+			DocumentType:   "idCardFront",
+			UserDocumentID: "doc-1",
+			Decision:       "approved",
+			ReviewType:     "manual",
+			SubmittedAt:    "not-a-date",
 		})
 
 		assert.ErrorIs(t, err, fileErrors.ErrorInternalServer)
@@ -1735,6 +1744,7 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 			UserID:          "user-1",
 			DocumentType:    "idCardFront",
 			UserDocumentID:  "doc-1",
+			Status:          "completed",
 			Decision:        "rejected",
 			ReviewType:      "manual",
 			ReasonRejection: "document_expired",
@@ -1743,6 +1753,35 @@ func TestFileService_CreateDocumentReview(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, updatedDoc)
 		assert.Equal(t, "rejected", updatedDoc.Status)
+	})
+
+	t.Run("should NOT touch document status for a non-completed review", func(t *testing.T) {
+		userDocRead := &mocks.MockUserDocumentRepositoryRead{}
+		userDocWrite := &mocks.MockUserDocumentRepositoryWrite{}
+		reviewWrite := &mocks.MockDocumentReviewRepositoryWrite{}
+
+		doc := stubUserDoc("doc-1", "user-1", "idCardFront")
+		userDocRead.On("GetByID", mock.Anything, "doc-1").Return(doc, nil)
+		reviewWrite.On("Create", mock.Anything, mock.AnythingOfType("*domain.DocumentReview")).Return("review-1", nil)
+
+		svc := newService(userDocRead, userDocWrite,
+			&mocks.MockVehicleDocumentRepositoryRead{}, &mocks.MockVehicleDocumentRepositoryWrite{},
+			&mocks.MockDocumentReviewRepositoryRead{}, reviewWrite,
+			&mocks.MockStorageClient{})
+
+		// Review "pending" (état initial à l'upload) : la décision n'est pas prise,
+		// le statut du document ne doit surtout pas être écrasé.
+		_, err := svc.CreateDocumentReview(context.Background(), serviceInterfaces.CreateReviewInput{
+			UserID:         "user-1",
+			DocumentType:   "idCardFront",
+			UserDocumentID: "doc-1",
+			Status:         "pending",
+			Decision:       "pending",
+			ReviewType:     "manual",
+		})
+
+		require.NoError(t, err)
+		userDocWrite.AssertNotCalled(t, "Update", mock.Anything, mock.Anything)
 	})
 
 	t.Run("should default AttemptNumber to 1 when 0", func(t *testing.T) {

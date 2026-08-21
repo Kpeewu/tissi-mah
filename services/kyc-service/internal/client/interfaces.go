@@ -41,9 +41,6 @@ type FileServiceClient interface {
 	// Récupère une revue par son ID
 	GetDocumentReview(ctx context.Context, reviewID string) (*domain.Review, error)
 
-	// Récupère une revue par persona_inquiry_id
-	GetDocumentReviewByPersonaInquiryID(ctx context.Context, personaInquiryID string) (*domain.Review, error)
-
 	// Récupère toutes les revues d'un utilisateur (via ses documents)
 	GetDocumentReviewsByUserID(ctx context.Context, userID string) ([]*domain.Review, error)
 
@@ -58,15 +55,6 @@ type FileServiceClient interface {
 
 	// Ferme la connexion gRPC
 	Close() error
-}
-
-// PersonaClient est l'interface pour communiquer avec l'API Persona
-type PersonaClient interface {
-	// Crée une inquiry Persona pour un utilisateur
-	CreateInquiry(ctx context.Context, templateID string, referenceID string) (*domain.PersonaInquiry, error)
-
-	// Renouvelle le session token pour une inquiry existante
-	ResumeInquiry(ctx context.Context, inquiryID string) (*domain.PersonaSession, error)
 }
 
 // UserClient est l'interface pour communiquer avec user-service via gRPC.
@@ -86,7 +74,19 @@ type UserClient interface {
 
 	// UpdateProfileVerification met à jour les flags de vérification KYC du profil
 	// (passager / conducteur) après validation des documents par le support.
-	UpdateProfileVerification(ctx context.Context, userID string, driver, passenger bool) error
+	// Retourne les valeurs précédentes des flags (détection des bascules false→true).
+	UpdateProfileVerification(ctx context.Context, userID string, driver, passenger bool) (prevDriver, prevPassenger bool, err error)
+
+	// Ferme la connexion gRPC
+	Close() error
+}
+
+// VehicleClient est l'interface pour communiquer avec vehicle-service via gRPC.
+// Utilisé pour pousser le flag is_verified d'un véhicule quand ses documents
+// (assurance + carte grise) sont tous deux approuvés — ou cessent de l'être.
+type VehicleClient interface {
+	// SetVehicleVerification fixe le flag is_verified d'un véhicule.
+	SetVehicleVerification(ctx context.Context, vehicleID string, isVerified bool) error
 
 	// Ferme la connexion gRPC
 	Close() error

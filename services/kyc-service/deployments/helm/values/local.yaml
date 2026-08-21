@@ -41,12 +41,11 @@ config:
   userServicePort: "50052"
   supportServiceHost: "support-service"
   supportServicePort: "50063"
-  personaTemplateId: "itmpl_default"
+  vehicleServiceHost: "vehicle-service"
+  vehicleServicePort: "50055"
   extra: {}
 
 secrets:
-  personaApiKey: "persona_sandbox_xxx"
-  personaWebhookSecret: "whsec_xxx"
   extra: {}
 
 probes:

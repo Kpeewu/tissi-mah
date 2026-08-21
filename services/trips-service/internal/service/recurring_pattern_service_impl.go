@@ -58,6 +58,11 @@ func (s *tripServiceImpl) CreateRecurringTrip(ctx context.Context, input *servic
 		return "", err
 	}
 
+	// Vérification : le véhicule existe, appartient au conducteur et est validé
+	if _, err := s.validateUsableVehicle(ctx, driverUserID, input.VehicleID); err != nil {
+		return "", err
+	}
+
 	// Construction du domaine
 	pattern, patternWaypoints := s.buildRecurringPattern(input, departureTime, startDate, endDate)
 

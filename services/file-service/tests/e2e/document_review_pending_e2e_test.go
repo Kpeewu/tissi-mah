@@ -58,7 +58,8 @@ func TestE2E_UploadIdDocument_CreatesPendingReview(t *testing.T) {
 		assert.Equal(t, "idCard", review.LogicalDocumentType)
 		assert.Equal(t, resp.Documents[0].DocumentID, review.UserDocumentId)
 		assert.Equal(t, resp.Documents[1].DocumentID, review.SecondUserDocumentId)
-		assert.Empty(t, review.PersonaInquiryId)
+		assert.Empty(t, review.ReviewedAt, "une review pending n'a pas de date de décision")
+		assert.NotEmpty(t, review.CreatedAt)
 	})
 
 	t.Run("Passport (face unique) crée une review pending sans SecondUserDocumentId", func(t *testing.T) {

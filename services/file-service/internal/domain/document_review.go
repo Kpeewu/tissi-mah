@@ -6,8 +6,9 @@ import (
 )
 
 // Décisions de revue valides
-// "pending" = état initial à la création de l'inquiry (pas encore de décision Persona).
-// La décision évolue vers approved / rejected / resubmission après le webhook.
+// "pending" = état initial à la création de la review (upload — pas encore de
+// décision support). La décision évolue vers approved / rejected / resubmission
+// quand un agent support tranche (ValidateDocument / OverrideReview).
 var ValidReviewDecisions = map[string]bool{
 	"pending":      true,
 	"approved":     true,
@@ -15,13 +16,23 @@ var ValidReviewDecisions = map[string]bool{
 	"resubmission": true,
 }
 
-// Types de revue valides (anciennement reviewed_by_type)
+// FinalReviewDecisions : décisions qu'un agent support peut prononcer.
+// "pending" en est exclu — c'est un état initial, pas une décision.
+var FinalReviewDecisions = map[string]bool{
+	"approved":     true,
+	"rejected":     true,
+	"resubmission": true,
+}
+
+// Types de revue valides. "automatic" (ex-Persona) est toléré en lecture pour
+// les lignes historiques ; seul "manual" est écrit désormais.
 var ValidReviewTypes = map[string]bool{
 	"manual":    true,
 	"automatic": true,
 }
 
-// Statuts de revue valides
+// Statuts de revue valides. "inProgress" / "submitted" (ex-Persona) sont
+// tolérés en lecture ; plus aucun écrivain depuis l'abandon de Persona.
 var ValidReviewStatuses = map[string]bool{
 	"pending":    true,
 	"inProgress": true,
@@ -51,17 +62,6 @@ type DocumentReview struct {
 	SecondUserDocumentID *string // verso pour les documents recto-verso
 	VehicleDocumentID    *string
 
-	// Persona
-	PersonaInquiryID    string
-	PersonaTemplateID   string
-	PersonaSessionToken string
-	SessionExpiresAt    *time.Time
-
-	// Webhook
-	WebhookEventType  string
-	WebhookReceivedAt *time.Time
-	PersonaRawPayload json.RawMessage
-
 	// Retry / versioning
 	AttemptNumber    int16
 	PreviousReviewID *string
@@ -75,24 +75,31 @@ type DocumentReview struct {
 	// Réviseur
 	ReviewedBy string
 	ReviewType string
-	ReviewedAt time.Time
+	ReviewedAt *time.Time // nil tant qu'aucune décision n'a été prise
 
 	Notes         string
 	ExtractedData json.RawMessage
 
 	// Timestamps
 	SubmittedAt *time.Time
+	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
 
 // IsValidReviewDecision vérifie si la décision est valide.
 // La chaîne vide est acceptée : une review fraîchement créée (status "pending")
-// n'a pas encore de décision — elle sera renseignée plus tard via le webhook Persona.
+// n'a pas encore de décision — elle sera renseignée à la décision support.
 func IsValidReviewDecision(decision string) bool {
 	if decision == "" {
 		return true
 	}
 	return ValidReviewDecisions[decision]
+}
+
+// IsFinalReviewDecision vérifie qu'une décision est prononçable par un agent
+// support (approved / rejected / resubmission — jamais "pending").
+func IsFinalReviewDecision(decision string) bool {
+	return FinalReviewDecisions[decision]
 }
 
 // IsValidReviewType vérifie si le type de revue est valide

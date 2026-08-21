@@ -17,41 +17,10 @@ import "google/api/annotations.proto";
 // =============================================================================
 
 service KYCService {
-  // CreateInquiry - Démarre une nouvelle vérification d'identité
-  rpc CreateInquiry(CreateInquiryRequest) returns (CreateInquiryResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/kyc/inquiries/add"
-      body: "*"
-    };
-  }
-
-  // GetInquiry - Récupère le détail d'une inquiry
-  rpc GetInquiry(GetInquiryRequest) returns (GetInquiryResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/kyc/inquiries/getInquiry"
-    };
-  }
-
   // GetKYCStatus - Récupère le statut KYC global de l'utilisateur connecté
   rpc GetKYCStatus(GetKYCStatusRequest) returns (GetKYCStatusResponse) {
     option (google.api.http) = {
       get: "/api/v1/kyc/me/getStatus"
-    };
-  }
-
-  // ResumeInquiry - Reprend une session de vérification interrompue
-  rpc ResumeInquiry(ResumeInquiryRequest) returns (ResumeInquiryResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/kyc/inquiries/resume"
-      body: "*"
-    };
-  }
-
-  // ProcessWebhook - Reçoit et traite un webhook Persona
-  rpc ProcessWebhook(ProcessWebhookRequest) returns (ProcessWebhookResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/kyc/webhooks/persona"
-      body: "*"
     };
   }
 
@@ -77,8 +46,10 @@ service KYCService {
     };
   }
 
-  // ValidateDocument - Validation manuelle directe d'un document par un agent support (sans Persona)
-  // Obligatoire pour les documents véhicule (insurance, registrationCard avec VehicleId)
+  // ValidateDocument - Validation manuelle d'un document par un agent support.
+  // Unité de validation = document LOGIQUE : pour un recto-verso (idCard, driverLicence),
+  // le DocumentId de n'importe quelle face est accepté et la décision s'applique aux deux.
+  // Documents véhicule : insurance / registrationCard avec VehicleId.
   rpc ValidateDocument(ValidateDocumentRequest) returns (ValidateDocumentResponse) {
     option (google.api.http) = {
       post: "/api/v1/kyc/admin/validateDocument"
@@ -119,32 +90,8 @@ service KYCService {
 // Request Messages
 // =============================================================================
 
-message CreateInquiryRequest {
-  string DocumentType = 1; // IDCard | Passport | DriverLicence (user) | insurance | registrationCard (vehicle)
-  string VehicleId    = 2; // Optionnel : si renseigné, document véhicule
-  string DocumentId   = 3; // Identifiant du document à vérifier (recto/front)
-  reserved 4;
-  reserved "DocumentIdBack";
-}
-
-message GetInquiryRequest {
-  string PersonaInquiryId = 1;
-}
-
 message GetKYCStatusRequest {
   // No fields required - UserID is extracted from JWT
-}
-
-message ResumeInquiryRequest {
-  string PersonaInquiryId = 1;
-}
-
-message ProcessWebhookRequest {
-  string Signature = 1;
-  string PersonaInquiryId = 2;
-  string WebhookEventType = 3;
-  string OccurredAt = 4; // ISO 8601
-  bytes PersonaRawPayload = 5;
 }
 
 message GetAdminReviewsRequest {
@@ -183,44 +130,12 @@ message HealthRequest {
 // Response Messages
 // =============================================================================
 
-message CreateInquiryResponse {
-  string ErrorMessage = 1;
-  string ReviewId = 2;
-  string PersonaInquiryId = 3;
-  string PersonaTemplateId = 4;
-  string SessionToken = 5;
-  string SessionExpiresAt = 6; // ISO 8601
-  string Status = 7;
-  int32 AttemptNumber = 8;
-  string CreatedAt = 9; // ISO 8601
-}
-
-message GetInquiryResponse {
-  string ErrorMessage = 1;
-  InquiryDetail Inquiry = 2;
-}
-
 message GetKYCStatusResponse {
   string ErrorMessage = 1;
   bool IdentityVerified = 2;
   bool DriverVerified = 3;
   repeated PendingReviewItem PendingReviews = 4;
   LatestRejectionItem LatestRejection = 5;
-}
-
-message ResumeInquiryResponse {
-  string ErrorMessage = 1;
-  string ReviewId = 2;
-  string PersonaInquiryId = 3;
-  string SessionToken = 4;
-  string SessionExpiresAt = 5; // ISO 8601
-  string Status = 6;
-  int32 AttemptNumber = 7;
-}
-
-message ProcessWebhookResponse {
-  string ErrorMessage = 1;
-  bool Success = 2;
 }
 
 message GetAdminReviewsResponse {
@@ -234,9 +149,11 @@ message GetAdminReviewResponse {
 }
 
 message OverrideReviewResponse {
+  reserved 3; // PersonaInquiryId (intégration supprimée)
+  reserved "PersonaInquiryId";
+
   string ErrorMessage = 1;
   string ReviewId = 2;
-  string PersonaInquiryId = 3;
   string Decision = 4;
   string ReasonRejection = 5;
   string RejectionDetails = 6;
@@ -255,6 +172,10 @@ message ValidateDocumentResponse {
   string ReviewType   = 5;
   string ReviewedAt   = 6; // ISO 8601
   string Notes        = 7;
+  // Document logique décidé : recto (ou document principal) + verso éventuel.
+  string DocumentId       = 8;
+  string SecondDocumentId = 9; // vide si non recto-verso
+  string LogicalDocumentType = 10; // idCard, driverLicence, passport, selfie, insurance…
 }
 
 message HealthResponse {
@@ -313,6 +234,10 @@ message ManualReviewDocumentReview {
   string ReviewedByFirstName       = 9;
   string ReviewedByLastName        = 10;
   string ReviewedByProfileImageURL = 11; // réservé — vide tant que les agents n'ont pas de photo
+  // Contexte de la décision (visible par le support)
+  string Notes            = 12;
+  int32  AttemptNumber    = 13;
+  string PreviousReviewId = 14; // review remplacée (override / resoumission), vide sinon
 }
 
 // Infos véhicule embarquées dans ManualReviewDocument (vehicle docs uniquement).
@@ -333,7 +258,7 @@ message ManualReviewDocument {
   string Status              = 3;
   string OwnerKind           = 4; // "user" | "vehicle"
   string OwnerId             = 5; // user_id ou vehicle_id
-  string Category            = 6; // passenger | driver | other
+  string Category            = 6; // catégorie principale (affichage) : passenger | driver | other
   ManualReviewDocumentReview LatestReview = 7; // null si aucune review
   string LogicalDocumentType = 8; // idCard, driverLicence, passport…
   // Métadonnées document (recto / document principal)
@@ -356,6 +281,9 @@ message ManualReviewDocument {
   string SecondMimeType      = 24;
   string SecondUploadedAt    = 25; // ISO 8601
   string SecondUpdatedAt     = 26; // ISO 8601
+  // Toutes les catégories du document — le permis (double rôle) = [passenger, driver],
+  // le selfie = [passenger]. Category (champ 6) reste la catégorie principale.
+  repeated string Categories = 27;
 }
 
 // =============================================================================
@@ -374,7 +302,7 @@ message DocumentHistoryEntry {
   string ReasonRejection     = 4;
   string RejectionDetails    = 5;
   string Notes               = 6;
-  string ReviewType          = 7;  // manual | automatic
+  string ReviewType          = 7;  // manual
   string ReviewedBy          = 8;  // UID de l'agent support
   string ReviewedAt          = 9;  // ISO 8601
   int32  AttemptNumber       = 10;
@@ -408,30 +336,13 @@ message GetManualReviewRequestDetailResponse {
 // Domain Messages
 // =============================================================================
 
-message InquiryDetail {
-  string ReviewId = 1;
-  string PersonaInquiryId = 2;
-  string UserDocumentId = 3;
-  string PersonaTemplateId = 4;
-  string VehicleDocumentId = 5;
-  string Status = 6;
-  string Decision = 7;
-  string ReasonRejection = 8;
-  string RejectionDetails = 9;
-  int32 AttemptNumber = 10;
-  string PreviousReviewId = 11;
-  string ReviewType = 12;
-  string ReviewedAt = 13;  // ISO 8601
-  string CreatedAt = 14;   // ISO 8601
-  string UpdatedAt = 15;   // ISO 8601
-}
-
 message PendingReviewItem {
+  reserved 2, 5; // PersonaInquiryId, SessionExpiresAt (intégration supprimée)
+  reserved "PersonaInquiryId", "SessionExpiresAt";
+
   string ReviewId = 1;
-  string PersonaInquiryId = 2;
   string Status = 3;
   int32 AttemptNumber = 4;
-  string SessionExpiresAt = 5; // ISO 8601
   string DocumentType = 6;
 }
 
@@ -444,8 +355,10 @@ message LatestRejectionItem {
 }
 
 message AdminReviewItem {
+  reserved 2, 13, 14; // Persona/webhook (intégration supprimée)
+  reserved "PersonaInquiryId", "WebhookEventType", "WebhookReceivedAt";
+
   string ReviewId = 1;
-  string PersonaInquiryId = 2;
   string UserDocumentId = 3;
   string VehicleDocumentId = 4;
   string Status = 5;
@@ -456,16 +369,16 @@ message AdminReviewItem {
   string ReviewedAt = 10;    // ISO 8601
   int32 AttemptNumber = 11;
   string PreviousReviewId = 12;
-  string WebhookEventType = 13;
-  string WebhookReceivedAt = 14; // ISO 8601
   string CreatedAt = 15;         // ISO 8601
   string UpdatedAt = 16;         // ISO 8601
 }
 
 message AdminReviewDetail {
+  reserved 2, 3, 15, 16, 19; // Persona/webhook (intégration supprimée)
+  reserved "PersonaInquiryId", "PersonaTemplateId", "WebhookEventType",
+           "WebhookReceivedAt", "SessionExpiresAt";
+
   string ReviewId = 1;
-  string PersonaInquiryId = 2;
-  string PersonaTemplateId = 3;
   string UserDocumentId = 4;
   string VehicleDocumentId = 5;
   string Status = 6;
@@ -477,11 +390,8 @@ message AdminReviewDetail {
   string ReviewedAt = 12;        // ISO 8601
   string Notes = 13;
   bytes ExtractedData = 14;      // JSON
-  string WebhookEventType = 15;
-  string WebhookReceivedAt = 16; // ISO 8601
   int32 AttemptNumber = 17;
   string PreviousReviewId = 18;
-  string SessionExpiresAt = 19;  // ISO 8601
   string CreatedAt = 20;         // ISO 8601
   string UpdatedAt = 21;         // ISO 8601
 }
@@ -493,9 +403,7 @@ message AdminReviewDetail {
 // 0  - OK                  : Success
 // 3  - INVALID_ARGUMENT    : Invalid request parameters (400)
 // 5  - NOT_FOUND           : Resource not found (404)
-// 6  - ALREADY_EXISTS      : Inquiry already active (409)
 // 7  - PERMISSION_DENIED   : Not authorized (403)
-// 9  - FAILED_PRECONDITION : Inquiry not resumable (410) / Review not overridable / Companion document missing (recto-verso)
+// 9  - FAILED_PRECONDITION : Review not overridable / Document already reviewed / Companion document missing (recto-verso)
 // 13 - INTERNAL            : Server error (500)
-// 14 - UNAVAILABLE         : File-service or Persona unavailable (503)
-// 16 - UNAUTHENTICATED     : Invalid webhook signature (401)
+// 14 - UNAVAILABLE         : File-service unavailable (503)

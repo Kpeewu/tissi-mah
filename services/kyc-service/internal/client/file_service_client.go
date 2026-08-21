@@ -9,9 +9,21 @@ import (
 	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	filepb "github.com/Kpeewu/tissi-mah/services/file-service/proto/gen"
 	"github.com/Kpeewu/tissi-mah/services/kyc-service/internal/domain"
+	kycErrors "github.com/Kpeewu/tissi-mah/services/kyc-service/pkg/errors"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+// mapNotFound traduit un NOT_FOUND gRPC du file-service en ErrorDocumentNotFound
+// (sinon un DocumentId inconnu remonterait en 503 ErrorFileServiceUnavailable).
+func mapNotFound(err error) error {
+	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+		return kycErrors.ErrorDocumentNotFound
+	}
+	return nil
+}
 
 // fileServiceClientImpl est le client gRPC vers file-service.
 // Utilise TLS avec skip-verify pour la communication intra-cluster.
@@ -57,6 +69,9 @@ func (c *fileServiceClientImpl) GetCurrentUserDocument(ctx context.Context, user
 		DocumentType: documentType,
 	})
 	if err != nil {
+		if nf := mapNotFound(err); nf != nil {
+			return nil, nf
+		}
 		c.logger.Error("client: GetCurrentUserDocument failed", zap.Error(err))
 		return nil, fmt.Errorf("file-service: GetCurrentUserDocument: %w", err)
 	}
@@ -65,6 +80,7 @@ func (c *fileServiceClientImpl) GetCurrentUserDocument(ctx context.Context, user
 		DocumentID:   resp.DocumentId,
 		DocumentType: resp.DocumentType,
 		DocumentURL:  resp.DocumentUrl,
+		Status:       resp.Status,
 	}, nil
 }
 
@@ -72,10 +88,12 @@ func (c *fileServiceClientImpl) GetUserDocument(ctx context.Context, documentID 
 	c.logger.Debug("client: GetUserDocument", zap.String("documentID", documentID))
 
 	resp, err := c.grpcClient.GetUserDocument(ctx, &filepb.GetDocumentByIDRequest{
-		DocumentId:     documentID,
-		PresignTTLSecs: 86400, // 24h — Persona doit pouvoir fetcher le document
+		DocumentId: documentID,
 	})
 	if err != nil {
+		if nf := mapNotFound(err); nf != nil {
+			return nil, nf
+		}
 		c.logger.Error("client: GetUserDocument failed", zap.Error(err))
 		return nil, fmt.Errorf("file-service: GetUserDocument: %w", err)
 	}
@@ -85,6 +103,7 @@ func (c *fileServiceClientImpl) GetUserDocument(ctx context.Context, documentID 
 		DocumentType: resp.DocumentType,
 		OwnerID:      resp.UserId,
 		DocumentURL:  resp.DocumentUrl,
+		Status:       resp.Status,
 	}, nil
 }
 
@@ -92,10 +111,12 @@ func (c *fileServiceClientImpl) GetVehicleDocument(ctx context.Context, document
 	c.logger.Debug("client: GetVehicleDocument", zap.String("documentID", documentID))
 
 	resp, err := c.grpcClient.GetVehicleDocument(ctx, &filepb.GetDocumentByIDRequest{
-		DocumentId:     documentID,
-		PresignTTLSecs: 86400, // 24h — Persona doit pouvoir fetcher le document
+		DocumentId: documentID,
 	})
 	if err != nil {
+		if nf := mapNotFound(err); nf != nil {
+			return nil, nf
+		}
 		c.logger.Error("client: GetVehicleDocument failed", zap.Error(err))
 		return nil, fmt.Errorf("file-service: GetVehicleDocument: %w", err)
 	}
@@ -106,6 +127,7 @@ func (c *fileServiceClientImpl) GetVehicleDocument(ctx context.Context, document
 		OwnerID:      resp.VehicleId,
 		DocumentURL:  resp.DocumentUrl,
 		UserID:       resp.UserId,
+		Status:       resp.Status,
 	}, nil
 }
 
@@ -198,6 +220,7 @@ func (c *fileServiceClientImpl) GetUserDocumentSummaries(ctx context.Context, us
 			OwnerKind:           "user",
 			OwnerID:             d.UserId,
 			Category:            domain.DocumentCategory(d.DocumentType, "user"),
+			Categories:          domain.DocumentCategories(d.DocumentType, "user"),
 			DocumentURL:         d.DocumentUrl,
 			FileSizeBytes:       d.FileSizeBytes,
 			MimeType:            d.MimeType,
@@ -247,6 +270,7 @@ func (c *fileServiceClientImpl) GetVehicleDocumentSummariesByUserID(ctx context.
 			OwnerKind:           "vehicle",
 			OwnerID:             d.VehicleId,
 			Category:            domain.DocumentCategory(d.DocumentType, "vehicle"),
+			Categories:          domain.DocumentCategories(d.DocumentType, "vehicle"),
 			DocumentURL:         d.DocumentUrl,
 			FileSizeBytes:       d.FileSizeBytes,
 			MimeType:            d.MimeType,
@@ -272,9 +296,6 @@ func (c *fileServiceClientImpl) CreateDocumentReview(ctx context.Context, review
 		UserDocumentId:       review.UserDocumentID,
 		SecondUserDocumentId: review.SecondUserDocumentID,
 		VehicleDocumentId:    review.VehicleDocumentID,
-		PersonaInquiryId:     review.PersonaInquiryID,
-		PersonaTemplateId:    review.PersonaTemplateID,
-		PersonaSessionToken:  review.PersonaSessionToken,
 		AttemptNumber:        review.AttemptNumber,
 		PreviousReviewId:     review.PreviousReviewID,
 		Status:               review.Status,
@@ -286,19 +307,9 @@ func (c *fileServiceClientImpl) CreateDocumentReview(ctx context.Context, review
 		Notes:                review.Notes,
 		ExtractedData:        review.ExtractedData,
 	}
-	if review.SessionExpiresAt != nil {
-		req.SessionExpiresAt = review.SessionExpiresAt.Format(time.RFC3339)
-	}
-	if review.WebhookReceivedAt != nil {
-		req.WebhookReceivedAt = review.WebhookReceivedAt.Format(time.RFC3339)
-	}
 	if review.SubmittedAt != nil {
 		req.SubmittedAt = review.SubmittedAt.Format(time.RFC3339)
 	}
-	if len(review.PersonaRawPayload) > 0 {
-		req.PersonaRawPayload = review.PersonaRawPayload
-	}
-	req.WebhookEventType = review.WebhookEventType
 
 	resp, err := c.grpcClient.CreateDocumentReview(ctx, req)
 	if err != nil {
@@ -318,20 +329,6 @@ func (c *fileServiceClientImpl) GetDocumentReview(ctx context.Context, reviewID 
 	if err != nil {
 		c.logger.Error("client: GetDocumentReview failed", zap.Error(err))
 		return nil, fmt.Errorf("file-service: GetDocumentReview: %w", err)
-	}
-
-	return protoToReview(resp), nil
-}
-
-func (c *fileServiceClientImpl) GetDocumentReviewByPersonaInquiryID(ctx context.Context, personaInquiryID string) (*domain.Review, error) {
-	c.logger.Debug("client: GetDocumentReviewByPersonaInquiryID", zap.String("personaInquiryID", personaInquiryID))
-
-	resp, err := c.grpcClient.GetDocumentReviewByPersonaInquiryID(ctx, &filepb.GetDocumentReviewByPersonaInquiryIDRequest{
-		PersonaInquiryId: personaInquiryID,
-	})
-	if err != nil {
-		c.logger.Error("client: GetDocumentReviewByPersonaInquiryID failed", zap.Error(err))
-		return nil, fmt.Errorf("file-service: GetDocumentReviewByPersonaInquiryID: %w", err)
 	}
 
 	return protoToReview(resp), nil
@@ -359,25 +356,15 @@ func (c *fileServiceClientImpl) UpdateDocumentReview(ctx context.Context, review
 	c.logger.Debug("client: UpdateDocumentReview", zap.String("reviewID", review.ReviewID))
 
 	req := &filepb.UpdateDocumentReviewRequest{
-		ReviewId:            review.ReviewID,
-		PersonaSessionToken: review.PersonaSessionToken,
-		WebhookEventType:    review.WebhookEventType,
-		Status:              review.Status,
-		Decision:            review.Decision,
-		ReasonRejection:     review.ReasonRejection,
-		RejectionDetails:    review.RejectionDetails,
-		ReviewedBy:          review.ReviewedBy,
-		ReviewType:          review.ReviewType,
-		Notes:               review.Notes,
-	}
-	if review.SessionExpiresAt != nil {
-		req.SessionExpiresAt = review.SessionExpiresAt.Format(time.RFC3339)
-	}
-	if review.WebhookReceivedAt != nil {
-		req.WebhookReceivedAt = review.WebhookReceivedAt.Format(time.RFC3339)
-	}
-	if len(review.PersonaRawPayload) > 0 {
-		req.PersonaRawPayload = review.PersonaRawPayload
+		ReviewId:             review.ReviewID,
+		Status:               review.Status,
+		Decision:             review.Decision,
+		ReasonRejection:      review.ReasonRejection,
+		RejectionDetails:     review.RejectionDetails,
+		ReviewedBy:           review.ReviewedBy,
+		ReviewType:           review.ReviewType,
+		Notes:                review.Notes,
+		SecondUserDocumentId: review.SecondUserDocumentID,
 	}
 	if review.SubmittedAt != nil {
 		req.SubmittedAt = review.SubmittedAt.Format(time.RFC3339)
@@ -453,12 +440,6 @@ func protoToReview(r *filepb.DocumentReviewResponse) *domain.Review {
 		SecondUserDocumentID: r.SecondUserDocumentId,
 		VehicleDocumentID:    r.VehicleDocumentId,
 
-		PersonaInquiryID:    r.PersonaInquiryId,
-		PersonaTemplateID:   r.PersonaTemplateId,
-		PersonaSessionToken: r.PersonaSessionToken,
-
-		WebhookEventType: r.WebhookEventType,
-
 		AttemptNumber:    r.AttemptNumber,
 		PreviousReviewID: r.PreviousReviewId,
 
@@ -476,20 +457,7 @@ func protoToReview(r *filepb.DocumentReviewResponse) *domain.Review {
 	if len(r.ExtractedData) > 0 {
 		review.ExtractedData = json.RawMessage(r.ExtractedData)
 	}
-	if len(r.PersonaRawPayload) > 0 {
-		review.PersonaRawPayload = json.RawMessage(r.PersonaRawPayload)
-	}
 
-	if r.SessionExpiresAt != "" {
-		if t, err := time.Parse(time.RFC3339, r.SessionExpiresAt); err == nil {
-			review.SessionExpiresAt = &t
-		}
-	}
-	if r.WebhookReceivedAt != "" {
-		if t, err := time.Parse(time.RFC3339, r.WebhookReceivedAt); err == nil {
-			review.WebhookReceivedAt = &t
-		}
-	}
 	if r.ReviewedAt != "" {
 		if t, err := time.Parse(time.RFC3339, r.ReviewedAt); err == nil {
 			review.ReviewedAt = &t
@@ -498,6 +466,11 @@ func protoToReview(r *filepb.DocumentReviewResponse) *domain.Review {
 	if r.SubmittedAt != "" {
 		if t, err := time.Parse(time.RFC3339, r.SubmittedAt); err == nil {
 			review.SubmittedAt = &t
+		}
+	}
+	if r.CreatedAt != "" {
+		if t, err := time.Parse(time.RFC3339, r.CreatedAt); err == nil {
+			review.CreatedAt = t
 		}
 	}
 	if r.UpdatedAt != "" {
