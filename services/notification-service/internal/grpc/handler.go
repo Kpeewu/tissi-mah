@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"errors"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/Kpeewu/tissi-mah/services/notification-service/internal/middleware"
 	svcInterfaces "github.com/Kpeewu/tissi-mah/services/notification-service/internal/service/interfaces"
+	notifErrors "github.com/Kpeewu/tissi-mah/services/notification-service/pkg/errors"
 	notifpb "github.com/Kpeewu/tissi-mah/services/notification-service/proto/gen"
 )
 
@@ -22,6 +24,17 @@ type NotificationHandler struct {
 
 func NewNotificationHandler(service svcInterfaces.NotificationService, logger *zap.Logger) *NotificationHandler {
 	return &NotificationHandler{service: service, logger: logger}
+}
+
+// toGRPCError traduit une erreur du service en statut gRPC. Un utilisateur pas encore
+// provisionné côté user-service (inscription en cours : le compte backend n'existe
+// qu'après la vérification e-mail) répond NotFound — le client doit réessayer plus
+// tard — au lieu d'un Internal générique qui masquait ce cas normal en HTTP 500.
+func toGRPCError(err error, fallback string) error {
+	if errors.Is(err, notifErrors.ErrorUserNotProvisioned) {
+		return status.Error(codes.NotFound, "user not provisioned yet")
+	}
+	return status.Error(codes.Internal, fallback)
 }
 
 func (h *NotificationHandler) getFirebaseUID(ctx context.Context) (string, error) {
@@ -42,7 +55,7 @@ func (h *NotificationHandler) GetInbox(ctx context.Context, req *notifpb.GetInbo
 
 	entries, total, err := h.service.GetInbox(ctx, uid, int(req.Page), int(req.PageSize))
 	if err != nil {
-		return nil, status.Error(codes.Internal, "failed to get inbox")
+		return nil, toGRPCError(err, "failed to get inbox")
 	}
 
 	pbEntries := make([]*notifpb.InboxEntry, len(entries))
@@ -72,7 +85,7 @@ func (h *NotificationHandler) MarkAsRead(ctx context.Context, req *notifpb.MarkA
 	}
 
 	if err := h.service.MarkAsRead(ctx, req.InboxId, uid); err != nil {
-		return nil, status.Error(codes.Internal, "failed to mark as read")
+		return nil, toGRPCError(err, "failed to mark as read")
 	}
 
 	return &notifpb.MarkAsReadResponse{Success: true}, nil
@@ -86,7 +99,7 @@ func (h *NotificationHandler) MarkAllAsRead(ctx context.Context, req *notifpb.Ma
 
 	count, err := h.service.MarkAllAsRead(ctx, uid)
 	if err != nil {
-		return nil, status.Error(codes.Internal, "failed to mark all as read")
+		return nil, toGRPCError(err, "failed to mark all as read")
 	}
 
 	return &notifpb.MarkAllAsReadResponse{UpdatedCount: int32(count)}, nil
@@ -100,7 +113,7 @@ func (h *NotificationHandler) GetUnreadCount(ctx context.Context, req *notifpb.G
 
 	count, err := h.service.GetUnreadCount(ctx, uid)
 	if err != nil {
-		return nil, status.Error(codes.Internal, "failed to get unread count")
+		return nil, toGRPCError(err, "failed to get unread count")
 	}
 
 	return &notifpb.GetUnreadCountResponse{Count: int32(count)}, nil
@@ -116,7 +129,7 @@ func (h *NotificationHandler) GetPreferences(ctx context.Context, req *notifpb.G
 
 	prefs, err := h.service.GetPreferences(ctx, uid)
 	if err != nil {
-		return nil, status.Error(codes.Internal, "failed to get preferences")
+		return nil, toGRPCError(err, "failed to get preferences")
 	}
 
 	return &notifpb.GetPreferencesResponse{
@@ -132,7 +145,7 @@ func (h *NotificationHandler) UpdatePreferences(ctx context.Context, req *notifp
 	}
 
 	if err := h.service.UpdatePreferences(ctx, uid, req.PushEnabled, req.EmailEnabled); err != nil {
-		return nil, status.Error(codes.Internal, "failed to update preferences")
+		return nil, toGRPCError(err, "failed to update preferences")
 	}
 
 	return &notifpb.UpdatePreferencesResponse{Success: true}, nil
@@ -152,7 +165,7 @@ func (h *NotificationHandler) RegisterDeviceToken(ctx context.Context, req *noti
 
 	tokenID, err := h.service.RegisterDeviceToken(ctx, uid, req.FcmToken, req.Platform, req.DeviceName)
 	if err != nil {
-		return nil, status.Error(codes.Internal, "failed to register device token")
+		return nil, toGRPCError(err, "failed to register device token")
 	}
 
 	return &notifpb.RegisterDeviceTokenResponse{
