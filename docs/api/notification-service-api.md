@@ -238,6 +238,21 @@ Enregistre un token FCM pour envoyer des push notifications à cet appareil.
 }
 ```
 
+L'enregistrement est un **upsert** : renvoyer le même token est sans effet de bord,
+le client peut donc le pousser à chaque démarrage et à chaque connexion.
+
+#### Erreurs
+
+| Erreur | Code HTTP | Description |
+|--------|-----------|-------------|
+| `user not provisioned yet` | 404 | Le Firebase UID est valide mais le compte backend n'existe pas encore (pendant l'inscription, il n'est créé qu'après la vérification e-mail via `createAccount`). Réessayer une fois le compte créé — ce n'est pas une erreur serveur. |
+| `fcm_token is required` | 400 | `FcmToken` vide |
+| `failed to register device token` | 500 | Erreur interne |
+
+Le même cas `user not provisioned yet` (404) s'applique aux routes `inbox`,
+`inbox/{InboxId}/read`, `inbox/readAll`, `inbox/unreadCount` et `preferences`, toutes
+keyées sur l'UserID interne résolu via user-service.
+
 ---
 
 ### DELETE /api/v1/notifications/deviceToken

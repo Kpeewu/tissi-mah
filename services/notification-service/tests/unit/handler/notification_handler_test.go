@@ -3,6 +3,7 @@ package handler_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/Kpeewu/tissi-mah/services/notification-service/internal/domain"
 	notifGrpc "github.com/Kpeewu/tissi-mah/services/notification-service/internal/grpc"
 	"github.com/Kpeewu/tissi-mah/services/notification-service/internal/middleware"
+	notifErrors "github.com/Kpeewu/tissi-mah/services/notification-service/pkg/errors"
 	notifpb "github.com/Kpeewu/tissi-mah/services/notification-service/proto/gen"
 	"github.com/Kpeewu/tissi-mah/services/notification-service/tests/mocks"
 )
@@ -194,6 +196,39 @@ func TestRegisterDeviceToken_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, resp.Success)
 	assert.Equal(t, "token-id-001", resp.TokenId)
+}
+
+func TestRegisterDeviceToken_UserNotProvisioned_NotFound(t *testing.T) {
+	h, mockSvc := newHandler()
+	ctx := ctxWithUID("uid-fresh")
+
+	// Inscription en cours : user-service ne connaît pas encore le Firebase UID.
+	mockSvc.On("RegisterDeviceToken", mock.Anything, "uid-fresh", "fcm-token-002", "android", "").
+		Return("", fmt.Errorf("%w: firebaseUID uid-fresh", notifErrors.ErrorUserNotProvisioned))
+
+	_, err := h.RegisterDeviceToken(ctx, &notifpb.RegisterDeviceTokenRequest{
+		FcmToken: "fcm-token-002",
+		Platform: "android",
+	})
+
+	assertGRPCCode(t, err, codes.NotFound)
+	st, _ := status.FromError(err)
+	assert.Equal(t, "user not provisioned yet", st.Message())
+}
+
+func TestRegisterDeviceToken_OtherError_Internal(t *testing.T) {
+	h, mockSvc := newHandler()
+	ctx := ctxWithUID("uid-reg")
+
+	mockSvc.On("RegisterDeviceToken", mock.Anything, "uid-reg", "fcm-token-003", "android", "").
+		Return("", errors.New("db down"))
+
+	_, err := h.RegisterDeviceToken(ctx, &notifpb.RegisterDeviceTokenRequest{
+		FcmToken: "fcm-token-003",
+		Platform: "android",
+	})
+
+	assertGRPCCode(t, err, codes.Internal)
 }
 
 func TestRegisterDeviceToken_NoUID_Unauthenticated(t *testing.T) {
