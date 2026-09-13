@@ -176,7 +176,10 @@ Content-Type: application/json
             "NumberOfStars": 5,
             "Comment": "Parfait",
             "CreatedAt": "2024-02-28T12:00:00Z",
-            "UpdatedAt": "2024-02-28T12:00:00Z"
+            "UpdatedAt": "2024-02-28T12:00:00Z",
+            "RaterFirstName": "Amadou",
+            "RaterLastName": "Diallo",
+            "RaterProfileImageURL": "https://s3.../selfie.jpg?X-Amz-Signature=..."
         },
         {
             "RatingId": "r-660f9511",
@@ -185,7 +188,10 @@ Content-Type: application/json
             "NumberOfStars": 4,
             "Comment": "",
             "CreatedAt": "2024-03-01T12:00:00Z",
-            "UpdatedAt": "2024-03-01T12:00:00Z"
+            "UpdatedAt": "2024-03-01T12:00:00Z",
+            "RaterFirstName": "",
+            "RaterLastName": "",
+            "RaterProfileImageURL": ""
         }
     ]
 }
@@ -197,6 +203,9 @@ Content-Type: application/json
 |-------|------|-------------|
 | `ErrorMessage` | string | Error message if failed, empty if success |
 | `Ratings` | array | List of ratings received by the user |
+| `Ratings[].RaterFirstName` | string | Prénom du noteur, résolu via user-service (batch). Vide si le profil est introuvable ou si user-service est indisponible (dégradation gracieuse) |
+| `Ratings[].RaterLastName` | string | Nom du noteur (même règle) |
+| `Ratings[].RaterProfileImageURL` | string | URL présignée de la photo de profil du noteur (même règle) — le client affiche « Anonyme » quand les trois champs sont vides |
 
 #### Errors
 

@@ -122,13 +122,16 @@ message HealthResponse {
 // =============================================================================
 
 message RatingDetail {
-  string RatingId = 1;
-  string RaterId = 2;
-  string UserRatedId = 3;
-  int32 NumberOfStars = 4;
-  string Comment = 5;
-  string CreatedAt = 6;  // ISO 8601 / TIMESTAMPTZ
-  string UpdatedAt = 7;  // ISO 8601 / TIMESTAMPTZ
+  string RatingId             = 1;
+  string RaterId              = 2;
+  string UserRatedId          = 3;
+  int32  NumberOfStars        = 4;
+  string Comment              = 5;
+  string CreatedAt            = 6;  // ISO 8601 / TIMESTAMPTZ
+  string UpdatedAt            = 7;  // ISO 8601 / TIMESTAMPTZ
+  string RaterFirstName       = 8;
+  string RaterLastName        = 9;
+  string RaterProfileImageURL = 10;
 }
 
 // =============================================================================
