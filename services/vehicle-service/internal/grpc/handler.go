@@ -43,6 +43,7 @@ func (h *VehicleHandler) AddVehicle(ctx context.Context, req *vehiclepb.AddVehic
 		BrandModel:    req.BrandModel,
 		Color:         req.Color,
 		LicencePlate:  req.LicencePlate,
+		Year:          int16(req.Year),
 	})
 	if err != nil {
 		h.logger.Error("handler: AddVehicle failed", zap.Error(err))
@@ -62,6 +63,7 @@ func (h *VehicleHandler) UpdateVehicle(ctx context.Context, req *vehiclepb.Updat
 		UserID:       req.UserId,
 		Color:        req.Color,
 		LicencePlate: req.LicencePlate,
+		Year:         int16(req.Year),
 	})
 	if err != nil {
 		h.logger.Error("handler: UpdateVehicle failed", zap.Error(err))
@@ -103,6 +105,7 @@ func (h *VehicleHandler) GetVehicleDetails(ctx context.Context, req *vehiclepb.G
 			NumberOfSeats: int32(details.Vehicle.NumberOfSeats),
 			BrandModel:    details.Vehicle.BrandModel,
 			Color:         details.Vehicle.Color,
+			Year:          int32(details.Vehicle.Year),
 			LicencePlate:  details.Vehicle.LicencePlate,
 			IsVerified:    details.Vehicle.IsVerified,
 			Documents: &vehiclepb.VehicleDocuments{
@@ -140,6 +143,8 @@ func (h *VehicleHandler) GetUserVehicles(ctx context.Context, req *vehiclepb.Get
 			VehicleRegistrationStatus: p.VehicleRegistrationStatus,
 			DriverLicenceStatus:       p.DriverLicenceStatus,
 			TripCount:                 p.TripCount,
+			Color:                     p.Color,
+			Year:                      int32(p.Year),
 		})
 	}
 

@@ -77,6 +77,31 @@ func TestAddVehicle(t *testing.T) {
 		}
 	})
 
+	t.Run("année transmise au repo", func(t *testing.T) {
+		r, w, _, svc := newService()
+		r.On("ExistsByLicencePlate", mock.Anything, "AA-123").Return(false, nil)
+		w.On("Create", mock.Anything, mock.MatchedBy(func(v *domain.Vehicle) bool {
+			return v.Year == 2018 && v.Color == "Rouge"
+		})).Return("veh-created", nil)
+
+		_, err := svc.AddVehicle(context.Background(), serviceInterfaces.AddVehicleInput{
+			UserID: "u1", Brand: "Toyota", LicencePlate: "AA-123", NumberOfSeats: 4, Color: "Rouge", Year: 2018,
+		})
+		require.NoError(t, err)
+		w.AssertExpectations(t)
+	})
+
+	t.Run("année invalide → ErrorInvalidInput", func(t *testing.T) {
+		for _, year := range []int16{1800, 2999} {
+			_, w, _, svc := newService()
+			_, err := svc.AddVehicle(context.Background(), serviceInterfaces.AddVehicleInput{
+				UserID: "u1", Brand: "T", LicencePlate: "AA-123", Year: year,
+			})
+			assert.ErrorIs(t, err, vehicleErrors.ErrorInvalidInput)
+			w.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+		}
+	})
+
 	t.Run("plaque déjà utilisée → LicencePlateConflict", func(t *testing.T) {
 		r, _, _, svc := newService()
 		r.On("ExistsByLicencePlate", mock.Anything, "AA-123").Return(true, nil)
@@ -257,6 +282,33 @@ func TestUpdateVehicle(t *testing.T) {
 		})
 		require.NoError(t, err)
 		w.AssertExpectations(t)
+	})
+
+	t.Run("succès - change Year seul", func(t *testing.T) {
+		r, w, _, svc := newService()
+		v := newDomainVehicle("u1")
+		r.On("GetByID", mock.Anything, v.VehicleID).Return(v, nil)
+		w.On("Update", mock.Anything, mock.MatchedBy(func(vv *domain.Vehicle) bool {
+			return vv.Year == 2020 && vv.Color == "Black" && vv.LicencePlate == "AA-123"
+		})).Return(v, nil)
+
+		err := svc.UpdateVehicle(context.Background(), serviceInterfaces.UpdateVehicleInput{
+			VehicleID: v.VehicleID, UserID: "u1", Year: 2020,
+		})
+		require.NoError(t, err)
+		w.AssertExpectations(t)
+	})
+
+	t.Run("année invalide → InvalidInput sans écriture", func(t *testing.T) {
+		r, w, _, svc := newService()
+		v := newDomainVehicle("u1")
+		r.On("GetByID", mock.Anything, v.VehicleID).Return(v, nil)
+
+		err := svc.UpdateVehicle(context.Background(), serviceInterfaces.UpdateVehicleInput{
+			VehicleID: v.VehicleID, UserID: "u1", Year: 1900,
+		})
+		assert.ErrorIs(t, err, vehicleErrors.ErrorInvalidInput)
+		w.AssertNotCalled(t, "Update", mock.Anything, mock.Anything)
 	})
 
 	t.Run("succès - change LicencePlate (non conflit)", func(t *testing.T) {

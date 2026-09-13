@@ -30,7 +30,7 @@ func NewVehicleReadRepository(pool *pgxpool.Pool, logger *zap.Logger) i.VehicleR
 func (r *vehicleReadRepositoryImpl) GetByID(ctx context.Context, vehicleID string) (*domain.Vehicle, error) {
 	r.logger.Debug("get vehicle by id", zap.String("vehicleID", vehicleID))
 
-	query := `SELECT vehicle_id, user_id, brand, number_of_seats, brand_model, color,
+	query := `SELECT vehicle_id, user_id, brand, number_of_seats, brand_model, color, year,
 	                 licence_plate, is_verified, created_at, updated_at
 	          FROM vehicles WHERE vehicle_id = $1`
 
@@ -43,6 +43,7 @@ func (r *vehicleReadRepositoryImpl) GetByID(ctx context.Context, vehicleID strin
 		&vehicle.NumberOfSeats,
 		&vehicle.BrandModel,
 		&vehicle.Color,
+		&vehicle.Year,
 		&vehicle.LicencePlate,
 		&vehicle.IsVerified,
 		&vehicle.CreatedAt,
@@ -65,7 +66,7 @@ func (r *vehicleReadRepositoryImpl) GetByID(ctx context.Context, vehicleID strin
 func (r *vehicleReadRepositoryImpl) GetByUserID(ctx context.Context, userID string) ([]*domain.VehiclePreview, error) {
 	r.logger.Debug("get vehicles by user id", zap.String("userID", userID))
 
-	query := `SELECT vehicle_id, brand, brand_model, licence_plate, is_verified, number_of_seats
+	query := `SELECT vehicle_id, brand, brand_model, licence_plate, is_verified, number_of_seats, color, year
 	          FROM vehicles WHERE user_id = $1
 	          ORDER BY created_at DESC`
 
@@ -86,6 +87,8 @@ func (r *vehicleReadRepositoryImpl) GetByUserID(ctx context.Context, userID stri
 			&preview.LicencePlate,
 			&preview.IsVerified,
 			&preview.NumberOfSeats,
+			&preview.Color,
+			&preview.Year,
 		)
 		if err != nil {
 			r.logger.Error("scan vehicle preview row failed", zap.Error(err))

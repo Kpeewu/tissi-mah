@@ -34,13 +34,13 @@ func (r *vehicleWriteRepositoryImpl) Create(ctx context.Context, vehicle *domain
 		zap.String("licencePlate", vehicle.LicencePlate),
 	)
 
-	query := `INSERT INTO vehicles (vehicle_id, user_id, brand, number_of_seats, brand_model, color, licence_plate)
-	          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING vehicle_id`
+	query := `INSERT INTO vehicles (vehicle_id, user_id, brand, number_of_seats, brand_model, color, licence_plate, year)
+	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING vehicle_id`
 
 	var vehicleID string
 	err := r.pool.QueryRow(ctx, query,
 		vehicle.VehicleID, vehicle.UserID, vehicle.Brand,
-		vehicle.NumberOfSeats, vehicle.BrandModel, vehicle.Color, vehicle.LicencePlate,
+		vehicle.NumberOfSeats, vehicle.BrandModel, vehicle.Color, vehicle.LicencePlate, vehicle.Year,
 	).Scan(&vehicleID)
 
 	if err != nil {
@@ -60,14 +60,14 @@ func (r *vehicleWriteRepositoryImpl) Update(ctx context.Context, vehicle *domain
 	r.logger.Debug("updating vehicle", zap.String("vehicleID", vehicle.VehicleID))
 
 	query := `UPDATE vehicles SET
-	                color = $1, licence_plate = $2, updated_at = NOW()
-	          WHERE vehicle_id = $3
-	          RETURNING vehicle_id, user_id, brand, number_of_seats, brand_model, color,
+	                color = $1, licence_plate = $2, year = $3, updated_at = NOW()
+	          WHERE vehicle_id = $4
+	          RETURNING vehicle_id, user_id, brand, number_of_seats, brand_model, color, year,
 	                    licence_plate, is_verified, created_at, updated_at`
 
 	updated := &domain.Vehicle{}
 	err := r.pool.QueryRow(ctx, query,
-		vehicle.Color, vehicle.LicencePlate, vehicle.VehicleID,
+		vehicle.Color, vehicle.LicencePlate, vehicle.Year, vehicle.VehicleID,
 	).Scan(
 		&updated.VehicleID,
 		&updated.UserID,
@@ -75,6 +75,7 @@ func (r *vehicleWriteRepositoryImpl) Update(ctx context.Context, vehicle *domain
 		&updated.NumberOfSeats,
 		&updated.BrandModel,
 		&updated.Color,
+		&updated.Year,
 		&updated.LicencePlate,
 		&updated.IsVerified,
 		&updated.CreatedAt,

@@ -166,7 +166,7 @@ func TestGetUserVehicles_Handler(t *testing.T) {
 			{
 				VehicleID: "v1", Brand: "T", BrandModel: "C", LicencePlate: "AA", IsVerified: true,
 				AssuranceStatus: "PENDING", VehicleRegistrationStatus: "VALIDATED",
-				DriverLicenceStatus: "MISSING", TripCount: 3,
+				DriverLicenceStatus: "MISSING", TripCount: 3, Color: "Rouge", Year: 2018,
 			},
 			{VehicleID: "v2", Brand: "T2", BrandModel: "C2", LicencePlate: "BB", IsVerified: false},
 		}, nil)
@@ -180,7 +180,10 @@ func TestGetUserVehicles_Handler(t *testing.T) {
 		assert.Equal(t, "VALIDATED", resp.Vehicles[0].VehicleRegistrationStatus)
 		assert.Equal(t, "MISSING", resp.Vehicles[0].DriverLicenceStatus)
 		assert.Equal(t, int32(3), resp.Vehicles[0].TripCount)
+		assert.Equal(t, "Rouge", resp.Vehicles[0].Color)
+		assert.Equal(t, int32(2018), resp.Vehicles[0].Year)
 		assert.Equal(t, "v2", resp.Vehicles[1].VehicleId)
+		assert.Equal(t, int32(0), resp.Vehicles[1].Year, "année inconnue → 0")
 	})
 
 	t.Run("liste vide", func(t *testing.T) {

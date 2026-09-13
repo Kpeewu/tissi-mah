@@ -47,6 +47,7 @@ message AddVehicleRequest {
   string BrandModel = 4;
   string Color = 5;
   string LicencePlate = 6;
+  int32 Year = 7; // Année du modèle (optionnel : 0 = inconnue ; sinon 1950..année courante+1)
 }
 
 // AddVehicleResponse retourne l'identifiant du véhicule créé.
@@ -62,6 +63,7 @@ message UpdateVehicleRequest {
   string VehicleId = 2;
   string Color = 3;
   string LicencePlate = 4;
+  int32 Year = 5; // Optionnel : 0 = inchangé
 }
 
 // UpdateVehicleResponse indique si la mise à jour a réussi.
@@ -139,6 +141,7 @@ message VehicleDetail {
   string LicencePlate = 7;
   bool IsVerified = 8;
   VehicleDocuments Documents = 9;
+  int32 Year = 10; // 0 = inconnue
 }
 
 // VehiclePreview contient un aperçu réduit d'un véhicule pour les listes.
@@ -153,6 +156,10 @@ message VehiclePreview {
   string VehicleRegistrationStatus = 8;
   string DriverLicenceStatus       = 9;
   int32  TripCount                 = 10;
+  // Champs cosmétiques pour les cartes véhicule de l'app (nom de couleur tel que saisi,
+  // année du modèle, 0 = inconnue).
+  string Color                     = 11;
+  int32  Year                      = 12;
 }
 
 // GetVehicleInfoRequest identifie le véhicule dont on veut les infos essentielles.

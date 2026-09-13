@@ -47,6 +47,10 @@ func (s *vehicleServiceImpl) AddVehicle(ctx context.Context, input serviceInterf
 		s.logger.Error("champs obligatoires manquants pour la création du véhicule")
 		return "", vehicleErrors.ErrorInvalidInput
 	}
+	if !domain.IsValidVehicleYear(input.Year) {
+		s.logger.Warn("année de véhicule invalide", zap.Int16("year", input.Year))
+		return "", vehicleErrors.ErrorInvalidInput
+	}
 
 	s.logger.Debug("add vehicle",
 		zap.String("userID", input.UserID),
@@ -69,6 +73,7 @@ func (s *vehicleServiceImpl) AddVehicle(ctx context.Context, input serviceInterf
 		NumberOfSeats: input.NumberOfSeats,
 		BrandModel:    input.BrandModel,
 		Color:         input.Color,
+		Year:          input.Year,
 		LicencePlate:  input.LicencePlate,
 	}
 
@@ -234,6 +239,13 @@ func (s *vehicleServiceImpl) UpdateVehicle(ctx context.Context, input serviceInt
 
 	if input.Color != "" {
 		existing.Color = input.Color
+	}
+	if input.Year != 0 {
+		if !domain.IsValidVehicleYear(input.Year) {
+			s.logger.Warn("année de véhicule invalide", zap.Int16("year", input.Year))
+			return vehicleErrors.ErrorInvalidInput
+		}
+		existing.Year = input.Year
 	}
 	if input.LicencePlate != "" && input.LicencePlate != existing.LicencePlate {
 		plateExists, err := s.readRepo.ExistsByLicencePlate(ctx, input.LicencePlate)
