@@ -104,6 +104,13 @@ type LatestRejection struct {
 	RejectionDetails string
 	ReviewType       string
 	ReviewedAt       *time.Time
+
+	// Document rejeté (resoumission côté client via file/changeDocument)
+	DocumentType         string
+	LogicalDocumentType  string
+	UserDocumentID       string
+	SecondUserDocumentID string
+	VehicleDocumentID    string
 }
 
 // =============================================================================

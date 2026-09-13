@@ -87,10 +87,15 @@ func (h *KYCHandler) GetKYCStatus(ctx context.Context, _ *kycpb.GetKYCStatusRequ
 	if kycStatus.LatestRejection != nil {
 		lr := kycStatus.LatestRejection
 		resp.LatestRejection = &kycpb.LatestRejectionItem{
-			ReviewId:         lr.ReviewID,
-			ReasonRejection:  lr.ReasonRejection,
-			RejectionDetails: lr.RejectionDetails,
-			ReviewType:       lr.ReviewType,
+			ReviewId:             lr.ReviewID,
+			ReasonRejection:      lr.ReasonRejection,
+			RejectionDetails:     lr.RejectionDetails,
+			ReviewType:           lr.ReviewType,
+			DocumentType:         lr.DocumentType,
+			LogicalDocumentType:  lr.LogicalDocumentType,
+			UserDocumentId:       lr.UserDocumentID,
+			SecondUserDocumentId: lr.SecondUserDocumentID,
+			VehicleDocumentId:    lr.VehicleDocumentID,
 		}
 		if lr.ReviewedAt != nil {
 			resp.LatestRejection.ReviewedAt = lr.ReviewedAt.Format(time.RFC3339)

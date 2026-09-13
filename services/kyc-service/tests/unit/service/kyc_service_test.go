@@ -165,7 +165,8 @@ func TestGetKYCStatus(t *testing.T) {
 			Return([]*domain.Review{
 				{ReviewID: "review-rejected-old", DocumentType: "passport", Status: "completed", Decision: "rejected",
 					ReasonRejection: "document_expired", ReviewedAt: &older, CreatedAt: now, UpdatedAt: now},
-				{ReviewID: "review-rejected-new", DocumentType: "passport", Status: "completed", Decision: "rejected",
+				{ReviewID: "review-rejected-new", DocumentType: "passport", LogicalDocumentType: "passport",
+					UserDocumentID: "doc-passport-2", Status: "completed", Decision: "rejected",
 					ReasonRejection: "photo_missmatch", RejectionDetails: "La photo ne correspond pas",
 					ReviewedAt: &newer, CreatedAt: now, UpdatedAt: now},
 			}, nil)
@@ -176,6 +177,55 @@ func TestGetKYCStatus(t *testing.T) {
 		require.NotNil(t, result.LatestRejection)
 		assert.Equal(t, "review-rejected-new", result.LatestRejection.ReviewID)
 		assert.Equal(t, "photo_missmatch", result.LatestRejection.ReasonRejection)
+		// IDs du document rejeté exposés pour la resoumission (file/changeDocument)
+		assert.Equal(t, "passport", result.LatestRejection.DocumentType)
+		assert.Equal(t, "passport", result.LatestRejection.LogicalDocumentType)
+		assert.Equal(t, "doc-passport-2", result.LatestRejection.UserDocumentID)
+		assert.Empty(t, result.LatestRejection.SecondUserDocumentID)
+		assert.Empty(t, result.LatestRejection.VehicleDocumentID)
+	})
+
+	t.Run("latest rejection d'une CNI recto-verso → les deux FileID sont exposés", func(t *testing.T) {
+		mockFileClient, _, svc := newTestService()
+		now := time.Now().UTC()
+		reviewed := now.Add(-2 * time.Hour)
+		mockDocs(mockFileClient, "user-status-007", nil, nil)
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-status-007").
+			Return([]*domain.Review{
+				{ReviewID: "review-rejected-id", DocumentType: "idCardFront", LogicalDocumentType: "idCard",
+					UserDocumentID: "doc-id-front", SecondUserDocumentID: "doc-id-back",
+					Status: "completed", Decision: "rejected", ReasonRejection: "document_illegible",
+					ReviewedAt: &reviewed, CreatedAt: now, UpdatedAt: now},
+			}, nil)
+
+		result, err := svc.GetKYCStatus(context.Background(), "user-status-007")
+
+		require.NoError(t, err)
+		require.NotNil(t, result.LatestRejection)
+		assert.Equal(t, "idCard", result.LatestRejection.LogicalDocumentType)
+		assert.Equal(t, "doc-id-front", result.LatestRejection.UserDocumentID)
+		assert.Equal(t, "doc-id-back", result.LatestRejection.SecondUserDocumentID)
+	})
+
+	t.Run("latest rejection d'un document véhicule → VehicleDocumentID exposé", func(t *testing.T) {
+		mockFileClient, _, svc := newTestService()
+		now := time.Now().UTC()
+		reviewed := now.Add(-3 * time.Hour)
+		mockDocs(mockFileClient, "user-status-008", nil, nil)
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-status-008").
+			Return([]*domain.Review{
+				{ReviewID: "review-rejected-ins", DocumentType: "insurance", LogicalDocumentType: "insurance",
+					VehicleDocumentID: "vdoc-insurance-1", Status: "completed", Decision: "rejected",
+					ReasonRejection: "document_expired", ReviewedAt: &reviewed, CreatedAt: now, UpdatedAt: now},
+			}, nil)
+
+		result, err := svc.GetKYCStatus(context.Background(), "user-status-008")
+
+		require.NoError(t, err)
+		require.NotNil(t, result.LatestRejection)
+		assert.Equal(t, "insurance", result.LatestRejection.LogicalDocumentType)
+		assert.Empty(t, result.LatestRejection.UserDocumentID)
+		assert.Equal(t, "vdoc-insurance-1", result.LatestRejection.VehicleDocumentID)
 	})
 
 	t.Run("user_id vide → ErrorMissingUserID", func(t *testing.T) {

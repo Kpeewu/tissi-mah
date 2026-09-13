@@ -352,6 +352,15 @@ message LatestRejectionItem {
   string RejectionDetails = 3;
   string ReviewType = 4;
   string ReviewedAt = 5; // ISO 8601
+
+  // Document rejeté — permet au client de resoumettre via file/changeDocument
+  // (FileID = UserDocumentId / SecondUserDocumentId / VehicleDocumentId) même après
+  // réinstallation de l'app, sans conserver les IDs localement.
+  string DocumentType         = 6;  // type physique décidé : idCardFront, passport, selfie, insurance…
+  string LogicalDocumentType  = 7;  // idCard | passport | driverLicence | selfie | insurance | registrationCard
+  string UserDocumentId       = 8;  // recto / document principal (vide pour un document véhicule)
+  string SecondUserDocumentId = 9;  // verso pour les documents recto-verso, vide sinon
+  string VehicleDocumentId    = 10; // assurance / carte grise (vide pour un document utilisateur)
 }
 
 message AdminReviewItem {
