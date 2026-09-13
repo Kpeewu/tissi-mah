@@ -116,8 +116,8 @@ Ces endpoints n'exigent **aucun token** :
 
 | Route | Description |
 |---|---|
-| `GET /api/v1/auth/checkEmail` | Vérifier si un email est disponible |
-| `GET /api/v1/auth/checkPhoneNumber` | Vérifier si un numéro est disponible |
+| `POST /api/v1/auth/checkEmail` | Vérifier si un email est disponible (corps JSON `{"Email"}`) |
+| `POST /api/v1/auth/checkPhoneNumber` | Vérifier si un numéro est disponible (corps JSON `{"PhoneNumber"}`) |
 | `GET /api/v1/trip/passenger/getScheduledTripsPreviews` | Recherche de trajets |
 | `GET /api/v1/trip/passenger/getTripDetails` | Détail d'un trajet (vue passager) |
 | `POST /api/v1/geolocation/route` | Calcul d'itinéraire OSRM |
@@ -304,13 +304,17 @@ Crée le compte utilisateur après la première connexion Firebase.
 }
 ```
 
-#### `GET /api/v1/auth/checkEmail?Email=foo@bar.com` 🌐
+#### `POST /api/v1/auth/checkEmail` 🌐
+
+Corps : `{ "Email": "foo@bar.com" }`
 
 ```json
 { "ErrorMessage": "", "IsAvailable": true }
 ```
 
-#### `GET /api/v1/auth/checkPhoneNumber?PhoneNumber=%2B22890000000` 🌐
+#### `POST /api/v1/auth/checkPhoneNumber` 🌐
+
+Corps : `{ "PhoneNumber": "+22890000000" }`
 
 ```json
 { "ErrorMessage": "", "IsAvailable": true }
