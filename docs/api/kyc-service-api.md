@@ -112,7 +112,12 @@ Content-Type: application/json
         "ReasonRejection": "document_illegible",
         "RejectionDetails": "Photo floue",
         "ReviewType": "manual",
-        "ReviewedAt": "2026-04-15T09:12:00Z"
+        "ReviewedAt": "2026-04-15T09:12:00Z",
+        "DocumentType": "idCardFront",
+        "LogicalDocumentType": "idCard",
+        "UserDocumentId": "doc-7a3f…",
+        "SecondUserDocumentId": "doc-7a40…",
+        "VehicleDocumentId": ""
     },
     "ErrorMessage": ""
 }
@@ -120,7 +125,12 @@ Content-Type: application/json
 
 `PendingReviews` liste les documents en attente de décision support (une entrée par
 document logique). `LatestRejection` est le rejet le plus récent, pour afficher le
-motif à l'utilisateur.
+motif à l'utilisateur **et lui permettre de resoumettre** : les identifiants du document
+rejeté sont ceux attendus par `PATCH /api/v1/file/changeDocument` (`FileID`) —
+`UserDocumentId` pour le recto ou le document principal, `SecondUserDocumentId` pour le
+verso d'un document recto-verso (CNI, permis), `VehicleDocumentId` pour une assurance ou
+une carte grise. Le client n'a donc plus besoin de conserver ces IDs localement (ils
+survivent à une réinstallation).
 
 ---
 

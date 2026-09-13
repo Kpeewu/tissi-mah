@@ -171,6 +171,13 @@ func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serv
 					RejectionDetails: review.RejectionDetails,
 					ReviewType:       review.ReviewType,
 					ReviewedAt:       review.ReviewedAt,
+					// Identifiants du document rejeté : le client les réutilise comme FileID
+					// de file/changeDocument pour resoumettre, même après réinstallation.
+					DocumentType:         review.DocumentType,
+					LogicalDocumentType:  review.LogicalDocumentType,
+					UserDocumentID:       review.UserDocumentID,
+					SecondUserDocumentID: review.SecondUserDocumentID,
+					VehicleDocumentID:    review.VehicleDocumentID,
 				}
 			}
 		}
