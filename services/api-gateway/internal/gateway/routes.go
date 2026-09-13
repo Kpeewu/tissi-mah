@@ -62,6 +62,7 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/payment/getPaymentStatus":    true,
 	"/api/v1/payment/getPaymentByBooking": true,
 	"/api/v1/payment/getRefundStatus":     true,
+	"/api/v1/payment/getRefundByBooking":  true,
 	"/api/v1/payment/getPayoutStatus":     true,
 	"/api/v1/payment/getDriverPayouts":    true,
 	// payment-service — webhooks, internal et health sont publics

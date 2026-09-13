@@ -10,6 +10,8 @@ type PaymentService interface {
 	ProcessWebhook(ctx context.Context, input *ProcessWebhookInput) error
 	RequestRefund(ctx context.Context, input *RequestRefundInput) (*RequestRefundResult, error)
 	GetRefundStatus(ctx context.Context, refundID string) (*RefundStatusResult, error)
+	// GetRefundByBooking retourne le remboursement le plus récent d'une réservation (ErrorRefundNotFound sinon).
+	GetRefundByBooking(ctx context.Context, bookingID string) (*RefundStatusResult, error)
 	ReleasePayment(ctx context.Context, bookingID string) error
 	GetPayoutStatus(ctx context.Context, payoutID string) (*PayoutStatusResult, error)
 	GetDriverPayouts(ctx context.Context, driverID string, pageIndex int) ([]*PayoutPreviewResult, error)

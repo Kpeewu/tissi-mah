@@ -57,6 +57,15 @@ service PaymentService {
     };
   }
 
+  // GetRefundByBooking retourne le remboursement (le plus récent) associé à une réservation.
+  // Symétrique de GetPaymentByBooking : le client mobile ne connaît pas le RefundId
+  // (créé côté backend à l'annulation ou par un worker), seulement le BookingId.
+  rpc GetRefundByBooking(GetRefundByBookingRequest) returns (GetRefundByBookingResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payment/getRefundByBooking"
+    };
+  }
+
   // ReleasePayment libère un paiement held après le délai de contestation (interne)
   rpc ReleasePayment(ReleasePaymentRequest) returns (ReleasePaymentResponse) {
     option (google.api.http) = {
@@ -143,6 +152,10 @@ message GetRefundStatusRequest {
   string RefundId = 1;
 }
 
+message GetRefundByBookingRequest {
+  string BookingId = 1;
+}
+
 message ReleasePaymentRequest {
   string BookingId = 1;
 }
@@ -221,6 +234,24 @@ message GetRefundStatusResponse {
   int32  AmountToDriver   = 9;
   int32  AmountToPlatform = 10;
   string Status           = 11;
+  string ProcessedAt      = 12;
+  string CompletedAt      = 13;
+  string ErrorMessage     = 14;
+}
+
+// Mêmes champs que GetRefundStatusResponse (le remboursement est identifié par la réservation).
+message GetRefundByBookingResponse {
+  string RefundId         = 1;
+  string BookingId        = 2;
+  string RefundReason     = 3;
+  string RefundRule       = 4;
+  int32  OriginalAmount   = 5;
+  int32  RefundPercentage = 6;
+  int32  RefundAmount     = 7;
+  int32  AmountToPassenger = 8;
+  int32  AmountToDriver   = 9;
+  int32  AmountToPlatform = 10;
+  string Status           = 11; // pending | processing | completed | failed
   string ProcessedAt      = 12;
   string CompletedAt      = 13;
   string ErrorMessage     = 14;
