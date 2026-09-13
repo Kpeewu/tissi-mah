@@ -135,7 +135,7 @@ Content-Type: application/json
 | `Success` | boolean | `true` if all files uploaded successfully |
 | `ErrorMessage` | string | Error identifier if failed, `""` if success |
 | `Documents` | array | Uploaded documents — 1 item for `Passport`, 2 for `IDCard` / `DriverLicence` (recto + verso) |
-| `Documents[].DocumentID` | string | Document UUID — use this ID when calling `/kyc/inquiries/add` |
+| `Documents[].DocumentID` | string | Document UUID — the `FileID` expected by `PATCH /api/v1/file/changeDocument` for a resubmission after rejection (also returned by `GET /api/v1/kyc/me/getStatus` → `LatestRejection`) |
 | `Documents[].DocumentURL` | string | S3/MinIO URL of the uploaded file |
 | `Documents[].DocumentType` | string | Document type |
 | `Documents[].DocumentName` | string | Generated name: `{lastname}_{firstname}_{YYYYMMDD}_{HHMMSS}_{type}` (e.g. `dupont_jean_20260425_143052_id_card_recto`) |
@@ -257,7 +257,7 @@ Content-Type: application/json
 | `Success` | boolean | `true` if all files uploaded successfully |
 | `ErrorMessage` | string | Error identifier if failed, `""` if success |
 | `Documents` | array | 2 or 4 items in order: `driverLicenceFront` + `driverLicenceBack` (only if just uploaded), `insurance`, `registrationCard` |
-| `Documents[].DocumentID` | string | Document UUID — use this ID when calling `/kyc/inquiries/add` |
+| `Documents[].DocumentID` | string | Document UUID — the `FileID` expected by `PATCH /api/v1/file/changeDocument` for a resubmission after rejection (also returned by `GET /api/v1/kyc/me/getStatus` → `LatestRejection`) |
 | `Documents[].DocumentURL` | string | S3/MinIO URL of the uploaded file |
 | `Documents[].DocumentType` | string | `driverLicenceFront`, `driverLicenceBack`, `insurance`, or `registrationCard` |
 | `Documents[].DocumentName` | string | Generated name: `{lastname}_{firstname}_{YYYYMMDD}_{HHMMSS}_{type}` |

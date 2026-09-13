@@ -175,9 +175,12 @@ curl -X POST https://api.tissi-mah.com/api/v1/auth/createAccount \
 
 ---
 
-### GET /api/v1/auth/checkEmail
+### POST /api/v1/auth/checkEmail
 
 Vérifie si une adresse email est disponible pour l'inscription.
+
+> **Contrat :** `POST` avec corps JSON depuis le 2026-06-23 (proto `CheckEmail`, `body: "*"`).
+> L'ancienne forme `GET ?Email=` n'est plus servie — un client qui l'appelle reçoit un 404/405.
 
 **Authentification :** Aucune (public)
 **Rate limit :** `auth` (1/s, 10/min, 100/heure)
@@ -186,15 +189,20 @@ Vérifie si une adresse email est disponible pour l'inscription.
 #### Requête
 
 ```http
-GET /api/v1/auth/checkEmail?Email=samuel%40example.com HTTP/1.1
+POST /api/v1/auth/checkEmail HTTP/1.1
 Host: api.tissi-mah.com
+Content-Type: application/json
+
+{
+    "Email": "samuel@example.com"
+}
 ```
 
-#### Paramètres de query
+#### Corps de la requête
 
-| Paramètre | Type | Requis | Description |
-|-----------|------|--------|-------------|
-| `Email` | string | Oui | Email à vérifier (URL-encodé) |
+| Champ | Type | Requis | Description |
+|-------|------|--------|-------------|
+| `Email` | string | Oui | Email à vérifier |
 
 #### Réponse (disponible)
 
@@ -232,15 +240,19 @@ Content-Type: application/json
 #### Exemple (cURL)
 
 ```bash
-curl -G "https://api.tissi-mah.com/api/v1/auth/checkEmail" \
-  --data-urlencode "Email=samuel@example.com"
+curl -X POST "https://api.tissi-mah.com/api/v1/auth/checkEmail" \
+  -H "Content-Type: application/json" \
+  -d '{"Email": "samuel@example.com"}'
 ```
 
 ---
 
-### GET /api/v1/auth/checkPhoneNumber
+### POST /api/v1/auth/checkPhoneNumber
 
 Vérifie si un numéro de téléphone est disponible pour l'inscription.
+
+> **Contrat :** `POST` avec corps JSON depuis le 2026-06-23 (proto `CheckPhoneNumber`,
+> `body: "*"`). L'ancienne forme `GET ?PhoneNumber=` n'est plus servie.
 
 **Authentification :** Aucune (public)
 **Rate limit :** `auth` (1/s, 10/min, 100/heure)
@@ -249,15 +261,20 @@ Vérifie si un numéro de téléphone est disponible pour l'inscription.
 #### Requête
 
 ```http
-GET /api/v1/auth/checkPhoneNumber?PhoneNumber=%2B22890123456 HTTP/1.1
+POST /api/v1/auth/checkPhoneNumber HTTP/1.1
 Host: api.tissi-mah.com
+Content-Type: application/json
+
+{
+    "PhoneNumber": "+22890123456"
+}
 ```
 
-#### Paramètres de query
+#### Corps de la requête
 
-| Paramètre | Type | Requis | Description |
-|-----------|------|--------|-------------|
-| `PhoneNumber` | string | Oui | Numéro E.164 (URL-encodé, `+` devient `%2B`) |
+| Champ | Type | Requis | Description |
+|-------|------|--------|-------------|
+| `PhoneNumber` | string | Oui | Numéro au format E.164 (`+228…`) |
 
 #### Réponse (disponible)
 
@@ -294,8 +311,9 @@ Content-Type: application/json
 #### Exemple (cURL)
 
 ```bash
-curl -G "https://api.tissi-mah.com/api/v1/auth/checkPhoneNumber" \
-  --data-urlencode "PhoneNumber=+22890123456"
+curl -X POST "https://api.tissi-mah.com/api/v1/auth/checkPhoneNumber" \
+  -H "Content-Type: application/json" \
+  -d '{"PhoneNumber": "+22890123456"}'
 ```
 
 ---
@@ -459,8 +477,8 @@ rpc GetAuthInfo(GetAuthInfoRequest) returns (GetAuthInfoResponse);
 | Méthode | Path | Auth | Tier rate-limit | Timeout | Type |
 |---------|------|------|-----------------|---------|------|
 | `POST` | `/api/v1/auth/createAccount` | JWT | `create` | 10s | Création |
-| `GET` | `/api/v1/auth/checkEmail` | — | `auth` | 5s | Lecture |
-| `GET` | `/api/v1/auth/checkPhoneNumber` | — | `auth` | 5s | Lecture |
+| `POST` | `/api/v1/auth/checkEmail` | — | `auth` | 5s | Lecture (corps JSON) |
+| `POST` | `/api/v1/auth/checkPhoneNumber` | — | `auth` | 5s | Lecture (corps JSON) |
 | `DELETE` | `/api/v1/auth/deleteAccount` | JWT | `sensitive` | 10s | Suppression |
 | `GET` | `/api/v1/auth/health` | — | `global` | — | Health |
 | gRPC | `GetAuthInfo` | — | — | 5s | Inter-service |
