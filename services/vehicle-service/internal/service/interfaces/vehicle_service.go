@@ -27,6 +27,7 @@ type AddVehicleInput struct {
 	BrandModel    string
 	Color         string
 	LicencePlate  string
+	Year          int16 // 0 = inconnue
 }
 
 // UpdateVehicleInput contient les données modifiables d'un véhicule.
@@ -35,4 +36,5 @@ type UpdateVehicleInput struct {
 	UserID       string
 	Color        string
 	LicencePlate string
+	Year         int16 // 0 = inchangé
 }

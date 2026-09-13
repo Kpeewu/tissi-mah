@@ -63,7 +63,8 @@ Content-Type: application/json
     "NumberOfSeats": 5,
     "BrandModel": "Corolla",
     "Color": "Blanc",
-    "LicencePlate": "TG-1234-AB"
+    "LicencePlate": "TG-1234-AB",
+    "Year": 2018
 }
 ```
 
@@ -77,6 +78,7 @@ Content-Type: application/json
 | `BrandModel` | string | Yes | Vehicle model (e.g. Corolla, Civic) |
 | `Color` | string | Yes | Vehicle color |
 | `LicencePlate` | string | Yes | Vehicle licence plate (must be unique) |
+| `Year` | integer | No | Model year — `0` or omitted = unknown; otherwise between 1950 and current year + 1 (`ErrorInvalidInput` otherwise) |
 
 #### Response (Success)
 
@@ -123,7 +125,7 @@ curl -X POST https://api.tissi-mah.com/api/v1/vehicle/add \
 
 ### PATCH /api/v1/vehicle/update
 
-Updates the mutable fields of a vehicle (color and/or licence plate). Only the owner can update their vehicle.
+Updates the mutable fields of a vehicle (color, licence plate and/or model year). Only the owner can update their vehicle.
 
 **Authentication:** Not required (public, UserId in body)
 
@@ -138,7 +140,8 @@ Content-Type: application/json
     "UserId": "firebase-uid-abc123",
     "VehicleId": "v-550e8400-e29b-41d4-a716-446655440000",
     "Color": "Gris",
-    "LicencePlate": "TG-5678-CD"
+    "LicencePlate": "TG-5678-CD",
+    "Year": 2019
 }
 ```
 
@@ -150,6 +153,7 @@ Content-Type: application/json
 | `VehicleId` | string | Yes | ID of the vehicle to update |
 | `Color` | string | No | New vehicle color |
 | `LicencePlate` | string | No | New licence plate (must be unique) |
+| `Year` | integer | No | New model year (`0` = unchanged; 1950..current year + 1) |
 
 #### Response (Success)
 
@@ -300,6 +304,7 @@ Content-Type: application/json
         "Color": "Blanc",
         "LicencePlate": "TG-1234-AB",
         "IsVerified": false,
+        "Year": 2018,
         "Documents": {
             "AssuranceUrl": "https://storage.tissi-mah.com/files/assurance-abc123.pdf",
             "VehicleRegistrationUrl": "https://storage.tissi-mah.com/files/carte-grise-abc123.pdf",
@@ -323,6 +328,7 @@ Content-Type: application/json
 | `Vehicle.BrandModel` | string | Vehicle model |
 | `Vehicle.Color` | string | Vehicle color |
 | `Vehicle.LicencePlate` | string | Licence plate |
+| `Vehicle.Year` | integer | Model year, `0` if unknown |
 | `Vehicle.IsVerified` | boolean | Whether the vehicle has been verified by an admin |
 | `Vehicle.Documents.AssuranceUrl` | string | URL of the assurance document (empty if not uploaded) |
 | `Vehicle.Documents.VehicleRegistrationUrl` | string | URL of the registration card (empty if not uploaded) |
@@ -389,14 +395,28 @@ Content-Type: application/json
             "Brand": "Toyota",
             "BrandModel": "Corolla",
             "LicencePlate": "TG-1234-AB",
-            "IsVerified": false
+            "IsVerified": false,
+            "NumberOfSeats": 4,
+            "AssuranceStatus": "PENDING",
+            "VehicleRegistrationStatus": "MISSING",
+            "DriverLicenceStatus": "VALIDATED",
+            "TripCount": 0,
+            "Color": "Blanc",
+            "Year": 2018
         },
         {
             "VehicleId": "v-660f9511-e29b-41d4-a716-446655440001",
             "Brand": "Honda",
             "BrandModel": "Civic",
             "LicencePlate": "TG-5678-CD",
-            "IsVerified": true
+            "IsVerified": true,
+            "NumberOfSeats": 4,
+            "AssuranceStatus": "VALIDATED",
+            "VehicleRegistrationStatus": "VALIDATED",
+            "DriverLicenceStatus": "VALIDATED",
+            "TripCount": 12,
+            "Color": "Gris",
+            "Year": 0
         }
     ],
     "ErrorMessage": ""
@@ -413,6 +433,13 @@ Content-Type: application/json
 | `Vehicles[].BrandModel` | string | Vehicle model |
 | `Vehicles[].LicencePlate` | string | Licence plate |
 | `Vehicles[].IsVerified` | boolean | Whether the vehicle has been verified |
+| `Vehicles[].NumberOfSeats` | integer | Passenger seats |
+| `Vehicles[].AssuranceStatus` | string | Insurance document status: `MISSING`, `PENDING`, `VALIDATED`, `REJECTED`, `EXPIRED` |
+| `Vehicles[].VehicleRegistrationStatus` | string | Registration card status (same values) |
+| `Vehicles[].DriverLicenceStatus` | string | Driver's licence status — user-level document shared across vehicles (same values) |
+| `Vehicles[].TripCount` | integer | Completed trips with this vehicle |
+| `Vehicles[].Color` | string | Color name as entered by the driver |
+| `Vehicles[].Year` | integer | Model year, `0` if unknown |
 | `ErrorMessage` | string | Error message if failed, empty if success |
 
 #### Errors
