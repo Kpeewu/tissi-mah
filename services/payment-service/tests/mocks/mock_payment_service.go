@@ -56,6 +56,14 @@ func (m *MockPaymentService) GetRefundStatus(ctx context.Context, refundID strin
 	return args.Get(0).(*serviceInterfaces.RefundStatusResult), args.Error(1)
 }
 
+func (m *MockPaymentService) GetRefundByBooking(ctx context.Context, bookingID string) (*serviceInterfaces.RefundStatusResult, error) {
+	args := m.Called(ctx, bookingID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.RefundStatusResult), args.Error(1)
+}
+
 func (m *MockPaymentService) ReleasePayment(ctx context.Context, bookingID string) error {
 	args := m.Called(ctx, bookingID)
 	return args.Error(0)

@@ -620,6 +620,32 @@ func (s *paymentServiceImpl) GetRefundStatus(ctx context.Context, refundID strin
 		return nil, err
 	}
 
+	return refundToStatusResult(refund), nil
+}
+
+// GetRefundByBooking retourne le remboursement le plus récent d'une réservation.
+// Symétrique de GetPaymentByBooking : le client ne connaît que le BookingId, le
+// RefundId étant attribué côté backend (annulation via booking-service ou worker).
+// Retourne ErrorRefundNotFound tant qu'aucun remboursement n'existe pour la réservation.
+func (s *paymentServiceImpl) GetRefundByBooking(ctx context.Context, bookingID string) (*serviceInterfaces.RefundStatusResult, error) {
+	if s.refundReadRepo == nil {
+		return nil, paymentErrors.ErrorInternalServer
+	}
+	if bookingID == "" {
+		return nil, paymentErrors.ErrorInvalidInput
+	}
+
+	refund, err := s.refundReadRepo.GetByBookingID(ctx, bookingID)
+	if err != nil {
+		return nil, err
+	}
+
+	return refundToStatusResult(refund), nil
+}
+
+// refundToStatusResult projette un Refund domaine vers le résultat exposé aux clients
+// (partagé par GetRefundStatus et GetRefundByBooking).
+func refundToStatusResult(refund *domain.Refund) *serviceInterfaces.RefundStatusResult {
 	return &serviceInterfaces.RefundStatusResult{
 		RefundID:          refund.RefundID,
 		BookingID:         refund.BookingID,
@@ -634,7 +660,7 @@ func (s *paymentServiceImpl) GetRefundStatus(ctx context.Context, refundID strin
 		Status:            string(refund.Status),
 		ProcessedAt:       formatOptionalTime(refund.ProcessedAt),
 		CompletedAt:       formatOptionalTime(refund.CompletedAt),
-	}, nil
+	}
 }
 
 // =============================================================================

@@ -795,6 +795,7 @@ Base : `/payment`
 #### `GET /api/v1/payment/getPaymentByBooking?BookingId=uuid` 🔒
 
 #### `GET /api/v1/payment/getRefundStatus?RefundId=uuid` 🔒
+#### `GET /api/v1/payment/getRefundByBooking?BookingId=uuid` 🔒
 
 #### `GET /api/v1/payment/getDriverPayouts?DriverId=uuid&PageIndex=0` 🔒
 

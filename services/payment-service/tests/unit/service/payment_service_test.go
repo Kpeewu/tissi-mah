@@ -477,6 +477,67 @@ func TestGetRefundStatus(t *testing.T) {
 }
 
 // =============================================================================
+// GetRefundByBooking
+// =============================================================================
+
+func TestGetRefundByBooking(t *testing.T) {
+	t.Run("succes - retourne le remboursement de la reservation", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		refund := fixtures.NewTestRefund(
+			fixtures.WithRefundID("ref-456"),
+			fixtures.WithRefundBookingID("booking-cancelled"),
+			fixtures.WithRefundReason(domain.RefundReasonCancelledByDriver),
+			fixtures.WithRefundRule(domain.RefundRuleDriverCancellation),
+			fixtures.WithRefundAmount(5500),
+			fixtures.WithRefundPercentage(100),
+			fixtures.WithAmountToPassenger(5500),
+			fixtures.WithAmountToDriver(0),
+			fixtures.WithAmountToPlatform(0),
+			fixtures.WithRefundStatus(domain.RefundStatusPending),
+		)
+		d.refundReadRepo.On("GetByBookingID", mock.Anything, "booking-cancelled").Return(refund, nil)
+
+		result, err := d.svc.GetRefundByBooking(ctx, "booking-cancelled")
+
+		require.NoError(t, err)
+		assert.Equal(t, "ref-456", result.RefundID)
+		assert.Equal(t, "booking-cancelled", result.BookingID)
+		assert.Equal(t, "cancelledByDriver", result.RefundReason)
+		assert.Equal(t, "driverCancellation", result.RefundRule)
+		assert.Equal(t, 5500, result.RefundAmount)
+		assert.Equal(t, 5500, result.AmountToPassenger)
+		assert.Equal(t, "pending", result.Status)
+		d.assertExpectations(t)
+	})
+
+	t.Run("erreur - aucun remboursement pour cette reservation", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		d.refundReadRepo.On("GetByBookingID", mock.Anything, "booking-paid").Return(nil, paymentErrors.ErrorRefundNotFound)
+
+		result, err := d.svc.GetRefundByBooking(ctx, "booking-paid")
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, paymentErrors.ErrorRefundNotFound)
+		d.assertExpectations(t)
+	})
+
+	t.Run("erreur - BookingId vide", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		result, err := d.svc.GetRefundByBooking(ctx, "")
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, paymentErrors.ErrorInvalidInput)
+		d.refundReadRepo.AssertNotCalled(t, "GetByBookingID", mock.Anything, mock.Anything)
+	})
+}
+
+// =============================================================================
 // GetPayoutStatus
 // =============================================================================
 

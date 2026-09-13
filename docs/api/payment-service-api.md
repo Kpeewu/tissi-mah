@@ -305,6 +305,60 @@ Content-Type: application/json
 
 ---
 
+### GET /api/v1/payment/getRefundByBooking
+
+Returns the most recent refund associated with a booking. Symmetric to
+`getPaymentByBooking`: the mobile client only knows the `BookingId` — the `RefundId` is
+assigned server-side when booking-service triggers the refund (cancellation, no-show) or
+when a worker creates it later. Poll this endpoint after a cancellation until it stops
+returning `ErrorRefundNotFound`.
+
+**Authentication:** Firebase JWT required
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `BookingId` | string | Yes | Booking UUID |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "RefundId": "ref-550e8400-e29b-41d4-a716-446655440040",
+    "BookingId": "bk-550e8400-e29b-41d4-a716-446655440020",
+    "RefundReason": "cancelledByDriver",
+    "RefundRule": "driverCancellation",
+    "OriginalAmount": 10000,
+    "RefundPercentage": 100,
+    "RefundAmount": 10000,
+    "AmountToPassenger": 10000,
+    "AmountToDriver": 0,
+    "AmountToPlatform": 0,
+    "Status": "pending",
+    "ProcessedAt": "",
+    "CompletedAt": "",
+    "ErrorMessage": ""
+}
+```
+
+Same fields as `getRefundStatus`. `Status` is one of `pending` (awaiting the refund
+worker), `processing`, `completed` (FedaPay payout done) or `failed`; `ProcessedAt` and
+`CompletedAt` stay empty until the corresponding step happens.
+
+#### Errors
+
+| Error | HTTP Code | Description |
+|-------|-----------|-------------|
+| `ErrorInvalidInput` | 400 | `BookingId` is empty |
+| `ErrorRefundNotFound` | 404 | No refund exists (yet) for this booking |
+| `ErrorInternalServer` | 500 | Internal server error |
+
+---
+
 ### GET /api/v1/payment/getPayoutStatus
 
 Returns the details and status of a driver payout.

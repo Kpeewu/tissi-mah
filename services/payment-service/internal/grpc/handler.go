@@ -149,6 +149,30 @@ func (h *PaymentHandler) GetRefundStatus(ctx context.Context, req *paymentpb.Get
 	}, nil
 }
 
+// GetRefundByBooking retourne le remboursement associé à une réservation (404 si aucun).
+func (h *PaymentHandler) GetRefundByBooking(ctx context.Context, req *paymentpb.GetRefundByBookingRequest) (*paymentpb.GetRefundByBookingResponse, error) {
+	result, err := h.service.GetRefundByBooking(ctx, req.BookingId)
+	if err != nil {
+		return &paymentpb.GetRefundByBookingResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return &paymentpb.GetRefundByBookingResponse{
+		RefundId:          result.RefundID,
+		BookingId:         result.BookingID,
+		RefundReason:      result.RefundReason,
+		RefundRule:        result.RefundRule,
+		OriginalAmount:    int32(result.OriginalAmount),
+		RefundPercentage:  int32(result.RefundPercentage),
+		RefundAmount:      int32(result.RefundAmount),
+		AmountToPassenger: int32(result.AmountToPassenger),
+		AmountToDriver:    int32(result.AmountToDriver),
+		AmountToPlatform:  int32(result.AmountToPlatform),
+		Status:            result.Status,
+		ProcessedAt:       result.ProcessedAt,
+		CompletedAt:       result.CompletedAt,
+	}, nil
+}
+
 // ReleasePayment libère un paiement held.
 func (h *PaymentHandler) ReleasePayment(ctx context.Context, req *paymentpb.ReleasePaymentRequest) (*paymentpb.ReleasePaymentResponse, error) {
 	err := h.service.ReleasePayment(ctx, req.BookingId)
