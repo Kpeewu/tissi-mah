@@ -263,16 +263,20 @@ func buildHandler(
 	)
 
 	// Stack complet :
-	// panic → reqID → stripAuthHeaders → secHeaders → bodySize → cors → jwt → jwtSupport → rateLimit → appID → mux
-	// stripAuthHeaders s'exécute avant jwt (et l'annotator du mux) pour qu'aucun
-	// header d'identité forgé par le client ne survive jusqu'aux services internes.
+	// panic → reqID → blockInternal → stripAuthHeaders → secHeaders → bodySize → cors → jwt → jwtSupport
+	//       → rateLimit → appID → mux
+	// blockInternal écarte les RPC réservées aux appels entre services avant tout
+	// autre traitement. stripAuthHeaders s'exécute avant jwt (et l'annotator du
+	// mux) pour qu'aucun header d'identité forgé par le client ne survive jusqu'aux
+	// services internes.
 	return middleware.PanicRecovery(logger)(
 		middleware.RequestID()(
-			middleware.StripInboundAuthHeaders(
-				middleware.SecurityHeaders(cfg.Security.EnableHSTS)(
-					middleware.BodySizeLimit(cfg.Security.BodySizeMaxBytes)(
-						corsMW(
-							jwtMW(jwtSupportMW(
-								rateLimitMW(
-									appIDMW(rootMux))))))))))
+			middleware.BlockInternalRoutes(
+				middleware.StripInboundAuthHeaders(
+					middleware.SecurityHeaders(cfg.Security.EnableHSTS)(
+						middleware.BodySizeLimit(cfg.Security.BodySizeMaxBytes)(
+							corsMW(
+								jwtMW(jwtSupportMW(
+									rateLimitMW(
+										appIDMW(rootMux)))))))))))
 }
