@@ -21,7 +21,9 @@ type VehicleClient interface {
 	// places et l'état de vérification (is_verified) d'un véhicule.
 	// La requête est scopée par driverID : un véhicule d'un autre utilisateur
 	// remonte comme introuvable (brand vide).
-	GetVehicleInfo(ctx context.Context, driverID, vehicleID string) (brand, model, plate string, numberOfSeats int, isVerified bool, err error)
+	GetVehicleInfo(
+		ctx context.Context, driverID, vehicleID string,
+	) (brand, model, plate string, numberOfSeats int, isVerified bool, err error)
 	Close() error
 }
 
