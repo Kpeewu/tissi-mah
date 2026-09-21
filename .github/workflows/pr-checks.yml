@@ -123,6 +123,9 @@ jobs:
           version: latest
           working-directory: services/${{ matrix.service }}
           args: --timeout=5m
+          # Les services cumulent ~2 000 alertes antérieures (cf. Backend-Issues.md) :
+          # on ne bloque que sur ce que le commit ou la PR ajoute.
+          only-new-issues: true
 
   test:
     name: Test
@@ -191,10 +194,26 @@ jobs:
         with:
           go-version-file: "go.work"
 
-      - name: Run Gosec
-        uses: securego/gosec@v2.22.4
-        with:
-          args: -exclude-dir=tests ./services/${{ matrix.service }}/...
+      # gosec est installé avec la toolchain du dépôt plutôt que via l'action Docker
+      # securego/gosec, dont l'image embarque Go 1.24 : avec go.work en 1.25.6, chaque
+      # paquet échouait au chargement et le scan rapportait « Files: 0 ». Il est lancé
+      # depuis le dossier du service, car la racine du dépôt n'est pas un module.
+      - name: Install Gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
+
+      - name: Gosec — rapport complet
+        working-directory: services/${{ matrix.service }}
+        run: gosec -no-fail -exclude-generated -exclude-dir=tests ./...
+
+      # Bloquant : sévérité et confiance au moins moyennes. G115 (conversions
+      # d'entiers) et G118 (goroutines sur context.Background, volontaires pour les
+      # traitements asynchrones) sont exclues tant que leur dette n'est pas résorbée
+      # (cf. Backend-Issues.md) ; elles restent visibles dans le rapport complet.
+      - name: Gosec — contrôle bloquant
+        working-directory: services/${{ matrix.service }}
+        run: >-
+          gosec -quiet -exclude-generated -exclude-dir=tests
+          -severity=medium -confidence=medium -exclude=G115,G118 ./...
 
   build-check:
     name: Build Check
