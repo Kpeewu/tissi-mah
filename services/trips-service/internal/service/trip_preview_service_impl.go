@@ -372,7 +372,9 @@ func (s *tripServiceImpl) getCachedOrFetchDriverName(ctx context.Context, driver
 
 // getCachedOrFetchVehicleInfo tente le cache Redis, puis fallback sur vehicle-service.
 // Retourne (brand, model, plate).
-func (s *tripServiceImpl) getCachedOrFetchVehicleInfo(ctx context.Context, driverID, vehicleID string) (string, string, string) {
+func (s *tripServiceImpl) getCachedOrFetchVehicleInfo(
+	ctx context.Context, driverID, vehicleID string,
+) (brand, model, plate string) {
 	// Essai cache
 	if s.cache != nil {
 		brand, model, plate, found, err := s.cache.GetVehicleInfo(ctx, vehicleID)

@@ -273,7 +273,9 @@ func (c *TripCache) SetDriverName(ctx context.Context, driverID string, name str
 
 // GetVehicleInfo récupère la marque, le modèle et la plaque d'un véhicule depuis le cache.
 // Retourne ("", "", "", false, nil) si la clé n'existe pas (cache miss).
-func (c *TripCache) GetVehicleInfo(ctx context.Context, vehicleID string) (brand, model, plate string, found bool, err error) {
+func (c *TripCache) GetVehicleInfo(
+	ctx context.Context, vehicleID string,
+) (brand, model, plate string, found bool, err error) {
 	key := c.vehicleInfoKey(vehicleID)
 
 	data, err := c.client.Get(ctx, key).Bytes()

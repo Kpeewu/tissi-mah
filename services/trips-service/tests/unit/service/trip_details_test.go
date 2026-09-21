@@ -103,7 +103,8 @@ func TestGetPassengerTripDetails(t *testing.T) {
 		ctx := context.Background()
 		trip, wps := buildTripWithWaypoints("trip-1", "driver-1", "vehicle-1")
 		readRepo.On("GetTripByID", ctx, "trip-1").Return(trip, wps, nil)
-		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").Return("Toyota", "Corolla", "AA-1234", 4, true, nil).Maybe()
+		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").
+			Return("Toyota", "Corolla", "AA-1234", 4, true, nil).Maybe()
 		userClient.On("GetDriverInfo", ctx, "driver-1").Return("Jean", "https://img", nil).Maybe()
 		userClient.On("GetDriverName", ctx, "driver-1").Return("Jean", nil).Maybe()
 
@@ -122,7 +123,9 @@ func TestGetPassengerTripDetails(t *testing.T) {
 		userClient := new(mocks.MockUserClient)
 		vehicleClient := new(mocks.MockVehicleClient)
 		ratingClient := new(mocks.MockRatingClient)
-		svc := service.NewTripService(readRepo, writeRepo, userClient, vehicleClient, nil, ratingClient, nil, nil, zap.NewNop())
+		svc := service.NewTripService(
+			readRepo, writeRepo, userClient, vehicleClient, nil, ratingClient, nil, nil, zap.NewNop(),
+		)
 
 		ctx := context.Background()
 		trip, wps := buildTripWithWaypoints("trip-1", "driver-1", "vehicle-1")

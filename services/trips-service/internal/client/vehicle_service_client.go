@@ -49,7 +49,9 @@ func (c *VehicleServiceClient) Close() error {
 // places et l'état de vérification (is_verified) d'un véhicule.
 // Retourne des valeurs zéro si le véhicule n'est pas trouvé (ou n'appartient pas
 // au driverID — la requête GetVehicleDetails est scopée propriétaire).
-func (c *VehicleServiceClient) GetVehicleInfo(ctx context.Context, driverID, vehicleID string) (brand, model, plate string, numberOfSeats int, isVerified bool, err error) {
+func (c *VehicleServiceClient) GetVehicleInfo(
+	ctx context.Context, driverID, vehicleID string,
+) (brand, model, plate string, numberOfSeats int, isVerified bool, err error) {
 	c.logger.Debug("client: GetVehicleInfo called",
 		zap.String("driverID", driverID),
 		zap.String("vehicleID", vehicleID),
@@ -70,5 +72,6 @@ func (c *VehicleServiceClient) GetVehicleInfo(ctx context.Context, driverID, veh
 	if resp.Vehicle == nil {
 		return "", "", "", 0, false, nil
 	}
-	return resp.Vehicle.Brand, resp.Vehicle.BrandModel, resp.Vehicle.LicencePlate, int(resp.Vehicle.NumberOfSeats), resp.Vehicle.IsVerified, nil
+	v := resp.Vehicle
+	return v.Brand, v.BrandModel, v.LicencePlate, int(v.NumberOfSeats), v.IsVerified, nil
 }

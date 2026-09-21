@@ -82,7 +82,8 @@ func TestGetTripsPreviews_Fallbacks(t *testing.T) {
 		}
 		readRepo.On("GetDriverTripsPreviews", ctx, "driver-1", 0).Return(previews, nil)
 		userClient.On("GetDriverName", ctx, "driver-1").Return("Jean", nil)
-		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").Return("Toyota", "Corolla", "AA", 4, true, nil).Once()
+		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").
+			Return("Toyota", "Corolla", "AA", 4, true, nil).Once()
 
 		res, err := svc.GetTripsPreviews(ctx, &serviceInterfaces.GetTripsPreviewsInput{DriverID: "driver-1"})
 		require.NoError(t, err)
