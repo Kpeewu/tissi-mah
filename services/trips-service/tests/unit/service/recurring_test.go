@@ -38,7 +38,7 @@ func TestCreateRecurringTrip(t *testing.T) {
 		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(true, nil)
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").
-			Return("Toyota", "AB1234", 5, true, nil)
+			Return("Toyota", "Corolla", "AB1234", 5, true, nil)
 		writeRepo.On("CreateRecurringPattern", ctx, mock.Anything, mock.Anything).Return("pattern-1", nil)
 
 		id, err := svc.CreateRecurringTrip(ctx, validRecurringInput("driver-1", "vehicle-1"))
@@ -52,7 +52,7 @@ func TestCreateRecurringTrip(t *testing.T) {
 		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(true, nil)
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").
-			Return("Toyota", "AB1234", 5, true, nil)
+			Return("Toyota", "Corolla", "AB1234", 5, true, nil)
 		writeRepo.On("CreateRecurringPattern", ctx, mock.Anything, mock.Anything).Return("pattern-daily", nil)
 
 		input := validRecurringInput("driver-1", "vehicle-1")

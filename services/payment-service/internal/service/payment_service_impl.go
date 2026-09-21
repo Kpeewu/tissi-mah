@@ -418,6 +418,7 @@ func (s *paymentServiceImpl) GetPaymentByBooking(ctx context.Context, bookingID 
 				Status:           string(cached.Status),
 				PaymentReference: cached.PaymentReference,
 				CreatedAt:        cached.CreatedAt.Format(time.RFC3339),
+				CompletedAt:      formatOptionalTime(cached.CompletedAt),
 			}, nil
 		}
 	}
@@ -440,6 +441,7 @@ func (s *paymentServiceImpl) GetPaymentByBooking(ctx context.Context, bookingID 
 		Status:           string(payment.Status),
 		PaymentReference: payment.PaymentReference,
 		CreatedAt:        payment.CreatedAt.Format(time.RFC3339),
+		CompletedAt:      formatOptionalTime(payment.CompletedAt),
 	}, nil
 }
 

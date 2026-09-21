@@ -44,7 +44,7 @@ func (c *RatingServiceClient) Close() error {
 
 // GetDriverRatingAverage retourne la note moyenne du conducteur.
 // Retourne 0 si aucune note ou si le service est indisponible.
-func (c *RatingServiceClient) GetDriverRatingAverage(ctx context.Context, driverID string) (float64, error) {
+func (c *RatingServiceClient) GetDriverRatingAverage(ctx context.Context, driverID string) (float64, int32, error) {
 	c.logger.Debug("client: GetDriverRatingAverage called", zap.String("driverID", driverID))
 
 	resp, err := c.grpcClient.GetUserRatingsAverage(ctx, &ratingpb.GetUserRatingsAverageRequest{
@@ -52,13 +52,13 @@ func (c *RatingServiceClient) GetDriverRatingAverage(ctx context.Context, driver
 	})
 	if err != nil {
 		c.logger.Error("client: GetUserRatingsAverage failed", zap.Error(err), zap.String("driverID", driverID))
-		return 0, fmt.Errorf("rating-service: GetUserRatingsAverage failed: %w", err)
+		return 0, 0, fmt.Errorf("rating-service: GetUserRatingsAverage failed: %w", err)
 	}
 
 	if resp.ErrorMessage != "" {
 		c.logger.Warn("client: GetUserRatingsAverage returned error", zap.String("error", resp.ErrorMessage))
-		return 0, nil
+		return 0, 0, nil
 	}
 
-	return resp.Average, nil
+	return resp.Average, resp.TotalRatings, nil
 }

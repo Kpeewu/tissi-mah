@@ -40,7 +40,7 @@ func (s *tripServiceImpl) GetTripsPreviews(ctx context.Context, input *serviceIn
 		if _, ok := vehicleMap[p.VehicleID]; ok {
 			continue
 		}
-		brand, plate := s.getCachedOrFetchVehicleInfo(ctx, driverUserID, p.VehicleID)
+		brand, _, plate := s.getCachedOrFetchVehicleInfo(ctx, driverUserID, p.VehicleID)
 		vehicleMap[p.VehicleID] = vehicleInfo{brand: brand, plate: plate}
 	}
 
@@ -108,7 +108,7 @@ func (s *tripServiceImpl) GetCompletedTripsPreviews(ctx context.Context, input *
 		if _, ok := vehicleMap[p.VehicleID]; ok {
 			continue
 		}
-		brand, plate := s.getCachedOrFetchVehicleInfo(ctx, driverUserID, p.VehicleID)
+		brand, _, plate := s.getCachedOrFetchVehicleInfo(ctx, driverUserID, p.VehicleID)
 		vehicleMap[p.VehicleID] = vehicleInfo{brand: brand, plate: plate}
 	}
 
@@ -245,11 +245,11 @@ func (s *tripServiceImpl) GetScheduledTripsPreviews(ctx context.Context, input *
 	for _, p := range previews {
 		if _, ok := driverMap[p.DriverID]; !ok {
 			name, photo := s.getCachedOrFetchDriverInfo(ctx, p.DriverID)
-			rating := s.getCachedOrFetchDriverRating(ctx, p.DriverID)
+			rating, _ := s.getCachedOrFetchDriverRating(ctx, p.DriverID)
 			driverMap[p.DriverID] = driverEnrichment{name: name, profileImageURL: photo, ratingAverage: rating}
 		}
 		if _, ok := vehicleMap[p.VehicleID]; !ok {
-			brand, plate := s.getCachedOrFetchVehicleInfo(ctx, p.DriverID, p.VehicleID)
+			brand, _, plate := s.getCachedOrFetchVehicleInfo(ctx, p.DriverID, p.VehicleID)
 			vehicleMap[p.VehicleID] = vehicleInfo{brand: brand, plate: plate}
 		}
 	}
@@ -371,31 +371,32 @@ func (s *tripServiceImpl) getCachedOrFetchDriverName(ctx context.Context, driver
 }
 
 // getCachedOrFetchVehicleInfo tente le cache Redis, puis fallback sur vehicle-service.
-func (s *tripServiceImpl) getCachedOrFetchVehicleInfo(ctx context.Context, driverID, vehicleID string) (string, string) {
+// Retourne (brand, model, plate).
+func (s *tripServiceImpl) getCachedOrFetchVehicleInfo(ctx context.Context, driverID, vehicleID string) (string, string, string) {
 	// Essai cache
 	if s.cache != nil {
-		brand, plate, found, err := s.cache.GetVehicleInfo(ctx, vehicleID)
+		brand, model, plate, found, err := s.cache.GetVehicleInfo(ctx, vehicleID)
 		if err == nil && found {
-			return brand, plate
+			return brand, model, plate
 		}
 	}
 
 	// Fallback gRPC
-	brand, plate, _, _, err := s.vehicleClient.GetVehicleInfo(ctx, driverID, vehicleID)
+	brand, model, plate, _, _, err := s.vehicleClient.GetVehicleInfo(ctx, driverID, vehicleID)
 	if err != nil {
 		s.logger.Warn("GetVehicleInfo failed, using empty values",
 			zap.Error(err),
 			zap.String("vehicleID", vehicleID),
 		)
-		return "", ""
+		return "", "", ""
 	}
 
 	// Populate cache
 	if s.cache != nil {
-		_ = s.cache.SetVehicleInfo(ctx, vehicleID, brand, plate)
+		_ = s.cache.SetVehicleInfo(ctx, vehicleID, brand, model, plate)
 	}
 
-	return brand, plate
+	return brand, model, plate
 }
 
 // getCachedOrFetchDriverInfo tente le cache Redis, puis fallback sur user-service.
@@ -425,29 +426,30 @@ func (s *tripServiceImpl) getCachedOrFetchDriverInfo(ctx context.Context, driver
 }
 
 // getCachedOrFetchDriverRating tente le cache Redis, puis fallback sur rating-service.
-func (s *tripServiceImpl) getCachedOrFetchDriverRating(ctx context.Context, driverID string) float64 {
+// Retourne (moyenne, nombre de notes).
+func (s *tripServiceImpl) getCachedOrFetchDriverRating(ctx context.Context, driverID string) (float64, int32) {
 	// Essai cache
 	if s.cache != nil {
-		rating, found, err := s.cache.GetDriverRating(ctx, driverID)
+		rating, count, found, err := s.cache.GetDriverRating(ctx, driverID)
 		if err == nil && found {
-			return rating
+			return rating, count
 		}
 	}
 
 	// Fallback gRPC
 	if s.ratingClient == nil {
-		return 0
+		return 0, 0
 	}
-	rating, err := s.ratingClient.GetDriverRatingAverage(ctx, driverID)
+	rating, count, err := s.ratingClient.GetDriverRatingAverage(ctx, driverID)
 	if err != nil {
 		s.logger.Warn("GetDriverRatingAverage failed, using 0", zap.Error(err), zap.String("driverID", driverID))
-		return 0
+		return 0, 0
 	}
 
 	// Populate cache
 	if s.cache != nil {
-		_ = s.cache.SetDriverRating(ctx, driverID, rating)
+		_ = s.cache.SetDriverRating(ctx, driverID, rating, count)
 	}
 
-	return rating
+	return rating, count
 }

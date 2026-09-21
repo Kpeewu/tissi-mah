@@ -832,6 +832,7 @@ type GetPaymentByBookingResponse struct {
 	PaymentReference string                 `protobuf:"bytes,6,opt,name=PaymentReference,proto3" json:"PaymentReference,omitempty"`
 	CreatedAt        string                 `protobuf:"bytes,7,opt,name=CreatedAt,proto3" json:"CreatedAt,omitempty"`
 	ErrorMessage     string                 `protobuf:"bytes,8,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	CompletedAt      string                 `protobuf:"bytes,9,opt,name=CompletedAt,proto3" json:"CompletedAt,omitempty"` // RFC3339, vide tant que le paiement n'est pas confirmé
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -918,6 +919,13 @@ func (x *GetPaymentByBookingResponse) GetCreatedAt() string {
 func (x *GetPaymentByBookingResponse) GetErrorMessage() string {
 	if x != nil {
 		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *GetPaymentByBookingResponse) GetCompletedAt() string {
+	if x != nil {
+		return x.CompletedAt
 	}
 	return ""
 }
@@ -2064,7 +2072,7 @@ const file_payment_proto_rawDesc = "" +
 	"\x10PaymentReference\x18\x06 \x01(\tR\x10PaymentReference\x12\x1c\n" +
 	"\tCreatedAt\x18\a \x01(\tR\tCreatedAt\x12 \n" +
 	"\vCompletedAt\x18\b \x01(\tR\vCompletedAt\x12\"\n" +
-	"\fErrorMessage\x18\t \x01(\tR\fErrorMessage\"\x9d\x02\n" +
+	"\fErrorMessage\x18\t \x01(\tR\fErrorMessage\"\xbf\x02\n" +
 	"\x1bGetPaymentByBookingResponse\x12\x1c\n" +
 	"\tPaymentId\x18\x01 \x01(\tR\tPaymentId\x12\x1c\n" +
 	"\tBookingId\x18\x02 \x01(\tR\tBookingId\x12\x16\n" +
@@ -2073,7 +2081,8 @@ const file_payment_proto_rawDesc = "" +
 	"\x06Status\x18\x05 \x01(\tR\x06Status\x12*\n" +
 	"\x10PaymentReference\x18\x06 \x01(\tR\x10PaymentReference\x12\x1c\n" +
 	"\tCreatedAt\x18\a \x01(\tR\tCreatedAt\x12\"\n" +
-	"\fErrorMessage\x18\b \x01(\tR\fErrorMessage\"V\n" +
+	"\fErrorMessage\x18\b \x01(\tR\fErrorMessage\x12 \n" +
+	"\vCompletedAt\x18\t \x01(\tR\vCompletedAt\"V\n" +
 	"\x16ProcessWebhookResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\xbd\x01\n" +

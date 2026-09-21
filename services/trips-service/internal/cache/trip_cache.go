@@ -54,7 +54,14 @@ const (
 // cachedVehicleInfo est la structure JSON stockée pour les infos véhicule.
 type cachedVehicleInfo struct {
 	Brand string `json:"brand"`
+	Model string `json:"model"`
 	Plate string `json:"plate"`
+}
+
+// cachedDriverRating est la structure JSON stockée pour la note du conducteur.
+type cachedDriverRating struct {
+	Average float64 `json:"average"`
+	Count   int32   `json:"count"`
 }
 
 // cachedDriverInfo est la structure JSON stockée pour les infos enrichies du conducteur.
@@ -264,37 +271,37 @@ func (c *TripCache) SetDriverName(ctx context.Context, driverID string, name str
 // Vehicle Info (enrichissement inter-service)
 // =============================================================================
 
-// GetVehicleInfo récupère la marque et la plaque d'un véhicule depuis le cache.
-// Retourne ("", "", false, nil) si la clé n'existe pas (cache miss).
-func (c *TripCache) GetVehicleInfo(ctx context.Context, vehicleID string) (brand, plate string, found bool, err error) {
+// GetVehicleInfo récupère la marque, le modèle et la plaque d'un véhicule depuis le cache.
+// Retourne ("", "", "", false, nil) si la clé n'existe pas (cache miss).
+func (c *TripCache) GetVehicleInfo(ctx context.Context, vehicleID string) (brand, model, plate string, found bool, err error) {
 	key := c.vehicleInfoKey(vehicleID)
 
 	data, err := c.client.Get(ctx, key).Bytes()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			c.logger.Debug("cache miss: vehicle info", zap.String("vehicleID", vehicleID))
-			return "", "", false, nil
+			return "", "", "", false, nil
 		}
 		c.logger.Error("cache get failed", zap.Error(err), zap.String("key", key))
-		return "", "", false, fmt.Errorf("cache get: %w", err)
+		return "", "", "", false, fmt.Errorf("cache get: %w", err)
 	}
 
 	var info cachedVehicleInfo
 	if err := json.Unmarshal(data, &info); err != nil {
 		c.logger.Error("cache unmarshal failed", zap.Error(err), zap.String("key", key))
 		c.client.Del(ctx, key) //nolint:errcheck
-		return "", "", false, nil
+		return "", "", "", false, nil
 	}
 
 	c.logger.Debug("cache hit: vehicle info", zap.String("vehicleID", vehicleID))
-	return info.Brand, info.Plate, true, nil
+	return info.Brand, info.Model, info.Plate, true, nil
 }
 
-// SetVehicleInfo stocke la marque et la plaque d'un véhicule dans le cache.
-func (c *TripCache) SetVehicleInfo(ctx context.Context, vehicleID string, brand, plate string) error {
+// SetVehicleInfo stocke la marque, le modèle et la plaque d'un véhicule dans le cache.
+func (c *TripCache) SetVehicleInfo(ctx context.Context, vehicleID string, brand, model, plate string) error {
 	key := c.vehicleInfoKey(vehicleID)
 
-	data, err := json.Marshal(cachedVehicleInfo{Brand: brand, Plate: plate})
+	data, err := json.Marshal(cachedVehicleInfo{Brand: brand, Model: model, Plate: plate})
 	if err != nil {
 		c.logger.Error("cache marshal failed", zap.Error(err), zap.String("key", key))
 		return fmt.Errorf("cache marshal: %w", err)
@@ -415,31 +422,45 @@ func (c *TripCache) SetDriverInfo(ctx context.Context, driverID, name, profileIm
 // Driver Rating (note moyenne, enrichissement pour la recherche)
 // =============================================================================
 
-// GetDriverRating récupère la note moyenne du conducteur depuis le cache.
-func (c *TripCache) GetDriverRating(ctx context.Context, driverID string) (float64, bool, error) {
+// GetDriverRating récupère la note moyenne du conducteur et le nombre de notes
+// depuis le cache. Les valeurs écrites par les versions antérieures ne contiennent
+// que la moyenne (float brut) : elles restent lisibles, avec un compteur à 0.
+func (c *TripCache) GetDriverRating(ctx context.Context, driverID string) (float64, int32, bool, error) {
 	key := c.driverRatingKey(driverID)
 
 	val, err := c.client.Get(ctx, key).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			return 0, false, nil
+			return 0, 0, false, nil
 		}
-		return 0, false, fmt.Errorf("cache get: %w", err)
+		return 0, 0, false, fmt.Errorf("cache get: %w", err)
 	}
 
+	var info cachedDriverRating
+	if err := json.Unmarshal([]byte(val), &info); err == nil {
+		return info.Average, info.Count, true, nil
+	}
+
+	// Format hérité : moyenne seule, sérialisée en texte.
 	rating, err := strconv.ParseFloat(val, 64)
 	if err != nil {
 		c.client.Del(ctx, key) //nolint:errcheck
-		return 0, false, nil
+		return 0, 0, false, nil
 	}
 
-	return rating, true, nil
+	return rating, 0, true, nil
 }
 
-// SetDriverRating stocke la note moyenne du conducteur dans le cache.
-func (c *TripCache) SetDriverRating(ctx context.Context, driverID string, average float64) error {
+// SetDriverRating stocke la note moyenne du conducteur et le nombre de notes.
+func (c *TripCache) SetDriverRating(ctx context.Context, driverID string, average float64, count int32) error {
 	key := c.driverRatingKey(driverID)
-	return c.client.Set(ctx, key, fmt.Sprintf("%.1f", average), driverRatingTTL).Err()
+
+	data, err := json.Marshal(cachedDriverRating{Average: average, Count: count})
+	if err != nil {
+		return fmt.Errorf("cache marshal: %w", err)
+	}
+
+	return c.client.Set(ctx, key, data, driverRatingTTL).Err()
 }
 
 // =============================================================================
