@@ -11,6 +11,8 @@ type MockVehicleClient struct {
 	mock.Mock
 }
 
+// GetVehicleInfo renvoie les valeurs programmées : marque, modèle, plaque,
+// nombre de places, vérification, erreur.
 func (m *MockVehicleClient) GetVehicleInfo(
 	ctx context.Context, driverID, vehicleID string,
 ) (brand, model, plate string, numberOfSeats int, isVerified bool, err error) {
