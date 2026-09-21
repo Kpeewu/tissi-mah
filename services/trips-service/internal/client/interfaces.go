@@ -17,18 +17,18 @@ type UserClient interface {
 
 // VehicleClient définit le contrat pour appeler vehicle-service depuis trips-service.
 type VehicleClient interface {
-	// GetVehicleInfo retourne la marque, la plaque d'immatriculation, le nombre de
+	// GetVehicleInfo retourne la marque, le modèle, la plaque d'immatriculation, le nombre de
 	// places et l'état de vérification (is_verified) d'un véhicule.
 	// La requête est scopée par driverID : un véhicule d'un autre utilisateur
 	// remonte comme introuvable (brand vide).
-	GetVehicleInfo(ctx context.Context, driverID, vehicleID string) (brand, plate string, numberOfSeats int, isVerified bool, err error)
+	GetVehicleInfo(ctx context.Context, driverID, vehicleID string) (brand, model, plate string, numberOfSeats int, isVerified bool, err error)
 	Close() error
 }
 
 // RatingClient définit le contrat pour appeler rating-service depuis trips-service.
 type RatingClient interface {
-	// GetDriverRatingAverage retourne la note moyenne du conducteur.
-	GetDriverRatingAverage(ctx context.Context, driverID string) (float64, error)
+	// GetDriverRatingAverage retourne la note moyenne du conducteur et le nombre de notes.
+	GetDriverRatingAverage(ctx context.Context, driverID string) (average float64, count int32, err error)
 	Close() error
 }
 

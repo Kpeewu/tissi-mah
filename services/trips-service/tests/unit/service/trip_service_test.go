@@ -88,7 +88,7 @@ func TestCreateTrip(t *testing.T) {
 		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(true, nil)
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").
-			Return("Toyota", "AB1234", 5, true, nil)
+			Return("Toyota", "Corolla", "AB1234", 5, true, nil)
 		writeRepo.On("Create", ctx, mock.Anything, mock.Anything).Return("new-trip-id", nil)
 
 		trip, err := svc.CreateTrip(ctx, validCreateTripInput("driver-1", "vehicle-1"))
@@ -148,7 +148,7 @@ func TestCreateTrip(t *testing.T) {
 		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(true, nil)
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").
-			Return("Toyota", "AB1234", 5, true, nil)
+			Return("Toyota", "Corolla", "AB1234", 5, true, nil)
 		writeRepo.On("Create", ctx, mock.Anything, mock.Anything).Return("", tripErrors.ErrorInternalServer)
 
 		trip, err := svc.CreateTrip(ctx, validCreateTripInput("driver-1", "vehicle-1"))
@@ -166,7 +166,7 @@ func TestCreateTrip(t *testing.T) {
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(true, nil)
 		// Véhicule existant mais documents pas tous approuvés par le support.
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").
-			Return("Toyota", "AB1234", 5, false, nil)
+			Return("Toyota", "Corolla", "AB1234", 5, false, nil)
 
 		trip, err := svc.CreateTrip(ctx, validCreateTripInput("driver-1", "vehicle-1"))
 
@@ -182,7 +182,7 @@ func TestCreateTrip(t *testing.T) {
 		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(true, nil)
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-ghost").
-			Return("", "", 0, false, nil)
+			Return("", "", "", 0, false, nil)
 
 		trip, err := svc.CreateTrip(ctx, validCreateTripInput("driver-1", "vehicle-ghost"))
 
@@ -202,7 +202,7 @@ func TestChangeTripVehicle(t *testing.T) {
 		ctx := context.Background()
 
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-2").
-			Return("Toyota", "AB1234", 5, true, nil)
+			Return("Toyota", "Corolla", "AB1234", 5, true, nil)
 		readRepo.On("GetTripTotalSeats", ctx, "trip-1").Return(int16(4), nil).Once()
 		writeRepo.On("UpdateVehicle", ctx, "trip-1", "driver-1", "vehicle-2").Return(nil)
 
@@ -224,7 +224,7 @@ func TestChangeTripVehicle(t *testing.T) {
 
 		// brand vide signifie véhicule non trouvé
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-ghost").
-			Return("", "", 0, false, nil)
+			Return("", "", "", 0, false, nil)
 
 		err := svc.ChangeTripVehicle(ctx, &serviceInterfaces.ChangeTripVehicleInput{
 			DriverID:  "driver-1",
@@ -241,7 +241,7 @@ func TestChangeTripVehicle(t *testing.T) {
 		ctx := context.Background()
 
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-small").
-			Return("Suzuki", "XY9999", 2, true, nil)
+			Return("Suzuki", "Swift", "XY9999", 2, true, nil)
 		// Le trajet a besoin de 4 places, le véhicule n'en a que 2
 		readRepo.On("GetTripTotalSeats", ctx, "trip-1").Return(int16(4), nil).Once()
 
@@ -628,7 +628,7 @@ func TestGetTripByID(t *testing.T) {
 		}
 
 		readRepo.On("GetTripByID", ctx, "trip-1").Return(trip, waypoints, nil)
-		vehicleClient.On("GetVehicleInfo", mock.Anything, "driver-1", mock.Anything).Return("", "", 0, false, nil).Maybe()
+		vehicleClient.On("GetVehicleInfo", mock.Anything, "driver-1", mock.Anything).Return("", "", "", 0, false, nil).Maybe()
 
 		result, err := svc.GetTripByID(ctx, &serviceInterfaces.GetTripByIDInput{TripID: "trip-1"})
 
@@ -749,7 +749,7 @@ func TestGetTripsPreviews(t *testing.T) {
 
 		readRepo.On("GetDriverTripsPreviews", ctx, "driver-1", 0).Return(previews, nil)
 		userClient.On("GetDriverName", ctx, "driver-1").Return("Kwame Mensah", nil)
-		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").Return("Toyota", "TG-1234", 5, true, nil)
+		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").Return("Toyota", "Corolla", "TG-1234", 5, true, nil)
 
 		results, err := svc.GetTripsPreviews(ctx, &serviceInterfaces.GetTripsPreviewsInput{
 			DriverID:  "driver-1",

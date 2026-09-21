@@ -70,6 +70,7 @@ type PaymentByBookingResult struct {
 	Status           string
 	PaymentReference string
 	CreatedAt        string
+	CompletedAt      string // RFC3339, vide tant que le paiement n'est pas confirmé
 }
 
 type RequestRefundInput struct {

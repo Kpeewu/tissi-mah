@@ -192,23 +192,24 @@ proto-sync:
 	@cp services/user-service/proto/user.proto services/api-gateway/proto/user.proto
 	@cp services/file-service/proto/file.proto services/api-gateway/proto/file.proto
 	@cp services/trips-service/proto/trip.proto services/api-gateway/proto/trip.proto
-	@sed -i '' 's|option go_package = "github.com/Kpeewu/tissi-mah/services/trips-service/proto/gen;trip"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/trippb;trippb"|' services/api-gateway/proto/trip.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/trips-service/proto/gen;trip"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/trippb;trippb"|' services/api-gateway/proto/trip.proto
 	@cp services/booking-service/proto/booking.proto services/api-gateway/proto/booking.proto
-	@sed -i '' 's|option go_package = "github.com/Kpeewu/tissi-mah/services/booking-service/proto/gen;booking"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/bookingpb;bookingpb"|' services/api-gateway/proto/booking.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/booking-service/proto/gen;booking"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/bookingpb;bookingpb"|' services/api-gateway/proto/booking.proto
 	@cp services/payment-service/proto/payment.proto services/api-gateway/proto/payment.proto
-	@sed -i '' 's|option go_package = "github.com/Kpeewu/tissi-mah/services/payment-service/proto/gen;payment"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/paymentpb;paymentpb"|' services/api-gateway/proto/payment.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/payment-service/proto/gen;payment"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/paymentpb;paymentpb"|' services/api-gateway/proto/payment.proto
 	@cp services/support-service/proto/support.proto services/api-gateway/proto/support.proto
-	@sed -i '' 's|option go_package = "github.com/Kpeewu/tissi-mah/services/support-service/proto/gen;supportpb"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/supportpb;supportpb"|' services/api-gateway/proto/support.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/support-service/proto/gen;supportpb"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/supportpb;supportpb"|' services/api-gateway/proto/support.proto
 	@cp services/geolocation-service/proto/geolocation.proto services/api-gateway/proto/geolocation.proto
-	@sed -i '' 's|option go_package = "github.com/Kpeewu/tissi-mah/services/geolocation-service/proto/gen;geolocation"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/geolocationpb;geolocationpb"|' services/api-gateway/proto/geolocation.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/geolocation-service/proto/gen;geolocation"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/geolocationpb;geolocationpb"|' services/api-gateway/proto/geolocation.proto
 	@cp services/kyc-service/proto/kyc.proto services/api-gateway/proto/kyc.proto
-	@sed -i '' 's|option go_package = "github.com/Kpeewu/tissi-mah/services/kyc-service/proto/gen;kyc"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/kycpb;kycpb"|' services/api-gateway/proto/kyc.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/kyc-service/proto/gen;kyc"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/kycpb;kycpb"|' services/api-gateway/proto/kyc.proto
 	@cp services/chat-service/proto/chat.proto services/api-gateway/proto/chat.proto
-	@sed -i '' 's|option go_package = "github.com/Kpeewu/tissi-mah/services/chat-service/proto/gen;chatpb"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/chatpb;chatpb"|' services/api-gateway/proto/chat.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/chat-service/proto/gen;chatpb"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/chatpb;chatpb"|' services/api-gateway/proto/chat.proto
 	@cp services/vehicle-service/proto/vehicle.proto services/api-gateway/proto/vehicle.proto
-	@sed -i '' 's|option go_package = "github.com/Kpeewu/tissi-mah/services/vehicle-service/proto/gen;vehicle"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/vehiclepb;vehiclepb"|' services/api-gateway/proto/vehicle.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/vehicle-service/proto/gen;vehicle"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/vehiclepb;vehiclepb"|' services/api-gateway/proto/vehicle.proto
 	@cp services/rating-service/proto/rating.proto services/api-gateway/proto/rating.proto
-	@sed -i '' 's|option go_package = "github.com/Kpeewu/tissi-mah/services/rating-service/proto/gen;rating"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb;rating"|' services/api-gateway/proto/rating.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/rating-service/proto/gen;rating"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb;rating"|' services/api-gateway/proto/rating.proto
+	@rm -f services/api-gateway/proto/*.bak
 	@echo "✅ Protos synchronisés — pensez à lancer make proto-gateway"
 
 # === TESTS ===

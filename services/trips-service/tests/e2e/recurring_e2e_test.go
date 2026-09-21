@@ -46,7 +46,7 @@ func TestE2E_CreateRecurringTrip_WeeklySuccess(t *testing.T) {
 	stubAuthResolve(mockUserClient, driverID)
 	mockUserClient.On("IsVerifiedDriver", mock.Anything, driverID).Return(true, nil)
 	mockVehicleClient.On("GetVehicleInfo", mock.Anything, driverID, vehicleID).
-		Return("Toyota", "AA-1234", 4, true, nil).Maybe()
+		Return("Toyota", "Corolla", "AA-1234", 4, true, nil).Maybe()
 
 	resp, err := client.CreateRecurringTrip(ctx, validRecurringRequest(driverID, vehicleID))
 	require.NoError(t, err)

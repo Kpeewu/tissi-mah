@@ -207,6 +207,7 @@ message GetPaymentByBookingResponse {
   string PaymentReference = 6;
   string CreatedAt        = 7;
   string ErrorMessage     = 8;
+  string CompletedAt      = 9; // RFC3339, vide tant que le paiement n'est pas confirmé
 }
 
 message ProcessWebhookResponse {

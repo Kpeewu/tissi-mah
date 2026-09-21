@@ -738,6 +738,9 @@ message GetPassengerTripDetailsResponse {
   string ErrorMessage                        = 23;
   string RoutePolyline                       = 24; // Google encoded polyline du tracé
   int32  EstimatedDistanceMeters             = 25;
+  string VehicleModel                        = 26; // modèle du véhicule (BrandModel)
+  int32  DriverRatingsCount                  = 27; // nombre de notes reçues par le conducteur
+  bool   AutoApproveEnabled                  = 28; // réservation confirmée sans validation manuelle
 }
 
 // =============================================================================

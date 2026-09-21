@@ -85,6 +85,7 @@ func (h *PaymentHandler) GetPaymentByBooking(ctx context.Context, req *paymentpb
 		Status:           result.Status,
 		PaymentReference: result.PaymentReference,
 		CreatedAt:        result.CreatedAt,
+		CompletedAt:      result.CompletedAt,
 	}, nil
 }
 

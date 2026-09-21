@@ -575,7 +575,7 @@ func (s *tripServiceImpl) parseDatetimes(departureStr, arrivalStr string) (time.
 // il existe, appartient au conducteur, et est entièrement validé par le support
 // (is_verified = assurance + carte grise approuvées). Retourne son nombre de places.
 func (s *tripServiceImpl) validateUsableVehicle(ctx context.Context, driverUserID, vehicleID string) (int, error) {
-	brand, _, vehicleSeats, isVerified, err := s.vehicleClient.GetVehicleInfo(ctx, driverUserID, vehicleID)
+	brand, _, _, vehicleSeats, isVerified, err := s.vehicleClient.GetVehicleInfo(ctx, driverUserID, vehicleID)
 	if err != nil {
 		s.logger.Error("vehicle-service check failed",
 			zap.Error(err),
@@ -725,7 +725,7 @@ func (s *tripServiceImpl) GetTripByID(ctx context.Context, input *serviceInterfa
 	}
 
 	// Enrichir avec les infos véhicule
-	vehicleBrand, vehiclePlate := s.getCachedOrFetchVehicleInfo(ctx, trip.DriverID, trip.VehicleID)
+	vehicleBrand, _, vehiclePlate := s.getCachedOrFetchVehicleInfo(ctx, trip.DriverID, trip.VehicleID)
 
 	waypointResults := make([]serviceInterfaces.WaypointDetailResult, 0, len(waypoints))
 	for _, wp := range waypoints {
@@ -795,7 +795,7 @@ func (s *tripServiceImpl) GetDriverTripDetails(ctx context.Context, input *servi
 	}
 
 	// Enrichir véhicule
-	vehicleBrand, vehiclePlate := s.getCachedOrFetchVehicleInfo(ctx, trip.DriverID, trip.VehicleID)
+	vehicleBrand, _, vehiclePlate := s.getCachedOrFetchVehicleInfo(ctx, trip.DriverID, trip.VehicleID)
 
 	// Mapper les waypoints complets (avec cancelled, coords, actual datetimes)
 	wpResults := make([]serviceInterfaces.DriverWaypointDetailResult, 0, len(waypoints))
@@ -884,13 +884,13 @@ func (s *tripServiceImpl) GetPassengerTripDetails(ctx context.Context, input *se
 	}
 
 	// Enrichir véhicule
-	vehicleBrand, vehiclePlate := s.getCachedOrFetchVehicleInfo(ctx, trip.DriverID, trip.VehicleID)
+	vehicleBrand, vehicleModel, vehiclePlate := s.getCachedOrFetchVehicleInfo(ctx, trip.DriverID, trip.VehicleID)
 
 	// Enrichir conducteur (nom + photo)
 	driverName, driverPhoto := s.getCachedOrFetchDriverInfo(ctx, trip.DriverID)
 
-	// Enrichir note conducteur
-	driverRating := s.getCachedOrFetchDriverRating(ctx, trip.DriverID)
+	// Enrichir note conducteur (moyenne + nombre de notes)
+	driverRating, driverRatingsCount := s.getCachedOrFetchDriverRating(ctx, trip.DriverID)
 
 	// Mapper les waypoints (sans coords, avec IsCancelled)
 	wpResults := make([]serviceInterfaces.PassengerWaypointDetailResult, 0, len(waypoints))
@@ -914,6 +914,8 @@ func (s *tripServiceImpl) GetPassengerTripDetails(ctx context.Context, input *se
 		DriverName:               driverName,
 		DriverProfileImageURL:    driverPhoto,
 		DriverRatingAverage:      driverRating,
+		DriverRatingsCount:       driverRatingsCount,
+		AutoApproveEnabled:       trip.AutoApproveEnabled,
 		Status:                   string(trip.Status),
 		TotalSeats:               trip.TotalSeats,
 		AvailableSeats:           trip.AvailableSeats,
@@ -923,6 +925,7 @@ func (s *tripServiceImpl) GetPassengerTripDetails(ctx context.Context, input *se
 		EstimatedDurationMinutes: trip.EstimatedDurationMinutes,
 		VehicleID:                trip.VehicleID,
 		VehicleBrand:             vehicleBrand,
+		VehicleModel:             vehicleModel,
 		VehiclePlate:             vehiclePlate,
 		PaymentMethodsAccepted:   trip.PaymentMethodsAccepted,
 		AllowLuggages:            trip.AllowLuggages,

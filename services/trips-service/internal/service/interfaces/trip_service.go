@@ -439,6 +439,8 @@ type PassengerTripDetailResult struct {
 	DriverName               string
 	DriverProfileImageURL    string
 	DriverRatingAverage      float64
+	DriverRatingsCount       int32
+	AutoApproveEnabled       bool
 	Status                   string
 	TotalSeats               int16
 	AvailableSeats           int16
@@ -448,6 +450,7 @@ type PassengerTripDetailResult struct {
 	EstimatedDurationMinutes int
 	VehicleID                string
 	VehicleBrand             string
+	VehicleModel             string
 	VehiclePlate             string
 	PaymentMethodsAccepted   []string
 	AllowLuggages            bool

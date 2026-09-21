@@ -3994,6 +3994,9 @@ type GetPassengerTripDetailsResponse struct {
 	ErrorMessage             string                     `protobuf:"bytes,23,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
 	RoutePolyline            string                     `protobuf:"bytes,24,opt,name=RoutePolyline,proto3" json:"RoutePolyline,omitempty"` // Google encoded polyline du tracé
 	EstimatedDistanceMeters  int32                      `protobuf:"varint,25,opt,name=EstimatedDistanceMeters,proto3" json:"EstimatedDistanceMeters,omitempty"`
+	VehicleModel             string                     `protobuf:"bytes,26,opt,name=VehicleModel,proto3" json:"VehicleModel,omitempty"`              // modèle du véhicule (BrandModel)
+	DriverRatingsCount       int32                      `protobuf:"varint,27,opt,name=DriverRatingsCount,proto3" json:"DriverRatingsCount,omitempty"` // nombre de notes reçues par le conducteur
+	AutoApproveEnabled       bool                       `protobuf:"varint,28,opt,name=AutoApproveEnabled,proto3" json:"AutoApproveEnabled,omitempty"` // réservation confirmée sans validation manuelle
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -4201,6 +4204,27 @@ func (x *GetPassengerTripDetailsResponse) GetEstimatedDistanceMeters() int32 {
 		return x.EstimatedDistanceMeters
 	}
 	return 0
+}
+
+func (x *GetPassengerTripDetailsResponse) GetVehicleModel() string {
+	if x != nil {
+		return x.VehicleModel
+	}
+	return ""
+}
+
+func (x *GetPassengerTripDetailsResponse) GetDriverRatingsCount() int32 {
+	if x != nil {
+		return x.DriverRatingsCount
+	}
+	return 0
+}
+
+func (x *GetPassengerTripDetailsResponse) GetAutoApproveEnabled() bool {
+	if x != nil {
+		return x.AutoApproveEnabled
+	}
+	return false
 }
 
 type CheckDeletionEligibilityRequest struct {
@@ -4845,7 +4869,7 @@ const file_trip_proto_rawDesc = "" +
 	"\x17ScheduledPickupDatetime\x18\x06 \x01(\tR\x17ScheduledPickupDatetime\x12,\n" +
 	"\x11PriceFromPrevious\x18\a \x01(\x05R\x11PriceFromPrevious\x122\n" +
 	"\x14MinutesFromDeparture\x18\b \x01(\x05R\x14MinutesFromDeparture\x12 \n" +
-	"\vIsCancelled\x18\t \x01(\bR\vIsCancelled\"\x8e\b\n" +
+	"\vIsCancelled\x18\t \x01(\bR\vIsCancelled\"\x92\t\n" +
 	"\x1fGetPassengerTripDetailsResponse\x12\x16\n" +
 	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12\x1a\n" +
 	"\bDriverId\x18\x02 \x01(\tR\bDriverId\x12\x1e\n" +
@@ -4876,7 +4900,10 @@ const file_trip_proto_rawDesc = "" +
 	"\tWaypoints\x18\x16 \x03(\v2\x1d.trip.PassengerWaypointDetailR\tWaypoints\x12\"\n" +
 	"\fErrorMessage\x18\x17 \x01(\tR\fErrorMessage\x12$\n" +
 	"\rRoutePolyline\x18\x18 \x01(\tR\rRoutePolyline\x128\n" +
-	"\x17EstimatedDistanceMeters\x18\x19 \x01(\x05R\x17EstimatedDistanceMeters\"9\n" +
+	"\x17EstimatedDistanceMeters\x18\x19 \x01(\x05R\x17EstimatedDistanceMeters\x12\"\n" +
+	"\fVehicleModel\x18\x1a \x01(\tR\fVehicleModel\x12.\n" +
+	"\x12DriverRatingsCount\x18\x1b \x01(\x05R\x12DriverRatingsCount\x12.\n" +
+	"\x12AutoApproveEnabled\x18\x1c \x01(\bR\x12AutoApproveEnabled\"9\n" +
 	"\x1fCheckDeletionEligibilityRequest\x12\x16\n" +
 	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"\x8c\x01\n" +
 	" CheckDeletionEligibilityResponse\x12\x1c\n" +
