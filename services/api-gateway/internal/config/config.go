@@ -98,6 +98,8 @@ type RateLimitConfig struct {
 	CreateAccountHour   int
 	SensitiveMinute     int
 	SensitiveHour       int
+	SupportReviewMinute int
+	SupportReviewHour   int
 }
 
 func Load() (*Config, error) {
@@ -189,6 +191,8 @@ func Load() (*Config, error) {
 			CreateAccountHour:   getIntOrDefault(values, "RATE_LIMIT_CREATE_HOUR", 10),
 			SensitiveMinute:     getIntOrDefault(values, "RATE_LIMIT_SENSITIVE_MINUTE", 1),
 			SensitiveHour:       getIntOrDefault(values, "RATE_LIMIT_SENSITIVE_HOUR", 5),
+			SupportReviewMinute: getIntOrDefault(values, "RATE_LIMIT_SUPPORT_REVIEW_MINUTE", 30),
+			SupportReviewHour:   getIntOrDefault(values, "RATE_LIMIT_SUPPORT_REVIEW_HOUR", 600),
 		},
 		AppID: AppIDConfig{
 			MobileAppIDs:  sharedconfig.MustGetString(values, "MOBILE_APP_IDS"),
