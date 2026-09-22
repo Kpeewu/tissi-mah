@@ -520,12 +520,21 @@ func BuildSearchCacheKey(params *repoInterfaces.SearchTripsParams) string {
 	parts = append(parts, "dep="+strings.ToLower(params.DepartureLocationName))
 	parts = append(parts, "arr="+strings.ToLower(params.ArrivalLocationName))
 
+	// Arrondir à 3 décimales (~111 m de précision). Les deux zones et le rayon entrent
+	// dans la clé : sans cela, une recherche élargie aux trajets proches et la recherche
+	// exacte se partageraient la même entrée.
+	hasZone := false
 	if params.PassengerLng != nil && params.PassengerLat != nil {
-		// Arrondir à 3 décimales (~111m de précision)
-		lng := math.Round(*params.PassengerLng*1000) / 1000
-		lat := math.Round(*params.PassengerLat*1000) / 1000
-		parts = append(parts, fmt.Sprintf("lng=%.3f", lng))
-		parts = append(parts, fmt.Sprintf("lat=%.3f", lat))
+		parts = append(parts, fmt.Sprintf("lng=%.3f", math.Round(*params.PassengerLng*1000)/1000))
+		parts = append(parts, fmt.Sprintf("lat=%.3f", math.Round(*params.PassengerLat*1000)/1000))
+		hasZone = true
+	}
+	if params.ArrivalLng != nil && params.ArrivalLat != nil {
+		parts = append(parts, fmt.Sprintf("alng=%.3f", math.Round(*params.ArrivalLng*1000)/1000))
+		parts = append(parts, fmt.Sprintf("alat=%.3f", math.Round(*params.ArrivalLat*1000)/1000))
+		hasZone = true
+	}
+	if hasZone {
 		parts = append(parts, fmt.Sprintf("dist=%d", params.DistanceRangeMeters))
 	}
 

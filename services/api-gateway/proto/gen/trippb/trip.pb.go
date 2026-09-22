@@ -1104,8 +1104,12 @@ type TripPreview struct {
 	DriverProfileImageURL  string  `protobuf:"bytes,17,opt,name=DriverProfileImageURL,proto3" json:"DriverProfileImageURL,omitempty"`    // URL photo de profil du conducteur
 	DriverRatingAverage    float64 `protobuf:"fixed64,18,opt,name=DriverRatingAverage,proto3" json:"DriverRatingAverage,omitempty"`      // Note moyenne du conducteur (0 si aucune note)
 	RelevanceScore         float64 `protobuf:"fixed64,19,opt,name=RelevanceScore,proto3" json:"RelevanceScore,omitempty"`                // Score de pertinence 0..1 (recherche passager uniquement)
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Distance entre la zone choisie par le passager et l'extrémité du segment.
+	// Absent si le passager n'a pas fourni de coordonnées pour cette extrémité.
+	DepartureDistanceMeters *int32 `protobuf:"varint,20,opt,name=DepartureDistanceMeters,proto3,oneof" json:"DepartureDistanceMeters,omitempty"`
+	ArrivalDistanceMeters   *int32 `protobuf:"varint,21,opt,name=ArrivalDistanceMeters,proto3,oneof" json:"ArrivalDistanceMeters,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *TripPreview) Reset() {
@@ -1267,6 +1271,20 @@ func (x *TripPreview) GetDriverRatingAverage() float64 {
 func (x *TripPreview) GetRelevanceScore() float64 {
 	if x != nil {
 		return x.RelevanceScore
+	}
+	return 0
+}
+
+func (x *TripPreview) GetDepartureDistanceMeters() int32 {
+	if x != nil && x.DepartureDistanceMeters != nil {
+		return *x.DepartureDistanceMeters
+	}
+	return 0
+}
+
+func (x *TripPreview) GetArrivalDistanceMeters() int32 {
+	if x != nil && x.ArrivalDistanceMeters != nil {
+		return *x.ArrivalDistanceMeters
 	}
 	return 0
 }
@@ -2863,8 +2881,12 @@ type GetScheduledTripsPreviewsResponse struct {
 	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
 	NextIndex     int32                  `protobuf:"varint,3,opt,name=NextIndex,proto3" json:"NextIndex,omitempty"`   // -1 si plus de résultats
 	TotalCount    int32                  `protobuf:"varint,4,opt,name=TotalCount,proto3" json:"TotalCount,omitempty"` // nombre total de résultats matchant
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// true quand aucun trajet exact n'existait et que la recherche a été élargie
+	// aux trajets proches : le client doit les présenter comme tels.
+	NearbyResults  bool  `protobuf:"varint,5,opt,name=NearbyResults,proto3" json:"NearbyResults,omitempty"`
+	SearchRadiusKm int32 `protobuf:"varint,6,opt,name=SearchRadiusKm,proto3" json:"SearchRadiusKm,omitempty"` // rayon effectivement utilisé (km)
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetScheduledTripsPreviewsResponse) Reset() {
@@ -2921,6 +2943,20 @@ func (x *GetScheduledTripsPreviewsResponse) GetNextIndex() int32 {
 func (x *GetScheduledTripsPreviewsResponse) GetTotalCount() int32 {
 	if x != nil {
 		return x.TotalCount
+	}
+	return 0
+}
+
+func (x *GetScheduledTripsPreviewsResponse) GetNearbyResults() bool {
+	if x != nil {
+		return x.NearbyResults
+	}
+	return false
+}
+
+func (x *GetScheduledTripsPreviewsResponse) GetSearchRadiusKm() int32 {
+	if x != nil {
+		return x.SearchRadiusKm
 	}
 	return 0
 }
@@ -4641,7 +4677,7 @@ const file_trip_proto_rawDesc = "" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"K\n" +
 	"\x17GetTripsPreviewsRequest\x12\x1a\n" +
 	"\bDriverId\x18\x01 \x01(\tR\bDriverId\x12\x14\n" +
-	"\x05Index\x18\x02 \x01(\x05R\x05Index\"\x8f\x06\n" +
+	"\x05Index\x18\x02 \x01(\x05R\x05Index\"\xbf\a\n" +
 	"\vTripPreview\x12\x16\n" +
 	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12\x1a\n" +
 	"\bDriverId\x18\x02 \x01(\tR\bDriverId\x12\x1e\n" +
@@ -4666,7 +4702,11 @@ const file_trip_proto_rawDesc = "" +
 	"\x16SegmentDurationMinutes\x18\x10 \x01(\x05R\x16SegmentDurationMinutes\x124\n" +
 	"\x15DriverProfileImageURL\x18\x11 \x01(\tR\x15DriverProfileImageURL\x120\n" +
 	"\x13DriverRatingAverage\x18\x12 \x01(\x01R\x13DriverRatingAverage\x12&\n" +
-	"\x0eRelevanceScore\x18\x13 \x01(\x01R\x0eRelevanceScore\"w\n" +
+	"\x0eRelevanceScore\x18\x13 \x01(\x01R\x0eRelevanceScore\x12=\n" +
+	"\x17DepartureDistanceMeters\x18\x14 \x01(\x05H\x00R\x17DepartureDistanceMeters\x88\x01\x01\x129\n" +
+	"\x15ArrivalDistanceMeters\x18\x15 \x01(\x05H\x01R\x15ArrivalDistanceMeters\x88\x01\x01B\x1a\n" +
+	"\x18_DepartureDistanceMetersB\x18\n" +
+	"\x16_ArrivalDistanceMeters\"w\n" +
 	"\x18GetTripsPreviewsResponse\x127\n" +
 	"\rTripsPreviews\x18\x01 \x03(\v2\x11.trip.TripPreviewR\rTripsPreviews\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"T\n" +
@@ -4788,14 +4828,16 @@ const file_trip_proto_rawDesc = "" +
 	"\tAllowFood\x18\x0f \x01(\bR\tAllowFood\x12\"\n" +
 	"\fAllowSmoking\x18\x10 \x01(\bR\fAllowSmoking\x12.\n" +
 	"\x12ArrivalPositionLng\x18\x11 \x01(\x01R\x12ArrivalPositionLng\x12.\n" +
-	"\x12ArrivalPositionLat\x18\x12 \x01(\x01R\x12ArrivalPositionLat\"\xbe\x01\n" +
+	"\x12ArrivalPositionLat\x18\x12 \x01(\x01R\x12ArrivalPositionLat\"\x8c\x02\n" +
 	"!GetScheduledTripsPreviewsResponse\x127\n" +
 	"\rTripsPreviews\x18\x01 \x03(\v2\x11.trip.TripPreviewR\rTripsPreviews\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\x12\x1c\n" +
 	"\tNextIndex\x18\x03 \x01(\x05R\tNextIndex\x12\x1e\n" +
 	"\n" +
 	"TotalCount\x18\x04 \x01(\x05R\n" +
-	"TotalCount\"\x0f\n" +
+	"TotalCount\x12$\n" +
+	"\rNearbyResults\x18\x05 \x01(\bR\rNearbyResults\x12&\n" +
+	"\x0eSearchRadiusKm\x18\x06 \x01(\x05R\x0eSearchRadiusKm\"\x0f\n" +
 	"\rHealthRequest\"`\n" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06Status\x18\x01 \x01(\tR\x06Status\x12\x18\n" +
@@ -5117,6 +5159,7 @@ func file_trip_proto_init() {
 	if File_trip_proto != nil {
 		return
 	}
+	file_trip_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

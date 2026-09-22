@@ -196,42 +196,36 @@ func (s *tripServiceImpl) GetScheduledTripsPreviews(ctx context.Context, input *
 		PageSize:              pageSize,
 	}
 
-	// Générer la clé de cache normalisée
-	cacheKey := cache.BuildSearchCacheKey(params)
-
-	// Essayer le cache Redis
-	var previews []*domain.TripPreview
-	var totalCount int
-
-	if s.cache != nil {
-		cached, count, err := s.cache.GetSearchResults(ctx, cacheKey)
-		if err == nil && cached != nil {
-			previews = cached
-			totalCount = count
-		}
+	previews, totalCount, err := s.searchCachedOrDB(ctx, params)
+	if err != nil {
+		return nil, err
 	}
 
-	// Cache miss : requête DB
-	if previews == nil {
-		result, err := s.readRepo.SearchScheduledTripSegments(ctx, params)
-		if err != nil {
-			s.logger.Error("SearchScheduledTripSegments failed", zap.Error(err))
-			return nil, err
+	// Aucun trajet exact : élargir le rayon autour des zones choisies plutôt que de
+	// renvoyer une page vide. Le client présente alors les résultats comme des trajets
+	// « à proximité », distance à l'appui. Sans coordonnées, rien à élargir.
+	nearbyResults := false
+	if len(previews) == 0 && input.PageIndex == 0 && hasSearchZone(params) {
+		widened := *params
+		widened.DistanceRangeMeters = nearbyRadiusMeters(distanceMeters)
+		nearbyPreviews, nearbyTotal, nearbyErr := s.searchCachedOrDB(ctx, &widened)
+		if nearbyErr != nil {
+			return nil, nearbyErr
 		}
-		previews = result.Previews
-		totalCount = result.TotalCount
-
-		// Stocker en cache
-		if s.cache != nil {
-			_ = s.cache.SetSearchResults(ctx, cacheKey, previews, totalCount)
+		if len(nearbyPreviews) > 0 {
+			previews, totalCount, nearbyResults = nearbyPreviews, nearbyTotal, true
+			distanceMeters = widened.DistanceRangeMeters
+			s.logger.Info("recherche élargie aux trajets à proximité",
+				zap.Int("radiusMeters", distanceMeters), zap.Int("found", len(previews)))
 		}
 	}
 
 	if len(previews) == 0 {
 		return &serviceInterfaces.ScheduledTripsPreviewsResult{
-			Previews:   []*serviceInterfaces.TripPreviewResult{},
-			NextIndex:  -1,
-			TotalCount: totalCount,
+			Previews:       []*serviceInterfaces.TripPreviewResult{},
+			NextIndex:      -1,
+			TotalCount:     totalCount,
+			SearchRadiusKm: searchRadiusKm(params, distanceMeters),
 		}, nil
 	}
 
@@ -263,24 +257,26 @@ func (s *tripServiceImpl) GetScheduledTripsPreviews(ctx context.Context, input *
 		d := driverMap[p.DriverID]
 
 		results = append(results, &serviceInterfaces.TripPreviewResult{
-			TripID:                 p.TripID,
-			DriverID:               p.DriverID,
-			DriverName:             d.name,
-			VehicleID:              p.VehicleID,
-			VehicleBrand:           v.brand,
-			VehiclePlate:           v.plate,
-			DepartureDatetime:      p.DepartureDatetime,
-			TotalSeats:             p.TotalSeats,
-			AvailableSeats:         p.AvailableSeats,
-			DepartureLocationName:  p.DepartureLocationName,
-			ArrivalLocationName:    p.ArrivalLocationName,
-			DepartureWaypointID:    p.DepartureWaypointID,
-			ArrivalWaypointID:      p.ArrivalWaypointID,
-			SegmentPrice:           p.SegmentPrice,
-			SegmentDurationMinutes: p.SegmentDurationMinutes,
-			DriverProfileImageURL:  d.profileImageURL,
-			DriverRatingAverage:    d.ratingAverage,
-			RelevanceScore:         p.RelevanceScore,
+			TripID:                  p.TripID,
+			DriverID:                p.DriverID,
+			DriverName:              d.name,
+			VehicleID:               p.VehicleID,
+			VehicleBrand:            v.brand,
+			VehiclePlate:            v.plate,
+			DepartureDatetime:       p.DepartureDatetime,
+			TotalSeats:              p.TotalSeats,
+			AvailableSeats:          p.AvailableSeats,
+			DepartureLocationName:   p.DepartureLocationName,
+			ArrivalLocationName:     p.ArrivalLocationName,
+			DepartureWaypointID:     p.DepartureWaypointID,
+			ArrivalWaypointID:       p.ArrivalWaypointID,
+			SegmentPrice:            p.SegmentPrice,
+			SegmentDurationMinutes:  p.SegmentDurationMinutes,
+			DriverProfileImageURL:   d.profileImageURL,
+			DriverRatingAverage:     d.ratingAverage,
+			RelevanceScore:          p.RelevanceScore,
+			DepartureDistanceMeters: p.DepartureDistanceMeters,
+			ArrivalDistanceMeters:   p.ArrivalDistanceMeters,
 		})
 	}
 
@@ -291,10 +287,69 @@ func (s *tripServiceImpl) GetScheduledTripsPreviews(ctx context.Context, input *
 	}
 
 	return &serviceInterfaces.ScheduledTripsPreviewsResult{
-		Previews:   results,
-		NextIndex:  nextIndex,
-		TotalCount: totalCount,
+		Previews:       results,
+		NextIndex:      nextIndex,
+		TotalCount:     totalCount,
+		NearbyResults:  nearbyResults,
+		SearchRadiusKm: searchRadiusKm(params, distanceMeters),
 	}, nil
+}
+
+// searchCachedOrDB exécute la recherche via le cache Redis, sinon la base. La clé de
+// cache dépend du rayon : recherche exacte et recherche élargie ne se mélangent pas.
+func (s *tripServiceImpl) searchCachedOrDB(
+	ctx context.Context, params *repoInterfaces.SearchTripsParams,
+) ([]*domain.TripPreview, int, error) {
+	cacheKey := cache.BuildSearchCacheKey(params)
+
+	if s.cache != nil {
+		cached, count, err := s.cache.GetSearchResults(ctx, cacheKey)
+		if err == nil && cached != nil {
+			return cached, count, nil
+		}
+	}
+
+	result, err := s.readRepo.SearchScheduledTripSegments(ctx, params)
+	if err != nil {
+		s.logger.Error("SearchScheduledTripSegments failed", zap.Error(err))
+		return nil, 0, err
+	}
+
+	if s.cache != nil {
+		if err := s.cache.SetSearchResults(ctx, cacheKey, result.Previews, result.TotalCount); err != nil {
+			s.logger.Warn("mise en cache des résultats de recherche échouée", zap.Error(err))
+		}
+	}
+	return result.Previews, result.TotalCount, nil
+}
+
+// hasSearchZone indique si au moins une extrémité a des coordonnées : sans zone, il n'y
+// a pas de rayon à élargir.
+func hasSearchZone(params *repoInterfaces.SearchTripsParams) bool {
+	return (params.PassengerLng != nil && params.PassengerLat != nil) ||
+		(params.ArrivalLng != nil && params.ArrivalLat != nil)
+}
+
+// nearbyRadiusMeters élargit le rayon pour la recherche de repli : quatre fois le rayon
+// demandé, borné entre 40 et 100 km — de quoi couvrir les villes voisines au Togo sans
+// proposer un trajet à l'autre bout du pays.
+func nearbyRadiusMeters(requested int) int {
+	widened := requested * 4
+	if widened < 40_000 {
+		widened = 40_000
+	}
+	if widened > 100_000 {
+		widened = 100_000
+	}
+	return widened
+}
+
+// searchRadiusKm est le rayon effectivement appliqué, 0 si aucune zone n'a été fournie.
+func searchRadiusKm(params *repoInterfaces.SearchTripsParams, distanceMeters int) int {
+	if !hasSearchZone(params) {
+		return 0
+	}
+	return distanceMeters / 1000
 }
 
 // getCachedOrFetchCompletedPreviews tente le cache Redis, puis fallback sur la DB.

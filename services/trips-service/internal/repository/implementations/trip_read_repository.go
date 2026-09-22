@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
@@ -457,7 +458,8 @@ func (r *tripReadRepositoryImpl) SearchScheduledTripSegments(ctx context.Context
 			trip_id, driver_id, vehicle_id, departure_datetime, total_seats,
 			available_seats, departure_location_name, arrival_location_name,
 			departure_waypoint_id, arrival_waypoint_id, segment_price,
-			segment_duration_minutes, relevance_score
+			segment_duration_minutes, relevance_score,
+			departure_distance_meters, arrival_distance_meters
 		FROM filtered
 		ORDER BY %s
 		LIMIT $%d OFFSET $%d`, orderBy, argIdx, argIdx+1)
@@ -481,6 +483,8 @@ func (r *tripReadRepositoryImpl) SearchScheduledTripSegments(ctx context.Context
 
 		for rows.Next() {
 			p := &domain.TripPreview{}
+			// NULL quand le passager n'a pas fourni de coordonnées pour l'extrémité
+			var depDistance, arrDistance *float64
 			if err := rows.Scan(
 				&p.TripID,
 				&p.DriverID,
@@ -495,9 +499,13 @@ func (r *tripReadRepositoryImpl) SearchScheduledTripSegments(ctx context.Context
 				&p.SegmentPrice,
 				&p.SegmentDurationMinutes,
 				&p.RelevanceScore,
+				&depDistance,
+				&arrDistance,
 			); err != nil {
 				return err
 			}
+			p.DepartureDistanceMeters = roundedMeters(depDistance)
+			p.ArrivalDistanceMeters = roundedMeters(arrDistance)
 			previews = append(previews, p)
 		}
 		return rows.Err()
@@ -576,4 +584,13 @@ func (r *tripReadRepositoryImpl) GetVehicleCompletedTripCount(ctx context.Contex
 		return 0, tripErrors.ErrorInternalServer
 	}
 	return count, nil
+}
+
+// roundedMeters convertit une distance PostGIS (mètres, flottante) en entier, nil si absente.
+func roundedMeters(d *float64) *int {
+	if d == nil {
+		return nil
+	}
+	m := int(math.Round(*d))
+	return &m
 }

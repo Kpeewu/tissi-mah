@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"errors"
+	"math"
 	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/middleware"
@@ -12,6 +13,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 const serviceVersion = "1.0.0"
@@ -455,14 +457,14 @@ func (h *TripHandler) GetDriverTripDetails(ctx context.Context, req *trippb.GetD
 	pbWaypoints := make([]*trippb.DriverWaypointDetail, 0, len(result.Waypoints))
 	for _, wp := range result.Waypoints {
 		pbWP := &trippb.DriverWaypointDetail{
-			WaypointId:       wp.WaypointID,
-			WaypointType:     wp.WaypointType,
-			SequencerOrder:   int32(wp.SequencerOrder),
-			LocationName:     wp.LocationName,
-			LocationLng:      wp.LocationLng,
-			LocationLat:      wp.LocationLat,
-			City:             wp.City,
-			Country:          wp.Country,
+			WaypointId:           wp.WaypointID,
+			WaypointType:         wp.WaypointType,
+			SequencerOrder:       int32(wp.SequencerOrder),
+			LocationName:         wp.LocationName,
+			LocationLng:          wp.LocationLng,
+			LocationLat:          wp.LocationLat,
+			City:                 wp.City,
+			Country:              wp.Country,
 			MinutesFromDeparture: int32(wp.MinutesFromDeparture),
 			PriceFromPrevious:    int32(wp.PriceFromPrevious),
 			IsCancelled:          wp.IsCancelled,
@@ -797,7 +799,7 @@ func (h *TripHandler) GetScheduledTripsPreviews(ctx context.Context, req *trippb
 	// Mapper les résultats en proto (dates/heures en UTC)
 	pbPreviews := make([]*trippb.TripPreview, 0, len(result.Previews))
 	for _, r := range result.Previews {
-		pbPreviews = append(pbPreviews, &trippb.TripPreview{
+		pb := &trippb.TripPreview{
 			TripId:                 r.TripID,
 			DriverId:               r.DriverID,
 			DriverName:             r.DriverName,
@@ -817,17 +819,28 @@ func (h *TripHandler) GetScheduledTripsPreviews(ctx context.Context, req *trippb
 			DriverProfileImageURL:  r.DriverProfileImageURL,
 			DriverRatingAverage:    r.DriverRatingAverage,
 			RelevanceScore:         r.RelevanceScore,
-		})
+		}
+		// Distances absentes quand le passager n'a pas fourni de coordonnées.
+		if r.DepartureDistanceMeters != nil {
+			pb.DepartureDistanceMeters = proto.Int32(clampInt32(*r.DepartureDistanceMeters))
+		}
+		if r.ArrivalDistanceMeters != nil {
+			pb.ArrivalDistanceMeters = proto.Int32(clampInt32(*r.ArrivalDistanceMeters))
+		}
+		pbPreviews = append(pbPreviews, pb)
 	}
 
 	h.logger.Info("handler: GetScheduledTripsPreviews success",
 		zap.Int("count", len(pbPreviews)),
 		zap.Int("totalCount", result.TotalCount),
+		zap.Bool("nearbyResults", result.NearbyResults),
 	)
 	return &trippb.GetScheduledTripsPreviewsResponse{
-		TripsPreviews: pbPreviews,
-		NextIndex:     int32(result.NextIndex),
-		TotalCount:    int32(result.TotalCount),
+		TripsPreviews:  pbPreviews,
+		NextIndex:      clampInt32(result.NextIndex),
+		TotalCount:     clampInt32(result.TotalCount),
+		NearbyResults:  result.NearbyResults,
+		SearchRadiusKm: clampInt32(result.SearchRadiusKm),
 	}, nil
 }
 
@@ -932,4 +945,16 @@ func toGRPCError(err error) error {
 	default:
 		return status.Error(codes.Internal, "internal server error")
 	}
+}
+
+// clampInt32 convertit un entier vers int32 en le bornant : les totaux et distances
+// manipulés ici sont petits, mais une conversion nue déborderait silencieusement.
+func clampInt32(v int) int32 {
+	if v > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if v < math.MinInt32 {
+		return math.MinInt32
+	}
+	return int32(v)
 }
