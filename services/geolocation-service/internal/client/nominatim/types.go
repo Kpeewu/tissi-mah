@@ -4,12 +4,12 @@ package nominatim
 // l'endpoint /search?format=json de Nominatim. On ne décode que les champs
 // utilisés par geolocation-service.
 type nominatimSearchResult struct {
-	Lat         string             `json:"lat"`
-	Lon         string             `json:"lon"`
-	DisplayName string             `json:"display_name"`
-	Type        string             `json:"type"`
-	Class       string             `json:"class"`
-	Address     *nominatimAddress  `json:"address,omitempty"`
+	Lat         string            `json:"lat"`
+	Lon         string            `json:"lon"`
+	DisplayName string            `json:"display_name"`
+	Type        string            `json:"type"`
+	Class       string            `json:"class"`
+	Address     *nominatimAddress `json:"address,omitempty"`
 }
 
 // nominatimReverseResult correspond à la réponse JSON de l'endpoint

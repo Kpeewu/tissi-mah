@@ -31,13 +31,13 @@ type Client interface {
 }
 
 type Config struct {
-	BaseURL              string
-	RequestTimeout       time.Duration
-	MaxConcurrentReqs    int64
-	BreakerMaxFailures   uint32
-	BreakerOpenDuration  time.Duration
-	MaxIdleConnsPerHost  int
-	IdleConnTimeout      time.Duration
+	BaseURL             string
+	RequestTimeout      time.Duration
+	MaxConcurrentReqs   int64
+	BreakerMaxFailures  uint32
+	BreakerOpenDuration time.Duration
+	MaxIdleConnsPerHost int
+	IdleConnTimeout     time.Duration
 }
 
 // DefaultConfig retourne les valeurs recommandées (cf. plan d'implémentation).

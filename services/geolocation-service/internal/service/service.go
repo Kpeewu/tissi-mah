@@ -13,11 +13,13 @@ package service
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/cache"
 	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/client/nominatim"
 	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/client/osrm"
+	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/domain"
 	"github.com/Kpeewu/tissi-mah/services/geolocation-service/internal/service/interfaces"
 	geoErrors "github.com/Kpeewu/tissi-mah/services/geolocation-service/pkg/errors"
 	"go.uber.org/zap"
@@ -143,7 +145,9 @@ func (s *geolocationServiceImpl) ComputeRoute(ctx context.Context, input interfa
 // Geocode (search)
 // =============================================================================
 
-func (s *geolocationServiceImpl) Geocode(ctx context.Context, input interfaces.GeocodeInput) ([]*interfaces.GeocodeResult, error) {
+func (s *geolocationServiceImpl) Geocode(
+	ctx context.Context, input interfaces.GeocodeInput,
+) (*interfaces.GeocodeOutput, error) {
 	if s.nominatim == nil {
 		return nil, geoErrors.ErrorGeocodingUnavailable
 	}
@@ -164,7 +168,7 @@ func (s *geolocationServiceImpl) Geocode(ctx context.Context, input interfaces.G
 	// --- Cache lookup ---
 	if cached, hit := s.cache.GetGeocode(ctx, input.Query, countryFilter, limit); hit {
 		s.logger.Debug("cache hit: geocode", zap.String("query", input.Query))
-		return cached, nil
+		return &interfaces.GeocodeOutput{Results: cached}, nil
 	}
 
 	// --- Appel Nominatim ---
@@ -173,8 +177,36 @@ func (s *geolocationServiceImpl) Geocode(ctx context.Context, input interfaces.G
 		return nil, err
 	}
 
-	s.cache.SetGeocode(ctx, input.Query, countryFilter, limit, results)
-	return results, nil
+	if len(results) > 0 {
+		s.cache.SetGeocode(ctx, input.Query, countryFilter, limit, results)
+		return &interfaces.GeocodeOutput{Results: results}, nil
+	}
+
+	// Nominatim ne tolère aucune faute de frappe : « Skode » ne renvoie rien. On
+	// rapproche alors la saisie d'une localité connue et on réinterroge avec le nom
+	// corrigé, que le client affiche pour rester transparent.
+	corrected, score := domain.SuggestLocality(input.Query)
+	if corrected == "" || strings.EqualFold(corrected, strings.TrimSpace(input.Query)) {
+		s.cache.SetGeocode(ctx, input.Query, countryFilter, limit, results)
+		return &interfaces.GeocodeOutput{Results: results}, nil
+	}
+
+	s.logger.Info("géocodage : saisie rapprochée d'une localité connue",
+		zap.String("query", input.Query),
+		zap.String("corrected", corrected),
+		zap.Float64("score", score))
+
+	correctedResults, err := s.nominatim.Search(ctx, corrected, countryFilter, limit)
+	if err != nil {
+		return nil, err
+	}
+	if len(correctedResults) == 0 {
+		s.cache.SetGeocode(ctx, input.Query, countryFilter, limit, results)
+		return &interfaces.GeocodeOutput{Results: results}, nil
+	}
+
+	s.cache.SetGeocode(ctx, input.Query, countryFilter, limit, correctedResults)
+	return &interfaces.GeocodeOutput{Results: correctedResults, CorrectedQuery: corrected}, nil
 }
 
 // =============================================================================

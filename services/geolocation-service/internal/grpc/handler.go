@@ -58,7 +58,7 @@ func (h *GeolocationHandler) ComputeRoute(ctx context.Context, req *geolocationp
 // =============================================================================
 
 func (h *GeolocationHandler) Geocode(ctx context.Context, req *geolocationpb.GeocodeRequest) (*geolocationpb.GeocodeResponse, error) {
-	results, err := h.service.Geocode(ctx, serviceInterfaces.GeocodeInput{
+	output, err := h.service.Geocode(ctx, serviceInterfaces.GeocodeInput{
 		Query:         req.Query,
 		CountryFilter: req.CountryFilter,
 		Limit:         req.Limit,
@@ -69,7 +69,8 @@ func (h *GeolocationHandler) Geocode(ctx context.Context, req *geolocationpb.Geo
 	}
 
 	return &geolocationpb.GeocodeResponse{
-		Results: toProtoGeocodeResults(results),
+		Results:        toProtoGeocodeResults(output.Results),
+		CorrectedQuery: output.CorrectedQuery,
 	}, nil
 }
 

@@ -113,6 +113,10 @@ message GeocodeResult {
 message GeocodeResponse {
   repeated GeocodeResult Results = 1;
   string ErrorMessage            = 2;
+  // Nom réellement utilisé quand la saisie ne donnait rien et a été rapprochée d'une
+  // localité connue (« Skode » → « Sokodé »). Vide sinon. Le client l'affiche pour
+  // que l'utilisateur comprenne ce qui lui est proposé.
+  string CorrectedQuery          = 3;
 }
 
 message ReverseGeocodeRequest {

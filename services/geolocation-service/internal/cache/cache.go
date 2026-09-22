@@ -25,9 +25,9 @@ import (
 )
 
 const (
-	keyPrefix      = "geo:"
-	routeTTL       = 1 * time.Hour
-	geocodeTTL     = 24 * time.Hour
+	keyPrefix         = "geo:"
+	routeTTL          = 1 * time.Hour
+	geocodeTTL        = 24 * time.Hour
 	reverseGeocodeTTL = 24 * time.Hour
 )
 

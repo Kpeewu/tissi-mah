@@ -204,11 +204,12 @@ func TestGeocode_DefaultCountriesUsedWhenFilterEmpty(t *testing.T) {
 		}, nil).Once()
 	svc := newTestServiceWithGeocode(&mocks.MockOSRMClient{}, mockNomi)
 
-	results, err := svc.Geocode(context.Background(), interfaces.GeocodeInput{Query: "Lomé"})
+	out, err := svc.Geocode(context.Background(), interfaces.GeocodeInput{Query: "Lomé"})
 
 	require.NoError(t, err)
-	require.Len(t, results, 1)
-	assert.Equal(t, "Lomé, Togo", results[0].DisplayName)
+	require.Len(t, out.Results, 1)
+	assert.Equal(t, "Lomé, Togo", out.Results[0].DisplayName)
+	assert.Empty(t, out.CorrectedQuery, "une saisie qui répond n'est pas corrigée")
 	mockNomi.AssertExpectations(t)
 }
 
@@ -256,5 +257,59 @@ func TestReverseGeocode_HappyPath(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, r)
 	assert.Equal(t, "Lomé, Togo", r.DisplayName)
+	mockNomi.AssertExpectations(t)
+}
+
+// Nominatim ne tolère aucune faute de frappe : « Skode » ne renvoie rien. Le service
+// rapproche alors la saisie d'une localité connue et réinterroge avec le nom corrigé.
+func TestGeocode_SaisieFautive_RapprocheeDUneLocaliteConnue(t *testing.T) {
+	mockNomi := &mocks.MockNominatimClient{}
+	mockNomi.On("Search", mock.Anything, "Skode", "tg,gh,bj,bf", int32(5)).
+		Return([]*interfaces.GeocodeResult{}, nil).Once()
+	mockNomi.On("Search", mock.Anything, "Sokodé", "tg,gh,bj,bf", int32(5)).
+		Return([]*interfaces.GeocodeResult{
+			{DisplayName: "Sokodé, Tchaoudjo, Togo", Lat: 8.98, Lng: 1.14, Country: "tg"},
+		}, nil).Once()
+	svc := newTestServiceWithGeocode(&mocks.MockOSRMClient{}, mockNomi)
+
+	out, err := svc.Geocode(context.Background(), interfaces.GeocodeInput{Query: "Skode"})
+
+	require.NoError(t, err)
+	require.Len(t, out.Results, 1)
+	assert.Equal(t, "Sokodé, Tchaoudjo, Togo", out.Results[0].DisplayName)
+	assert.Equal(t, "Sokodé", out.CorrectedQuery, "le client doit pouvoir afficher le nom retenu")
+	mockNomi.AssertExpectations(t)
+}
+
+func TestGeocode_SaisieSansRapport_AucuneCorrection(t *testing.T) {
+	mockNomi := &mocks.MockNominatimClient{}
+	// Une seule interrogation : aucune localité connue n'est proche de « azertyuiop ».
+	mockNomi.On("Search", mock.Anything, "azertyuiop", "tg,gh,bj,bf", int32(5)).
+		Return([]*interfaces.GeocodeResult{}, nil).Once()
+	svc := newTestServiceWithGeocode(&mocks.MockOSRMClient{}, mockNomi)
+
+	out, err := svc.Geocode(context.Background(), interfaces.GeocodeInput{Query: "azertyuiop"})
+
+	require.NoError(t, err)
+	assert.Empty(t, out.Results)
+	assert.Empty(t, out.CorrectedQuery)
+	mockNomi.AssertExpectations(t)
+}
+
+// Si même le nom corrigé ne donne rien, on s'en tient au résultat vide d'origine
+// plutôt que d'annoncer une correction sans effet.
+func TestGeocode_CorrectionSansResultat_PasDeCorrectionAnnoncee(t *testing.T) {
+	mockNomi := &mocks.MockNominatimClient{}
+	mockNomi.On("Search", mock.Anything, "Skode", "tg,gh,bj,bf", int32(5)).
+		Return([]*interfaces.GeocodeResult{}, nil).Once()
+	mockNomi.On("Search", mock.Anything, "Sokodé", "tg,gh,bj,bf", int32(5)).
+		Return([]*interfaces.GeocodeResult{}, nil).Once()
+	svc := newTestServiceWithGeocode(&mocks.MockOSRMClient{}, mockNomi)
+
+	out, err := svc.Geocode(context.Background(), interfaces.GeocodeInput{Query: "Skode"})
+
+	require.NoError(t, err)
+	assert.Empty(t, out.Results)
+	assert.Empty(t, out.CorrectedQuery)
 	mockNomi.AssertExpectations(t)
 }
