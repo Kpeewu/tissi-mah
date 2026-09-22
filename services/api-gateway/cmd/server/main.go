@@ -231,6 +231,10 @@ func buildHandler(
 				Minute: cfg.RateLimit.SensitiveMinute,
 				Hour:   cfg.RateLimit.SensitiveHour,
 			},
+			string(gateway.TierSupportReview): {
+				Minute: cfg.RateLimit.SupportReviewMinute,
+				Hour:   cfg.RateLimit.SupportReviewHour,
+			},
 		},
 		GetTier: func(path string) string {
 			if tier, ok := rateTierLookup.Lookup(path); ok {

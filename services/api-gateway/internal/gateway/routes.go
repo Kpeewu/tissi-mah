@@ -160,6 +160,11 @@ const (
 	TierAuth          RateLimitTier = "auth"
 	TierCreateAccount RateLimitTier = "create"
 	TierSensitive     RateLimitTier = "sensitive"
+	// TierSupportReview couvre les décisions du support sur les documents KYC. Vérifier
+	// un seul conducteur demande cinq décisions (selfie, pièce, permis, assurance, carte
+	// grise) : le tier « sensitive » (1/min, 5/h) bloquait l'agent dès le premier
+	// dossier. Les limites restent bornées pour contenir un compte agent compromis.
+	TierSupportReview RateLimitTier = "support_review"
 )
 
 // RouteRateLimitConfig associe chaque route à son tier de rate limiting.
@@ -190,6 +195,6 @@ var RouteRateLimitConfig = map[string]RateLimitTier{
 	"/api/v1/file/uploadVehicleDocuments": TierCreateAccount,
 
 	// kyc-service — décisions support sur les documents : opérations sensibles
-	"/api/v1/kyc/admin/validateDocument": TierSensitive,
-	"/api/v1/kyc/admin/reviews/override": TierSensitive,
+	"/api/v1/kyc/admin/validateDocument": TierSupportReview,
+	"/api/v1/kyc/admin/reviews/override": TierSupportReview,
 }

@@ -70,6 +70,13 @@ func TestRouteLookup_TierValue(t *testing.T) {
 	if tier, ok := lookup.Lookup("/api/v1/chat/messages/msg-1/flag"); !ok || tier != TierSensitive {
 		t.Errorf("chat flag tier = %v, ok=%v ; want %v, true", tier, ok, TierSensitive)
 	}
+	// Les décisions support ont leur propre palier : avec « sensitive » (1/min, 5/h),
+	// un agent était bloqué dès le premier dossier conducteur (cinq décisions).
+	for _, path := range []string{"/api/v1/kyc/admin/validateDocument", "/api/v1/kyc/admin/reviews/override"} {
+		if tier, ok := lookup.Lookup(path); !ok || tier != TierSupportReview {
+			t.Errorf("%s tier = %v, ok=%v ; want %v, true", path, tier, ok, TierSupportReview)
+		}
+	}
 	if tier, ok := lookup.Lookup("/api/v1/chat/threads/t-1/messages"); !ok || tier != TierCreateAccount {
 		t.Errorf("chat messages tier = %v, ok=%v ; want %v, true", tier, ok, TierCreateAccount)
 	}
