@@ -10,9 +10,12 @@ import (
 type SearchTripsParams struct {
 	// Coordonnées de la zone de départ choisie : si fournies, le départ matche
 	// par nom fuzzy OU par appartenance au rayon (sémantique OU).
-	PassengerLng          *float64
-	PassengerLat          *float64
-	DistanceRangeMeters   int     // converti en mètres (défaut 5000)
+	PassengerLng *float64
+	PassengerLat *float64
+	// Coordonnées de la zone d'arrivée : même sémantique OU pour l'arrivée.
+	ArrivalLng            *float64
+	ArrivalLat            *float64
+	DistanceRangeMeters   int     // converti en mètres (défaut 5000), départ et arrivée
 	DepartureLocationName string  // obligatoire, fuzzy sur location_name + city
 	ArrivalLocationName   string  // obligatoire, fuzzy sur location_name + city
 	TripStartDate         *string // "YYYY-MM-DD" (UTC)

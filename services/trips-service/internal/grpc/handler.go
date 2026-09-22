@@ -766,6 +766,12 @@ func (h *TripHandler) GetScheduledTripsPreviews(ctx context.Context, req *trippb
 	}
 
 	// Distance optionnelle
+	if req.ArrivalPositionLng != 0 || req.ArrivalPositionLat != 0 {
+		lng := req.ArrivalPositionLng
+		lat := req.ArrivalPositionLat
+		input.ArrivalPositionLng = &lng
+		input.ArrivalPositionLat = &lat
+	}
 	if req.DistanceRange > 0 {
 		dist := int(req.DistanceRange)
 		input.DistanceRange = &dist

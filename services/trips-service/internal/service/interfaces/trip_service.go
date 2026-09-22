@@ -324,9 +324,12 @@ type CancelWaypointInput struct {
 type GetScheduledTripsPreviewsInput struct {
 	// Coordonnées de la zone de départ choisie : si fournies, le départ matche
 	// par nom fuzzy OU par appartenance au rayon (sémantique OU).
-	PassengerPositionLng  *float64
-	PassengerPositionLat  *float64
-	DistanceRange         *int    // km, défaut 5
+	PassengerPositionLng *float64
+	PassengerPositionLat *float64
+	// Coordonnées de la zone d'arrivée : même sémantique OU pour l'arrivée.
+	ArrivalPositionLng    *float64
+	ArrivalPositionLat    *float64
+	DistanceRange         *int    // km, défaut 5 — s'applique au départ et à l'arrivée
 	DepartureLocationName string  // obligatoire, fuzzy sur location_name + city
 	ArrivalLocationName   string  // obligatoire, fuzzy sur location_name + city
 	TripStartDate         *string // "YYYY-MM-DD" (UTC)

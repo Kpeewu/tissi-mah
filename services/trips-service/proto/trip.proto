@@ -570,6 +570,11 @@ message GetScheduledTripsPreviewsRequest {
   bool   AllowPets             = 14; // true = uniquement les trajets acceptant les animaux
   bool   AllowFood             = 15; // true = uniquement les trajets acceptant la nourriture
   bool   AllowSmoking          = 16; // true = uniquement les trajets fumeur
+  // Coordonnées de la zone d'arrivée choisie (géocodées côté front). Si fournies,
+  // un trajet matche si son arrivée est dans le rayon DistanceRange OU si le nom
+  // correspond (fuzzy) — même sémantique que pour le départ.
+  double ArrivalPositionLng    = 17; // 0 = non renseigné
+  double ArrivalPositionLat    = 18; // 0 = non renseigné
 }
 
 message GetScheduledTripsPreviewsResponse {
