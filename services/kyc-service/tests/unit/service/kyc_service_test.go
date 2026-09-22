@@ -466,7 +466,8 @@ func TestValidateDocument(t *testing.T) {
 			Return(&domain.DocumentRef{DocumentID: "doc-3", DocumentType: "passport", OwnerID: "user-4"}, nil)
 		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-4").
 			Return([]*domain.Review{
-				{ReviewID: "review-done", UserID: "user-4", LogicalDocumentType: "passport", Status: "completed", Decision: "approved"},
+				{ReviewID: "review-done", UserID: "user-4", LogicalDocumentType: "passport", UserDocumentID: "doc-3",
+					Status: "completed", Decision: "approved"},
 			}, nil)
 
 		result, err := svc.ValidateDocument(ctx, serviceInterfaces.ValidateDocumentInput{
@@ -477,6 +478,60 @@ func TestValidateDocument(t *testing.T) {
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, kycErrors.ErrorDocumentAlreadyReviewed)
+	})
+
+	t.Run("erreur - review héritée sans identifiant de fichier bloque tout le document logique", func(t *testing.T) {
+		mockFileClient, _, svc := newTestService()
+		mockFileClient.On("GetUserDocument", mock.Anything, "doc-legacy").
+			Return(&domain.DocumentRef{DocumentID: "doc-legacy", DocumentType: "passport", OwnerID: "user-6"}, nil)
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, "user-6").
+			Return([]*domain.Review{
+				{ReviewID: "review-old", UserID: "user-6", LogicalDocumentType: "passport",
+					Status: "completed", Decision: "approved"},
+			}, nil)
+
+		result, err := svc.ValidateDocument(context.Background(), serviceInterfaces.ValidateDocumentInput{
+			SupportAgentID: "agent-001",
+			DocumentID:     "doc-legacy",
+			Decision:       "approved",
+		})
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, kycErrors.ErrorDocumentAlreadyReviewed)
+	})
+
+	// Cas constaté sur VPS Dev le 22/09 : un permis rejeté puis renvoyé (nouveau fichier,
+	// nouvelle review en attente) ne pouvait plus être approuvé — la review terminée de
+	// l'ancien fichier bloquait le nouveau avec ErrorDocumentAlreadyReviewed.
+	t.Run("succès - document renvoyé : l'ancienne review ne bloque pas le nouveau fichier", func(t *testing.T) {
+		const newDocID, resubmittedReviewID, ownerID = "doc-new", "review-resubmitted", "user-5"
+		mockFileClient, _, svc := newTestService()
+		mockFileClient.On("GetUserDocument", mock.Anything, newDocID).
+			Return(&domain.DocumentRef{DocumentID: newDocID, DocumentType: "passport", OwnerID: ownerID}, nil)
+		mockFileClient.On("GetDocumentReviewsByUserID", mock.Anything, ownerID).
+			Return([]*domain.Review{
+				{ReviewID: "review-rejected", UserID: ownerID, LogicalDocumentType: "passport", UserDocumentID: "doc-old",
+					Status: "completed", Decision: "rejected", AttemptNumber: 1},
+				{ReviewID: resubmittedReviewID, UserID: ownerID, LogicalDocumentType: "passport",
+					UserDocumentID: newDocID,
+					Status:         "pending", Decision: "pending", AttemptNumber: 2},
+			}, nil)
+		mockFileClient.On("UpdateDocumentReview", mock.Anything, mock.MatchedBy(func(r *domain.Review) bool {
+			return r.ReviewID == resubmittedReviewID && r.Status == "completed" && r.Decision == "approved"
+		})).Return(&domain.Review{
+			ReviewID: resubmittedReviewID, Decision: "approved", Status: "completed", ReviewType: "manual",
+			UserDocumentID: newDocID, LogicalDocumentType: "passport", ReviewedAt: timePtr(time.Now().UTC()),
+		}, nil)
+
+		result, err := svc.ValidateDocument(context.Background(), serviceInterfaces.ValidateDocumentInput{
+			SupportAgentID: "agent-001",
+			DocumentID:     newDocID,
+			Decision:       "approved",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, resubmittedReviewID, result.ReviewID)
+		assert.Equal(t, "approved", result.Decision)
 	})
 
 	t.Run("erreur - compagnon manquant pour un recto-verso", func(t *testing.T) {

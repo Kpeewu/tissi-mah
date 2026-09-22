@@ -636,7 +636,8 @@ func (s *kycServiceImpl) ValidateDocument(ctx context.Context, input serviceInte
 					zap.String("vehicleDocumentID", vehicleDocumentID), zap.String("reviewID", r.ReviewID))
 				return nil, kycErrors.ErrorDocumentAlreadyReviewed
 			}
-		} else if r.VehicleDocumentID == "" && r.LogicalDocumentType == logicalType {
+		} else if r.VehicleDocumentID == "" && r.LogicalDocumentType == logicalType &&
+			reviewCoversUserDocument(r, userDocumentID) {
 			s.logger.Warn("user document already reviewed",
 				zap.String("userID", ownerUserID), zap.String("logicalType", logicalType), zap.String("reviewID", r.ReviewID))
 			return nil, kycErrors.ErrorDocumentAlreadyReviewed
@@ -1227,4 +1228,16 @@ func (s *kycServiceImpl) GetDocumentHistory(ctx context.Context, userID string, 
 	}
 
 	return entries, nil
+}
+
+// reviewCoversUserDocument indique si une review porte sur ce fichier précis (recto ou
+// verso). Un document renvoyé après rejet est un NOUVEAU fichier : la review terminée de
+// l'ancien ne doit pas empêcher d'examiner le nouveau. Les reviews antérieures à la
+// dénormalisation des identifiants de fichier n'en portent aucun : on les considère,
+// comme avant, comme couvrant tout le document logique.
+func reviewCoversUserDocument(r *domain.Review, userDocumentID string) bool {
+	if r.UserDocumentID == "" && r.SecondUserDocumentID == "" {
+		return true
+	}
+	return r.UserDocumentID == userDocumentID || r.SecondUserDocumentID == userDocumentID
 }
