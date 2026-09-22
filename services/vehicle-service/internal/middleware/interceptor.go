@@ -21,8 +21,13 @@ var publicMethods = map[string]bool{
 	"/vehicle.VehicleService/Health":            true,
 	"/vehicle.VehicleService/GetVehicleDetails": true, // Appelé par trips-service (inter-service)
 	"/vehicle.VehicleService/GetVehicleInfo":    true, // Appelé par file-service (inter-service)
-	"/grpc.health.v1.Health/Check":              true, // Readiness probe Kubernetes
-	"/grpc.health.v1.Health/Watch":              true, // Liveness probe Kubernetes
+	// Appelé par kyc-service après chaque décision support, sans utilisateur final.
+	// Sans cette exemption, l'appel échouait (« missing firebase uid ») et aucun
+	// véhicule ne passait jamais vérifié. Aucune route HTTP ne l'expose : il n'est
+	// joignable qu'en gRPC depuis le cluster.
+	"/vehicle.VehicleService/SetVehicleVerification": true,
+	"/grpc.health.v1.Health/Check":                   true, // Readiness probe Kubernetes
+	"/grpc.health.v1.Health/Watch":                   true, // Liveness probe Kubernetes
 }
 
 // VehicleInterceptor retourne un intercepteur gRPC unaire qui :
