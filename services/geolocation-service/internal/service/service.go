@@ -13,6 +13,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -175,8 +176,10 @@ func (s *geolocationServiceImpl) Geocode(
 	}
 
 	// --- Appel Nominatim ---
+	// Une saisie sans résultat remonte ErrorAddressNotFound, pas une liste vide :
+	// c'est le cas qui déclenche la correction, il ne doit pas court-circuiter la suite.
 	results, err := s.nominatim.Search(ctx, input.Query, countryFilter, limit)
-	if err != nil {
+	if err != nil && !errors.Is(err, geoErrors.ErrorAddressNotFound) {
 		return nil, err
 	}
 
@@ -200,7 +203,7 @@ func (s *geolocationServiceImpl) Geocode(
 		zap.Float64("score", score))
 
 	correctedResults, err := s.nominatim.Search(ctx, corrected, countryFilter, limit)
-	if err != nil {
+	if err != nil && !errors.Is(err, geoErrors.ErrorAddressNotFound) {
 		return nil, err
 	}
 	if len(correctedResults) == 0 {

@@ -265,7 +265,7 @@ func TestReverseGeocode_HappyPath(t *testing.T) {
 func TestGeocode_SaisieFautive_RapprocheeDUneLocaliteConnue(t *testing.T) {
 	mockNomi := &mocks.MockNominatimClient{}
 	mockNomi.On("Search", mock.Anything, "Skode", "tg,gh,bj,bf", int32(5)).
-		Return([]*interfaces.GeocodeResult{}, nil).Once()
+		Return([]*interfaces.GeocodeResult{}, geoErrors.ErrorAddressNotFound).Once()
 	mockNomi.On("Search", mock.Anything, "Sokodé", "tg,gh,bj,bf", int32(5)).
 		Return([]*interfaces.GeocodeResult{
 			{DisplayName: "Sokodé, Tchaoudjo, Togo", Lat: 8.98, Lng: 1.14, Country: "tg"},
@@ -285,7 +285,7 @@ func TestGeocode_SaisieSansRapport_AucuneCorrection(t *testing.T) {
 	mockNomi := &mocks.MockNominatimClient{}
 	// Une seule interrogation : aucune localité connue n'est proche de « azertyuiop ».
 	mockNomi.On("Search", mock.Anything, "azertyuiop", "tg,gh,bj,bf", int32(5)).
-		Return([]*interfaces.GeocodeResult{}, nil).Once()
+		Return([]*interfaces.GeocodeResult{}, geoErrors.ErrorAddressNotFound).Once()
 	svc := newTestServiceWithGeocode(&mocks.MockOSRMClient{}, mockNomi)
 
 	out, err := svc.Geocode(context.Background(), interfaces.GeocodeInput{Query: "azertyuiop"})
@@ -301,9 +301,9 @@ func TestGeocode_SaisieSansRapport_AucuneCorrection(t *testing.T) {
 func TestGeocode_CorrectionSansResultat_PasDeCorrectionAnnoncee(t *testing.T) {
 	mockNomi := &mocks.MockNominatimClient{}
 	mockNomi.On("Search", mock.Anything, "Skode", "tg,gh,bj,bf", int32(5)).
-		Return([]*interfaces.GeocodeResult{}, nil).Once()
+		Return([]*interfaces.GeocodeResult{}, geoErrors.ErrorAddressNotFound).Once()
 	mockNomi.On("Search", mock.Anything, "Sokodé", "tg,gh,bj,bf", int32(5)).
-		Return([]*interfaces.GeocodeResult{}, nil).Once()
+		Return([]*interfaces.GeocodeResult{}, geoErrors.ErrorAddressNotFound).Once()
 	svc := newTestServiceWithGeocode(&mocks.MockOSRMClient{}, mockNomi)
 
 	out, err := svc.Geocode(context.Background(), interfaces.GeocodeInput{Query: "Skode"})
