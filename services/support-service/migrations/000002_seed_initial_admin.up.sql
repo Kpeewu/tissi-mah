@@ -1,5 +1,5 @@
 -- Compte admin initial.
--- Email    : admin@tissimah.local
+-- Email    : ttoureydaou@gmail.com
 -- Password : Admin1234!  (hash argon2id pré-calculé)
 -- must_change_password = TRUE → la première connexion force ChangeMyPassword.
 INSERT INTO support_users (
