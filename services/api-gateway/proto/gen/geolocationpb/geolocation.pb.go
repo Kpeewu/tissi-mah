@@ -436,11 +436,15 @@ func (x *GeocodeResult) GetType() string {
 }
 
 type GeocodeResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Results       []*GeocodeResult       `protobuf:"bytes,1,rep,name=Results,proto3" json:"Results,omitempty"`
-	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Results      []*GeocodeResult       `protobuf:"bytes,1,rep,name=Results,proto3" json:"Results,omitempty"`
+	ErrorMessage string                 `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	// Nom réellement utilisé quand la saisie ne donnait rien et a été rapprochée d'une
+	// localité connue (« Skode » → « Sokodé »). Vide sinon. Le client l'affiche pour
+	// que l'utilisateur comprenne ce qui lui est proposé.
+	CorrectedQuery string `protobuf:"bytes,3,opt,name=CorrectedQuery,proto3" json:"CorrectedQuery,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GeocodeResponse) Reset() {
@@ -483,6 +487,13 @@ func (x *GeocodeResponse) GetResults() []*GeocodeResult {
 func (x *GeocodeResponse) GetErrorMessage() string {
 	if x != nil {
 		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *GeocodeResponse) GetCorrectedQuery() string {
+	if x != nil {
+		return x.CorrectedQuery
 	}
 	return ""
 }
@@ -721,10 +732,11 @@ const file_geolocation_proto_rawDesc = "" +
 	"\x03Lng\x18\x03 \x01(\x01R\x03Lng\x12\x18\n" +
 	"\aCountry\x18\x04 \x01(\tR\aCountry\x12\x12\n" +
 	"\x04City\x18\x05 \x01(\tR\x04City\x12\x12\n" +
-	"\x04Type\x18\x06 \x01(\tR\x04Type\"k\n" +
+	"\x04Type\x18\x06 \x01(\tR\x04Type\"\x93\x01\n" +
 	"\x0fGeocodeResponse\x124\n" +
 	"\aResults\x18\x01 \x03(\v2\x1a.geolocation.GeocodeResultR\aResults\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\";\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\x12&\n" +
+	"\x0eCorrectedQuery\x18\x03 \x01(\tR\x0eCorrectedQuery\";\n" +
 	"\x15ReverseGeocodeRequest\x12\x10\n" +
 	"\x03Lat\x18\x01 \x01(\x01R\x03Lat\x12\x10\n" +
 	"\x03Lng\x18\x02 \x01(\x01R\x03Lng\"p\n" +

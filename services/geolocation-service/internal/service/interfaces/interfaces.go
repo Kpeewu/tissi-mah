@@ -67,8 +67,16 @@ type GeolocationService interface {
 	ComputeRoute(ctx context.Context, input ComputeRouteInput) (*ComputeRouteResult, error)
 
 	// Geocode résout texte → coordonnées.
-	Geocode(ctx context.Context, input GeocodeInput) ([]*GeocodeResult, error)
+	Geocode(ctx context.Context, input GeocodeInput) (*GeocodeOutput, error)
 
 	// ReverseGeocode résout lat/lng → adresse.
 	ReverseGeocode(ctx context.Context, input ReverseGeocodeInput) (*GeocodeResult, error)
+}
+
+// GeocodeOutput porte les lieux trouvés et, le cas échéant, le nom réellement utilisé
+// pour les obtenir : la saisie ne donnant rien a été rapprochée d'une localité connue.
+type GeocodeOutput struct {
+	Results []*GeocodeResult
+	// CorrectedQuery est vide si la saisie a répondu telle quelle.
+	CorrectedQuery string
 }

@@ -8,11 +8,11 @@ import (
 
 // Config rassemble la configuration runtime du geolocation-service.
 type Config struct {
-	Server      ServerConfig
-	Environment EnvironmentConfig
-	OSRM        OSRMConfig
-	Nominatim   NominatimConfig
-	Redis       RedisConfig
+	Server             ServerConfig
+	Environment        EnvironmentConfig
+	OSRM               OSRMConfig
+	Nominatim          NominatimConfig
+	Redis              RedisConfig
 	Geocode            GeocodeConfig
 	LogLevel           string
 	InternalHMACSecret string

@@ -43,13 +43,13 @@ type Coordinate struct {
 
 // Config regroupe les paramètres du client OSRM.
 type Config struct {
-	BaseURL              string        // ex: http://osrm-backend:5000
-	RequestTimeout       time.Duration // défaut: 5s
-	MaxConcurrentReqs    int64         // défaut: 50 — taille du semaphore
-	BreakerMaxFailures   uint32        // défaut: 5  — échecs consécutifs avant open
-	BreakerOpenDuration  time.Duration // défaut: 30s — durée open avant half-open
-	MaxIdleConnsPerHost  int           // défaut: 50
-	IdleConnTimeout      time.Duration // défaut: 90s
+	BaseURL             string        // ex: http://osrm-backend:5000
+	RequestTimeout      time.Duration // défaut: 5s
+	MaxConcurrentReqs   int64         // défaut: 50 — taille du semaphore
+	BreakerMaxFailures  uint32        // défaut: 5  — échecs consécutifs avant open
+	BreakerOpenDuration time.Duration // défaut: 30s — durée open avant half-open
+	MaxIdleConnsPerHost int           // défaut: 50
+	IdleConnTimeout     time.Duration // défaut: 90s
 }
 
 // DefaultConfig retourne les valeurs recommandées par le plan d'implémentation.
