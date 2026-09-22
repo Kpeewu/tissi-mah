@@ -143,7 +143,14 @@ func (c *client) Search(ctx context.Context, query string, countryFilter string,
 	defer c.sem.Release(1)
 
 	result, err := c.breaker.Execute(func() (interface{}, error) {
-		return c.doSearch(ctx, query, countryFilter, limit)
+		out, searchErr := c.doSearch(ctx, query, countryFilter, limit)
+		if errors.Is(searchErr, geoErrors.ErrorAddressNotFound) {
+			// Un lieu introuvable est une réponse normale de Nominatim, pas une panne :
+			// la remonter au disjoncteur ouvrait le circuit après quelques recherches
+			// infructueuses d'affilée et coupait le géocodage pour tout le monde.
+			return []*interfaces.GeocodeResult(nil), nil
+		}
+		return out, searchErr
 	})
 	if err != nil {
 		if errors.Is(err, gobreaker.ErrOpenState) || errors.Is(err, gobreaker.ErrTooManyRequests) {
@@ -151,7 +158,11 @@ func (c *client) Search(ctx context.Context, query string, countryFilter string,
 		}
 		return nil, err
 	}
-	return result.([]*interfaces.GeocodeResult), nil
+	found, ok := result.([]*interfaces.GeocodeResult)
+	if !ok || len(found) == 0 {
+		return nil, geoErrors.ErrorAddressNotFound
+	}
+	return found, nil
 }
 
 func (c *client) doSearch(ctx context.Context, query, countryFilter string, limit int32) ([]*interfaces.GeocodeResult, error) {
@@ -216,7 +227,13 @@ func (c *client) Reverse(ctx context.Context, lat, lng float64) (*interfaces.Geo
 	defer c.sem.Release(1)
 
 	result, err := c.breaker.Execute(func() (interface{}, error) {
-		return c.doReverse(ctx, lat, lng)
+		out, reverseErr := c.doReverse(ctx, lat, lng)
+		if errors.Is(reverseErr, geoErrors.ErrorAddressNotFound) {
+			// Même raison que pour Search : une coordonnée sans adresse connue n'est
+			// pas une défaillance du backend.
+			return (*interfaces.GeocodeResult)(nil), nil
+		}
+		return out, reverseErr
 	})
 	if err != nil {
 		if errors.Is(err, gobreaker.ErrOpenState) || errors.Is(err, gobreaker.ErrTooManyRequests) {
@@ -224,7 +241,11 @@ func (c *client) Reverse(ctx context.Context, lat, lng float64) (*interfaces.Geo
 		}
 		return nil, err
 	}
-	return result.(*interfaces.GeocodeResult), nil
+	found, ok := result.(*interfaces.GeocodeResult)
+	if !ok || found == nil {
+		return nil, geoErrors.ErrorAddressNotFound
+	}
+	return found, nil
 }
 
 func (c *client) doReverse(ctx context.Context, lat, lng float64) (*interfaces.GeocodeResult, error) {
