@@ -177,6 +177,8 @@ func (s *tripServiceImpl) GetScheduledTripsPreviews(ctx context.Context, input *
 	params := &repoInterfaces.SearchTripsParams{
 		PassengerLng:          input.PassengerPositionLng,
 		PassengerLat:          input.PassengerPositionLat,
+		ArrivalLng:            input.ArrivalPositionLng,
+		ArrivalLat:            input.ArrivalPositionLat,
 		DistanceRangeMeters:   distanceMeters,
 		DepartureLocationName: input.DepartureLocationName,
 		ArrivalLocationName:   input.ArrivalLocationName,

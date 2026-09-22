@@ -26,6 +26,8 @@ const (
 	sokodeLat     = 8.9833
 	karaLng       = 1.1900
 	karaLat       = 9.5500
+	tchambaLng    = 1.4167 // ≈ 30 km à l'est de Sokodé
+	tchambaLat    = 9.0333
 )
 
 // searchTripSpec décrit un trajet 2 waypoints (départ → arrivée Sokodé) à seeder.
@@ -35,6 +37,11 @@ type searchTripSpec struct {
 	depLng   float64
 	depLat   float64
 	arrPrice int // prix du segment, défaut 500
+	// Arrivée : Gare routière de Sokodé par défaut.
+	arrName  string
+	arrCity  string
+	arrLng   float64
+	arrLat   float64
 	tripOpts []fixtures.TripOption
 }
 
@@ -55,12 +62,15 @@ func seedSearchTrip(t *testing.T, ctx context.Context, spec searchTripSpec) *dom
 	if arrPrice == 0 {
 		arrPrice = 500
 	}
+	if spec.arrName == "" {
+		spec.arrName, spec.arrCity, spec.arrLng, spec.arrLat = "Gare routière de Sokodé", "Sokodé", sokodeLng, sokodeLat
+	}
 	arr := fixtures.NewTestWaypoint(trip.TripID,
 		fixtures.WithWaypointType(domain.WaypointTypeArrival),
 		fixtures.WithSequencerOrder(3),
-		fixtures.WithLocationName("Gare routière de Sokodé"),
-		fixtures.WithCity("Sokodé"),
-		fixtures.WithWaypointCoordinates(sokodeLng, sokodeLat),
+		fixtures.WithLocationName(spec.arrName),
+		fixtures.WithCity(spec.arrCity),
+		fixtures.WithWaypointCoordinates(spec.arrLng, spec.arrLat),
 		fixtures.WithPriceFromPrevious(arrPrice),
 	)
 	_, err := writeRepo.Create(ctx, trip, []*domain.Waypoint{dep, arr})
@@ -343,5 +353,57 @@ func TestSearchScheduledTripSegments_Filters(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, res.Previews, 1)
 		assert.Equal(t, withPets.TripID, res.Previews[0].TripID)
+	})
+}
+
+// Zone d'arrivée : même sémantique OU que le départ (nom fuzzy OU rayon). Un
+// passager qui cherche Sokodé doit voir un trajet vers Tchamba, à ~30 km, s'il
+// élargit le rayon — base de la proposition de « trajets à proximité ».
+func TestSearchScheduledTripSegments_ArrivalZone(t *testing.T) {
+	ctx := context.Background()
+
+	seedTchamba := func(t *testing.T) *domain.Trip {
+		t.Helper()
+		cleanupTripsTable(t, ctx)
+		return seedSearchTrip(t, ctx, searchTripSpec{
+			depName: "Gare d'Agbalkpédo, Lomé", depCity: "Agbalkpédo",
+			depLng: agbalkpedoLng, depLat: agbalkpedoLat,
+			arrName: "Gare de Tchamba", arrCity: "Tchamba",
+			arrLng: tchambaLng, arrLat: tchambaLat,
+		})
+	}
+	params := func(withArrivalCoords bool, radiusMeters int) *i.SearchTripsParams {
+		p := &i.SearchTripsParams{
+			DepartureLocationName: "Agbalkpedo",
+			ArrivalLocationName:   "Sokode",
+			DistanceRangeMeters:   radiusMeters,
+		}
+		if withArrivalCoords {
+			lng, lat := sokodeLng, sokodeLat
+			p.ArrivalLng, p.ArrivalLat = &lng, &lat
+		}
+		return p
+	}
+
+	t.Run("arrivée dans le rayon sans match nom → trouvé", func(t *testing.T) {
+		trip := seedTchamba(t)
+		res, err := newTestReadRepository().SearchScheduledTripSegments(ctx, params(true, 40000))
+		require.NoError(t, err)
+		require.Len(t, res.Previews, 1)
+		assert.Equal(t, trip.TripID, res.Previews[0].TripID)
+	})
+
+	t.Run("arrivée hors rayon et nom différent → non trouvé", func(t *testing.T) {
+		seedTchamba(t)
+		res, err := newTestReadRepository().SearchScheduledTripSegments(ctx, params(true, 10000))
+		require.NoError(t, err)
+		assert.Empty(t, res.Previews)
+	})
+
+	t.Run("sans coordonnées d'arrivée → correspondance par nom seulement", func(t *testing.T) {
+		seedTchamba(t)
+		res, err := newTestReadRepository().SearchScheduledTripSegments(ctx, params(false, 40000))
+		require.NoError(t, err)
+		assert.Empty(t, res.Previews)
 	})
 }

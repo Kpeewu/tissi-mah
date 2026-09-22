@@ -2692,8 +2692,13 @@ type GetScheduledTripsPreviewsRequest struct {
 	AllowPets             bool    `protobuf:"varint,14,opt,name=AllowPets,proto3" json:"AllowPets,omitempty"`                       // true = uniquement les trajets acceptant les animaux
 	AllowFood             bool    `protobuf:"varint,15,opt,name=AllowFood,proto3" json:"AllowFood,omitempty"`                       // true = uniquement les trajets acceptant la nourriture
 	AllowSmoking          bool    `protobuf:"varint,16,opt,name=AllowSmoking,proto3" json:"AllowSmoking,omitempty"`                 // true = uniquement les trajets fumeur
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Coordonnées de la zone d'arrivée choisie (géocodées côté front). Si fournies,
+	// un trajet matche si son arrivée est dans le rayon DistanceRange OU si le nom
+	// correspond (fuzzy) — même sémantique que pour le départ.
+	ArrivalPositionLng float64 `protobuf:"fixed64,17,opt,name=ArrivalPositionLng,proto3" json:"ArrivalPositionLng,omitempty"` // 0 = non renseigné
+	ArrivalPositionLat float64 `protobuf:"fixed64,18,opt,name=ArrivalPositionLat,proto3" json:"ArrivalPositionLat,omitempty"` // 0 = non renseigné
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *GetScheduledTripsPreviewsRequest) Reset() {
@@ -2836,6 +2841,20 @@ func (x *GetScheduledTripsPreviewsRequest) GetAllowSmoking() bool {
 		return x.AllowSmoking
 	}
 	return false
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetArrivalPositionLng() float64 {
+	if x != nil {
+		return x.ArrivalPositionLng
+	}
+	return 0
+}
+
+func (x *GetScheduledTripsPreviewsRequest) GetArrivalPositionLat() float64 {
+	if x != nil {
+		return x.ArrivalPositionLat
+	}
+	return 0
 }
 
 type GetScheduledTripsPreviewsResponse struct {
@@ -4749,7 +4768,7 @@ const file_trip_proto_rawDesc = "" +
 	"\x12CancellationReason\x18\x03 \x01(\tR\x12CancellationReason\"V\n" +
 	"\x16CancelWaypointResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\xfa\x04\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\xda\x05\n" +
 	" GetScheduledTripsPreviewsRequest\x122\n" +
 	"\x14PassengerPositionLng\x18\x01 \x01(\x01R\x14PassengerPositionLng\x122\n" +
 	"\x14PassengerPositionLat\x18\x02 \x01(\x01R\x14PassengerPositionLat\x12$\n" +
@@ -4767,7 +4786,9 @@ const file_trip_proto_rawDesc = "" +
 	"\rAllowLuggages\x18\r \x01(\bR\rAllowLuggages\x12\x1c\n" +
 	"\tAllowPets\x18\x0e \x01(\bR\tAllowPets\x12\x1c\n" +
 	"\tAllowFood\x18\x0f \x01(\bR\tAllowFood\x12\"\n" +
-	"\fAllowSmoking\x18\x10 \x01(\bR\fAllowSmoking\"\xbe\x01\n" +
+	"\fAllowSmoking\x18\x10 \x01(\bR\fAllowSmoking\x12.\n" +
+	"\x12ArrivalPositionLng\x18\x11 \x01(\x01R\x12ArrivalPositionLng\x12.\n" +
+	"\x12ArrivalPositionLat\x18\x12 \x01(\x01R\x12ArrivalPositionLat\"\xbe\x01\n" +
 	"!GetScheduledTripsPreviewsResponse\x127\n" +
 	"\rTripsPreviews\x18\x01 \x03(\v2\x11.trip.TripPreviewR\rTripsPreviews\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\x12\x1c\n" +

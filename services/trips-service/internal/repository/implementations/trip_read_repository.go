@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
@@ -265,29 +264,43 @@ func (r *tripReadRepositoryImpl) SearchScheduledTripSegments(ctx context.Context
 	args = append(args, searchWordSimilarityThreshold)
 	argIdx++
 
-	// Expressions géographiques : neutres si pas de coordonnées de zone de départ
-	hasCoords := params.PassengerLng != nil && params.PassengerLat != nil
-	depGeoWithinExpr := "FALSE"
-	geoScoreExpr := "0::float8"
-	relevanceExpr := "0.5 * dep_name_score + 0.5 * arr_name_score"
-	if hasCoords {
-		distanceMeters := params.DistanceRangeMeters
-		if distanceMeters <= 0 {
-			distanceMeters = 5000
-		}
-		pointExpr := fmt.Sprintf("ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography", argIdx, argIdx+1)
-		args = append(args, *params.PassengerLng, *params.PassengerLat)
-		argIdx += 2
-		radiusArg := argIdx
-		args = append(args, distanceMeters)
-		argIdx++
-
-		depGeoWithinExpr = fmt.Sprintf("ST_DWithin(dep_wp.position, %s, $%d)", pointExpr, radiusArg)
-		// 1 au point exact, 0 au bord du rayon (et au-delà)
-		geoScoreExpr = fmt.Sprintf(
-			"GREATEST(0::float8, 1 - ST_Distance(dep_wp.position, %s) / $%d)", pointExpr, radiusArg)
-		relevanceExpr = "0.4 * dep_name_score + 0.4 * arr_name_score + 0.2 * geo_score"
+	// Expressions géographiques, symétriques pour le départ et l'arrivée : neutres
+	// (FALSE / 0 / NULL) si la zone correspondante n'a pas de coordonnées.
+	distanceMeters := params.DistanceRangeMeters
+	if distanceMeters <= 0 {
+		distanceMeters = 5000
 	}
+	// Le rayon n'est ajouté aux arguments qu'au premier besoin : PostgreSQL
+	// refuse un paramètre que la requête ne référence pas (type indéterminable).
+	radiusArg := 0
+
+	geoExprs := func(column string, lng, lat *float64) (within, score, distance string) {
+		if lng == nil || lat == nil {
+			return "FALSE", "0::float8", "NULL::float8"
+		}
+		if radiusArg == 0 {
+			radiusArg = argIdx
+			args = append(args, distanceMeters)
+			argIdx++
+		}
+		point := fmt.Sprintf("ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography", argIdx, argIdx+1)
+		args = append(args, *lng, *lat)
+		argIdx += 2
+		within = fmt.Sprintf("ST_DWithin(%s, %s, $%d)", column, point, radiusArg)
+		// 1 au point exact, 0 au bord du rayon (et au-delà)
+		score = fmt.Sprintf("GREATEST(0::float8, 1 - ST_Distance(%s, %s) / $%d)", column, point, radiusArg)
+		distance = fmt.Sprintf("ST_Distance(%s, %s)", column, point)
+		return within, score, distance
+	}
+	depGeoWithinExpr, depGeoScoreExpr, depDistanceExpr :=
+		geoExprs("dep_wp.position", params.PassengerLng, params.PassengerLat)
+	arrGeoWithinExpr, arrGeoScoreExpr, arrDistanceExpr :=
+		geoExprs("arr_wp.position", params.ArrivalLng, params.ArrivalLat)
+
+	// Le nom domine, la proximité départage : à nom égal, le trajet le plus proche de la
+	// zone choisie passe devant, et un trajet retenu par le seul rayon reste derrière un
+	// trajet dont le nom correspond. Sans coordonnées, les scores géographiques valent 0.
+	relevanceExpr := "0.4 * dep_name_score + 0.4 * arr_name_score + 0.1 * dep_geo_score + 0.1 * arr_geo_score"
 
 	// Conditions de la CTE candidates (avant scoring)
 	conditions := []string{
@@ -335,14 +348,11 @@ func (r *tripReadRepositoryImpl) SearchScheduledTripSegments(ctx context.Context
 	}
 
 	// Conditions de la CTE filtered (sur scores et agrégats)
-	depMatchCond := "dep_name_score >= $" + strconv.Itoa(thresholdArg)
-	if hasCoords {
-		// Zone de départ en OU : le nom matche approximativement OU le départ est dans le rayon
-		depMatchCond = fmt.Sprintf("(dep_name_score >= $%d OR dep_geo_within)", thresholdArg)
-	}
+	// Chaque extrémité matche si son nom est proche OU si elle est dans le rayon autour
+	// de la zone choisie (dep_geo_within / arr_geo_within valent FALSE sans coordonnées).
 	filteredConditions := []string{
-		depMatchCond,
-		fmt.Sprintf("arr_name_score >= $%d", thresholdArg),
+		fmt.Sprintf("(dep_name_score >= $%d OR dep_geo_within)", thresholdArg),
+		fmt.Sprintf("(arr_name_score >= $%d OR arr_geo_within)", thresholdArg),
 	}
 
 	minSeats := params.MinSeats
@@ -405,7 +415,11 @@ func (r *tripReadRepositoryImpl) SearchScheduledTripSegments(ctx context.Context
 					word_similarity(f_unaccent($%[2]d), f_unaccent(COALESCE(arr_wp.city, '')))
 				) AS arr_name_score,
 				%[3]s AS dep_geo_within,
-				%[4]s AS geo_score
+				%[4]s AS dep_geo_score,
+				%[5]s AS departure_distance_meters,
+				%[6]s AS arr_geo_within,
+				%[7]s AS arr_geo_score,
+				%[8]s AS arrival_distance_meters
 			FROM trips t
 			JOIN trips_waypoints dep_wp
 				ON dep_wp.trip_id = t.trip_id
@@ -416,14 +430,16 @@ func (r *tripReadRepositoryImpl) SearchScheduledTripSegments(ctx context.Context
 				AND arr_wp.cancelled_at IS NULL
 				AND arr_wp.deleted_at IS NULL
 				AND arr_wp.sequencer_order > dep_wp.sequencer_order
-			WHERE %[5]s
+			WHERE %[9]s
 		),
 		filtered AS (
-			SELECT *, %[6]s AS relevance_score
+			SELECT *, %[10]s AS relevance_score
 			FROM candidates
-			WHERE %[7]s
+			WHERE %[11]s
 		)`,
-		depArg, arrArg, depGeoWithinExpr, geoScoreExpr,
+		depArg, arrArg,
+		depGeoWithinExpr, depGeoScoreExpr, depDistanceExpr,
+		arrGeoWithinExpr, arrGeoScoreExpr, arrDistanceExpr,
 		strings.Join(conditions, "\n  AND "),
 		relevanceExpr,
 		strings.Join(filteredConditions, "\n  AND "),
