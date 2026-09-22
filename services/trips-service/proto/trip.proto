@@ -357,6 +357,10 @@ message TripPreview {
   string DriverProfileImageURL  = 17; // URL photo de profil du conducteur
   double DriverRatingAverage    = 18; // Note moyenne du conducteur (0 si aucune note)
   double RelevanceScore         = 19; // Score de pertinence 0..1 (recherche passager uniquement)
+  // Distance entre la zone choisie par le passager et l'extrémité du segment.
+  // Absent si le passager n'a pas fourni de coordonnées pour cette extrémité.
+  optional int32 DepartureDistanceMeters = 20;
+  optional int32 ArrivalDistanceMeters   = 21;
 }
 
 message GetTripsPreviewsResponse {
@@ -582,6 +586,10 @@ message GetScheduledTripsPreviewsResponse {
   string ErrorMessage                = 2;
   int32  NextIndex                   = 3;  // -1 si plus de résultats
   int32  TotalCount                  = 4;  // nombre total de résultats matchant
+  // true quand aucun trajet exact n'existait et que la recherche a été élargie
+  // aux trajets proches : le client doit les présenter comme tels.
+  bool   NearbyResults               = 5;
+  int32  SearchRadiusKm              = 6;  // rayon effectivement utilisé (km)
 }
 
 // =============================================================================

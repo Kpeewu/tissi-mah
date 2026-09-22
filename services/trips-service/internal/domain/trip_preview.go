@@ -19,4 +19,8 @@ type TripPreview struct {
 	SegmentDurationMinutes int
 	// Score de pertinence 0..1 (recherche passager uniquement, 0 sinon)
 	RelevanceScore float64
+	// Distance en mètres entre la zone choisie par le passager et l'extrémité du
+	// segment. nil si le passager n'a pas fourni de coordonnées pour cette extrémité.
+	DepartureDistanceMeters *int
+	ArrivalDistanceMeters   *int
 }

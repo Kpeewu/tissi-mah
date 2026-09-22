@@ -131,6 +131,9 @@ type TripPreviewResult struct {
 	DriverRatingAverage    float64
 	// Score de pertinence 0..1 (recherche passager uniquement, 0 sinon)
 	RelevanceScore float64
+	// Distance entre la zone choisie et l'extrémité du segment (nil si non calculée).
+	DepartureDistanceMeters *int
+	ArrivalDistanceMeters   *int
 }
 
 // CompletedTripPreviewResult contient les données enrichies d'un trajet complété.
@@ -350,6 +353,10 @@ type ScheduledTripsPreviewsResult struct {
 	Previews   []*TripPreviewResult
 	NextIndex  int // -1 si plus de résultats
 	TotalCount int
+	// NearbyResults vaut true quand la recherche exacte n'a rien donné et que le
+	// rayon a été élargi : les trajets renvoyés sont « à proximité ».
+	NearbyResults  bool
+	SearchRadiusKm int // rayon effectivement utilisé, en km (0 si aucune zone fournie)
 }
 
 // IncrementLegBookedSeatsInput contient les données pour incrémenter/décrémenter booked_seats.

@@ -124,6 +124,103 @@ func TestGetCompletedTripsPreviews(t *testing.T) {
 	})
 }
 
+// Repli « trajets à proximité » : quand la recherche exacte ne renvoie rien, le service
+// élargit le rayon autour des zones choisies plutôt que de rendre une page vide.
+func TestGetScheduledTripsPreviews_NearbyFallback(t *testing.T) {
+	lomeLat, lomeLng := 6.1319, 1.2228
+	sokodeLat, sokodeLng := 8.9834, 1.1437
+	radius := 15
+
+	inputWithZones := func() *serviceInterfaces.GetScheduledTripsPreviewsInput {
+		return &serviceInterfaces.GetScheduledTripsPreviewsInput{
+			DepartureLocationName: "Lomé",
+			ArrivalLocationName:   "Sokodé",
+			PassengerPositionLat:  &lomeLat,
+			PassengerPositionLng:  &lomeLng,
+			ArrivalPositionLat:    &sokodeLat,
+			ArrivalPositionLng:    &sokodeLng,
+			DistanceRange:         &radius,
+		}
+	}
+
+	t.Run("aucun trajet exact - le rayon est élargi et les trajets proches remontés", func(t *testing.T) {
+		readRepo, _, userClient, vehicleClient, svc := newTestService()
+		ctx := context.Background()
+		distance := 30_000
+		nearby := samplePreview("trip-tchamba", "driver-A", "veh-A")
+		nearby.ArrivalDistanceMeters = &distance
+
+		readRepo.On("SearchScheduledTripSegments", ctx, mock.MatchedBy(func(p *repoInterfaces.SearchTripsParams) bool {
+			return p.DistanceRangeMeters == 15_000
+		})).Return(&repoInterfaces.SearchTripsResult{Previews: nil, TotalCount: 0}, nil)
+		readRepo.On("SearchScheduledTripSegments", ctx, mock.MatchedBy(func(p *repoInterfaces.SearchTripsParams) bool {
+			return p.DistanceRangeMeters == 60_000 // 4 × 15 km
+		})).Return(&repoInterfaces.SearchTripsResult{Previews: []*domain.TripPreview{nearby}, TotalCount: 1}, nil)
+		userClient.On("GetDriverInfo", ctx, "driver-A").Return("Alice", "urlA", nil)
+		vehicleClient.On("GetVehicleInfo", ctx, "driver-A", "veh-A").Return("Toyota", "Hiace", "AA-1", 6, true, nil)
+
+		res, err := svc.GetScheduledTripsPreviews(ctx, inputWithZones())
+
+		require.NoError(t, err)
+		require.Len(t, res.Previews, 1)
+		assert.True(t, res.NearbyResults, "le client doit pouvoir les présenter comme des trajets proches")
+		assert.Equal(t, 60, res.SearchRadiusKm)
+		require.NotNil(t, res.Previews[0].ArrivalDistanceMeters)
+		assert.Equal(t, 30_000, *res.Previews[0].ArrivalDistanceMeters)
+	})
+
+	t.Run("des trajets exacts existent - aucun élargissement", func(t *testing.T) {
+		readRepo, _, userClient, vehicleClient, svc := newTestService()
+		ctx := context.Background()
+		readRepo.On("SearchScheduledTripSegments", ctx, mock.MatchedBy(func(p *repoInterfaces.SearchTripsParams) bool {
+			return p.DistanceRangeMeters == 15_000 // le rayon demandé n'est pas élargi
+		})).Return(&repoInterfaces.SearchTripsResult{
+			Previews: []*domain.TripPreview{samplePreview("trip-1", "driver-A", "veh-A")}, TotalCount: 1,
+		}, nil)
+		userClient.On("GetDriverInfo", ctx, "driver-A").Return("Alice", "urlA", nil)
+		vehicleClient.On("GetVehicleInfo", ctx, "driver-A", "veh-A").Return("Toyota", "Corolla", "AA-1", 4, true, nil)
+
+		res, err := svc.GetScheduledTripsPreviews(ctx, inputWithZones())
+
+		require.NoError(t, err)
+		assert.False(t, res.NearbyResults)
+		assert.Equal(t, 15, res.SearchRadiusKm)
+		readRepo.AssertNumberOfCalls(t, "SearchScheduledTripSegments", 1)
+	})
+
+	t.Run("sans coordonnées - pas de repli possible", func(t *testing.T) {
+		readRepo, _, _, _, svc := newTestService()
+		ctx := context.Background()
+		readRepo.On("SearchScheduledTripSegments", ctx, mock.Anything).
+			Return(&repoInterfaces.SearchTripsResult{Previews: nil, TotalCount: 0}, nil)
+
+		res, err := svc.GetScheduledTripsPreviews(ctx, &serviceInterfaces.GetScheduledTripsPreviewsInput{
+			DepartureLocationName: "Lomé", ArrivalLocationName: "Sokodé",
+		})
+
+		require.NoError(t, err)
+		assert.Empty(t, res.Previews)
+		assert.False(t, res.NearbyResults)
+		assert.Equal(t, 0, res.SearchRadiusKm)
+		readRepo.AssertNumberOfCalls(t, "SearchScheduledTripSegments", 1)
+	})
+
+	t.Run("page suivante vide - pas de repli (le repli ne vaut que pour la 1re page)", func(t *testing.T) {
+		readRepo, _, _, _, svc := newTestService()
+		ctx := context.Background()
+		readRepo.On("SearchScheduledTripSegments", ctx, mock.Anything).
+			Return(&repoInterfaces.SearchTripsResult{Previews: nil, TotalCount: 0}, nil)
+
+		in := inputWithZones()
+		in.PageIndex = 1
+		res, err := svc.GetScheduledTripsPreviews(ctx, in)
+
+		require.NoError(t, err)
+		assert.False(t, res.NearbyResults)
+		readRepo.AssertNumberOfCalls(t, "SearchScheduledTripSegments", 1)
+	})
+}
+
 func TestGetScheduledTripsPreviews(t *testing.T) {
 	t.Run("succès - enrichissement multi-driver", func(t *testing.T) {
 		readRepo, _, userClient, vehicleClient, svc := newTestService()
