@@ -162,24 +162,24 @@ func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serv
 			})
 		}
 
-		// Latest rejection : la plus récente par reviewed_at
-		if review.Decision == "rejected" && review.ReviewedAt != nil {
-			if latestRejection == nil || (review.ReviewedAt.After(*latestRejection.ReviewedAt)) {
-				latestRejection = &domain.LatestRejection{
-					ReviewID:         review.ReviewID,
-					ReasonRejection:  review.ReasonRejection,
-					RejectionDetails: review.RejectionDetails,
-					ReviewType:       review.ReviewType,
-					ReviewedAt:       review.ReviewedAt,
-					// Identifiants du document rejeté : le client les réutilise comme FileID
-					// de file/changeDocument pour resoumettre, même après réinstallation.
-					DocumentType:         review.DocumentType,
-					LogicalDocumentType:  review.LogicalDocumentType,
-					UserDocumentID:       review.UserDocumentID,
-					SecondUserDocumentID: review.SecondUserDocumentID,
-					VehicleDocumentID:    review.VehicleDocumentID,
-				}
-			}
+	}
+
+	// Dernier rejet encore d'actualité : un rejet corrigé depuis (ré-évaluation ou
+	// nouvel envoi) n'est plus signalé.
+	if review := domain.LatestActionableRejection(reviews); review != nil {
+		latestRejection = &domain.LatestRejection{
+			ReviewID:         review.ReviewID,
+			ReasonRejection:  review.ReasonRejection,
+			RejectionDetails: review.RejectionDetails,
+			ReviewType:       review.ReviewType,
+			ReviewedAt:       review.ReviewedAt,
+			// Identifiants du document rejeté : le client s'en sert comme FileID
+			// de file/changeDocument pour resoumettre, même après réinstallation.
+			DocumentType:         review.DocumentType,
+			LogicalDocumentType:  review.LogicalDocumentType,
+			UserDocumentID:       review.UserDocumentID,
+			SecondUserDocumentID: review.SecondUserDocumentID,
+			VehicleDocumentID:    review.VehicleDocumentID,
 		}
 	}
 
