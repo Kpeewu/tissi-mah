@@ -149,6 +149,9 @@ func (s *geolocationServiceImpl) Geocode(
 	ctx context.Context, input interfaces.GeocodeInput,
 ) (*interfaces.GeocodeOutput, error) {
 	if s.nominatim == nil {
+		// Distinct d'un backend en panne, qui renvoie la même erreur depuis le client :
+		// sans ce message, les deux causes sont indiscernables à l'exploitation.
+		s.logger.Error("géocodage indisponible : NOMINATIM_URL n'est pas configurée")
 		return nil, geoErrors.ErrorGeocodingUnavailable
 	}
 	if input.Query == "" {
@@ -215,6 +218,9 @@ func (s *geolocationServiceImpl) Geocode(
 
 func (s *geolocationServiceImpl) ReverseGeocode(ctx context.Context, input interfaces.ReverseGeocodeInput) (*interfaces.GeocodeResult, error) {
 	if s.nominatim == nil {
+		// Distinct d'un backend en panne, qui renvoie la même erreur depuis le client :
+		// sans ce message, les deux causes sont indiscernables à l'exploitation.
+		s.logger.Error("géocodage indisponible : NOMINATIM_URL n'est pas configurée")
 		return nil, geoErrors.ErrorGeocodingUnavailable
 	}
 	if input.Lat < -90 || input.Lat > 90 || input.Lng < -180 || input.Lng > 180 {

@@ -28,6 +28,15 @@ const (
 	reverseError = `{"error":"Unable to geocode"}`
 )
 
+// writeBody écrit une réponse de test et signale l'échec d'écriture plutôt que de
+// l'ignorer : un test qui n'envoie rien passerait pour un backend muet.
+func writeBody(t *testing.T, w http.ResponseWriter, body string) {
+	t.Helper()
+	if _, err := w.Write([]byte(body)); err != nil {
+		t.Errorf("écriture de la réponse de test : %v", err)
+	}
+}
+
 func newNominatim(t *testing.T, baseURL string) nominatim.Client {
 	t.Helper()
 	cfg := nominatim.DefaultConfig(baseURL)
@@ -131,4 +140,68 @@ func TestNominatim_Reverse_OutOfRange(t *testing.T) {
 	_, err := c.Reverse(context.Background(), 95, 0)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, geoErrors.ErrorInvalidWaypoints)
+}
+
+// Le 22/09 sur VPS Dev, une dizaine de recherches infructueuses d'affilée (tests de
+// tolérance aux fautes de frappe) ont ouvert le disjoncteur : le géocodage ET le
+// géocodage inverse ont répondu « indisponible » à tout le monde. Un lieu introuvable
+// est une réponse normale de Nominatim, pas une défaillance du backend.
+func TestNominatim_Search_LieuxIntrouvablesNOuvrentPasLeDisjoncteur(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("q") == "Lomé" {
+			writeBody(t, w, searchOk)
+			return
+		}
+		writeBody(t, w, `[]`)
+	}))
+	defer srv.Close()
+
+	c := newNominatim(t, srv.URL)
+
+	// Bien plus que le seuil du disjoncteur (5 échecs consécutifs).
+	for i := 0; i < 10; i++ {
+		_, err := c.Search(context.Background(), "azertyuiop", "tg", 5)
+		assert.ErrorIs(t, err, geoErrors.ErrorAddressNotFound, "recherche %d", i+1)
+		assert.NotErrorIs(t, err, geoErrors.ErrorGeocodingUnavailable, "recherche %d", i+1)
+	}
+
+	// Le service reste opérationnel pour une recherche qui aboutit.
+	results, err := c.Search(context.Background(), "Lomé", "tg", 5)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, 11, calls, "chaque recherche atteint bien le backend")
+}
+
+func TestNominatim_Reverse_AdresseIntrouvableNOuvrePasLeDisjoncteur(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		writeBody(t, w, reverseError)
+	}))
+	defer srv.Close()
+
+	c := newNominatim(t, srv.URL)
+	for i := 0; i < 10; i++ {
+		_, err := c.Reverse(context.Background(), 6.13, 1.22)
+		assert.ErrorIs(t, err, geoErrors.ErrorAddressNotFound, "appel %d", i+1)
+	}
+}
+
+// Le disjoncteur doit toujours protéger d'un backend réellement en panne.
+func TestNominatim_Search_PannesReellesOuvrentLeDisjoncteur(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	c := newNominatim(t, srv.URL)
+	for i := 0; i < 10; i++ {
+		_, err := c.Search(context.Background(), "Lomé", "tg", 5)
+		assert.ErrorIs(t, err, geoErrors.ErrorGeocodingUnavailable, "recherche %d", i+1)
+	}
+	assert.Less(t, calls, 10, "le disjoncteur doit cesser d'appeler un backend en panne")
 }
