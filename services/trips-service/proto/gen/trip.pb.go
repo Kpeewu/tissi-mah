@@ -3925,8 +3925,12 @@ type PassengerWaypointDetail struct {
 	PriceFromPrevious       int32                  `protobuf:"varint,7,opt,name=PriceFromPrevious,proto3" json:"PriceFromPrevious,omitempty"`
 	MinutesFromDeparture    int32                  `protobuf:"varint,8,opt,name=MinutesFromDeparture,proto3" json:"MinutesFromDeparture,omitempty"`
 	IsCancelled             bool                   `protobuf:"varint,9,opt,name=IsCancelled,proto3" json:"IsCancelled,omitempty"` // true si le waypoint a été annulé
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// Coordonnées de l'étape : sans elles, le client ne peut pas placer le trajet sur
+	// la carte du détail — il dessinait ses marqueurs à (0, 0), au large du Golfe de Guinée.
+	LocationLat   float64 `protobuf:"fixed64,10,opt,name=LocationLat,proto3" json:"LocationLat,omitempty"`
+	LocationLng   float64 `protobuf:"fixed64,11,opt,name=LocationLng,proto3" json:"LocationLng,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PassengerWaypointDetail) Reset() {
@@ -4020,6 +4024,20 @@ func (x *PassengerWaypointDetail) GetIsCancelled() bool {
 		return x.IsCancelled
 	}
 	return false
+}
+
+func (x *PassengerWaypointDetail) GetLocationLat() float64 {
+	if x != nil {
+		return x.LocationLat
+	}
+	return 0
+}
+
+func (x *PassengerWaypointDetail) GetLocationLng() float64 {
+	if x != nil {
+		return x.LocationLng
+	}
+	return 0
 }
 
 type GetPassengerTripDetailsResponse struct {
@@ -4920,7 +4938,7 @@ const file_trip_proto_rawDesc = "" +
 	"\x12PickupLocationName\x18\x06 \x01(\tR\x12PickupLocationName\x120\n" +
 	"\x13DropoffLocationName\x18\a \x01(\tR\x13DropoffLocationName\"8\n" +
 	"\x1eGetPassengerTripDetailsRequest\x12\x16\n" +
-	"\x06TripId\x18\x01 \x01(\tR\x06TripId\"\xfb\x02\n" +
+	"\x06TripId\x18\x01 \x01(\tR\x06TripId\"\xbf\x03\n" +
 	"\x17PassengerWaypointDetail\x12\x1e\n" +
 	"\n" +
 	"WaypointId\x18\x01 \x01(\tR\n" +
@@ -4932,7 +4950,10 @@ const file_trip_proto_rawDesc = "" +
 	"\x17ScheduledPickupDatetime\x18\x06 \x01(\tR\x17ScheduledPickupDatetime\x12,\n" +
 	"\x11PriceFromPrevious\x18\a \x01(\x05R\x11PriceFromPrevious\x122\n" +
 	"\x14MinutesFromDeparture\x18\b \x01(\x05R\x14MinutesFromDeparture\x12 \n" +
-	"\vIsCancelled\x18\t \x01(\bR\vIsCancelled\"\x92\t\n" +
+	"\vIsCancelled\x18\t \x01(\bR\vIsCancelled\x12 \n" +
+	"\vLocationLat\x18\n" +
+	" \x01(\x01R\vLocationLat\x12 \n" +
+	"\vLocationLng\x18\v \x01(\x01R\vLocationLng\"\x92\t\n" +
 	"\x1fGetPassengerTripDetailsResponse\x12\x16\n" +
 	"\x06TripId\x18\x01 \x01(\tR\x06TripId\x12\x1a\n" +
 	"\bDriverId\x18\x02 \x01(\tR\bDriverId\x12\x1e\n" +

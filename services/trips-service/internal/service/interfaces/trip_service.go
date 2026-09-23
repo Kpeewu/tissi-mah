@@ -484,4 +484,6 @@ type PassengerWaypointDetailResult struct {
 	PriceFromPrevious       int
 	MinutesFromDeparture    int
 	IsCancelled             bool
+	LocationLat             float64
+	LocationLng             float64
 }

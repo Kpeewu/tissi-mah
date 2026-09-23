@@ -723,6 +723,10 @@ message PassengerWaypointDetail {
   int32  PriceFromPrevious       = 7;
   int32  MinutesFromDeparture    = 8;
   bool   IsCancelled             = 9;  // true si le waypoint a été annulé
+  // Coordonnées de l'étape : sans elles, le client ne peut pas placer le trajet sur
+  // la carte du détail — il dessinait ses marqueurs à (0, 0), au large du Golfe de Guinée.
+  double LocationLat             = 10;
+  double LocationLng             = 11;
 }
 
 message GetPassengerTripDetailsResponse {
