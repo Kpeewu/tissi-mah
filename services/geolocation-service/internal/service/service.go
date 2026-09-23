@@ -211,7 +211,11 @@ func (s *geolocationServiceImpl) Geocode(
 		return &interfaces.GeocodeOutput{Results: results}, nil
 	}
 
-	s.cache.SetGeocode(ctx, input.Query, countryFilter, limit, correctedResults)
+	// Mise en cache sous le nom CORRIGÉ, pas sous la saisie fautive : la correction
+	// elle-même n'est pas stockée, et une saisie fautive servie depuis le cache
+	// reviendrait sans son bandeau « Résultats pour … » — l'utilisateur verrait des
+	// résultats inattendus sans explication, et la liste se décalerait d'une ligne.
+	s.cache.SetGeocode(ctx, corrected, countryFilter, limit, correctedResults)
 	return &interfaces.GeocodeOutput{Results: correctedResults, CorrectedQuery: corrected}, nil
 }
 

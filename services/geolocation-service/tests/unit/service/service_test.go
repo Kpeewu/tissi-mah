@@ -173,6 +173,8 @@ func TestComputeRoute_OSRMError_PropagatesError(t *testing.T) {
 // =============================================================================
 
 // newTestServiceWithGeocode wrap newTestService avec un mock Nominatim injecté.
+const sokode = "Sokodé"
+
 func newTestServiceWithGeocode(osrmClient osrm.Client, nominatimClient *mocks.MockNominatimClient) interfaces.GeolocationService {
 	return service.NewGeolocationService(osrmClient, nominatimClient, cache.New(nil, zap.NewNop()), "tg,gh,bj,bf", zap.NewNop())
 }
@@ -266,7 +268,7 @@ func TestGeocode_SaisieFautive_RapprocheeDUneLocaliteConnue(t *testing.T) {
 	mockNomi := &mocks.MockNominatimClient{}
 	mockNomi.On("Search", mock.Anything, "Skode", "tg,gh,bj,bf", int32(5)).
 		Return([]*interfaces.GeocodeResult{}, geoErrors.ErrorAddressNotFound).Once()
-	mockNomi.On("Search", mock.Anything, "Sokodé", "tg,gh,bj,bf", int32(5)).
+	mockNomi.On("Search", mock.Anything, sokode, "tg,gh,bj,bf", int32(5)).
 		Return([]*interfaces.GeocodeResult{
 			{DisplayName: "Sokodé, Tchaoudjo, Togo", Lat: 8.98, Lng: 1.14, Country: "tg"},
 		}, nil).Once()
@@ -277,7 +279,7 @@ func TestGeocode_SaisieFautive_RapprocheeDUneLocaliteConnue(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, out.Results, 1)
 	assert.Equal(t, "Sokodé, Tchaoudjo, Togo", out.Results[0].DisplayName)
-	assert.Equal(t, "Sokodé", out.CorrectedQuery, "le client doit pouvoir afficher le nom retenu")
+	assert.Equal(t, sokode, out.CorrectedQuery, "le client doit pouvoir afficher le nom retenu")
 	mockNomi.AssertExpectations(t)
 }
 
@@ -302,7 +304,7 @@ func TestGeocode_CorrectionSansResultat_PasDeCorrectionAnnoncee(t *testing.T) {
 	mockNomi := &mocks.MockNominatimClient{}
 	mockNomi.On("Search", mock.Anything, "Skode", "tg,gh,bj,bf", int32(5)).
 		Return([]*interfaces.GeocodeResult{}, geoErrors.ErrorAddressNotFound).Once()
-	mockNomi.On("Search", mock.Anything, "Sokodé", "tg,gh,bj,bf", int32(5)).
+	mockNomi.On("Search", mock.Anything, sokode, "tg,gh,bj,bf", int32(5)).
 		Return([]*interfaces.GeocodeResult{}, geoErrors.ErrorAddressNotFound).Once()
 	svc := newTestServiceWithGeocode(&mocks.MockOSRMClient{}, mockNomi)
 
@@ -311,5 +313,25 @@ func TestGeocode_CorrectionSansResultat_PasDeCorrectionAnnoncee(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, out.Results)
 	assert.Empty(t, out.CorrectedQuery)
+	mockNomi.AssertExpectations(t)
+}
+
+// Le 23/09 sur émulateur : la deuxième recherche de « Lomme » ne montrait plus le
+// bandeau « Résultats pour « Lomé » », car les résultats corrigés étaient servis
+// depuis le cache sous la saisie fautive, sans l'information de correction.
+func TestGeocode_SaisieFautive_NEstPasMiseEnCacheSousLaSaisie(t *testing.T) {
+	mockNomi := &mocks.MockNominatimClient{}
+	mockNomi.On("Search", mock.Anything, "Skode", "tg,gh,bj,bf", int32(5)).
+		Return([]*interfaces.GeocodeResult{}, geoErrors.ErrorAddressNotFound).Twice()
+	mockNomi.On("Search", mock.Anything, sokode, "tg,gh,bj,bf", int32(5)).
+		Return([]*interfaces.GeocodeResult{{DisplayName: "Sokodé, Togo"}}, nil).Twice()
+	svc := newTestServiceWithGeocode(&mocks.MockOSRMClient{}, mockNomi)
+
+	for i := 0; i < 2; i++ {
+		out, err := svc.Geocode(context.Background(), interfaces.GeocodeInput{Query: "Skode"})
+		require.NoError(t, err)
+		require.Len(t, out.Results, 1)
+		assert.Equal(t, sokode, out.CorrectedQuery, "la correction doit être annoncée à chaque fois (appel %d)", i+1)
+	}
 	mockNomi.AssertExpectations(t)
 }
