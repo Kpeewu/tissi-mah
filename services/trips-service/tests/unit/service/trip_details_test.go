@@ -113,6 +113,29 @@ func TestGetPassengerTripDetails(t *testing.T) {
 		assert.Equal(t, "trip-1", res.TripID)
 	})
 
+	// Sans coordonnées, le client place les marqueurs de la carte à (0, 0), au large
+	// du Golfe de Guinée : la carte du détail restait vide (constaté le 23/09).
+	t.Run("succès - les étapes portent leurs coordonnées", func(t *testing.T) {
+		readRepo, _, userClient, vehicleClient, svc := newTestService()
+		ctx := context.Background()
+		trip, wps := buildTripWithWaypoints("trip-1", "driver-1", "vehicle-1")
+		wps[0].LocationLat, wps[0].LocationLng = 6.1319, 1.2228
+		wps[1].LocationLat, wps[1].LocationLng = 8.9834, 1.1437
+		readRepo.On("GetTripByID", ctx, "trip-1").Return(trip, wps, nil)
+		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").
+			Return("Toyota", "Corolla", "AA-1234", 4, true, nil).Maybe()
+		userClient.On("GetDriverInfo", ctx, "driver-1").Return("Jean", "https://img", nil).Maybe()
+
+		res, err := svc.GetPassengerTripDetails(ctx, &serviceInterfaces.GetPassengerTripDetailsInput{TripID: "trip-1"})
+
+		require.NoError(t, err)
+		require.Len(t, res.Waypoints, 2)
+		assert.Equal(t, 6.1319, res.Waypoints[0].LocationLat)
+		assert.Equal(t, 1.2228, res.Waypoints[0].LocationLng)
+		assert.Equal(t, 8.9834, res.Waypoints[1].LocationLat)
+		assert.Equal(t, 1.1437, res.Waypoints[1].LocationLng)
+	})
+
 	// L'écran de détail passager affiche le modèle du véhicule, le nombre de notes
 	// du conducteur et indique si la réservation est confirmée automatiquement.
 	// Ces trois champs ont été ajoutés après un audit de conformité avec le client

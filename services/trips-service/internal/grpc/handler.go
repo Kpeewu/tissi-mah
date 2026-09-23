@@ -556,6 +556,8 @@ func (h *TripHandler) GetPassengerTripDetails(ctx context.Context, req *trippb.G
 			PriceFromPrevious:    int32(wp.PriceFromPrevious),
 			MinutesFromDeparture: int32(wp.MinutesFromDeparture),
 			IsCancelled:          wp.IsCancelled,
+			LocationLat:          wp.LocationLat,
+			LocationLng:          wp.LocationLng,
 		}
 		if wp.ScheduledPickupDatetime != nil {
 			pbWP.ScheduledPickupDatetime = wp.ScheduledPickupDatetime.Format(time.RFC3339)

@@ -905,6 +905,8 @@ func (s *tripServiceImpl) GetPassengerTripDetails(ctx context.Context, input *se
 			PriceFromPrevious:       wp.PriceFromPrevious,
 			MinutesFromDeparture:    wp.MinutesFromDeparture,
 			IsCancelled:             wp.CancelledAt != nil,
+			LocationLat:             wp.LocationLat,
+			LocationLng:             wp.LocationLng,
 		})
 	}
 
