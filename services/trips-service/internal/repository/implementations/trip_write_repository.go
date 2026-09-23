@@ -133,7 +133,11 @@ func (r *tripWriteRepositoryImpl) insertWaypoints(ctx context.Context, tx pgx.Tx
 		_, err := tx.Exec(ctx, query,
 			wp.WaypointID, tripID, wp.SequencerOrder,
 			string(wp.WaypointType), wp.LocationName,
-			wp.LocationLat, wp.LocationLng,
+			// $6 = location_lng, $7 = location_lat : les deux arguments étaient
+			// intervertis, ce qui stockait la longitude dans location_lat (et
+			// inversement). Les clients plaçaient alors les étapes au large du
+			// Golfe de Guinée et envoyaient des coordonnées fausses à la réservation.
+			wp.LocationLng, wp.LocationLat,
 			wp.City, wp.Country,
 			wp.ScheduledPickupDatetime,
 			wp.MinutesFromDeparture, wp.PriceFromPrevious,
