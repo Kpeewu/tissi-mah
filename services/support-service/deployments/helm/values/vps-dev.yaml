@@ -43,7 +43,7 @@ config:
   otpResendCooldownSeconds: "300"
   loginFailThreshold: "5"
   loginFailWindowSeconds: "86400"
-  frontendUrl: "http://localhost:5173"
+  frontendUrl: "https://support.tissimah.kpeewu.dev"
   passwordResetTtlSeconds: "3600"
   extra: {}
 
