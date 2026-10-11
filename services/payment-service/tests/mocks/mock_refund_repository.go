@@ -4,11 +4,21 @@ import (
 	"context"
 
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/domain"
+	paymentErrors "github.com/Kpeewu/tissi-mah/services/payment-service/pkg/errors"
 	"github.com/stretchr/testify/mock"
 )
 
 type MockRefundRepositoryRead struct {
 	mock.Mock
+}
+
+func (m *MockRefundRepositoryRead) hasExpectation(method string) bool {
+	for _, call := range m.ExpectedCalls {
+		if call.Method == method {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *MockRefundRepositoryRead) GetByID(ctx context.Context, refundID string) (*domain.Refund, error) {
@@ -27,7 +37,12 @@ func (m *MockRefundRepositoryRead) GetByBookingID(ctx context.Context, bookingID
 	return args.Get(0).(*domain.Refund), args.Error(1)
 }
 
+// GetByPaymentID retourne ErrorRefundNotFound sans expectation : createRefundForPayment le consulte
+// à chaque demande (idempotence), les tests n'ont à le configurer que pour un remboursement existant.
 func (m *MockRefundRepositoryRead) GetByPaymentID(ctx context.Context, paymentID string) (*domain.Refund, error) {
+	if !m.hasExpectation("GetByPaymentID") {
+		return nil, paymentErrors.ErrorRefundNotFound
+	}
 	args := m.Called(ctx, paymentID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
