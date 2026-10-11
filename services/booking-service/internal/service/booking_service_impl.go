@@ -875,12 +875,14 @@ func (s *bookingServiceImpl) reserveSeatsForReactivation(ctx context.Context, bo
 }
 
 // notifyPaymentConfirmed notifie la confirmation du paiement (non bloquant) :
-// le conducteur reçoit la demande uniquement une fois le paiement effectué ;
-// en auto-approbation, le passager reçoit directement la confirmation.
+// le conducteur est toujours prévenu une fois le paiement effectué (comme pour le cash) ;
+// en auto-approbation, le passager reçoit en plus la confirmation.
 func (s *bookingServiceImpl) notifyPaymentConfirmed(ctx context.Context, booking *domain.Booking, newStatus domain.BookingStatus) {
 	if s.notifRedis == nil {
 		return
 	}
+
+	s.publishNewBookingRequest(ctx, booking.DriverID, booking.BookingID, int(booking.SeatsBooked))
 
 	if newStatus == domain.BookingStatusApproved {
 		if err := notification.Publish(ctx, s.notifRedis, notification.Event{
@@ -892,10 +894,7 @@ func (s *bookingServiceImpl) notifyPaymentConfirmed(ctx context.Context, booking
 		}); err != nil {
 			s.logger.Error("failed to publish BOOKING_CONFIRMED notification", zap.Error(err))
 		}
-		return
 	}
-
-	s.publishNewBookingRequest(ctx, booking.DriverID, booking.BookingID, int(booking.SeatsBooked))
 }
 
 // publishNewBookingRequest notifie le conducteur d'une nouvelle demande de réservation (non bloquant).
