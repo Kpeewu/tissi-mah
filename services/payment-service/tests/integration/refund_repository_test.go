@@ -47,6 +47,36 @@ func TestRefundWriteRepository_CreateRefund(t *testing.T) {
 	})
 }
 
+// TestRefundWriteRepository_CreateRefund_AllReasons vérifie que chaque motif du domaine existe
+// dans l'enum SQL refund_reason : une constante ajoutée sans migration ALTER TYPE fait échouer
+// l'INSERT (cas waypointCancelled).
+func TestRefundWriteRepository_CreateRefund_AllReasons(t *testing.T) {
+	ctx := context.Background()
+	writeRepo := newTestRefundWriteRepository()
+	readRepo := newTestRefundReadRepository()
+
+	cleanupPaymentTables(t, ctx)
+	payment := fixtures.NewTestPayment(fixtures.WithPaymentID("pay-all-reasons"))
+	require.NoError(t, fixtures.InsertPayment(ctx, testPool, payment))
+
+	for _, reason := range domain.RefundReasons() {
+		t.Run(string(reason), func(t *testing.T) {
+			refundID := "ref-reason-" + string(reason)
+			refund := fixtures.NewTestRefund(
+				fixtures.WithRefundID(refundID),
+				fixtures.WithRefundPaymentID("pay-all-reasons"),
+				fixtures.WithRefundReason(reason),
+			)
+
+			require.NoError(t, writeRepo.CreateRefund(ctx, refund), "motif absent de l'enum refund_reason ?")
+
+			result, err := readRepo.GetByID(ctx, refundID)
+			require.NoError(t, err)
+			assert.Equal(t, reason, result.RefundReason)
+		})
+	}
+}
+
 // =============================================================================
 // RefundRepositoryRead — GetByID / GetByBookingID / GetByPaymentID
 // =============================================================================
