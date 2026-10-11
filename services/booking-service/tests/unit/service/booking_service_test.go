@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -422,31 +423,294 @@ func TestReportNoShow(t *testing.T) {
 // =============================================================================
 
 func TestConfirmPayment(t *testing.T) {
-	t.Run("succes - confirme le paiement", func(t *testing.T) {
+	t.Run("succes - paymentPending sans auto-approbation → pendingApproval", func(t *testing.T) {
 		d := newTestService()
 		ctx := context.Background()
 
-		d.writeRepo.On("ConfirmPayment", mock.Anything, "booking-pay", "txn-123").Return(nil)
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("booking-pay"),
+			fixtures.WithTripID("trip-pay"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentPending),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-pay").Return(booking, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-pay").Return(&client.TripDetails{TripID: "trip-pay", Status: "scheduled"}, nil)
+		d.writeRepo.On("ConfirmPayment", mock.Anything, "booking-pay", "txn-123",
+			domain.BookingStatusPaymentPending, domain.BookingStatusPendingApproval).Return(nil)
 
-		err := d.svc.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
+		status, err := d.svc.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
 			BookingID:     "booking-pay",
 			TransactionID: "txn-123",
 		})
 
 		require.NoError(t, err)
+		assert.Equal(t, string(domain.BookingStatusPendingApproval), status)
+		d.tripClient.AssertNotCalled(t, "IncrementLegBookedSeats", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		d.assertExpectations(t)
+	})
+
+	t.Run("succes - trajet en auto-approbation → approved", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("booking-auto"),
+			fixtures.WithTripID("trip-auto"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentPending),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-auto").Return(booking, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-auto").Return(&client.TripDetails{TripID: "trip-auto", Status: "scheduled", AutoApproveEnabled: true}, nil)
+		d.writeRepo.On("ConfirmPayment", mock.Anything, "booking-auto", "txn-auto",
+			domain.BookingStatusPaymentPending, domain.BookingStatusApproved).Return(nil)
+
+		status, err := d.svc.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
+			BookingID:     "booking-auto",
+			TransactionID: "txn-auto",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, string(domain.BookingStatusApproved), status)
+		d.assertExpectations(t)
+	})
+
+	t.Run("succes - trips-service indisponible → pendingApproval par défaut", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("booking-notrip"),
+			fixtures.WithTripID("trip-down"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentPending),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-notrip").Return(booking, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-down").Return(nil, errors.New("unavailable"))
+		d.writeRepo.On("ConfirmPayment", mock.Anything, "booking-notrip", "txn-1",
+			domain.BookingStatusPaymentPending, domain.BookingStatusPendingApproval).Return(nil)
+
+		status, err := d.svc.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
+			BookingID:     "booking-notrip",
+			TransactionID: "txn-1",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, string(domain.BookingStatusPendingApproval), status)
+	})
+
+	t.Run("succes - réactivation d'une réservation paymentFailed avec places disponibles", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("booking-late"),
+			fixtures.WithTripID("trip-late"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentFailed),
+			fixtures.WithNoPaymentCompleted(),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-late").Return(booking, nil)
+		d.readRepo.On("HasActiveBooking", mock.Anything, booking.PassengerID, "trip-late").Return(false, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-late").Return(&client.TripDetails{TripID: "trip-late", Status: "scheduled", AvailableSeats: 2}, nil)
+		d.writeRepo.On("ConfirmPayment", mock.Anything, "booking-late", "txn-late",
+			domain.BookingStatusPaymentFailed, domain.BookingStatusPendingApproval).Return(nil)
+		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, "trip-late",
+			int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder), int(booking.SeatsBooked)).Return(nil)
+
+		status, err := d.svc.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
+			BookingID:     "booking-late",
+			TransactionID: "txn-late",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, string(domain.BookingStatusPendingApproval), status)
+		d.assertExpectations(t)
+	})
+
+	t.Run("erreur - réactivation impossible, trajet complet", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("booking-full"),
+			fixtures.WithTripID("trip-full"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentFailed),
+			fixtures.WithSeatsBooked(2),
+			fixtures.WithNoPaymentCompleted(),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-full").Return(booking, nil)
+		d.readRepo.On("HasActiveBooking", mock.Anything, booking.PassengerID, "trip-full").Return(false, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-full").Return(&client.TripDetails{TripID: "trip-full", Status: "scheduled", AvailableSeats: 1}, nil)
+
+		_, err := d.svc.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
+			BookingID:     "booking-full",
+			TransactionID: "txn-full",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorNoSeatsAvailable)
+		d.writeRepo.AssertNotCalled(t, "ConfirmPayment", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("erreur - réactivation impossible, le passager a déjà une autre réservation active", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("booking-dup"),
+			fixtures.WithTripID("trip-dup"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentFailed),
+			fixtures.WithNoPaymentCompleted(),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-dup").Return(booking, nil)
+		d.readRepo.On("HasActiveBooking", mock.Anything, booking.PassengerID, "trip-dup").Return(true, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-dup").Return(&client.TripDetails{TripID: "trip-dup", Status: "scheduled", AvailableSeats: 3}, nil)
+
+		_, err := d.svc.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
+			BookingID:     "booking-dup",
+			TransactionID: "txn-dup",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorNoSeatsAvailable)
+	})
+
+	t.Run("erreur - réservation déjà confirmée", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("booking-done"),
+			fixtures.WithBookingStatus(domain.BookingStatusPendingApproval),
+			fixtures.WithPaymentCompletedAt(time.Now()),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-done").Return(booking, nil)
+
+		_, err := d.svc.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
+			BookingID:     "booking-done",
+			TransactionID: "txn-done",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorPaymentAlreadyConfirmed)
 	})
 
 	t.Run("erreur - input vide", func(t *testing.T) {
 		d := newTestService()
 		ctx := context.Background()
 
-		err := d.svc.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
+		_, err := d.svc.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
 			BookingID:     "",
 			TransactionID: "txn-123",
 		})
 
 		assert.ErrorIs(t, err, bookingErrors.ErrorInvalidInput)
+	})
+}
+
+// =============================================================================
+// CancelBooking — paiement en ligne en cours
+// =============================================================================
+
+func TestCancelBooking_PaymentPending(t *testing.T) {
+	t.Run("supprime la collecte FedaPay avant de libérer les places", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("booking-pp"),
+			fixtures.WithPassengerID("passenger-pp"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentPending),
+			fixtures.WithNoPaymentCompleted(),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-pp").Return(booking, nil)
+		d.paymentClient.On("CancelPaymentForBooking", mock.Anything, "booking-pp", mock.Anything).Return("failed", nil)
+		d.writeRepo.On("Cancel", mock.Anything, "booking-pp", "passenger-pp", "").Return(nil)
+		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		err := d.svc.CancelBooking(ctx, &serviceInterfaces.CancelBookingInput{
+			UserID:    "passenger-pp",
+			BookingID: "booking-pp",
+		})
+
+		require.NoError(t, err)
+		d.paymentClient.AssertNotCalled(t, "RequestRefund", mock.Anything, mock.Anything)
+		d.paymentClient.AssertExpectations(t)
+		d.writeRepo.AssertExpectations(t)
+	})
+
+	t.Run("refuse l'annulation si la collecte n'a pas pu être supprimée", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("booking-pp-err"),
+			fixtures.WithPassengerID("passenger-pp"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentPending),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-pp-err").Return(booking, nil)
+		d.paymentClient.On("CancelPaymentForBooking", mock.Anything, "booking-pp-err", mock.Anything).Return("", errors.New("unavailable"))
+
+		err := d.svc.CancelBooking(ctx, &serviceInterfaces.CancelBookingInput{
+			UserID:    "passenger-pp",
+			BookingID: "booking-pp-err",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorInternalServer)
+		d.writeRepo.AssertNotCalled(t, "Cancel", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("refuse si l'utilisateur n'est ni passager ni conducteur", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("booking-pp-other"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentPending),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-pp-other").Return(booking, nil)
+
+		err := d.svc.CancelBooking(ctx, &serviceInterfaces.CancelBookingInput{
+			UserID:    "intruder",
+			BookingID: "booking-pp-other",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorUnauthorized)
+		d.paymentClient.AssertNotCalled(t, "CancelPaymentForBooking", mock.Anything, mock.Anything, mock.Anything)
+	})
+}
+
+// =============================================================================
+// SweepStalePaymentPendingBookings
+// =============================================================================
+
+func TestSweepStalePaymentPendingBookings(t *testing.T) {
+	t.Run("libère sans paiement, confirme si held, ignore si pending", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+		impl := service.AsImpl(d.svc)
+		require.NotNil(t, impl)
+
+		noPayment := fixtures.NewTestBooking(fixtures.WithBookingID("bk-nopay"), fixtures.WithBookingStatus(domain.BookingStatusPaymentPending))
+		held := fixtures.NewTestBooking(fixtures.WithBookingID("bk-held"), fixtures.WithTripID("trip-held"), fixtures.WithBookingStatus(domain.BookingStatusPaymentPending))
+
+		d.readRepo.On("GetStalePaymentPendingBookingIDs", mock.Anything, mock.Anything, mock.Anything).
+			Return([]string{"bk-nopay", "bk-held", "bk-pending"}, nil)
+
+		// Aucun paiement → FailPayment
+		d.paymentClient.On("GetPaymentStatusByBooking", mock.Anything, "bk-nopay").Return("", nil)
+		d.readRepo.On("GetByID", mock.Anything, "bk-nopay").Return(noPayment, nil)
+		d.writeRepo.On("FailPayment", mock.Anything, "bk-nopay", "paymentTimeout").Return(nil)
+		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, noPayment.TripID, mock.Anything, mock.Anything, -int(noPayment.SeatsBooked)).Return(nil)
+
+		// Paiement held → ConfirmPayment
+		d.paymentClient.On("GetPaymentStatusByBooking", mock.Anything, "bk-held").Return("held", nil)
+		d.readRepo.On("GetByID", mock.Anything, "bk-held").Return(held, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-held").Return(&client.TripDetails{TripID: "trip-held", Status: "scheduled"}, nil)
+		d.writeRepo.On("ConfirmPayment", mock.Anything, "bk-held", mock.Anything,
+			domain.BookingStatusPaymentPending, domain.BookingStatusPendingApproval).Return(nil)
+
+		// Paiement pending → rien
+		d.paymentClient.On("GetPaymentStatusByBooking", mock.Anything, "bk-pending").Return("pending", nil)
+
+		impl.SweepStalePaymentPendingBookings(ctx, 12*time.Minute)
+
+		d.writeRepo.AssertExpectations(t)
+		d.paymentClient.AssertExpectations(t)
+		d.writeRepo.AssertNotCalled(t, "FailPayment", mock.Anything, "bk-pending", mock.Anything)
 	})
 }
 

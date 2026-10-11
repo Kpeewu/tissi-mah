@@ -357,6 +357,37 @@ func (r *bookingReadRepositoryImpl) GetActiveTripsWithBookings(ctx context.Conte
 
 // GetCompletedBookingsPendingRelease retourne les bookings complétés non-cash
 // dont le paiement n'a pas encore été libéré et dont la complétion est antérieure à completedBefore.
+// GetStalePaymentPendingBookingIDs retourne les réservations paymentPending dont la fenêtre de paiement est dépassée.
+func (r *bookingReadRepositoryImpl) GetStalePaymentPendingBookingIDs(ctx context.Context, createdBefore time.Time, limit int) ([]string, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT booking_id FROM bookings
+		WHERE status = 'paymentPending'
+		  AND payment_method != 'cash'
+		  AND created_at < $1
+		  AND deleted_at IS NULL
+		ORDER BY created_at ASC
+		LIMIT $2`, createdBefore, limit)
+	if err != nil {
+		r.logger.Error("GetStalePaymentPendingBookingIDs failed", zap.Error(err))
+		return nil, bookingErrors.ErrorDataRetrievalFailed
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			r.logger.Error("GetStalePaymentPendingBookingIDs scan failed", zap.Error(err))
+			return nil, bookingErrors.ErrorDataRetrievalFailed
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, bookingErrors.ErrorDataRetrievalFailed
+	}
+	return ids, nil
+}
+
 func (r *bookingReadRepositoryImpl) GetCompletedBookingsPendingRelease(ctx context.Context, completedBefore time.Time) ([]*domain.Booking, error) {
 	query := `
 		SELECT booking_id, booking_reference, trip_id, passenger_id, driver_id,

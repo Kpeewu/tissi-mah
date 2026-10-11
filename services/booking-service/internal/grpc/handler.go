@@ -384,7 +384,7 @@ func (h *BookingHandler) ReportNoShow(ctx context.Context, req *bookingpb.Report
 
 // ConfirmPayment confirme le paiement d'une réservation.
 func (h *BookingHandler) ConfirmPayment(ctx context.Context, req *bookingpb.ConfirmPaymentRequest) (*bookingpb.ConfirmPaymentResponse, error) {
-	err := h.service.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
+	newStatus, err := h.service.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
 		BookingID:     req.BookingId,
 		TransactionID: req.TransactionId,
 	})
@@ -394,7 +394,7 @@ func (h *BookingHandler) ConfirmPayment(ctx context.Context, req *bookingpb.Conf
 
 	return &bookingpb.ConfirmPaymentResponse{
 		Success: true,
-		Status:  "pendingApproval",
+		Status:  newStatus,
 	}, nil
 }
 

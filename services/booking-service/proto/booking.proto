@@ -105,10 +105,13 @@ service BookingService {
     };
   }
 
-  // ConfirmPayment confirme le paiement d'une réservation (callback paiement).
+  // ConfirmPayment confirme le paiement d'une réservation.
+  // Route interne appelée par payment-service quand FedaPay a approuvé la collecte :
+  // paymentPending → approved (auto-approbation) ou pendingApproval. Une réservation
+  // paymentFailed (approbation tardive) est réactivée si les places sont encore disponibles.
   rpc ConfirmPayment(ConfirmPaymentRequest) returns (ConfirmPaymentResponse) {
     option (google.api.http) = {
-      post: "/api/v1/booking/confirmPayment"
+      post: "/api/v1/booking/internal/confirmPayment"
       body: "*"
     };
   }
@@ -490,7 +493,7 @@ message ConfirmPaymentRequest {
 
 message ConfirmPaymentResponse {
   bool   Success      = 1;
-  string Status       = 2; // nouveau statut après confirmation
+  string Status       = 2; // nouveau statut après confirmation : approved | pendingApproval
   string ErrorMessage = 3;
 }
 

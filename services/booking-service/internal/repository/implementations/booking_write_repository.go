@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/domain"
 	i "github.com/Kpeewu/tissi-mah/services/booking-service/internal/repository/interfaces"
@@ -483,8 +484,13 @@ func (r *bookingWriteRepositoryImpl) ReportNoShow(ctx context.Context, bookingID
 	return tx.Commit(ctx)
 }
 
-// ConfirmPayment confirme le paiement d'une réservation.
-func (r *bookingWriteRepositoryImpl) ConfirmPayment(ctx context.Context, bookingID, transactionID string) error {
+// ConfirmPayment confirme le paiement d'une réservation : expectedStatus → newStatus
+// (pendingApproval, ou approved avec approved_at si le trajet est en auto-approbation).
+// expectedStatus vaut paymentPending, ou paymentFailed pour réactiver une réservation dont
+// les places ont été re-réservées après une approbation FedaPay tardive.
+// Retourne ErrorPaymentAlreadyConfirmed si la réservation est déjà confirmée et
+// ErrorInvalidStatusTransition si son statut a changé entre-temps.
+func (r *bookingWriteRepositoryImpl) ConfirmPayment(ctx context.Context, bookingID, transactionID string, expectedStatus, newStatus domain.BookingStatus) error {
 	r.logger.Debug("confirming payment", zap.String("bookingID", bookingID))
 
 	tx, err := r.pool.Begin(ctx)
@@ -494,10 +500,10 @@ func (r *bookingWriteRepositoryImpl) ConfirmPayment(ctx context.Context, booking
 	defer tx.Rollback(ctx) //nolint:errcheck
 
 	var currentStatus string
-	var tripID string
+	var paymentCompletedAt *time.Time
 	err = tx.QueryRow(ctx, `
-		SELECT status, trip_id FROM bookings WHERE booking_id = $1 FOR UPDATE`, bookingID,
-	).Scan(&currentStatus, &tripID)
+		SELECT status, payment_completed_at FROM bookings WHERE booking_id = $1 FOR UPDATE`, bookingID,
+	).Scan(&currentStatus, &paymentCompletedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return bookingErrors.ErrorBookingNotFound
@@ -505,27 +511,33 @@ func (r *bookingWriteRepositoryImpl) ConfirmPayment(ctx context.Context, booking
 		return bookingErrors.ErrorDataRetrievalFailed
 	}
 
-	if currentStatus != string(domain.BookingStatusPaymentPending) {
-		return bookingErrors.ErrorPaymentAlreadyConfirmed
+	if currentStatus != string(expectedStatus) {
+		if paymentCompletedAt != nil {
+			return bookingErrors.ErrorPaymentAlreadyConfirmed
+		}
+		return bookingErrors.ErrorInvalidStatusTransition
 	}
 
-	// Paiement confirmé → passer à pendingApproval
-	newStatus := string(domain.BookingStatusPendingApproval)
-
-	_, err = tx.Exec(ctx, `
-		UPDATE bookings SET status = $2::booking_status, payment_completed_at = NOW()
-		WHERE booking_id = $1`, bookingID, newStatus)
-	if err != nil {
+	query := `UPDATE bookings SET status = $2::booking_status, payment_completed_at = NOW(),
+		cancellation_reason = NULL WHERE booking_id = $1`
+	if newStatus == domain.BookingStatusApproved {
+		query = `UPDATE bookings SET status = $2::booking_status, payment_completed_at = NOW(),
+			approved_at = NOW(), cancellation_reason = NULL WHERE booking_id = $1`
+	}
+	if _, err = tx.Exec(ctx, query, bookingID, string(newStatus)); err != nil {
 		r.logger.Error("confirm payment update failed", zap.Error(err))
 		return bookingErrors.ErrorInternalServer
 	}
 
 	confirmReason := "Paiement confirmé"
+	if expectedStatus == domain.BookingStatusPaymentFailed {
+		confirmReason = "Paiement confirmé tardivement — places re-réservées"
+	}
 	if err := r.insertHistory(ctx, tx, &domain.StatusHistoryEntry{
 		HistoryID:      uuid.New().String(),
 		BookingID:      bookingID,
 		PreviousStatus: currentStatus,
-		NewStatus:      newStatus,
+		NewStatus:      string(newStatus),
 		ChangedBy:      "system",
 		ChangedByType:  "system",
 		ChangeReason:   &confirmReason,

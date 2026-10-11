@@ -39,6 +39,10 @@ type BookingRepositoryRead interface {
 	// dont le paiement n'a pas encore été libéré et dont la complétion est antérieure à completedBefore.
 	GetCompletedBookingsPendingRelease(ctx context.Context, completedBefore time.Time) ([]*domain.Booking, error)
 
+	// GetStalePaymentPendingBookingIDs retourne les réservations en paymentPending créées avant
+	// createdBefore (fenêtre de paiement dépassée), au plus limit.
+	GetStalePaymentPendingBookingIDs(ctx context.Context, createdBefore time.Time, limit int) ([]string, error)
+
 	// GetActivePassengerIDsForTrip retourne les IDs distincts des passagers avec une réservation active sur un trajet.
 	// Statuts considérés comme actifs : pendingApproval, approved, inProgress.
 	GetActivePassengerIDsForTrip(ctx context.Context, tripID string) ([]string, error)

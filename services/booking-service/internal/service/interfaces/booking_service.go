@@ -44,8 +44,10 @@ type BookingService interface {
 	// ReportNoShow signale l'absence d'un passager ou d'un conducteur.
 	ReportNoShow(ctx context.Context, input *ReportNoShowInput) error
 
-	// ConfirmPayment confirme le paiement d'une réservation.
-	ConfirmPayment(ctx context.Context, input *ConfirmPaymentInput) error
+	// ConfirmPayment confirme le paiement d'une réservation et retourne son nouveau statut
+	// (approved si le trajet est en auto-approbation, pendingApproval sinon). Une réservation
+	// paymentFailed (approbation FedaPay tardive) est réactivée si les places sont encore disponibles.
+	ConfirmPayment(ctx context.Context, input *ConfirmPaymentInput) (string, error)
 
 	// FailPayment signale l'échec du paiement et restaure les places.
 	FailPayment(ctx context.Context, input *FailPaymentInput) error

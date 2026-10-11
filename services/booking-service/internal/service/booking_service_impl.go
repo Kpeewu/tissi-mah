@@ -288,21 +288,11 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 		TotalAmount:      totalAmount,
 	}
 
-	// Notifier le conducteur d'une nouvelle demande (non bloquant)
-	if s.notifRedis != nil {
-		if err := notification.Publish(ctx, s.notifRedis, notification.Event{
-			EventType:     notification.NewBookingRequest,
-			UserID:        tripDetails.DriverID,
-			ReferenceID:   bookingID,
-			ReferenceType: notification.RefBooking,
-			Payload: map[string]string{
-				"seats":             fmt.Sprintf("%d", input.SeatsBooked),
-				"booking_id":        bookingID,
-				"notification_type": notification.NewBookingRequest,
-			},
-		}); err != nil {
-			s.logger.Error("failed to publish NEW_BOOKING_REQUEST notification", zap.Error(err))
-		}
+	// Notifier le conducteur d'une nouvelle demande (non bloquant). Pour un paiement en ligne,
+	// la notification part à la confirmation du paiement (ConfirmPayment) : le conducteur ne voit
+	// pas les demandes non payées.
+	if paymentMethod == domain.PaymentCash {
+		s.publishNewBookingRequest(ctx, tripDetails.DriverID, bookingID, input.SeatsBooked)
 	}
 
 	return result, nil
@@ -554,6 +544,26 @@ func (s *bookingServiceImpl) CancelBooking(ctx context.Context, input *serviceIn
 		return err
 	}
 
+	// Paiement en ligne en cours : supprimer la collecte FedaPay avant de libérer les places,
+	// sinon le passager pourrait encore payer une réservation annulée.
+	if booking.Status == domain.BookingStatusPaymentPending && booking.PaymentMethod != domain.PaymentCash && s.paymentClient != nil {
+		if input.UserID != booking.PassengerID && input.UserID != booking.DriverID {
+			return bookingErrors.ErrorUnauthorized
+		}
+		paymentStatus, err := s.paymentClient.CancelPaymentForBooking(ctx, input.BookingID, "Réservation annulée")
+		if err != nil {
+			s.logger.Error("CancelBooking: cancel pending payment failed", zap.String("bookingID", input.BookingID), zap.Error(err))
+			return bookingErrors.ErrorInternalServer
+		}
+		if paymentStatus == "held" {
+			// FedaPay avait déjà approuvé : la réservation vient d'être confirmée par payment-service.
+			// On relit la réservation pour l'annuler avec remboursement.
+			if booking, err = s.readRepo.GetByID(ctx, input.BookingID); err != nil {
+				return err
+			}
+		}
+	}
+
 	if err := s.writeRepo.Cancel(ctx, input.BookingID, input.UserID, input.Reason); err != nil {
 		return err
 	}
@@ -738,17 +748,174 @@ func (s *bookingServiceImpl) GetActivePassengerIDsForTrip(ctx context.Context, t
 // ConfirmPayment
 // =============================================================================
 
-func (s *bookingServiceImpl) ConfirmPayment(ctx context.Context, input *serviceInterfaces.ConfirmPaymentInput) error {
+func (s *bookingServiceImpl) ConfirmPayment(ctx context.Context, input *serviceInterfaces.ConfirmPaymentInput) (string, error) {
 	if input.BookingID == "" || input.TransactionID == "" {
-		return bookingErrors.ErrorInvalidInput
+		return "", bookingErrors.ErrorInvalidInput
 	}
 
-	if err := s.writeRepo.ConfirmPayment(ctx, input.BookingID, input.TransactionID); err != nil {
-		return err
+	// Une seconde tentative couvre le cas où le statut change entre la lecture et le verrou
+	// (ex. expiration concurrente paymentPending → paymentFailed).
+	for attempt := 0; attempt < 2; attempt++ {
+		newStatus, err := s.confirmPaymentOnce(ctx, input)
+		if errors.Is(err, bookingErrors.ErrorInvalidStatusTransition) && attempt == 0 {
+			continue
+		}
+		return newStatus, err
+	}
+	return "", bookingErrors.ErrorInvalidStatusTransition
+}
+
+// confirmPaymentOnce rattache le paiement à la réservation selon son statut courant :
+//   - paymentPending : places déjà tenues → pendingApproval / approved
+//   - paymentFailed  : places libérées → re-réservation (ErrorNoSeatsAvailable si complet) puis confirmation
+func (s *bookingServiceImpl) confirmPaymentOnce(ctx context.Context, input *serviceInterfaces.ConfirmPaymentInput) (string, error) {
+	booking, err := s.readRepo.GetByID(ctx, input.BookingID)
+	if err != nil {
+		return "", err
+	}
+
+	expectedStatus := booking.Status
+	switch expectedStatus {
+	case domain.BookingStatusPaymentPending, domain.BookingStatusPaymentFailed:
+	default:
+		if booking.PaymentCompletedAt != nil {
+			return "", bookingErrors.ErrorPaymentAlreadyConfirmed
+		}
+		return "", bookingErrors.ErrorInvalidStatusTransition
+	}
+
+	// Auto-approbation du trajet (si trips-service est indisponible : validation manuelle par défaut)
+	newStatus := domain.BookingStatusPendingApproval
+	tripDetails, err := s.tripClient.GetTripDetails(ctx, booking.TripID)
+	if err != nil {
+		s.logger.Warn("ConfirmPayment: GetTripDetails failed, defaulting to pendingApproval",
+			zap.String("tripID", booking.TripID), zap.Error(err))
+	} else if tripDetails != nil && tripDetails.AutoApproveEnabled {
+		newStatus = domain.BookingStatusApproved
+	}
+
+	pickupOrder, dropoffOrder := int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder)
+	seats := int(booking.SeatsBooked)
+
+	// Réactivation : re-réserver les places libérées par FailPayment
+	reactivate := expectedStatus == domain.BookingStatusPaymentFailed
+	if reactivate {
+		if err := s.reserveSeatsForReactivation(ctx, booking, tripDetails); err != nil {
+			return "", err
+		}
+	}
+
+	if err := s.writeRepo.ConfirmPayment(ctx, input.BookingID, input.TransactionID, expectedStatus, newStatus); err != nil {
+		if reactivate && s.cache != nil {
+			_ = s.cache.RestoreSegmentSeats(ctx, booking.TripID, pickupOrder, dropoffOrder, seats)
+		}
+		return "", err
+	}
+
+	if reactivate {
+		if err := s.tripClient.IncrementLegBookedSeats(ctx, booking.TripID, pickupOrder, dropoffOrder, seats); err != nil {
+			s.logger.Warn("IncrementLegBookedSeats (confirmPayment) failed, reconciliation will fix",
+				zap.String("tripID", booking.TripID), zap.Error(err))
+		}
 	}
 
 	s.invalidateBookingCaches(ctx, input.BookingID)
+	if s.cache != nil {
+		s.cache.InvalidateDriverPendingBookings(ctx, booking.DriverID)
+	}
+
+	s.notifyPaymentConfirmed(ctx, booking, newStatus)
+
+	s.logger.Info("payment confirmed",
+		zap.String("bookingID", input.BookingID),
+		zap.String("newStatus", string(newStatus)),
+		zap.Bool("reactivated", reactivate),
+	)
+
+	return string(newStatus), nil
+}
+
+// reserveSeatsForReactivation re-réserve les places d'une réservation libérée (paymentFailed).
+func (s *bookingServiceImpl) reserveSeatsForReactivation(ctx context.Context, booking *domain.Booking, tripDetails *client.TripDetails) error {
+	if tripDetails == nil {
+		// Sans les détails du trajet, impossible de vérifier la disponibilité
+		return bookingErrors.ErrorInternalServer
+	}
+	if tripDetails.Status != "scheduled" && tripDetails.Status != "inProgress" {
+		return bookingErrors.ErrorNoSeatsAvailable
+	}
+
+	// Le passager a pu refaire une réservation sur ce trajet après la libération : pas de doublon
+	hasActive, err := s.readRepo.HasActiveBooking(ctx, booking.PassengerID, booking.TripID)
+	if err != nil {
+		return err
+	}
+	if hasActive {
+		return bookingErrors.ErrorNoSeatsAvailable
+	}
+
+	pickupOrder, dropoffOrder := int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder)
+	seats := int(booking.SeatsBooked)
+
+	if s.cache != nil {
+		maxOrder := getMaxWaypointOrder(tripDetails.Waypoints)
+		if err := s.cache.InitSegmentSeatCounters(ctx, booking.TripID, tripDetails.TotalSeats, maxOrder); err == nil {
+			if err := s.cache.ReserveSegmentSeats(ctx, booking.TripID, pickupOrder, dropoffOrder, seats); err != nil {
+				return bookingErrors.ErrorNoSeatsAvailable
+			}
+			return nil
+		}
+		s.logger.Warn("InitSegmentSeatCounters failed, falling back to trip available seats")
+	}
+
+	if tripDetails.AvailableSeats < seats {
+		return bookingErrors.ErrorNoSeatsAvailable
+	}
 	return nil
+}
+
+// notifyPaymentConfirmed notifie la confirmation du paiement (non bloquant) :
+// le conducteur reçoit la demande uniquement une fois le paiement effectué ;
+// en auto-approbation, le passager reçoit directement la confirmation.
+func (s *bookingServiceImpl) notifyPaymentConfirmed(ctx context.Context, booking *domain.Booking, newStatus domain.BookingStatus) {
+	if s.notifRedis == nil {
+		return
+	}
+
+	if newStatus == domain.BookingStatusApproved {
+		if err := notification.Publish(ctx, s.notifRedis, notification.Event{
+			EventType:     notification.BookingConfirmed,
+			UserID:        booking.PassengerID,
+			ReferenceID:   booking.BookingID,
+			ReferenceType: notification.RefBooking,
+			Payload:       map[string]string{"booking_id": booking.BookingID},
+		}); err != nil {
+			s.logger.Error("failed to publish BOOKING_CONFIRMED notification", zap.Error(err))
+		}
+		return
+	}
+
+	s.publishNewBookingRequest(ctx, booking.DriverID, booking.BookingID, int(booking.SeatsBooked))
+}
+
+// publishNewBookingRequest notifie le conducteur d'une nouvelle demande de réservation (non bloquant).
+func (s *bookingServiceImpl) publishNewBookingRequest(ctx context.Context, driverID, bookingID string, seats int) {
+	if s.notifRedis == nil {
+		return
+	}
+	if err := notification.Publish(ctx, s.notifRedis, notification.Event{
+		EventType:     notification.NewBookingRequest,
+		UserID:        driverID,
+		ReferenceID:   bookingID,
+		ReferenceType: notification.RefBooking,
+		Payload: map[string]string{
+			"seats":             fmt.Sprintf("%d", seats),
+			"booking_id":        bookingID,
+			"notification_type": notification.NewBookingRequest,
+		},
+	}); err != nil {
+		s.logger.Error("failed to publish NEW_BOOKING_REQUEST notification", zap.Error(err))
+	}
 }
 
 // =============================================================================

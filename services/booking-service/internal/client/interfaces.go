@@ -70,6 +70,13 @@ type PaymentClient interface {
 	RequestRefund(ctx context.Context, input *RefundInput) error
 	// ReleasePayment libère un paiement held → released après le délai de contestation.
 	ReleasePayment(ctx context.Context, bookingID string) error
+	// GetPaymentStatusByBooking retourne le statut du dernier paiement d'une réservation
+	// ("" si aucun paiement n'existe).
+	GetPaymentStatusByBooking(ctx context.Context, bookingID string) (string, error)
+	// CancelPaymentForBooking supprime la collecte FedaPay pending d'une réservation annulée.
+	// Retourne le statut du paiement après annulation : "held" si FedaPay avait déjà approuvé
+	// (un remboursement est alors nécessaire), "failed" ou "" sinon.
+	CancelPaymentForBooking(ctx context.Context, bookingID string, reason string) (string, error)
 	Close() error
 }
 

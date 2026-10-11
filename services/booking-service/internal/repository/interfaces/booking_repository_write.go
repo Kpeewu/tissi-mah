@@ -33,7 +33,8 @@ type BookingRepositoryWrite interface {
 
 	// ConfirmPayment confirme le paiement d'une réservation.
 	// Retourne le nouveau statut et autoApprove du trajet associé.
-	ConfirmPayment(ctx context.Context, bookingID, transactionID string) error
+	// expectedStatus → newStatus (paymentPending, ou paymentFailed pour une réactivation après approbation tardive).
+	ConfirmPayment(ctx context.Context, bookingID, transactionID string, expectedStatus, newStatus domain.BookingStatus) error
 
 	// FailPayment marque le paiement d'une réservation comme échoué (paymentPending → paymentFailed).
 	FailPayment(ctx context.Context, bookingID, reason string) error

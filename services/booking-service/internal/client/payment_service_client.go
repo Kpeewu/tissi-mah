@@ -8,6 +8,8 @@ import (
 	paymentpb "github.com/Kpeewu/tissi-mah/services/payment-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // PaymentServiceClient est le client gRPC vers payment-service.
@@ -93,4 +95,34 @@ func (c *PaymentServiceClient) ReleasePayment(ctx context.Context, bookingID str
 	}
 
 	return nil
+}
+
+// GetPaymentStatusByBooking retourne le statut du dernier paiement d'une réservation ("" si aucun).
+func (c *PaymentServiceClient) GetPaymentStatusByBooking(ctx context.Context, bookingID string) (string, error) {
+	resp, err := c.grpcClient.GetPaymentByBooking(ctx, &paymentpb.GetPaymentByBookingRequest{
+		BookingId: bookingID,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return "", nil
+		}
+		c.logger.Error("client: GetPaymentByBooking failed", zap.Error(err), zap.String("bookingID", bookingID))
+		return "", fmt.Errorf("payment-service: GetPaymentByBooking failed: %w", err)
+	}
+
+	return resp.Status, nil
+}
+
+// CancelPaymentForBooking supprime la collecte FedaPay pending d'une réservation annulée.
+func (c *PaymentServiceClient) CancelPaymentForBooking(ctx context.Context, bookingID string, reason string) (string, error) {
+	resp, err := c.grpcClient.CancelPaymentForBooking(ctx, &paymentpb.CancelPaymentForBookingRequest{
+		BookingId: bookingID,
+		Reason:    reason,
+	})
+	if err != nil {
+		c.logger.Error("client: CancelPaymentForBooking failed", zap.Error(err), zap.String("bookingID", bookingID))
+		return "", fmt.Errorf("payment-service: CancelPaymentForBooking failed: %w", err)
+	}
+
+	return resp.Status, nil
 }

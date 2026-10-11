@@ -95,6 +95,16 @@ func (m *MockPaymentClient) ReleasePayment(ctx context.Context, bookingID string
 	return args.Error(0)
 }
 
+func (m *MockPaymentClient) GetPaymentStatusByBooking(ctx context.Context, bookingID string) (string, error) {
+	args := m.Called(ctx, bookingID)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockPaymentClient) CancelPaymentForBooking(ctx context.Context, bookingID string, reason string) (string, error) {
+	args := m.Called(ctx, bookingID, reason)
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockPaymentClient) Close() error {
 	args := m.Called()
 	return args.Error(0)
