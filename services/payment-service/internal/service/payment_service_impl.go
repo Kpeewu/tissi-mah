@@ -370,10 +370,16 @@ func (s *paymentServiceImpl) createRefundForPayment(ctx context.Context, payment
 		return nil, paymentErrors.ErrorInvalidPaymentStatus
 	}
 
-	// Parser les dates
-	departureDatetime, err := time.Parse(time.RFC3339, input.DepartureDatetime)
-	if err != nil {
-		return nil, paymentErrors.ErrorInvalidInput
+	// Parser les dates. Le départ ne sert qu'à la règle des 24h d'une annulation passager :
+	// il peut manquer pour les autres motifs (ex. arrêt supprimé, introuvable côté trips-service).
+	reason := domain.RefundReason(input.RefundReason)
+	var departureDatetime time.Time
+	if input.DepartureDatetime != "" || reason == domain.RefundReasonCancelledByPassenger {
+		parsed, err := time.Parse(time.RFC3339, input.DepartureDatetime)
+		if err != nil {
+			return nil, paymentErrors.ErrorInvalidInput
+		}
+		departureDatetime = parsed
 	}
 
 	cancelledAt, err := time.Parse(time.RFC3339, input.CancelledAt)
@@ -391,7 +397,6 @@ func (s *paymentServiceImpl) createRefundForPayment(ctx context.Context, payment
 	}
 
 	// Déterminer la règle de remboursement
-	reason := domain.RefundReason(input.RefundReason)
 	rule := DetermineRefundRule(reason, departureDatetime, approvedAt, cancelledAt, s.cfg.Refund)
 
 	// Calculer les montants

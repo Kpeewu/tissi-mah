@@ -487,6 +487,52 @@ func TestRequestRefund(t *testing.T) {
 		assert.ErrorIs(t, err, paymentErrors.ErrorInvalidInput)
 		d.assertExpectations(t)
 	})
+
+	t.Run("depart inconnu : accepte hors annulation passager", func(t *testing.T) {
+		d := newTestService()
+
+		payment := fixtures.NewTestPayment(
+			fixtures.WithPaymentID("pay-no-departure"),
+			fixtures.WithPaymentStatus(domain.PaymentStatusHeld),
+		)
+		d.paymentReadRepo.On("GetByBookingID", mock.Anything, "booking-no-departure").Return(payment, nil)
+		d.refundWriteRepo.On("CreateRefund", mock.Anything, mock.MatchedBy(func(r *domain.Refund) bool {
+			return r.RefundReason == domain.RefundReasonWaypointCancelled &&
+				r.RefundRuleApplied == domain.RefundRuleDriverCancellation
+		})).Return(nil)
+		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-no-departure", domain.PaymentStatusRefunded, "").
+			Return(nil)
+
+		result, err := d.svc.RequestRefund(context.Background(), &serviceInterfaces.RequestRefundInput{
+			BookingID:      "booking-no-departure",
+			RefundReason:   "waypointCancelled",
+			OriginalAmount: 5000,
+			ServiceFee:     500,
+			CancelledAt:    time.Now().UTC().Format(time.RFC3339),
+		})
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, result.RefundID)
+	})
+
+	t.Run("erreur - depart inconnu pour une annulation passager", func(t *testing.T) {
+		d := newTestService()
+
+		payment := fixtures.NewTestPayment(fixtures.WithPaymentStatus(domain.PaymentStatusHeld))
+		d.paymentReadRepo.On("GetByBookingID", mock.Anything, "booking-pax-no-departure").Return(payment, nil)
+
+		result, err := d.svc.RequestRefund(context.Background(), &serviceInterfaces.RequestRefundInput{
+			BookingID:      "booking-pax-no-departure",
+			RefundReason:   "cancelledByPassenger",
+			OriginalAmount: 5000,
+			ServiceFee:     500,
+			CancelledAt:    time.Now().UTC().Format(time.RFC3339),
+		})
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, paymentErrors.ErrorInvalidInput)
+		d.refundWriteRepo.AssertNotCalled(t, "CreateRefund", mock.Anything, mock.Anything)
+	})
 }
 
 // =============================================================================
