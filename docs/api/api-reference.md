@@ -761,7 +761,6 @@ Base : `/booking`
 | `PATCH /api/v1/booking/rejectBooking` | 🔒 | `{ "DriverId": "uuid", "BookingId": "uuid", "Reason": "..." }` |
 | `PATCH /api/v1/booking/cancelBooking` | 🔒 | `{ "UserId": "uuid", "BookingId": "uuid", "Reason": "..." }` |
 | `POST /api/v1/booking/reportNoShow` | 🔒 | `{ "BookingId": "uuid", "ReporterId": "uuid", "NoShowType": "driver\|passenger", "Description": "..." }` |
-| `POST /api/v1/booking/confirmPayment` | 🔒 | `{ "BookingId": "uuid", "TransactionId": "xxx" }` |
 
 ---
 
@@ -771,28 +770,46 @@ Base : `/payment`
 
 #### `POST /api/v1/payment/createPayment` 🔒
 
+Paiement FedaPay **avec redirection** : retourne le lien de la page de paiement à ouvrir dans un navigateur in-app. L'opérateur et le numéro payeur sont choisis par le passager sur la page FedaPay.
+
 ```json
 {
   "BookingId": "uuid",
   "TripId": "uuid",
   "PaymentMethod": "mobileMoney",
-  "Amount": 10000,
-  "PassengerPhoneNumber": "+22890000000",
-  "MobileMoneyMode": "moov_tg"
+  "PassengerPhoneNumber": "90000000"
 }
 ```
 
-**MobileMoneyMode :** `moov_tg` | `togocel`
+`PassengerPhoneNumber` = numéro togocel de **remboursement**. `Amount` et `MobileMoneyMode` sont dépréciés et ignorés.
 
 **Réponse :**
 ```json
 {
   "PaymentId": "uuid",
-  "PaymentReference": "PAY-xxx",
+  "PaymentReference": "PAY-20261011-XXXXXX",
   "Status": "pending",
-  "ErrorMessage": ""
+  "ErrorMessage": "",
+  "PaymentUrl": "https://process.fedapay.com/...",
+  "ExpiresAt": "2026-10-11T10:10:00Z",
+  "Reused": false,
+  "Amount": 10000
 }
 ```
+
+Fenêtre de paiement de 10 min depuis la création de la réservation. Rappeler `createPayment` tant que le paiement est `pending` renvoie le même lien (`Reused: true`).
+
+#### `POST /api/v1/payment/verifyPayment` 🔒
+
+`{ "PaymentId": "uuid" }`. Resynchronise avec FedaPay (source de vérité au retour de la page de paiement) et retourne `PaymentStatusResponse` : `Status`, `ProviderStatus`, `IsFinal`, `PaymentUrl`, `ExpiresAt`, `BookingStatus`, `SeatsReleased`, `Amount`.
+
+#### `POST /api/v1/payment/cancelPayment` 🔒
+
+`{ "PaymentId": "uuid" }`. Supprime la transaction FedaPay et libère les places (réservation → `paymentFailed`). Retourne `PaymentStatusResponse`.
+
+#### `GET /api/v1/payment/callback` (public)
+
+`callback_url` FedaPay (`?id=&status=`). Le statut est revérifié auprès de FedaPay, puis la réponse est un `302` vers `tissimah://payment/result?paymentId=&status=&providerStatus=&bookingStatus=`.
 
 #### `GET /api/v1/payment/getPaymentStatus?PaymentId=uuid` 🔒
 

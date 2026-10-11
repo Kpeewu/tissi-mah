@@ -15,7 +15,10 @@ This document describes the HTTP/REST API exposed by the payment-service through
 
 | Route | Auth |
 |-------|------|
-| `/api/v1/payment/createPayment` | Firebase JWT required |
+| `/api/v1/payment/createPayment` | Firebase JWT required (booking passenger) |
+| `/api/v1/payment/verifyPayment` | Firebase JWT required (booking passenger) |
+| `/api/v1/payment/cancelPayment` | Firebase JWT required (booking passenger) |
+| `/api/v1/payment/callback` | Public (FedaPay return URL; status re-checked with FedaPay) |
 | `/api/v1/payment/getPaymentStatus` | Firebase JWT required |
 | `/api/v1/payment/getPaymentByBooking` | Firebase JWT required |
 | `/api/v1/payment/getRefundStatus` | Firebase JWT required |
@@ -41,13 +44,48 @@ Authorization: Bearer <firebase-id-token>
 
 ## Endpoints
 
+### Mobile integration — FedaPay payment with redirection
+
+Payments use the FedaPay **redirect** flow. The passenger picks their operator and phone number on the FedaPay payment page. The app never sends the mobile money operator.
+
+```
+App                      api-gateway / payment-service              FedaPay
+ │ POST createPayment ──────────►│ POST /v1/transactions (callback_url) ─────►│
+ │                               │ POST /v1/transactions/{id}/token ─────────►│
+ │◄── PaymentUrl, ExpiresAt ─────│                                            │
+ │ open PaymentUrl (in-app browser) ─────────────────────────────────────────►│ passenger pays
+ │                               │◄──── GET /api/v1/payment/callback?id=&status=
+ │                               │ GET /v1/transactions/{id} (re-check) ─────►│
+ │◄── 302 tissimah://payment/result?paymentId=…&status=… ──────────────────────│
+ │ POST verifyPayment ──────────►│ GET /v1/transactions/{id} ────────────────►│
+ │◄── Status / BookingStatus ────│                                            │
+```
+
+1. **`POST /api/v1/payment/createPayment`** returns `PaymentUrl` and `ExpiresAt`.
+2. Open `PaymentUrl` in an in-app browser that can catch the custom-scheme redirect: `ASWebAuthenticationSession` on iOS, Custom Tabs on Android (or `flutter_web_auth_2`), with callback scheme `tissimah`.
+3. After payment, FedaPay redirects the browser to `GET /api/v1/payment/callback`.
+   - The api-gateway checks the transaction with FedaPay.
+   - It then answers `302` to `tissimah://payment/result?paymentId=…&status=…&providerStatus=…&bookingStatus=…`.
+4. On the deep link, **or** whenever the browser is closed without it, call **`POST /api/v1/payment/verifyPayment`**. This is the source of truth; never trust the deep-link query alone.
+5. Act on `Status`:
+
+| `Status` | `ProviderStatus` | Meaning for the app |
+|---|---|---|
+| `held` | `approved` | Paid. Show the booking: `BookingStatus` is `approved` (auto-approval) or `pendingApproval` (waiting for the driver). |
+| `pending` | `pending` | Not paid yet. Offer **Resume payment** (`createPayment` again returns the same `PaymentUrl` with `Reused=true`) or **Cancel** (`cancelPayment`). |
+| `pending` | `declined` / `canceled` | The attempt failed (for example, insufficient balance), but **a retry is possible** with the same link until `ExpiresAt`. |
+| `failed` | `deleted` / `expired` | Payment window over or cancelled. **The seats were released** (`SeatsReleased=true`, `BookingStatus=paymentFailed`), so the passenger must book again. |
+| `refunded` | `approved` | Paid too late and the trip is now full: a full refund was issued to the refund number. |
+
+> **Payment window: 10 minutes from booking creation** (`PAYMENT_TIMEOUT_MINUTES`). After `ExpiresAt`, the FedaPay transaction is deleted, the booking moves to `paymentFailed` and its seats go back on sale.
+
+---
+
 ### POST /api/v1/payment/createPayment
 
-Initiates a FedaPay payment for a booking. Creates the transaction and sends a mobile money request to the passenger's phone.
+Creates the FedaPay transaction of a booking and returns the payment page link. The call is **idempotent per booking**: while a `pending` payment exists, it returns the same link with `Reused=true`.
 
-**Authentication:** Firebase JWT required
-
-> Currently only `mobileMoney` is supported. `card` and `paypal` are reserved for future use.
+**Authentication:** Firebase JWT required. The caller must be the booking's passenger.
 
 #### Request
 
@@ -55,15 +93,14 @@ Initiates a FedaPay payment for a booking. Creates the transaction and sends a m
 POST /api/v1/payment/createPayment HTTP/1.1
 Host: api.tissi-mah.com
 Authorization: Bearer <firebase-id-token>
+X-App-ID: <mobile-app-id>
 Content-Type: application/json
 
 {
     "BookingId": "bk-550e8400-e29b-41d4-a716-446655440020",
     "TripId": "t-550e8400-e29b-41d4-a716-446655440000",
     "PaymentMethod": "mobileMoney",
-    "Amount": 11000,
-    "PassengerPhoneNumber": "+22890000000",
-    "MobileMoneyMode": "moov_tg"
+    "PassengerPhoneNumber": "90000000"
 }
 ```
 
@@ -71,44 +108,127 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `BookingId` | string | Yes | Booking UUID |
-| `TripId` | string | Yes | Trip UUID |
-| `PaymentMethod` | string | Yes | `mobileMoney` (only supported value currently) |
-| `Amount` | integer | Yes | Total amount to charge in XOF (must equal booking `TotalAmount`) |
-| `PassengerPhoneNumber` | string | Yes | Passenger's phone number in international format |
-| `MobileMoneyMode` | string | Yes | `moov_tg` (Moov Togo) or `togocel` (Togocel) |
+| `BookingId` | string | Yes | Booking UUID. The booking must be in `paymentPending`. |
+| `TripId` | string | No | If provided, it must match the booking's trip. |
+| `PaymentMethod` | string | Yes | `mobileMoney` |
+| `PassengerPhoneNumber` | string | Yes | **Refund** number (Togocel, 8 digits; `+228`/`00228` prefixes accepted). It is *not* the paying number, which the passenger chooses on the FedaPay page. |
+| `Amount` | integer | Deprecated | Ignored. The amount charged is the booking's `TotalAmount`. |
+| `MobileMoneyMode` | string | Deprecated | Ignored. The operator is chosen on the FedaPay page. |
 
 #### Response (Success)
 
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
+```json
 {
     "PaymentId": "pay-550e8400-e29b-41d4-a716-446655440030",
-    "PaymentReference": "TM-PAY-2026-0001",
+    "PaymentReference": "PAY-20261011-7KQ2ZD",
     "Status": "pending",
-    "ErrorMessage": ""
+    "ErrorMessage": "",
+    "PaymentUrl": "https://process.fedapay.com/eyJ0eXAiOiJKV1QiLCJhbGciOi...",
+    "ExpiresAt": "2026-10-11T10:10:00Z",
+    "Reused": false,
+    "Amount": 11000
 }
 ```
-
-#### Payment Flow After Creation
-
-1. Payment is created with status `pending`
-2. FedaPay sends a mobile money request to the passenger's phone
-3. Passenger approves on their phone
-4. FedaPay calls `POST /api/v1/payment/webhooks/fedapay` with the result
-5. On `transaction.approved` → payment status becomes `held`, booking transitions to `pendingApproval`
-6. On `transaction.declined` or `transaction.canceled` → payment status becomes `failed`
 
 #### Errors
 
 | Error | HTTP Code | Description |
 |-------|-----------|-------------|
-| `ErrorInvalidInput` | 400 | Missing or invalid fields |
-| `ErrorInvalidPaymentMethod` | 400 | Payment method not `mobileMoney` |
-| `ErrorPaymentAlreadyExists` | 422 | A payment already exists for this booking |
+| `ErrorInvalidInput` | 400 | Missing or invalid fields (method, refund number, trip mismatch) |
+| `ErrorBookingNotPayable` | 400 | Booking is cash or no longer in `paymentPending` |
+| `ErrorBookingPaymentExpired` | 400 | The 10-minute payment window is over (book again) |
+| `ErrorPaymentNotOwned` | 403 | The caller is not the booking's passenger |
+| `ErrorBookingNotFound` | 404 | Unknown booking |
+| `ErrorDuplicatePayment` | 409 | The booking is already paid (`held`) |
+| `ErrorFedaPayAPIError` | 503 | FedaPay unavailable; retry |
 | `ErrorInternalServer` | 500 | Internal server error |
+
+---
+
+### POST /api/v1/payment/verifyPayment
+
+Re-synchronizes the payment with FedaPay (`GET /v1/transactions/{id}`) and applies the matching transition to the payment and the booking. Call it when the app gets the deep link back or when the payment browser is closed. It is safe to call repeatedly.
+
+**Authentication:** Firebase JWT required (booking's passenger)
+
+#### Request
+
+```json
+{ "PaymentId": "pay-550e8400-e29b-41d4-a716-446655440030" }
+```
+
+#### Response (Success) — `PaymentStatusResponse`
+
+```json
+{
+    "PaymentId": "pay-550e8400-e29b-41d4-a716-446655440030",
+    "BookingId": "bk-550e8400-e29b-41d4-a716-446655440020",
+    "Status": "held",
+    "ProviderStatus": "approved",
+    "IsFinal": true,
+    "PaymentUrl": "",
+    "ExpiresAt": "2026-10-11T10:10:00Z",
+    "BookingStatus": "pendingApproval",
+    "SeatsReleased": false,
+    "Amount": 11000,
+    "ErrorMessage": ""
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `Status` | Internal payment status: `pending`, `held`, `failed`, `refunded`, … |
+| `ProviderStatus` | Last FedaPay status: `pending`, `approved`, `declined`, `canceled`, `expired`, `deleted` |
+| `IsFinal` | `false` while `Status=pending` |
+| `PaymentUrl` | Payment link, filled only while `pending` |
+| `BookingStatus` | `paymentPending`, `pendingApproval`, `approved`, `paymentFailed`, … |
+| `SeatsReleased` | `true` if the seats were released (a new booking is required) |
+
+#### Errors
+
+`ErrorInvalidInput` (400), `ErrorPaymentNotOwned` (403), `ErrorPaymentNotFound` (404), `ErrorFedaPayAPIError` (503).
+
+---
+
+### POST /api/v1/payment/cancelPayment
+
+The passenger gives up a `pending` payment. The FedaPay transaction is **deleted** (the link stops working), the payment becomes `failed` and the booking becomes `paymentFailed` with its **seats released**.
+
+If FedaPay has already approved the payment, nothing is cancelled: the approval is applied and `Status=held` is returned.
+
+**Authentication:** Firebase JWT required (booking's passenger)
+
+#### Request
+
+```json
+{ "PaymentId": "pay-550e8400-e29b-41d4-a716-446655440030" }
+```
+
+#### Response
+
+`PaymentStatusResponse` (see `verifyPayment`). For a payment that is already `held` or `failed`, the current state is returned unchanged.
+
+#### Errors
+
+`ErrorPaymentNotCancellable` (400, already released, paid out or refunded), `ErrorPaymentNotOwned` (403), `ErrorPaymentNotFound` (404), `ErrorFedaPayAPIError` (503, the deletion could not be confirmed, so nothing was changed).
+
+---
+
+### GET /api/v1/payment/callback
+
+The FedaPay `callback_url`. FedaPay redirects the passenger's browser here after payment with `?id=<fedapay-transaction-id>&status=<status>`.
+
+**Authentication:** None. The browser carries no JWT or App-ID. The `status` query parameter is **ignored**: payment-service re-checks the transaction with FedaPay.
+
+#### Response
+
+`302 Found` to the deep link `PAYMENT_DEEPLINK_URL` (default `tissimah://payment/result`):
+
+```
+tissimah://payment/result?paymentId=pay-…&status=held&providerStatus=approved&bookingStatus=pendingApproval
+```
+
+On any error (invalid id, unknown transaction, FedaPay unavailable), the redirect is `tissimah://payment/result?status=error`. The app then calls `verifyPayment` with the `PaymentId` it got from `createPayment`.
 
 ---
 
@@ -139,19 +259,24 @@ Content-Type: application/json
     "PaymentReference": "TM-PAY-2026-0001",
     "CreatedAt": "2026-04-15T08:00:00Z",
     "CompletedAt": "2026-04-15T08:02:30Z",
-    "ErrorMessage": ""
+    "ErrorMessage": "",
+    "PaymentUrl": "",
+    "ProviderStatus": "approved",
+    "ExpiresAt": "2026-04-15T08:10:00Z"
 }
 ```
+
+> `PaymentUrl` is only filled while the payment is `pending` (to resume the payment). `ProviderStatus` is the last FedaPay status observed.
 
 #### Payment Statuses
 
 | Status | Description |
 |--------|-------------|
-| `pending` | Payment initiated, awaiting passenger confirmation |
+| `pending` | Payment page created, waiting for the passenger (a `declined`/`canceled` attempt keeps the payment `pending`) |
 | `held` | Payment confirmed by FedaPay, funds held pending trip completion |
 | `released` | Funds released to driver after contestation delay |
 | `paidOut` | Driver payout processed |
-| `failed` | Payment declined or cancelled |
+| `failed` | Payment window expired or payment cancelled; FedaPay transaction deleted, seats released |
 | `refunded` | Refund processed |
 
 #### Errors
@@ -189,7 +314,11 @@ Content-Type: application/json
     "Status": "held",
     "PaymentReference": "TM-PAY-2026-0001",
     "CreatedAt": "2026-04-15T08:00:00Z",
-    "ErrorMessage": ""
+    "ErrorMessage": "",
+    "CompletedAt": "2026-04-15T08:02:30Z",
+    "PaymentUrl": "",
+    "ProviderStatus": "approved",
+    "ExpiresAt": "2026-04-15T08:10:00Z"
 }
 ```
 
@@ -208,13 +337,13 @@ Receives and processes FedaPay webhook events. **Public route** — not called b
 
 **Authentication:** None (signature verified via HMAC-SHA256 using `X-FEDAPAY-SIGNATURE` header)
 
-> The api-gateway uses a raw HTTP handler for this route to preserve the exact body bytes needed for signature verification. The signature is computed as `HMAC-SHA256(secret, rawBody)` encoded as hex.
+> The api-gateway uses a raw HTTP handler for this route to preserve the exact body bytes needed for signature verification. The header has the form `t=<timestamp>,s=<hex>` and the signature is `HMAC-SHA256(secret, "<timestamp>.<rawBody>")` encoded as hex.
 
 #### Headers
 
 | Header | Description |
 |--------|-------------|
-| `X-FEDAPAY-SIGNATURE` | HMAC-SHA256 hex signature of the raw request body |
+| `X-FEDAPAY-SIGNATURE` | `t=<timestamp>,s=<hex HMAC-SHA256 of "<timestamp>.<raw body>">` |
 | `Content-Type` | `application/json` |
 
 #### Request Body (sent by FedaPay)
@@ -240,9 +369,12 @@ Receives and processes FedaPay webhook events. **Public route** — not called b
 
 | Event | Action |
 |-------|--------|
-| `transaction.approved` | Payment → `held`, booking → `pendingApproval` (or `approved`) |
-| `transaction.declined` | Payment → `failed` |
-| `transaction.canceled` | Payment → `failed` |
+| `transaction.approved` / `transaction.transferred` | Payment → `held`, booking → `approved` (auto-approval) or `pendingApproval`. If the payment had already been failed (late approval), the seats are re-reserved; if the trip is full, the passenger is refunded in full (`seatsUnavailable`). |
+| `transaction.declined` / `transaction.canceled` | Payment **stays `pending`** (`ProviderStatus` updated): with the redirect flow these statuses are not final and the passenger can retry on the same page. |
+| `transaction.expired` / `transaction.deleted` | Payment → `failed`, booking → `paymentFailed`, seats released |
+| `payout.completed` | Driver payout / refund → `completed` |
+
+The same transition logic is shared by the webhook, `verifyPayment`, the callback and the expiration worker. It is idempotent.
 
 #### Response
 
@@ -511,6 +643,7 @@ Creates a refund for a booking. Called by booking-service on cancellation, rejec
 | `noShowDriver` | Driver did not show up |
 | `noShowPassenger` | Passenger did not show up |
 | `tripCancelled` | Trip was cancelled |
+| `seatsUnavailable` | Internal only: payment approved by FedaPay after the seats were released, and the trip is full. Full refund. |
 
 #### Response
 
@@ -570,21 +703,35 @@ The refund amount depends on who triggered the cancellation and when it occurred
 ## Payment Lifecycle
 
 ```
-pending → held → released → paidOut
-            ↓
-         refunded
-            ↓
-          failed
+                 approved (webhook / verifyPayment / callback / worker)
+pending ───────────────────────────────────────────────► held → released → paidOut
+  │  ▲ declined / canceled (retry possible, stays pending)    │
+  │  └──────────┘                                            └──► refunded
+  │
+  │ expired / cancelPayment / 10-min window over
+  │ (FedaPay transaction DELETEd, seats released)
+  ▼
+failed ── late approval re-checked with FedaPay ──► held (seats re-reserved) or refunded (trip full)
 ```
 
 | Status | Description |
 |--------|-------------|
-| `pending` | FedaPay transaction initiated, awaiting mobile money confirmation |
+| `pending` | FedaPay payment page created, waiting for the passenger (10-minute window from booking creation) |
 | `held` | Payment confirmed, funds held during contestation period (default 2h after trip completion) |
 | `released` | Contestation period expired, funds released for payout |
 | `paidOut` | Driver payout sent via FedaPay |
 | `refunded` | Full or partial refund processed |
-| `failed` | Payment declined or cancelled by FedaPay |
+| `failed` | Window expired or payment cancelled; FedaPay transaction deleted, booking `paymentFailed`, seats released |
+
+### Expiration and seat release
+
+- **payment-service expiration worker** (every `EXPIRATION_INTERVAL_SECONDS`, Redis lock): for every `pending` payment with `expires_at < now`, it checks FedaPay.
+  - If the transaction was approved, it applies the approval.
+  - Otherwise it deletes the transaction (`DELETE /v1/transactions/{id}`), marks the payment `failed`, calls booking-service `FailPayment` (seats released) and publishes `PAYMENT_FAILED`.
+- **booking-service sweeper** (`PAYMENT_PENDING_TIMEOUT_MINUTES`, default 12): it handles `paymentPending` bookings whose payment never started (`createPayment` was never called) or whose confirmation was lost.
+  - No payment, or `failed`: `FailPayment`.
+  - `held`: `ConfirmPayment`.
+- **Booking cancelled while `paymentPending`**: booking-service first calls `CancelPaymentForBooking` (internal gRPC), so the FedaPay link stops working before the seats are released.
 
 ---
 
@@ -598,6 +745,11 @@ pending → held → released → paidOut
 | `ErrorPaymentNotFound` | 404 | NOT_FOUND (5) | Payment does not exist |
 | `ErrorRefundNotFound` | 404 | NOT_FOUND (5) | Refund does not exist |
 | `ErrorPayoutNotFound` | 404 | NOT_FOUND (5) | Payout does not exist |
-| `ErrorPaymentAlreadyExists` | 422 | FAILED_PRECONDITION (9) | Payment already created for this booking |
+| `ErrorDuplicatePayment` | 409 | ALREADY_EXISTS (6) | Booking already paid |
+| `ErrorBookingNotPayable` | 400 | FAILED_PRECONDITION (9) | Booking is cash or no longer `paymentPending` |
+| `ErrorBookingPaymentExpired` | 400 | FAILED_PRECONDITION (9) | 10-minute payment window over |
+| `ErrorPaymentNotCancellable` | 400 | FAILED_PRECONDITION (9) | Payment already released / paid out / refunded |
+| `ErrorPaymentNotOwned` | 403 | PERMISSION_DENIED (7) | Caller is not the booking's passenger |
+| `ErrorFedaPayAPIError` | 503 | UNAVAILABLE (14) | FedaPay unavailable |
 | `ErrorDuplicateWebhookEvent` | 422 | FAILED_PRECONDITION (9) | Webhook event already processed |
 | `ErrorInternalServer` | 500 | INTERNAL (13) | Internal server error |
