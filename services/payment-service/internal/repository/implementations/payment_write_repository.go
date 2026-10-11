@@ -204,9 +204,12 @@ func (r *paymentWriteRepository) IncrementBookingSyncAttempts(ctx context.Contex
 }
 
 func (r *paymentWriteRepository) SaveWebhookEvent(ctx context.Context, event *domain.WebhookEvent) error {
-	// INSERT ON CONFLICT DO NOTHING — idempotence
+	// Idempotence : seul un événement déjà traité (processed_at renseigné) est un doublon.
+	// Un événement reçu mais dont le traitement a échoué est ré-accepté pour être rejoué.
 	query := `INSERT INTO webhook_events (event_id, fedapay_event_id, event_type, payload, processed_at)
-		VALUES ($1, $2, $3, $4, $5) ON CONFLICT (fedapay_event_id) DO NOTHING`
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (fedapay_event_id) DO UPDATE SET payload = EXCLUDED.payload
+		WHERE webhook_events.processed_at IS NULL`
 
 	tag, err := r.pool.Exec(ctx, query,
 		event.EventID, event.FedapayEventID, event.EventType,
@@ -221,6 +224,19 @@ func (r *paymentWriteRepository) SaveWebhookEvent(ctx context.Context, event *do
 		return paymentErrors.ErrorDuplicateWebhookEvent
 	}
 
+	return nil
+}
+
+// MarkWebhookEventProcessed marque un événement webhook comme traité avec succès.
+func (r *paymentWriteRepository) MarkWebhookEventProcessed(ctx context.Context, fedapayEventID string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE webhook_events SET processed_at = NOW() WHERE fedapay_event_id = $1`,
+		fedapayEventID,
+	)
+	if err != nil {
+		r.logger.Error("mark webhook event processed failed", zap.Error(err), zap.String("fedapayEventID", fedapayEventID))
+		return paymentErrors.ErrorInternalServer
+	}
 	return nil
 }
 

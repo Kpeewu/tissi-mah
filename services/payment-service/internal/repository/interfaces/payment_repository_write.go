@@ -11,7 +11,12 @@ type PaymentRepositoryWrite interface {
 	CreatePayment(ctx context.Context, payment *domain.Payment) error
 	UpdatePaymentStatus(ctx context.Context, paymentID string, status domain.PaymentStatus, externalTransactionID string) error
 	MarkPaymentFailed(ctx context.Context, paymentID string, reason string) error
+	// SaveWebhookEvent enregistre un événement reçu. Retourne ErrorDuplicateWebhookEvent
+	// uniquement si l'événement a déjà été traité avec succès.
 	SaveWebhookEvent(ctx context.Context, event *domain.WebhookEvent) error
+
+	// MarkWebhookEventProcessed marque un événement webhook comme traité avec succès.
+	MarkWebhookEventProcessed(ctx context.Context, fedapayEventID string) error
 
 	// UpdateProviderStatus enregistre le dernier statut FedaPay observé (sans changer le statut interne).
 	UpdateProviderStatus(ctx context.Context, paymentID string, providerStatus string) error

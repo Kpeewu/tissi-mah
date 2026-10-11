@@ -619,6 +619,7 @@ func TestProcessWebhook_DeclinedKeepsPending(t *testing.T) {
 	d.paymentWriteRepo.On("SaveWebhookEvent", mock.Anything, mock.Anything).Return(nil)
 	d.paymentReadRepo.On("GetByExternalTransactionID", mock.Anything, "101").Return(pendingPayment(), nil)
 	d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", "declined").Return(nil)
+	d.paymentWriteRepo.On("MarkWebhookEventProcessed", mock.Anything, "101:transaction.declined").Return(nil)
 
 	err := d.svc.ProcessWebhook(context.Background(), &serviceInterfaces.ProcessWebhookInput{
 		Signature:  "sig",
@@ -628,6 +629,70 @@ func TestProcessWebhook_DeclinedKeepsPending(t *testing.T) {
 	require.NoError(t, err)
 	d.paymentWriteRepo.AssertNotCalled(t, "MarkPaymentFailed", mock.Anything, mock.Anything, mock.Anything)
 	d.bookingClient.AssertNotCalled(t, "FailPayment", mock.Anything, mock.Anything, mock.Anything)
+	d.paymentWriteRepo.AssertCalled(t, "MarkWebhookEventProcessed", mock.Anything, "101:transaction.declined")
+}
+
+// =============================================================================
+// ProcessWebhook — un événement dont le traitement échoue reste rejouable
+// =============================================================================
+
+func TestProcessWebhook_ProcessingFailureKeepsEventReplayable(t *testing.T) {
+	payload := []byte(`{"name":"transaction.declined","entity":{"id":101,"status":"declined"}}`)
+
+	t.Run("erreur de traitement - événement non marqué traité", func(t *testing.T) {
+		d := newCollectTestService()
+		d.fedapay.On("VerifyWebhookSignature", "sig", payload).Return(true)
+		d.paymentWriteRepo.On("SaveWebhookEvent", mock.Anything, mock.MatchedBy(func(e *domain.WebhookEvent) bool {
+			return e.FedapayEventID == "101:transaction.declined" && e.ProcessedAt == nil
+		})).Return(nil)
+		d.paymentReadRepo.On("GetByExternalTransactionID", mock.Anything, "101").Return(pendingPayment(), nil)
+		d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", "declined").
+			Return(paymentErrors.ErrorInternalServer)
+
+		err := d.svc.ProcessWebhook(context.Background(), &serviceInterfaces.ProcessWebhookInput{
+			Signature:  "sig",
+			RawPayload: payload,
+		})
+
+		assert.ErrorIs(t, err, paymentErrors.ErrorInternalServer)
+		d.paymentWriteRepo.AssertNotCalled(t, "MarkWebhookEventProcessed", mock.Anything, mock.Anything)
+	})
+
+	t.Run("événement déjà traité - ignoré", func(t *testing.T) {
+		d := newCollectTestService()
+		d.fedapay.On("VerifyWebhookSignature", "sig", payload).Return(true)
+		d.paymentWriteRepo.On("SaveWebhookEvent", mock.Anything, mock.Anything).
+			Return(paymentErrors.ErrorDuplicateWebhookEvent)
+
+		err := d.svc.ProcessWebhook(context.Background(), &serviceInterfaces.ProcessWebhookInput{
+			Signature:  "sig",
+			RawPayload: payload,
+		})
+
+		require.NoError(t, err)
+		d.paymentReadRepo.AssertNotCalled(t, "GetByExternalTransactionID", mock.Anything, mock.Anything)
+		d.paymentWriteRepo.AssertNotCalled(t, "MarkWebhookEventProcessed", mock.Anything, mock.Anything)
+	})
+
+	t.Run("payout.completed - erreur de mise à jour remontée", func(t *testing.T) {
+		payoutPayload := []byte(`{"name":"payout.completed","entity":{"id":555,"status":"sent"}}`)
+		d := newCollectTestService()
+		d.fedapay.On("VerifyWebhookSignature", "sig", payoutPayload).Return(true)
+		d.paymentWriteRepo.On("SaveWebhookEvent", mock.Anything, mock.Anything).Return(nil)
+		d.payoutReadRepo.On("GetByProviderReference", mock.Anything, "555").
+			Return(&domain.Payout{PayoutID: "po-1"}, nil)
+		d.payoutWriteRepo.On("UpdatePayoutStatus", mock.Anything, "po-1", domain.PayoutStatusCompleted, "555").
+			Return(paymentErrors.ErrorInternalServer)
+
+		err := d.svc.ProcessWebhook(context.Background(), &serviceInterfaces.ProcessWebhookInput{
+			Signature:  "sig",
+			RawPayload: payoutPayload,
+		})
+
+		assert.ErrorIs(t, err, paymentErrors.ErrorInternalServer)
+		d.paymentWriteRepo.AssertNotCalled(t, "MarkWebhookEventProcessed", mock.Anything, mock.Anything)
+		d.payoutHistoryRepo.AssertNotCalled(t, "CreateHistoryEntry", mock.Anything, mock.Anything)
+	})
 }
 
 // =============================================================================

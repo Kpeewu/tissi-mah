@@ -138,8 +138,7 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 		return paymentErrors.ErrorInvalidInput
 	}
 
-	// Idempotence — sauvegarder l'événement
-	now := time.Now().UTC()
+	// Idempotence — enregistrer l'événement comme reçu (processed_at posé après traitement réussi)
 	eventID := uuid.New().String()
 	payloadJSON, _ := json.Marshal(payload) //nolint:errcheck
 
@@ -148,7 +147,6 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 		FedapayEventID: strconv.Itoa(payload.Entity.ID) + ":" + payload.Name,
 		EventType:      payload.Name,
 		Payload:        string(payloadJSON),
-		ProcessedAt:    &now,
 	}
 
 	if err := s.paymentWriteRepo.SaveWebhookEvent(ctx, webhookEvent); err != nil {
@@ -159,6 +157,24 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 		return err
 	}
 
+	// En cas d'échec, l'événement reste non traité : le retry FedaPay le rejouera
+	if err := s.handleWebhookEvent(ctx, payload); err != nil {
+		return err
+	}
+
+	if err := s.paymentWriteRepo.MarkWebhookEventProcessed(ctx, webhookEvent.FedapayEventID); err != nil {
+		// Traitement déjà appliqué : un éventuel retry rejouera une logique idempotente
+		s.logger.Warn("mark webhook event processed failed",
+			zap.String("fedapayEventID", webhookEvent.FedapayEventID),
+			zap.Error(err),
+		)
+	}
+
+	return nil
+}
+
+// handleWebhookEvent applique un événement webhook FedaPay (payout ou collecte).
+func (s *paymentServiceImpl) handleWebhookEvent(ctx context.Context, payload *fedapay.WebhookPayload) error {
 	// Traiter les événements payout séparément
 	if payload.Name == "payout.completed" {
 		providerRef := strconv.Itoa(payload.Entity.ID)
@@ -167,7 +183,14 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 			s.logger.Warn("payout not found for webhook", zap.String("providerRef", providerRef))
 			return nil
 		}
-		s.payoutWriteRepo.UpdatePayoutStatus(ctx, payout.PayoutID, domain.PayoutStatusCompleted, providerRef) //nolint:errcheck
+		err = s.payoutWriteRepo.UpdatePayoutStatus(ctx, payout.PayoutID, domain.PayoutStatusCompleted, providerRef)
+		if err != nil {
+			s.logger.Error("update payout status from webhook failed",
+				zap.String("payoutID", payout.PayoutID),
+				zap.Error(err),
+			)
+			return err
+		}
 		s.writeHistory(ctx, payout.PayoutID, "completed", "system", "", "", "", "Confirmé par FedaPay webhook")
 		s.logger.Info("payout completed via webhook", zap.String("payoutID", payout.PayoutID))
 		return nil
