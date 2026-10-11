@@ -61,7 +61,8 @@ const (
 	RefundReasonTripCancelled        RefundReason = "tripCancelled"
 	RefundReasonBookingRejected      RefundReason = "bookingRejected"
 	RefundReasonDispute              RefundReason = "dispute"
-	RefundReasonSeatsUnavailable     RefundReason = "seatsUnavailable" // paiement approuvé après libération des places, trajet complet
+	RefundReasonSeatsUnavailable     RefundReason = "seatsUnavailable"   // approuvé après libération, trajet complet
+	RefundReasonBookingUnavailable   RefundReason = "bookingUnavailable" // approuvé, réservation annulée/rejetée
 	RefundReasonOther                RefundReason = "other"
 )
 

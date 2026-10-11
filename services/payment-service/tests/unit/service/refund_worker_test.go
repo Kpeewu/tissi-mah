@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/Kpeewu/tissi-mah/pkg/notification"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/config"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/domain"
@@ -13,6 +14,8 @@ import (
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/payment-service/internal/service/interfaces"
 	paymentErrors "github.com/Kpeewu/tissi-mah/services/payment-service/pkg/errors"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/tests/mocks"
+	"github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -22,6 +25,15 @@ import (
 // afin de franchir le garde-fou early-return dans ProcessPendingRefunds. Les tests ne
 // doivent exercer que les chemins qui échouent AVANT l'appel FedaPay — sinon nil deref.
 func newRefundWorkerTestService(t *testing.T, refundMaxRetries int) *testDeps {
+	t.Helper()
+	// fedapay.Client zero-value → non-nil, mais aucun test ici ne doit invoquer de méthode dessus.
+	return buildRefundWorkerTestService(t, refundMaxRetries, &fedapay.Client{}, nil)
+}
+
+// buildRefundWorkerTestService construit le service avec le client FedaPay et le Redis de notifications fournis.
+func buildRefundWorkerTestService(
+	t *testing.T, refundMaxRetries int, fedapayClient fedapay.FedaPayClient, notifRedis *redis.Client,
+) *testDeps {
 	t.Helper()
 	d := &testDeps{
 		paymentReadRepo:   new(mocks.MockPaymentRepositoryRead),
@@ -52,8 +64,6 @@ func newRefundWorkerTestService(t *testing.T, refundMaxRetries int) *testDeps {
 		Worker: config.WorkerConfig{RefundMaxConcurrent: 2},
 	}
 
-	// fedapay.Client zero-value → non-nil, mais aucun test ici ne doit invoquer de méthode dessus.
-	fedapayClient := &fedapay.Client{}
 	logger := zap.NewNop()
 
 	d.svc = service.NewPaymentService(
@@ -64,7 +74,7 @@ func newRefundWorkerTestService(t *testing.T, refundMaxRetries int) *testDeps {
 		d.bookingClient, d.userClient, d.supportClient,
 		fedapayClient,
 		nil, // cache
-		nil, // notifRedis
+		notifRedis,
 		cfg,
 		logger,
 	)
@@ -370,6 +380,102 @@ func TestProcessPendingRefunds_MarkProcessingAlreadyProcessed(t *testing.T) {
 	d.refundWriteRepo.AssertNotCalled(t, "MarkRefundFailed", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	d.refundWriteRepo.AssertNotCalled(t, "MarkRefundCompleted", mock.Anything, mock.Anything, mock.Anything)
 	d.assertExpectations(t)
+}
+
+// =============================================================================
+// Notifications passager
+// =============================================================================
+
+func TestProcessPendingRefunds_Notifications(t *testing.T) {
+	booking := &client.BookingDetails{BookingID: "book-1", PassengerID: "user-1"}
+
+	t.Run("remboursement réalisé → REFUND_COMPLETED avec le motif", func(t *testing.T) {
+		rdb := newNotifRedis(t)
+		fedapayMock := new(mocks.MockFedaPayClient)
+		d := buildRefundWorkerTestService(t, 3, fedapayMock, rdb)
+
+		refund := &domain.Refund{
+			RefundID:          "ref-ok",
+			PaymentID:         "pay-1",
+			BookingID:         "book-1",
+			RefundReason:      domain.RefundReasonBookingUnavailable,
+			AmountToPassenger: 5500,
+			Status:            domain.RefundStatusPending,
+		}
+		payment := &domain.Payment{PaymentID: "pay-1", BookingID: "book-1", PassengerPhoneNumber: "90112233"}
+
+		d.refundReadRepo.On("GetPendingRefundsForPayout", mock.Anything, 20).Return([]*domain.Refund{refund}, nil)
+		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(payment, nil)
+		d.bookingClient.On("GetBookingDetails", mock.Anything, "book-1").Return(booking, nil)
+		d.userClient.On("GetUserByUserID", mock.Anything, "user-1").
+			Return(&client.UserInfo{UserID: "user-1", FirstName: "Awa", Name: "Diallo"}, nil)
+		d.refundWriteRepo.On("MarkRefundProcessing", mock.Anything, "ref-ok").Return(nil)
+		fedapayMock.On("CreatePayout", 5500, "togocel", "90112233", "Awa", "Diallo").Return(&fedapay.PayoutItem{ID: 777}, nil)
+		fedapayMock.On("StartPayouts", []int{777}).Return([]fedapay.PayoutItem{{ID: 777}}, nil)
+		d.refundWriteRepo.On("MarkRefundCompleted", mock.Anything, "ref-ok", "777").Return(nil)
+
+		require.NoError(t, service.AsImpl(d.svc).ProcessPendingRefunds(context.Background()))
+
+		event := findEvent(publishedEvents(t, rdb), notification.RefundCompleted)
+		require.NotNil(t, event, "REFUND_COMPLETED doit être publié")
+		assert.Equal(t, "user-1", event.UserID)
+		assert.Equal(t, "ref-ok", event.ReferenceID)
+		assert.Equal(t, "5500", event.Payload["amount"])
+		assert.Equal(t, "bookingUnavailable", event.Payload["reason"])
+		d.assertExpectations(t)
+	})
+
+	t.Run("max retries dépassé → REFUND_FAILED", func(t *testing.T) {
+		rdb := newNotifRedis(t)
+		d := buildRefundWorkerTestService(t, 3, &fedapay.Client{}, rdb)
+
+		refund := &domain.Refund{
+			RefundID:          "ref-maxretries",
+			PaymentID:         "pay-1",
+			BookingID:         "book-1",
+			RefundReason:      domain.RefundReasonBookingUnavailable,
+			AmountToPassenger: 5500,
+			Status:            domain.RefundStatusPending,
+			RetryCount:        3,
+		}
+
+		d.refundReadRepo.On("GetPendingRefundsForPayout", mock.Anything, 20).Return([]*domain.Refund{refund}, nil)
+		d.refundWriteRepo.On("MarkRefundFailed", mock.Anything, "ref-maxretries", mock.Anything, false).Return(nil)
+		d.bookingClient.On("GetBookingDetails", mock.Anything, "book-1").Return(booking, nil)
+
+		require.NoError(t, service.AsImpl(d.svc).ProcessPendingRefunds(context.Background()))
+
+		event := findEvent(publishedEvents(t, rdb), notification.RefundFailed)
+		require.NotNil(t, event, "REFUND_FAILED doit être publié")
+		assert.Equal(t, "user-1", event.UserID)
+		assert.Equal(t, "bookingUnavailable", event.Payload["reason"])
+		d.assertExpectations(t)
+	})
+
+	t.Run("numéro manquant → REFUND_FAILED", func(t *testing.T) {
+		rdb := newNotifRedis(t)
+		d := buildRefundWorkerTestService(t, 3, &fedapay.Client{}, rdb)
+
+		refund := &domain.Refund{
+			RefundID:          "ref-no-phone",
+			PaymentID:         "pay-1",
+			BookingID:         "book-1",
+			AmountToPassenger: 5500,
+			Status:            domain.RefundStatusPending,
+		}
+
+		d.refundReadRepo.On("GetPendingRefundsForPayout", mock.Anything, 20).Return([]*domain.Refund{refund}, nil)
+		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").
+			Return(&domain.Payment{PaymentID: "pay-1", BookingID: "book-1"}, nil)
+		d.refundWriteRepo.On("MarkRefundFailed", mock.Anything, "ref-no-phone", "missing passenger phone number", false).
+			Return(nil)
+		d.bookingClient.On("GetBookingDetails", mock.Anything, "book-1").Return(booking, nil)
+
+		require.NoError(t, service.AsImpl(d.svc).ProcessPendingRefunds(context.Background()))
+
+		require.NotNil(t, findEvent(publishedEvents(t, rdb), notification.RefundFailed), "REFUND_FAILED doit être publié")
+		d.assertExpectations(t)
+	})
 }
 
 // =============================================================================

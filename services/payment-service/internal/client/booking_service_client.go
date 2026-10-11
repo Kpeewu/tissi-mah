@@ -56,6 +56,9 @@ func (c *BookingServiceClient) ConfirmPayment(ctx context.Context, bookingID str
 				return "", paymentErrors.ErrorNoSeatsAvailable
 			case strings.Contains(st.Message(), "ErrorPaymentAlreadyConfirmed"):
 				return "", paymentErrors.ErrorPaymentAlreadyProcessed
+			case strings.Contains(st.Message(), "ErrorInvalidStatusTransition"):
+				// Réservation annulée, rejetée, etc. : le paiement ne peut plus y être rattaché
+				return "", paymentErrors.ErrorBookingNotConfirmable
 			}
 		}
 		c.logger.Error("confirm payment failed", zap.Error(err), zap.String("bookingID", bookingID))

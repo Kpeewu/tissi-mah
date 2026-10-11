@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Kpeewu/tissi-mah/pkg/notification"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/config"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/domain"
@@ -16,6 +17,7 @@ import (
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/payment-service/internal/service/interfaces"
 	paymentErrors "github.com/Kpeewu/tissi-mah/services/payment-service/pkg/errors"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/tests/mocks"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -36,6 +38,11 @@ type collectDeps struct {
 }
 
 func newCollectTestService() *collectDeps {
+	return buildCollectTestService(nil)
+}
+
+// buildCollectTestService construit le service ; notifRedis non nil permet de capturer les notifications.
+func buildCollectTestService(notifRedis *redis.Client) *collectDeps {
 	d := &collectDeps{
 		testDeps: &testDeps{
 			paymentReadRepo:   new(mocks.MockPaymentRepositoryRead),
@@ -69,7 +76,7 @@ func newCollectTestService() *collectDeps {
 		d.bookingClient, d.userClient, d.supportClient,
 		d.fedapay,
 		nil, // cache
-		nil, // notifRedis
+		notifRedis,
 		cfg,
 		zap.NewNop(),
 	)
@@ -374,6 +381,68 @@ func TestVerifyPayment(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "refunded", result.Status)
 		d.refundWriteRepo.AssertExpectations(t)
+	})
+
+	t.Run("réservation annulée → remboursement intégral, pas de PAYMENT_COMPLETED", func(t *testing.T) {
+		rdb := newNotifRedis(t)
+		d := buildCollectTestService(rdb)
+		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(pendingPayment(), nil).Once()
+		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").
+			Return(withStatus(pendingPayment(), domain.PaymentStatusHeld), nil).Once()
+		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").
+			Return(withStatus(pendingPayment(), domain.PaymentStatusRefunded), nil)
+		booking := payableBooking(time.Now().UTC())
+		booking.Status = "cancelled"
+		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(booking, nil)
+		d.expectOwner()
+		d.fedapay.On("GetTransaction", 101).Return(&fedapay.Transaction{ID: 101, Status: "approved"}, nil)
+		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-1", domain.PaymentStatusHeld, "101").Return(nil)
+		d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", "approved").Return(nil)
+		d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-1", "101").
+			Return("", paymentErrors.ErrorBookingNotConfirmable)
+		d.refundWriteRepo.On("CreateRefund", mock.Anything, mock.MatchedBy(func(r *domain.Refund) bool {
+			return r.RefundReason == domain.RefundReasonBookingUnavailable &&
+				r.AmountToPassenger == 5500 && // sous-total + frais de service
+				r.PayoutDestination == "90112233"
+		})).Return(nil)
+		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-1", domain.PaymentStatusRefunded, "").Return(nil)
+
+		result, err := d.svc.VerifyPayment(passengerCtx(), "pay-1")
+
+		require.NoError(t, err)
+		assert.Equal(t, "refunded", result.Status)
+		d.refundWriteRepo.AssertExpectations(t)
+
+		events := publishedEvents(t, rdb)
+		refundEvent := findEvent(events, notification.RefundProcessed)
+		require.NotNil(t, refundEvent, "REFUND_PROCESSED doit être publié")
+		assert.Equal(t, testPassengerID, refundEvent.UserID)
+		assert.Equal(t, "bookingUnavailable", refundEvent.Payload["reason"])
+		assert.Equal(t, "5500", refundEvent.Payload["amount_to_passenger"])
+		assert.Nil(t, findEvent(events, notification.PaymentCompleted), "PAYMENT_COMPLETED ne doit pas être publié")
+	})
+
+	t.Run("réservation redevenue payable pendant la confirmation → reste held, pas de remboursement", func(t *testing.T) {
+		rdb := newNotifRedis(t)
+		d := buildCollectTestService(rdb)
+		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(pendingPayment(), nil).Once()
+		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").
+			Return(withStatus(pendingPayment(), domain.PaymentStatusHeld), nil)
+		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").
+			Return(payableBooking(time.Now().UTC()), nil)
+		d.expectOwner()
+		d.fedapay.On("GetTransaction", 101).Return(&fedapay.Transaction{ID: 101, Status: "approved"}, nil)
+		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-1", domain.PaymentStatusHeld, "101").Return(nil)
+		d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", "approved").Return(nil)
+		d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-1", "101").
+			Return("", paymentErrors.ErrorBookingNotConfirmable)
+
+		result, err := d.svc.VerifyPayment(passengerCtx(), "pay-1")
+
+		require.NoError(t, err)
+		assert.Equal(t, "held", result.Status)
+		d.refundWriteRepo.AssertNotCalled(t, "CreateRefund", mock.Anything, mock.Anything)
+		assert.Empty(t, publishedEvents(t, rdb))
 	})
 
 	t.Run("erreur - paiement d'un autre utilisateur", func(t *testing.T) {
