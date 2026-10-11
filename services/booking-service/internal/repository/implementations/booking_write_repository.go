@@ -628,35 +628,12 @@ func (r *bookingWriteRepositoryImpl) CancelBookingsForTrip(ctx context.Context, 
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
-	rows, err := tx.Query(ctx, `
-		SELECT booking_id, trip_id, passenger_id, driver_id,
-		       pickup_waypoint_id, dropoff_waypoint_id,
-		       pickup_sequencer_order, dropoff_sequencer_order,
-		       seats_booked, total_amount, payment_method, status
-		FROM bookings
+	bookings, err := r.lockBookingsForBulkCancel(ctx, tx, `
 		WHERE trip_id = $1
-		  AND status IN ('paymentPending', 'pendingApproval', 'approved')
-		FOR UPDATE`, tripID)
+		  AND status IN ('paymentPending', 'pendingApproval', 'approved')`, tripID)
 	if err != nil {
-		r.logger.Error("cancel bookings for trip query failed", zap.Error(err))
-		return nil, bookingErrors.ErrorInternalServer
+		return nil, err
 	}
-
-	var bookings []*domain.Booking
-	for rows.Next() {
-		b := &domain.Booking{}
-		if err := rows.Scan(
-			&b.BookingID, &b.TripID, &b.PassengerID, &b.DriverID,
-			&b.PickupWaypointID, &b.DropoffWaypointID,
-			&b.PickupSequencerOrder, &b.DropoffSequencerOrder,
-			&b.SeatsBooked, &b.TotalAmount, &b.PaymentMethod, &b.Status,
-		); err != nil {
-			rows.Close()
-			return nil, bookingErrors.ErrorInternalServer
-		}
-		bookings = append(bookings, b)
-	}
-	rows.Close()
 
 	if len(bookings) == 0 {
 		return nil, tx.Commit(ctx)
@@ -707,36 +684,13 @@ func (r *bookingWriteRepositoryImpl) CancelBookingsForWaypoint(ctx context.Conte
 	defer tx.Rollback(ctx) //nolint:errcheck
 
 	// Récupérer les bookings actifs ayant ce waypoint comme pickup ou dropoff
-	rows, err := tx.Query(ctx, `
-		SELECT booking_id, trip_id, passenger_id, driver_id,
-		       pickup_waypoint_id, dropoff_waypoint_id,
-		       pickup_sequencer_order, dropoff_sequencer_order,
-		       seats_booked, total_amount, payment_method, status
-		FROM bookings
+	bookings, err := r.lockBookingsForBulkCancel(ctx, tx, `
 		WHERE trip_id = $1
 		  AND (pickup_waypoint_id = $2 OR dropoff_waypoint_id = $2)
-		  AND status IN ('paymentPending', 'pendingApproval', 'approved')
-		FOR UPDATE`, tripID, waypointID)
+		  AND status IN ('paymentPending', 'pendingApproval', 'approved')`, tripID, waypointID)
 	if err != nil {
-		r.logger.Error("cancel bookings for waypoint query failed", zap.Error(err))
-		return nil, bookingErrors.ErrorInternalServer
+		return nil, err
 	}
-
-	var bookings []*domain.Booking
-	for rows.Next() {
-		b := &domain.Booking{}
-		if err := rows.Scan(
-			&b.BookingID, &b.TripID, &b.PassengerID, &b.DriverID,
-			&b.PickupWaypointID, &b.DropoffWaypointID,
-			&b.PickupSequencerOrder, &b.DropoffSequencerOrder,
-			&b.SeatsBooked, &b.TotalAmount, &b.PaymentMethod, &b.Status,
-		); err != nil {
-			rows.Close()
-			return nil, bookingErrors.ErrorInternalServer
-		}
-		bookings = append(bookings, b)
-	}
-	rows.Close()
 
 	if len(bookings) == 0 {
 		return nil, tx.Commit(ctx)
@@ -772,6 +726,50 @@ func (r *bookingWriteRepositoryImpl) CancelBookingsForWaypoint(ctx context.Conte
 
 	r.logger.Info("bookings cancelled for waypoint",
 		zap.String("tripID", tripID), zap.String("waypointID", waypointID), zap.Int("count", len(bookings)))
+	return bookings, nil
+}
+
+// lockBookingsForBulkCancel verrouille (FOR UPDATE) les réservations correspondant à whereClause
+// avant une annulation groupée. Les bookings renvoyés portent leur statut d'avant annulation et
+// les données de paiement nécessaires au service (suppression de la collecte ou remboursement).
+func (r *bookingWriteRepositoryImpl) lockBookingsForBulkCancel(
+	ctx context.Context, tx pgx.Tx, whereClause string, args ...any,
+) ([]*domain.Booking, error) {
+	rows, err := tx.Query(ctx, `
+		SELECT booking_id, trip_id, passenger_id, driver_id,
+		       pickup_waypoint_id, dropoff_waypoint_id,
+		       pickup_sequencer_order, dropoff_sequencer_order,
+		       seats_booked, subtotal, service_fee, total_amount, payment_method, status,
+		       approved_at, payment_completed_at
+		FROM bookings
+		`+whereClause+`
+		FOR UPDATE`, args...)
+	if err != nil {
+		r.logger.Error("bulk cancel bookings query failed", zap.Error(err))
+		return nil, bookingErrors.ErrorInternalServer
+	}
+	defer rows.Close()
+
+	var bookings []*domain.Booking
+	for rows.Next() {
+		b := &domain.Booking{}
+		if err := rows.Scan(
+			&b.BookingID, &b.TripID, &b.PassengerID, &b.DriverID,
+			&b.PickupWaypointID, &b.DropoffWaypointID,
+			&b.PickupSequencerOrder, &b.DropoffSequencerOrder,
+			&b.SeatsBooked, &b.Subtotal, &b.ServiceFee, &b.TotalAmount, &b.PaymentMethod, &b.Status,
+			&b.ApprovedAt, &b.PaymentCompletedAt,
+		); err != nil {
+			r.logger.Error("bulk cancel bookings scan failed", zap.Error(err))
+			return nil, bookingErrors.ErrorInternalServer
+		}
+		bookings = append(bookings, b)
+	}
+	if err := rows.Err(); err != nil {
+		r.logger.Error("bulk cancel bookings rows failed", zap.Error(err))
+		return nil, bookingErrors.ErrorInternalServer
+	}
+
 	return bookings, nil
 }
 
