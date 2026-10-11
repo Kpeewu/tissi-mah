@@ -38,7 +38,8 @@ func (r *bookingReadRepositoryImpl) GetByID(ctx context.Context, bookingID strin
 		       payment_completed_at, approved_at, rejected_at, cancelled_at, completed_at,
 		       canceller_id, cancellation_reason,
 		       no_show_type, no_show_reported_by, no_show_reported_at, no_show_description,
-		       payment_released_at, created_at, updated_at
+		       payment_released_at, created_at, updated_at,
+		       refund_reason, refund_requested_at, refund_request_attempts
 		FROM bookings
 		WHERE booking_id = $1`
 
@@ -54,6 +55,7 @@ func (r *bookingReadRepositoryImpl) GetByID(ctx context.Context, bookingID strin
 		&b.CancellerID, &b.CancellationReason,
 		&b.NoShowType, &b.NoShowReportedBy, &b.NoShowReportedAt, &b.NoShowDescription,
 		&b.PaymentReleasedAt, &b.CreatedAt, &b.UpdatedAt,
+		&b.RefundReason, &b.RefundRequestedAt, &b.RefundRequestAttempts,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -431,6 +433,48 @@ func (r *bookingReadRepositoryImpl) GetCompletedBookingsPendingRelease(ctx conte
 		bookings = append(bookings, b)
 	}
 
+	return bookings, nil
+}
+
+// GetBookingsPendingRefundRequest retourne les réservations dont le remboursement dû n'a pas été
+// acquitté par payment-service, modifiées avant updatedBefore et refusées moins de maxAttempts fois.
+func (r *bookingReadRepositoryImpl) GetBookingsPendingRefundRequest(
+	ctx context.Context, updatedBefore time.Time, maxAttempts, limit int,
+) ([]*domain.Booking, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT booking_id, trip_id, pickup_waypoint_id, subtotal, service_fee, status,
+		       approved_at, rejected_at, cancelled_at, no_show_reported_at,
+		       refund_reason, refund_request_attempts
+		FROM bookings
+		WHERE refund_reason IS NOT NULL
+		  AND refund_requested_at IS NULL
+		  AND refund_request_attempts < $2
+		  AND updated_at < $1
+		  AND deleted_at IS NULL
+		ORDER BY updated_at ASC
+		LIMIT $3`, updatedBefore, maxAttempts, limit)
+	if err != nil {
+		r.logger.Error("GetBookingsPendingRefundRequest failed", zap.Error(err))
+		return nil, bookingErrors.ErrorDataRetrievalFailed
+	}
+	defer rows.Close()
+
+	var bookings []*domain.Booking
+	for rows.Next() {
+		b := &domain.Booking{}
+		if err := rows.Scan(
+			&b.BookingID, &b.TripID, &b.PickupWaypointID, &b.Subtotal, &b.ServiceFee, &b.Status,
+			&b.ApprovedAt, &b.RejectedAt, &b.CancelledAt, &b.NoShowReportedAt,
+			&b.RefundReason, &b.RefundRequestAttempts,
+		); err != nil {
+			r.logger.Error("GetBookingsPendingRefundRequest scan failed", zap.Error(err))
+			return nil, bookingErrors.ErrorDataRetrievalFailed
+		}
+		bookings = append(bookings, b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, bookingErrors.ErrorDataRetrievalFailed
+	}
 	return bookings, nil
 }
 

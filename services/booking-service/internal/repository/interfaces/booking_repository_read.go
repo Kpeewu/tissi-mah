@@ -39,6 +39,12 @@ type BookingRepositoryRead interface {
 	// dont le paiement n'a pas encore été libéré et dont la complétion est antérieure à completedBefore.
 	GetCompletedBookingsPendingRelease(ctx context.Context, completedBefore time.Time) ([]*domain.Booking, error)
 
+	// GetBookingsPendingRefundRequest retourne les réservations dont le remboursement dû n'a pas été
+	// acquitté par payment-service, modifiées avant updatedBefore et refusées moins de maxAttempts fois.
+	GetBookingsPendingRefundRequest(
+		ctx context.Context, updatedBefore time.Time, maxAttempts, limit int,
+	) ([]*domain.Booking, error)
+
 	// GetStalePaymentPendingBookingIDs retourne les réservations en paymentPending créées avant
 	// createdBefore (fenêtre de paiement dépassée), au plus limit.
 	GetStalePaymentPendingBookingIDs(ctx context.Context, createdBefore time.Time, limit int) ([]string, error)

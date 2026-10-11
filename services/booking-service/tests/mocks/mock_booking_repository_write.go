@@ -83,6 +83,16 @@ func (m *MockBookingRepositoryWrite) MarkPaymentReleased(ctx context.Context, bo
 	return args.Error(0)
 }
 
+func (m *MockBookingRepositoryWrite) MarkRefundRequested(ctx context.Context, bookingID string) error {
+	args := m.Called(ctx, bookingID)
+	return args.Error(0)
+}
+
+func (m *MockBookingRepositoryWrite) IncrementRefundRequestAttempts(ctx context.Context, bookingID string) (int, error) {
+	args := m.Called(ctx, bookingID)
+	return args.Int(0), args.Error(1)
+}
+
 func (m *MockBookingRepositoryWrite) AnonymizeUserRefs(ctx context.Context, userID string) error {
 	args := m.Called(ctx, userID)
 	return args.Error(0)
