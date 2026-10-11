@@ -268,6 +268,8 @@ sur les 4 pays (Togo, Ghana, Bénin, Burkina Faso).
 **Flux** : `createPayment` → `PaymentUrl` (page FedaPay) → callback → deep link → `verifyPayment` (source de vérité).
 `declined`/`canceled` FedaPay ne sont pas finaux (paiement reste `pending`). booking-service : sweeper
 `PAYMENT_PENDING_TIMEOUT_MINUTES` (12) pour les réservations `paymentPending` sans paiement abouti ;
+remboursements dus enregistrés avec la transition (`refund_reason`) et rejoués par un worker
+(`REFUND_REQUEST_WORKER_INTERVAL_SECONDS`, 60) jusqu'à acquittement (`requestRefund` idempotent par paiement) ;
 `ConfirmPayment` est interne (`/api/v1/booking/internal/confirmPayment`) et applique l'auto-approbation.
 
 ### geolocation-service

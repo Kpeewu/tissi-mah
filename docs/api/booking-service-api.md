@@ -512,6 +512,10 @@ On success, notifications are sent: `NEW_BOOKING_REQUEST` to the driver, plus `B
 > **Sweeper:** booking-service releases `paymentPending` bookings older than `PAYMENT_PENDING_TIMEOUT_MINUTES` (default 12) when payment-service has no successful payment for them.
 >
 > **Cancelling a `paymentPending` booking:** `cancelBooking` first deletes the FedaPay transaction through payment-service (`CancelPaymentForBooking`). If FedaPay had already approved it, the booking is cancelled with a refund.
+>
+> **Refund requests:** when a booking paid online is cancelled, rejected or marked as no-show, the refund reason (`refund_reason`) is stored in the same transaction as the status change. The request is sent to payment-service right away. If it fails, a worker replays it every `REFUND_REQUEST_WORKER_INTERVAL_SECONDS` (default 60) until payment-service acknowledges it (`refund_requested_at`).
+> - Transient failures (payment-service or trips-service unavailable, timeout) are retried with no limit.
+> - Rejections (`InvalidArgument`, `NotFound`, `FailedPrecondition`) are counted (`refund_request_attempts`). After 5, the request is no longer replayed and an error is logged for manual handling.
 
 ---
 
