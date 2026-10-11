@@ -57,8 +57,8 @@ func DetermineRefundRule(
 		// Rejet par le chauffeur → même traitement qu'annulation chauffeur
 		return domain.RefundRuleDriverCancellation
 
-	case domain.RefundReasonTripCancelled:
-		// Trip annulé → même traitement qu'annulation chauffeur
+	case domain.RefundReasonTripCancelled, domain.RefundReasonWaypointCancelled:
+		// Trip annulé ou arrêt supprimé → même traitement qu'annulation chauffeur
 		return domain.RefundRuleDriverCancellation
 
 	default:

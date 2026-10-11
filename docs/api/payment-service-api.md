@@ -643,6 +643,7 @@ Creates a refund for a booking. Called by booking-service on cancellation, rejec
 | `noShowDriver` | Driver did not show up |
 | `noShowPassenger` | Passenger did not show up |
 | `tripCancelled` | Trip was cancelled |
+| `waypointCancelled` | The driver removed the passenger's pickup or dropoff stop |
 | `seatsUnavailable` | Internal only: payment approved by FedaPay after the seats were released, and the trip is full. Full refund. |
 | `bookingUnavailable` | Internal only: payment approved by FedaPay for a booking that can no longer be confirmed (`cancelled`, `rejected`, etc.). Full refund. |
 
@@ -735,6 +736,9 @@ approval for a booking that is no longer confirmable (cancelled, rejectedâ€¦) â”
   - No payment, or `failed`: `FailPayment`.
   - `held`: `ConfirmPayment`.
 - **Booking cancelled while `paymentPending`**: booking-service first calls `CancelPaymentForBooking` (internal gRPC), so the FedaPay link stops working before the seats are released.
+- **Trip cancelled or stop removed by the driver** (`CancelBookingsForTrip` / `CancelBookingsForWaypoint`): bookings are cancelled first, then booking-service calls `CancelPaymentForBooking` asynchronously for each `paymentPending` booking (and `RequestRefund` with `tripCancelled` / `waypointCancelled` for paid ones).
+  - If FedaPay had already approved, the approval reaches a cancelled booking and the passenger is refunded in full (`bookingUnavailable`).
+  - If the call fails, the expiration worker deletes the transaction when the payment window ends.
 
 ### Passenger notifications (refunds)
 

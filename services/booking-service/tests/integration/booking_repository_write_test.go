@@ -157,6 +157,88 @@ func TestBookingWriteRepository_Cancel(t *testing.T) {
 }
 
 // =============================================================================
+// CancelBookingsForTrip / CancelBookingsForWaypoint
+// =============================================================================
+
+func TestBookingWriteRepository_BulkCancel(t *testing.T) {
+	ctx := context.Background()
+	writeRepo := newTestBookingWriteRepository()
+	readRepo := newTestBookingReadRepository()
+
+	// requireBulkCancelled vérifie que les bookings renvoyés portent le statut d'avant annulation
+	// et les données de paiement nécessaires au service.
+	requireBulkCancelled := func(t *testing.T, cancelled []*domain.Booking, paid *domain.Booking) {
+		t.Helper()
+		require.Len(t, cancelled, 2)
+		byID := map[string]*domain.Booking{}
+		for _, b := range cancelled {
+			byID[b.BookingID] = b
+		}
+
+		gotPaid := byID[paid.BookingID]
+		require.NotNil(t, gotPaid)
+		assert.Equal(t, domain.BookingStatusApproved, gotPaid.Status)
+		assert.Equal(t, paid.Subtotal, gotPaid.Subtotal)
+		assert.Equal(t, paid.ServiceFee, gotPaid.ServiceFee)
+		assert.NotNil(t, gotPaid.PaymentCompletedAt)
+		assert.NotNil(t, gotPaid.ApprovedAt)
+
+		gotPending := byID["bk-bulk-pending"]
+		require.NotNil(t, gotPending)
+		assert.Equal(t, domain.BookingStatusPaymentPending, gotPending.Status)
+		assert.Nil(t, gotPending.PaymentCompletedAt)
+
+		for id := range byID {
+			result, err := readRepo.GetByID(ctx, id)
+			require.NoError(t, err)
+			assert.Equal(t, domain.BookingStatusCancelled, result.Status)
+		}
+	}
+
+	newBulkBookings := func(tripID, waypointID string) (pending, paid *domain.Booking) {
+		pending = fixtures.NewTestBooking(
+			fixtures.WithBookingID("bk-bulk-pending"),
+			fixtures.WithTripID(tripID),
+			fixtures.WithPickupWaypointID(waypointID),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentPending),
+			fixtures.WithNoPaymentCompleted(),
+		)
+		paid = fixtures.NewTestBookingWithPayment(
+			fixtures.WithBookingID("bk-bulk-paid"),
+			fixtures.WithTripID(tripID),
+			fixtures.WithDropoffWaypointID(waypointID),
+			fixtures.WithBookingStatus(domain.BookingStatusApproved),
+			fixtures.WithApprovedAt(time.Now().UTC()),
+		)
+		return pending, paid
+	}
+
+	t.Run("CancelBookingsForTrip renvoie les données de paiement", func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+
+		pending, paid := newBulkBookings("trip-bulk", "wp-bulk")
+		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, pending))
+		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, paid))
+
+		cancelled, err := writeRepo.CancelBookingsForTrip(ctx, "trip-bulk")
+		require.NoError(t, err)
+		requireBulkCancelled(t, cancelled, paid)
+	})
+
+	t.Run("CancelBookingsForWaypoint renvoie les données de paiement", func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+
+		pending, paid := newBulkBookings("trip-bulk-wp", "wp-bulk")
+		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, pending))
+		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, paid))
+
+		cancelled, err := writeRepo.CancelBookingsForWaypoint(ctx, "trip-bulk-wp", "wp-bulk")
+		require.NoError(t, err)
+		requireBulkCancelled(t, cancelled, paid)
+	})
+}
+
+// =============================================================================
 // ConfirmPayment
 // =============================================================================
 

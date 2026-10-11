@@ -981,8 +981,11 @@ func (s *bookingServiceImpl) CancelBookingsForWaypoint(ctx context.Context, inpu
 
 		s.invalidateBookingCaches(ctx, booking.BookingID)
 
-		// Demander le remboursement au payment-service (fire-and-forget)
-		if s.shouldRequestRefund(booking) {
+		// Paiement en ligne en cours : supprimer la collecte FedaPay, sinon le passager pourrait
+		// encore payer une réservation annulée. Paiement abouti : demander le remboursement.
+		if s.shouldCancelPendingPayment(booking) {
+			go s.cancelPendingPaymentAsync(booking.BookingID, "Arrêt supprimé par le chauffeur")
+		} else if s.shouldRequestRefund(booking) {
 			go s.requestRefundAsync(booking, "waypointCancelled", now)
 		}
 		passengerIDs = append(passengerIDs, booking.PassengerID)
@@ -1027,8 +1030,11 @@ func (s *bookingServiceImpl) CancelBookingsForTrip(ctx context.Context, input *s
 
 		s.invalidateBookingCaches(ctx, booking.BookingID)
 
-		// Demander le remboursement au payment-service (fire-and-forget)
-		if s.shouldRequestRefund(booking) {
+		// Paiement en ligne en cours : supprimer la collecte FedaPay, sinon le passager pourrait
+		// encore payer une réservation annulée. Paiement abouti : demander le remboursement.
+		if s.shouldCancelPendingPayment(booking) {
+			go s.cancelPendingPaymentAsync(booking.BookingID, "Trajet annulé par le chauffeur")
+		} else if s.shouldRequestRefund(booking) {
 			go s.requestRefundAsync(booking, "tripCancelled", now)
 		}
 		passengerIDs = append(passengerIDs, booking.PassengerID)
@@ -1598,6 +1604,36 @@ func (s *bookingServiceImpl) shouldRequestRefund(booking *domain.Booking) bool {
 	return s.paymentClient != nil &&
 		booking.PaymentMethod != domain.PaymentCash &&
 		booking.PaymentCompletedAt != nil
+}
+
+// shouldCancelPendingPayment vérifie si une réservation annulée a une collecte FedaPay en cours à supprimer.
+// Status est le statut d'avant annulation.
+func (s *bookingServiceImpl) shouldCancelPendingPayment(booking *domain.Booking) bool {
+	return s.paymentClient != nil &&
+		booking.PaymentMethod != domain.PaymentCash &&
+		booking.Status == domain.BookingStatusPaymentPending
+}
+
+// cancelPendingPaymentAsync supprime la collecte FedaPay d'une réservation déjà annulée (goroutine).
+// Si FedaPay a déjà approuvé, payment-service ne peut plus confirmer la réservation et rembourse
+// lui-même le passager (bookingUnavailable). En cas d'échec, le worker d'expiration de payment-service
+// supprime la transaction à l'échéance de la fenêtre de paiement.
+func (s *bookingServiceImpl) cancelPendingPaymentAsync(bookingID string, reason string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	paymentStatus, err := s.paymentClient.CancelPaymentForBooking(ctx, bookingID, reason)
+	if err != nil {
+		s.logger.Error("cancelPendingPaymentAsync: payment-service call failed",
+			zap.String("bookingID", bookingID),
+			zap.Error(err),
+		)
+		return
+	}
+	s.logger.Info("pending payment cancelled for cancelled booking",
+		zap.String("bookingID", bookingID),
+		zap.String("paymentStatus", paymentStatus),
+	)
 }
 
 // requestRefundAsync appelle payment-service en fire-and-forget (goroutine).

@@ -674,6 +674,141 @@ func TestCancelBooking_PaymentPending(t *testing.T) {
 }
 
 // =============================================================================
+// CancelBookingsForTrip / CancelBookingsForWaypoint — paiements
+// =============================================================================
+
+// waitForAsyncCall attend qu'un appel fire-and-forget (goroutine) atteigne le mock.
+func waitForAsyncCall(t *testing.T, called <-chan string) string {
+	t.Helper()
+	select {
+	case id := <-called:
+		return id
+	case <-time.After(2 * time.Second):
+		t.Fatal("appel asynchrone au payment-service non reçu")
+		return ""
+	}
+}
+
+// bulkCancelFixtures retourne une réservation paymentPending (collecte en cours), une réservation
+// approuvée payée et une réservation cash : seules les deux premières sollicitent payment-service.
+func bulkCancelFixtures(tripID string) (pending, paid, cash *domain.Booking) {
+	pending = fixtures.NewTestBooking(
+		fixtures.WithBookingID("bk-bulk-pending"),
+		fixtures.WithTripID(tripID),
+		fixtures.WithBookingStatus(domain.BookingStatusPaymentPending),
+		fixtures.WithNoPaymentCompleted(),
+	)
+	paid = fixtures.NewTestBookingWithPayment(
+		fixtures.WithBookingID("bk-bulk-paid"),
+		fixtures.WithTripID(tripID),
+		fixtures.WithBookingStatus(domain.BookingStatusApproved),
+	)
+	cash = fixtures.NewTestCashBooking(
+		fixtures.WithBookingID("bk-bulk-cash"),
+		fixtures.WithTripID(tripID),
+		fixtures.WithBookingStatus(domain.BookingStatusPendingApproval),
+	)
+	return pending, paid, cash
+}
+
+func TestCancelBookingsForTrip_Payments(t *testing.T) {
+	t.Run("supprime la collecte des paymentPending et rembourse les réservations payées", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		pending, paid, cash := bulkCancelFixtures("trip-bulk")
+		d.writeRepo.On("CancelBookingsForTrip", mock.Anything, "trip-bulk").
+			Return([]*domain.Booking{pending, paid, cash}, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-bulk").Return(nil, nil).Maybe()
+
+		cancelled := make(chan string, 1)
+		refunded := make(chan string, 1)
+		d.paymentClient.On("CancelPaymentForBooking", mock.Anything, "bk-bulk-pending", "Trajet annulé par le chauffeur").
+			Return("failed", nil).
+			Run(func(args mock.Arguments) { cancelled <- args.String(1) })
+		d.paymentClient.On("RequestRefund", mock.Anything, mock.MatchedBy(func(input *client.RefundInput) bool {
+			return input.BookingID == "bk-bulk-paid" && input.RefundReason == "tripCancelled" &&
+				input.OriginalAmount == paid.Subtotal && input.ServiceFee == paid.ServiceFee
+		})).
+			Return(nil).
+			Run(func(args mock.Arguments) {
+				if input, ok := args.Get(1).(*client.RefundInput); ok {
+					refunded <- input.BookingID
+				}
+			})
+
+		count, err := d.svc.CancelBookingsForTrip(ctx, &serviceInterfaces.CancelBookingsForTripInput{TripID: "trip-bulk"})
+
+		require.NoError(t, err)
+		assert.Equal(t, 3, count)
+		assert.Equal(t, "bk-bulk-pending", waitForAsyncCall(t, cancelled))
+		assert.Equal(t, "bk-bulk-paid", waitForAsyncCall(t, refunded))
+		d.paymentClient.AssertNumberOfCalls(t, "CancelPaymentForBooking", 1)
+		d.paymentClient.AssertNumberOfCalls(t, "RequestRefund", 1)
+	})
+
+	t.Run("l'échec de la suppression de la collecte ne bloque pas l'annulation", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		pending, _, _ := bulkCancelFixtures("trip-bulk-err")
+		d.writeRepo.On("CancelBookingsForTrip", mock.Anything, "trip-bulk-err").
+			Return([]*domain.Booking{pending}, nil)
+
+		cancelled := make(chan string, 1)
+		d.paymentClient.On("CancelPaymentForBooking", mock.Anything, "bk-bulk-pending", mock.Anything).
+			Return("", errors.New("unavailable")).
+			Run(func(args mock.Arguments) { cancelled <- args.String(1) })
+
+		count, err := d.svc.CancelBookingsForTrip(ctx, &serviceInterfaces.CancelBookingsForTripInput{TripID: "trip-bulk-err"})
+
+		require.NoError(t, err)
+		assert.Equal(t, 1, count)
+		waitForAsyncCall(t, cancelled)
+		d.paymentClient.AssertNotCalled(t, "RequestRefund", mock.Anything, mock.Anything)
+	})
+}
+
+func TestCancelBookingsForWaypoint_Payments(t *testing.T) {
+	t.Run("supprime la collecte des paymentPending et rembourse les réservations payées", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		pending, paid, cash := bulkCancelFixtures("trip-wp")
+		d.writeRepo.On("CancelBookingsForWaypoint", mock.Anything, "trip-wp", "wp-1").
+			Return([]*domain.Booking{pending, paid, cash}, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-wp").Return(nil, nil).Maybe()
+
+		cancelled := make(chan string, 1)
+		refunded := make(chan string, 1)
+		d.paymentClient.On("CancelPaymentForBooking", mock.Anything, "bk-bulk-pending", "Arrêt supprimé par le chauffeur").
+			Return("failed", nil).
+			Run(func(args mock.Arguments) { cancelled <- args.String(1) })
+		d.paymentClient.On("RequestRefund", mock.Anything, mock.MatchedBy(func(input *client.RefundInput) bool {
+			return input.BookingID == "bk-bulk-paid" && input.RefundReason == "waypointCancelled"
+		})).
+			Return(nil).
+			Run(func(args mock.Arguments) {
+				if input, ok := args.Get(1).(*client.RefundInput); ok {
+					refunded <- input.BookingID
+				}
+			})
+
+		count, err := d.svc.CancelBookingsForWaypoint(ctx, &serviceInterfaces.CancelBookingsForWaypointInput{
+			TripID:     "trip-wp",
+			WaypointID: "wp-1",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, 3, count)
+		assert.Equal(t, "bk-bulk-pending", waitForAsyncCall(t, cancelled))
+		assert.Equal(t, "bk-bulk-paid", waitForAsyncCall(t, refunded))
+		d.paymentClient.AssertNumberOfCalls(t, "CancelPaymentForBooking", 1)
+		d.paymentClient.AssertNumberOfCalls(t, "RequestRefund", 1)
+	})
+}
+
+// =============================================================================
 // SweepStalePaymentPendingBookings
 // =============================================================================
 
