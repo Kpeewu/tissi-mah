@@ -154,7 +154,9 @@ func (s *paymentServiceImpl) processRefund(ctx context.Context, refund *domain.R
 		reason := fmt.Sprintf("max retries (%d) exceeded", maxRetries)
 		if err := s.refundWriteRepo.MarkRefundFailed(ctx, refund.RefundID, reason, false); err != nil {
 			s.logger.Error("mark refund failed (max retries) failed", zap.Error(err))
+			return nil
 		}
+		s.publishRefundFailed(ctx, refund)
 		return nil
 	}
 
@@ -176,7 +178,11 @@ func (s *paymentServiceImpl) processRefund(ctx context.Context, refund *domain.R
 			zap.String("refundID", refund.RefundID),
 			zap.String("paymentID", refund.PaymentID),
 		)
-		s.refundWriteRepo.MarkRefundFailed(ctx, refund.RefundID, "missing passenger phone number", false) //nolint:errcheck
+		if err := s.refundWriteRepo.MarkRefundFailed(ctx, refund.RefundID, "missing passenger phone number", false); err != nil {
+			s.logger.Error("mark refund failed (missing phone) failed", zap.Error(err))
+			return nil
+		}
+		s.publishRefundFailed(ctx, refund)
 		return nil
 	}
 
@@ -247,6 +253,7 @@ func (s *paymentServiceImpl) processRefund(ctx context.Context, refund *domain.R
 				"amount":                     fmt.Sprintf("%d", refund.AmountToPassenger),
 				"currency":                   "XOF",
 				"payment_provider_reference": providerRef,
+				"reason":                     string(refund.RefundReason),
 			},
 		}); pubErr != nil {
 			s.logger.Error("failed to publish REFUND_COMPLETED notification", zap.Error(pubErr))
@@ -254,4 +261,31 @@ func (s *paymentServiceImpl) processRefund(ctx context.Context, refund *domain.R
 	}
 
 	return nil
+}
+
+// publishRefundFailed notifie le passager (non bloquant) que son remboursement a échoué définitivement
+// et qu'il sera traité manuellement par le support.
+func (s *paymentServiceImpl) publishRefundFailed(ctx context.Context, refund *domain.Refund) {
+	if s.notifRedis == nil {
+		return
+	}
+	booking, err := s.bookingClient.GetBookingDetails(ctx, refund.BookingID)
+	if err != nil {
+		s.logger.Warn("get booking for REFUND_FAILED notification failed",
+			zap.String("refundID", refund.RefundID), zap.Error(err))
+		return
+	}
+	if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
+		EventType:     notification.RefundFailed,
+		UserID:        booking.PassengerID,
+		ReferenceID:   refund.RefundID,
+		ReferenceType: notification.RefRefund,
+		Payload: map[string]string{
+			"amount":   fmt.Sprintf("%d", refund.AmountToPassenger),
+			"currency": "XOF",
+			"reason":   string(refund.RefundReason),
+		},
+	}); pubErr != nil {
+		s.logger.Error("failed to publish REFUND_FAILED notification", zap.Error(pubErr))
+	}
 }

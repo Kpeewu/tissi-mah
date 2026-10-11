@@ -441,6 +441,7 @@ func (s *paymentServiceImpl) createRefundForPayment(ctx context.Context, payment
 				Payload: map[string]string{
 					"amount":              fmt.Sprintf("%d", calc.RefundAmount),
 					"amount_to_passenger": fmt.Sprintf("%d", calc.AmountToPassenger),
+					"reason":              string(reason),
 				},
 			}); pubErr != nil {
 				s.logger.Error("failed to publish REFUND_PROCESSED notification", zap.Error(pubErr))
