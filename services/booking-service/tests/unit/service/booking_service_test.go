@@ -2,10 +2,12 @@ package service_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/Kpeewu/tissi-mah/pkg/notification"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/fixtures"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/domain"
@@ -13,6 +15,8 @@ import (
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/booking-service/internal/service/interfaces"
 	bookingErrors "github.com/Kpeewu/tissi-mah/services/booking-service/pkg/errors"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/tests/mocks"
+	"github.com/alicebob/miniredis/v2"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -54,6 +58,47 @@ func newTestService() *testDeps {
 		logger,
 	)
 	return d
+}
+
+// newTestServiceWithNotif construit le service avec un Redis de notification (miniredis)
+// pour vérifier les événements publiés.
+func newTestServiceWithNotif(t *testing.T) (*testDeps, *redis.Client) {
+	t.Helper()
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	t.Cleanup(func() { assert.NoError(t, rdb.Close()) })
+
+	d := newTestService()
+	d.svc = service.NewBookingService(
+		d.readRepo,
+		d.writeRepo,
+		d.tripClient,
+		d.userClient,
+		d.paymentClient,
+		d.ratingClient,
+		nil, // cache
+		rdb,
+		10, // serviceFeePercent
+		zap.NewNop(),
+	)
+	return d, rdb
+}
+
+// publishedNotifications renvoie les couples "EVENT_TYPE:userID" publiés sur le stream de notification.
+func publishedNotifications(t *testing.T, rdb *redis.Client) []string {
+	t.Helper()
+	msgs, err := rdb.XRange(context.Background(), notification.StreamName, "-", "+").Result()
+	require.NoError(t, err)
+
+	out := make([]string, 0, len(msgs))
+	for _, msg := range msgs {
+		data, ok := msg.Values["data"].(string)
+		require.True(t, ok)
+		var event notification.Event
+		require.NoError(t, json.Unmarshal([]byte(data), &event))
+		out = append(out, event.EventType+":"+event.UserID)
+	}
+	return out
 }
 
 func (d *testDeps) assertExpectations(t *testing.T) {
@@ -469,6 +514,63 @@ func TestConfirmPayment(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, string(domain.BookingStatusApproved), status)
+		d.assertExpectations(t)
+	})
+
+	t.Run("notifications - auto-approbation → conducteur ET passager notifiés", func(t *testing.T) {
+		d, rdb := newTestServiceWithNotif(t)
+		ctx := context.Background()
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("booking-auto-notif"),
+			fixtures.WithTripID("trip-auto-notif"),
+			fixtures.WithDriverID("driver-1"),
+			fixtures.WithPassengerID("passenger-1"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentPending),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-auto-notif").Return(booking, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-auto-notif").Return(
+			&client.TripDetails{TripID: "trip-auto-notif", Status: "scheduled", AutoApproveEnabled: true}, nil)
+		d.writeRepo.On("ConfirmPayment", mock.Anything, "booking-auto-notif", "txn-auto-notif",
+			domain.BookingStatusPaymentPending, domain.BookingStatusApproved).Return(nil)
+
+		_, err := d.svc.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
+			BookingID:     "booking-auto-notif",
+			TransactionID: "txn-auto-notif",
+		})
+
+		require.NoError(t, err)
+		assert.ElementsMatch(t, []string{
+			notification.NewBookingRequest + ":driver-1",
+			notification.BookingConfirmed + ":passenger-1",
+		}, publishedNotifications(t, rdb))
+		d.assertExpectations(t)
+	})
+
+	t.Run("notifications - sans auto-approbation → seul le conducteur est notifié", func(t *testing.T) {
+		d, rdb := newTestServiceWithNotif(t)
+		ctx := context.Background()
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("booking-manual-notif"),
+			fixtures.WithTripID("trip-manual-notif"),
+			fixtures.WithDriverID("driver-2"),
+			fixtures.WithPassengerID("passenger-2"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentPending),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-manual-notif").Return(booking, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-manual-notif").Return(
+			&client.TripDetails{TripID: "trip-manual-notif", Status: "scheduled"}, nil)
+		d.writeRepo.On("ConfirmPayment", mock.Anything, "booking-manual-notif", "txn-manual-notif",
+			domain.BookingStatusPaymentPending, domain.BookingStatusPendingApproval).Return(nil)
+
+		_, err := d.svc.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
+			BookingID:     "booking-manual-notif",
+			TransactionID: "txn-manual-notif",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{notification.NewBookingRequest + ":driver-2"}, publishedNotifications(t, rdb))
 		d.assertExpectations(t)
 	})
 

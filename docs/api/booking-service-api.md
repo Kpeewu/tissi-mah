@@ -497,7 +497,7 @@ Confirms payment for a booking. **Internal route** (gRPC `ConfirmPayment`), call
 | `paymentFailed` (late FedaPay approval) | The seats are **re-reserved** (Redis + trip legs), then same transition as above. If the trip is full or the passenger already holds another active booking on the trip → `ErrorNoSeatsAvailable` (FAILED_PRECONDITION) and payment-service refunds the passenger in full. |
 | already confirmed | `ErrorPaymentAlreadyConfirmed` (FAILED_PRECONDITION, idempotent) |
 
-On success, notifications are sent: `NEW_BOOKING_REQUEST` to the driver, or `BOOKING_CONFIRMED` to the passenger when auto-approved.
+On success, notifications are sent: `NEW_BOOKING_REQUEST` to the driver, plus `BOOKING_CONFIRMED` to the passenger when auto-approved.
 
 #### Response (Success)
 
