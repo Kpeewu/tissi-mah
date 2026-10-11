@@ -1,44 +1,51 @@
 package fedapay
 
+import "errors"
+
 // =============================================================================
 // Types de réponse de l'API FedaPay
 // =============================================================================
 
+// Statuts d'une transaction (collecte) FedaPay.
+// declined et canceled ne sont pas finaux : l'utilisateur peut réessayer sur la page de paiement.
+const (
+	TransactionStatusPending     = "pending"
+	TransactionStatusApproved    = "approved"
+	TransactionStatusDeclined    = "declined"
+	TransactionStatusCanceled    = "canceled"
+	TransactionStatusRefunded    = "refunded"
+	TransactionStatusTransferred = "transferred"
+	TransactionStatusExpired     = "expired"
+	// TransactionStatusDeleted n'est pas un statut FedaPay : il représente une transaction
+	// supprimée (DELETE ou événement transaction.deleted, GET en 404).
+	TransactionStatusDeleted = "deleted"
+)
+
+// ErrTransactionNotFound est retournée quand FedaPay répond 404 (transaction inexistante ou supprimée).
+var ErrTransactionNotFound = errors.New("fedapay: transaction not found")
+
 // Transaction représente une transaction FedaPay.
 type Transaction struct {
-	ID           int    `json:"id"`
-	Klass        string `json:"klass"`
-	Reference    string `json:"reference"`
-	Amount       int    `json:"amount"`
-	Description  string `json:"description"`
-	Status       string `json:"status"` // pending, approved, declined, transferred, refunded, canceled
-	Mode         string `json:"mode"`
-	PaymentToken string `json:"payment_token"`
-	PaymentURL   string `json:"payment_url"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
+	ID                int    `json:"id"`
+	Klass             string `json:"klass"`
+	Reference         string `json:"reference"`
+	MerchantReference string `json:"merchant_reference"`
+	Amount            int    `json:"amount"`
+	Description       string `json:"description"`
+	Status            string `json:"status"` // pending, approved, declined, canceled, refunded, transferred, expired
+	Mode              string `json:"mode"`   // opérateur choisi par l'utilisateur sur la page FedaPay
+	LastErrorCode     string `json:"last_error_code"`
+	CallbackURL       string `json:"callback_url"`
+	PaymentToken      string `json:"payment_token"`
+	PaymentURL        string `json:"payment_url"`
+	CreatedAt         string `json:"created_at"`
+	UpdatedAt         string `json:"updated_at"`
+	ApprovedAt        string `json:"approved_at"`
 }
 
-// TransactionResponse est la réponse de création d'une transaction.
+// TransactionResponse est la réponse de création / lecture d'une transaction.
 type TransactionResponse struct {
 	V1 *Transaction `json:"v1/transaction"`
-}
-
-// PaymentIntent représente un payment_intent FedaPay retourné par l'envoi USSD.
-type PaymentIntent struct {
-	ID        int    `json:"id"`
-	Klass     string `json:"klass"`
-	Reference string `json:"reference"`
-	Amount    int    `json:"amount"`
-	Status    string `json:"status"` // approved, canceled, declined
-	Mode      string `json:"mode"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
-}
-
-// SendTransactionResponse est la réponse d'envoi direct USSD (wrappée dans v1/payment_intent).
-type SendTransactionResponse struct {
-	V1 *PaymentIntent `json:"v1/payment_intent"`
 }
 
 // PayoutItem représente un payout FedaPay.

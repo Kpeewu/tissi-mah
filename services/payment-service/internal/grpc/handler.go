@@ -32,12 +32,12 @@ func (h *PaymentHandler) CreatePayment(ctx context.Context, req *paymentpb.Creat
 	h.logger.Debug("handler: CreatePayment called", zap.String("bookingID", req.BookingId))
 
 	result, err := h.service.CreatePayment(ctx, &serviceInterfaces.CreatePaymentInput{
-		BookingID:           req.BookingId,
-		TripID:              req.TripId,
-		PaymentMethod:       req.PaymentMethod,
-		Amount:              int(req.Amount),
+		BookingID:            req.BookingId,
+		TripID:               req.TripId,
+		PaymentMethod:        req.PaymentMethod,
+		Amount:               int(req.Amount), //nolint:staticcheck // champ déprécié, ignoré par le service
 		PassengerPhoneNumber: req.PassengerPhoneNumber,
-		MobileMoneyMode:     req.MobileMoneyMode,
+		MobileMoneyMode:      req.MobileMoneyMode, //nolint:staticcheck // champ déprécié, ignoré par le service
 	})
 	if err != nil {
 		h.logger.Error("handler: CreatePayment failed", zap.Error(err))
@@ -48,7 +48,67 @@ func (h *PaymentHandler) CreatePayment(ctx context.Context, req *paymentpb.Creat
 		PaymentId:        result.PaymentID,
 		PaymentReference: result.PaymentReference,
 		Status:           result.Status,
+		PaymentUrl:       result.PaymentURL,
+		ExpiresAt:        result.ExpiresAt,
+		Reused:           result.Reused,
+		Amount:           int32(result.Amount),
 	}, nil
+}
+
+// VerifyPayment resynchronise un paiement avec FedaPay (retour de la page de paiement).
+func (h *PaymentHandler) VerifyPayment(ctx context.Context, req *paymentpb.VerifyPaymentRequest) (*paymentpb.PaymentStatusResponse, error) {
+	result, err := h.service.VerifyPayment(ctx, req.PaymentId)
+	if err != nil {
+		h.logger.Error("handler: VerifyPayment failed", zap.Error(err))
+		return &paymentpb.PaymentStatusResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+	return toPaymentStatusResponse(result), nil
+}
+
+// CancelPayment abandonne un paiement pending (suppression FedaPay + libération des places).
+func (h *PaymentHandler) CancelPayment(ctx context.Context, req *paymentpb.CancelPaymentRequest) (*paymentpb.PaymentStatusResponse, error) {
+	result, err := h.service.CancelPayment(ctx, req.PaymentId)
+	if err != nil {
+		h.logger.Error("handler: CancelPayment failed", zap.Error(err))
+		return &paymentpb.PaymentStatusResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+	return toPaymentStatusResponse(result), nil
+}
+
+// HandlePaymentCallback traite le retour de la page FedaPay (appelé par l'api-gateway).
+func (h *PaymentHandler) HandlePaymentCallback(ctx context.Context, req *paymentpb.HandlePaymentCallbackRequest) (*paymentpb.PaymentStatusResponse, error) {
+	result, err := h.service.HandlePaymentCallback(ctx, req.FedapayTransactionId)
+	if err != nil {
+		h.logger.Warn("handler: HandlePaymentCallback failed", zap.Error(err))
+		return &paymentpb.PaymentStatusResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+	return toPaymentStatusResponse(result), nil
+}
+
+// CancelPaymentForBooking annule le paiement pending d'une réservation annulée (interne, booking-service).
+func (h *PaymentHandler) CancelPaymentForBooking(ctx context.Context, req *paymentpb.CancelPaymentForBookingRequest) (*paymentpb.PaymentStatusResponse, error) {
+	result, err := h.service.CancelPaymentForBooking(ctx, req.BookingId, req.Reason)
+	if err != nil {
+		h.logger.Error("handler: CancelPaymentForBooking failed", zap.Error(err))
+		return &paymentpb.PaymentStatusResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+	return toPaymentStatusResponse(result), nil
+}
+
+// toPaymentStatusResponse convertit un PaymentSyncResult en message proto.
+func toPaymentStatusResponse(result *serviceInterfaces.PaymentSyncResult) *paymentpb.PaymentStatusResponse {
+	return &paymentpb.PaymentStatusResponse{
+		PaymentId:      result.PaymentID,
+		BookingId:      result.BookingID,
+		Status:         result.Status,
+		ProviderStatus: result.ProviderStatus,
+		IsFinal:        result.IsFinal,
+		PaymentUrl:     result.PaymentURL,
+		ExpiresAt:      result.ExpiresAt,
+		BookingStatus:  result.BookingStatus,
+		SeatsReleased:  result.SeatsReleased,
+		Amount:         int32(result.Amount),
+	}
 }
 
 // GetPaymentStatus retourne le statut d'un paiement.
@@ -67,6 +127,9 @@ func (h *PaymentHandler) GetPaymentStatus(ctx context.Context, req *paymentpb.Ge
 		PaymentReference: result.PaymentReference,
 		CreatedAt:        result.CreatedAt,
 		CompletedAt:      result.CompletedAt,
+		PaymentUrl:       result.PaymentURL,
+		ProviderStatus:   result.ProviderStatus,
+		ExpiresAt:        result.ExpiresAt,
 	}, nil
 }
 
@@ -86,6 +149,9 @@ func (h *PaymentHandler) GetPaymentByBooking(ctx context.Context, req *paymentpb
 		PaymentReference: result.PaymentReference,
 		CreatedAt:        result.CreatedAt,
 		CompletedAt:      result.CompletedAt,
+		PaymentUrl:       result.PaymentURL,
+		ProviderStatus:   result.ProviderStatus,
+		ExpiresAt:        result.ExpiresAt,
 	}, nil
 }
 
@@ -291,7 +357,8 @@ func toGRPCError(err error) error {
 		errors.Is(err, paymentErrors.ErrorBookingNotFound),
 		errors.Is(err, paymentErrors.ErrorUserNotFound):
 		return status.Error(codes.NotFound, err.Error())
-	case errors.Is(err, paymentErrors.ErrorUnauthorized):
+	case errors.Is(err, paymentErrors.ErrorUnauthorized),
+		errors.Is(err, paymentErrors.ErrorPaymentNotOwned):
 		return status.Error(codes.PermissionDenied, err.Error())
 	case errors.Is(err, paymentErrors.ErrorDuplicatePayment):
 		return status.Error(codes.AlreadyExists, err.Error())
@@ -306,7 +373,11 @@ func toGRPCError(err error) error {
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, paymentErrors.ErrorInsufficientBalance):
 		return status.Error(codes.ResourceExhausted, err.Error())
-	case errors.Is(err, paymentErrors.ErrorTripNotReadyForPayout):
+	case errors.Is(err, paymentErrors.ErrorTripNotReadyForPayout),
+		errors.Is(err, paymentErrors.ErrorBookingNotPayable),
+		errors.Is(err, paymentErrors.ErrorBookingPaymentExpired),
+		errors.Is(err, paymentErrors.ErrorPaymentNotCancellable),
+		errors.Is(err, paymentErrors.ErrorNoSeatsAvailable):
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, paymentErrors.ErrorFedaPayAPIError),
 		errors.Is(err, paymentErrors.ErrorWebhookVerificationFailed),

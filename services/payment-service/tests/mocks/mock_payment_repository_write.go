@@ -35,3 +35,18 @@ func (m *MockPaymentRepositoryWrite) AnonymizePassengerPhoneNumbers(ctx context.
 	args := m.Called(ctx, bookingIDs)
 	return args.Error(0)
 }
+
+func (m *MockPaymentRepositoryWrite) UpdateProviderStatus(ctx context.Context, paymentID string, providerStatus string) error {
+	args := m.Called(ctx, paymentID, providerStatus)
+	return args.Error(0)
+}
+
+func (m *MockPaymentRepositoryWrite) UpdatePaymentURL(ctx context.Context, paymentID string, paymentURL string) error {
+	args := m.Called(ctx, paymentID, paymentURL)
+	return args.Error(0)
+}
+
+func (m *MockPaymentRepositoryWrite) MarkFailedPaymentHeld(ctx context.Context, paymentID string) error {
+	args := m.Called(ctx, paymentID)
+	return args.Error(0)
+}

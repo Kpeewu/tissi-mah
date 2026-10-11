@@ -45,8 +45,8 @@ func (m *MockPaymentRepositoryRead) GetWebhookEvent(ctx context.Context, fedapay
 	return args.Get(0).(*domain.WebhookEvent), args.Error(1)
 }
 
-func (m *MockPaymentRepositoryRead) GetExpiredPendingPayments(ctx context.Context, olderThan time.Duration) ([]*domain.Payment, error) {
-	args := m.Called(ctx, olderThan)
+func (m *MockPaymentRepositoryRead) GetExpiredPendingPayments(ctx context.Context, now time.Time) ([]*domain.Payment, error) {
+	args := m.Called(ctx, now)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -56,4 +56,12 @@ func (m *MockPaymentRepositoryRead) GetExpiredPendingPayments(ctx context.Contex
 func (m *MockPaymentRepositoryRead) HasActivePayment(ctx context.Context, bookingID string) (bool, error) {
 	args := m.Called(ctx, bookingID)
 	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockPaymentRepositoryRead) GetPendingByBookingID(ctx context.Context, bookingID string) (*domain.Payment, error) {
+	args := m.Called(ctx, bookingID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Payment), args.Error(1)
 }

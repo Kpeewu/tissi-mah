@@ -5,9 +5,12 @@ import (
 	"fmt"
 
 	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
+	paymentErrors "github.com/Kpeewu/tissi-mah/services/payment-service/pkg/errors"
 	userpb "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // UserServiceClient est le client gRPC vers user-service.
@@ -53,4 +56,20 @@ func (c *UserServiceClient) GetUserByUserID(ctx context.Context, userID string) 
 		FirstName:      resp.FirstName,
 		WithdrawNumber: resp.WithdrawNumber,
 	}, nil
+}
+
+// GetUserIDByFirebaseID résout le UserID interne à partir du Firebase UID (ErrorUserNotFound si inconnu).
+func (c *UserServiceClient) GetUserIDByFirebaseID(ctx context.Context, firebaseID string) (string, error) {
+	resp, err := c.grpcClient.GetUserByFirebaseID(ctx, &userpb.GetUserByFirebaseIDRequest{
+		FirebaseID: firebaseID,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return "", paymentErrors.ErrorUserNotFound
+		}
+		c.logger.Error("get user by firebase id failed", zap.Error(err))
+		return "", fmt.Errorf("user-service: GetUserByFirebaseID failed: %w", err)
+	}
+
+	return resp.UserID, nil
 }

@@ -13,6 +13,15 @@ type PaymentRepositoryWrite interface {
 	MarkPaymentFailed(ctx context.Context, paymentID string, reason string) error
 	SaveWebhookEvent(ctx context.Context, event *domain.WebhookEvent) error
 
+	// UpdateProviderStatus enregistre le dernier statut FedaPay observé (sans changer le statut interne).
+	UpdateProviderStatus(ctx context.Context, paymentID string, providerStatus string) error
+
+	// UpdatePaymentURL met à jour le lien de paiement FedaPay d'un paiement pending.
+	UpdatePaymentURL(ctx context.Context, paymentID string, paymentURL string) error
+
+	// MarkFailedPaymentHeld fait passer un paiement failed → held (approbation FedaPay tardive revérifiée).
+	MarkFailedPaymentHeld(ctx context.Context, paymentID string) error
+
 	// AnonymizePassengerPhoneNumbers efface passenger_phone_number pour les paiements
 	// dont le booking_id figure dans la liste. Utilisé lors de la suppression de compte.
 	AnonymizePassengerPhoneNumbers(ctx context.Context, bookingIDs []string) error

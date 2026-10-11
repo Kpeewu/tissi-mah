@@ -35,7 +35,10 @@ type Payment struct {
 	Status                PaymentStatus
 	ExternalTransactionID string
 	PaymentReference      string
-	PassengerPhoneNumber  string // Numéro utilisé au paiement, réutilisé pour le refund FedaPay.
+	PassengerPhoneNumber  string // Numéro togocel de remboursement fourni par le passager (le paiement se fait sur la page FedaPay).
+	PaymentURL            string // Lien de la page de paiement FedaPay (redirection)
+	ProviderStatus        string // Dernier statut FedaPay observé (pending, approved, declined, canceled, expired, deleted)
+	ExpiresAt             time.Time
 	CreatedAt             time.Time
 	CompletedAt           *time.Time
 	FailedAt              *time.Time
@@ -58,6 +61,7 @@ const (
 	RefundReasonTripCancelled        RefundReason = "tripCancelled"
 	RefundReasonBookingRejected      RefundReason = "bookingRejected"
 	RefundReasonDispute              RefundReason = "dispute"
+	RefundReasonSeatsUnavailable     RefundReason = "seatsUnavailable" // paiement approuvé après libération des places, trajet complet
 	RefundReasonOther                RefundReason = "other"
 )
 
