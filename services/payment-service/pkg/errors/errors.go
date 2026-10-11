@@ -31,4 +31,5 @@ var (
 	ErrorBookingPaymentExpired        = errors.New("ErrorBookingPaymentExpired")
 	ErrorPaymentNotCancellable        = errors.New("ErrorPaymentNotCancellable")
 	ErrorNoSeatsAvailable             = errors.New("ErrorNoSeatsAvailable")
+	ErrorBookingNotConfirmable        = errors.New("ErrorBookingNotConfirmable")
 )
