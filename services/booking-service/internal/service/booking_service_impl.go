@@ -510,7 +510,7 @@ func (s *bookingServiceImpl) RejectBooking(ctx context.Context, input *serviceIn
 
 	// Demander le remboursement au payment-service (fire-and-forget)
 	if s.shouldRequestRefund(booking) {
-		go s.requestRefundAsync(booking, "bookingRejected", time.Now().UTC())
+		go s.requestRefundAsync(booking.BookingID)
 	}
 
 	// Notifier le passager (non bloquant)
@@ -583,11 +583,7 @@ func (s *bookingServiceImpl) CancelBooking(ctx context.Context, input *serviceIn
 
 	// Demander le remboursement au payment-service (fire-and-forget)
 	if s.shouldRequestRefund(booking) {
-		reason := "cancelledByPassenger"
-		if input.UserID == booking.DriverID {
-			reason = "cancelledByDriver"
-		}
-		go s.requestRefundAsync(booking, reason, time.Now().UTC())
+		go s.requestRefundAsync(booking.BookingID)
 	}
 
 	// Notifier l'autre partie (non bloquant)
@@ -723,11 +719,7 @@ func (s *bookingServiceImpl) ReportNoShow(ctx context.Context, input *serviceInt
 
 	// Demander le remboursement au payment-service (fire-and-forget)
 	if s.shouldRequestRefund(booking) {
-		reason := "noShowPassenger"
-		if input.NoShowType == "driver" {
-			reason = "noShowDriver"
-		}
-		go s.requestRefundAsync(booking, reason, time.Now().UTC())
+		go s.requestRefundAsync(booking.BookingID)
 	}
 
 	return nil
@@ -970,7 +962,6 @@ func (s *bookingServiceImpl) CancelBookingsForWaypoint(ctx context.Context, inpu
 		return 0, err
 	}
 
-	now := time.Now().UTC()
 	passengerIDs := make([]string, 0, len(cancelledBookings))
 	for _, booking := range cancelledBookings {
 		// Restaurer les places Redis par segment
@@ -985,7 +976,7 @@ func (s *bookingServiceImpl) CancelBookingsForWaypoint(ctx context.Context, inpu
 		if s.shouldCancelPendingPayment(booking) {
 			go s.cancelPendingPaymentAsync(booking.BookingID, "Arrêt supprimé par le chauffeur")
 		} else if s.shouldRequestRefund(booking) {
-			go s.requestRefundAsync(booking, "waypointCancelled", now)
+			go s.requestRefundAsync(booking.BookingID)
 		}
 		passengerIDs = append(passengerIDs, booking.PassengerID)
 	}
@@ -1019,7 +1010,6 @@ func (s *bookingServiceImpl) CancelBookingsForTrip(ctx context.Context, input *s
 		return 0, err
 	}
 
-	now := time.Now().UTC()
 	passengerIDs := make([]string, 0, len(cancelledBookings))
 	for _, booking := range cancelledBookings {
 		// Restaurer les places Redis par segment
@@ -1034,7 +1024,7 @@ func (s *bookingServiceImpl) CancelBookingsForTrip(ctx context.Context, input *s
 		if s.shouldCancelPendingPayment(booking) {
 			go s.cancelPendingPaymentAsync(booking.BookingID, "Trajet annulé par le chauffeur")
 		} else if s.shouldRequestRefund(booking) {
-			go s.requestRefundAsync(booking, "tripCancelled", now)
+			go s.requestRefundAsync(booking.BookingID)
 		}
 		passengerIDs = append(passengerIDs, booking.PassengerID)
 	}
@@ -1633,38 +1623,6 @@ func (s *bookingServiceImpl) cancelPendingPaymentAsync(bookingID string, reason 
 		zap.String("bookingID", bookingID),
 		zap.String("paymentStatus", paymentStatus),
 	)
-}
-
-// requestRefundAsync appelle payment-service en fire-and-forget (goroutine).
-func (s *bookingServiceImpl) requestRefundAsync(booking *domain.Booking, reason string, cancelledAt time.Time) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// Récupérer la date de départ depuis trips-service
-	departureDatetime := s.getDepartureDatetime(ctx, booking)
-
-	input := &client.RefundInput{
-		BookingID:         booking.BookingID,
-		RefundReason:      reason,
-		OriginalAmount:    booking.Subtotal,
-		ServiceFee:        booking.ServiceFee,
-		DepartureDatetime: departureDatetime,
-		ApprovedAt:        formatTimeOptional(booking.ApprovedAt),
-		CancelledAt:       cancelledAt.Format(time.RFC3339),
-	}
-
-	if err := s.paymentClient.RequestRefund(ctx, input); err != nil {
-		s.logger.Error("requestRefundAsync: payment-service call failed",
-			zap.String("bookingID", booking.BookingID),
-			zap.String("reason", reason),
-			zap.Error(err),
-		)
-	} else {
-		s.logger.Info("refund requested successfully",
-			zap.String("bookingID", booking.BookingID),
-			zap.String("reason", reason),
-		)
-	}
 }
 
 // getDepartureDatetime récupère la date de départ du waypoint de pickup.
