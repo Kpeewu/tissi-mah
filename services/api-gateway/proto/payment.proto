@@ -12,13 +12,41 @@ import "google/api/annotations.proto";
 
 service PaymentService {
 
-  // CreatePayment crée un paiement pour une réservation et initie la transaction FedaPay
+  // CreatePayment crée la collecte FedaPay d'une réservation et retourne le lien de la page
+  // de paiement (redirection). Si un paiement pending existe déjà, retourne le même lien (Reused).
   rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse) {
     option (google.api.http) = {
       post: "/api/v1/payment/createPayment"
       body: "*"
     };
   }
+
+  // VerifyPayment resynchronise le statut du paiement auprès de FedaPay (source de vérité)
+  // et applique la transition correspondante. À appeler au retour de la page de paiement.
+  rpc VerifyPayment(VerifyPaymentRequest) returns (PaymentStatusResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/payment/verifyPayment"
+      body: "*"
+    };
+  }
+
+  // CancelPayment abandonne un paiement pending : supprime la transaction FedaPay
+  // et libère les places de la réservation.
+  rpc CancelPayment(CancelPaymentRequest) returns (PaymentStatusResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/payment/cancelPayment"
+      body: "*"
+    };
+  }
+
+  // HandlePaymentCallback traite le retour de la page FedaPay (callback_url ?id=&status=).
+  // gRPC uniquement — appelé par le handler HTTP brut de l'api-gateway, qui redirige ensuite
+  // vers le deep link mobile. Le statut de l'URL est ignoré : il est revérifié auprès de FedaPay.
+  rpc HandlePaymentCallback(HandlePaymentCallbackRequest) returns (PaymentStatusResponse);
+
+  // CancelPaymentForBooking annule le paiement pending d'une réservation annulée par l'utilisateur.
+  // gRPC uniquement — interne (booking-service). Ne rappelle pas FailPayment.
+  rpc CancelPaymentForBooking(CancelPaymentForBookingRequest) returns (PaymentStatusResponse);
 
   // GetPaymentStatus retourne le statut d'un paiement
   rpc GetPaymentStatus(GetPaymentStatusRequest) returns (GetPaymentStatusResponse) {
@@ -119,10 +147,27 @@ service PaymentService {
 message CreatePaymentRequest {
   string BookingId           = 1;
   string TripId              = 2;
-  string PaymentMethod       = 3; // mobileMoney | card | paypal
-  int32  Amount              = 4;
-  string PassengerPhoneNumber = 5;
-  string MobileMoneyMode     = 6; // moov_tg | togocel
+  string PaymentMethod       = 3; // mobileMoney
+  int32  Amount              = 4 [deprecated = true]; // ignoré : le montant est celui de la réservation
+  string PassengerPhoneNumber = 5; // numéro togocel (8 chiffres) utilisé pour un éventuel remboursement
+  string MobileMoneyMode     = 6 [deprecated = true]; // ignoré : l'opérateur est choisi sur la page FedaPay
+}
+
+message VerifyPaymentRequest {
+  string PaymentId = 1;
+}
+
+message CancelPaymentRequest {
+  string PaymentId = 1;
+}
+
+message HandlePaymentCallbackRequest {
+  string FedapayTransactionId = 1; // paramètre ?id= ajouté par FedaPay au callback_url
+}
+
+message CancelPaymentForBookingRequest {
+  string BookingId = 1;
+  string Reason    = 2;
 }
 
 message GetPaymentStatusRequest {
@@ -182,8 +227,27 @@ message HealthRequest {}
 message CreatePaymentResponse {
   string PaymentId        = 1;
   string PaymentReference = 2;
-  string Status           = 3;
+  string Status           = 3; // pending
   string ErrorMessage     = 4;
+  string PaymentUrl       = 5; // page de paiement FedaPay à ouvrir (navigateur in-app)
+  string ExpiresAt        = 6; // RFC3339 — au-delà, la transaction est supprimée et les places libérées
+  bool   Reused           = 7; // true si un paiement pending existait déjà (même lien)
+  int32  Amount           = 8; // montant facturé (celui de la réservation)
+}
+
+// PaymentStatusResponse est l'état d'un paiement après synchronisation avec FedaPay.
+message PaymentStatusResponse {
+  string PaymentId      = 1;
+  string BookingId      = 2;
+  string Status         = 3;  // pending | held | released | paidOut | failed | refunded
+  string ProviderStatus = 4;  // dernier statut FedaPay : pending | approved | declined | canceled | expired | deleted
+  bool   IsFinal        = 5;  // false tant que Status = pending (declined/canceled : nouvelle tentative possible)
+  string PaymentUrl     = 6;  // lien de paiement (pending uniquement)
+  string ExpiresAt      = 7;  // RFC3339
+  string BookingStatus  = 8;  // paymentPending | pendingApproval | approved | paymentFailed | ...
+  bool   SeatsReleased  = 9;  // true si les places ont été libérées (nouvelle réservation nécessaire)
+  int32  Amount         = 10;
+  string ErrorMessage   = 11;
 }
 
 message GetPaymentStatusResponse {
@@ -196,6 +260,9 @@ message GetPaymentStatusResponse {
   string CreatedAt        = 7;
   string CompletedAt      = 8;
   string ErrorMessage     = 9;
+  string PaymentUrl       = 10; // lien de paiement FedaPay (pending uniquement)
+  string ProviderStatus   = 11; // dernier statut FedaPay observé
+  string ExpiresAt        = 12; // RFC3339
 }
 
 message GetPaymentByBookingResponse {
@@ -208,6 +275,9 @@ message GetPaymentByBookingResponse {
   string CreatedAt        = 7;
   string ErrorMessage     = 8;
   string CompletedAt      = 9; // RFC3339, vide tant que le paiement n'est pas confirmé
+  string PaymentUrl       = 10; // lien de paiement FedaPay (pending uniquement)
+  string ProviderStatus   = 11; // dernier statut FedaPay observé
+  string ExpiresAt        = 12; // RFC3339
 }
 
 message ProcessWebhookResponse {

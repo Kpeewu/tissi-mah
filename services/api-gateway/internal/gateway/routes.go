@@ -55,17 +55,19 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/booking/rejectBooking":               true,
 	"/api/v1/booking/cancelBooking":               true,
 	"/api/v1/booking/reportNoShow":                true,
-	"/api/v1/booking/confirmPayment":              true,
+	// confirmPayment est interne (/api/v1/booking/internal/confirmPayment, appelé par payment-service)
 
 	// payment-service (protégé)
 	"/api/v1/payment/createPayment":       true,
+	"/api/v1/payment/verifyPayment":       true,
+	"/api/v1/payment/cancelPayment":       true,
 	"/api/v1/payment/getPaymentStatus":    true,
 	"/api/v1/payment/getPaymentByBooking": true,
 	"/api/v1/payment/getRefundStatus":     true,
 	"/api/v1/payment/getRefundByBooking":  true,
 	"/api/v1/payment/getPayoutStatus":     true,
 	"/api/v1/payment/getDriverPayouts":    true,
-	// payment-service — webhooks, internal et health sont publics
+	// payment-service — webhooks, callback FedaPay (/api/v1/payment/callback), internal et health sont publics
 
 	// trips-service
 	"/api/v1/trip/driver/createTrip":                true,
@@ -179,6 +181,11 @@ var RouteRateLimitConfig = map[string]RateLimitTier{
 
 	// Opérations sensibles
 	"/api/v1/auth/deleteAccount": TierSensitive,
+
+	// payment-service — création / annulation de collecte FedaPay : anti-abus
+	// (verifyPayment reste en global : le mobile peut le rappeler au retour de la page de paiement)
+	"/api/v1/payment/createPayment": TierCreateAccount,
+	"/api/v1/payment/cancelPayment": TierCreateAccount,
 
 	// chat-service — POST de messages = anti-spam léger via TierCreateAccount,
 	// flag = sensible (modération support)

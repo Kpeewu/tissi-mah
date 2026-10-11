@@ -79,7 +79,10 @@ type BookingServiceClient interface {
 	CancelBookingsForTrip(ctx context.Context, in *CancelBookingsForTripRequest, opts ...grpc.CallOption) (*CancelBookingsForTripResponse, error)
 	// ReportNoShow signale l'absence d'un passager ou d'un conducteur.
 	ReportNoShow(ctx context.Context, in *ReportNoShowRequest, opts ...grpc.CallOption) (*ReportNoShowResponse, error)
-	// ConfirmPayment confirme le paiement d'une réservation (callback paiement).
+	// ConfirmPayment confirme le paiement d'une réservation.
+	// Route interne appelée par payment-service quand FedaPay a approuvé la collecte :
+	// paymentPending → approved (auto-approbation) ou pendingApproval. Une réservation
+	// paymentFailed (approbation tardive) est réactivée si les places sont encore disponibles.
 	ConfirmPayment(ctx context.Context, in *ConfirmPaymentRequest, opts ...grpc.CallOption) (*ConfirmPaymentResponse, error)
 	// FailPayment signale l'échec du paiement d'une réservation.
 	// Route interne appelée par payment-service lors d'un webhook d'échec FedaPay.
@@ -398,7 +401,10 @@ type BookingServiceServer interface {
 	CancelBookingsForTrip(context.Context, *CancelBookingsForTripRequest) (*CancelBookingsForTripResponse, error)
 	// ReportNoShow signale l'absence d'un passager ou d'un conducteur.
 	ReportNoShow(context.Context, *ReportNoShowRequest) (*ReportNoShowResponse, error)
-	// ConfirmPayment confirme le paiement d'une réservation (callback paiement).
+	// ConfirmPayment confirme le paiement d'une réservation.
+	// Route interne appelée par payment-service quand FedaPay a approuvé la collecte :
+	// paymentPending → approved (auto-approbation) ou pendingApproval. Une réservation
+	// paymentFailed (approbation tardive) est réactivée si les places sont encore disponibles.
 	ConfirmPayment(context.Context, *ConfirmPaymentRequest) (*ConfirmPaymentResponse, error)
 	// FailPayment signale l'échec du paiement d'une réservation.
 	// Route interne appelée par payment-service lors d'un webhook d'échec FedaPay.

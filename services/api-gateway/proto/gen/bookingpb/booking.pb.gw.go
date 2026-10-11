@@ -920,7 +920,7 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/ConfirmPayment", runtime.WithHTTPPathPattern("/api/v1/booking/confirmPayment"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/ConfirmPayment", runtime.WithHTTPPathPattern("/api/v1/booking/internal/confirmPayment"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1342,7 +1342,7 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/ConfirmPayment", runtime.WithHTTPPathPattern("/api/v1/booking/confirmPayment"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/ConfirmPayment", runtime.WithHTTPPathPattern("/api/v1/booking/internal/confirmPayment"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1507,7 +1507,7 @@ var (
 	pattern_BookingService_CancelBookingsForWaypoint_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "booking", "internal", "cancelBookingsForWaypoint"}, ""))
 	pattern_BookingService_CancelBookingsForTrip_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "booking", "internal", "cancelBookingsForTrip"}, ""))
 	pattern_BookingService_ReportNoShow_0                       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "reportNoShow"}, ""))
-	pattern_BookingService_ConfirmPayment_0                     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "confirmPayment"}, ""))
+	pattern_BookingService_ConfirmPayment_0                     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "booking", "internal", "confirmPayment"}, ""))
 	pattern_BookingService_FailPayment_0                        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "booking", "internal", "failPayment"}, ""))
 	pattern_BookingService_GetActivePassengerIDsForTrip_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "booking", "internal", "getActivePassengerIDsForTrip"}, ""))
 	pattern_BookingService_GetDriverPendingBookings_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "getDriverPendingBookings"}, ""))

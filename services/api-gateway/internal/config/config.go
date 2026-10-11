@@ -27,6 +27,9 @@ type Config struct {
 	GeolocationService  ServiceEndpoint
 	ChatService         ServiceEndpoint
 	SupportJWTSecret    string
+	// PaymentDeepLinkURL est le deep link mobile vers lequel le callback FedaPay redirige
+	// (ex: tissimah://payment/result), complété par paymentId/bookingId/status.
+	PaymentDeepLinkURL string
 	CORS                CORSConfig
 	RateLimit      RateLimitConfig
 	AppID          AppIDConfig
@@ -204,7 +207,8 @@ func Load() (*Config, error) {
 			RateLimitFailClosed: getBoolOrDefault(values, "RATELIMIT_FAIL_CLOSED", false),
 			InternalHMACSecret:  sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),
 		},
-		LogLevel: sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		PaymentDeepLinkURL: sharedconfig.GetStringOrDefault(values, "PAYMENT_DEEPLINK_URL", "tissimah://payment/result"),
+		LogLevel:           sharedconfig.MustGetString(values, "LOG_LEVEL"),
 	}
 
 	if err := validate(config); err != nil {
