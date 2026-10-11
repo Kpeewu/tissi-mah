@@ -376,6 +376,8 @@ Receives and processes FedaPay webhook events. **Public route** — not called b
 
 The same transition logic is shared by the webhook, `verifyPayment`, the callback and the expiration worker. It is idempotent.
 
+An event is recorded on receipt and only marked as processed (`webhook_events.processed_at`) once it has been applied successfully. If processing fails (e.g. database error), an error is returned and the FedaPay retry replays the event; only events that were already processed are deduplicated.
+
 #### Response
 
 ```json
