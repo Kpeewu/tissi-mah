@@ -31,6 +31,11 @@ func (m *MockPaymentRepositoryWrite) SaveWebhookEvent(ctx context.Context, event
 	return args.Error(0)
 }
 
+func (m *MockPaymentRepositoryWrite) MarkWebhookEventProcessed(ctx context.Context, fedapayEventID string) error {
+	args := m.Called(ctx, fedapayEventID)
+	return args.Error(0)
+}
+
 func (m *MockPaymentRepositoryWrite) AnonymizePassengerPhoneNumbers(ctx context.Context, bookingIDs []string) error {
 	args := m.Called(ctx, bookingIDs)
 	return args.Error(0)

@@ -171,4 +171,27 @@ func TestPaymentWriteRepository_SaveWebhookEvent(t *testing.T) {
 		err = writeRepo.SaveWebhookEvent(ctx, event2)
 		assert.ErrorIs(t, err, paymentErrors.ErrorDuplicateWebhookEvent)
 	})
+
+	t.Run("re-accepte un evenement non traite puis le deduplique une fois traite", func(t *testing.T) {
+		cleanupPaymentTables(t, ctx)
+
+		newEvent := func() *domain.WebhookEvent {
+			return &domain.WebhookEvent{
+				EventID:        uuid.New().String(),
+				FedapayEventID: "fedapay-evt-retry",
+				EventType:      "transaction.approved",
+				Payload:        `{"test": true}`,
+			}
+		}
+
+		require.NoError(t, writeRepo.SaveWebhookEvent(ctx, newEvent()))
+
+		// Traitement échoué (processed_at NULL) : le retry FedaPay est accepté
+		require.NoError(t, writeRepo.SaveWebhookEvent(ctx, newEvent()))
+
+		require.NoError(t, writeRepo.MarkWebhookEventProcessed(ctx, "fedapay-evt-retry"))
+
+		err := writeRepo.SaveWebhookEvent(ctx, newEvent())
+		assert.ErrorIs(t, err, paymentErrors.ErrorDuplicateWebhookEvent)
+	})
 }
