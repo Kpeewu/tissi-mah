@@ -369,7 +369,7 @@ Receives and processes FedaPay webhook events. **Public route** — not called b
 
 | Event | Action |
 |-------|--------|
-| `transaction.approved` / `transaction.transferred` | Payment → `held`, booking → `approved` (auto-approval) or `pendingApproval`. If the payment had already been failed (late approval), the seats are re-reserved; if the trip is full, the passenger is refunded in full (`seatsUnavailable`). |
+| `transaction.approved` / `transaction.transferred` | Payment → `held`, booking → `approved` (auto-approval) or `pendingApproval`. If the payment had already been failed (late approval), the seats are re-reserved; if the trip is full, the passenger is refunded in full (`seatsUnavailable`). If the booking can no longer be confirmed (`cancelled`, `rejected`, etc.), the passenger is refunded in full (`bookingUnavailable`) and `PAYMENT_COMPLETED` is not published. |
 | `transaction.declined` / `transaction.canceled` | Payment **stays `pending`** (`ProviderStatus` updated): with the redirect flow these statuses are not final and the passenger can retry on the same page. |
 | `transaction.expired` / `transaction.deleted` | Payment → `failed`, booking → `paymentFailed`, seats released |
 | `payout.completed` | Driver payout / refund → `completed` |
@@ -644,6 +644,7 @@ Creates a refund for a booking. Called by booking-service on cancellation, rejec
 | `noShowPassenger` | Passenger did not show up |
 | `tripCancelled` | Trip was cancelled |
 | `seatsUnavailable` | Internal only: payment approved by FedaPay after the seats were released, and the trip is full. Full refund. |
+| `bookingUnavailable` | Internal only: payment approved by FedaPay for a booking that can no longer be confirmed (`cancelled`, `rejected`, etc.). Full refund. |
 
 #### Response
 
@@ -712,6 +713,8 @@ pending ────────────────────────
   │ (FedaPay transaction DELETEd, seats released)
   ▼
 failed ── late approval re-checked with FedaPay ──► held (seats re-reserved) or refunded (trip full)
+
+approval for a booking that is no longer confirmable (cancelled, rejected…) ──► refunded (bookingUnavailable)
 ```
 
 | Status | Description |
@@ -732,6 +735,18 @@ failed ── late approval re-checked with FedaPay ──► held (seats re-res
   - No payment, or `failed`: `FailPayment`.
   - `held`: `ConfirmPayment`.
 - **Booking cancelled while `paymentPending`**: booking-service first calls `CancelPaymentForBooking` (internal gRPC), so the FedaPay link stops working before the seats are released.
+
+### Passenger notifications (refunds)
+
+Events published on the `notification-events` Redis stream (`ReferenceType` = `refund`, `ReferenceID` = refund ID):
+
+| Event | When | Payload |
+|-------|------|---------|
+| `REFUND_PROCESSED` | Refund created (passenger cancellation, driver rejection, unconfirmable booking, etc.) | `amount`, `amount_to_passenger`, `reason` |
+| `REFUND_COMPLETED` | FedaPay payout to the passenger sent by the refund worker | `amount`, `currency`, `payment_provider_reference`, `reason` |
+| `REFUND_FAILED` | Refund failed for good (max retries exceeded, missing phone number): handled manually by support | `amount`, `currency`, `reason` |
+
+`reason` is one of the [refund reasons](#refund-reasons) (e.g. `bookingUnavailable`), so the app can tell the passenger why they are refunded.
 
 ---
 
