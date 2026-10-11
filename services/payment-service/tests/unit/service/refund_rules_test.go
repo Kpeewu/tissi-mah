@@ -20,6 +20,19 @@ func defaultRefundConfig() config.RefundConfig {
 }
 
 // =============================================================================
+// RefundReason.IsValid
+// =============================================================================
+
+func TestRefundReasonIsValid(t *testing.T) {
+	for _, reason := range domain.RefundReasons() {
+		assert.True(t, reason.IsValid(), string(reason))
+	}
+	assert.True(t, domain.RefundReason("waypointCancelled").IsValid())
+	assert.False(t, domain.RefundReason("").IsValid())
+	assert.False(t, domain.RefundReason("unknownReason").IsValid())
+}
+
+// =============================================================================
 // DetermineRefundRule
 // =============================================================================
 

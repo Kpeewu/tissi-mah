@@ -348,6 +348,15 @@ func (s *paymentServiceImpl) ReleasePayment(ctx context.Context, bookingID strin
 func (s *paymentServiceImpl) RequestRefund(ctx context.Context, input *serviceInterfaces.RequestRefundInput) (*serviceInterfaces.RequestRefundResult, error) {
 	s.logger.Info("requesting refund", zap.String("bookingID", input.BookingID), zap.String("reason", input.RefundReason))
 
+	// Un motif hors enum refund_reason ferait échouer l'INSERT avec une erreur SQL opaque
+	if !domain.RefundReason(input.RefundReason).IsValid() {
+		s.logger.Warn("unknown refund reason",
+			zap.String("bookingID", input.BookingID),
+			zap.String("reason", input.RefundReason),
+		)
+		return nil, paymentErrors.ErrorInvalidInput
+	}
+
 	// Trouver le paiement
 	payment, err := s.paymentReadRepo.GetByBookingID(ctx, input.BookingID)
 	if err != nil {
