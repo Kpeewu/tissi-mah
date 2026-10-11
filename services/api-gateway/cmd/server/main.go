@@ -107,6 +107,7 @@ func run(bootstrapLogger *zap.Logger) error {
 		GeolocationServiceAddr:  cfg.GeolocationService.Address(),
 		ChatServiceAddr:         cfg.ChatService.Address(),
 		InternalHMACSecret:      cfg.Security.InternalHMACSecret,
+		PaymentDeepLinkURL:      cfg.PaymentDeepLinkURL,
 		Logger:                  logger,
 	})
 	if err != nil {

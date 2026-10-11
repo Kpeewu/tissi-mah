@@ -26,22 +26,22 @@ import (
 )
 
 type paymentServiceImpl struct {
-	paymentReadRepo  repoInterfaces.PaymentRepositoryRead
-	paymentWriteRepo repoInterfaces.PaymentRepositoryWrite
-	refundReadRepo   repoInterfaces.RefundRepositoryRead
-	refundWriteRepo  repoInterfaces.RefundRepositoryWrite
+	paymentReadRepo   repoInterfaces.PaymentRepositoryRead
+	paymentWriteRepo  repoInterfaces.PaymentRepositoryWrite
+	refundReadRepo    repoInterfaces.RefundRepositoryRead
+	refundWriteRepo   repoInterfaces.RefundRepositoryWrite
 	payoutReadRepo    repoInterfaces.PayoutRepositoryRead
 	payoutWriteRepo   repoInterfaces.PayoutRepositoryWrite
 	payoutHistoryRepo repoInterfaces.PayoutHistoryRepositoryWrite
 	bookingClient     client.BookingClient
 	userClient        client.UserClient
 	supportClient     client.SupportClient
-	fedapayClient    *fedapay.Client
-	cache            *cache.PaymentCache
-	notifRedis       *redis.Client
-	cfg              *config.Config
-	logger           *zap.Logger
-	webhookSem       chan struct{} // sémaphore pour limiter les webhooks concurrents
+	fedapayClient     fedapay.FedaPayClient
+	cache             *cache.PaymentCache
+	notifRedis        *redis.Client
+	cfg               *config.Config
+	logger            *zap.Logger
+	webhookSem        chan struct{} // sémaphore pour limiter les webhooks concurrents
 }
 
 // NewPaymentService crée le service de paiement.
@@ -56,7 +56,7 @@ func NewPaymentService(
 	bookingClient client.BookingClient,
 	userClient client.UserClient,
 	supportClient client.SupportClient,
-	fedapayClient *fedapay.Client,
+	fedapayClient fedapay.FedaPayClient,
 	paymentCache *cache.PaymentCache,
 	notifRedis *redis.Client,
 	cfg *config.Config,
@@ -68,22 +68,22 @@ func NewPaymentService(
 	}
 
 	return &paymentServiceImpl{
-		paymentReadRepo:  paymentReadRepo,
-		paymentWriteRepo: paymentWriteRepo,
-		refundReadRepo:   refundReadRepo,
-		refundWriteRepo:  refundWriteRepo,
+		paymentReadRepo:   paymentReadRepo,
+		paymentWriteRepo:  paymentWriteRepo,
+		refundReadRepo:    refundReadRepo,
+		refundWriteRepo:   refundWriteRepo,
 		payoutReadRepo:    payoutReadRepo,
 		payoutWriteRepo:   payoutWriteRepo,
 		payoutHistoryRepo: payoutHistoryRepo,
 		bookingClient:     bookingClient,
 		userClient:        userClient,
 		supportClient:     supportClient,
-		fedapayClient:    fedapayClient,
-		cache:            paymentCache,
-		notifRedis:       notifRedis,
-		cfg:              cfg,
-		logger:           logger.Named("service"),
-		webhookSem:       make(chan struct{}, webhookMaxConcurrent),
+		fedapayClient:     fedapayClient,
+		cache:             paymentCache,
+		notifRedis:        notifRedis,
+		cfg:               cfg,
+		logger:            logger.Named("service"),
+		webhookSem:        make(chan struct{}, webhookMaxConcurrent),
 	}
 }
 
@@ -106,108 +106,6 @@ func generateAlphanumeric(length int) string {
 		sb.WriteByte(charset[idx.Int64()])
 	}
 	return sb.String()
-}
-
-// =============================================================================
-// CreatePayment
-// =============================================================================
-
-func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceInterfaces.CreatePaymentInput) (*serviceInterfaces.CreatePaymentResult, error) {
-	s.logger.Info("creating payment",
-		zap.String("bookingID", input.BookingID),
-		zap.Int("amount", input.Amount),
-		zap.String("method", input.PaymentMethod),
-	)
-
-	if input.PaymentMethod != string(domain.PaymentMobileMoney) {
-		return nil, paymentErrors.ErrorInvalidInput
-	}
-	if input.MobileMoneyMode != "moov_tg" && input.MobileMoneyMode != "togocel" && input.MobileMoneyMode != "momo_test" {
-		return nil, paymentErrors.ErrorInvalidInput
-	}
-
-	// Vérifier qu'il n'existe pas déjà un paiement actif pour ce booking
-	hasActive, err := s.paymentReadRepo.HasActivePayment(ctx, input.BookingID)
-	if err != nil {
-		s.logger.Error("check active payment failed", zap.Error(err))
-		return nil, paymentErrors.ErrorInternalServer
-	}
-	if hasActive {
-		return nil, paymentErrors.ErrorDuplicatePayment
-	}
-
-	// Récupérer les infos du passager via booking → user
-	booking, err := s.bookingClient.GetBookingDetails(ctx, input.BookingID)
-	if err != nil {
-		s.logger.Error("get booking details failed", zap.Error(err))
-		return nil, paymentErrors.ErrorInternalServer
-	}
-
-	userInfo, err := s.userClient.GetUserByUserID(ctx, booking.PassengerID)
-	if err != nil {
-		s.logger.Error("get user info failed", zap.Error(err), zap.String("passengerID", booking.PassengerID))
-		return nil, paymentErrors.ErrorInternalServer
-	}
-
-	// Créer la transaction FedaPay avec les vraies infos du passager
-	customer := fedapay.CustomerPayload{
-		FirstName: userInfo.FirstName,
-		LastName:  userInfo.Name,
-		PhoneNumber: &fedapay.PhoneNumberPayload{
-			Number:  input.PassengerPhoneNumber,
-			Country: "tg",
-		},
-	}
-
-	transaction, err := s.fedapayClient.CreateTransaction(input.Amount, fmt.Sprintf("Paiement réservation %s", booking.BookingReference), customer)
-	if err != nil {
-		s.logger.Error("fedapay create transaction failed", zap.Error(err))
-		return nil, paymentErrors.ErrorFedaPayAPIError
-	}
-
-	// Obtenir le token d'envoi
-	tokenResp, err := s.fedapayClient.GetTransactionToken(transaction.ID)
-	if err != nil {
-		s.logger.Error("fedapay get transaction token failed", zap.Error(err))
-		return nil, paymentErrors.ErrorFedaPayAPIError
-	}
-
-	// Sauvegarder en DB AVANT l'envoi USSD pour éviter la race condition :
-	// FedaPay envoie le webhook quasi-instantanément après SendTransaction,
-	// le paiement doit déjà exister en DB pour que ProcessWebhook le trouve.
-	paymentID := uuid.New().String()
-	paymentRef := fmt.Sprintf("PAY-%s-%s", time.Now().UTC().Format("20060102"), generateAlphanumeric(6))
-
-	payment := &domain.Payment{
-		PaymentID:             paymentID,
-		BookingID:             input.BookingID,
-		TripID:                input.TripID,
-		Amount:                input.Amount,
-		PaymentMethod:         domain.PaymentMethod(input.PaymentMethod),
-		PaymentProvider:       "fedapay",
-		Status:                domain.PaymentStatusPending,
-		ExternalTransactionID: strconv.Itoa(transaction.ID),
-		PaymentReference:      paymentRef,
-		PassengerPhoneNumber:  input.PassengerPhoneNumber,
-	}
-
-	if err := s.paymentWriteRepo.CreatePayment(ctx, payment); err != nil {
-		s.logger.Error("save payment failed", zap.Error(err))
-		return nil, paymentErrors.ErrorInternalServer
-	}
-
-	// Envoyer en USSD avec le token
-	_, err = s.fedapayClient.SendTransaction(tokenResp.Token, input.MobileMoneyMode, input.PassengerPhoneNumber)
-	if err != nil {
-		s.logger.Error("fedapay send transaction failed", zap.Error(err))
-		return nil, paymentErrors.ErrorFedaPayAPIError
-	}
-
-	return &serviceInterfaces.CreatePaymentResult{
-		PaymentID:        paymentID,
-		PaymentReference: paymentRef,
-		Status:           string(domain.PaymentStatusPending),
-	}, nil
 }
 
 // =============================================================================
@@ -275,7 +173,13 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 		return nil
 	}
 
-	// Trouver le paiement par l'external transaction ID
+	// Événements de collecte : traduits en statut FedaPay puis appliqués via la logique commune
+	providerStatus := providerStatusFromWebhook(payload)
+	if providerStatus == "" {
+		s.logger.Debug("unhandled webhook event", zap.String("eventType", payload.Name))
+		return nil
+	}
+
 	externalID := strconv.Itoa(payload.Entity.ID)
 	payment, err := s.paymentReadRepo.GetByExternalTransactionID(ctx, externalID)
 	if err != nil {
@@ -283,104 +187,37 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 		return err
 	}
 
-	// Traiter selon le type d'événement
-	switch payload.Name {
-	case "transaction.created":
-		// Transaction créée côté FedaPay — rien à faire, le paiement est déjà en DB
-		s.logger.Info("transaction created", zap.String("paymentID", payment.PaymentID))
-
-	case "transaction.approved":
-		if payment.Status != domain.PaymentStatusPending {
-			s.logger.Info("payment already processed", zap.String("paymentID", payment.PaymentID), zap.String("status", string(payment.Status)))
-			return nil
-		}
-
-		// MAJ status → held (verrouillage optimiste : AND status = 'pending')
-		if err := s.paymentWriteRepo.UpdatePaymentStatus(ctx, payment.PaymentID, domain.PaymentStatusHeld, externalID); err != nil {
-			if err == paymentErrors.ErrorPaymentAlreadyProcessed {
-				s.logger.Info("payment already processed by another webhook, skipping", zap.String("paymentID", payment.PaymentID))
-				return nil
-			}
-			return err
-		}
-
-		// Invalider le cache
-		if s.cache != nil {
-			s.cache.InvalidatePaymentByBookingID(ctx, payment.BookingID)
-		}
-
-		// Notifier booking-service
-		if err := s.bookingClient.ConfirmPayment(ctx, payment.BookingID, externalID); err != nil {
-			s.logger.Error("confirm payment to booking-service failed", zap.Error(err))
-			// Le paiement est held — on ne rollback pas
-		}
-
-		// Notifier le passager (non bloquant)
-		if s.notifRedis != nil {
-			if booking, err := s.bookingClient.GetBookingDetails(ctx, payment.BookingID); err == nil {
-				if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
-					EventType:     notification.PaymentCompleted,
-					UserID:        booking.PassengerID,
-					ReferenceID:   payment.PaymentID,
-					ReferenceType: notification.RefPayment,
-					Payload: map[string]string{
-						"amount": fmt.Sprintf("%d", payment.Amount),
-					},
-				}); pubErr != nil {
-					s.logger.Error("failed to publish PAYMENT_COMPLETED notification", zap.Error(pubErr))
-				}
-			}
-		}
-
-		s.logger.Info("payment held", zap.String("paymentID", payment.PaymentID))
-
-	case "transaction.declined", "transaction.canceled", "transaction.expired", "transaction.deleted":
-		if payment.Status != domain.PaymentStatusPending {
-			s.logger.Info("payment already processed, skipping", zap.String("paymentID", payment.PaymentID), zap.String("status", string(payment.Status)))
-			return nil
-		}
-
-		reason := fmt.Sprintf("FedaPay: %s", payload.Name)
-
-		// Marquer le paiement comme échoué (verrouillage optimiste : AND status = 'pending')
-		if err := s.paymentWriteRepo.MarkPaymentFailed(ctx, payment.PaymentID, reason); err != nil {
-			if err == paymentErrors.ErrorPaymentAlreadyProcessed {
-				s.logger.Info("payment already processed by another webhook, skipping", zap.String("paymentID", payment.PaymentID))
-				return nil
-			}
-			return err
-		}
-
-		if s.cache != nil {
-			s.cache.InvalidatePaymentByBookingID(ctx, payment.BookingID)
-		}
-
-		// Notifier booking-service pour restaurer les places et changer le statut
-		if err := s.bookingClient.FailPayment(ctx, payment.BookingID, reason); err != nil {
-			s.logger.Error("fail payment to booking-service failed", zap.Error(err))
-		}
-
-		// Notifier le passager (non bloquant)
-		if s.notifRedis != nil {
-			if booking, err := s.bookingClient.GetBookingDetails(ctx, payment.BookingID); err == nil {
-				if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
-					EventType:     notification.PaymentFailed,
-					UserID:        booking.PassengerID,
-					ReferenceID:   payment.PaymentID,
-					ReferenceType: notification.RefPayment,
-				}); pubErr != nil {
-					s.logger.Error("failed to publish PAYMENT_FAILED notification", zap.Error(pubErr))
-				}
-			}
-		}
-
-		s.logger.Info("payment failed", zap.String("paymentID", payment.PaymentID), zap.String("reason", reason))
-
-	default:
-		s.logger.Debug("unhandled webhook event", zap.String("eventType", payload.Name))
+	if _, err := s.applyProviderStatus(ctx, payment, providerStatus); err != nil {
+		s.logger.Error("apply webhook status failed",
+			zap.String("paymentID", payment.PaymentID),
+			zap.String("eventType", payload.Name),
+			zap.Error(err),
+		)
+		return err
 	}
 
 	return nil
+}
+
+// providerStatusFromWebhook traduit un événement webhook de collecte en statut FedaPay.
+// Retourne "" pour les événements sans effet (transaction.created, payouts inconnus…).
+func providerStatusFromWebhook(payload *fedapay.WebhookPayload) string {
+	switch payload.Name {
+	case "transaction.approved":
+		return fedapay.TransactionStatusApproved
+	case "transaction.transferred":
+		return fedapay.TransactionStatusTransferred
+	case "transaction.declined":
+		return fedapay.TransactionStatusDeclined
+	case "transaction.canceled":
+		return fedapay.TransactionStatusCanceled
+	case "transaction.expired":
+		return fedapay.TransactionStatusExpired
+	case "transaction.deleted":
+		return fedapay.TransactionStatusDeleted
+	default:
+		return ""
+	}
 }
 
 // =============================================================================
@@ -402,6 +239,9 @@ func (s *paymentServiceImpl) GetPaymentStatus(ctx context.Context, paymentID str
 		PaymentReference: payment.PaymentReference,
 		CreatedAt:        payment.CreatedAt.Format(time.RFC3339),
 		CompletedAt:      formatOptionalTime(payment.CompletedAt),
+		PaymentURL:       pendingPaymentURL(payment),
+		ProviderStatus:   payment.ProviderStatus,
+		ExpiresAt:        formatOptionalTime(&payment.ExpiresAt),
 	}, nil
 }
 
@@ -442,6 +282,9 @@ func (s *paymentServiceImpl) GetPaymentByBooking(ctx context.Context, bookingID 
 		PaymentReference: payment.PaymentReference,
 		CreatedAt:        payment.CreatedAt.Format(time.RFC3339),
 		CompletedAt:      formatOptionalTime(payment.CompletedAt),
+		PaymentURL:       pendingPaymentURL(payment),
+		ProviderStatus:   payment.ProviderStatus,
+		ExpiresAt:        formatOptionalTime(&payment.ExpiresAt),
 	}, nil
 }
 
@@ -488,6 +331,11 @@ func (s *paymentServiceImpl) RequestRefund(ctx context.Context, input *serviceIn
 		return nil, err
 	}
 
+	return s.createRefundForPayment(ctx, payment, input)
+}
+
+// createRefundForPayment crée le remboursement d'un paiement held/released et le passe en refunded.
+func (s *paymentServiceImpl) createRefundForPayment(ctx context.Context, payment *domain.Payment, input *serviceInterfaces.RequestRefundInput) (*serviceInterfaces.RequestRefundResult, error) {
 	if payment.Status != domain.PaymentStatusHeld && payment.Status != domain.PaymentStatusReleased {
 		return nil, paymentErrors.ErrorInvalidPaymentStatus
 	}
@@ -591,7 +439,7 @@ func (s *paymentServiceImpl) RequestRefund(ctx context.Context, input *serviceIn
 				ReferenceID:   refundID,
 				ReferenceType: notification.RefRefund,
 				Payload: map[string]string{
-					"amount":             fmt.Sprintf("%d", calc.RefundAmount),
+					"amount":              fmt.Sprintf("%d", calc.RefundAmount),
 					"amount_to_passenger": fmt.Sprintf("%d", calc.AmountToPassenger),
 				},
 			}); pubErr != nil {
@@ -806,7 +654,7 @@ func (s *paymentServiceImpl) TriggerManualPayout(ctx context.Context, tripID str
 // =============================================================================
 
 func formatOptionalTime(t *time.Time) string {
-	if t == nil {
+	if t == nil || t.IsZero() {
 		return ""
 	}
 	return t.Format(time.RFC3339)

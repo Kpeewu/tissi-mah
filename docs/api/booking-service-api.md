@@ -121,7 +121,10 @@ Content-Type: application/json
 | `cash` | `false` | `pendingApproval` |
 | non-cash (`mobileMoney`, `card`, `paypal`) | — | `paymentPending` |
 
-> For non-cash bookings, the client must initiate payment via `POST /api/v1/payment/createPayment`. Once payment is confirmed (via FedaPay webhook → payment-service → `confirmPayment`), the booking transitions to `pendingApproval` (or `approved` if `AutoApprove = true`).
+> For non-cash bookings, the seats are held as soon as the booking is created, and the client must pay **within 10 minutes** via `POST /api/v1/payment/createPayment` (FedaPay redirect flow, see `payment-service-api.md`).
+>
+> - Once payment is confirmed (webhook / `verifyPayment` / callback → payment-service → internal `confirmPayment`), the booking moves to `approved` if `AutoApprove = true`, otherwise to `pendingApproval`. The driver is only notified (`NEW_BOOKING_REQUEST`) at that point, never for unpaid bookings.
+> - Past the window, or if the passenger cancels the payment, the booking moves to `paymentFailed` and its seats are released.
 
 #### Errors
 
@@ -471,37 +474,44 @@ Content-Type: application/json
 
 ---
 
-### POST /api/v1/booking/confirmPayment
+### POST /api/v1/booking/internal/confirmPayment
 
-Confirms payment for a booking. **Called internally by payment-service** after a successful payment (FedaPay webhook → payment-service → this endpoint). Mobile clients do not call this directly.
+Confirms payment for a booking. **Internal route** (gRPC `ConfirmPayment`), called by payment-service once FedaPay has approved the payment. It is blocked at the api-gateway like every `/internal/` route; mobile clients never call it.
 
-**Authentication:** Firebase JWT required
+**Authentication:** Not required (internal)
 
 #### Request
 
-```http
-POST /api/v1/booking/confirmPayment HTTP/1.1
-Host: api.tissi-mah.com
-Authorization: Bearer <firebase-id-token>
-Content-Type: application/json
-
+```json
 {
     "BookingId": "bk-550e8400-e29b-41d4-a716-446655440020",
-    "TransactionId": "txn_abc123"
+    "TransactionId": "123456"
 }
 ```
+
+#### Behaviour
+
+| Current booking status | Result |
+|---|---|
+| `paymentPending` | → `approved` (with `approved_at`) if the trip has auto-approve enabled, otherwise → `pendingApproval`. The seats are already held. |
+| `paymentFailed` (late FedaPay approval) | The seats are **re-reserved** (Redis + trip legs), then same transition as above. If the trip is full or the passenger already holds another active booking on the trip → `ErrorNoSeatsAvailable` (FAILED_PRECONDITION) and payment-service refunds the passenger in full. |
+| already confirmed | `ErrorPaymentAlreadyConfirmed` (FAILED_PRECONDITION, idempotent) |
+
+On success, notifications are sent: `NEW_BOOKING_REQUEST` to the driver, or `BOOKING_CONFIRMED` to the passenger when auto-approved.
 
 #### Response (Success)
 
 ```json
 {
     "Success": true,
-    "Status": "pendingApproval",
+    "Status": "approved",
     "ErrorMessage": ""
 }
 ```
 
-> `Status` will be `pendingApproval` if the driver has not enabled auto-approve, or `approved` if auto-approve is enabled on the trip.
+> **Sweeper:** booking-service releases `paymentPending` bookings older than `PAYMENT_PENDING_TIMEOUT_MINUTES` (default 12) when payment-service has no successful payment for them.
+>
+> **Cancelling a `paymentPending` booking:** `cancelBooking` first deletes the FedaPay transaction through payment-service (`CancelPaymentForBooking`). If FedaPay had already approved it, the booking is cancelled with a refund.
 
 ---
 

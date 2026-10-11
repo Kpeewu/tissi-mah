@@ -1,10 +1,17 @@
 package client
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // BookingClient est l'interface pour les appels vers booking-service.
 type BookingClient interface {
-	ConfirmPayment(ctx context.Context, bookingID string, transactionID string) error
+	// ConfirmPayment rattache le paiement à la réservation et retourne son nouveau statut
+	// (approved si auto-approbation, pendingApproval sinon). Si la réservation avait été libérée
+	// (paymentFailed), booking-service tente de re-réserver les places : ErrorNoSeatsAvailable
+	// si le trajet est complet. ErrorPaymentAlreadyProcessed si la réservation est déjà confirmée.
+	ConfirmPayment(ctx context.Context, bookingID string, transactionID string) (string, error)
 	FailPayment(ctx context.Context, bookingID string, reason string) error
 	GetBookingDetails(ctx context.Context, bookingID string) (*BookingDetails, error)
 }
@@ -12,6 +19,8 @@ type BookingClient interface {
 // UserClient est l'interface pour les appels vers user-service.
 type UserClient interface {
 	GetUserByUserID(ctx context.Context, userID string) (*UserInfo, error)
+	// GetUserIDByFirebaseID résout le UserID interne d'un utilisateur à partir de son Firebase UID.
+	GetUserIDByFirebaseID(ctx context.Context, firebaseID string) (string, error)
 }
 
 // SupportClient est l'interface pour les appels vers support-service.
@@ -36,8 +45,11 @@ type BookingDetails struct {
 	PassengerID      string
 	DriverID         string
 	Status           string
+	PaymentMethod    string
+	Subtotal         int
 	TotalAmount      int
 	ServiceFee       int
+	CreatedAt        time.Time
 }
 
 // UserInfo contient les informations utilisateur nécessaires au payout.

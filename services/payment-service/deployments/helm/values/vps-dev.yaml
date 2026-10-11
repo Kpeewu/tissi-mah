@@ -51,7 +51,11 @@ config:
   noshowDriverDelayMinutes: "15"
   noshowPassengerDelayMinutes: "15"
   expirationIntervalSeconds: "60"
-  paymentTimeoutMinutes: "5"
+  # Fenêtre de paiement FedaPay (redirection), comptée depuis la création de la réservation :
+  # au-delà, la transaction est supprimée et les places libérées.
+  paymentTimeoutMinutes: "10"
+  # Retour de la page FedaPay (callback_url) — handler public de l'api-gateway.
+  paymentCallbackUrl: "https://api.tissimah.kpeewu.dev/api/v1/payment/callback"
   # Fenêtre horaire des batches automatiques (PayoutWorker, RefundWorker).
   paymentWindowEnabled: "true"
   paymentWindowTimezone: "Africa/Lome"

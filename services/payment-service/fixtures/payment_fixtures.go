@@ -63,6 +63,21 @@ func WithPaymentPassengerPhoneNumber(phone string) PaymentOption {
 	return func(p *domain.Payment) { p.PassengerPhoneNumber = phone }
 }
 
+// WithPaymentExpiresAt définit la fin de la fenêtre de paiement.
+func WithPaymentExpiresAt(t time.Time) PaymentOption {
+	return func(p *domain.Payment) { p.ExpiresAt = t }
+}
+
+// WithPaymentURL définit le lien de la page de paiement FedaPay.
+func WithPaymentURL(paymentURL string) PaymentOption {
+	return func(p *domain.Payment) { p.PaymentURL = paymentURL }
+}
+
+// WithPaymentProviderStatus définit le dernier statut FedaPay observé.
+func WithPaymentProviderStatus(status string) PaymentOption {
+	return func(p *domain.Payment) { p.ProviderStatus = status }
+}
+
 // NewTestPayment cree un Payment avec des valeurs par defaut
 func NewTestPayment(opts ...PaymentOption) *domain.Payment {
 	now := time.Now().UTC()
@@ -78,6 +93,8 @@ func NewTestPayment(opts ...PaymentOption) *domain.Payment {
 		Status:                domain.PaymentStatusPending,
 		ExternalTransactionID: "12345",
 		PaymentReference:      "PAY-" + id[:8],
+		ProviderStatus:        "pending",
+		ExpiresAt:             now.Add(10 * time.Minute),
 		CreatedAt:             now,
 		UpdatedAt:             now,
 	}
@@ -248,14 +265,21 @@ func InsertPayment(ctx context.Context, pool *pgxpool.Pool, p *domain.Payment) e
 	query := `INSERT INTO payments (
 		payment_id, booking_id, trip_id, amount, payment_method, payment_provider,
 		status, external_transaction_id, payment_reference, metadata,
-		completed_at, failed_at, failure_reason
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+		completed_at, failed_at, failure_reason,
+		payment_url, provider_status, expires_at
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NULLIF($14, ''), NULLIF($15, ''), $16)`
+
+	expiresAt := p.ExpiresAt
+	if expiresAt.IsZero() {
+		expiresAt = time.Now().UTC().Add(10 * time.Minute)
+	}
 
 	_, err := pool.Exec(ctx, query,
 		p.PaymentID, p.BookingID, p.TripID, p.Amount,
 		p.PaymentMethod, p.PaymentProvider,
 		p.Status, p.ExternalTransactionID, p.PaymentReference,
 		p.Metadata, p.CompletedAt, p.FailedAt, p.FailureReason,
+		p.PaymentURL, p.ProviderStatus, expiresAt,
 	)
 	return err
 }

@@ -51,6 +51,9 @@ type FedaPayConfig struct {
 	APIKey               string
 	WebhookSecret        string
 	MaxConcurrentRequests int
+	// CallbackURL est l'URL de retour après paiement sur la page FedaPay
+	// (ex: https://api.tissimah.kpeewu.dev/api/v1/payment/callback). FedaPay y ajoute ?id=&status=.
+	CallbackURL string
 }
 
 type WorkerConfig struct {
@@ -81,7 +84,9 @@ type PayoutConfig struct {
 }
 
 type ExpirationConfig struct {
-	IntervalSeconds       int
+	IntervalSeconds int
+	// PaymentTimeoutMinutes est la fenêtre de paiement, comptée depuis la création de la réservation.
+	// Passé ce délai, la transaction FedaPay est supprimée et les places sont libérées.
 	PaymentTimeoutMinutes int
 }
 
@@ -149,7 +154,7 @@ func Load() (*Config, error) {
 		},
 		Expiration: ExpirationConfig{
 			IntervalSeconds:       getIntOrDefault(values, "EXPIRATION_INTERVAL_SECONDS", 60),
-			PaymentTimeoutMinutes: getIntOrDefault(values, "PAYMENT_TIMEOUT_MINUTES", 5),
+			PaymentTimeoutMinutes: getIntOrDefault(values, "PAYMENT_TIMEOUT_MINUTES", 10),
 		},
 		Refund: RefundConfig{
 			CancellationFullRefundHours:    getIntOrDefault(values, "CANCELLATION_FULL_REFUND_HOURS", 24),
@@ -177,11 +182,16 @@ func Load() (*Config, error) {
 		InternalHMACSecret: sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),
 	}
 
+	if cfg.FedaPay.CallbackURL == "" && cfg.Environment.Mode != "local" {
+		return nil, fmt.Errorf("PAYMENT_CALLBACK_URL est obligatoire hors environnement local")
+	}
+
 	return cfg, nil
 }
 
 func loadFedaPayConfig(v *viper.Viper, environment string) FedaPayConfig {
 	maxConcurrent := getIntOrDefault(v, "FEDAPAY_MAX_CONCURRENT", 10)
+	callbackURL := sharedconfig.GetStringOrDefault(v, "PAYMENT_CALLBACK_URL", "")
 
 	switch environment {
 	case "prod", "staging", "development", "vps-dev":
@@ -190,6 +200,7 @@ func loadFedaPayConfig(v *viper.Viper, environment string) FedaPayConfig {
 			APIKey:                sharedconfig.MustGetString(v, "FEDAPAY_LIVE_API_KEY"),
 			WebhookSecret:         sharedconfig.MustGetString(v, "FEDAPAY_LIVE_WEBHOOK_SECRET"),
 			MaxConcurrentRequests: maxConcurrent,
+			CallbackURL:           callbackURL,
 		}
 	default: // local
 		return FedaPayConfig{
@@ -197,6 +208,7 @@ func loadFedaPayConfig(v *viper.Viper, environment string) FedaPayConfig {
 			APIKey:                sharedconfig.MustGetString(v, "FEDAPAY_SANDBOX_API_KEY"),
 			WebhookSecret:         sharedconfig.MustGetString(v, "FEDAPAY_SANDBOX_WEBHOOK_SECRET"),
 			MaxConcurrentRequests: maxConcurrent,
+			CallbackURL:           callbackURL,
 		}
 	}
 }

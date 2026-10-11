@@ -99,3 +99,35 @@ func (m *MockPaymentService) AnonymizeUserData(ctx context.Context, userID strin
 	args := m.Called(ctx, userID, bookingIDs)
 	return args.Error(0)
 }
+
+func (m *MockPaymentService) VerifyPayment(ctx context.Context, paymentID string) (*serviceInterfaces.PaymentSyncResult, error) {
+	args := m.Called(ctx, paymentID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.PaymentSyncResult), args.Error(1)
+}
+
+func (m *MockPaymentService) CancelPayment(ctx context.Context, paymentID string) (*serviceInterfaces.PaymentSyncResult, error) {
+	args := m.Called(ctx, paymentID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.PaymentSyncResult), args.Error(1)
+}
+
+func (m *MockPaymentService) HandlePaymentCallback(ctx context.Context, fedapayTransactionID string) (*serviceInterfaces.PaymentSyncResult, error) {
+	args := m.Called(ctx, fedapayTransactionID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.PaymentSyncResult), args.Error(1)
+}
+
+func (m *MockPaymentService) CancelPaymentForBooking(ctx context.Context, bookingID string, reason string) (*serviceInterfaces.PaymentSyncResult, error) {
+	args := m.Called(ctx, bookingID, reason)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.PaymentSyncResult), args.Error(1)
+}

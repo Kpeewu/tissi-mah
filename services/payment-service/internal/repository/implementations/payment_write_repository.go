@@ -26,14 +26,16 @@ func NewPaymentWriteRepository(pool *pgxpool.Pool, logger *zap.Logger) repoInter
 func (r *paymentWriteRepository) CreatePayment(ctx context.Context, payment *domain.Payment) error {
 	query := `INSERT INTO payments (
 		payment_id, booking_id, trip_id, amount, payment_method, payment_provider,
-		status, external_transaction_id, payment_reference, passenger_phone_number, metadata
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
+		status, external_transaction_id, payment_reference, passenger_phone_number, metadata,
+		payment_url, provider_status, provider_status_updated_at, expires_at
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NULLIF($12, ''), NULLIF($13, ''), NOW(), $14)`
 
 	_, err := r.pool.Exec(ctx, query,
 		payment.PaymentID, payment.BookingID, payment.TripID, payment.Amount,
 		payment.PaymentMethod, payment.PaymentProvider,
 		payment.Status, payment.ExternalTransactionID, payment.PaymentReference,
 		payment.PassengerPhoneNumber, payment.Metadata,
+		payment.PaymentURL, payment.ProviderStatus, payment.ExpiresAt,
 	)
 	if err != nil {
 		if isDuplicateKeyError(err) {
@@ -111,6 +113,58 @@ func (r *paymentWriteRepository) MarkPaymentFailed(ctx context.Context, paymentI
 		return paymentErrors.ErrorPaymentAlreadyProcessed
 	}
 
+	return nil
+}
+
+// UpdateProviderStatus enregistre le dernier statut FedaPay observé sur un paiement.
+// N'affecte pas le statut interne (declined/canceled ne sont pas finaux en mode redirection).
+func (r *paymentWriteRepository) UpdateProviderStatus(ctx context.Context, paymentID string, providerStatus string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE payments SET provider_status = $2, provider_status_updated_at = NOW()
+		 WHERE payment_id = $1 AND provider_status IS DISTINCT FROM $2`,
+		paymentID, providerStatus,
+	)
+	if err != nil {
+		r.logger.Error("update provider status failed", zap.Error(err), zap.String("paymentID", paymentID))
+		return paymentErrors.ErrorInternalServer
+	}
+	return nil
+}
+
+// UpdatePaymentURL met à jour le lien de paiement FedaPay d'un paiement pending (token regénéré).
+func (r *paymentWriteRepository) UpdatePaymentURL(ctx context.Context, paymentID string, paymentURL string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE payments SET payment_url = $2 WHERE payment_id = $1 AND status = 'pending'`,
+		paymentID, paymentURL,
+	)
+	if err != nil {
+		r.logger.Error("update payment url failed", zap.Error(err), zap.String("paymentID", paymentID))
+		return paymentErrors.ErrorInternalServer
+	}
+	return nil
+}
+
+// MarkFailedPaymentHeld fait passer un paiement 'failed' en 'held' lorsque FedaPay confirme
+// une approbation tardive (après expiration ou annulation côté TissiMah). L'argent ayant été
+// encaissé, il doit être soit rattaché à la réservation, soit remboursé.
+func (r *paymentWriteRepository) MarkFailedPaymentHeld(ctx context.Context, paymentID string) error {
+	tag, err := r.pool.Exec(ctx,
+		`UPDATE payments SET status = 'held', completed_at = NOW(),
+			provider_status = 'approved', provider_status_updated_at = NOW()
+		 WHERE payment_id = $1 AND status = 'failed'`,
+		paymentID,
+	)
+	if err != nil {
+		if isDuplicateKeyError(err) {
+			// Un autre paiement actif existe pour la réservation (index unique pending/held)
+			return paymentErrors.ErrorDuplicatePayment
+		}
+		r.logger.Error("mark failed payment held failed", zap.Error(err), zap.String("paymentID", paymentID))
+		return paymentErrors.ErrorInternalServer
+	}
+	if tag.RowsAffected() == 0 {
+		return paymentErrors.ErrorPaymentAlreadyProcessed
+	}
 	return nil
 }
 

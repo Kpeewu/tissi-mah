@@ -3,17 +3,40 @@ package fedapay
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 
 	"go.uber.org/zap"
 )
 
-// CreateTransaction crée une nouvelle transaction FedaPay.
-func (c *Client) CreateTransaction(amount int, description string, customer CustomerPayload) (*Transaction, error) {
+// CreateTransactionParams regroupe les paramètres de création d'une collecte avec redirection.
+type CreateTransactionParams struct {
+	Amount            int
+	Description       string
+	CallbackURL       string            // URL de retour après paiement (FedaPay ajoute ?id=&status=)
+	MerchantReference string            // référence unique côté TissiMah (PaymentReference)
+	Customer          *CustomerPayload  // optionnel — pas de numéro : l'utilisateur le choisit sur la page FedaPay
+	CustomMetadata    map[string]string // optionnel — jamais de données sensibles
+}
+
+// CreateTransaction crée une nouvelle transaction FedaPay (collecte avec redirection).
+func (c *Client) CreateTransaction(params CreateTransactionParams) (*Transaction, error) {
 	payload := map[string]interface{}{
-		"description": description,
-		"amount":      amount,
+		"description": params.Description,
+		"amount":      params.Amount,
 		"currency":    map[string]string{"iso": "XOF"},
-		"customer":    customer,
+	}
+	if params.CallbackURL != "" {
+		payload["callback_url"] = params.CallbackURL
+	}
+	if params.MerchantReference != "" {
+		payload["merchant_reference"] = params.MerchantReference
+	}
+	if params.Customer != nil {
+		payload["customer"] = params.Customer
+	}
+	if len(params.CustomMetadata) > 0 {
+		payload["custom_metadata"] = params.CustomMetadata
 	}
 
 	body, statusCode, err := c.doRequest("POST", "/v1/transactions", payload)
@@ -41,13 +64,14 @@ func (c *Client) CreateTransaction(amount int, description string, customer Cust
 	c.logger.Info("fedapay: transaction created",
 		zap.Int("transactionID", resp.V1.ID),
 		zap.String("reference", resp.V1.Reference),
+		zap.String("merchantReference", params.MerchantReference),
 	)
 
 	return resp.V1, nil
 }
 
-// GetTransactionToken génère un token d'envoi pour une transaction existante.
-// Ce token est nécessaire pour appeler SendTransaction.
+// GetTransactionToken génère le token et le lien de paiement (page FedaPay) d'une transaction.
+// Le client mobile est redirigé vers TokenResponse.URL.
 func (c *Client) GetTransactionToken(transactionID int) (*TokenResponse, error) {
 	path := fmt.Sprintf("/v1/transactions/%d/token", transactionID)
 
@@ -77,52 +101,9 @@ func (c *Client) GetTransactionToken(transactionID int) (*TokenResponse, error) 
 	return &resp, nil
 }
 
-// SendTransaction envoie une transaction directement en USSD (moov_tg, togocel ou momo_test).
-// Le token doit être obtenu via GetTransactionToken avant cet appel.
-func (c *Client) SendTransaction(paymentToken string, mode string, phoneNumber string) (*PaymentIntent, error) {
-	path := fmt.Sprintf("/v1/%s", mode)
-	payload := map[string]interface{}{
-		"token": paymentToken,
-		"phone_number": map[string]string{
-			"number":  phoneNumber,
-			"country": "tg",
-		},
-	}
-
-	body, statusCode, err := c.doRequest("POST", path, payload)
-	if err != nil {
-		return nil, fmt.Errorf("send transaction: %w", err)
-	}
-
-	if statusCode < 200 || statusCode >= 300 {
-		c.logger.Error("fedapay: send transaction failed",
-			zap.String("mode", mode),
-			zap.Int("statusCode", statusCode),
-			zap.String("body", string(body)),
-		)
-		return nil, parseError(body)
-	}
-
-	var resp SendTransactionResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("unmarshal send response: %w", err)
-	}
-
-	if resp.V1 == nil {
-		return nil, fmt.Errorf("fedapay: empty send transaction response")
-	}
-
-	c.logger.Info("fedapay: transaction sent via USSD",
-		zap.Int("paymentIntentID", resp.V1.ID),
-		zap.String("mode", mode),
-		zap.String("status", resp.V1.Status),
-	)
-
-	return resp.V1, nil
-}
-
-// CancelTransaction annule une transaction en attente sur FedaPay.
-// Doit être appelé uniquement après avoir vérifié que le statut est "pending" via GetTransaction.
+// CancelTransaction supprime une transaction en attente sur FedaPay (DELETE).
+// Une fois supprimée, la page de paiement n'est plus utilisable.
+// Doit être appelé uniquement après avoir vérifié via GetTransaction que la transaction n'est pas approuvée.
 func (c *Client) CancelTransaction(transactionID int) error {
 	path := fmt.Sprintf("/v1/transactions/%d", transactionID)
 
@@ -131,6 +112,9 @@ func (c *Client) CancelTransaction(transactionID int) error {
 		return fmt.Errorf("cancel transaction: %w", err)
 	}
 
+	if statusCode == http.StatusNotFound {
+		return ErrTransactionNotFound
+	}
 	if statusCode < 200 || statusCode >= 300 {
 		c.logger.Error("fedapay: cancel transaction failed",
 			zap.Int("transactionID", transactionID),
@@ -153,6 +137,38 @@ func (c *Client) GetTransaction(transactionID int) (*Transaction, error) {
 		return nil, fmt.Errorf("get transaction: %w", err)
 	}
 
+	if statusCode == http.StatusNotFound {
+		return nil, ErrTransactionNotFound
+	}
+	if statusCode < 200 || statusCode >= 300 {
+		return nil, parseError(body)
+	}
+
+	var resp TransactionResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("unmarshal transaction response: %w", err)
+	}
+
+	if resp.V1 == nil {
+		return nil, fmt.Errorf("fedapay: empty transaction response")
+	}
+
+	return resp.V1, nil
+}
+
+// GetTransactionByMerchantReference récupère une transaction via la référence marchande TissiMah.
+// Filet de sécurité quand l'ID FedaPay n'a pas pu être persisté.
+func (c *Client) GetTransactionByMerchantReference(reference string) (*Transaction, error) {
+	path := fmt.Sprintf("/v1/transactions/merchant/%s", url.PathEscape(reference))
+
+	body, statusCode, err := c.doRequest("GET", path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get transaction by merchant reference: %w", err)
+	}
+
+	if statusCode == http.StatusNotFound {
+		return nil, ErrTransactionNotFound
+	}
 	if statusCode < 200 || statusCode >= 300 {
 		return nil, parseError(body)
 	}

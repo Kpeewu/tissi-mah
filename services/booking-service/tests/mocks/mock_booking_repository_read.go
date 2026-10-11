@@ -167,3 +167,11 @@ func (m *MockBookingRepositoryRead) CountBookingsAdmin(ctx context.Context, filt
 	args := m.Called(ctx, filter)
 	return args.Int(0), args.Error(1)
 }
+
+func (m *MockBookingRepositoryRead) GetStalePaymentPendingBookingIDs(ctx context.Context, createdBefore time.Time, limit int) ([]string, error) {
+	args := m.Called(ctx, createdBefore, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}

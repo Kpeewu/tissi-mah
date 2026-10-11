@@ -62,7 +62,7 @@ func TestMain(m *testing.M) {
 
 	// --- Mock clients (inter-service) ---
 	mockBookingClient := new(mocks.MockBookingClient)
-	mockBookingClient.On("ConfirmPayment", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockBookingClient.On("ConfirmPayment", mock.Anything, mock.Anything, mock.Anything).Return("pendingApproval", nil).Maybe()
 	mockBookingClient.On("GetBookingDetails", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	mockUserClient := new(mocks.MockUserClient)

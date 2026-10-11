@@ -3,12 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"go.uber.org/zap"
-
-	paymentErrors "github.com/Kpeewu/tissi-mah/services/payment-service/pkg/errors"
 )
 
 // StartExpirationWorker lance le worker de nettoyage des paiements expirés.
@@ -34,9 +31,11 @@ func StartExpirationWorker(ctx context.Context, impl *paymentServiceImpl, interv
 	}
 }
 
-// ProcessExpiredPayments traite les paiements pending expirés.
-// Pour chaque paiement : vérifie le statut FedaPay, annule si toujours pending,
-// puis notifie booking-service pour restaurer les places.
+// ProcessExpiredPayments traite les paiements pending dont la fenêtre de paiement est dépassée
+// (expires_at = création de la réservation + PAYMENT_TIMEOUT_MINUTES).
+// Une transaction FedaPay pending vivant 24h, c'est ce worker qui borne l'attente : pour chaque
+// paiement, il vérifie le statut FedaPay, applique l'approbation si l'utilisateur a payé, sinon
+// supprime la transaction (DELETE) et notifie booking-service pour libérer les places.
 func (s *paymentServiceImpl) ProcessExpiredPayments(ctx context.Context, timeoutMinutes int) error {
 	if s.cache == nil {
 		return nil
@@ -53,9 +52,13 @@ func (s *paymentServiceImpl) ProcessExpiredPayments(ctx context.Context, timeout
 	}
 	defer s.cache.ReleaseExpirationLock(ctx)
 
-	// Récupérer les paiements pending expirés
-	timeout := time.Duration(timeoutMinutes) * time.Minute
-	payments, err := s.paymentReadRepo.GetExpiredPendingPayments(ctx, timeout)
+	return s.ExpireDuePayments(ctx, timeoutMinutes)
+}
+
+// ExpireDuePayments traite un lot de paiements pending expirés (sans verrou distribué :
+// l'appelant doit garantir l'exclusivité, cf. ProcessExpiredPayments).
+func (s *paymentServiceImpl) ExpireDuePayments(ctx context.Context, timeoutMinutes int) error {
+	payments, err := s.paymentReadRepo.GetExpiredPendingPayments(ctx, time.Now().UTC())
 	if err != nil {
 		return fmt.Errorf("get expired pending payments: %w", err)
 	}
@@ -66,89 +69,26 @@ func (s *paymentServiceImpl) ProcessExpiredPayments(ctx context.Context, timeout
 
 	s.logger.Info("processing expired payments", zap.Int("count", len(payments)))
 
-	expiredCount := 0
-	skippedCount := 0
+	processedCount := 0
+	errorCount := 0
+	reason := fmt.Sprintf("Paiement non finalisé dans les %d minutes", timeoutMinutes)
 
 	for _, payment := range payments {
-		externalID, err := strconv.Atoi(payment.ExternalTransactionID)
-		if err != nil {
-			s.logger.Error("invalid external transaction ID",
-				zap.String("paymentID", payment.PaymentID),
-				zap.String("externalID", payment.ExternalTransactionID),
-			)
-			continue
-		}
-
-		// Vérifier le statut réel auprès de FedaPay
-		transaction, err := s.fedapayClient.GetTransaction(externalID)
-		if err != nil {
-			s.logger.Error("get transaction from FedaPay failed",
-				zap.String("paymentID", payment.PaymentID),
-				zap.Error(err),
-			)
-			continue
-		}
-
-		// Si la transaction n'est plus pending côté FedaPay, on laisse le webhook gérer
-		if transaction.Status != "pending" {
-			s.logger.Debug("transaction no longer pending on FedaPay, skipping",
-				zap.String("paymentID", payment.PaymentID),
-				zap.String("fedapayStatus", transaction.Status),
-			)
-			skippedCount++
-			continue
-		}
-
-		// Annuler la transaction sur FedaPay
-		if err := s.fedapayClient.CancelTransaction(externalID); err != nil {
-			s.logger.Error("cancel transaction on FedaPay failed",
-				zap.String("paymentID", payment.PaymentID),
-				zap.Error(err),
-			)
-			continue
-		}
-
-		// Marquer le paiement comme échoué (verrouillage optimiste : AND status = 'pending')
-		reason := fmt.Sprintf("Paiement expiré après %d minutes sans réponse", timeoutMinutes)
-		if err := s.paymentWriteRepo.MarkPaymentFailed(ctx, payment.PaymentID, reason); err != nil {
-			if err == paymentErrors.ErrorPaymentAlreadyProcessed {
-				s.logger.Info("payment already processed by webhook, skipping",
-					zap.String("paymentID", payment.PaymentID),
-				)
-				skippedCount++
-				continue
-			}
-			s.logger.Error("mark payment failed failed",
-				zap.String("paymentID", payment.PaymentID),
-				zap.Error(err),
-			)
-			continue
-		}
-
-		// Invalider le cache
-		if s.cache != nil {
-			s.cache.InvalidatePaymentByBookingID(ctx, payment.BookingID)
-		}
-
-		// Notifier booking-service pour restaurer les places
-		if err := s.bookingClient.FailPayment(ctx, payment.BookingID, reason); err != nil {
-			s.logger.Error("fail payment to booking-service failed",
+		if err := s.cancelPendingPayment(ctx, payment, reason, true); err != nil {
+			errorCount++
+			s.logger.Error("expire payment failed, will retry next tick",
 				zap.String("paymentID", payment.PaymentID),
 				zap.String("bookingID", payment.BookingID),
 				zap.Error(err),
 			)
+			continue
 		}
-
-		expiredCount++
-		s.logger.Info("payment expired and cancelled",
-			zap.String("paymentID", payment.PaymentID),
-			zap.String("bookingID", payment.BookingID),
-		)
+		processedCount++
 	}
 
 	s.logger.Info("expiration batch completed",
-		zap.Int("expired", expiredCount),
-		zap.Int("skipped", skippedCount),
+		zap.Int("processed", processedCount),
+		zap.Int("errors", errorCount),
 	)
 
 	return nil

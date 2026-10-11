@@ -7,6 +7,7 @@ import (
 
 	"github.com/Kpeewu/tissi-mah/services/booking-service/fixtures"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/domain"
+	bookingErrors "github.com/Kpeewu/tissi-mah/services/booking-service/pkg/errors"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -173,13 +174,62 @@ func TestBookingWriteRepository_ConfirmPayment(t *testing.T) {
 		)
 		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
 
-		err := writeRepo.ConfirmPayment(ctx, "bk-confirm-1", "txn-abc123")
+		err := writeRepo.ConfirmPayment(ctx, "bk-confirm-1", "txn-abc123", domain.BookingStatusPaymentPending, domain.BookingStatusPendingApproval)
 		require.NoError(t, err)
 
 		result, err := readRepo.GetByID(ctx, "bk-confirm-1")
 		require.NoError(t, err)
 		assert.Equal(t, domain.BookingStatusPendingApproval, result.Status)
 		assert.NotNil(t, result.PaymentCompletedAt)
+	})
+
+	t.Run("auto-approbation : passe directement en approved avec approved_at", func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("bk-confirm-auto"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentPending),
+		)
+		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
+
+		err := writeRepo.ConfirmPayment(ctx, "bk-confirm-auto", "txn-auto", domain.BookingStatusPaymentPending, domain.BookingStatusApproved)
+		require.NoError(t, err)
+
+		result, err := readRepo.GetByID(ctx, "bk-confirm-auto")
+		require.NoError(t, err)
+		assert.Equal(t, domain.BookingStatusApproved, result.Status)
+		assert.NotNil(t, result.ApprovedAt)
+		assert.NotNil(t, result.PaymentCompletedAt)
+	})
+
+	t.Run("réactive une réservation paymentFailed (approbation tardive)", func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("bk-confirm-late"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentFailed),
+		)
+		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
+
+		err := writeRepo.ConfirmPayment(ctx, "bk-confirm-late", "txn-late", domain.BookingStatusPaymentFailed, domain.BookingStatusPendingApproval)
+		require.NoError(t, err)
+
+		result, err := readRepo.GetByID(ctx, "bk-confirm-late")
+		require.NoError(t, err)
+		assert.Equal(t, domain.BookingStatusPendingApproval, result.Status)
+	})
+
+	t.Run("statut modifié entre-temps : ErrorInvalidStatusTransition", func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("bk-confirm-stale"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentFailed),
+		)
+		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
+
+		err := writeRepo.ConfirmPayment(ctx, "bk-confirm-stale", "txn-stale", domain.BookingStatusPaymentPending, domain.BookingStatusPendingApproval)
+		assert.ErrorIs(t, err, bookingErrors.ErrorInvalidStatusTransition)
 	})
 }
 

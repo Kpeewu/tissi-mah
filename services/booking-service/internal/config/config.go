@@ -9,16 +9,16 @@ import (
 
 // Config contient toute la configuration du booking-service.
 type Config struct {
-	Server            ServerConfig
-	Environment       EnvironmentConfig
-	Database          DatabaseConfig
-	Redis             RedisConfig
-	NotificationRedis RedisConfig
-	TripService       ServiceEndpoint
-	UserService       ServiceEndpoint
-	PaymentService    ServiceEndpoint
-	RatingService     ServiceEndpoint
-	ServiceFee        ServiceFeeConfig
+	Server             ServerConfig
+	Environment        EnvironmentConfig
+	Database           DatabaseConfig
+	Redis              RedisConfig
+	NotificationRedis  RedisConfig
+	TripService        ServiceEndpoint
+	UserService        ServiceEndpoint
+	PaymentService     ServiceEndpoint
+	RatingService      ServiceEndpoint
+	ServiceFee         ServiceFeeConfig
 	Reconciliation     ReconciliationConfig
 	Payment            PaymentConfig
 	LogLevel           string
@@ -71,6 +71,10 @@ type ReconciliationConfig struct {
 type PaymentConfig struct {
 	ContestationDelaySeconds     int
 	ReleaseWorkerIntervalSeconds int
+	// PendingTimeoutMinutes : au-delà, une réservation paymentPending est libérée par le sweeper.
+	// Doit être ≥ PAYMENT_TIMEOUT_MINUTES de payment-service (10) + marge pour son worker d'expiration.
+	PendingTimeoutMinutes         int
+	PendingSweeperIntervalSeconds int
 }
 
 // Load charge la configuration depuis les variables d'environnement.
@@ -120,8 +124,10 @@ func Load() (*Config, error) {
 			IntervalSeconds: getIntOrDefault(values, "RECONCILIATION_INTERVAL_SECONDS", 300),
 		},
 		Payment: PaymentConfig{
-			ContestationDelaySeconds:     getIntOrDefault(values, "CONTESTATION_DELAY_SECONDS", 7200),
-			ReleaseWorkerIntervalSeconds: getIntOrDefault(values, "RELEASE_WORKER_INTERVAL_SECONDS", 60),
+			ContestationDelaySeconds:      getIntOrDefault(values, "CONTESTATION_DELAY_SECONDS", 7200),
+			ReleaseWorkerIntervalSeconds:  getIntOrDefault(values, "RELEASE_WORKER_INTERVAL_SECONDS", 60),
+			PendingTimeoutMinutes:         getIntOrDefault(values, "PAYMENT_PENDING_TIMEOUT_MINUTES", 12),
+			PendingSweeperIntervalSeconds: getIntOrDefault(values, "PAYMENT_PENDING_SWEEPER_INTERVAL_SECONDS", 60),
 		},
 		LogLevel:           sharedconfig.MustGetString(values, "LOG_LEVEL"),
 		InternalHMACSecret: sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),

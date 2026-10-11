@@ -52,8 +52,8 @@ func (m *MockBookingRepositoryWrite) ReportNoShow(ctx context.Context, bookingID
 	return args.Error(0)
 }
 
-func (m *MockBookingRepositoryWrite) ConfirmPayment(ctx context.Context, bookingID, transactionID string) error {
-	args := m.Called(ctx, bookingID, transactionID)
+func (m *MockBookingRepositoryWrite) ConfirmPayment(ctx context.Context, bookingID, transactionID string, expectedStatus, newStatus domain.BookingStatus) error {
+	args := m.Called(ctx, bookingID, transactionID, expectedStatus, newStatus)
 	return args.Error(0)
 }
 

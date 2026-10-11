@@ -197,6 +197,7 @@ sur les 4 pays (Togo, Ghana, Bénin, Burkina Faso).
 | `RATELIMIT_FAIL_CLOSED` | non (false) | `true` en staging/prod — bloque avec 503 si Redis rate-limit est down |
 | `BODY_SIZE_MAX_BYTES` | non (10485760) | Limite body HTTP (10 Mo par défaut) |
 | `INTERNAL_HMAC_SECRET` | non | Secret hex 32 bytes pour signer `x-firebase-uid-sig` en gRPC metadata — à provisionner sur tous les services pour vérification |
+| `PAYMENT_DEEPLINK_URL` | non (`tissimah://payment/result`) | Deep link mobile ciblé par `GET /api/v1/payment/callback` (302 après revérification FedaPay) |
 
 ### auth-service
 
@@ -255,6 +256,19 @@ sur les 4 pays (Togo, Ghana, Bénin, Burkina Faso).
 
 **Admin seed** : `admin@tissimah.local` / `Admin1234!` (`must_change_password=true`, forcé à changer au 1er login).
 **Auth distincte de Firebase** : middleware `JWTSupport` côté api-gateway, routes dans `SupportProtectedRoutes`, headers `x-support-uid` / `x-support-role`.
+
+### payment-service (collectes FedaPay avec redirection)
+
+| Variable | Obligatoire | Description |
+|----------|-------------|-------------|
+| `PAYMENT_CALLBACK_URL` | oui (non-local) | `callback_url` FedaPay = `https://<api-gateway>/api/v1/payment/callback` — fail-fast si vide hors `local` |
+| `PAYMENT_TIMEOUT_MINUTES` | non (10) | Fenêtre de paiement depuis la création de la réservation ; au-delà, transaction FedaPay supprimée (DELETE) + places libérées |
+| `EXPIRATION_INTERVAL_SECONDS` | non (60) | Tick du worker d'expiration |
+
+**Flux** : `createPayment` → `PaymentUrl` (page FedaPay) → callback → deep link → `verifyPayment` (source de vérité).
+`declined`/`canceled` FedaPay ne sont pas finaux (paiement reste `pending`). booking-service : sweeper
+`PAYMENT_PENDING_TIMEOUT_MINUTES` (12) pour les réservations `paymentPending` sans paiement abouti ;
+`ConfirmPayment` est interne (`/api/v1/booking/internal/confirmPayment`) et applique l'auto-approbation.
 
 ### geolocation-service
 

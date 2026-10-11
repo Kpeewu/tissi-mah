@@ -30,8 +30,13 @@ var publicMethods = map[string]bool{
 	"/payment.PaymentService/ProcessWebhook": true, // Webhook FedaPay (vérifié par HMAC)
 	"/payment.PaymentService/RequestRefund":  true, // Route interne (booking-service)
 	"/payment.PaymentService/ReleasePayment": true, // Route interne (booking-service)
-	"/grpc.health.v1.Health/Check":           true, // Readiness probe Kubernetes
-	"/grpc.health.v1.Health/Watch":           true, // Liveness probe Kubernetes
+	// Retour de la page FedaPay (gRPC uniquement, via le handler HTTP brut de l'api-gateway) :
+	// public car le navigateur n'a pas de JWT ; le statut est toujours revérifié auprès de FedaPay.
+	"/payment.PaymentService/HandlePaymentCallback": true,
+	// Route interne (booking-service, gRPC uniquement — pas d'annotation HTTP)
+	"/payment.PaymentService/CancelPaymentForBooking": true,
+	"/grpc.health.v1.Health/Check":                    true, // Readiness probe Kubernetes
+	"/grpc.health.v1.Health/Watch":                    true, // Liveness probe Kubernetes
 }
 
 // Routes gRPC protégées par JWT support (x-support-uid injecté par l'api-gateway)

@@ -4,7 +4,17 @@ import "context"
 
 // PaymentService définit l'interface du service de paiement.
 type PaymentService interface {
+	// CreatePayment crée la collecte FedaPay (paiement avec redirection) et retourne le lien de paiement.
+	// Réutilise le paiement pending existant de la réservation s'il y en a un.
 	CreatePayment(ctx context.Context, input *CreatePaymentInput) (*CreatePaymentResult, error)
+	// VerifyPayment resynchronise un paiement avec FedaPay (appelé par le mobile au retour de la page de paiement).
+	VerifyPayment(ctx context.Context, paymentID string) (*PaymentSyncResult, error)
+	// CancelPayment abandonne un paiement pending (suppression FedaPay + libération des places).
+	CancelPayment(ctx context.Context, paymentID string) (*PaymentSyncResult, error)
+	// HandlePaymentCallback traite le retour de la page FedaPay (statut revérifié auprès de FedaPay).
+	HandlePaymentCallback(ctx context.Context, fedapayTransactionID string) (*PaymentSyncResult, error)
+	// CancelPaymentForBooking annule le paiement pending d'une réservation annulée (interne, booking-service).
+	CancelPaymentForBooking(ctx context.Context, bookingID string, reason string) (*PaymentSyncResult, error)
 	GetPaymentStatus(ctx context.Context, paymentID string) (*PaymentStatusResult, error)
 	GetPaymentByBooking(ctx context.Context, bookingID string) (*PaymentByBookingResult, error)
 	ProcessWebhook(ctx context.Context, input *ProcessWebhookInput) error
@@ -31,12 +41,12 @@ type PaymentService interface {
 // =============================================================================
 
 type CreatePaymentInput struct {
-	BookingID           string
-	TripID              string
-	PaymentMethod       string
-	Amount              int
-	PassengerPhoneNumber string
-	MobileMoneyMode     string
+	BookingID            string
+	TripID               string
+	PaymentMethod        string
+	Amount               int    // déprécié : ignoré, le montant est celui de la réservation
+	PassengerPhoneNumber string // numéro togocel de remboursement
+	MobileMoneyMode      string // déprécié : ignoré, l'opérateur est choisi sur la page FedaPay
 }
 
 type CreatePaymentResult struct {
@@ -44,6 +54,24 @@ type CreatePaymentResult struct {
 	PaymentReference string
 	Status           string
 	ErrorMessage     string
+	PaymentURL       string
+	ExpiresAt        string // RFC3339
+	Reused           bool
+	Amount           int
+}
+
+// PaymentSyncResult est l'état d'un paiement (et de sa réservation) après synchronisation avec FedaPay.
+type PaymentSyncResult struct {
+	PaymentID      string
+	BookingID      string
+	Status         string
+	ProviderStatus string
+	IsFinal        bool
+	PaymentURL     string
+	ExpiresAt      string // RFC3339
+	BookingStatus  string
+	SeatsReleased  bool
+	Amount         int
 }
 
 type ProcessWebhookInput struct {
@@ -60,6 +88,9 @@ type PaymentStatusResult struct {
 	PaymentReference string
 	CreatedAt        string
 	CompletedAt      string
+	PaymentURL       string
+	ProviderStatus   string
+	ExpiresAt        string
 }
 
 type PaymentByBookingResult struct {
@@ -71,6 +102,9 @@ type PaymentByBookingResult struct {
 	PaymentReference string
 	CreatedAt        string
 	CompletedAt      string // RFC3339, vide tant que le paiement n'est pas confirmé
+	PaymentURL       string
+	ProviderStatus   string
+	ExpiresAt        string
 }
 
 type RequestRefundInput struct {
@@ -91,19 +125,19 @@ type RequestRefundResult struct {
 }
 
 type RefundStatusResult struct {
-	RefundID         string
-	BookingID        string
-	RefundReason     string
-	RefundRule       string
-	OriginalAmount   int
-	RefundPercentage int
-	RefundAmount     int
+	RefundID          string
+	BookingID         string
+	RefundReason      string
+	RefundRule        string
+	OriginalAmount    int
+	RefundPercentage  int
+	RefundAmount      int
 	AmountToPassenger int
-	AmountToDriver   int
-	AmountToPlatform int
-	Status           string
-	ProcessedAt      string
-	CompletedAt      string
+	AmountToDriver    int
+	AmountToPlatform  int
+	Status            string
+	ProcessedAt       string
+	CompletedAt       string
 }
 
 type PayoutStatusResult struct {

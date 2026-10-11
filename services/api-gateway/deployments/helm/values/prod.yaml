@@ -67,6 +67,8 @@ config:
   chatServicePort: "50065"
   corsAllowedOrigins: "https://tissi-mah.com,https://www.tissi-mah.com"
   enableHsts: "true"
+  # Deep link mobile ciblé par le callback FedaPay (GET /api/v1/payment/callback → 302)
+  paymentDeepLinkUrl: "tissimah://payment/result"
   rateLimitFailClosed: "true"
   bodySizeMaxBytes: "10485760"
   extra: {}

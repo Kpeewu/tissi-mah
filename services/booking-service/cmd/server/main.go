@@ -125,6 +125,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	if impl := service.AsImpl(bookingService); impl != nil {
 		go service.StartReconciliationJob(ctx, impl, cfg.Reconciliation.IntervalSeconds, logger)
 		go service.StartPaymentReleaseJob(ctx, impl, cfg.Payment.ReleaseWorkerIntervalSeconds, cfg.Payment.ContestationDelaySeconds, logger)
+		go service.StartPaymentPendingSweeper(ctx, impl, cfg.Payment.PendingSweeperIntervalSeconds, cfg.Payment.PendingTimeoutMinutes, logger)
 	}
 
 	// --- gRPC server ---

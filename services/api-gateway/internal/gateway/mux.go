@@ -50,6 +50,8 @@ type MuxConfig struct {
 	// signature pour garantir que l'UID vient de l'api-gateway.
 	// Vide = signature désactivée (mode dégradé).
 	InternalHMACSecret string
+	// PaymentDeepLinkURL est le deep link mobile cible du callback FedaPay (ex: tissimah://payment/result).
+	PaymentDeepLinkURL string
 	Logger             *zap.Logger
 }
 
@@ -248,6 +250,14 @@ func NewGatewayMux(ctx context.Context, cfg MuxConfig) (http.Handler, error) {
 		return nil, fmt.Errorf("register fedapay webhook handler: %w", err)
 	}
 	cfg.Logger.Info("registered fedapay webhook raw handler", zap.String("endpoint", cfg.PaymentServiceAddr))
+
+	// Handler brut pour le retour de la page de paiement FedaPay (callback_url?id=&status=).
+	// Public (le navigateur n'a ni JWT ni App-ID) : le statut de l'URL est ignoré,
+	// payment-service le revérifie auprès de FedaPay. Répond 302 vers le deep link mobile.
+	if err := mux.HandlePath("GET", "/api/v1/payment/callback", paymentCallbackHandler(paymentClient, cfg.PaymentDeepLinkURL, cfg.Logger)); err != nil {
+		return nil, fmt.Errorf("register fedapay callback handler: %w", err)
+	}
+	cfg.Logger.Info("registered fedapay payment callback handler")
 
 	// Webhook Persona supprimé : la validation KYC est 100 % manuelle (support).
 

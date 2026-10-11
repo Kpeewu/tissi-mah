@@ -11,9 +11,9 @@ type MockBookingClient struct {
 	mock.Mock
 }
 
-func (m *MockBookingClient) ConfirmPayment(ctx context.Context, bookingID string, transactionID string) error {
+func (m *MockBookingClient) ConfirmPayment(ctx context.Context, bookingID string, transactionID string) (string, error) {
 	args := m.Called(ctx, bookingID, transactionID)
-	return args.Error(0)
+	return args.String(0), args.Error(1)
 }
 
 func (m *MockBookingClient) FailPayment(ctx context.Context, bookingID string, reason string) error {
@@ -39,6 +39,11 @@ func (m *MockUserClient) GetUserByUserID(ctx context.Context, userID string) (*c
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*client.UserInfo), args.Error(1)
+}
+
+func (m *MockUserClient) GetUserIDByFirebaseID(ctx context.Context, firebaseID string) (string, error) {
+	args := m.Called(ctx, firebaseID)
+	return args.String(0), args.Error(1)
 }
 
 type MockSupportClient struct {

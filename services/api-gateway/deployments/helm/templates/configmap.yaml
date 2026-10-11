@@ -38,6 +38,7 @@ data:
   ENABLE_HSTS: {{ .Values.config.enableHsts | quote }}
   RATELIMIT_FAIL_CLOSED: {{ .Values.config.rateLimitFailClosed | quote }}
   BODY_SIZE_MAX_BYTES: {{ .Values.config.bodySizeMaxBytes | quote }}
+  PAYMENT_DEEPLINK_URL: {{ .Values.config.paymentDeepLinkUrl | default "tissimah://payment/result" | quote }}
   {{- range $key, $value := .Values.config.extra }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}

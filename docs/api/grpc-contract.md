@@ -800,7 +800,7 @@ api-gateway      ──gRPC──> booking-service   (HTTP transcoding via grpc-
 | `RejectBooking` | Unary | `PATCH /api/v1/booking/rejectBooking` | JWT | Driver rejects a pending booking |
 | `CancelBooking` | Unary | `PATCH /api/v1/booking/cancelBooking` | JWT | Cancel a booking (passenger or driver) |
 | `ReportNoShow` | Unary | `POST /api/v1/booking/reportNoShow` | JWT | Report passenger or driver no-show |
-| `ConfirmPayment` | Unary | `POST /api/v1/booking/confirmPayment` | JWT | Confirm payment (payment callback) |
+| `ConfirmPayment` | Unary | `POST /api/v1/booking/internal/confirmPayment` | Internal | Confirm payment (called by payment-service) — returns `approved` or `pendingApproval` |
 | `StartBookingsForWaypoint` | Unary | `PATCH /api/v1/booking/internal/startBookingsForWaypoint` | Internal | Start approved bookings for a waypoint |
 | `CompleteBookingsForWaypoint` | Unary | `PATCH /api/v1/booking/internal/completeBookingsForWaypoint` | Internal | Complete active bookings for a waypoint |
 | `Health` | Unary | `GET /api/v1/booking/health` | Public | Health check |

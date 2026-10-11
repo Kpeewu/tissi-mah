@@ -47,7 +47,11 @@ config:
   noshowDriverDelayMinutes: "15"
   noshowPassengerDelayMinutes: "15"
   expirationIntervalSeconds: "60"
-  paymentTimeoutMinutes: "5"
+  # Fenêtre de paiement FedaPay (redirection), comptée depuis la création de la réservation :
+  # au-delà, la transaction est supprimée et les places libérées.
+  paymentTimeoutMinutes: "10"
+  # Retour de la page FedaPay (callback_url) — handler public de l'api-gateway.
+  paymentCallbackUrl: ""
   # Fenêtre horaire des batches automatiques (PayoutWorker, RefundWorker).
   # Désactivée en local pour que les workers tournent 24/7 (sinon les tests
   # de paiement attendraient la fenêtre 0h-3h Lome pour produire des effets).
