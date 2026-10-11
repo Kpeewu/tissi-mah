@@ -21,4 +21,8 @@ type PaymentRepositoryRead interface {
 
 	// HasActivePayment vérifie s'il existe un paiement actif (pending ou held) pour un booking.
 	HasActivePayment(ctx context.Context, bookingID string) (bool, error)
+
+	// GetUnsyncedHeldPayments retourne les paiements held non rattachés à leur réservation
+	// (booking_synced_at NULL) passés en held avant completedBefore, les plus anciens d'abord.
+	GetUnsyncedHeldPayments(ctx context.Context, completedBefore time.Time, limit int) ([]*domain.Payment, error)
 }

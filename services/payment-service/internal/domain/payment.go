@@ -39,6 +39,7 @@ type Payment struct {
 	PaymentURL            string // Lien de la page de paiement FedaPay (redirection)
 	ProviderStatus        string // Dernier statut FedaPay observé (pending, approved, declined, canceled, expired, deleted)
 	ExpiresAt             time.Time
+	BookingSyncAttempts   int // Reprises du rattachement à la réservation échouées (remboursement au plafond)
 	CreatedAt             time.Time
 	CompletedAt           *time.Time
 	FailedAt              *time.Time

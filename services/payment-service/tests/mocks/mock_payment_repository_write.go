@@ -50,3 +50,13 @@ func (m *MockPaymentRepositoryWrite) MarkFailedPaymentHeld(ctx context.Context, 
 	args := m.Called(ctx, paymentID)
 	return args.Error(0)
 }
+
+func (m *MockPaymentRepositoryWrite) MarkBookingSynced(ctx context.Context, paymentID string) error {
+	args := m.Called(ctx, paymentID)
+	return args.Error(0)
+}
+
+func (m *MockPaymentRepositoryWrite) IncrementBookingSyncAttempts(ctx context.Context, paymentID string) (int, error) {
+	args := m.Called(ctx, paymentID)
+	return args.Int(0), args.Error(1)
+}

@@ -143,3 +143,106 @@ func TestPaymentWriteRepository_MarkFailedPaymentHeld(t *testing.T) {
 		assert.ErrorIs(t, err, paymentErrors.ErrorPaymentAlreadyProcessed)
 	})
 }
+
+// =============================================================================
+// Rattachement des paiements held — colonne booking_synced_at
+// =============================================================================
+
+func TestPaymentRepository_UnsyncedHeldPayments(t *testing.T) {
+	ctx := context.Background()
+	writeRepo := newTestPaymentWriteRepository()
+	readRepo := newTestPaymentReadRepository()
+	cleanupPaymentTables(t, ctx)
+
+	now := time.Now().UTC()
+	insert := func(paymentID, bookingID, externalID string, status domain.PaymentStatus, completedAt time.Time) {
+		require.NoError(t, fixtures.InsertPayment(ctx, testPool, fixtures.NewTestPayment(
+			fixtures.WithPaymentID(paymentID),
+			fixtures.WithPaymentBookingID(bookingID),
+			fixtures.WithExternalTransactionID(externalID),
+			fixtures.WithPaymentStatus(status),
+			fixtures.WithPaymentCompletedAt(completedAt),
+		)))
+	}
+	insert("pay-unsynced-old", "bk-us-1", "21", domain.PaymentStatusHeld, now.Add(-10*time.Minute))
+	insert("pay-unsynced-older", "bk-us-2", "22", domain.PaymentStatusHeld, now.Add(-20*time.Minute))
+	insert("pay-unsynced-recent", "bk-us-3", "23", domain.PaymentStatusHeld, now)
+	insert("pay-synced", "bk-us-4", "24", domain.PaymentStatusHeld, now.Add(-10*time.Minute))
+	insert("pay-released", "bk-us-5", "25", domain.PaymentStatusReleased, now.Add(-10*time.Minute))
+	require.NoError(t, writeRepo.MarkBookingSynced(ctx, "pay-synced"))
+
+	payments, err := readRepo.GetUnsyncedHeldPayments(ctx, now.Add(-2*time.Minute), 100)
+
+	require.NoError(t, err)
+	require.Len(t, payments, 2)
+	assert.Equal(t, "pay-unsynced-older", payments[0].PaymentID) // plus ancien d'abord
+	assert.Equal(t, "pay-unsynced-old", payments[1].PaymentID)
+
+	t.Run("limite respectée", func(t *testing.T) {
+		limited, err := readRepo.GetUnsyncedHeldPayments(ctx, now.Add(-2*time.Minute), 1)
+		require.NoError(t, err)
+		require.Len(t, limited, 1)
+		assert.Equal(t, "pay-unsynced-older", limited[0].PaymentID)
+	})
+
+	t.Run("MarkBookingSynced idempotent", func(t *testing.T) {
+		require.NoError(t, writeRepo.MarkBookingSynced(ctx, "pay-unsynced-old"))
+		require.NoError(t, writeRepo.MarkBookingSynced(ctx, "pay-unsynced-old"))
+
+		remaining, err := readRepo.GetUnsyncedHeldPayments(ctx, now.Add(-2*time.Minute), 100)
+		require.NoError(t, err)
+		require.Len(t, remaining, 1)
+		assert.Equal(t, "pay-unsynced-older", remaining[0].PaymentID)
+	})
+}
+
+func TestPaymentWriteRepository_MarkFailedPaymentHeld_ResetsBookingSync(t *testing.T) {
+	ctx := context.Background()
+	writeRepo := newTestPaymentWriteRepository()
+	readRepo := newTestPaymentReadRepository()
+	cleanupPaymentTables(t, ctx)
+
+	require.NoError(t, fixtures.InsertPayment(ctx, testPool, fixtures.NewTestPayment(
+		fixtures.WithPaymentID("pay-late-sync"),
+		fixtures.WithPaymentStatus(domain.PaymentStatusFailed),
+	)))
+	_, err := testPool.Exec(ctx,
+		`UPDATE payments SET booking_synced_at = NOW(), booking_sync_attempts = 5 WHERE payment_id = $1`,
+		"pay-late-sync")
+	require.NoError(t, err)
+
+	require.NoError(t, writeRepo.MarkFailedPaymentHeld(ctx, "pay-late-sync"))
+
+	payments, err := readRepo.GetUnsyncedHeldPayments(ctx, time.Now().UTC().Add(time.Minute), 100)
+	require.NoError(t, err)
+	require.Len(t, payments, 1)
+	assert.Equal(t, "pay-late-sync", payments[0].PaymentID)
+	assert.Equal(t, 0, payments[0].BookingSyncAttempts) // nouvelle approbation : compteur remis à zéro
+}
+
+func TestPaymentWriteRepository_IncrementBookingSyncAttempts(t *testing.T) {
+	ctx := context.Background()
+	writeRepo := newTestPaymentWriteRepository()
+	readRepo := newTestPaymentReadRepository()
+	cleanupPaymentTables(t, ctx)
+
+	require.NoError(t, fixtures.InsertPayment(ctx, testPool, fixtures.NewTestPayment(
+		fixtures.WithPaymentID("pay-attempts"),
+		fixtures.WithPaymentStatus(domain.PaymentStatusHeld),
+	)))
+
+	attempts, err := writeRepo.IncrementBookingSyncAttempts(ctx, "pay-attempts")
+	require.NoError(t, err)
+	assert.Equal(t, 1, attempts)
+
+	attempts, err = writeRepo.IncrementBookingSyncAttempts(ctx, "pay-attempts")
+	require.NoError(t, err)
+	assert.Equal(t, 2, attempts)
+
+	result, err := readRepo.GetByID(ctx, "pay-attempts")
+	require.NoError(t, err)
+	assert.Equal(t, 2, result.BookingSyncAttempts)
+
+	_, err = writeRepo.IncrementBookingSyncAttempts(ctx, "pay-unknown")
+	assert.ErrorIs(t, err, paymentErrors.ErrorPaymentNotFound)
+}
