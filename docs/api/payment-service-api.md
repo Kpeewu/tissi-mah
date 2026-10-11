@@ -192,7 +192,7 @@ Re-synchronizes the payment with FedaPay (`GET /v1/transactions/{id}`) and appli
 
 ### POST /api/v1/payment/cancelPayment
 
-The passenger gives up a `pending` payment. The FedaPay transaction is **deleted** (the link stops working), the payment becomes `failed` and the booking becomes `paymentFailed` with its **seats released**.
+The passenger gives up a `pending` payment. The FedaPay transaction is **deleted** (the link stops working), the payment becomes `failed` and the booking becomes `paymentFailed` with its **seats released**. No `PAYMENT_FAILED` notification is sent: the passenger cancelled on purpose.
 
 If FedaPay has already approved the payment, nothing is cancelled: the approval is applied and `Status=held` is returned.
 
@@ -371,7 +371,7 @@ Receives and processes FedaPay webhook events. **Public route** — not called b
 |-------|--------|
 | `transaction.approved` / `transaction.transferred` | Payment → `held`, booking → `approved` (auto-approval) or `pendingApproval`. If the payment had already been failed (late approval), the seats are re-reserved; if the trip is full, the passenger is refunded in full (`seatsUnavailable`). If the booking can no longer be confirmed (`cancelled`, `rejected`, etc.), the passenger is refunded in full (`bookingUnavailable`) and `PAYMENT_COMPLETED` is not published. |
 | `transaction.declined` / `transaction.canceled` | Payment **stays `pending`** (`ProviderStatus` updated): with the redirect flow these statuses are not final and the passenger can retry on the same page. |
-| `transaction.expired` / `transaction.deleted` | Payment → `failed`, booking → `paymentFailed`, seats released |
+| `transaction.expired` / `transaction.deleted` | Payment → `failed`, booking → `paymentFailed`, seats released. `PAYMENT_FAILED` is published for `expired`, or for `deleted` once the payment window (`expires_at`) is over. A `deleted` received before then comes from a cancellation and sends no notification. |
 | `payout.completed` | Driver payout / refund → `completed` |
 
 The same transition logic is shared by the webhook, `verifyPayment`, the callback and the expiration worker. It is idempotent.
@@ -734,6 +734,7 @@ approval for a booking that is no longer confirmable (cancelled, rejected…) �
 - **payment-service expiration worker** (every `EXPIRATION_INTERVAL_SECONDS`, Redis lock): for every `pending` payment with `expires_at < now`, it checks FedaPay.
   - If the transaction was approved, it applies the approval.
   - Otherwise it deletes the transaction (`DELETE /v1/transactions/{id}`), marks the payment `failed`, calls booking-service `FailPayment` (seats released) and publishes `PAYMENT_FAILED`.
+  - `PAYMENT_FAILED` is only sent when the payment window expires. It is never sent when the passenger cancels (`cancelPayment`, `CancelBooking`) or when the driver cancels the trip or removes the stop.
 - **booking-service sweeper** (`PAYMENT_PENDING_TIMEOUT_MINUTES`, default 12): it handles `paymentPending` bookings whose payment never started (`createPayment` was never called) or whose confirmation was lost.
   - No payment, `failed` or `refunded`: `FailPayment`.
   - `held`: `ConfirmPayment`.
