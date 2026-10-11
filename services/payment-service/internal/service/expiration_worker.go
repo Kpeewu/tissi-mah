@@ -93,7 +93,7 @@ func (s *paymentServiceImpl) ExpireDuePayments(ctx context.Context, timeoutMinut
 	reason := fmt.Sprintf("Paiement non finalisé dans les %d minutes", timeoutMinutes)
 
 	for _, payment := range payments {
-		if err := s.cancelPendingPayment(ctx, payment, reason, true); err != nil {
+		if err := s.cancelPendingPayment(ctx, payment, reason, originExpiration); err != nil {
 			errorCount++
 			s.logger.Error("expire payment failed, will retry next tick",
 				zap.String("paymentID", payment.PaymentID),

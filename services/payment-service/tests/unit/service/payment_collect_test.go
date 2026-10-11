@@ -490,8 +490,9 @@ func TestVerifyPayment(t *testing.T) {
 // =============================================================================
 
 func TestCancelPayment(t *testing.T) {
-	t.Run("supprime la transaction FedaPay et libère les places", func(t *testing.T) {
-		d := newCollectTestService()
+	t.Run("supprime la transaction FedaPay et libère les places, sans PAYMENT_FAILED", func(t *testing.T) {
+		rdb := newNotifRedis(t)
+		d := buildCollectTestService(rdb)
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(pendingPayment(), nil).Once()
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(withStatus(pendingPayment(), domain.PaymentStatusFailed), nil)
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
@@ -508,6 +509,8 @@ func TestCancelPayment(t *testing.T) {
 		assert.Equal(t, "failed", result.Status)
 		d.fedapay.AssertCalled(t, "CancelTransaction", 101)
 		d.bookingClient.AssertCalled(t, "FailPayment", mock.Anything, "bk-1", mock.Anything)
+		// Abandon volontaire : pas une erreur de paiement
+		assert.Nil(t, findEvent(publishedEvents(t, rdb), notification.PaymentFailed))
 	})
 
 	t.Run("course avec une approbation : applique l'approbation sans annuler", func(t *testing.T) {
@@ -547,8 +550,9 @@ func TestCancelPayment(t *testing.T) {
 }
 
 func TestCancelPaymentForBooking(t *testing.T) {
-	t.Run("supprime la collecte sans rappeler FailPayment", func(t *testing.T) {
-		d := newCollectTestService()
+	t.Run("supprime la collecte sans rappeler FailPayment ni PAYMENT_FAILED", func(t *testing.T) {
+		rdb := newNotifRedis(t)
+		d := buildCollectTestService(rdb)
 		d.paymentReadRepo.On("GetPendingByBookingID", mock.Anything, "bk-1").Return(pendingPayment(), nil)
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(withStatus(pendingPayment(), domain.PaymentStatusFailed), nil)
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
@@ -562,6 +566,7 @@ func TestCancelPaymentForBooking(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "failed", result.Status)
 		d.bookingClient.AssertNotCalled(t, "FailPayment", mock.Anything, mock.Anything, mock.Anything)
+		assert.Nil(t, findEvent(publishedEvents(t, rdb), notification.PaymentFailed))
 	})
 
 	t.Run("aucune collecte en cours : rien à annuler", func(t *testing.T) {
@@ -597,6 +602,41 @@ func TestHandlePaymentCallback(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "held", result.Status)
 		assert.Equal(t, "pay-1", result.PaymentID)
+	})
+
+	t.Run("transaction expired/deleted : PAYMENT_FAILED seulement à l'expiration", func(t *testing.T) {
+		cases := []struct {
+			name           string
+			providerStatus string
+			expiresIn      time.Duration
+			wantNotified   bool
+		}{
+			{"deleted avant l'échéance (annulation) → pas de notification", "deleted", 5 * time.Minute, false},
+			{"deleted après l'échéance → notification", "deleted", -time.Minute, true},
+			{"expired → notification", "expired", 5 * time.Minute, true},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				rdb := newNotifRedis(t)
+				d := buildCollectTestService(rdb)
+				payment := pendingPayment()
+				payment.ExpiresAt = time.Now().UTC().Add(tc.expiresIn)
+				d.paymentReadRepo.On("GetByExternalTransactionID", mock.Anything, "101").Return(payment, nil)
+				d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(withStatus(payment, domain.PaymentStatusFailed), nil)
+				d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
+				d.fedapay.On("GetTransaction", 101).Return(&fedapay.Transaction{ID: 101, Status: tc.providerStatus}, nil)
+				d.paymentWriteRepo.On("MarkPaymentFailed", mock.Anything, "pay-1", mock.Anything).Return(nil)
+				d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", tc.providerStatus).Return(nil)
+				d.bookingClient.On("FailPayment", mock.Anything, "bk-1", mock.Anything).Return(nil)
+
+				result, err := d.svc.HandlePaymentCallback(context.Background(), "101")
+
+				require.NoError(t, err)
+				assert.Equal(t, "failed", result.Status)
+				d.bookingClient.AssertCalled(t, "FailPayment", mock.Anything, "bk-1", mock.Anything)
+				assert.Equal(t, tc.wantNotified, findEvent(publishedEvents(t, rdb), notification.PaymentFailed) != nil)
+			})
+		}
 	})
 
 	t.Run("erreur - identifiant de transaction invalide", func(t *testing.T) {
@@ -700,7 +740,8 @@ func TestProcessWebhook_ProcessingFailureKeepsEventReplayable(t *testing.T) {
 // =============================================================================
 
 func TestExpireDuePayments(t *testing.T) {
-	d := newCollectTestService()
+	rdb := newNotifRedis(t)
+	d := buildCollectTestService(rdb)
 	impl := service.AsImpl(d.svc)
 	require.NotNil(t, impl)
 
@@ -719,6 +760,7 @@ func TestExpireDuePayments(t *testing.T) {
 	d.paymentWriteRepo.On("MarkPaymentFailed", mock.Anything, "pay-1", mock.Anything).Return(nil)
 	d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", "deleted").Return(nil)
 	d.bookingClient.On("FailPayment", mock.Anything, "bk-1", mock.Anything).Return(nil)
+	d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
 
 	// Payé juste avant l'échéance → held, pas de DELETE
 	d.fedapay.On("GetTransaction", 202).Return(&fedapay.Transaction{ID: 202, Status: "approved"}, nil)
@@ -726,6 +768,7 @@ func TestExpireDuePayments(t *testing.T) {
 	d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-2", "approved").Return(nil)
 	d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-2", "202").Return("pendingApproval", nil)
 	d.paymentWriteRepo.On("MarkBookingSynced", mock.Anything, "pay-2").Return(nil)
+	d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-2").Return(payableBooking(time.Now().UTC()), nil)
 
 	// DELETE en échec, transaction toujours pending → retentée au prochain tick
 	d.fedapay.On("GetTransaction", 303).Return(&fedapay.Transaction{ID: 303, Status: "pending"}, nil)
@@ -738,6 +781,10 @@ func TestExpireDuePayments(t *testing.T) {
 	d.bookingClient.AssertCalled(t, "ConfirmPayment", mock.Anything, "bk-2", "202")
 	d.paymentWriteRepo.AssertNotCalled(t, "MarkPaymentFailed", mock.Anything, "pay-3", mock.Anything)
 	d.bookingClient.AssertNotCalled(t, "FailPayment", mock.Anything, "bk-3", mock.Anything)
+
+	failedEvent := findEvent(publishedEvents(t, rdb), notification.PaymentFailed)
+	require.NotNil(t, failedEvent, "l'expiration doit notifier le passager")
+	assert.Equal(t, "pay-1", failedEvent.ReferenceID)
 }
 
 // =============================================================================
