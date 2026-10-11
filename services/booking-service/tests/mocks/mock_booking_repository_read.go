@@ -79,6 +79,14 @@ func (m *MockBookingRepositoryRead) GetCompletedBookingsPendingRelease(ctx conte
 	return args.Get(0).([]*domain.Booking), args.Error(1)
 }
 
+func (m *MockBookingRepositoryRead) GetBookingsPendingRefundRequest(ctx context.Context, updatedBefore time.Time, maxAttempts, limit int) ([]*domain.Booking, error) {
+	args := m.Called(ctx, updatedBefore, maxAttempts, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Booking), args.Error(1)
+}
+
 func (m *MockBookingRepositoryRead) GetSegmentOccupancy(ctx context.Context, tripID string, segmentOrder int) (int, error) {
 	args := m.Called(ctx, tripID, segmentOrder)
 	return args.Int(0), args.Error(1)

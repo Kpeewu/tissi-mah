@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -358,15 +359,27 @@ func (s *paymentServiceImpl) RequestRefund(ctx context.Context, input *serviceIn
 }
 
 // createRefundForPayment crée le remboursement d'un paiement held/released et le passe en refunded.
+// Idempotent : un paiement n'a qu'un remboursement (index unique), une nouvelle demande retourne
+// celui qui existe déjà (rejeu par booking-service après une réponse perdue).
 func (s *paymentServiceImpl) createRefundForPayment(ctx context.Context, payment *domain.Payment, input *serviceInterfaces.RequestRefundInput) (*serviceInterfaces.RequestRefundResult, error) {
+	if existing, err := s.existingRefundResult(ctx, payment); err != nil || existing != nil {
+		return existing, err
+	}
+
 	if payment.Status != domain.PaymentStatusHeld && payment.Status != domain.PaymentStatusReleased {
 		return nil, paymentErrors.ErrorInvalidPaymentStatus
 	}
 
-	// Parser les dates
-	departureDatetime, err := time.Parse(time.RFC3339, input.DepartureDatetime)
-	if err != nil {
-		return nil, paymentErrors.ErrorInvalidInput
+	// Parser les dates. Le départ ne sert qu'à la règle des 24h d'une annulation passager :
+	// il peut manquer pour les autres motifs (ex. arrêt supprimé, introuvable côté trips-service).
+	reason := domain.RefundReason(input.RefundReason)
+	var departureDatetime time.Time
+	if input.DepartureDatetime != "" || reason == domain.RefundReasonCancelledByPassenger {
+		parsed, err := time.Parse(time.RFC3339, input.DepartureDatetime)
+		if err != nil {
+			return nil, paymentErrors.ErrorInvalidInput
+		}
+		departureDatetime = parsed
 	}
 
 	cancelledAt, err := time.Parse(time.RFC3339, input.CancelledAt)
@@ -384,7 +397,6 @@ func (s *paymentServiceImpl) createRefundForPayment(ctx context.Context, payment
 	}
 
 	// Déterminer la règle de remboursement
-	reason := domain.RefundReason(input.RefundReason)
 	rule := DetermineRefundRule(reason, departureDatetime, approvedAt, cancelledAt, s.cfg.Refund)
 
 	// Calculer les montants
@@ -431,6 +443,12 @@ func (s *paymentServiceImpl) createRefundForPayment(ctx context.Context, payment
 
 	if s.refundWriteRepo != nil {
 		if err := s.refundWriteRepo.CreateRefund(ctx, refund); err != nil {
+			if errors.Is(err, paymentErrors.ErrorRefundAlreadyProcessed) {
+				// Demande concurrente pour le même paiement : retourner le remboursement gagnant
+				if existing, findErr := s.existingRefundResult(ctx, payment); findErr != nil || existing != nil {
+					return existing, findErr
+				}
+			}
 			return nil, err
 		}
 	}
@@ -477,6 +495,41 @@ func (s *paymentServiceImpl) createRefundForPayment(ctx context.Context, payment
 		RefundReference: refundRef,
 		Status:          string(refundStatus),
 		RefundAmount:    calc.RefundAmount,
+	}, nil
+}
+
+// existingRefundResult retourne le remboursement déjà créé pour le paiement, ou nil s'il n'y en a pas.
+// Si le passage du paiement en refunded avait échoué, il est retenté.
+func (s *paymentServiceImpl) existingRefundResult(
+	ctx context.Context, payment *domain.Payment,
+) (*serviceInterfaces.RequestRefundResult, error) {
+	if s.refundReadRepo == nil {
+		return nil, nil
+	}
+	refund, err := s.refundReadRepo.GetByPaymentID(ctx, payment.PaymentID)
+	if err != nil {
+		if errors.Is(err, paymentErrors.ErrorRefundNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if payment.Status == domain.PaymentStatusHeld || payment.Status == domain.PaymentStatusReleased {
+		err := s.paymentWriteRepo.UpdatePaymentStatus(ctx, payment.PaymentID, domain.PaymentStatusRefunded, "")
+		if err != nil {
+			s.logger.Error("update payment status to refunded failed", zap.Error(err))
+		}
+	}
+
+	s.logger.Info("refund already exists for payment, returning it",
+		zap.String("paymentID", payment.PaymentID),
+		zap.String("refundID", refund.RefundID),
+	)
+	return &serviceInterfaces.RequestRefundResult{
+		RefundID:        refund.RefundID,
+		RefundReference: refund.RefundReference,
+		Status:          string(refund.Status),
+		RefundAmount:    refund.RefundAmount,
 	}, nil
 }
 

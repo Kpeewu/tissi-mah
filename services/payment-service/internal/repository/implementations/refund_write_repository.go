@@ -43,6 +43,11 @@ func (r *refundWriteRepository) CreateRefund(ctx context.Context, refund *domain
 		refund.PayoutDestination, provider, refund.PaymentProviderReference,
 	)
 	if err != nil {
+		if isDuplicateKeyError(err) {
+			// uq_refunds_payment_id : un remboursement existe déjà pour ce paiement
+			r.logger.Warn("refund already exists for payment", zap.String("paymentID", refund.PaymentID))
+			return paymentErrors.ErrorRefundAlreadyProcessed
+		}
 		r.logger.Error("create refund failed", zap.Error(err), zap.String("refundID", refund.RefundID))
 		return paymentErrors.ErrorInternalServer
 	}

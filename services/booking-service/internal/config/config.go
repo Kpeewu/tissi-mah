@@ -75,6 +75,8 @@ type PaymentConfig struct {
 	// Doit être ≥ PAYMENT_TIMEOUT_MINUTES de payment-service (10) + marge pour son worker d'expiration.
 	PendingTimeoutMinutes         int
 	PendingSweeperIntervalSeconds int
+	// RefundRequestWorkerIntervalSeconds : tick du rejeu des demandes de remboursement non acquittées.
+	RefundRequestWorkerIntervalSeconds int
 }
 
 // Load charge la configuration depuis les variables d'environnement.
@@ -124,10 +126,11 @@ func Load() (*Config, error) {
 			IntervalSeconds: getIntOrDefault(values, "RECONCILIATION_INTERVAL_SECONDS", 300),
 		},
 		Payment: PaymentConfig{
-			ContestationDelaySeconds:      getIntOrDefault(values, "CONTESTATION_DELAY_SECONDS", 7200),
-			ReleaseWorkerIntervalSeconds:  getIntOrDefault(values, "RELEASE_WORKER_INTERVAL_SECONDS", 60),
-			PendingTimeoutMinutes:         getIntOrDefault(values, "PAYMENT_PENDING_TIMEOUT_MINUTES", 12),
-			PendingSweeperIntervalSeconds: getIntOrDefault(values, "PAYMENT_PENDING_SWEEPER_INTERVAL_SECONDS", 60),
+			ContestationDelaySeconds:           getIntOrDefault(values, "CONTESTATION_DELAY_SECONDS", 7200),
+			ReleaseWorkerIntervalSeconds:       getIntOrDefault(values, "RELEASE_WORKER_INTERVAL_SECONDS", 60),
+			PendingTimeoutMinutes:              getIntOrDefault(values, "PAYMENT_PENDING_TIMEOUT_MINUTES", 12),
+			PendingSweeperIntervalSeconds:      getIntOrDefault(values, "PAYMENT_PENDING_SWEEPER_INTERVAL_SECONDS", 60),
+			RefundRequestWorkerIntervalSeconds: getIntOrDefault(values, "REFUND_REQUEST_WORKER_INTERVAL_SECONDS", 60),
 		},
 		LogLevel:           sharedconfig.MustGetString(values, "LOG_LEVEL"),
 		InternalHMACSecret: sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),

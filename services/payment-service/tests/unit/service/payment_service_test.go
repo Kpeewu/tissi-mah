@@ -374,6 +374,70 @@ func TestRequestRefund(t *testing.T) {
 		d.assertExpectations(t)
 	})
 
+	t.Run("idempotent - rejeu sur un paiement deja rembourse retourne le refund existant", func(t *testing.T) {
+		d := newTestService()
+
+		payment := fixtures.NewTestPayment(
+			fixtures.WithPaymentID("pay-replay"),
+			fixtures.WithPaymentBookingID("booking-replay"),
+			fixtures.WithPaymentStatus(domain.PaymentStatusRefunded),
+		)
+		existing := fixtures.NewTestRefund(
+			fixtures.WithRefundID("ref-existing"),
+			fixtures.WithRefundPaymentID("pay-replay"),
+			fixtures.WithRefundAmount(5500),
+			fixtures.WithRefundStatus(domain.RefundStatusPending),
+		)
+		d.paymentReadRepo.On("GetByBookingID", mock.Anything, "booking-replay").Return(payment, nil)
+		d.refundReadRepo.On("GetByPaymentID", mock.Anything, "pay-replay").Return(existing, nil)
+
+		result, err := d.svc.RequestRefund(context.Background(), &serviceInterfaces.RequestRefundInput{
+			BookingID:         "booking-replay",
+			RefundReason:      "tripCancelled",
+			OriginalAmount:    5000,
+			ServiceFee:        500,
+			DepartureDatetime: departure.Format(time.RFC3339),
+			CancelledAt:       cancelledAt.Format(time.RFC3339),
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, "ref-existing", result.RefundID)
+		assert.Equal(t, "pending", result.Status)
+		assert.Equal(t, 5500, result.RefundAmount)
+		d.refundWriteRepo.AssertNotCalled(t, "CreateRefund", mock.Anything, mock.Anything)
+		d.paymentWriteRepo.AssertNotCalled(t, "UpdatePaymentStatus",
+			mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("idempotent - demande concurrente : la violation d'unicite retourne le refund gagnant", func(t *testing.T) {
+		d := newTestService()
+
+		payment := fixtures.NewTestPayment(
+			fixtures.WithPaymentID("pay-race"),
+			fixtures.WithPaymentBookingID("booking-race"),
+			fixtures.WithPaymentStatus(domain.PaymentStatusHeld),
+		)
+		winner := fixtures.NewTestRefund(fixtures.WithRefundID("ref-winner"), fixtures.WithRefundPaymentID("pay-race"))
+		d.paymentReadRepo.On("GetByBookingID", mock.Anything, "booking-race").Return(payment, nil)
+		d.refundReadRepo.On("GetByPaymentID", mock.Anything, "pay-race").Return(nil, paymentErrors.ErrorRefundNotFound).Once()
+		d.refundReadRepo.On("GetByPaymentID", mock.Anything, "pay-race").Return(winner, nil)
+		d.refundWriteRepo.On("CreateRefund", mock.Anything, mock.Anything).Return(paymentErrors.ErrorRefundAlreadyProcessed)
+		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-race", domain.PaymentStatusRefunded, "").Return(nil)
+
+		result, err := d.svc.RequestRefund(context.Background(), &serviceInterfaces.RequestRefundInput{
+			BookingID:         "booking-race",
+			RefundReason:      "tripCancelled",
+			OriginalAmount:    5000,
+			ServiceFee:        500,
+			DepartureDatetime: departure.Format(time.RFC3339),
+			CancelledAt:       cancelledAt.Format(time.RFC3339),
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, "ref-winner", result.RefundID)
+		d.refundWriteRepo.AssertNumberOfCalls(t, "CreateRefund", 1)
+	})
+
 	t.Run("erreur - paiement non held/released", func(t *testing.T) {
 		d := newTestService()
 		ctx := context.Background()
@@ -422,6 +486,52 @@ func TestRequestRefund(t *testing.T) {
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, paymentErrors.ErrorInvalidInput)
 		d.assertExpectations(t)
+	})
+
+	t.Run("depart inconnu : accepte hors annulation passager", func(t *testing.T) {
+		d := newTestService()
+
+		payment := fixtures.NewTestPayment(
+			fixtures.WithPaymentID("pay-no-departure"),
+			fixtures.WithPaymentStatus(domain.PaymentStatusHeld),
+		)
+		d.paymentReadRepo.On("GetByBookingID", mock.Anything, "booking-no-departure").Return(payment, nil)
+		d.refundWriteRepo.On("CreateRefund", mock.Anything, mock.MatchedBy(func(r *domain.Refund) bool {
+			return r.RefundReason == domain.RefundReasonWaypointCancelled &&
+				r.RefundRuleApplied == domain.RefundRuleDriverCancellation
+		})).Return(nil)
+		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-no-departure", domain.PaymentStatusRefunded, "").
+			Return(nil)
+
+		result, err := d.svc.RequestRefund(context.Background(), &serviceInterfaces.RequestRefundInput{
+			BookingID:      "booking-no-departure",
+			RefundReason:   "waypointCancelled",
+			OriginalAmount: 5000,
+			ServiceFee:     500,
+			CancelledAt:    time.Now().UTC().Format(time.RFC3339),
+		})
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, result.RefundID)
+	})
+
+	t.Run("erreur - depart inconnu pour une annulation passager", func(t *testing.T) {
+		d := newTestService()
+
+		payment := fixtures.NewTestPayment(fixtures.WithPaymentStatus(domain.PaymentStatusHeld))
+		d.paymentReadRepo.On("GetByBookingID", mock.Anything, "booking-pax-no-departure").Return(payment, nil)
+
+		result, err := d.svc.RequestRefund(context.Background(), &serviceInterfaces.RequestRefundInput{
+			BookingID:      "booking-pax-no-departure",
+			RefundReason:   "cancelledByPassenger",
+			OriginalAmount: 5000,
+			ServiceFee:     500,
+			CancelledAt:    time.Now().UTC().Format(time.RFC3339),
+		})
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, paymentErrors.ErrorInvalidInput)
+		d.refundWriteRepo.AssertNotCalled(t, "CreateRefund", mock.Anything, mock.Anything)
 	})
 }
 

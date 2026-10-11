@@ -813,6 +813,17 @@ func bulkCancelFixtures(tripID string) (pending, paid, cash *domain.Booking) {
 	return pending, paid, cash
 }
 
+// withRefundDue simule la réservation relue après la transition : statut final et motif du
+// remboursement dû posé par le repository.
+func withRefundDue(b *domain.Booking, status domain.BookingStatus, reason string) *domain.Booking {
+	cp := *b
+	now := time.Now().UTC()
+	cp.Status = status
+	cp.CancelledAt = &now
+	cp.RefundReason = &reason
+	return &cp
+}
+
 func TestCancelBookingsForTrip_Payments(t *testing.T) {
 	t.Run("supprime la collecte des paymentPending et rembourse les réservations payées", func(t *testing.T) {
 		d := newTestService()
@@ -822,6 +833,9 @@ func TestCancelBookingsForTrip_Payments(t *testing.T) {
 		d.writeRepo.On("CancelBookingsForTrip", mock.Anything, "trip-bulk").
 			Return([]*domain.Booking{pending, paid, cash}, nil)
 		d.tripClient.On("GetTripDetails", mock.Anything, "trip-bulk").Return(nil, nil).Maybe()
+		d.readRepo.On("GetByID", mock.Anything, "bk-bulk-paid").
+			Return(withRefundDue(paid, domain.BookingStatusCancelled, domain.RefundReasonTripCancelled), nil)
+		d.writeRepo.On("MarkRefundRequested", mock.Anything, "bk-bulk-paid").Return(nil)
 
 		cancelled := make(chan string, 1)
 		refunded := make(chan string, 1)
@@ -880,6 +894,9 @@ func TestCancelBookingsForWaypoint_Payments(t *testing.T) {
 		d.writeRepo.On("CancelBookingsForWaypoint", mock.Anything, "trip-wp", "wp-1").
 			Return([]*domain.Booking{pending, paid, cash}, nil)
 		d.tripClient.On("GetTripDetails", mock.Anything, "trip-wp").Return(nil, nil).Maybe()
+		d.readRepo.On("GetByID", mock.Anything, "bk-bulk-paid").
+			Return(withRefundDue(paid, domain.BookingStatusCancelled, domain.RefundReasonWaypointCancelled), nil)
+		d.writeRepo.On("MarkRefundRequested", mock.Anything, "bk-bulk-paid").Return(nil)
 
 		cancelled := make(chan string, 1)
 		refunded := make(chan string, 1)
