@@ -59,6 +59,7 @@ const (
 	RefundReasonNoShowDriver         RefundReason = "noShowDriver"
 	RefundReasonNoShowPassenger      RefundReason = "noShowPassenger"
 	RefundReasonTripCancelled        RefundReason = "tripCancelled"
+	RefundReasonWaypointCancelled    RefundReason = "waypointCancelled" // arrêt du passager supprimé par le chauffeur
 	RefundReasonBookingRejected      RefundReason = "bookingRejected"
 	RefundReasonDispute              RefundReason = "dispute"
 	RefundReasonSeatsUnavailable     RefundReason = "seatsUnavailable"   // approuvé après libération, trajet complet

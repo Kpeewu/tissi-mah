@@ -72,6 +72,15 @@ func TestDetermineRefundRule(t *testing.T) {
 		assert.Equal(t, domain.RefundRuleDriverCancellation, rule)
 	})
 
+	t.Run("arret supprime → driverCancellation", func(t *testing.T) {
+		rule := service.DetermineRefundRule(
+			domain.RefundReasonWaypointCancelled,
+			departure, nil,
+			time.Now().UTC(), cfg,
+		)
+		assert.Equal(t, domain.RefundRuleDriverCancellation, rule)
+	})
+
 	t.Run("passager annule plus de 24h avant depart → cancelled24hBefore", func(t *testing.T) {
 		cancelledAt := departure.Add(-25 * time.Hour) // 25h avant
 		rule := service.DetermineRefundRule(
