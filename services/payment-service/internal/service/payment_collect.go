@@ -374,7 +374,8 @@ func (s *paymentServiceImpl) fetchProviderStatus(payment *domain.Payment) (strin
 // applyProviderStatus applique un statut FedaPay (webhook, callback, vérification mobile ou worker)
 // au paiement et à la réservation. Idempotent : les transitions sont protégées par verrouillage optimiste.
 //
-//	approved / transferred → pending|failed → held, réservation confirmée (ou remboursement si plus de places)
+//	approved / transferred → pending|failed → held, réservation confirmée (ou remboursement si plus de places
+//	                         ou si la réservation n'est plus confirmable : annulée, rejetée, etc.)
 //	declined / canceled    → reste pending (nouvelle tentative possible sur la page FedaPay)
 //	expired / deleted      → pending → failed, réservation paymentFailed (places libérées)
 func (s *paymentServiceImpl) applyProviderStatus(ctx context.Context, payment *domain.Payment, providerStatus string) (domain.PaymentStatus, error) {
@@ -412,7 +413,8 @@ func (s *paymentServiceImpl) applyProviderStatus(ctx context.Context, payment *d
 }
 
 // applyApproval passe le paiement en held et rattache l'argent à la réservation.
-// Si la réservation a été libérée entre-temps et que le trajet est complet, le passager est remboursé intégralement.
+// Le passager est remboursé intégralement si la réservation a été libérée entre-temps et que le trajet
+// est complet, ou si elle n'est plus confirmable (annulée, rejetée, etc.).
 func (s *paymentServiceImpl) applyApproval(ctx context.Context, payment *domain.Payment) (domain.PaymentStatus, error) {
 	switch payment.Status {
 	case domain.PaymentStatusPending:
@@ -465,12 +467,10 @@ func (s *paymentServiceImpl) applyApproval(ctx context.Context, payment *domain.
 			zap.String("paymentID", payment.PaymentID),
 			zap.String("bookingID", payment.BookingID),
 		)
-		if refundErr := s.refundUnplaceablePayment(ctx, payment.PaymentID); refundErr != nil {
-			s.logger.Error("refund of unplaceable payment failed — remboursement manuel requis",
-				zap.String("paymentID", payment.PaymentID), zap.Error(refundErr))
-			return domain.PaymentStatusHeld, nil
-		}
-		return domain.PaymentStatusRefunded, nil
+		return s.refundUnconfirmablePayment(ctx, payment.PaymentID, domain.RefundReasonSeatsUnavailable), nil
+	case errors.Is(err, paymentErrors.ErrorBookingNotConfirmable):
+		// Réservation annulée, rejetée, etc. : l'argent ne peut plus y être rattaché
+		return s.handleUnconfirmableBooking(ctx, payment), nil
 	default:
 		// booking-service indisponible : le paiement reste held, le sweeper booking-service rattrapera
 		s.logger.Error("confirm payment to booking-service failed", zap.String("paymentID", payment.PaymentID), zap.Error(err))
@@ -483,9 +483,53 @@ func (s *paymentServiceImpl) applyApproval(ctx context.Context, payment *domain.
 	return domain.PaymentStatusHeld, nil
 }
 
-// refundUnplaceablePayment rembourse intégralement un paiement held dont la réservation
-// ne peut plus être confirmée (trajet complet après libération des places).
-func (s *paymentServiceImpl) refundUnplaceablePayment(ctx context.Context, paymentID string) error {
+// handleUnconfirmableBooking traite une approbation FedaPay pour une réservation que booking-service
+// refuse de confirmer (statut incompatible). Si la réservation est définitivement close (annulée,
+// rejetée, etc.), le passager est remboursé intégralement. PAYMENT_COMPLETED n'est jamais publié.
+func (s *paymentServiceImpl) handleUnconfirmableBooking(ctx context.Context, payment *domain.Payment) domain.PaymentStatus {
+	booking, err := s.bookingClient.GetBookingDetails(ctx, payment.BookingID)
+	if err != nil {
+		s.logger.Error("unconfirmable booking: get booking details failed — remboursement manuel requis",
+			zap.String("paymentID", payment.PaymentID),
+			zap.String("bookingID", payment.BookingID),
+			zap.Error(err),
+		)
+		return domain.PaymentStatusHeld
+	}
+	if booking.Status == bookingStatusPaymentPending || booking.Status == bookingStatusPaymentFailed {
+		// Statut modifié pendant la confirmation (course) : la réservation reste payable, pas de remboursement
+		s.logger.Error("unconfirmable booking is still payable — rattachement manuel requis",
+			zap.String("paymentID", payment.PaymentID),
+			zap.String("bookingID", payment.BookingID),
+			zap.String("bookingStatus", booking.Status),
+		)
+		return domain.PaymentStatusHeld
+	}
+
+	s.logger.Warn("approval for a booking that can no longer be confirmed, refunding passenger",
+		zap.String("paymentID", payment.PaymentID),
+		zap.String("bookingID", payment.BookingID),
+		zap.String("bookingStatus", booking.Status),
+	)
+	return s.refundUnconfirmablePayment(ctx, payment.PaymentID, domain.RefundReasonBookingUnavailable)
+}
+
+// refundUnconfirmablePayment rembourse intégralement un paiement held dont la réservation ne peut plus
+// être confirmée et retourne le statut résultant (held si le remboursement échoue : traitement manuel).
+func (s *paymentServiceImpl) refundUnconfirmablePayment(ctx context.Context, paymentID string, reason domain.RefundReason) domain.PaymentStatus {
+	if err := s.createFullRefund(ctx, paymentID, reason); err != nil {
+		s.logger.Error("refund of unconfirmable payment failed — remboursement manuel requis",
+			zap.String("paymentID", paymentID),
+			zap.String("reason", string(reason)),
+			zap.Error(err),
+		)
+		return domain.PaymentStatusHeld
+	}
+	return domain.PaymentStatusRefunded
+}
+
+// createFullRefund crée le remboursement intégral (sous-total + frais de service) d'un paiement held.
+func (s *paymentServiceImpl) createFullRefund(ctx context.Context, paymentID string, reason domain.RefundReason) error {
 	payment, err := s.paymentReadRepo.GetByID(ctx, paymentID)
 	if err != nil {
 		return err
@@ -498,7 +542,7 @@ func (s *paymentServiceImpl) refundUnplaceablePayment(ctx context.Context, payme
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err = s.createRefundForPayment(ctx, payment, &serviceInterfaces.RequestRefundInput{
 		BookingID:         payment.BookingID,
-		RefundReason:      string(domain.RefundReasonSeatsUnavailable),
+		RefundReason:      string(reason),
 		OriginalAmount:    booking.Subtotal,
 		ServiceFee:        booking.ServiceFee,
 		DepartureDatetime: now,
