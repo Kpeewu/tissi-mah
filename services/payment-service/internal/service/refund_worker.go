@@ -178,7 +178,8 @@ func (s *paymentServiceImpl) processRefund(ctx context.Context, refund *domain.R
 			zap.String("refundID", refund.RefundID),
 			zap.String("paymentID", refund.PaymentID),
 		)
-		if err := s.refundWriteRepo.MarkRefundFailed(ctx, refund.RefundID, "missing passenger phone number", false); err != nil {
+		err := s.refundWriteRepo.MarkRefundFailed(ctx, refund.RefundID, "missing passenger phone number", false)
+		if err != nil {
 			s.logger.Error("mark refund failed (missing phone) failed", zap.Error(err))
 			return nil
 		}

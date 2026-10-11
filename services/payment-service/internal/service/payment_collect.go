@@ -486,7 +486,9 @@ func (s *paymentServiceImpl) applyApproval(ctx context.Context, payment *domain.
 // handleUnconfirmableBooking traite une approbation FedaPay pour une réservation que booking-service
 // refuse de confirmer (statut incompatible). Si la réservation est définitivement close (annulée,
 // rejetée, etc.), le passager est remboursé intégralement. PAYMENT_COMPLETED n'est jamais publié.
-func (s *paymentServiceImpl) handleUnconfirmableBooking(ctx context.Context, payment *domain.Payment) domain.PaymentStatus {
+func (s *paymentServiceImpl) handleUnconfirmableBooking(
+	ctx context.Context, payment *domain.Payment,
+) domain.PaymentStatus {
 	booking, err := s.bookingClient.GetBookingDetails(ctx, payment.BookingID)
 	if err != nil {
 		s.logger.Error("unconfirmable booking: get booking details failed — remboursement manuel requis",
@@ -516,7 +518,9 @@ func (s *paymentServiceImpl) handleUnconfirmableBooking(ctx context.Context, pay
 
 // refundUnconfirmablePayment rembourse intégralement un paiement held dont la réservation ne peut plus
 // être confirmée et retourne le statut résultant (held si le remboursement échoue : traitement manuel).
-func (s *paymentServiceImpl) refundUnconfirmablePayment(ctx context.Context, paymentID string, reason domain.RefundReason) domain.PaymentStatus {
+func (s *paymentServiceImpl) refundUnconfirmablePayment(
+	ctx context.Context, paymentID string, reason domain.RefundReason,
+) domain.PaymentStatus {
 	if err := s.createFullRefund(ctx, paymentID, reason); err != nil {
 		s.logger.Error("refund of unconfirmable payment failed — remboursement manuel requis",
 			zap.String("paymentID", paymentID),

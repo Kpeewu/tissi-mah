@@ -7,6 +7,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Kpeewu/tissi-mah/pkg/notification"
@@ -17,7 +18,7 @@ func newNotifRedis(t *testing.T) *redis.Client {
 	t.Helper()
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	t.Cleanup(func() { _ = rdb.Close() })
+	t.Cleanup(func() { assert.NoError(t, rdb.Close()) })
 	return rdb
 }
 

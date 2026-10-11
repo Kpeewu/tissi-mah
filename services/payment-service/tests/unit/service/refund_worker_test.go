@@ -31,7 +31,9 @@ func newRefundWorkerTestService(t *testing.T, refundMaxRetries int) *testDeps {
 }
 
 // buildRefundWorkerTestService construit le service avec le client FedaPay et le Redis de notifications fournis.
-func buildRefundWorkerTestService(t *testing.T, refundMaxRetries int, fedapayClient fedapay.FedaPayClient, notifRedis *redis.Client) *testDeps {
+func buildRefundWorkerTestService(
+	t *testing.T, refundMaxRetries int, fedapayClient fedapay.FedaPayClient, notifRedis *redis.Client,
+) *testDeps {
 	t.Helper()
 	d := &testDeps{
 		paymentReadRepo:   new(mocks.MockPaymentRepositoryRead),
@@ -463,8 +465,10 @@ func TestProcessPendingRefunds_Notifications(t *testing.T) {
 		}
 
 		d.refundReadRepo.On("GetPendingRefundsForPayout", mock.Anything, 20).Return([]*domain.Refund{refund}, nil)
-		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(&domain.Payment{PaymentID: "pay-1", BookingID: "book-1"}, nil)
-		d.refundWriteRepo.On("MarkRefundFailed", mock.Anything, "ref-no-phone", "missing passenger phone number", false).Return(nil)
+		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").
+			Return(&domain.Payment{PaymentID: "pay-1", BookingID: "book-1"}, nil)
+		d.refundWriteRepo.On("MarkRefundFailed", mock.Anything, "ref-no-phone", "missing passenger phone number", false).
+			Return(nil)
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "book-1").Return(booking, nil)
 
 		require.NoError(t, service.AsImpl(d.svc).ProcessPendingRefunds(context.Background()))

@@ -383,12 +383,14 @@ func TestVerifyPayment(t *testing.T) {
 		d.refundWriteRepo.AssertExpectations(t)
 	})
 
-	t.Run("approbation pour une réservation annulée → remboursement intégral, pas de PAYMENT_COMPLETED", func(t *testing.T) {
+	t.Run("réservation annulée → remboursement intégral, pas de PAYMENT_COMPLETED", func(t *testing.T) {
 		rdb := newNotifRedis(t)
 		d := buildCollectTestService(rdb)
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(pendingPayment(), nil).Once()
-		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(withStatus(pendingPayment(), domain.PaymentStatusHeld), nil).Once()
-		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(withStatus(pendingPayment(), domain.PaymentStatusRefunded), nil)
+		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").
+			Return(withStatus(pendingPayment(), domain.PaymentStatusHeld), nil).Once()
+		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").
+			Return(withStatus(pendingPayment(), domain.PaymentStatusRefunded), nil)
 		booking := payableBooking(time.Now().UTC())
 		booking.Status = "cancelled"
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(booking, nil)
@@ -396,7 +398,8 @@ func TestVerifyPayment(t *testing.T) {
 		d.fedapay.On("GetTransaction", 101).Return(&fedapay.Transaction{ID: 101, Status: "approved"}, nil)
 		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-1", domain.PaymentStatusHeld, "101").Return(nil)
 		d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", "approved").Return(nil)
-		d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-1", "101").Return("", paymentErrors.ErrorBookingNotConfirmable)
+		d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-1", "101").
+			Return("", paymentErrors.ErrorBookingNotConfirmable)
 		d.refundWriteRepo.On("CreateRefund", mock.Anything, mock.MatchedBy(func(r *domain.Refund) bool {
 			return r.RefundReason == domain.RefundReasonBookingUnavailable &&
 				r.AmountToPassenger == 5500 && // sous-total + frais de service
@@ -423,13 +426,16 @@ func TestVerifyPayment(t *testing.T) {
 		rdb := newNotifRedis(t)
 		d := buildCollectTestService(rdb)
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(pendingPayment(), nil).Once()
-		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(withStatus(pendingPayment(), domain.PaymentStatusHeld), nil)
-		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
+		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").
+			Return(withStatus(pendingPayment(), domain.PaymentStatusHeld), nil)
+		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").
+			Return(payableBooking(time.Now().UTC()), nil)
 		d.expectOwner()
 		d.fedapay.On("GetTransaction", 101).Return(&fedapay.Transaction{ID: 101, Status: "approved"}, nil)
 		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-1", domain.PaymentStatusHeld, "101").Return(nil)
 		d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", "approved").Return(nil)
-		d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-1", "101").Return("", paymentErrors.ErrorBookingNotConfirmable)
+		d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-1", "101").
+			Return("", paymentErrors.ErrorBookingNotConfirmable)
 
 		result, err := d.svc.VerifyPayment(passengerCtx(), "pay-1")
 
