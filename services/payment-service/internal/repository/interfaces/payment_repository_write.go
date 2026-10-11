@@ -22,6 +22,13 @@ type PaymentRepositoryWrite interface {
 	// MarkFailedPaymentHeld fait passer un paiement failed → held (approbation FedaPay tardive revérifiée).
 	MarkFailedPaymentHeld(ctx context.Context, paymentID string) error
 
+	// MarkBookingSynced enregistre que le paiement held est rattaché à sa réservation (idempotent).
+	MarkBookingSynced(ctx context.Context, paymentID string) error
+
+	// IncrementBookingSyncAttempts incrémente le compteur de reprises de rattachement échouées
+	// et retourne sa nouvelle valeur.
+	IncrementBookingSyncAttempts(ctx context.Context, paymentID string) (int, error)
+
 	// AnonymizePassengerPhoneNumbers efface passenger_phone_number pour les paiements
 	// dont le booking_id figure dans la liste. Utilisé lors de la suppression de compte.
 	AnonymizePassengerPhoneNumbers(ctx context.Context, bookingIDs []string) error

@@ -733,8 +733,14 @@ approval for a booking that is no longer confirmable (cancelled, rejected…) �
   - If the transaction was approved, it applies the approval.
   - Otherwise it deletes the transaction (`DELETE /v1/transactions/{id}`), marks the payment `failed`, calls booking-service `FailPayment` (seats released) and publishes `PAYMENT_FAILED`.
 - **booking-service sweeper** (`PAYMENT_PENDING_TIMEOUT_MINUTES`, default 12): it handles `paymentPending` bookings whose payment never started (`createPayment` was never called) or whose confirmation was lost.
-  - No payment, or `failed`: `FailPayment`.
+  - No payment, `failed` or `refunded`: `FailPayment`.
   - `held`: `ConfirmPayment`.
+- **Held payment not attached to its booking** (booking-service unreachable during the approval, typically a late approval on a `paymentFailed` booking, which the booking-service sweeper does not see): the payment stays `held` with `booking_synced_at` NULL. On every tick, under the same Redis lock, the expiration worker retries the payments that have been `held` for more than 2 minutes (`RetryUnsyncedHeldPayments`, batches of 100).
+  - `ConfirmPayment` accepted, or booking already confirmed: the payment is marked as attached (`booking_synced_at`).
+  - Trip full (`seatsUnavailable`) or booking no longer confirmable (`bookingUnavailable`): full refund.
+  - booking-service still unreachable: the attempt is counted (`booking_sync_attempts`) and retried on the next tick.
+  - After **5 failed attempts**, the payment is no longer attached: the passenger is refunded in full automatically (`bookingUnavailable`, payment → `refunded`). If booking-service is still unreachable, the collected amount (`Amount`) is refunded as is. A failed refund is retried on the next tick, without calling `ConfirmPayment` again.
+  - A refund already exists for the payment: marked as attached, no second refund.
 - **Booking cancelled while `paymentPending`**: booking-service first calls `CancelPaymentForBooking` (internal gRPC), so the FedaPay link stops working before the seats are released.
 - **Trip cancelled or stop removed by the driver** (`CancelBookingsForTrip` / `CancelBookingsForWaypoint`): bookings are cancelled first, then booking-service calls `CancelPaymentForBooking` asynchronously for each `paymentPending` booking (and `RequestRefund` with `tripCancelled` / `waypointCancelled` for paid ones).
   - If FedaPay had already approved, the approval reaches a cancelled booking and the passenger is refunded in full (`bookingUnavailable`).

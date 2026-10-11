@@ -65,3 +65,11 @@ func (m *MockPaymentRepositoryRead) GetPendingByBookingID(ctx context.Context, b
 	}
 	return args.Get(0).(*domain.Payment), args.Error(1)
 }
+
+func (m *MockPaymentRepositoryRead) GetUnsyncedHeldPayments(ctx context.Context, completedBefore time.Time, limit int) ([]*domain.Payment, error) {
+	args := m.Called(ctx, completedBefore, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Payment), args.Error(1)
+}

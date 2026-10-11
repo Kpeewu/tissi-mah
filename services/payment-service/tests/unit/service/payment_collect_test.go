@@ -303,6 +303,7 @@ func TestVerifyPayment(t *testing.T) {
 		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-1", domain.PaymentStatusHeld, "101").Return(nil)
 		d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", "approved").Return(nil)
 		d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-1", "101").Return("approved", nil)
+		d.paymentWriteRepo.On("MarkBookingSynced", mock.Anything, "pay-1").Return(nil)
 
 		result, err := d.svc.VerifyPayment(passengerCtx(), "pay-1")
 
@@ -381,6 +382,32 @@ func TestVerifyPayment(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "refunded", result.Status)
 		d.refundWriteRepo.AssertExpectations(t)
+	})
+
+	t.Run("approbation tardive, booking-service indisponible → held non rattaché", func(t *testing.T) {
+		rdb := newNotifRedis(t)
+		d := buildCollectTestService(rdb)
+		failed := withStatus(pendingPayment(), domain.PaymentStatusFailed)
+		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(failed, nil).Once()
+		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").
+			Return(withStatus(pendingPayment(), domain.PaymentStatusHeld), nil)
+		booking := payableBooking(time.Now().UTC())
+		booking.Status = "paymentFailed"
+		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(booking, nil)
+		d.expectOwner()
+		d.fedapay.On("GetTransaction", 101).Return(&fedapay.Transaction{ID: 101, Status: "approved"}, nil)
+		d.paymentWriteRepo.On("MarkFailedPaymentHeld", mock.Anything, "pay-1").Return(nil)
+		d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-1", "101").
+			Return("", errors.New("booking-service unavailable"))
+
+		result, err := d.svc.VerifyPayment(passengerCtx(), "pay-1")
+
+		require.NoError(t, err)
+		assert.Equal(t, "held", result.Status)
+		d.paymentWriteRepo.AssertNotCalled(t, "MarkBookingSynced", mock.Anything, mock.Anything)
+		d.refundWriteRepo.AssertNotCalled(t, "CreateRefund", mock.Anything, mock.Anything)
+		// L'argent est encaissé : PAYMENT_COMPLETED est publié même sans rattachement
+		assert.NotNil(t, findEvent(publishedEvents(t, rdb), notification.PaymentCompleted))
 	})
 
 	t.Run("réservation annulée → remboursement intégral, pas de PAYMENT_COMPLETED", func(t *testing.T) {
@@ -493,6 +520,7 @@ func TestCancelPayment(t *testing.T) {
 		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-1", domain.PaymentStatusHeld, "101").Return(nil)
 		d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", "approved").Return(nil)
 		d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-1", "101").Return("pendingApproval", nil)
+		d.paymentWriteRepo.On("MarkBookingSynced", mock.Anything, "pay-1").Return(nil)
 
 		result, err := d.svc.CancelPayment(passengerCtx(), "pay-1")
 
@@ -562,6 +590,7 @@ func TestHandlePaymentCallback(t *testing.T) {
 		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-1", domain.PaymentStatusHeld, "101").Return(nil)
 		d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", "approved").Return(nil)
 		d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-1", "101").Return("pendingApproval", nil)
+		d.paymentWriteRepo.On("MarkBookingSynced", mock.Anything, "pay-1").Return(nil)
 
 		result, err := d.svc.HandlePaymentCallback(context.Background(), "101")
 
@@ -631,6 +660,7 @@ func TestExpireDuePayments(t *testing.T) {
 	d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-2", domain.PaymentStatusHeld, "202").Return(nil)
 	d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-2", "approved").Return(nil)
 	d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-2", "202").Return("pendingApproval", nil)
+	d.paymentWriteRepo.On("MarkBookingSynced", mock.Anything, "pay-2").Return(nil)
 
 	// DELETE en échec, transaction toujours pending → retentée au prochain tick
 	d.fedapay.On("GetTransaction", 303).Return(&fedapay.Transaction{ID: 303, Status: "pending"}, nil)
@@ -643,4 +673,125 @@ func TestExpireDuePayments(t *testing.T) {
 	d.bookingClient.AssertCalled(t, "ConfirmPayment", mock.Anything, "bk-2", "202")
 	d.paymentWriteRepo.AssertNotCalled(t, "MarkPaymentFailed", mock.Anything, "pay-3", mock.Anything)
 	d.bookingClient.AssertNotCalled(t, "FailPayment", mock.Anything, "bk-3", mock.Anything)
+}
+
+// =============================================================================
+// Rattachement des paiements held non confirmés auprès de booking-service
+// =============================================================================
+
+// unsyncedHeldPayment construit un paiement held non rattaché à sa réservation.
+func unsyncedHeldPayment(paymentID, bookingID, externalID string, attempts int) *domain.Payment {
+	p := withStatus(pendingPayment(), domain.PaymentStatusHeld)
+	p.PaymentID, p.BookingID, p.ExternalTransactionID = paymentID, bookingID, externalID
+	p.BookingSyncAttempts = attempts
+	return p
+}
+
+// expectFullRefund configure le remboursement intégral (5500) d'un paiement held avec le motif donné.
+func (d *collectDeps) expectFullRefund(payment *domain.Payment, reason domain.RefundReason) {
+	d.paymentReadRepo.On("GetByID", mock.Anything, payment.PaymentID).Return(payment, nil)
+	d.refundWriteRepo.On("CreateRefund", mock.Anything, mock.MatchedBy(func(r *domain.Refund) bool {
+		return r.PaymentID == payment.PaymentID && r.RefundReason == reason && r.AmountToPassenger == 5500
+	})).Return(nil)
+	d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, payment.PaymentID, domain.PaymentStatusRefunded, "").
+		Return(nil)
+}
+
+func TestRetryUnsyncedHeldPayments(t *testing.T) {
+	bookingDownErr := errors.New("booking-service unavailable")
+
+	// retry configure le lot retourné par le repository (aucun remboursement déjà créé).
+	retry := func(t *testing.T, d *collectDeps, payments ...*domain.Payment) {
+		t.Helper()
+		d.paymentReadRepo.On("GetUnsyncedHeldPayments", mock.Anything,
+			mock.MatchedBy(func(before time.Time) bool { return before.Before(time.Now().UTC().Add(-time.Minute)) }),
+			100,
+		).Return(payments, nil)
+		for _, p := range payments {
+			d.refundReadRepo.On("GetByPaymentID", mock.Anything, p.PaymentID).
+				Return(nil, paymentErrors.ErrorRefundNotFound).Maybe()
+		}
+		impl := service.AsImpl(d.svc)
+		require.NotNil(t, impl)
+		require.NoError(t, impl.RetryUnsyncedHeldPayments(context.Background()))
+	}
+
+	t.Run("réservation réactivée → paiement rattaché, compteur inchangé", func(t *testing.T) {
+		d := newCollectTestService()
+		d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-1", "101").Return("pendingApproval", nil)
+		d.paymentWriteRepo.On("MarkBookingSynced", mock.Anything, "pay-1").Return(nil)
+
+		retry(t, d, unsyncedHeldPayment("pay-1", "bk-1", "101", 2))
+
+		d.paymentWriteRepo.AssertCalled(t, "MarkBookingSynced", mock.Anything, "pay-1")
+		d.paymentWriteRepo.AssertNotCalled(t, "IncrementBookingSyncAttempts", mock.Anything, mock.Anything)
+	})
+
+	t.Run("plus de places → remboursement seatsUnavailable, compteur inchangé", func(t *testing.T) {
+		d := newCollectTestService()
+		payment := unsyncedHeldPayment("pay-2", "bk-2", "202", 0)
+		d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-2", "202").Return("", paymentErrors.ErrorNoSeatsAvailable)
+		bk2 := payableBooking(time.Now().UTC())
+		bk2.BookingID, bk2.Status = "bk-2", "paymentFailed"
+		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-2").Return(bk2, nil)
+		d.expectFullRefund(payment, domain.RefundReasonSeatsUnavailable)
+
+		retry(t, d, payment)
+
+		d.refundWriteRepo.AssertNumberOfCalls(t, "CreateRefund", 1)
+		d.paymentWriteRepo.AssertNotCalled(t, "IncrementBookingSyncAttempts", mock.Anything, mock.Anything)
+	})
+
+	t.Run("booking-service indisponible sous le plafond → tentative comptée, pas de remboursement", func(t *testing.T) {
+		d := newCollectTestService()
+		d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-3", "303").Return("", bookingDownErr)
+		d.paymentWriteRepo.On("IncrementBookingSyncAttempts", mock.Anything, "pay-3").Return(1, nil)
+
+		retry(t, d, unsyncedHeldPayment("pay-3", "bk-3", "303", 0))
+
+		d.paymentWriteRepo.AssertCalled(t, "IncrementBookingSyncAttempts", mock.Anything, "pay-3")
+		d.paymentWriteRepo.AssertNotCalled(t, "MarkBookingSynced", mock.Anything, mock.Anything)
+		d.refundWriteRepo.AssertNotCalled(t, "CreateRefund", mock.Anything, mock.Anything)
+	})
+
+	t.Run("5e échec → remboursement intégral bookingUnavailable sur le montant encaissé", func(t *testing.T) {
+		d := newCollectTestService()
+		payment := unsyncedHeldPayment("pay-5", "bk-5", "505", 4)
+		d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-5", "505").Return("", bookingDownErr)
+		d.paymentWriteRepo.On("IncrementBookingSyncAttempts", mock.Anything, "pay-5").Return(5, nil)
+		// booking-service toujours indisponible : repli sur payment.Amount
+		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-5").Return(nil, bookingDownErr)
+		d.expectFullRefund(payment, domain.RefundReasonBookingUnavailable)
+
+		retry(t, d, payment)
+
+		d.refundWriteRepo.AssertNumberOfCalls(t, "CreateRefund", 1)
+		d.paymentWriteRepo.AssertCalled(t, "UpdatePaymentStatus", mock.Anything, "pay-5", domain.PaymentStatusRefunded, "")
+	})
+
+	t.Run("plafond atteint, remboursement précédent en échec → remboursé sans ConfirmPayment", func(t *testing.T) {
+		d := newCollectTestService()
+		payment := unsyncedHeldPayment("pay-6", "bk-6", "606", 5)
+		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-6").Return(nil, bookingDownErr)
+		d.expectFullRefund(payment, domain.RefundReasonBookingUnavailable)
+
+		retry(t, d, payment)
+
+		d.bookingClient.AssertNotCalled(t, "ConfirmPayment", mock.Anything, mock.Anything, mock.Anything)
+		d.paymentWriteRepo.AssertNotCalled(t, "IncrementBookingSyncAttempts", mock.Anything, mock.Anything)
+		d.refundWriteRepo.AssertNumberOfCalls(t, "CreateRefund", 1)
+	})
+
+	t.Run("remboursement déjà créé → marqué rattaché, pas de second remboursement", func(t *testing.T) {
+		d := newCollectTestService()
+		d.refundReadRepo.On("GetByPaymentID", mock.Anything, "pay-4").
+			Return(&domain.Refund{RefundID: "ref-4", PaymentID: "pay-4"}, nil)
+		d.paymentWriteRepo.On("MarkBookingSynced", mock.Anything, "pay-4").Return(nil)
+
+		retry(t, d, unsyncedHeldPayment("pay-4", "bk-4", "404", 5))
+
+		d.paymentWriteRepo.AssertCalled(t, "MarkBookingSynced", mock.Anything, "pay-4")
+		d.bookingClient.AssertNotCalled(t, "ConfirmPayment", mock.Anything, mock.Anything, mock.Anything)
+		d.refundWriteRepo.AssertNotCalled(t, "CreateRefund", mock.Anything, mock.Anything)
+	})
 }

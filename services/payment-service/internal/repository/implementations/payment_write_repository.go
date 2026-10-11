@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
@@ -149,7 +150,7 @@ func (r *paymentWriteRepository) UpdatePaymentURL(ctx context.Context, paymentID
 // encaissé, il doit être soit rattaché à la réservation, soit remboursé.
 func (r *paymentWriteRepository) MarkFailedPaymentHeld(ctx context.Context, paymentID string) error {
 	tag, err := r.pool.Exec(ctx,
-		`UPDATE payments SET status = 'held', completed_at = NOW(),
+		`UPDATE payments SET status = 'held', completed_at = NOW(), booking_synced_at = NULL, booking_sync_attempts = 0,
 			provider_status = 'approved', provider_status_updated_at = NOW()
 		 WHERE payment_id = $1 AND status = 'failed'`,
 		paymentID,
@@ -166,6 +167,40 @@ func (r *paymentWriteRepository) MarkFailedPaymentHeld(ctx context.Context, paym
 		return paymentErrors.ErrorPaymentAlreadyProcessed
 	}
 	return nil
+}
+
+// MarkBookingSynced enregistre que le paiement held est rattaché à sa réservation :
+// il n'est plus repris par le worker de rattachement. Idempotent.
+func (r *paymentWriteRepository) MarkBookingSynced(ctx context.Context, paymentID string) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE payments SET booking_synced_at = NOW()
+		 WHERE payment_id = $1 AND booking_synced_at IS NULL`,
+		paymentID,
+	)
+	if err != nil {
+		r.logger.Error("mark booking synced failed", zap.Error(err), zap.String("paymentID", paymentID))
+		return paymentErrors.ErrorInternalServer
+	}
+	return nil
+}
+
+// IncrementBookingSyncAttempts incrémente le compteur de reprises de rattachement échouées
+// d'un paiement et retourne sa nouvelle valeur.
+func (r *paymentWriteRepository) IncrementBookingSyncAttempts(ctx context.Context, paymentID string) (int, error) {
+	var attempts int
+	err := r.pool.QueryRow(ctx,
+		`UPDATE payments SET booking_sync_attempts = booking_sync_attempts + 1
+		 WHERE payment_id = $1 RETURNING booking_sync_attempts`,
+		paymentID,
+	).Scan(&attempts)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, paymentErrors.ErrorPaymentNotFound
+		}
+		r.logger.Error("increment booking sync attempts failed", zap.Error(err), zap.String("paymentID", paymentID))
+		return 0, paymentErrors.ErrorInternalServer
+	}
+	return attempts, nil
 }
 
 func (r *paymentWriteRepository) SaveWebhookEvent(ctx context.Context, event *domain.WebhookEvent) error {

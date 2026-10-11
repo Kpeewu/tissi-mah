@@ -17,7 +17,7 @@ import (
 // paymentColumns liste les colonnes lues pour un paiement (ordre attendu par scanPaymentRow).
 const paymentColumns = `payment_id, booking_id, trip_id, amount, payment_method, payment_provider,
 		status, external_transaction_id, payment_reference, passenger_phone_number,
-		COALESCE(payment_url, ''), COALESCE(provider_status, ''), expires_at,
+		COALESCE(payment_url, ''), COALESCE(provider_status, ''), expires_at, booking_sync_attempts,
 		created_at, completed_at, failed_at, failure_reason, metadata, updated_at`
 
 // scanPaymentRow lit une ligne produite par une requête sélectionnant paymentColumns.
@@ -26,7 +26,7 @@ func scanPaymentRow(row rowScanner, p *domain.Payment) error {
 		&p.PaymentID, &p.BookingID, &p.TripID, &p.Amount,
 		&p.PaymentMethod, &p.PaymentProvider,
 		&p.Status, &p.ExternalTransactionID, &p.PaymentReference, &p.PassengerPhoneNumber,
-		&p.PaymentURL, &p.ProviderStatus, &p.ExpiresAt,
+		&p.PaymentURL, &p.ProviderStatus, &p.ExpiresAt, &p.BookingSyncAttempts,
 		&p.CreatedAt, &p.CompletedAt, &p.FailedAt, &p.FailureReason,
 		&p.Metadata, &p.UpdatedAt,
 	)
@@ -88,9 +88,28 @@ func (r *paymentReadRepository) GetExpiredPendingPayments(ctx context.Context, n
 		FROM payments WHERE status = 'pending' AND expires_at < $1
 		ORDER BY expires_at ASC LIMIT 100`
 
-	rows, err := r.pool.Query(ctx, query, now.UTC())
+	return r.queryPayments(ctx, "get expired pending payments", query, now.UTC())
+}
+
+// GetUnsyncedHeldPayments retourne les paiements held dont le rattachement à la réservation
+// n'a pas abouti, passés en held avant completedBefore.
+func (r *paymentReadRepository) GetUnsyncedHeldPayments(
+	ctx context.Context, completedBefore time.Time, limit int,
+) ([]*domain.Payment, error) {
+	query := `SELECT ` + paymentColumns + `
+		FROM payments WHERE status = 'held' AND booking_synced_at IS NULL AND completed_at < $1
+		ORDER BY completed_at ASC LIMIT $2`
+
+	return r.queryPayments(ctx, "get unsynced held payments", query, completedBefore.UTC(), limit)
+}
+
+// queryPayments exécute une requête sélectionnant paymentColumns et retourne les paiements lus.
+func (r *paymentReadRepository) queryPayments(
+	ctx context.Context, op string, query string, args ...any,
+) ([]*domain.Payment, error) {
+	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
-		r.logger.Error("get expired pending payments failed", zap.Error(err))
+		r.logger.Error(op+" failed", zap.Error(err))
 		return nil, paymentErrors.ErrorDataRetrievalFailed
 	}
 	defer rows.Close()
@@ -99,13 +118,13 @@ func (r *paymentReadRepository) GetExpiredPendingPayments(ctx context.Context, n
 	for rows.Next() {
 		var p domain.Payment
 		if err := scanPaymentRow(rows, &p); err != nil {
-			r.logger.Error("scan expired payment failed", zap.Error(err))
+			r.logger.Error(op+": scan failed", zap.Error(err))
 			return nil, paymentErrors.ErrorDataRetrievalFailed
 		}
 		payments = append(payments, &p)
 	}
 	if err := rows.Err(); err != nil {
-		r.logger.Error("iterate expired payments failed", zap.Error(err))
+		r.logger.Error(op+": iterate failed", zap.Error(err))
 		return nil, paymentErrors.ErrorDataRetrievalFailed
 	}
 
