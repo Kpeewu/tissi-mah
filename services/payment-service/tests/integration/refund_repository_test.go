@@ -56,15 +56,21 @@ func TestRefundWriteRepository_CreateRefund_AllReasons(t *testing.T) {
 	readRepo := newTestRefundReadRepository()
 
 	cleanupPaymentTables(t, ctx)
-	payment := fixtures.NewTestPayment(fixtures.WithPaymentID("pay-all-reasons"))
-	require.NoError(t, fixtures.InsertPayment(ctx, testPool, payment))
 
 	for _, reason := range domain.RefundReasons() {
 		t.Run(string(reason), func(t *testing.T) {
+			// Un paiement par motif : un paiement n'a qu'un remboursement
+			paymentID := "pay-reason-" + string(reason)
+			payment := fixtures.NewTestPayment(
+				fixtures.WithPaymentID(paymentID),
+				fixtures.WithPaymentBookingID("bk-reason-"+string(reason)),
+			)
+			require.NoError(t, fixtures.InsertPayment(ctx, testPool, payment))
+
 			refundID := "ref-reason-" + string(reason)
 			refund := fixtures.NewTestRefund(
 				fixtures.WithRefundID(refundID),
-				fixtures.WithRefundPaymentID("pay-all-reasons"),
+				fixtures.WithRefundPaymentID(paymentID),
 				fixtures.WithRefundReason(reason),
 			)
 
