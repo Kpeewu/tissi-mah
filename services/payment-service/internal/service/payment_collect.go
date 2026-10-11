@@ -28,6 +28,19 @@ const (
 	bookingPaymentMethodCash    = "cash"
 )
 
+// failureOrigin identifie qui met fin à un paiement pending : elle décide de la libération
+// de la réservation (FailPayment) et de la notification PAYMENT_FAILED au passager.
+type failureOrigin int
+
+const (
+	// originPassenger : abandon par le passager — réservation libérée, pas de notification
+	originPassenger failureOrigin = iota
+	// originBooking : annulation pilotée par booking-service — ni FailPayment ni notification
+	originBooking
+	// originExpiration : fenêtre de paiement dépassée — réservation libérée et PAYMENT_FAILED publié
+	originExpiration
+)
+
 // =============================================================================
 // CreatePayment — collecte FedaPay avec redirection
 // =============================================================================
@@ -268,7 +281,7 @@ func (s *paymentServiceImpl) CancelPayment(ctx context.Context, paymentID string
 
 	switch payment.Status {
 	case domain.PaymentStatusPending:
-		if err := s.cancelPendingPayment(ctx, payment, "Paiement annulé par le passager", true); err != nil {
+		if err := s.cancelPendingPayment(ctx, payment, "Paiement annulé par le passager", originPassenger); err != nil {
 			return nil, err
 		}
 	case domain.PaymentStatusHeld, domain.PaymentStatusFailed:
@@ -320,7 +333,7 @@ func (s *paymentServiceImpl) CancelPaymentForBooking(ctx context.Context, bookin
 	if reason == "" {
 		reason = "Réservation annulée"
 	}
-	if err := s.cancelPendingPayment(ctx, payment, reason, false); err != nil {
+	if err := s.cancelPendingPayment(ctx, payment, reason, originBooking); err != nil {
 		return nil, err
 	}
 
@@ -377,7 +390,9 @@ func (s *paymentServiceImpl) fetchProviderStatus(payment *domain.Payment) (strin
 //	approved / transferred → pending|failed → held, réservation confirmée (ou remboursement si plus de places
 //	                         ou si la réservation n'est plus confirmable : annulée, rejetée, etc.)
 //	declined / canceled    → reste pending (nouvelle tentative possible sur la page FedaPay)
-//	expired / deleted      → pending → failed, réservation paymentFailed (places libérées)
+//	expired / deleted      → pending → failed, réservation paymentFailed (places libérées) ;
+//	                         PAYMENT_FAILED seulement si expired ou échéance dépassée (sinon la
+//	                         suppression vient d'une annulation, cf. failureOrigin)
 func (s *paymentServiceImpl) applyProviderStatus(ctx context.Context, payment *domain.Payment, providerStatus string) (domain.PaymentStatus, error) {
 	switch providerStatus {
 	case fedapay.TransactionStatusApproved, fedapay.TransactionStatusTransferred:
@@ -401,7 +416,13 @@ func (s *paymentServiceImpl) applyProviderStatus(ctx context.Context, payment *d
 			return payment.Status, nil
 		}
 		reason := fmt.Sprintf("FedaPay: transaction %s", providerStatus)
-		if err := s.failPendingPayment(ctx, payment, reason, providerStatus, true); err != nil {
+		// deleted ne provient que de nos DELETE : avant l'échéance, c'est une annulation dont
+		// le webhook a devancé l'appelant
+		origin := originPassenger
+		if providerStatus == fedapay.TransactionStatusExpired || !time.Now().UTC().Before(payment.ExpiresAt) {
+			origin = originExpiration
+		}
+		if err := s.failPendingPayment(ctx, payment, reason, providerStatus, origin); err != nil {
 			return payment.Status, err
 		}
 		return domain.PaymentStatusFailed, nil
@@ -598,8 +619,7 @@ func (s *paymentServiceImpl) createFullRefund(ctx context.Context, paymentID str
 
 // cancelPendingPayment supprime la transaction FedaPay d'un paiement pending puis le marque failed.
 // Si FedaPay a déjà approuvé le paiement, l'approbation est appliquée à la place.
-// notifyBooking=false quand booking-service est à l'origine de l'annulation.
-func (s *paymentServiceImpl) cancelPendingPayment(ctx context.Context, payment *domain.Payment, reason string, notifyBooking bool) error {
+func (s *paymentServiceImpl) cancelPendingPayment(ctx context.Context, payment *domain.Payment, reason string, origin failureOrigin) error {
 	providerStatus, err := s.fetchProviderStatus(payment)
 	if err != nil {
 		return err
@@ -629,12 +649,12 @@ func (s *paymentServiceImpl) cancelPendingPayment(ctx context.Context, payment *
 		}
 	}
 
-	return s.failPendingPayment(ctx, payment, reason, fedapay.TransactionStatusDeleted, notifyBooking)
+	return s.failPendingPayment(ctx, payment, reason, fedapay.TransactionStatusDeleted, origin)
 }
 
-// failPendingPayment marque un paiement pending comme échoué, libère la réservation
-// (si notifyBooking) et notifie le passager.
-func (s *paymentServiceImpl) failPendingPayment(ctx context.Context, payment *domain.Payment, reason string, providerStatus string, notifyBooking bool) error {
+// failPendingPayment marque un paiement pending comme échoué, libère la réservation (sauf si
+// booking-service est à l'origine de l'annulation) et notifie le passager uniquement à l'expiration.
+func (s *paymentServiceImpl) failPendingPayment(ctx context.Context, payment *domain.Payment, reason string, providerStatus string, origin failureOrigin) error {
 	if err := s.paymentWriteRepo.MarkPaymentFailed(ctx, payment.PaymentID, reason); err != nil {
 		if errors.Is(err, paymentErrors.ErrorPaymentAlreadyProcessed) {
 			s.logger.Info("payment already processed concurrently, skipping", zap.String("paymentID", payment.PaymentID))
@@ -648,7 +668,7 @@ func (s *paymentServiceImpl) failPendingPayment(ctx context.Context, payment *do
 
 	s.invalidatePaymentCache(ctx, payment.BookingID)
 
-	if notifyBooking {
+	if origin != originBooking {
 		// Restaure les places (Redis + legs trips) et passe la réservation en paymentFailed
 		if err := s.bookingClient.FailPayment(ctx, payment.BookingID, reason); err != nil {
 			s.logger.Error("fail payment to booking-service failed",
@@ -659,7 +679,10 @@ func (s *paymentServiceImpl) failPendingPayment(ctx context.Context, payment *do
 		}
 	}
 
-	s.publishPaymentEvent(ctx, payment, notification.PaymentFailed, nil)
+	// Une annulation (passager ou booking-service) n'est pas un échec de paiement
+	if origin == originExpiration {
+		s.publishPaymentEvent(ctx, payment, notification.PaymentFailed, nil)
+	}
 
 	s.logger.Info("payment failed", zap.String("paymentID", payment.PaymentID), zap.String("reason", reason))
 	return nil
