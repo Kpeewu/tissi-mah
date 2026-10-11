@@ -847,6 +847,32 @@ func TestSweepStalePaymentPendingBookings(t *testing.T) {
 		d.paymentClient.AssertExpectations(t)
 		d.writeRepo.AssertNotCalled(t, "FailPayment", mock.Anything, "bk-pending", mock.Anything)
 	})
+
+	t.Run("paiement remboursé (rattachement abandonné) → places libérées", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+		impl := service.AsImpl(d.svc)
+		require.NotNil(t, impl)
+
+		refunded := fixtures.NewTestBooking(
+			fixtures.WithBookingID("bk-refunded"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentPending),
+		)
+
+		d.readRepo.On("GetStalePaymentPendingBookingIDs", mock.Anything, mock.Anything, mock.Anything).
+			Return([]string{"bk-refunded"}, nil)
+		d.paymentClient.On("GetPaymentStatusByBooking", mock.Anything, "bk-refunded").Return("refunded", nil)
+		d.readRepo.On("GetByID", mock.Anything, "bk-refunded").Return(refunded, nil)
+		d.writeRepo.On("FailPayment", mock.Anything, "bk-refunded", "paymentTimeout").Return(nil)
+		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, refunded.TripID,
+			mock.Anything, mock.Anything, -int(refunded.SeatsBooked)).Return(nil)
+
+		impl.SweepStalePaymentPendingBookings(ctx, 12*time.Minute)
+
+		d.writeRepo.AssertExpectations(t)
+		d.writeRepo.AssertNotCalled(t, "ConfirmPayment",
+			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
 }
 
 // =============================================================================
