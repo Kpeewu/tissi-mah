@@ -774,6 +774,9 @@ func buildAdminFilterClause(filter domain.BookingAdminFilter) (string, []interfa
 	if filter.DateTo != nil {
 		add("b.created_at <= $%d", *filter.DateTo)
 	}
+	if filter.NoShowContestPending {
+		conditions = append(conditions, "b.no_show_contested_at IS NOT NULL AND b.no_show_resolved_at IS NULL")
+	}
 
 	return "WHERE " + strings.Join(conditions, " AND "), args
 }

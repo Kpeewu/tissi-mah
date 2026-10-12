@@ -253,3 +253,78 @@ func TestBookingRepository_NoShowRefundWaitsForContestWindow(t *testing.T) {
 		assert.ErrorIs(t, err, bookingErrors.ErrorNoShowContestClosed)
 	})
 }
+
+// =============================================================================
+// No-show contesté : décision du support
+// =============================================================================
+
+func TestBookingRepository_ResolveNoShowContest(t *testing.T) {
+	ctx := context.Background()
+	writeRepo := newTestBookingWriteRepository()
+	readRepo := newTestBookingReadRepository()
+	now := time.Now().UTC()
+
+	insert := func(t *testing.T, id string, paid bool, opts ...fixtures.BookingOption) {
+		t.Helper()
+		opts = append([]fixtures.BookingOption{
+			fixtures.WithBookingID(id),
+			fixtures.WithNoShowReported("driver", "pax-"+id, now.Add(-2*time.Hour)),
+		}, opts...)
+		var b *domain.Booking
+		if paid {
+			opts = append(opts, fixtures.WithRefundReason(domain.RefundReasonNoShowDriver))
+			b = fixtures.NewTestBookingWithPayment(opts...)
+		} else {
+			b = fixtures.NewTestCashBooking(opts...)
+		}
+		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, b))
+	}
+	contested := fixtures.WithNoShowContested("driver-x", now.Add(-time.Hour))
+
+	cleanupBookingTables(t, ctx)
+	insert(t, "bk-res-paid", true, contested)
+	insert(t, "bk-res-cash", false, contested)
+	insert(t, "bk-res-open", true)
+
+	// File d'attente du support : contestations non tranchées
+	queue, err := readRepo.ListBookingsAdmin(ctx, domain.BookingAdminFilter{NoShowContestPending: true}, 0, 20)
+	require.NoError(t, err)
+	queueIDs := make([]string, 0, len(queue))
+	for _, b := range queue {
+		queueIDs = append(queueIDs, b.BookingID)
+	}
+	assert.ElementsMatch(t, []string{"bk-res-paid", "bk-res-cash"}, queueIDs)
+
+	err = writeRepo.ResolveNoShowContest(ctx, "bk-res-open", "support-1", domain.RefundReasonNoShowPassenger, "n")
+	assert.ErrorIs(t, err, bookingErrors.ErrorNoShowNotContested)
+
+	require.NoError(t, writeRepo.ResolveNoShowContest(ctx, "bk-res-paid", "support-1",
+		domain.RefundReasonNoShowPassenger, "Chauffeur présent"))
+	require.NoError(t, writeRepo.ResolveNoShowContest(ctx, "bk-res-cash", "support-1",
+		domain.RefundReasonTripCancelled, "Doute"))
+
+	paid, err := readRepo.GetByID(ctx, "bk-res-paid")
+	require.NoError(t, err)
+	require.NotNil(t, paid.NoShowResolvedAt)
+	assert.Equal(t, "support-1", *paid.NoShowResolvedBy)
+	assert.Equal(t, domain.RefundReasonNoShowPassenger, *paid.NoShowResolution)
+	assert.Equal(t, "Chauffeur présent", *paid.NoShowResolutionNote)
+	assert.Equal(t, domain.RefundReasonNoShowPassenger, *paid.RefundReason)
+
+	// Cash : décision tracée, rien à rembourser
+	cash, err := readRepo.GetByID(ctx, "bk-res-cash")
+	require.NoError(t, err)
+	assert.Equal(t, domain.RefundReasonTripCancelled, *cash.NoShowResolution)
+	assert.Nil(t, cash.RefundReason)
+
+	err = writeRepo.ResolveNoShowContest(ctx, "bk-res-paid", "support-2", domain.RefundReasonNoShowDriver, "n")
+	assert.ErrorIs(t, err, bookingErrors.ErrorNoShowAlreadyResolved)
+
+	// Tranchée : transmise par le worker sans attendre la fin du délai de contestation
+	bookings, err := readRepo.GetBookingsPendingRefundRequest(
+		ctx, time.Now().UTC().Add(time.Minute), 5, 100, domain.NoShowContestWindow)
+	require.NoError(t, err)
+	require.Len(t, bookings, 1)
+	assert.Equal(t, "bk-res-paid", bookings[0].BookingID)
+	assert.Equal(t, domain.RefundReasonNoShowPassenger, *bookings[0].RefundReason)
+}

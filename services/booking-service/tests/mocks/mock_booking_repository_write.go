@@ -61,6 +61,14 @@ func (m *MockBookingRepositoryWrite) ContestNoShow(
 	return args.Error(0)
 }
 
+// ResolveNoShowContest simule l'enregistrement de la décision du support.
+func (m *MockBookingRepositoryWrite) ResolveNoShowContest(
+	ctx context.Context, bookingID, supportUID, refundReason, note string,
+) error {
+	args := m.Called(ctx, bookingID, supportUID, refundReason, note)
+	return args.Error(0)
+}
+
 func (m *MockBookingRepositoryWrite) ConfirmPayment(ctx context.Context, bookingID, transactionID string, expectedStatus, newStatus domain.BookingStatus) error {
 	args := m.Called(ctx, bookingID, transactionID, expectedStatus, newStatus)
 	return args.Error(0)

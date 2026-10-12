@@ -567,6 +567,57 @@ func (r *bookingWriteRepositoryImpl) ContestNoShow(
 	return tx.Commit(ctx)
 }
 
+// ResolveNoShowContest enregistre la décision du support sur un no-show contesté. Le motif retenu
+// remplace refund_reason (réservation payée en ligne uniquement) ; le worker de remboursement le
+// transmet dès que no_show_resolved_at est posé.
+func (r *bookingWriteRepositoryImpl) ResolveNoShowContest(
+	ctx context.Context, bookingID, supportUID, refundReason, note string,
+) error {
+	r.logger.Debug("resolving no-show contest", zap.String("bookingID", bookingID), zap.String("reason", refundReason))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var (
+		currentStatus string
+		contested     bool
+		resolved      bool
+	)
+	err = tx.QueryRow(ctx, `
+		SELECT status, no_show_contested_at IS NOT NULL, no_show_resolved_at IS NOT NULL
+		FROM bookings WHERE booking_id = $1 FOR UPDATE`, bookingID,
+	).Scan(&currentStatus, &contested, &resolved)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return bookingErrors.ErrorBookingNotFound
+		}
+		return bookingErrors.ErrorDataRetrievalFailed
+	}
+
+	switch {
+	case currentStatus != string(domain.BookingStatusNoShow) || !contested:
+		return bookingErrors.ErrorNoShowNotContested
+	case resolved:
+		return bookingErrors.ErrorNoShowAlreadyResolved
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE bookings SET no_show_resolved_at = NOW(), no_show_resolved_by = $2,
+		       no_show_resolution = $3, no_show_resolution_note = $4,
+		       refund_reason = `+refundReasonIfPaid("$5")+`, updated_at = NOW()
+		WHERE booking_id = $1`,
+		bookingID, supportUID, refundReason, note, refundReason)
+	if err != nil {
+		r.logger.Error("resolve no-show contest update failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	return tx.Commit(ctx)
+}
+
 // ConfirmPayment confirme le paiement d'une réservation : expectedStatus → newStatus
 // (pendingApproval, ou approved avec approved_at si le trajet est en auto-approbation).
 // expectedStatus vaut paymentPending, ou paymentFailed pour réactiver une réservation dont

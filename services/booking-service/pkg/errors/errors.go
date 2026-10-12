@@ -30,4 +30,6 @@ var (
 	ErrorNoShowReportClosed      = errors.New("ErrorNoShowReportClosed")
 	ErrorNoShowAlreadyContested  = errors.New("ErrorNoShowAlreadyContested")
 	ErrorNoShowContestClosed     = errors.New("ErrorNoShowContestClosed")
+	ErrorNoShowNotContested      = errors.New("ErrorNoShowNotContested")
+	ErrorNoShowAlreadyResolved   = errors.New("ErrorNoShowAlreadyResolved")
 )

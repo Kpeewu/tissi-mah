@@ -446,6 +446,57 @@ func TestE2E_ContestNoShow(t *testing.T) {
 }
 
 // =============================================================================
+// ResolveNoShowContest E2E (support)
+// =============================================================================
+
+func TestE2E_ResolveNoShowContest(t *testing.T) {
+	ctx := ctxWithUID("e2e-test-user")
+	cleanupBookingTables(t, ctx)
+
+	now := time.Now().UTC()
+	booking := fixtures.NewTestBookingWithPayment(
+		fixtures.WithBookingID("e2e-bk-resolve"),
+		fixtures.WithPassengerID("e2e-passenger-resolve"),
+		fixtures.WithDriverID("e2e-driver-resolve"),
+		fixtures.WithNoShowReported("driver", "e2e-passenger-resolve", now.Add(-2*time.Hour)),
+		fixtures.WithRefundReason(domain.RefundReasonNoShowDriver),
+		fixtures.WithNoShowContested("e2e-driver-resolve", now.Add(-time.Hour)),
+	)
+	require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
+
+	req := &bookingpb.ResolveNoShowContestRequest{
+		BookingId:    "e2e-bk-resolve",
+		RefundReason: domain.RefundReasonNoShowPassenger,
+		Note:         "Chauffeur présent au point de rendez-vous",
+	}
+
+	t.Run("erreur - un utilisateur ne peut pas trancher", func(t *testing.T) {
+		_, err := grpcClient.ResolveNoShowContest(ctxWithUID("e2e-driver-resolve"), req)
+		st, _ := status.FromError(err)
+		assert.Equal(t, codes.Unauthenticated, st.Code())
+	})
+
+	t.Run("succes - le support tranche", func(t *testing.T) {
+		resp, err := grpcClient.ResolveNoShowContest(ctxWithSupportUID("e2e-support-1"), req)
+		require.NoError(t, err)
+		assert.True(t, resp.Success)
+
+		detail, err := grpcClient.GetBookingDetailAdmin(ctxWithSupportUID("e2e-support-1"),
+			&bookingpb.GetBookingDetailAdminRequest{BookingId: "e2e-bk-resolve"})
+		require.NoError(t, err)
+		assert.Equal(t, domain.RefundReasonNoShowPassenger, detail.Booking.NoShowResolution)
+		assert.Equal(t, "e2e-driver-resolve", detail.Booking.NoShowContestedBy)
+		assert.Equal(t, "e2e-support-1", detail.NoShowResolvedBy)
+	})
+
+	t.Run("erreur - decision deja prise", func(t *testing.T) {
+		_, err := grpcClient.ResolveNoShowContest(ctxWithSupportUID("e2e-support-2"), req)
+		st, _ := status.FromError(err)
+		assert.Equal(t, codes.FailedPrecondition, st.Code())
+	})
+}
+
+// =============================================================================
 // ReportNoShow E2E
 // =============================================================================
 

@@ -36,6 +36,10 @@ type BookingRepositoryWrite interface {
 	// après la déclaration et avant toute demande de remboursement.
 	ContestNoShow(ctx context.Context, bookingID, contesterID, reason string, contestWindow time.Duration) error
 
+	// ResolveNoShowContest enregistre la décision du support sur un no-show contesté et pose le
+	// motif de remboursement retenu (réservation payée en ligne uniquement).
+	ResolveNoShowContest(ctx context.Context, bookingID, supportUID, refundReason, note string) error
+
 	// ConfirmPayment confirme le paiement d'une réservation.
 	// Retourne le nouveau statut et autoApprove du trajet associé.
 	// expectedStatus → newStatus (paymentPending, ou paymentFailed pour une réactivation après approbation tardive).

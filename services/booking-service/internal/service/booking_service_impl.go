@@ -838,6 +838,53 @@ func (s *bookingServiceImpl) ContestNoShow(ctx context.Context, input *serviceIn
 	return nil
 }
 
+// =============================================================================
+// ResolveNoShowContest (support)
+// =============================================================================
+
+// noShowResolutionReasons : motifs de remboursement que le support peut retenir pour un no-show contesté.
+var noShowResolutionReasons = map[string]bool{
+	domain.RefundReasonNoShowDriver:    true,
+	domain.RefundReasonNoShowPassenger: true,
+	domain.RefundReasonTripCancelled:   true,
+}
+
+func (s *bookingServiceImpl) ResolveNoShowContest(
+	ctx context.Context, input *serviceInterfaces.ResolveNoShowContestInput,
+) error {
+	note := strings.TrimSpace(input.Note)
+	if input.BookingID == "" || input.SupportUID == "" || !noShowResolutionReasons[input.RefundReason] ||
+		note == "" || utf8.RuneCountInString(note) > maxNoShowContestReasonLength {
+		return bookingErrors.ErrorInvalidInput
+	}
+
+	err := s.writeRepo.ResolveNoShowContest(ctx, input.BookingID, input.SupportUID, input.RefundReason, note)
+	if err != nil {
+		return err
+	}
+	s.logger.Info("no-show contest resolved",
+		zap.String("bookingID", input.BookingID),
+		zap.String("supportUID", input.SupportUID),
+		zap.String("refundReason", input.RefundReason),
+	)
+
+	s.invalidateBookingCaches(ctx, input.BookingID)
+
+	booking, err := s.readRepo.GetByID(ctx, input.BookingID)
+	if err != nil {
+		// Décision enregistrée : le worker transmettra le remboursement
+		s.logger.Warn("ResolveNoShowContest: reload booking failed",
+			zap.String("bookingID", input.BookingID), zap.Error(err))
+		return nil
+	}
+
+	// Transmission immédiate, rejouée par le worker en cas d'échec
+	if s.shouldRequestRefund(booking) {
+		go s.requestRefundAsync(booking.BookingID)
+	}
+	return nil
+}
+
 // noShowAccusedID retourne l'UserID de la partie déclarée absente.
 func noShowAccusedID(booking *domain.Booking) string {
 	if booking.NoShowType != nil && *booking.NoShowType == "driver" {
@@ -1304,6 +1351,13 @@ func (s *bookingServiceImpl) mapBookingToDetailResult(booking *domain.Booking, s
 		CreatedAt:          booking.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:          booking.UpdatedAt.Format(time.RFC3339),
 		PassengerMessage:   derefString(booking.PassengerMessage),
+
+		NoShowContestedAt:    formatTimeOptional(booking.NoShowContestedAt),
+		NoShowContestedBy:    derefString(booking.NoShowContestedBy),
+		NoShowContestReason:  derefString(booking.NoShowContestReason),
+		NoShowResolvedAt:     formatTimeOptional(booking.NoShowResolvedAt),
+		NoShowResolution:     derefString(booking.NoShowResolution),
+		NoShowResolutionNote: derefString(booking.NoShowResolutionNote),
 	}
 
 	for _, seg := range segments {
@@ -1949,8 +2003,9 @@ func (s *bookingServiceImpl) ListBookingsAdmin(ctx context.Context, input *servi
 	}
 
 	filter := domain.BookingAdminFilter{
-		Status:           input.Status,
-		BookingReference: input.BookingReference,
+		Status:               input.Status,
+		BookingReference:     input.BookingReference,
+		NoShowContestPending: input.NoShowContestPending,
 	}
 	if input.DateFrom != "" {
 		t, err := time.Parse(time.RFC3339, input.DateFrom)
@@ -2057,8 +2112,9 @@ func (s *bookingServiceImpl) GetBookingDetailAdmin(ctx context.Context, bookingI
 	detail.RoutePolyline = s.fetchRoutePolyline(ctx, booking.TripID)
 
 	return &serviceInterfaces.BookingDetailAdminResult{
-		Booking:       detail,
-		PassengerName: passengerName,
-		DriverName:    driverName,
+		Booking:          detail,
+		PassengerName:    passengerName,
+		DriverName:       driverName,
+		NoShowResolvedBy: derefString(booking.NoShowResolvedBy),
 	}, nil
 }

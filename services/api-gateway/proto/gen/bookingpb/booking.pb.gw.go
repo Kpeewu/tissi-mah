@@ -709,6 +709,33 @@ func local_request_BookingService_GetBookingDetailAdmin_0(ctx context.Context, m
 	return msg, metadata, err
 }
 
+func request_BookingService_ResolveNoShowContest_0(ctx context.Context, marshaler runtime.Marshaler, client BookingServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq ResolveNoShowContestRequest
+		metadata runtime.ServerMetadata
+	)
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if req.Body != nil {
+		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	msg, err := client.ResolveNoShowContest(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+}
+
+func local_request_BookingService_ResolveNoShowContest_0(ctx context.Context, marshaler runtime.Marshaler, server BookingServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq ResolveNoShowContestRequest
+		metadata runtime.ServerMetadata
+	)
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	msg, err := server.ResolveNoShowContest(ctx, &protoReq)
+	return msg, metadata, err
+}
+
 func request_BookingService_Health_0(ctx context.Context, marshaler runtime.Marshaler, client BookingServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
 		protoReq HealthRequest
@@ -1176,6 +1203,26 @@ func RegisterBookingServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		}
 		forward_BookingService_GetBookingDetailAdmin_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodPost, pattern_BookingService_ResolveNoShowContest_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/booking.BookingService/ResolveNoShowContest", runtime.WithHTTPPathPattern("/api/v1/booking/admin/resolveNoShowContest"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_BookingService_ResolveNoShowContest_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_BookingService_ResolveNoShowContest_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodGet, pattern_BookingService_Health_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -1610,6 +1657,23 @@ func RegisterBookingServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		}
 		forward_BookingService_GetBookingDetailAdmin_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodPost, pattern_BookingService_ResolveNoShowContest_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/booking.BookingService/ResolveNoShowContest", runtime.WithHTTPPathPattern("/api/v1/booking/admin/resolveNoShowContest"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_BookingService_ResolveNoShowContest_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_BookingService_ResolveNoShowContest_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodGet, pattern_BookingService_Health_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -1653,6 +1717,7 @@ var (
 	pattern_BookingService_GetActivePassengerSummariesForTrip_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "getActivePassengerSummaries"}, ""))
 	pattern_BookingService_ListBookings_0                       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "booking", "admin", "listBookings"}, ""))
 	pattern_BookingService_GetBookingDetailAdmin_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "booking", "admin", "getBookingDetail"}, ""))
+	pattern_BookingService_ResolveNoShowContest_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "booking", "admin", "resolveNoShowContest"}, ""))
 	pattern_BookingService_Health_0                             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "booking", "health"}, ""))
 )
 
@@ -1679,5 +1744,6 @@ var (
 	forward_BookingService_GetActivePassengerSummariesForTrip_0 = runtime.ForwardResponseMessage
 	forward_BookingService_ListBookings_0                       = runtime.ForwardResponseMessage
 	forward_BookingService_GetBookingDetailAdmin_0              = runtime.ForwardResponseMessage
+	forward_BookingService_ResolveNoShowContest_0               = runtime.ForwardResponseMessage
 	forward_BookingService_Health_0                             = runtime.ForwardResponseMessage
 )

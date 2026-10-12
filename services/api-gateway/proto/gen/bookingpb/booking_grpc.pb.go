@@ -41,6 +41,7 @@ const (
 	BookingService_GetActivePassengerSummariesForTrip_FullMethodName = "/booking.BookingService/GetActivePassengerSummariesForTrip"
 	BookingService_ListBookings_FullMethodName                       = "/booking.BookingService/ListBookings"
 	BookingService_GetBookingDetailAdmin_FullMethodName              = "/booking.BookingService/GetBookingDetailAdmin"
+	BookingService_ResolveNoShowContest_FullMethodName               = "/booking.BookingService/ResolveNoShowContest"
 	BookingService_Health_FullMethodName                             = "/booking.BookingService/Health"
 	BookingService_CheckDeletionEligibility_FullMethodName           = "/booking.BookingService/CheckDeletionEligibility"
 	BookingService_AnonymizeUserData_FullMethodName                  = "/booking.BookingService/AnonymizeUserData"
@@ -113,6 +114,9 @@ type BookingServiceClient interface {
 	// GetBookingDetailAdmin retourne le détail complet d'une réservation sans contrôle
 	// d'appartenance (support). Réservé aux agents support (JWT support).
 	GetBookingDetailAdmin(ctx context.Context, in *GetBookingDetailAdminRequest, opts ...grpc.CallOption) (*GetBookingDetailAdminResponse, error)
+	// ResolveNoShowContest tranche une contestation de no-show : le support choisit le motif de
+	// remboursement final (noShowDriver | noShowPassenger | tripCancelled), transmis à payment-service.
+	ResolveNoShowContest(ctx context.Context, in *ResolveNoShowContestRequest, opts ...grpc.CallOption) (*ResolveNoShowContestResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 	// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
@@ -355,6 +359,16 @@ func (c *bookingServiceClient) GetBookingDetailAdmin(ctx context.Context, in *Ge
 	return out, nil
 }
 
+func (c *bookingServiceClient) ResolveNoShowContest(ctx context.Context, in *ResolveNoShowContestRequest, opts ...grpc.CallOption) (*ResolveNoShowContestResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResolveNoShowContestResponse)
+	err := c.cc.Invoke(ctx, BookingService_ResolveNoShowContest_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *bookingServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -461,6 +475,9 @@ type BookingServiceServer interface {
 	// GetBookingDetailAdmin retourne le détail complet d'une réservation sans contrôle
 	// d'appartenance (support). Réservé aux agents support (JWT support).
 	GetBookingDetailAdmin(context.Context, *GetBookingDetailAdminRequest) (*GetBookingDetailAdminResponse, error)
+	// ResolveNoShowContest tranche une contestation de no-show : le support choisit le motif de
+	// remboursement final (noShowDriver | noShowPassenger | tripCancelled), transmis à payment-service.
+	ResolveNoShowContest(context.Context, *ResolveNoShowContestRequest) (*ResolveNoShowContestResponse, error)
 	// Health retourne l'état de santé du service.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
@@ -548,6 +565,9 @@ func (UnimplementedBookingServiceServer) ListBookings(context.Context, *ListBook
 }
 func (UnimplementedBookingServiceServer) GetBookingDetailAdmin(context.Context, *GetBookingDetailAdminRequest) (*GetBookingDetailAdminResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetBookingDetailAdmin not implemented")
+}
+func (UnimplementedBookingServiceServer) ResolveNoShowContest(context.Context, *ResolveNoShowContestRequest) (*ResolveNoShowContestResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ResolveNoShowContest not implemented")
 }
 func (UnimplementedBookingServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -978,6 +998,24 @@ func _BookingService_GetBookingDetailAdmin_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BookingService_ResolveNoShowContest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResolveNoShowContestRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).ResolveNoShowContest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_ResolveNoShowContest_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).ResolveNoShowContest(ctx, req.(*ResolveNoShowContestRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BookingService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -1144,6 +1182,10 @@ var BookingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetBookingDetailAdmin",
 			Handler:    _BookingService_GetBookingDetailAdmin_Handler,
+		},
+		{
+			MethodName: "ResolveNoShowContest",
+			Handler:    _BookingService_ResolveNoShowContest_Handler,
 		},
 		{
 			MethodName: "Health",

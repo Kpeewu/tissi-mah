@@ -52,6 +52,10 @@ type BookingService interface {
 	// ContestNoShow conteste une absence déclarée (partie accusée, dans le délai de contestation).
 	ContestNoShow(ctx context.Context, input *ContestNoShowInput) error
 
+	// ResolveNoShowContest tranche une contestation de no-show (support) et transmet le
+	// remboursement selon le motif retenu.
+	ResolveNoShowContest(ctx context.Context, input *ResolveNoShowContestInput) error
+
 	// ConfirmPayment confirme le paiement d'une réservation et retourne son nouveau statut
 	// (approved si le trajet est en auto-approbation, pendingApproval sinon). Une réservation
 	// paymentFailed (approbation FedaPay tardive) est réactivée si les places sont encore disponibles.
@@ -191,6 +195,15 @@ type ContestNoShowInput struct {
 	Reason      string
 }
 
+// ResolveNoShowContestInput : décision du support sur un no-show contesté (SupportUID issu du JWT
+// support). RefundReason : noShowDriver | noShowPassenger | tripCancelled.
+type ResolveNoShowContestInput struct {
+	BookingID    string
+	SupportUID   string
+	RefundReason string
+	Note         string
+}
+
 type ConfirmPaymentInput struct {
 	BookingID     string
 	TransactionID string
@@ -286,6 +299,13 @@ type BookingDetailResult struct {
 	History            []StatusHistoryResult
 	PassengerMessage   string
 	RoutePolyline      string // Google encoded polyline du trajet (vide si indisponible)
+	// Contestation et décision du support
+	NoShowContestedAt    string
+	NoShowContestedBy    string
+	NoShowContestReason  string
+	NoShowResolvedAt     string
+	NoShowResolution     string
+	NoShowResolutionNote string
 }
 
 type BookingPreviewResult struct {
@@ -363,6 +383,8 @@ type ListBookingsAdminInput struct {
 	DateTo           string
 	PageIndex        int
 	PageSize         int
+	// NoShowContestPending : file d'attente des no-shows contestés non tranchés
+	NoShowContestPending bool
 }
 
 // AdminBookingPreviewResult est la vue support enrichie d'une réservation.
@@ -395,4 +417,6 @@ type BookingDetailAdminResult struct {
 	Booking       *BookingDetailResult
 	PassengerName string
 	DriverName    string
+	// NoShowResolvedBy : UID de l'agent support qui a tranché (réservé à la vue support)
+	NoShowResolvedBy string
 }

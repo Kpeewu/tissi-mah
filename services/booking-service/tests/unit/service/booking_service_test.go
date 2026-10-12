@@ -749,6 +749,92 @@ func TestContestNoShow(t *testing.T) {
 }
 
 // =============================================================================
+// ResolveNoShowContest
+// =============================================================================
+
+func TestResolveNoShowContest(t *testing.T) {
+	t.Run("succes - decision enregistree puis remboursement transmis", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		resolved := fixtures.NewTestBookingWithPayment(
+			fixtures.WithBookingID("booking-resolve"),
+			fixtures.WithTripID("trip-resolve"),
+			fixtures.WithNoShowReported("driver", "passenger-1", time.Now().UTC().Add(-2*time.Hour)),
+			fixtures.WithRefundReason(domain.RefundReasonNoShowPassenger),
+		)
+		d.writeRepo.On("ResolveNoShowContest", mock.Anything, "booking-resolve", "support-1",
+			domain.RefundReasonNoShowPassenger, "Chauffeur géolocalisé au point de rendez-vous").Return(nil)
+		d.readRepo.On("GetByID", mock.Anything, "booking-resolve").Return(resolved, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-resolve").Return(nil, nil).Maybe()
+
+		refundSent := make(chan *client.RefundInput, 1)
+		d.paymentClient.On("RequestRefund", mock.Anything, mock.Anything).
+			Run(func(args mock.Arguments) {
+				if in, ok := args.Get(1).(*client.RefundInput); ok {
+					refundSent <- in
+				}
+			}).
+			Return(nil)
+		d.writeRepo.On("MarkRefundRequested", mock.Anything, "booking-resolve").Return(nil).Maybe()
+
+		err := d.svc.ResolveNoShowContest(ctx, &serviceInterfaces.ResolveNoShowContestInput{
+			BookingID:    "booking-resolve",
+			SupportUID:   "support-1",
+			RefundReason: domain.RefundReasonNoShowPassenger,
+			Note:         "Chauffeur géolocalisé au point de rendez-vous",
+		})
+		require.NoError(t, err)
+
+		select {
+		case in := <-refundSent:
+			assert.Equal(t, domain.RefundReasonNoShowPassenger, in.RefundReason)
+		case <-time.After(2 * time.Second):
+			t.Fatal("RequestRefund non appelé après la décision du support")
+		}
+	})
+
+	for _, tc := range []struct {
+		name  string
+		input serviceInterfaces.ResolveNoShowContestInput
+	}{
+		{"erreur - motif non autorise", serviceInterfaces.ResolveNoShowContestInput{
+			BookingID: "b", SupportUID: "s", RefundReason: domain.RefundReasonCancelledByPassenger, Note: "n"}},
+		{"erreur - note vide", serviceInterfaces.ResolveNoShowContestInput{
+			BookingID: "b", SupportUID: "s", RefundReason: domain.RefundReasonNoShowDriver, Note: "  "}},
+		{"erreur - agent support absent", serviceInterfaces.ResolveNoShowContestInput{
+			BookingID: "b", RefundReason: domain.RefundReasonNoShowDriver, Note: "n"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := newTestService()
+			input := tc.input
+
+			err := d.svc.ResolveNoShowContest(context.Background(), &input)
+
+			assert.ErrorIs(t, err, bookingErrors.ErrorInvalidInput)
+			d.writeRepo.AssertNotCalled(t, "ResolveNoShowContest",
+				mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		})
+	}
+
+	t.Run("erreur - no-show non conteste", func(t *testing.T) {
+		d := newTestService()
+		d.writeRepo.On("ResolveNoShowContest", mock.Anything, "booking-resolve", "support-1",
+			domain.RefundReasonNoShowDriver, "Décision").Return(bookingErrors.ErrorNoShowNotContested)
+
+		err := d.svc.ResolveNoShowContest(context.Background(), &serviceInterfaces.ResolveNoShowContestInput{
+			BookingID:    "booking-resolve",
+			SupportUID:   "support-1",
+			RefundReason: domain.RefundReasonNoShowDriver,
+			Note:         "Décision",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorNoShowNotContested)
+		d.paymentClient.AssertNotCalled(t, "RequestRefund", mock.Anything, mock.Anything)
+	})
+}
+
+// =============================================================================
 // ConfirmPayment
 // =============================================================================
 

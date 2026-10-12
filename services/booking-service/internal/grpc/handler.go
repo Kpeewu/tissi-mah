@@ -198,6 +198,13 @@ func toProtoBookingDetail(result *serviceInterfaces.BookingDetailResult) *bookin
 		History:            pbHistory,
 		PassengerMessage:   result.PassengerMessage,
 		RoutePolyline:      result.RoutePolyline,
+
+		NoShowContestedAt:    result.NoShowContestedAt,
+		NoShowContestedBy:    result.NoShowContestedBy,
+		NoShowContestReason:  result.NoShowContestReason,
+		NoShowResolvedAt:     result.NoShowResolvedAt,
+		NoShowResolution:     result.NoShowResolution,
+		NoShowResolutionNote: result.NoShowResolutionNote,
 	}
 }
 
@@ -641,6 +648,8 @@ func (h *BookingHandler) ListBookings(ctx context.Context, req *bookingpb.ListBo
 		DateTo:           req.DateTo,
 		PageIndex:        int(req.Index),
 		PageSize:         int(req.PageSize),
+
+		NoShowContestPending: req.NoShowContestPending,
 	})
 	if err != nil {
 		return &bookingpb.ListBookingsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
@@ -683,10 +692,34 @@ func (h *BookingHandler) GetBookingDetailAdmin(ctx context.Context, req *booking
 	}
 
 	return &bookingpb.GetBookingDetailAdminResponse{
-		Booking:       toProtoBookingDetail(result.Booking),
-		PassengerName: result.PassengerName,
-		DriverName:    result.DriverName,
+		Booking:          toProtoBookingDetail(result.Booking),
+		PassengerName:    result.PassengerName,
+		DriverName:       result.DriverName,
+		NoShowResolvedBy: result.NoShowResolvedBy,
 	}, nil
+}
+
+// ResolveNoShowContest tranche une contestation de no-show (vue support).
+func (h *BookingHandler) ResolveNoShowContest(
+	ctx context.Context, req *bookingpb.ResolveNoShowContestRequest,
+) (*bookingpb.ResolveNoShowContestResponse, error) {
+	supportUID, ok := ctx.Value(middleware.SupportIDKey).(string)
+	if !ok || supportUID == "" {
+		err := bookingErrors.ErrorUnauthorized
+		return &bookingpb.ResolveNoShowContestResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	err := h.service.ResolveNoShowContest(ctx, &serviceInterfaces.ResolveNoShowContestInput{
+		BookingID:    req.BookingId,
+		SupportUID:   supportUID,
+		RefundReason: req.RefundReason,
+		Note:         req.Note,
+	})
+	if err != nil {
+		return &bookingpb.ResolveNoShowContestResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return &bookingpb.ResolveNoShowContestResponse{Success: true}, nil
 }
 
 // toGRPCError traduit les erreurs domaine en codes de statut gRPC.
@@ -720,7 +753,9 @@ func toGRPCError(err error) error {
 		errors.Is(err, bookingErrors.ErrorNoShowTooEarly),
 		errors.Is(err, bookingErrors.ErrorNoShowReportClosed),
 		errors.Is(err, bookingErrors.ErrorNoShowAlreadyContested),
-		errors.Is(err, bookingErrors.ErrorNoShowContestClosed):
+		errors.Is(err, bookingErrors.ErrorNoShowContestClosed),
+		errors.Is(err, bookingErrors.ErrorNoShowNotContested),
+		errors.Is(err, bookingErrors.ErrorNoShowAlreadyResolved):
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, bookingErrors.ErrorSeatReservationFailed):
 		return status.Error(codes.ResourceExhausted, err.Error())

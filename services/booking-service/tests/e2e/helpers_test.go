@@ -22,6 +22,12 @@ func ctxWithUID(uid string) context.Context {
 	return metadata.NewOutgoingContext(context.Background(), md)
 }
 
+// ctxWithSupportUID retourne un contexte avec l'UID d'un agent support (JWT support validé par l'api-gateway)
+func ctxWithSupportUID(uid string) context.Context {
+	md := metadata.Pairs("x-support-uid", uid, "x-support-role", "support")
+	return metadata.NewOutgoingContext(context.Background(), md)
+}
+
 // cleanupBookingTables vide toutes les tables (TRUNCATE CASCADE)
 func cleanupBookingTables(t *testing.T, ctx context.Context) {
 	t.Helper()

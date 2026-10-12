@@ -743,8 +743,15 @@ type BookingDetail struct {
 	History            []*StatusHistoryEntry  `protobuf:"bytes,29,rep,name=History,proto3" json:"History,omitempty"`
 	PassengerMessage   string                 `protobuf:"bytes,30,opt,name=PassengerMessage,proto3" json:"PassengerMessage,omitempty"` // message laissé par le passager lors de la réservation
 	RoutePolyline      string                 `protobuf:"bytes,31,opt,name=RoutePolyline,proto3" json:"RoutePolyline,omitempty"`       // Google encoded polyline du trajet (vide si indisponible)
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Contestation du no-show par la partie accusée et décision du support (vides sinon)
+	NoShowContestedAt    string `protobuf:"bytes,32,opt,name=NoShowContestedAt,proto3" json:"NoShowContestedAt,omitempty"`
+	NoShowContestedBy    string `protobuf:"bytes,33,opt,name=NoShowContestedBy,proto3" json:"NoShowContestedBy,omitempty"`
+	NoShowContestReason  string `protobuf:"bytes,34,opt,name=NoShowContestReason,proto3" json:"NoShowContestReason,omitempty"`
+	NoShowResolvedAt     string `protobuf:"bytes,35,opt,name=NoShowResolvedAt,proto3" json:"NoShowResolvedAt,omitempty"`
+	NoShowResolution     string `protobuf:"bytes,36,opt,name=NoShowResolution,proto3" json:"NoShowResolution,omitempty"` // motif de remboursement retenu par le support
+	NoShowResolutionNote string `protobuf:"bytes,37,opt,name=NoShowResolutionNote,proto3" json:"NoShowResolutionNote,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *BookingDetail) Reset() {
@@ -990,6 +997,48 @@ func (x *BookingDetail) GetPassengerMessage() string {
 func (x *BookingDetail) GetRoutePolyline() string {
 	if x != nil {
 		return x.RoutePolyline
+	}
+	return ""
+}
+
+func (x *BookingDetail) GetNoShowContestedAt() string {
+	if x != nil {
+		return x.NoShowContestedAt
+	}
+	return ""
+}
+
+func (x *BookingDetail) GetNoShowContestedBy() string {
+	if x != nil {
+		return x.NoShowContestedBy
+	}
+	return ""
+}
+
+func (x *BookingDetail) GetNoShowContestReason() string {
+	if x != nil {
+		return x.NoShowContestReason
+	}
+	return ""
+}
+
+func (x *BookingDetail) GetNoShowResolvedAt() string {
+	if x != nil {
+		return x.NoShowResolvedAt
+	}
+	return ""
+}
+
+func (x *BookingDetail) GetNoShowResolution() string {
+	if x != nil {
+		return x.NoShowResolution
+	}
+	return ""
+}
+
+func (x *BookingDetail) GetNoShowResolutionNote() string {
+	if x != nil {
+		return x.NoShowResolutionNote
 	}
 	return ""
 }
@@ -3488,15 +3537,16 @@ func (x *GetActivePassengerSummariesForTripResponse) GetErrorMessage() string {
 }
 
 type ListBookingsRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Status           string                 `protobuf:"bytes,1,opt,name=Status,proto3" json:"Status,omitempty"`                     // filtre optionnel par statut
-	BookingReference string                 `protobuf:"bytes,5,opt,name=BookingReference,proto3" json:"BookingReference,omitempty"` // filtre optionnel (recherche exacte)
-	DateFrom         string                 `protobuf:"bytes,6,opt,name=DateFrom,proto3" json:"DateFrom,omitempty"`                 // RFC3339, borne basse sur created_at (optionnel)
-	DateTo           string                 `protobuf:"bytes,7,opt,name=DateTo,proto3" json:"DateTo,omitempty"`                     // RFC3339, borne haute sur created_at (optionnel)
-	Index            int32                  `protobuf:"varint,8,opt,name=Index,proto3" json:"Index,omitempty"`                      // index de page (0-based)
-	PageSize         int32                  `protobuf:"varint,9,opt,name=PageSize,proto3" json:"PageSize,omitempty"`                // taille de page (défaut 20, max 100)
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Status               string                 `protobuf:"bytes,1,opt,name=Status,proto3" json:"Status,omitempty"`                               // filtre optionnel par statut
+	BookingReference     string                 `protobuf:"bytes,5,opt,name=BookingReference,proto3" json:"BookingReference,omitempty"`           // filtre optionnel (recherche exacte)
+	DateFrom             string                 `protobuf:"bytes,6,opt,name=DateFrom,proto3" json:"DateFrom,omitempty"`                           // RFC3339, borne basse sur created_at (optionnel)
+	DateTo               string                 `protobuf:"bytes,7,opt,name=DateTo,proto3" json:"DateTo,omitempty"`                               // RFC3339, borne haute sur created_at (optionnel)
+	Index                int32                  `protobuf:"varint,8,opt,name=Index,proto3" json:"Index,omitempty"`                                // index de page (0-based)
+	PageSize             int32                  `protobuf:"varint,9,opt,name=PageSize,proto3" json:"PageSize,omitempty"`                          // taille de page (défaut 20, max 100)
+	NoShowContestPending bool                   `protobuf:"varint,10,opt,name=NoShowContestPending,proto3" json:"NoShowContestPending,omitempty"` // file d'attente : no-shows contestés non tranchés
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *ListBookingsRequest) Reset() {
@@ -3569,6 +3619,13 @@ func (x *ListBookingsRequest) GetPageSize() int32 {
 		return x.PageSize
 	}
 	return 0
+}
+
+func (x *ListBookingsRequest) GetNoShowContestPending() bool {
+	if x != nil {
+		return x.NoShowContestPending
+	}
+	return false
 }
 
 type AdminBookingPreview struct {
@@ -3832,13 +3889,14 @@ func (x *GetBookingDetailAdminRequest) GetBookingId() string {
 }
 
 type GetBookingDetailAdminResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Booking       *BookingDetail         `protobuf:"bytes,1,opt,name=Booking,proto3" json:"Booking,omitempty"`
-	PassengerName string                 `protobuf:"bytes,2,opt,name=PassengerName,proto3" json:"PassengerName,omitempty"` // enrichi via user-service (best-effort)
-	DriverName    string                 `protobuf:"bytes,3,opt,name=DriverName,proto3" json:"DriverName,omitempty"`       // enrichi via user-service (best-effort)
-	ErrorMessage  string                 `protobuf:"bytes,4,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Booking          *BookingDetail         `protobuf:"bytes,1,opt,name=Booking,proto3" json:"Booking,omitempty"`
+	PassengerName    string                 `protobuf:"bytes,2,opt,name=PassengerName,proto3" json:"PassengerName,omitempty"` // enrichi via user-service (best-effort)
+	DriverName       string                 `protobuf:"bytes,3,opt,name=DriverName,proto3" json:"DriverName,omitempty"`       // enrichi via user-service (best-effort)
+	ErrorMessage     string                 `protobuf:"bytes,4,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	NoShowResolvedBy string                 `protobuf:"bytes,5,opt,name=NoShowResolvedBy,proto3" json:"NoShowResolvedBy,omitempty"` // UID de l'agent support qui a tranché la contestation
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *GetBookingDetailAdminResponse) Reset() {
@@ -3899,6 +3957,125 @@ func (x *GetBookingDetailAdminResponse) GetErrorMessage() string {
 	return ""
 }
 
+func (x *GetBookingDetailAdminResponse) GetNoShowResolvedBy() string {
+	if x != nil {
+		return x.NoShowResolvedBy
+	}
+	return ""
+}
+
+type ResolveNoShowContestRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookingId     string                 `protobuf:"bytes,1,opt,name=BookingId,proto3" json:"BookingId,omitempty"`
+	RefundReason  string                 `protobuf:"bytes,2,opt,name=RefundReason,proto3" json:"RefundReason,omitempty"` // noShowDriver | noShowPassenger | tripCancelled
+	Note          string                 `protobuf:"bytes,3,opt,name=Note,proto3" json:"Note,omitempty"`                 // justification de la décision, obligatoire (1000 caractères max)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveNoShowContestRequest) Reset() {
+	*x = ResolveNoShowContestRequest{}
+	mi := &file_booking_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveNoShowContestRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveNoShowContestRequest) ProtoMessage() {}
+
+func (x *ResolveNoShowContestRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_booking_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveNoShowContestRequest.ProtoReflect.Descriptor instead.
+func (*ResolveNoShowContestRequest) Descriptor() ([]byte, []int) {
+	return file_booking_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *ResolveNoShowContestRequest) GetBookingId() string {
+	if x != nil {
+		return x.BookingId
+	}
+	return ""
+}
+
+func (x *ResolveNoShowContestRequest) GetRefundReason() string {
+	if x != nil {
+		return x.RefundReason
+	}
+	return ""
+}
+
+func (x *ResolveNoShowContestRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+type ResolveNoShowContestResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=Success,proto3" json:"Success,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=ErrorMessage,proto3" json:"ErrorMessage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveNoShowContestResponse) Reset() {
+	*x = ResolveNoShowContestResponse{}
+	mi := &file_booking_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveNoShowContestResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveNoShowContestResponse) ProtoMessage() {}
+
+func (x *ResolveNoShowContestResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_booking_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveNoShowContestResponse.ProtoReflect.Descriptor instead.
+func (*ResolveNoShowContestResponse) Descriptor() ([]byte, []int) {
+	return file_booking_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *ResolveNoShowContestResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *ResolveNoShowContestResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
 type CheckDeletionEligibilityRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=UserId,proto3" json:"UserId,omitempty"` // UserID interne (user-service)
@@ -3908,7 +4085,7 @@ type CheckDeletionEligibilityRequest struct {
 
 func (x *CheckDeletionEligibilityRequest) Reset() {
 	*x = CheckDeletionEligibilityRequest{}
-	mi := &file_booking_proto_msgTypes[53]
+	mi := &file_booking_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3920,7 +4097,7 @@ func (x *CheckDeletionEligibilityRequest) String() string {
 func (*CheckDeletionEligibilityRequest) ProtoMessage() {}
 
 func (x *CheckDeletionEligibilityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[53]
+	mi := &file_booking_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3933,7 +4110,7 @@ func (x *CheckDeletionEligibilityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckDeletionEligibilityRequest.ProtoReflect.Descriptor instead.
 func (*CheckDeletionEligibilityRequest) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{53}
+	return file_booking_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *CheckDeletionEligibilityRequest) GetUserId() string {
@@ -3954,7 +4131,7 @@ type CheckDeletionEligibilityResponse struct {
 
 func (x *CheckDeletionEligibilityResponse) Reset() {
 	*x = CheckDeletionEligibilityResponse{}
-	mi := &file_booking_proto_msgTypes[54]
+	mi := &file_booking_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3966,7 +4143,7 @@ func (x *CheckDeletionEligibilityResponse) String() string {
 func (*CheckDeletionEligibilityResponse) ProtoMessage() {}
 
 func (x *CheckDeletionEligibilityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[54]
+	mi := &file_booking_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3979,7 +4156,7 @@ func (x *CheckDeletionEligibilityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckDeletionEligibilityResponse.ProtoReflect.Descriptor instead.
 func (*CheckDeletionEligibilityResponse) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{54}
+	return file_booking_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *CheckDeletionEligibilityResponse) GetCanDelete() bool {
@@ -4012,7 +4189,7 @@ type AnonymizeUserDataRequest struct {
 
 func (x *AnonymizeUserDataRequest) Reset() {
 	*x = AnonymizeUserDataRequest{}
-	mi := &file_booking_proto_msgTypes[55]
+	mi := &file_booking_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4024,7 +4201,7 @@ func (x *AnonymizeUserDataRequest) String() string {
 func (*AnonymizeUserDataRequest) ProtoMessage() {}
 
 func (x *AnonymizeUserDataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[55]
+	mi := &file_booking_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4037,7 +4214,7 @@ func (x *AnonymizeUserDataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnonymizeUserDataRequest.ProtoReflect.Descriptor instead.
 func (*AnonymizeUserDataRequest) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{55}
+	return file_booking_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *AnonymizeUserDataRequest) GetUserId() string {
@@ -4057,7 +4234,7 @@ type AnonymizeUserDataResponse struct {
 
 func (x *AnonymizeUserDataResponse) Reset() {
 	*x = AnonymizeUserDataResponse{}
-	mi := &file_booking_proto_msgTypes[56]
+	mi := &file_booking_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4069,7 +4246,7 @@ func (x *AnonymizeUserDataResponse) String() string {
 func (*AnonymizeUserDataResponse) ProtoMessage() {}
 
 func (x *AnonymizeUserDataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[56]
+	mi := &file_booking_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4082,7 +4259,7 @@ func (x *AnonymizeUserDataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnonymizeUserDataResponse.ProtoReflect.Descriptor instead.
 func (*AnonymizeUserDataResponse) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{56}
+	return file_booking_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *AnonymizeUserDataResponse) GetSuccess() bool {
@@ -4108,7 +4285,7 @@ type GetPassengerBookingIDsRequest struct {
 
 func (x *GetPassengerBookingIDsRequest) Reset() {
 	*x = GetPassengerBookingIDsRequest{}
-	mi := &file_booking_proto_msgTypes[57]
+	mi := &file_booking_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4120,7 +4297,7 @@ func (x *GetPassengerBookingIDsRequest) String() string {
 func (*GetPassengerBookingIDsRequest) ProtoMessage() {}
 
 func (x *GetPassengerBookingIDsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[57]
+	mi := &file_booking_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4133,7 +4310,7 @@ func (x *GetPassengerBookingIDsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPassengerBookingIDsRequest.ProtoReflect.Descriptor instead.
 func (*GetPassengerBookingIDsRequest) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{57}
+	return file_booking_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *GetPassengerBookingIDsRequest) GetUserId() string {
@@ -4153,7 +4330,7 @@ type GetPassengerBookingIDsResponse struct {
 
 func (x *GetPassengerBookingIDsResponse) Reset() {
 	*x = GetPassengerBookingIDsResponse{}
-	mi := &file_booking_proto_msgTypes[58]
+	mi := &file_booking_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4165,7 +4342,7 @@ func (x *GetPassengerBookingIDsResponse) String() string {
 func (*GetPassengerBookingIDsResponse) ProtoMessage() {}
 
 func (x *GetPassengerBookingIDsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_booking_proto_msgTypes[58]
+	mi := &file_booking_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4178,7 +4355,7 @@ func (x *GetPassengerBookingIDsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPassengerBookingIDsResponse.ProtoReflect.Descriptor instead.
 func (*GetPassengerBookingIDsResponse) Descriptor() ([]byte, []int) {
-	return file_booking_proto_rawDescGZIP(), []int{58}
+	return file_booking_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *GetPassengerBookingIDsResponse) GetBookingIds() []string {
@@ -4279,7 +4456,7 @@ const file_booking_proto_rawDesc = "" +
 	"\fChangeReason\x18\x06 \x01(\tR\fChangeReason\x12\x1a\n" +
 	"\bMetadata\x18\a \x01(\tR\bMetadata\x12\x1c\n" +
 	"\tCreatedAt\x18\b \x01(\tR\tCreatedAt\x12$\n" +
-	"\rChangedByName\x18\t \x01(\tR\rChangedByName\"\x90\t\n" +
+	"\rChangedByName\x18\t \x01(\tR\rChangedByName\"\xaa\v\n" +
 	"\rBookingDetail\x12\x1c\n" +
 	"\tBookingId\x18\x01 \x01(\tR\tBookingId\x12*\n" +
 	"\x10BookingReference\x18\x02 \x01(\tR\x10BookingReference\x12\x16\n" +
@@ -4320,7 +4497,13 @@ const file_booking_proto_rawDesc = "" +
 	"\bSegments\x18\x1c \x03(\v2\x16.booking.SegmentDetailR\bSegments\x125\n" +
 	"\aHistory\x18\x1d \x03(\v2\x1b.booking.StatusHistoryEntryR\aHistory\x12*\n" +
 	"\x10PassengerMessage\x18\x1e \x01(\tR\x10PassengerMessage\x12$\n" +
-	"\rRoutePolyline\x18\x1f \x01(\tR\rRoutePolyline\"q\n" +
+	"\rRoutePolyline\x18\x1f \x01(\tR\rRoutePolyline\x12,\n" +
+	"\x11NoShowContestedAt\x18  \x01(\tR\x11NoShowContestedAt\x12,\n" +
+	"\x11NoShowContestedBy\x18! \x01(\tR\x11NoShowContestedBy\x120\n" +
+	"\x13NoShowContestReason\x18\" \x01(\tR\x13NoShowContestReason\x12*\n" +
+	"\x10NoShowResolvedAt\x18# \x01(\tR\x10NoShowResolvedAt\x12*\n" +
+	"\x10NoShowResolution\x18$ \x01(\tR\x10NoShowResolution\x122\n" +
+	"\x14NoShowResolutionNote\x18% \x01(\tR\x14NoShowResolutionNote\"q\n" +
 	"\x19GetBookingDetailsResponse\x120\n" +
 	"\aBooking\x18\x01 \x01(\v2\x16.booking.BookingDetailR\aBooking\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"y\n" +
@@ -4502,14 +4685,16 @@ const file_booking_proto_rawDesc = "" +
 	"\x06TripId\x18\x01 \x01(\tR\x06TripId\"\x89\x01\n" +
 	"*GetActivePassengerSummariesForTripResponse\x127\n" +
 	"\tSummaries\x18\x01 \x03(\v2\x19.booking.PassengerSummaryR\tSummaries\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\xf0\x01\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"\xa4\x02\n" +
 	"\x13ListBookingsRequest\x12\x16\n" +
 	"\x06Status\x18\x01 \x01(\tR\x06Status\x12*\n" +
 	"\x10BookingReference\x18\x05 \x01(\tR\x10BookingReference\x12\x1a\n" +
 	"\bDateFrom\x18\x06 \x01(\tR\bDateFrom\x12\x16\n" +
 	"\x06DateTo\x18\a \x01(\tR\x06DateTo\x12\x14\n" +
 	"\x05Index\x18\b \x01(\x05R\x05Index\x12\x1a\n" +
-	"\bPageSize\x18\t \x01(\x05R\bPageSizeJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\vPassengerIdR\bDriverIdR\x06TripId\"\xab\x04\n" +
+	"\bPageSize\x18\t \x01(\x05R\bPageSize\x122\n" +
+	"\x14NoShowContestPending\x18\n" +
+	" \x01(\bR\x14NoShowContestPendingJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\vPassengerIdR\bDriverIdR\x06TripId\"\xab\x04\n" +
 	"\x13AdminBookingPreview\x12\x1c\n" +
 	"\tBookingId\x18\x01 \x01(\tR\tBookingId\x12*\n" +
 	"\x10BookingReference\x18\x02 \x01(\tR\x10BookingReference\x12\x16\n" +
@@ -4534,14 +4719,22 @@ const file_booking_proto_rawDesc = "" +
 	"\x05Total\x18\x02 \x01(\x05R\x05Total\x12\"\n" +
 	"\fErrorMessage\x18\x03 \x01(\tR\fErrorMessage\"<\n" +
 	"\x1cGetBookingDetailAdminRequest\x12\x1c\n" +
-	"\tBookingId\x18\x01 \x01(\tR\tBookingId\"\xbb\x01\n" +
+	"\tBookingId\x18\x01 \x01(\tR\tBookingId\"\xe7\x01\n" +
 	"\x1dGetBookingDetailAdminResponse\x120\n" +
 	"\aBooking\x18\x01 \x01(\v2\x16.booking.BookingDetailR\aBooking\x12$\n" +
 	"\rPassengerName\x18\x02 \x01(\tR\rPassengerName\x12\x1e\n" +
 	"\n" +
 	"DriverName\x18\x03 \x01(\tR\n" +
 	"DriverName\x12\"\n" +
-	"\fErrorMessage\x18\x04 \x01(\tR\fErrorMessage\"9\n" +
+	"\fErrorMessage\x18\x04 \x01(\tR\fErrorMessage\x12*\n" +
+	"\x10NoShowResolvedBy\x18\x05 \x01(\tR\x10NoShowResolvedBy\"s\n" +
+	"\x1bResolveNoShowContestRequest\x12\x1c\n" +
+	"\tBookingId\x18\x01 \x01(\tR\tBookingId\x12\"\n" +
+	"\fRefundReason\x18\x02 \x01(\tR\fRefundReason\x12\x12\n" +
+	"\x04Note\x18\x03 \x01(\tR\x04Note\"\\\n" +
+	"\x1cResolveNoShowContestResponse\x12\x18\n" +
+	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"9\n" +
 	"\x1fCheckDeletionEligibilityRequest\x12\x16\n" +
 	"\x06UserId\x18\x01 \x01(\tR\x06UserId\"\x8c\x01\n" +
 	" CheckDeletionEligibilityResponse\x12\x1c\n" +
@@ -4559,7 +4752,7 @@ const file_booking_proto_rawDesc = "" +
 	"\n" +
 	"BookingIds\x18\x01 \x03(\tR\n" +
 	"BookingIds\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\xd3\x1c\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\xf0\x1d\n" +
 	"\x0eBookingService\x12x\n" +
 	"\rCreateBooking\x12\x1d.booking.CreateBookingRequest\x1a\x1e.booking.CreateBookingResponse\"(\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/api/v1/booking/createBooking\x12\x85\x01\n" +
 	"\x11GetBookingDetails\x12!.booking.GetBookingDetailsRequest\x1a\".booking.GetBookingDetailsResponse\")\x82\xd3\xe4\x93\x02#\x12!/api/v1/booking/getBookingDetails\x12\x96\x01\n" +
@@ -4582,7 +4775,8 @@ const file_booking_proto_rawDesc = "" +
 	"\x11GetDriverBookings\x12!.booking.GetDriverBookingsRequest\x1a\".booking.GetDriverBookingsResponse\")\x82\xd3\xe4\x93\x02#\x12!/api/v1/booking/getDriverBookings\x12\xc2\x01\n" +
 	"\"GetActivePassengerSummariesForTrip\x122.booking.GetActivePassengerSummariesForTripRequest\x1a3.booking.GetActivePassengerSummariesForTripResponse\"3\x82\xd3\xe4\x93\x02-\x12+/api/v1/booking/getActivePassengerSummaries\x12w\n" +
 	"\fListBookings\x12\x1c.booking.ListBookingsRequest\x1a\x1d.booking.ListBookingsResponse\"*\x82\xd3\xe4\x93\x02$\x12\"/api/v1/booking/admin/listBookings\x12\x96\x01\n" +
-	"\x15GetBookingDetailAdmin\x12%.booking.GetBookingDetailAdminRequest\x1a&.booking.GetBookingDetailAdminResponse\".\x82\xd3\xe4\x93\x02(\x12&/api/v1/booking/admin/getBookingDetail\x12Y\n" +
+	"\x15GetBookingDetailAdmin\x12%.booking.GetBookingDetailAdminRequest\x1a&.booking.GetBookingDetailAdminResponse\".\x82\xd3\xe4\x93\x02(\x12&/api/v1/booking/admin/getBookingDetail\x12\x9a\x01\n" +
+	"\x14ResolveNoShowContest\x12$.booking.ResolveNoShowContestRequest\x1a%.booking.ResolveNoShowContestResponse\"5\x82\xd3\xe4\x93\x02/:\x01*\"*/api/v1/booking/admin/resolveNoShowContest\x12Y\n" +
 	"\x06Health\x12\x16.booking.HealthRequest\x1a\x17.booking.HealthResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/api/v1/booking/health\x12o\n" +
 	"\x18CheckDeletionEligibility\x12(.booking.CheckDeletionEligibilityRequest\x1a).booking.CheckDeletionEligibilityResponse\x12Z\n" +
 	"\x11AnonymizeUserData\x12!.booking.AnonymizeUserDataRequest\x1a\".booking.AnonymizeUserDataResponse\x12i\n" +
@@ -4600,7 +4794,7 @@ func file_booking_proto_rawDescGZIP() []byte {
 	return file_booking_proto_rawDescData
 }
 
-var file_booking_proto_msgTypes = make([]protoimpl.MessageInfo, 59)
+var file_booking_proto_msgTypes = make([]protoimpl.MessageInfo, 61)
 var file_booking_proto_goTypes = []any{
 	(*SegmentInput)(nil),                               // 0: booking.SegmentInput
 	(*CreateBookingRequest)(nil),                       // 1: booking.CreateBookingRequest
@@ -4655,12 +4849,14 @@ var file_booking_proto_goTypes = []any{
 	(*ListBookingsResponse)(nil),                       // 50: booking.ListBookingsResponse
 	(*GetBookingDetailAdminRequest)(nil),               // 51: booking.GetBookingDetailAdminRequest
 	(*GetBookingDetailAdminResponse)(nil),              // 52: booking.GetBookingDetailAdminResponse
-	(*CheckDeletionEligibilityRequest)(nil),            // 53: booking.CheckDeletionEligibilityRequest
-	(*CheckDeletionEligibilityResponse)(nil),           // 54: booking.CheckDeletionEligibilityResponse
-	(*AnonymizeUserDataRequest)(nil),                   // 55: booking.AnonymizeUserDataRequest
-	(*AnonymizeUserDataResponse)(nil),                  // 56: booking.AnonymizeUserDataResponse
-	(*GetPassengerBookingIDsRequest)(nil),              // 57: booking.GetPassengerBookingIDsRequest
-	(*GetPassengerBookingIDsResponse)(nil),             // 58: booking.GetPassengerBookingIDsResponse
+	(*ResolveNoShowContestRequest)(nil),                // 53: booking.ResolveNoShowContestRequest
+	(*ResolveNoShowContestResponse)(nil),               // 54: booking.ResolveNoShowContestResponse
+	(*CheckDeletionEligibilityRequest)(nil),            // 55: booking.CheckDeletionEligibilityRequest
+	(*CheckDeletionEligibilityResponse)(nil),           // 56: booking.CheckDeletionEligibilityResponse
+	(*AnonymizeUserDataRequest)(nil),                   // 57: booking.AnonymizeUserDataRequest
+	(*AnonymizeUserDataResponse)(nil),                  // 58: booking.AnonymizeUserDataResponse
+	(*GetPassengerBookingIDsRequest)(nil),              // 59: booking.GetPassengerBookingIDsRequest
+	(*GetPassengerBookingIDsResponse)(nil),             // 60: booking.GetPassengerBookingIDsResponse
 }
 var file_booking_proto_depIdxs = []int32{
 	0,  // 0: booking.CreateBookingRequest.Segments:type_name -> booking.SegmentInput
@@ -4698,38 +4894,40 @@ var file_booking_proto_depIdxs = []int32{
 	46, // 32: booking.BookingService.GetActivePassengerSummariesForTrip:input_type -> booking.GetActivePassengerSummariesForTripRequest
 	48, // 33: booking.BookingService.ListBookings:input_type -> booking.ListBookingsRequest
 	51, // 34: booking.BookingService.GetBookingDetailAdmin:input_type -> booking.GetBookingDetailAdminRequest
-	37, // 35: booking.BookingService.Health:input_type -> booking.HealthRequest
-	53, // 36: booking.BookingService.CheckDeletionEligibility:input_type -> booking.CheckDeletionEligibilityRequest
-	55, // 37: booking.BookingService.AnonymizeUserData:input_type -> booking.AnonymizeUserDataRequest
-	57, // 38: booking.BookingService.GetPassengerBookingIDs:input_type -> booking.GetPassengerBookingIDsRequest
-	2,  // 39: booking.BookingService.CreateBooking:output_type -> booking.CreateBookingResponse
-	7,  // 40: booking.BookingService.GetBookingDetails:output_type -> booking.GetBookingDetailsResponse
-	7,  // 41: booking.BookingService.GetBookingDetailsInternal:output_type -> booking.GetBookingDetailsResponse
-	10, // 42: booking.BookingService.GetPassengerBookings:output_type -> booking.GetPassengerBookingsResponse
-	12, // 43: booking.BookingService.GetDriverTripBookings:output_type -> booking.GetDriverTripBookingsResponse
-	14, // 44: booking.BookingService.ApproveBooking:output_type -> booking.ApproveBookingResponse
-	16, // 45: booking.BookingService.RejectBooking:output_type -> booking.RejectBookingResponse
-	18, // 46: booking.BookingService.CancelBooking:output_type -> booking.CancelBookingResponse
-	20, // 47: booking.BookingService.StartBookingsForWaypoint:output_type -> booking.StartBookingsForWaypointResponse
-	22, // 48: booking.BookingService.CompleteBookingsForWaypoint:output_type -> booking.CompleteBookingsForWaypointResponse
-	24, // 49: booking.BookingService.CancelBookingsForWaypoint:output_type -> booking.CancelBookingsForWaypointResponse
-	26, // 50: booking.BookingService.CancelBookingsForTrip:output_type -> booking.CancelBookingsForTripResponse
-	28, // 51: booking.BookingService.ReportNoShow:output_type -> booking.ReportNoShowResponse
-	30, // 52: booking.BookingService.ContestNoShow:output_type -> booking.ContestNoShowResponse
-	32, // 53: booking.BookingService.ConfirmPayment:output_type -> booking.ConfirmPaymentResponse
-	34, // 54: booking.BookingService.FailPayment:output_type -> booking.FailPaymentResponse
-	36, // 55: booking.BookingService.GetActivePassengerIDsForTrip:output_type -> booking.GetActivePassengerIDsForTripResponse
-	42, // 56: booking.BookingService.GetDriverPendingBookings:output_type -> booking.GetDriverPendingBookingsResponse
-	44, // 57: booking.BookingService.GetDriverBookings:output_type -> booking.GetDriverBookingsResponse
-	47, // 58: booking.BookingService.GetActivePassengerSummariesForTrip:output_type -> booking.GetActivePassengerSummariesForTripResponse
-	50, // 59: booking.BookingService.ListBookings:output_type -> booking.ListBookingsResponse
-	52, // 60: booking.BookingService.GetBookingDetailAdmin:output_type -> booking.GetBookingDetailAdminResponse
-	38, // 61: booking.BookingService.Health:output_type -> booking.HealthResponse
-	54, // 62: booking.BookingService.CheckDeletionEligibility:output_type -> booking.CheckDeletionEligibilityResponse
-	56, // 63: booking.BookingService.AnonymizeUserData:output_type -> booking.AnonymizeUserDataResponse
-	58, // 64: booking.BookingService.GetPassengerBookingIDs:output_type -> booking.GetPassengerBookingIDsResponse
-	39, // [39:65] is the sub-list for method output_type
-	13, // [13:39] is the sub-list for method input_type
+	53, // 35: booking.BookingService.ResolveNoShowContest:input_type -> booking.ResolveNoShowContestRequest
+	37, // 36: booking.BookingService.Health:input_type -> booking.HealthRequest
+	55, // 37: booking.BookingService.CheckDeletionEligibility:input_type -> booking.CheckDeletionEligibilityRequest
+	57, // 38: booking.BookingService.AnonymizeUserData:input_type -> booking.AnonymizeUserDataRequest
+	59, // 39: booking.BookingService.GetPassengerBookingIDs:input_type -> booking.GetPassengerBookingIDsRequest
+	2,  // 40: booking.BookingService.CreateBooking:output_type -> booking.CreateBookingResponse
+	7,  // 41: booking.BookingService.GetBookingDetails:output_type -> booking.GetBookingDetailsResponse
+	7,  // 42: booking.BookingService.GetBookingDetailsInternal:output_type -> booking.GetBookingDetailsResponse
+	10, // 43: booking.BookingService.GetPassengerBookings:output_type -> booking.GetPassengerBookingsResponse
+	12, // 44: booking.BookingService.GetDriverTripBookings:output_type -> booking.GetDriverTripBookingsResponse
+	14, // 45: booking.BookingService.ApproveBooking:output_type -> booking.ApproveBookingResponse
+	16, // 46: booking.BookingService.RejectBooking:output_type -> booking.RejectBookingResponse
+	18, // 47: booking.BookingService.CancelBooking:output_type -> booking.CancelBookingResponse
+	20, // 48: booking.BookingService.StartBookingsForWaypoint:output_type -> booking.StartBookingsForWaypointResponse
+	22, // 49: booking.BookingService.CompleteBookingsForWaypoint:output_type -> booking.CompleteBookingsForWaypointResponse
+	24, // 50: booking.BookingService.CancelBookingsForWaypoint:output_type -> booking.CancelBookingsForWaypointResponse
+	26, // 51: booking.BookingService.CancelBookingsForTrip:output_type -> booking.CancelBookingsForTripResponse
+	28, // 52: booking.BookingService.ReportNoShow:output_type -> booking.ReportNoShowResponse
+	30, // 53: booking.BookingService.ContestNoShow:output_type -> booking.ContestNoShowResponse
+	32, // 54: booking.BookingService.ConfirmPayment:output_type -> booking.ConfirmPaymentResponse
+	34, // 55: booking.BookingService.FailPayment:output_type -> booking.FailPaymentResponse
+	36, // 56: booking.BookingService.GetActivePassengerIDsForTrip:output_type -> booking.GetActivePassengerIDsForTripResponse
+	42, // 57: booking.BookingService.GetDriverPendingBookings:output_type -> booking.GetDriverPendingBookingsResponse
+	44, // 58: booking.BookingService.GetDriverBookings:output_type -> booking.GetDriverBookingsResponse
+	47, // 59: booking.BookingService.GetActivePassengerSummariesForTrip:output_type -> booking.GetActivePassengerSummariesForTripResponse
+	50, // 60: booking.BookingService.ListBookings:output_type -> booking.ListBookingsResponse
+	52, // 61: booking.BookingService.GetBookingDetailAdmin:output_type -> booking.GetBookingDetailAdminResponse
+	54, // 62: booking.BookingService.ResolveNoShowContest:output_type -> booking.ResolveNoShowContestResponse
+	38, // 63: booking.BookingService.Health:output_type -> booking.HealthResponse
+	56, // 64: booking.BookingService.CheckDeletionEligibility:output_type -> booking.CheckDeletionEligibilityResponse
+	58, // 65: booking.BookingService.AnonymizeUserData:output_type -> booking.AnonymizeUserDataResponse
+	60, // 66: booking.BookingService.GetPassengerBookingIDs:output_type -> booking.GetPassengerBookingIDsResponse
+	40, // [40:67] is the sub-list for method output_type
+	13, // [13:40] is the sub-list for method input_type
 	13, // [13:13] is the sub-list for extension type_name
 	13, // [13:13] is the sub-list for extension extendee
 	0,  // [0:13] is the sub-list for field type_name
@@ -4746,7 +4944,7 @@ func file_booking_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_booking_proto_rawDesc), len(file_booking_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   59,
+			NumMessages:   61,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -62,6 +62,8 @@ type BookingAdminFilter struct {
 	BookingReference string
 	DateFrom         *time.Time
 	DateTo           *time.Time
+	// NoShowContestPending : uniquement les no-shows contestés en attente de décision du support.
+	NoShowContestPending bool
 }
 
 // RawAdminBookingPreview contient les champs DB bruts d'une réservation pour la vue support,
