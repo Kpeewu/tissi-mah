@@ -44,6 +44,9 @@ const (
 	KycApproved                 = "KYC_APPROVED"
 	KycRejected                 = "KYC_REJECTED"
 	DriverProfileVerified       = "DRIVER_PROFILE_VERIFIED"
+	DriverNoShowReported        = "DRIVER_NO_SHOW_REPORTED"
+	NoShowContested             = "NO_SHOW_CONTESTED"
+	NoShowContestResolved       = "NO_SHOW_CONTEST_RESOLVED"
 )
 
 // Reference types

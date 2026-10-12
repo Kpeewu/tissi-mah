@@ -737,20 +737,14 @@ func (s *bookingServiceImpl) ReportNoShow(ctx context.Context, input *serviceInt
 
 	s.invalidateBookingCaches(ctx, input.BookingID)
 
-	// Notifier le passager de l'absence signalée
-	if s.notifRedis != nil {
-		if err := notification.Publish(ctx, s.notifRedis, notification.Event{
-			EventType:     notification.NoShowAtDeparture,
-			UserID:        booking.PassengerID,
-			ReferenceID:   booking.BookingID,
-			ReferenceType: notification.RefBooking,
-			Payload: map[string]string{
-				"trip_id": booking.TripID,
-			},
-		}); err != nil {
-			s.logger.Error("failed to publish NO_SHOW_AT_DEPARTURE notification", zap.Error(err))
-		}
+	// Notifier la partie déclarée absente, qui peut contester avant l'échéance
+	eventType := notification.NoShowAtDeparture
+	if input.NoShowType == "driver" {
+		eventType = notification.DriverNoShowReported
 	}
+	s.publishNoShowEvent(ctx, eventType, noShowAccusedID(booking, input.NoShowType), booking, map[string]string{
+		"contest_deadline": formatNotificationTime(time.Now().Add(domain.NoShowContestWindow)),
+	})
 
 	// Pas de demande de remboursement ici : refund_reason est enregistré avec la transition et le
 	// worker le transmet à l'expiration du délai de contestation (ou après la décision du support).
@@ -823,7 +817,7 @@ func (s *bookingServiceImpl) ContestNoShow(ctx context.Context, input *serviceIn
 	}
 
 	// Seule la partie déclarée absente peut contester
-	if input.ContesterID != noShowAccusedID(booking) {
+	if input.ContesterID != noShowAccusedID(booking, *booking.NoShowType) {
 		s.logger.Warn("service: ContestNoShow refusé, l'appelant n'est pas la partie accusée",
 			zap.String("bookingID", input.BookingID))
 		return bookingErrors.ErrorUnauthorized
@@ -835,6 +829,9 @@ func (s *bookingServiceImpl) ContestNoShow(ctx context.Context, input *serviceIn
 	}
 
 	s.invalidateBookingCaches(ctx, input.BookingID)
+
+	// Prévenir le déclarant que l'absence est contestée et soumise au support
+	s.publishNoShowEvent(ctx, notification.NoShowContested, derefString(booking.NoShowReportedBy), booking, nil)
 	return nil
 }
 
@@ -882,15 +879,58 @@ func (s *bookingServiceImpl) ResolveNoShowContest(
 	if s.shouldRequestRefund(booking) {
 		go s.requestRefundAsync(booking.BookingID)
 	}
+
+	decision := map[string]string{"decision": noShowDecisionLabels[input.RefundReason]}
+	s.publishNoShowEvent(ctx, notification.NoShowContestResolved, booking.PassengerID, booking, decision)
+	s.publishNoShowEvent(ctx, notification.NoShowContestResolved, booking.DriverID, booking, decision)
 	return nil
 }
 
-// noShowAccusedID retourne l'UserID de la partie déclarée absente.
-func noShowAccusedID(booking *domain.Booking) string {
-	if booking.NoShowType != nil && *booking.NoShowType == "driver" {
+// noShowAccusedID retourne l'UserID de la partie déclarée absente pour ce type de no-show.
+func noShowAccusedID(booking *domain.Booking, noShowType string) string {
+	if noShowType == "driver" {
 		return booking.DriverID
 	}
 	return booking.PassengerID
+}
+
+// noShowDecisionLabels : libellé, pour les notifications, du motif retenu par le support.
+var noShowDecisionLabels = map[string]string{
+	domain.RefundReasonNoShowDriver:    "l'absence du conducteur est retenue",
+	domain.RefundReasonNoShowPassenger: "l'absence du passager est retenue",
+	domain.RefundReasonTripCancelled:   "le trajet est considéré comme annulé, sans faute de l'une ou l'autre partie",
+}
+
+// publishNoShowEvent publie une notification liée au no-show d'une réservation (best-effort).
+func (s *bookingServiceImpl) publishNoShowEvent(
+	ctx context.Context, eventType, userID string, booking *domain.Booking, extra map[string]string,
+) {
+	if s.notifRedis == nil || userID == "" {
+		return
+	}
+	payload := map[string]string{
+		"trip_id":           booking.TripID,
+		"booking_id":        booking.BookingID,
+		"notification_type": eventType,
+	}
+	for k, v := range extra {
+		payload[k] = v
+	}
+	if err := notification.Publish(ctx, s.notifRedis, notification.Event{
+		EventType:     eventType,
+		UserID:        userID,
+		ReferenceID:   booking.BookingID,
+		ReferenceType: notification.RefBooking,
+		Payload:       payload,
+	}); err != nil {
+		s.logger.Error("failed to publish no-show notification",
+			zap.String("eventType", eventType), zap.String("bookingID", booking.BookingID), zap.Error(err))
+	}
+}
+
+// formatNotificationTime formate une date pour un texte de notification (GMT, fuseau du Togo).
+func formatNotificationTime(t time.Time) string {
+	return t.UTC().Format("02/01/2006 à 15:04") + " GMT"
 }
 
 // =============================================================================
