@@ -20,6 +20,11 @@ const payoutsPageSize = 20
 // automatiquement par le batch (relance par le support via TriggerManualPayout).
 const maxAutomaticPayoutAttempts = 3
 
+// payoutBlockingPaymentStatuses : statuts dont l'argent est encore en vol ; ils bloquent le payout
+// du trajet, automatique comme manuel. Un paiement failed n'a rien encaissé et ne bloque pas
+// (une approbation tardive le repasse en held).
+const payoutBlockingPaymentStatuses = `'pending', 'held'`
+
 const payoutSelectColumns = `payout_id, payout_reference, driver_id, trip_id,
 	gross_amount, platform_fee, net_amount, payout_method, payout_destination,
 	destination_name, status, scheduled_at, completed_at, failed_at, cancelled_at,
@@ -106,7 +111,7 @@ func (r *payoutReadRepository) GetBatchByID(ctx context.Context, batchID string)
 	return &b, nil
 }
 
-// GetTripsReadyForPayout retourne les trip_id dont tous les paiements sont en status released,
+// GetTripsReadyForPayout retourne les trip_id ayant des paiements released et aucun en pending/held,
 // sans payout actif ni completed, et dont les payouts n'ont pas échoué maxAutomaticPayoutAttempts fois.
 func (r *payoutReadRepository) GetTripsReadyForPayout(ctx context.Context) ([]string, error) {
 	query := `SELECT DISTINCT p.trip_id
@@ -114,7 +119,7 @@ func (r *payoutReadRepository) GetTripsReadyForPayout(ctx context.Context) ([]st
 		WHERE p.status = 'released'
 		AND NOT EXISTS (
 			SELECT 1 FROM payments p2
-			WHERE p2.trip_id = p.trip_id AND p2.status NOT IN ('released', 'paidOut', 'refunded')
+			WHERE p2.trip_id = p.trip_id AND p2.status IN (` + payoutBlockingPaymentStatuses + `)
 		)
 		AND NOT EXISTS (
 			SELECT 1 FROM payouts po
@@ -182,7 +187,7 @@ func (r *payoutReadRepository) IsTripReadyForPayout(ctx context.Context, tripID 
 	query := `SELECT EXISTS (
 		SELECT 1 FROM payments WHERE trip_id = $1 AND status = 'released'
 	) AND NOT EXISTS (
-		SELECT 1 FROM payments WHERE trip_id = $1 AND status IN ('pending', 'held')
+		SELECT 1 FROM payments WHERE trip_id = $1 AND status IN (` + payoutBlockingPaymentStatuses + `)
 	) AND NOT EXISTS (
 		SELECT 1 FROM payouts WHERE trip_id = $1 AND status NOT IN ('failed', 'cancelled')
 	)`
