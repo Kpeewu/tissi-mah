@@ -19,6 +19,17 @@ const (
 	BookingStatusExpired         BookingStatus = "expired"
 )
 
+// Motifs de remboursement transmis à payment-service (enum refund_reason côté payment-service).
+const (
+	RefundReasonBookingRejected      = "bookingRejected"
+	RefundReasonCancelledByDriver    = "cancelledByDriver"
+	RefundReasonCancelledByPassenger = "cancelledByPassenger"
+	RefundReasonNoShowDriver         = "noShowDriver"
+	RefundReasonNoShowPassenger      = "noShowPassenger"
+	RefundReasonTripCancelled        = "tripCancelled"
+	RefundReasonWaypointCancelled    = "waypointCancelled"
+)
+
 // PaymentMethod représente le mode de paiement d'une réservation.
 type PaymentMethod string
 
@@ -64,4 +75,8 @@ type Booking struct {
 	PassengerMessage    *string
 	ExtraMinutesDetour  *int16
 	ExtraDetourPrice    *int
+	// Demande de remboursement à payment-service (cf. migration 000008)
+	RefundReason          *string
+	RefundRequestedAt     *time.Time
+	RefundRequestAttempts int16
 }

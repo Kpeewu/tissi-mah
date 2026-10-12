@@ -609,6 +609,8 @@ These routes are called by booking-service and are not accessible to mobile clie
 
 Creates a refund for a booking. Called by booking-service on cancellation, rejection, or no-show.
 
+**Idempotent per payment:** a payment has at most one refund (unique index on `refunds.payment_id`). If a refund already exists for the booking's payment, it is returned unchanged and nothing is created. booking-service relies on this to replay requests whose response was lost; two concurrent requests also return the same refund.
+
 #### Request
 
 ```json
@@ -631,7 +633,7 @@ Creates a refund for a booking. Called by booking-service on cancellation, rejec
 | `RefundReason` | string | Yes | See refund reasons below |
 | `OriginalAmount` | integer | Yes | Booking subtotal (excluding service fee) in XOF |
 | `ServiceFee` | integer | Yes | Service fee in XOF |
-| `DepartureDatetime` | string | Yes | Trip departure datetime (RFC3339) |
+| `DepartureDatetime` | string | `cancelledByPassenger` only | Trip departure datetime (RFC3339). Only used by the 24-hour rule of a passenger cancellation; it may be empty for other reasons (e.g. the passenger's stop was removed). |
 | `ApprovedAt` | string | No | When booking was approved (RFC3339) — used for grace period calculation |
 | `CancelledAt` | string | Yes | When cancellation occurred (RFC3339) |
 

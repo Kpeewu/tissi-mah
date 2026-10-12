@@ -45,6 +45,21 @@ func TestRefundWriteRepository_CreateRefund(t *testing.T) {
 		assert.Equal(t, 5500, result.RefundAmount)
 		assert.Equal(t, domain.RefundStatusCompleted, result.Status)
 	})
+
+	t.Run("un seul refund par paiement : le second renvoie ErrorRefundAlreadyProcessed", func(t *testing.T) {
+		cleanupPaymentTables(t, ctx)
+
+		payment := fixtures.NewTestPayment(fixtures.WithPaymentID("pay-unique-refund"))
+		require.NoError(t, fixtures.InsertPayment(ctx, testPool, payment))
+
+		first := fixtures.NewTestRefund(fixtures.WithRefundPaymentID("pay-unique-refund"))
+		require.NoError(t, writeRepo.CreateRefund(ctx, first))
+
+		second := fixtures.NewTestRefund(fixtures.WithRefundPaymentID("pay-unique-refund"))
+		err := writeRepo.CreateRefund(ctx, second)
+
+		assert.ErrorIs(t, err, paymentErrors.ErrorRefundAlreadyProcessed)
+	})
 }
 
 // TestRefundWriteRepository_CreateRefund_AllReasons vérifie que chaque motif du domaine existe

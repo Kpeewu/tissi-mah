@@ -15,6 +15,13 @@ import (
 	"go.uber.org/zap"
 )
 
+// refundReasonIfPaid renvoie l'expression SQL qui pose refund_reason (paramètre param) seulement pour
+// une réservation payée en ligne : la dette de remboursement est enregistrée dans la même transaction
+// que la transition, puis transmise à payment-service (goroutine, rejouée par le worker si elle échoue).
+func refundReasonIfPaid(param string) string {
+	return "CASE WHEN payment_method != 'cash' AND payment_completed_at IS NOT NULL THEN " + param + " END"
+}
+
 type bookingWriteRepositoryImpl struct {
 	pool   *pgxpool.Pool
 	logger *zap.Logger
@@ -234,8 +241,10 @@ func (r *bookingWriteRepositoryImpl) Reject(ctx context.Context, bookingID, driv
 	}
 
 	_, err = tx.Exec(ctx, `
-		UPDATE bookings SET status = 'rejected', rejected_at = NOW(), cancellation_reason = $2 WHERE booking_id = $1`,
-		bookingID, reason)
+		UPDATE bookings SET status = 'rejected', rejected_at = NOW(), cancellation_reason = $2,
+		       refund_reason = `+refundReasonIfPaid("$3")+`
+		WHERE booking_id = $1`,
+		bookingID, reason, domain.RefundReasonBookingRejected)
 	if err != nil {
 		r.logger.Error("reject update failed", zap.Error(err))
 		return bookingErrors.ErrorInternalServer
@@ -292,11 +301,17 @@ func (r *bookingWriteRepositoryImpl) Cancel(ctx context.Context, bookingID, canc
 		changedByType = "driver"
 	}
 
+	refundReason := domain.RefundReasonCancelledByPassenger
+	if changedByType == "driver" {
+		refundReason = domain.RefundReasonCancelledByDriver
+	}
+
 	_, err = tx.Exec(ctx, `
 		UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
-		       canceller_id = $2, cancellation_reason = $3
+		       canceller_id = $2, cancellation_reason = $3,
+		       refund_reason = `+refundReasonIfPaid("$4")+`
 		WHERE booking_id = $1`,
-		bookingID, cancellerID, reason)
+		bookingID, cancellerID, reason, refundReason)
 	if err != nil {
 		r.logger.Error("cancel update failed", zap.Error(err))
 		return bookingErrors.ErrorInternalServer
@@ -466,12 +481,18 @@ func (r *bookingWriteRepositoryImpl) ReportNoShow(ctx context.Context, bookingID
 		return bookingErrors.ErrorInvalidStatusTransition
 	}
 
+	refundReason := domain.RefundReasonNoShowPassenger
+	if noShowType == "driver" {
+		refundReason = domain.RefundReasonNoShowDriver
+	}
+
 	_, err = tx.Exec(ctx, `
 		UPDATE bookings SET status = 'noShow',
 		       no_show_type = $2, no_show_reported_by = $3,
-		       no_show_reported_at = NOW(), no_show_description = $4
+		       no_show_reported_at = NOW(), no_show_description = $4,
+		       refund_reason = `+refundReasonIfPaid("$5")+`
 		WHERE booking_id = $1`,
-		bookingID, noShowType, reporterID, description)
+		bookingID, noShowType, reporterID, description, refundReason)
 	if err != nil {
 		r.logger.Error("report no-show update failed", zap.Error(err))
 		return bookingErrors.ErrorInternalServer
@@ -643,8 +664,9 @@ func (r *bookingWriteRepositoryImpl) CancelBookingsForTrip(ctx context.Context, 
 	for _, b := range bookings {
 		_, err = tx.Exec(ctx, `
 			UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
-			       canceller_id = 'system', cancellation_reason = $2
-			WHERE booking_id = $1`, b.BookingID, cancelReason)
+			       canceller_id = 'system', cancellation_reason = $2,
+			       refund_reason = `+refundReasonIfPaid("$3")+`
+			WHERE booking_id = $1`, b.BookingID, cancelReason, domain.RefundReasonTripCancelled)
 		if err != nil {
 			r.logger.Error("cancel booking for trip update failed", zap.Error(err), zap.String("bookingID", b.BookingID))
 			return nil, bookingErrors.ErrorInternalServer
@@ -700,8 +722,9 @@ func (r *bookingWriteRepositoryImpl) CancelBookingsForWaypoint(ctx context.Conte
 	for _, b := range bookings {
 		_, err = tx.Exec(ctx, `
 			UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
-			       canceller_id = 'system', cancellation_reason = $2
-			WHERE booking_id = $1`, b.BookingID, cancelReason)
+			       canceller_id = 'system', cancellation_reason = $2,
+			       refund_reason = `+refundReasonIfPaid("$3")+`
+			WHERE booking_id = $1`, b.BookingID, cancelReason, domain.RefundReasonWaypointCancelled)
 		if err != nil {
 			r.logger.Error("cancel booking for waypoint update failed", zap.Error(err), zap.String("bookingID", b.BookingID))
 			return nil, bookingErrors.ErrorInternalServer
@@ -787,6 +810,41 @@ func (r *bookingWriteRepositoryImpl) MarkPaymentReleased(ctx context.Context, bo
 	}
 
 	return nil
+}
+
+// MarkRefundRequested enregistre l'acquittement de la demande de remboursement par payment-service.
+func (r *bookingWriteRepositoryImpl) MarkRefundRequested(ctx context.Context, bookingID string) error {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE bookings SET refund_requested_at = NOW()
+		WHERE booking_id = $1 AND refund_requested_at IS NULL`, bookingID)
+	if err != nil {
+		r.logger.Error("MarkRefundRequested failed", zap.Error(err), zap.String("bookingID", bookingID))
+		return bookingErrors.ErrorInternalServer
+	}
+	if tag.RowsAffected() == 0 {
+		r.logger.Debug("MarkRefundRequested: already marked", zap.String("bookingID", bookingID))
+	}
+	return nil
+}
+
+// IncrementRefundRequestAttempts compte un refus définitif de payment-service et retourne le total.
+func (r *bookingWriteRepositoryImpl) IncrementRefundRequestAttempts(
+	ctx context.Context, bookingID string,
+) (int, error) {
+	var attempts int
+	err := r.pool.QueryRow(ctx, `
+		UPDATE bookings SET refund_request_attempts = refund_request_attempts + 1
+		WHERE booking_id = $1
+		RETURNING refund_request_attempts`, bookingID).Scan(&attempts)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, bookingErrors.ErrorBookingNotFound
+		}
+		r.logger.Error("IncrementRefundRequestAttempts failed",
+			zap.Error(err), zap.String("bookingID", bookingID))
+		return 0, bookingErrors.ErrorInternalServer
+	}
+	return attempts, nil
 }
 
 // AnonymizeUserRefs pseudonymise les références d'un utilisateur dans bookings et bookings_status_history.
