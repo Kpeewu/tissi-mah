@@ -53,6 +53,9 @@ type UserClient interface {
 	IsPassengerVerified(ctx context.Context, userID string) (bool, error)
 	// GetPassengerInfo retourne le nom complet et le statut de vérification d'un passager en un seul appel.
 	GetPassengerInfo(ctx context.Context, userID string) (fullName string, isVerified bool, err error)
+	// GetUserIDByFirebaseID résout un Firebase UID en UserID interne.
+	// Retourne ErrorUserNotFound si aucun profil ne correspond.
+	GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error)
 	Close() error
 }
 

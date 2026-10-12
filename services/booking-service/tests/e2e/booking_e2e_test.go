@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -48,9 +49,8 @@ func TestE2E_GetBookingDetails(t *testing.T) {
 		)
 		require.NoError(t, fixtures.InsertBooking(ctx, testPool, booking))
 
-		resp, err := grpcClient.GetBookingDetails(ctx, &bookingpb.GetBookingDetailsRequest{
+		resp, err := grpcClient.GetBookingDetails(ctxWithUID("e2e-pax-1"), &bookingpb.GetBookingDetailsRequest{
 			BookingId: "e2e-bk-details-1",
-			UserId:    "e2e-pax-1",
 		})
 
 		require.NoError(t, err)
@@ -66,15 +66,70 @@ func TestE2E_GetBookingDetails(t *testing.T) {
 	t.Run("erreur - booking inexistant", func(t *testing.T) {
 		cleanupBookingTables(t, ctx)
 
-		_, err := grpcClient.GetBookingDetails(ctx, &bookingpb.GetBookingDetailsRequest{
+		_, err := grpcClient.GetBookingDetails(ctxWithUID("e2e-pax-1"), &bookingpb.GetBookingDetailsRequest{
 			BookingId: "e2e-bk-inexistant",
-			UserId:    "e2e-pax-1",
 		})
 
 		require.Error(t, err)
 		st, ok := status.FromError(err)
 		require.True(t, ok)
 		assert.Equal(t, codes.NotFound, st.Code())
+	})
+
+	t.Run("erreur - un tiers ne peut pas lire la reservation, meme avec UserId vide", func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("e2e-bk-details-tiers"),
+			fixtures.WithPassengerID("e2e-pax-1"),
+			fixtures.WithDriverID("e2e-driver-1"),
+		)
+		require.NoError(t, fixtures.InsertBooking(ctx, testPool, booking))
+
+		_, err := grpcClient.GetBookingDetails(ctxWithUID("e2e-intrus"), &bookingpb.GetBookingDetailsRequest{
+			BookingId: "e2e-bk-details-tiers",
+			UserId:    "",
+		})
+
+		require.Error(t, err)
+		st, _ := status.FromError(err)
+		assert.Equal(t, codes.PermissionDenied, st.Code())
+	})
+
+	t.Run("erreur - appel sans identite refuse, meme avec UserId du passager", func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+
+		booking := fixtures.NewTestBooking(fixtures.WithBookingID("e2e-bk-details-internal"))
+		require.NoError(t, fixtures.InsertBooking(ctx, testPool, booking))
+
+		_, err := grpcClient.GetBookingDetails(context.Background(), &bookingpb.GetBookingDetailsRequest{
+			BookingId: "e2e-bk-details-internal",
+			UserId:    booking.PassengerID,
+		})
+
+		require.Error(t, err)
+		st, _ := status.FromError(err)
+		assert.Equal(t, codes.Unauthenticated, st.Code())
+	})
+
+	t.Run("succes - route interne sans identite", func(t *testing.T) {
+		resp, err := grpcClient.GetBookingDetailsInternal(context.Background(), &bookingpb.GetBookingDetailsRequest{
+			BookingId: "e2e-bk-details-internal",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, resp.Booking)
+		assert.Equal(t, "e2e-bk-details-internal", resp.Booking.BookingId)
+	})
+
+	t.Run("erreur - utilisateur inconnu de user-service", func(t *testing.T) {
+		_, err := grpcClient.GetBookingDetails(ctxWithUID(unknownFirebaseUID), &bookingpb.GetBookingDetailsRequest{
+			BookingId: "e2e-bk-details-internal",
+		})
+
+		require.Error(t, err)
+		st, _ := status.FromError(err)
+		assert.Equal(t, codes.PermissionDenied, st.Code())
 	})
 }
 
@@ -95,9 +150,8 @@ func TestE2E_ApproveBooking(t *testing.T) {
 		)
 		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
 
-		resp, err := grpcClient.ApproveBooking(ctx, &bookingpb.ApproveBookingRequest{
+		resp, err := grpcClient.ApproveBooking(ctxWithUID("e2e-driver-approve"), &bookingpb.ApproveBookingRequest{
 			BookingId: "e2e-bk-approve",
-			DriverId:  "e2e-driver-approve",
 		})
 
 		require.NoError(t, err)
@@ -105,19 +159,38 @@ func TestE2E_ApproveBooking(t *testing.T) {
 		assert.True(t, resp.Success)
 
 		// Verifier le statut en DB
-		detailResp, err := grpcClient.GetBookingDetails(ctx, &bookingpb.GetBookingDetailsRequest{
+		detailResp, err := grpcClient.GetBookingDetails(ctxWithUID("e2e-driver-approve"), &bookingpb.GetBookingDetailsRequest{
 			BookingId: "e2e-bk-approve",
-			UserId:    "e2e-driver-approve",
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "approved", detailResp.Booking.Status)
 		assert.NotEmpty(t, detailResp.Booking.ApprovedAt)
 	})
 
+	t.Run("erreur - DriverId du body ignore, l'appelant n'est pas le chauffeur", func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("e2e-bk-approve-usurp"),
+			fixtures.WithPassengerID("e2e-pax-usurp"),
+			fixtures.WithDriverID("e2e-driver-approve"),
+			fixtures.WithBookingStatus(domain.BookingStatusPendingApproval),
+		)
+		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
+
+		_, err := grpcClient.ApproveBooking(ctxWithUID("e2e-pax-usurp"), &bookingpb.ApproveBookingRequest{
+			BookingId: "e2e-bk-approve-usurp",
+			DriverId:  "e2e-driver-approve",
+		})
+
+		require.Error(t, err)
+		st, _ := status.FromError(err)
+		assert.Equal(t, codes.PermissionDenied, st.Code())
+	})
+
 	t.Run("erreur - input invalide", func(t *testing.T) {
-		_, err := grpcClient.ApproveBooking(ctx, &bookingpb.ApproveBookingRequest{
+		_, err := grpcClient.ApproveBooking(ctxWithUID("e2e-driver-approve"), &bookingpb.ApproveBookingRequest{
 			BookingId: "",
-			DriverId:  "",
 		})
 
 		require.Error(t, err)
@@ -143,9 +216,8 @@ func TestE2E_RejectBooking(t *testing.T) {
 		)
 		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
 
-		resp, err := grpcClient.RejectBooking(ctx, &bookingpb.RejectBookingRequest{
+		resp, err := grpcClient.RejectBooking(ctxWithUID("e2e-driver-reject"), &bookingpb.RejectBookingRequest{
 			BookingId: "e2e-bk-reject",
-			DriverId:  "e2e-driver-reject",
 			Reason:    "Pas disponible",
 		})
 
@@ -154,13 +226,33 @@ func TestE2E_RejectBooking(t *testing.T) {
 		assert.True(t, resp.Success)
 
 		// Verifier le statut en DB
-		detailResp, err := grpcClient.GetBookingDetails(ctx, &bookingpb.GetBookingDetailsRequest{
+		detailResp, err := grpcClient.GetBookingDetails(ctxWithUID("e2e-driver-reject"), &bookingpb.GetBookingDetailsRequest{
 			BookingId: "e2e-bk-reject",
-			UserId:    "e2e-driver-reject",
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "rejected", detailResp.Booking.Status)
 		assert.NotEmpty(t, detailResp.Booking.RejectedAt)
+	})
+
+	t.Run("erreur - DriverId du body ignore, l'appelant n'est pas le chauffeur", func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("e2e-bk-reject-usurp"),
+			fixtures.WithDriverID("e2e-driver-reject"),
+			fixtures.WithBookingStatus(domain.BookingStatusPendingApproval),
+		)
+		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
+
+		_, err := grpcClient.RejectBooking(ctxWithUID("e2e-intrus"), &bookingpb.RejectBookingRequest{
+			BookingId: "e2e-bk-reject-usurp",
+			DriverId:  "e2e-driver-reject",
+			Reason:    "usurpation",
+		})
+
+		require.Error(t, err)
+		st, _ := status.FromError(err)
+		assert.Equal(t, codes.PermissionDenied, st.Code())
 	})
 }
 
@@ -181,9 +273,8 @@ func TestE2E_CancelBooking(t *testing.T) {
 		)
 		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
 
-		resp, err := grpcClient.CancelBooking(ctx, &bookingpb.CancelBookingRequest{
+		resp, err := grpcClient.CancelBooking(ctxWithUID("e2e-pax-cancel"), &bookingpb.CancelBookingRequest{
 			BookingId: "e2e-bk-cancel",
-			UserId:    "e2e-pax-cancel",
 			Reason:    "Changement de plan",
 		})
 
@@ -192,9 +283,8 @@ func TestE2E_CancelBooking(t *testing.T) {
 		assert.True(t, resp.Success)
 
 		// Verifier le statut en DB
-		detailResp, err := grpcClient.GetBookingDetails(ctx, &bookingpb.GetBookingDetailsRequest{
+		detailResp, err := grpcClient.GetBookingDetails(ctxWithUID("e2e-pax-cancel"), &bookingpb.GetBookingDetailsRequest{
 			BookingId: "e2e-bk-cancel",
-			UserId:    "e2e-pax-cancel",
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "cancelled", detailResp.Booking.Status)
@@ -202,12 +292,57 @@ func TestE2E_CancelBooking(t *testing.T) {
 		assert.Equal(t, "e2e-pax-cancel", detailResp.Booking.CancellerId)
 	})
 
+	t.Run("securite - passager avec UserId du chauffeur : annulation imputee au passager", func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+
+		booking := fixtures.NewTestBookingWithPayment(
+			fixtures.WithBookingID("e2e-bk-cancel-usurp"),
+			fixtures.WithPassengerID("e2e-pax-usurp"),
+			fixtures.WithDriverID("e2e-driver-usurp"),
+			fixtures.WithBookingStatus(domain.BookingStatusApproved),
+		)
+		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
+
+		_, err := grpcClient.CancelBooking(ctxWithUID("e2e-pax-usurp"), &bookingpb.CancelBookingRequest{
+			BookingId: "e2e-bk-cancel-usurp",
+			UserId:    "e2e-driver-usurp",
+			Reason:    "Je me fais passer pour le chauffeur",
+		})
+		require.NoError(t, err)
+
+		var cancellerID, refundReason string
+		require.NoError(t, testPool.QueryRow(ctx,
+			`SELECT canceller_id, refund_reason FROM bookings WHERE booking_id = $1`, "e2e-bk-cancel-usurp",
+		).Scan(&cancellerID, &refundReason))
+		assert.Equal(t, "e2e-pax-usurp", cancellerID)
+		assert.Equal(t, domain.RefundReasonCancelledByPassenger, refundReason)
+	})
+
+	t.Run("erreur - un tiers ne peut pas annuler", func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("e2e-bk-cancel-tiers"),
+			fixtures.WithBookingStatus(domain.BookingStatusApproved),
+		)
+		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
+
+		_, err := grpcClient.CancelBooking(ctxWithUID("e2e-intrus"), &bookingpb.CancelBookingRequest{
+			BookingId: "e2e-bk-cancel-tiers",
+			UserId:    booking.PassengerID,
+			Reason:    "test",
+		})
+
+		require.Error(t, err)
+		st, _ := status.FromError(err)
+		assert.Equal(t, codes.PermissionDenied, st.Code())
+	})
+
 	t.Run("erreur - booking inexistant", func(t *testing.T) {
 		cleanupBookingTables(t, ctx)
 
-		_, err := grpcClient.CancelBooking(ctx, &bookingpb.CancelBookingRequest{
+		_, err := grpcClient.CancelBooking(ctxWithUID("pax-1"), &bookingpb.CancelBookingRequest{
 			BookingId: "e2e-bk-inexistant",
-			UserId:    "pax-1",
 			Reason:    "test",
 		})
 
@@ -244,9 +379,8 @@ func TestE2E_ConfirmPayment(t *testing.T) {
 		assert.Equal(t, "pendingApproval", resp.Status)
 
 		// Verifier le statut en DB
-		detailResp, err := grpcClient.GetBookingDetails(ctx, &bookingpb.GetBookingDetailsRequest{
+		detailResp, err := grpcClient.GetBookingDetails(ctxWithUID(booking.PassengerID), &bookingpb.GetBookingDetailsRequest{
 			BookingId: "e2e-bk-confirm",
-			UserId:    booking.PassengerID,
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "pendingApproval", detailResp.Booking.Status)
@@ -282,9 +416,8 @@ func TestE2E_ReportNoShow(t *testing.T) {
 		)
 		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
 
-		resp, err := grpcClient.ReportNoShow(ctx, &bookingpb.ReportNoShowRequest{
+		resp, err := grpcClient.ReportNoShow(ctxWithUID("e2e-driver-noshow"), &bookingpb.ReportNoShowRequest{
 			BookingId:   "e2e-bk-noshow",
-			ReporterId:  "e2e-driver-noshow",
 			NoShowType:  "passenger",
 			Description: "Passager absent au point de ramassage",
 		})
@@ -294,9 +427,8 @@ func TestE2E_ReportNoShow(t *testing.T) {
 		assert.True(t, resp.Success)
 
 		// Verifier le statut en DB
-		detailResp, err := grpcClient.GetBookingDetails(ctx, &bookingpb.GetBookingDetailsRequest{
+		detailResp, err := grpcClient.GetBookingDetails(ctxWithUID("e2e-driver-noshow"), &bookingpb.GetBookingDetailsRequest{
 			BookingId: "e2e-bk-noshow",
-			UserId:    "e2e-driver-noshow",
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "noShow", detailResp.Booking.Status)
@@ -305,9 +437,8 @@ func TestE2E_ReportNoShow(t *testing.T) {
 	})
 
 	t.Run("erreur - type no-show invalide", func(t *testing.T) {
-		_, err := grpcClient.ReportNoShow(ctx, &bookingpb.ReportNoShowRequest{
+		_, err := grpcClient.ReportNoShow(ctxWithUID("driver-1"), &bookingpb.ReportNoShowRequest{
 			BookingId:   "e2e-bk-1",
-			ReporterId:  "driver-1",
 			NoShowType:  "invalid",
 			Description: "test",
 		})
@@ -348,44 +479,39 @@ func TestE2E_BookingLifecycle(t *testing.T) {
 	assert.Equal(t, "pendingApproval", confirmResp.Status)
 
 	// 3. Verifier le statut → pendingApproval
-	detailResp, err := grpcClient.GetBookingDetails(ctx, &bookingpb.GetBookingDetailsRequest{
+	detailResp, err := grpcClient.GetBookingDetails(ctxWithUID("e2e-lifecycle-pax"), &bookingpb.GetBookingDetailsRequest{
 		BookingId: "e2e-lifecycle-bk",
-		UserId:    "e2e-lifecycle-pax",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "pendingApproval", detailResp.Booking.Status)
 	assert.NotEmpty(t, detailResp.Booking.PaymentCompletedAt)
 
 	// 4. Approuver le booking → approved
-	approveResp, err := grpcClient.ApproveBooking(ctx, &bookingpb.ApproveBookingRequest{
+	approveResp, err := grpcClient.ApproveBooking(ctxWithUID("e2e-lifecycle-driver"), &bookingpb.ApproveBookingRequest{
 		BookingId: "e2e-lifecycle-bk",
-		DriverId:  "e2e-lifecycle-driver",
 	})
 	require.NoError(t, err)
 	assert.True(t, approveResp.Success)
 
 	// 5. Verifier le statut → approved
-	detailResp, err = grpcClient.GetBookingDetails(ctx, &bookingpb.GetBookingDetailsRequest{
+	detailResp, err = grpcClient.GetBookingDetails(ctxWithUID("e2e-lifecycle-driver"), &bookingpb.GetBookingDetailsRequest{
 		BookingId: "e2e-lifecycle-bk",
-		UserId:    "e2e-lifecycle-driver",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "approved", detailResp.Booking.Status)
 	assert.NotEmpty(t, detailResp.Booking.ApprovedAt)
 
 	// 6. Annuler le booking → cancelled
-	cancelResp, err := grpcClient.CancelBooking(ctx, &bookingpb.CancelBookingRequest{
+	cancelResp, err := grpcClient.CancelBooking(ctxWithUID("e2e-lifecycle-pax"), &bookingpb.CancelBookingRequest{
 		BookingId: "e2e-lifecycle-bk",
-		UserId:    "e2e-lifecycle-pax",
 		Reason:    "Je ne peux plus voyager",
 	})
 	require.NoError(t, err)
 	assert.True(t, cancelResp.Success)
 
 	// 7. Verifier le statut final → cancelled avec tous les timestamps
-	detailResp, err = grpcClient.GetBookingDetails(ctx, &bookingpb.GetBookingDetailsRequest{
+	detailResp, err = grpcClient.GetBookingDetails(ctxWithUID("e2e-lifecycle-pax"), &bookingpb.GetBookingDetailsRequest{
 		BookingId: "e2e-lifecycle-bk",
-		UserId:    "e2e-lifecycle-pax",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "cancelled", detailResp.Booking.Status)
@@ -398,9 +524,8 @@ func TestE2E_BookingLifecycle(t *testing.T) {
 	assert.GreaterOrEqual(t, len(detailResp.Booking.History), 1)
 
 	// 9. Verifier qu'un booking annule ne peut plus etre approuve
-	_, err = grpcClient.ApproveBooking(ctx, &bookingpb.ApproveBookingRequest{
+	_, err = grpcClient.ApproveBooking(ctxWithUID("e2e-lifecycle-driver"), &bookingpb.ApproveBookingRequest{
 		BookingId: "e2e-lifecycle-bk",
-		DriverId:  "e2e-lifecycle-driver",
 	})
 	require.Error(t, err)
 	st, _ := status.FromError(err)
@@ -438,9 +563,8 @@ func TestE2E_StartBookingsForWaypoint(t *testing.T) {
 		assert.Equal(t, int32(1), resp.BookingsCount)
 
 		// Verifier le statut → inProgress
-		detailResp, err := grpcClient.GetBookingDetails(ctx, &bookingpb.GetBookingDetailsRequest{
+		detailResp, err := grpcClient.GetBookingDetails(ctxWithUID(booking.PassengerID), &bookingpb.GetBookingDetailsRequest{
 			BookingId: "e2e-bk-start",
-			UserId:    booking.PassengerID,
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "inProgress", detailResp.Booking.Status)
@@ -487,12 +611,45 @@ func TestE2E_CompleteBookingsForWaypoint(t *testing.T) {
 		assert.Equal(t, int32(1), resp.BookingsCount)
 
 		// Verifier le statut → completed
-		detailResp, err := grpcClient.GetBookingDetails(ctx, &bookingpb.GetBookingDetailsRequest{
+		detailResp, err := grpcClient.GetBookingDetails(ctxWithUID(booking.PassengerID), &bookingpb.GetBookingDetailsRequest{
 			BookingId: "e2e-bk-complete",
-			UserId:    booking.PassengerID,
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "completed", detailResp.Booking.Status)
 		assert.NotEmpty(t, detailResp.Booking.CompletedAt)
 	})
+}
+
+// =============================================================================
+// Suppression de compte E2E (appels internes auth-service, sans metadata)
+// =============================================================================
+
+func TestE2E_AccountDeletionInternalCalls(t *testing.T) {
+	ctx := context.Background()
+	cleanupBookingTables(t, ctx)
+
+	booking := fixtures.NewTestBooking(
+		fixtures.WithBookingID("e2e-bk-deletion"),
+		fixtures.WithPassengerID("e2e-pax-deletion"),
+		fixtures.WithBookingStatus(domain.BookingStatusCompleted),
+	)
+	require.NoError(t, fixtures.InsertBooking(ctx, testPool, booking))
+
+	eligibility, err := grpcClient.CheckDeletionEligibility(ctx, &bookingpb.CheckDeletionEligibilityRequest{
+		UserId: "e2e-pax-deletion",
+	})
+	require.NoError(t, err)
+	assert.True(t, eligibility.CanDelete)
+
+	ids, err := grpcClient.GetPassengerBookingIDs(ctx, &bookingpb.GetPassengerBookingIDsRequest{
+		UserId: "e2e-pax-deletion",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"e2e-bk-deletion"}, ids.BookingIds)
+
+	anonymized, err := grpcClient.AnonymizeUserData(ctx, &bookingpb.AnonymizeUserDataRequest{
+		UserId: "e2e-pax-deletion",
+	})
+	require.NoError(t, err)
+	assert.True(t, anonymized.Success)
 }

@@ -132,7 +132,9 @@ func (c *BookingServiceClient) GetDriverTripBookings(ctx context.Context, driver
 	c.logger.Debug("client: GetDriverTripBookings called",
 		zap.String("driverID", driverID), zap.String("tripID", tripID))
 
-	resp, err := c.grpcClient.GetDriverTripBookings(ctx, &bookingpb.GetDriverTripBookingsRequest{
+	// booking-service résout le chauffeur depuis l'UID signé par l'api-gateway
+	// (le DriverId du body n'est pas lu) : l'identité de l'appelant est propagée.
+	resp, err := c.grpcClient.GetDriverTripBookings(grpcutil.ForwardIdentity(ctx), &bookingpb.GetDriverTripBookingsRequest{
 		DriverId: driverID,
 		TripId:   tripID,
 		Index:    0,

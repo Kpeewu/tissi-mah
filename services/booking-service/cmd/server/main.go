@@ -130,7 +130,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	}
 
 	// --- gRPC server ---
-	srv, err := grpcServer.NewBookingServer(cfg, bookingService, logger)
+	srv, err := grpcServer.NewBookingServer(cfg, bookingService, userClient, logger)
 	if err != nil {
 		return fmt.Errorf("grpc server: %w", err)
 	}

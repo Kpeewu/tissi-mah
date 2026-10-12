@@ -2,8 +2,10 @@ package middleware
 
 import (
 	"context"
+	"errors"
 
 	grpcutil "github.com/Kpeewu/tissi-mah/pkg/grpcutil"
+	bookingErrors "github.com/Kpeewu/tissi-mah/services/booking-service/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -16,6 +18,11 @@ type contextKey string
 // injecté par l'api-gateway via la metadata gRPC x-firebase-uid.
 const FirebaseIDKey contextKey = "firebaseID"
 
+// UserIDKey est la clé du contexte gRPC où est stocké l'UserID interne de l'appelant,
+// résolu depuis le Firebase UID via user-service. C'est l'identité à utiliser pour
+// tout contrôle d'appartenance (les réservations référencent des UserID internes).
+const UserIDKey contextKey = "userID"
+
 // SupportIDKey est la clé du contexte gRPC où est stocké l'UID de l'agent support,
 // injecté par l'api-gateway via la metadata gRPC x-support-uid.
 const SupportIDKey contextKey = "supportID"
@@ -23,6 +30,11 @@ const SupportIDKey contextKey = "supportID"
 // SupportRoleKey est la clé du contexte gRPC où est stocké le rôle de l'agent support,
 // injecté par l'api-gateway via la metadata gRPC x-support-role.
 const SupportRoleKey contextKey = "supportRole"
+
+// UserIDResolver résout un Firebase UID en UserID interne (implémenté par le client user-service).
+type UserIDResolver interface {
+	GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error)
+}
 
 // Méthodes réservées aux agents support (JWT support, pas Firebase)
 var adminMethods = map[string]bool{
@@ -32,24 +44,28 @@ var adminMethods = map[string]bool{
 
 // Routes gRPC publiques ou internes (pas de JWT requis)
 var publicMethods = map[string]bool{
-	"/booking.BookingService/Health":                      true,
-	"/booking.BookingService/StartBookingsForWaypoint":    true, // Route interne (trips-service)
-	"/booking.BookingService/CompleteBookingsForWaypoint": true, // Route interne (trips-service)
-	"/booking.BookingService/ConfirmPayment":              true, // Route interne (payment-service)
-	"/booking.BookingService/FailPayment":                 true, // Route interne (payment-service)
-	"/booking.BookingService/GetBookingDetails":           true, // Route interne (payment-service)
-	"/booking.BookingService/CancelBookingsForWaypoint":   true, // Route interne (trips-service)
-	"/booking.BookingService/CancelBookingsForTrip":       true, // Route interne (trips-service)
-	"/grpc.health.v1.Health/Check":                        true, // Readiness probe Kubernetes
-	"/grpc.health.v1.Health/Watch":                        true, // Liveness probe Kubernetes
+	"/booking.BookingService/Health":                       true,
+	"/booking.BookingService/StartBookingsForWaypoint":     true, // Route interne (trips-service)
+	"/booking.BookingService/CompleteBookingsForWaypoint":  true, // Route interne (trips-service)
+	"/booking.BookingService/ConfirmPayment":               true, // Route interne (payment-service)
+	"/booking.BookingService/FailPayment":                  true, // Route interne (payment-service)
+	"/booking.BookingService/CancelBookingsForWaypoint":    true, // Route interne (trips-service)
+	"/booking.BookingService/CancelBookingsForTrip":        true, // Route interne (trips-service)
+	"/booking.BookingService/GetActivePassengerIDsForTrip": true, // Route interne (trips-service)
+	"/booking.BookingService/CheckDeletionEligibility":     true, // Route interne (auth-service, suppression de compte)
+	"/booking.BookingService/AnonymizeUserData":            true, // Route interne (auth-service, suppression de compte)
+	"/booking.BookingService/GetPassengerBookingIDs":       true, // Route interne (auth-service, suppression de compte)
+	"/booking.BookingService/GetBookingDetailsInternal":    true, // Route interne (payment-service, chat-service)
+	"/grpc.health.v1.Health/Check":                         true, // Readiness probe Kubernetes
+	"/grpc.health.v1.Health/Watch":                         true, // Liveness probe Kubernetes
 }
 
 // BookingInterceptor retourne un intercepteur gRPC unaire qui :
 //  1. Laisse passer les routes publiques et internes (Health, StartBookingsForWaypoint, CompleteBookingsForWaypoint)
 //  2. Extrait le Firebase UID depuis la metadata gRPC x-firebase-uid
 //     (injectée par l'api-gateway après validation JWT Firebase)
-//  3. Injecte le Firebase UID dans le contexte via FirebaseIDKey
-func BookingInterceptor(secret []byte) grpc.UnaryServerInterceptor {
+//  3. Résout l'UserID interne via user-service et injecte FirebaseIDKey + UserIDKey dans le contexte
+func BookingInterceptor(secret []byte, resolver UserIDResolver) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if publicMethods[info.FullMethod] {
 			return handler(ctx, req)
@@ -73,19 +89,40 @@ func BookingInterceptor(secret []byte) grpc.UnaryServerInterceptor {
 			return handler(ctx, req)
 		}
 
-		uids := md.Get("x-firebase-uid")
-		if len(uids) == 0 || uids[0] == "" {
-			return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
+		ctx, err := authenticateFirebaseCaller(ctx, md, secret, resolver)
+		if err != nil {
+			return nil, err
 		}
-
-		sig := md.Get(grpcutil.MetadataUIDSig)
-		if len(sig) > 0 && len(secret) > 0 {
-			if !grpcutil.VerifyUID(secret, uids[0], sig[0]) {
-				return nil, status.Error(codes.Unauthenticated, "invalid uid signature")
-			}
-		}
-
-		ctx = context.WithValue(ctx, FirebaseIDKey, uids[0])
 		return handler(ctx, req)
 	}
+}
+
+// authenticateFirebaseCaller vérifie x-firebase-uid (et sa signature HMAC si présente),
+// résout l'UserID interne correspondant et les injecte dans le contexte.
+func authenticateFirebaseCaller(
+	ctx context.Context, md metadata.MD, secret []byte, resolver UserIDResolver,
+) (context.Context, error) {
+	uids := md.Get("x-firebase-uid")
+	if len(uids) == 0 || uids[0] == "" {
+		return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
+	}
+
+	sig := md.Get(grpcutil.MetadataUIDSig)
+	if len(sig) > 0 && len(secret) > 0 {
+		if !grpcutil.VerifyUID(secret, uids[0], sig[0]) {
+			return nil, status.Error(codes.Unauthenticated, "invalid uid signature")
+		}
+	}
+
+	userID, err := resolver.GetUserIDByFirebaseID(ctx, uids[0])
+	if err != nil {
+		if errors.Is(err, bookingErrors.ErrorUserNotFound) {
+			return nil, status.Error(codes.PermissionDenied, "user not found")
+		}
+		return nil, status.Error(codes.Unavailable, "user resolution failed")
+	}
+
+	ctx = context.WithValue(ctx, FirebaseIDKey, uids[0])
+	ctx = context.WithValue(ctx, UserIDKey, userID)
+	return ctx, nil
 }

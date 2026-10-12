@@ -60,6 +60,15 @@ Client → Bearer JWT → api-gateway (Firebase Admin SDK: signature, issuer, au
 
 **Clé de contexte Firebase UID** : `middleware.FirebaseIDKey` (type opaque `contextKey`)
 
+**Identité de l'appelant** : les acteurs (passager, chauffeur, déclarant…) ne sont **jamais** lus depuis le body.
+Les services qui référencent des utilisateurs résolvent le Firebase UID en UserID interne via user-service
+`GetUserByFirebaseID` (booking-service : dans l'intercepteur, clé `middleware.UserIDKey`). Un appel
+inter-service fait pour le compte d'un utilisateur propage son identité avec `grpcutil.ForwardIdentity(ctx)`.
+Les RPC internes sans annotation HTTP (ex : `CheckDeletionEligibility`, `AnonymizeUserData`) sont listés
+dans `publicMethods` de l'intercepteur, car ils sont appelés sans metadata.
+Un RPC client n'est jamais « optionnellement » authentifié : si des services ont besoin de la même
+donnée sans identité, on expose un RPC interne distinct sous `/internal/` (ex : `GetBookingDetailsInternal`).
+
 ---
 
 ## Commandes clés (Makefile)

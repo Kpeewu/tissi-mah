@@ -25,4 +25,5 @@ var (
 	ErrorSeatReservationFailed   = errors.New("ErrorSeatReservationFailed")
 	ErrorInvalidWaypoints        = errors.New("ErrorInvalidWaypoints")
 	ErrorPassengerNotVerified    = errors.New("ErrorPassengerNotVerified")
+	ErrorUserNotFound            = errors.New("ErrorUserNotFound")
 )

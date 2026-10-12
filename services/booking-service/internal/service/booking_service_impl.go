@@ -303,29 +303,48 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 // =============================================================================
 
 func (s *bookingServiceImpl) GetBookingDetails(ctx context.Context, input *serviceInterfaces.GetBookingDetailsInput) (*serviceInterfaces.BookingDetailResult, error) {
-	if input.BookingID == "" {
-		return nil, bookingErrors.ErrorInvalidInput
+	// L'identité est obligatoire : les appels inter-services passent par GetBookingDetailsInternal.
+	if input.UserID == "" {
+		return nil, bookingErrors.ErrorUnauthorized
 	}
 
-	booking, segments, history, err := s.readRepo.GetByIDWithDetails(ctx, input.BookingID)
+	booking, segments, history, err := s.loadBookingWithDetails(ctx, input.BookingID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Vérification d'autorisation : l'utilisateur doit être le passager ou le conducteur
-	// Skippée pour les appels inter-services (UserID vide)
-	if input.UserID != "" && booking.PassengerID != input.UserID && booking.DriverID != input.UserID {
+	if booking.PassengerID != input.UserID && booking.DriverID != input.UserID {
 		return nil, bookingErrors.ErrorUnauthorized
 	}
 
 	detail := s.mapBookingToDetailResult(booking, segments, history)
-	// Enrichissement des noms d'auteurs de l'historique + polyline du trajet pour les
-	// requêtes d'un vrai utilisateur uniquement (les appels inter-services passent UserID vide).
-	if input.UserID != "" {
-		s.enrichHistoryActorNames(ctx, detail.History, nil)
-		detail.RoutePolyline = s.fetchRoutePolyline(ctx, booking.TripID)
-	}
+	// Enrichissement des noms d'auteurs de l'historique + polyline du trajet
+	s.enrichHistoryActorNames(ctx, detail.History, nil)
+	detail.RoutePolyline = s.fetchRoutePolyline(ctx, booking.TripID)
 	return detail, nil
+}
+
+// GetBookingDetailsInternal retourne le détail brut d'une réservation, sans contrôle
+// d'appartenance ni enrichissement. Réservé aux appels inter-services (payment-service, chat-service).
+func (s *bookingServiceImpl) GetBookingDetailsInternal(
+	ctx context.Context, bookingID string,
+) (*serviceInterfaces.BookingDetailResult, error) {
+	booking, segments, history, err := s.loadBookingWithDetails(ctx, bookingID)
+	if err != nil {
+		return nil, err
+	}
+	return s.mapBookingToDetailResult(booking, segments, history), nil
+}
+
+// loadBookingWithDetails valide l'ID et charge la réservation avec ses segments et son historique.
+func (s *bookingServiceImpl) loadBookingWithDetails(
+	ctx context.Context, bookingID string,
+) (*domain.Booking, []*domain.Segment, []*domain.StatusHistoryEntry, error) {
+	if bookingID == "" {
+		return nil, nil, nil, bookingErrors.ErrorInvalidInput
+	}
+	return s.readRepo.GetByIDWithDetails(ctx, bookingID)
 }
 
 // =============================================================================
@@ -685,6 +704,17 @@ func (s *bookingServiceImpl) ReportNoShow(ctx context.Context, input *serviceInt
 		return err
 	}
 
+	// Seule une partie de la réservation signale l'absence de l'autre : le chauffeur
+	// déclare un passager absent, le passager un chauffeur absent. Le type détermine le
+	// motif de remboursement, il ne peut donc pas être choisi librement.
+	if !canReportNoShow(booking, input.ReporterID, input.NoShowType) {
+		s.logger.Warn("service: ReportNoShow refusé, déclarant non autorisé",
+			zap.String("bookingID", input.BookingID),
+			zap.String("noShowType", input.NoShowType),
+		)
+		return bookingErrors.ErrorUnauthorized
+	}
+
 	if err := s.writeRepo.ReportNoShow(ctx, input.BookingID, input.ReporterID, input.NoShowType, input.Description); err != nil {
 		return err
 	}
@@ -723,6 +753,18 @@ func (s *bookingServiceImpl) ReportNoShow(ctx context.Context, input *serviceInt
 	}
 
 	return nil
+}
+
+// canReportNoShow vérifie que reporterID est la partie habilitée à signaler ce type de no-show.
+func canReportNoShow(booking *domain.Booking, reporterID, noShowType string) bool {
+	switch reporterID {
+	case booking.DriverID:
+		return noShowType == "passenger"
+	case booking.PassengerID:
+		return noShowType == "driver"
+	default:
+		return false
+	}
 }
 
 // =============================================================================
@@ -1348,9 +1390,24 @@ func (s *bookingServiceImpl) GetDriverBookings(ctx context.Context, input *servi
 // GetActivePassengerSummariesForTrip
 // =============================================================================
 
-func (s *bookingServiceImpl) GetActivePassengerSummariesForTrip(ctx context.Context, tripID string) ([]*serviceInterfaces.PassengerSummaryResult, error) {
-	if tripID == "" {
+func (s *bookingServiceImpl) GetActivePassengerSummariesForTrip(
+	ctx context.Context, tripID, driverID string,
+) ([]*serviceInterfaces.PassengerSummaryResult, error) {
+	if tripID == "" || driverID == "" {
 		return nil, bookingErrors.ErrorInvalidInput
+	}
+
+	// Données personnelles des passagers : réservées au chauffeur du trajet.
+	tripDetails, err := s.tripClient.GetTripDetails(ctx, tripID)
+	if err != nil {
+		s.logger.Error("service: GetTripDetails failed", zap.Error(err))
+		return nil, bookingErrors.ErrorInternalServer
+	}
+	if tripDetails == nil {
+		return nil, bookingErrors.ErrorTripNotFound
+	}
+	if tripDetails.DriverID != driverID {
+		return nil, bookingErrors.ErrorUnauthorized
 	}
 
 	rawSummaries, err := s.readRepo.GetActivePassengerSummariesForTrip(ctx, tripID)

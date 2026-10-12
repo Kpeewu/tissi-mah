@@ -14,11 +14,22 @@ This document describes the HTTP/REST API exposed by the booking-service through
 ## Authentication
 
 All `/api/v1/booking/*` endpoints (except `/api/v1/booking/health` and `/api/v1/booking/internal/*`) require a valid **Firebase JWT**.
-The `/api/v1/booking/internal/*` routes are for inter-service use (trips-service) and are not exposed to mobile clients.
+The `/api/v1/booking/internal/*` routes are for inter-service use (trips-service, payment-service, chat-service) and are blocked at the api-gateway.
 
 ```http
 Authorization: Bearer <firebase-id-token>
 ```
+
+### Caller identity
+
+The acting user (passenger, driver, canceller, no-show reporter) is **always the user of the JWT**.
+booking-service reads the Firebase UID validated by the api-gateway (`x-firebase-uid` gRPC metadata)
+and resolves it to the internal user ID through user-service (`GetUserByFirebaseID`). Bookings store
+internal user IDs only.
+
+The legacy identity fields `PassengerId`, `DriverId`, `UserId` and `ReporterId` are still accepted in
+requests for backward compatibility but are **ignored**: clients should stop sending them.
+A Firebase UID with no user-service profile is rejected with `403`.
 
 ## Common Headers
 
@@ -54,7 +65,6 @@ Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
 
 {
-    "PassengerId": "550e8400-e29b-41d4-a716-446655440010",
     "TripId": "t-550e8400-e29b-41d4-a716-446655440000",
     "PickupWaypointId": "w-dep-001",
     "DropoffWaypointId": "w-arr-002",
@@ -86,7 +96,6 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `PassengerId` | string | Yes | Internal user ID of the passenger (UUID) |
 | `TripId` | string | Yes | UUID of the trip to book |
 | `PickupWaypointId` | string | Yes | Waypoint where the passenger boards |
 | `DropoffWaypointId` | string | Yes | Waypoint where the passenger exits |
@@ -143,14 +152,15 @@ Content-Type: application/json
 
 Returns the complete details of a booking including segments and status history.
 
-**Authentication:** Firebase JWT required (passenger or driver of the trip)
+**Authentication:** Firebase JWT required (the JWT user must be the passenger or driver of the booking).
+A call without caller identity is rejected (`401`); there is no unauthenticated variant of this route.
+Inter-service callers use the internal route [`getBookingDetails` (internal)](#get-apiv1bookinginternalgetbookingdetails).
 
 #### Query Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `BookingId` | string | Yes | Booking UUID |
-| `UserId` | string | Yes | Requesting user ID (authorization check) |
 
 #### Response (Success)
 
@@ -236,7 +246,6 @@ Returns the paginated list of bookings for a passenger.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `PassengerId` | string | Yes | Passenger's internal user ID |
 | `Index` | integer | No | Page index (0-based, 10 items/page) |
 | `StatusFilter` | string | No | Filter by booking status |
 
@@ -277,8 +286,7 @@ Returns the paginated list of bookings for a specific trip, enriched with passen
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `DriverId` | string | Yes | Driver's internal user ID |
-| `TripId` | string | Yes | Trip UUID |
+| `TripId` | string | Yes | Trip UUID (bookings of the calling driver only) |
 | `Index` | integer | No | Page index (0-based, 10 items/page) |
 
 #### Response (Success)
@@ -354,7 +362,6 @@ Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
 
 {
-    "DriverId": "550e8400-e29b-41d4-a716-446655440001",
     "BookingId": "bk-550e8400-e29b-41d4-a716-446655440020"
 }
 ```
@@ -391,7 +398,6 @@ Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
 
 {
-    "DriverId": "550e8400-e29b-41d4-a716-446655440001",
     "BookingId": "bk-550e8400-e29b-41d4-a716-446655440020",
     "Reason": "Incompatible luggage"
 }
@@ -401,7 +407,6 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `DriverId` | string | Yes | Driver's internal user ID |
 | `BookingId` | string | Yes | Booking UUID |
 | `Reason` | string | Yes | Rejection reason |
 
@@ -409,7 +414,9 @@ Content-Type: application/json
 
 ### PATCH /api/v1/booking/cancelBooking
 
-Cancels a booking. Can be initiated by the passenger or the driver.
+Cancels a booking. Can be initiated by the passenger or the driver of the booking (the JWT user).
+The canceller determines the refund reason (`cancelledByPassenger` / `cancelledByDriver`).
+Any other user gets `403 ErrorUnauthorized`.
 
 **Authentication:** Firebase JWT required
 
@@ -422,7 +429,6 @@ Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
 
 {
-    "UserId": "550e8400-e29b-41d4-a716-446655440010",
     "BookingId": "bk-550e8400-e29b-41d4-a716-446655440020",
     "Reason": "Plans changed"
 }
@@ -443,7 +449,14 @@ Content-Type: application/json
 
 ### POST /api/v1/booking/reportNoShow
 
-Reports a passenger or driver no-show.
+Reports a passenger or driver no-show. The reporter is the JWT user and must be a party to the booking:
+
+| Reporter | Allowed `NoShowType` |
+|----------|----------------------|
+| Driver of the booking | `passenger` |
+| Passenger of the booking | `driver` |
+
+Any other combination returns `403 ErrorUnauthorized`.
 
 **Authentication:** Firebase JWT required
 
@@ -457,7 +470,6 @@ Content-Type: application/json
 
 {
     "BookingId": "bk-550e8400-e29b-41d4-a716-446655440020",
-    "ReporterId": "550e8400-e29b-41d4-a716-446655440001",
     "NoShowType": "passenger",
     "Description": "Passenger did not show at pickup location"
 }
@@ -468,7 +480,6 @@ Content-Type: application/json
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `BookingId` | string | Yes | Booking UUID |
-| `ReporterId` | string | Yes | ID of the user reporting the no-show |
 | `NoShowType` | string | Yes | `driver` or `passenger` |
 | `Description` | string | No | Additional details |
 
@@ -593,7 +604,6 @@ Returns all bookings awaiting driver approval, across all trips of the driver.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `DriverId` | string | Yes | Driver's internal user ID |
 | `Index` | integer | No | Page index (0-based, 10 items/page) |
 
 #### Response (Success)
@@ -644,7 +654,7 @@ Content-Type: application/json
 
 Returns real-time summaries of passengers currently on board a trip. Used by the driver's live tracking screen.
 
-**Authentication:** Firebase JWT required
+**Authentication:** Firebase JWT required (driver of the trip only — otherwise `403 ErrorUnauthorized`)
 
 #### Query Parameters
 
@@ -773,6 +783,23 @@ Returns the list of passenger IDs with an `inProgress` booking for a given trip.
 
 ---
 
+### GET /api/v1/booking/internal/getBookingDetails
+
+Returns the raw details of a booking (same `Booking` payload as `getBookingDetails`, without the
+history actor names and the route polyline). **Internal route** (gRPC `GetBookingDetailsInternal`),
+called by payment-service and chat-service, which perform their own access checks. Blocked at the
+api-gateway like every `/internal/` route.
+
+**Authentication:** Not required (internal)
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `BookingId` | string | Yes | Booking UUID |
+
+---
+
 ## Support (admin) endpoints
 
 Réservés aux **agents support** (JWT support, header `x-support-uid` injecté par l'api-gateway —
@@ -860,7 +887,7 @@ TotalAmount = Subtotal + ServiceFee
 | `ErrorBookingNotFound` | 404 | NOT_FOUND (5) | Booking does not exist |
 | `ErrorTripNotFound` | 404 | NOT_FOUND (5) | Trip does not exist |
 | `ErrorPassengerNotFound` | 404 | NOT_FOUND (5) | Passenger does not exist |
-| `ErrorUnauthorized` | 403 | PERMISSION_DENIED (7) | Not the passenger or driver |
+| `ErrorUnauthorized` | 403 | PERMISSION_DENIED (7) | JWT user is not allowed to act on this booking/trip |
 | `ErrorInsufficientSeats` | 422 | FAILED_PRECONDITION (9) | Not enough available seats |
 | `ErrorTripNotBookable` | 422 | FAILED_PRECONDITION (9) | Trip is not bookable |
 | `ErrorBookingNotPending` | 422 | FAILED_PRECONDITION (9) | Booking is not in expected status |

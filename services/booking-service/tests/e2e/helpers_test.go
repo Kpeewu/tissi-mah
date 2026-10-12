@@ -7,6 +7,9 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// unknownFirebaseUID est un Firebase UID sans profil côté user-service (mock).
+const unknownFirebaseUID = "e2e-unknown-firebase-uid"
+
 // ctxWithUID retourne un contexte avec le Firebase UID dans les metadata gRPC
 func ctxWithUID(uid string) context.Context {
 	md := metadata.Pairs("x-firebase-uid", uid)

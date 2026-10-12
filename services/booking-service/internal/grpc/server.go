@@ -15,9 +15,11 @@ import (
 )
 
 // NewBookingServer crée et configure le serveur gRPC de booking-service.
+// userResolver résout le Firebase UID de l'appelant en UserID interne (client user-service).
 func NewBookingServer(
 	cfg *config.Config,
 	service serviceInterfaces.BookingService,
+	userResolver middleware.UserIDResolver,
 	logger *zap.Logger,
 ) (*grpcutil.Server, error) {
 	port, err := strconv.Atoi(cfg.Server.Port)
@@ -34,7 +36,7 @@ func NewBookingServer(
 	srv, err := grpcutil.NewServer(
 		serverCfg,
 		logger,
-		grpc.UnaryInterceptor(middleware.BookingInterceptor([]byte(cfg.InternalHMACSecret))),
+		grpc.UnaryInterceptor(middleware.BookingInterceptor([]byte(cfg.InternalHMACSecret), userResolver)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)

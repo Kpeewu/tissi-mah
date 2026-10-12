@@ -60,6 +60,16 @@ func (m *MockUserClient) GetPassengerInfo(ctx context.Context, userID string) (s
 	return args.String(0), args.Bool(1), args.Error(2)
 }
 
+// GetUserIDByFirebaseID accepte en valeur de retour un string ou une
+// func(context.Context, string) string (résolution dynamique, ex : identité).
+func (m *MockUserClient) GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error) {
+	args := m.Called(ctx, firebaseUID)
+	if fn, ok := args.Get(0).(func(context.Context, string) string); ok {
+		return fn(ctx, firebaseUID), args.Error(1)
+	}
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockUserClient) Close() error {
 	args := m.Called()
 	return args.Error(0)

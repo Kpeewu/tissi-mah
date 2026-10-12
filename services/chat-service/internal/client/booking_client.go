@@ -45,7 +45,7 @@ func NewBookingClient(addr string, logger *zap.Logger) (BookingClient, error) {
 }
 
 func (c *bookingClientImpl) GetBookingDetails(ctx context.Context, bookingID string) (*BookingInfo, error) {
-	resp, err := c.grpcClient.GetBookingDetails(ctx, &bookingpb.GetBookingDetailsRequest{
+	resp, err := c.grpcClient.GetBookingDetailsInternal(ctx, &bookingpb.GetBookingDetailsRequest{
 		BookingId: bookingID,
 	})
 	if err != nil {

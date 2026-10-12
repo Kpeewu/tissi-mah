@@ -20,10 +20,11 @@ const FirebaseIDKey contextKey = "firebaseID"
 const SupportIDKey contextKey = "supportID"
 
 var publicMethods = map[string]bool{
-	"/chat.ChatService/Health":           true,
-	"/chat.ChatService/CloseThread":      true, // appelé en interne par le worker
-	"/grpc.health.v1.Health/Check":       true,
-	"/grpc.health.v1.Health/Watch":       true,
+	"/chat.ChatService/Health":            true,
+	"/chat.ChatService/CloseThread":       true, // appelé en interne par le worker
+	"/chat.ChatService/AnonymizeUserData": true, // Route interne (auth-service, suppression de compte)
+	"/grpc.health.v1.Health/Check":        true,
+	"/grpc.health.v1.Health/Watch":        true,
 }
 
 var supportMethods = map[string]bool{
