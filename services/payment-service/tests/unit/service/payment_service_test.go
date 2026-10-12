@@ -374,6 +374,26 @@ func TestRequestRefund(t *testing.T) {
 		d.assertExpectations(t)
 	})
 
+	t.Run("erreur - motif de remboursement inconnu", func(t *testing.T) {
+		d := newTestService()
+
+		input := &serviceInterfaces.RequestRefundInput{
+			BookingID:         "booking-refund",
+			RefundReason:      "unknownReason",
+			OriginalAmount:    5000,
+			ServiceFee:        500,
+			DepartureDatetime: departure.Format(time.RFC3339),
+			CancelledAt:       cancelledAt.Format(time.RFC3339),
+		}
+
+		result, err := d.svc.RequestRefund(context.Background(), input)
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, paymentErrors.ErrorInvalidInput)
+		d.paymentReadRepo.AssertNotCalled(t, "GetByBookingID", mock.Anything, mock.Anything)
+		d.refundWriteRepo.AssertNotCalled(t, "CreateRefund", mock.Anything, mock.Anything)
+	})
+
 	t.Run("idempotent - rejeu sur un paiement deja rembourse retourne le refund existant", func(t *testing.T) {
 		d := newTestService()
 

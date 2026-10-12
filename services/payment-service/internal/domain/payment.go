@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"slices"
+	"time"
+)
 
 // =============================================================================
 // Payment
@@ -54,6 +57,7 @@ type Payment struct {
 
 type RefundReason string
 
+// Toute nouvelle valeur doit aussi être ajoutée à refundReasons et à l'enum SQL refund_reason (migration).
 const (
 	RefundReasonCancelledByDriver    RefundReason = "cancelledByDriver"
 	RefundReasonCancelledByPassenger RefundReason = "cancelledByPassenger"
@@ -67,6 +71,32 @@ const (
 	RefundReasonBookingUnavailable   RefundReason = "bookingUnavailable" // approuvé, réservation annulée/rejetée
 	RefundReasonOther                RefundReason = "other"
 )
+
+// refundReasons liste les valeurs de l'enum SQL refund_reason (chaque valeur est vérifiée
+// contre la base migrée par les tests d'intégration).
+var refundReasons = []RefundReason{
+	RefundReasonCancelledByDriver,
+	RefundReasonCancelledByPassenger,
+	RefundReasonNoShowDriver,
+	RefundReasonNoShowPassenger,
+	RefundReasonTripCancelled,
+	RefundReasonWaypointCancelled,
+	RefundReasonBookingRejected,
+	RefundReasonDispute,
+	RefundReasonSeatsUnavailable,
+	RefundReasonBookingUnavailable,
+	RefundReasonOther,
+}
+
+// RefundReasons retourne tous les motifs de remboursement connus.
+func RefundReasons() []RefundReason {
+	return slices.Clone(refundReasons)
+}
+
+// IsValid indique si le motif existe dans l'enum refund_reason.
+func (r RefundReason) IsValid() bool {
+	return slices.Contains(refundReasons, r)
+}
 
 type RefundRule string
 

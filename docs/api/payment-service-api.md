@@ -650,6 +650,9 @@ Creates a refund for a booking. Called by booking-service on cancellation, rejec
 | `waypointCancelled` | The driver removed the passenger's pickup or dropoff stop |
 | `seatsUnavailable` | Internal only: payment approved by FedaPay after the seats were released, and the trip is full. Full refund. |
 | `bookingUnavailable` | Internal only: payment approved by FedaPay for a booking that can no longer be confirmed (`cancelled`, `rejected`, etc.). Full refund. |
+| `dispute` / `other` | Accepted, full refund (`driverCancellation`) |
+
+Any other value is rejected with `ErrorInvalidInput` (gRPC `InvalidArgument`) before any processing. The accepted values are the `refund_reason` PostgreSQL enum: adding a reason requires both the Go constant (`domain.RefundReason` and `refundReasons`) and an `ALTER TYPE refund_reason ADD VALUE` migration. An integration test checks every Go constant against the migrated database.
 
 #### Response
 
