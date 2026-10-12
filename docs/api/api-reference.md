@@ -760,7 +760,7 @@ Base : `/booking`
 | `PATCH /api/v1/booking/approveBooking` | 🔒 | `{ "DriverId": "uuid", "BookingId": "uuid" }` |
 | `PATCH /api/v1/booking/rejectBooking` | 🔒 | `{ "DriverId": "uuid", "BookingId": "uuid", "Reason": "..." }` |
 | `PATCH /api/v1/booking/cancelBooking` | 🔒 | `{ "UserId": "uuid", "BookingId": "uuid", "Reason": "..." }` |
-| `POST /api/v1/booking/reportNoShow` | 🔒 | `{ "BookingId": "uuid", "ReporterId": "uuid", "NoShowType": "driver\|passenger", "Description": "..." }` |
+| `POST /api/v1/booking/reportNoShow` | 🔒 | `{ "BookingId": "uuid", "NoShowType": "driver\|passenger", "Description": "..." }` |
 
 ---
 

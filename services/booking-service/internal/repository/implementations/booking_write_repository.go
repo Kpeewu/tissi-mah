@@ -481,6 +481,12 @@ func (r *bookingWriteRepositoryImpl) ReportNoShow(ctx context.Context, bookingID
 		return bookingErrors.ErrorInvalidStatusTransition
 	}
 
+	// inProgress : le chauffeur a validé la prise en charge à ce point, le passager est à bord.
+	// Une absence du chauffeur (remboursement à 100 %) ne peut plus être déclarée.
+	if noShowType == "driver" && currentStatus == string(domain.BookingStatusInProgress) {
+		return bookingErrors.ErrorInvalidStatusTransition
+	}
+
 	refundReason := domain.RefundReasonNoShowPassenger
 	if noShowType == "driver" {
 		refundReason = domain.RefundReasonNoShowDriver

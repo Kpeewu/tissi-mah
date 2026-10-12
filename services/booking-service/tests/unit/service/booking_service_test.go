@@ -417,6 +417,9 @@ func TestCancelBooking(t *testing.T) {
 // =============================================================================
 
 func TestReportNoShow(t *testing.T) {
+	// Prise en charge prévue passée depuis plus que le délai d'attente
+	pastPickup := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)
+
 	t.Run("succes - no-show passager avec remboursement", func(t *testing.T) {
 		d := newTestService()
 		ctx := context.Background()
@@ -432,7 +435,7 @@ func TestReportNoShow(t *testing.T) {
 		d.writeRepo.On("ReportNoShow", mock.Anything, "booking-noshow", "driver-1", "passenger", "Passager absent").Return(nil)
 		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, booking.TripID, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
-		d.tripClient.On("GetTripDetails", mock.Anything, booking.TripID).Return(nil, nil).Maybe()
+		d.expectDeparture(booking, pastPickup)
 		d.paymentClient.On("RequestRefund", mock.Anything, mock.MatchedBy(func(input interface{}) bool {
 			return true
 		})).Return(nil).Maybe()
@@ -464,7 +467,7 @@ func TestReportNoShow(t *testing.T) {
 		d.writeRepo.On("ReportNoShow", mock.Anything, "booking-noshow-driver", "passenger-1", "driver", "Chauffeur pas venu").Return(nil)
 		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, booking.TripID, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
-		d.tripClient.On("GetTripDetails", mock.Anything, booking.TripID).Return(nil, nil).Maybe()
+		d.expectDeparture(booking, pastPickup)
 		d.paymentClient.On("RequestRefund", mock.Anything, mock.MatchedBy(func(input interface{}) bool {
 			return true
 		})).Return(nil).Maybe()
@@ -493,6 +496,7 @@ func TestReportNoShow(t *testing.T) {
 
 		d.readRepo.On("GetByID", mock.Anything, "booking-noshow-cash").Return(booking, nil)
 		d.writeRepo.On("ReportNoShow", mock.Anything, "booking-noshow-cash", "reporter-1", "passenger", "Absent").Return(nil)
+		d.expectDeparture(booking, pastPickup)
 		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, booking.TripID, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		err := d.svc.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{
@@ -541,6 +545,54 @@ func TestReportNoShow(t *testing.T) {
 				mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		})
 	}
+
+	t.Run("erreur - signalement avant la fin du delai d'attente", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		booking := fixtures.NewTestBookingWithPayment(
+			fixtures.WithBookingID("booking-noshow-early"),
+			fixtures.WithPassengerID("passenger-1"),
+			fixtures.WithDriverID("driver-1"),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-noshow-early").Return(booking, nil)
+		// Prise en charge prévue il y a 5 min : le délai d'attente n'est pas écoulé
+		d.expectDeparture(booking, time.Now().UTC().Add(-5*time.Minute).Format(time.RFC3339))
+
+		err := d.svc.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{
+			BookingID:  "booking-noshow-early",
+			ReporterID: "passenger-1",
+			NoShowType: "driver",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorNoShowTooEarly)
+		d.writeRepo.AssertNotCalled(t, "ReportNoShow",
+			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("erreur - heure de prise en charge inconnue", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		booking := fixtures.NewTestBookingWithPayment(
+			fixtures.WithBookingID("booking-noshow-unknown"),
+			fixtures.WithPassengerID("passenger-1"),
+			fixtures.WithDriverID("driver-1"),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-noshow-unknown").Return(booking, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, booking.TripID).
+			Return(nil, errors.New("trips-service unavailable"))
+
+		err := d.svc.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{
+			BookingID:  "booking-noshow-unknown",
+			ReporterID: "passenger-1",
+			NoShowType: "driver",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorDataRetrievalFailed)
+		d.writeRepo.AssertNotCalled(t, "ReportNoShow",
+			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
 
 	t.Run("erreur - type no-show invalide", func(t *testing.T) {
 		d := newTestService()

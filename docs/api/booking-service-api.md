@@ -458,6 +458,11 @@ Reports a passenger or driver no-show. The reporter is the JWT user and must be 
 
 Any other combination returns `403 ErrorUnauthorized`.
 
+Timing and status rules:
+
+- A no-show can only be reported **15 minutes after the scheduled pickup time** of the booking's pickup waypoint (read from trips-service). Before that, the call returns `400 ErrorNoShowTooEarly` (gRPC `FailedPrecondition`). If the scheduled pickup time cannot be read, the call fails (`ErrorDataRetrievalFailed`) and nothing is recorded.
+- The booking must be `approved` or `inProgress`. Once it is `inProgress` (the driver has validated the pickup and the passenger is on board), a `driver` no-show is refused (`ErrorInvalidStatusTransition`).
+
 **Authentication:** Firebase JWT required
 
 #### Request
