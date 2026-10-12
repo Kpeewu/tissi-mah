@@ -373,7 +373,7 @@ Receives and processes FedaPay webhook events. **Public route** — not called b
 | `transaction.approved` / `transaction.transferred` | Payment → `held`, booking → `approved` (auto-approval) or `pendingApproval`. If the payment had already been failed (late approval), the seats are re-reserved; if the trip is full, the passenger is refunded in full (`seatsUnavailable`). If the booking can no longer be confirmed (`cancelled`, `rejected`, etc.), the passenger is refunded in full (`bookingUnavailable`) and `PAYMENT_COMPLETED` is not published. |
 | `transaction.declined` / `transaction.canceled` | Payment **stays `pending`** (`ProviderStatus` updated): with the redirect flow these statuses are not final and the passenger can retry on the same page. |
 | `transaction.expired` / `transaction.deleted` | Payment → `failed`, booking → `paymentFailed`, seats released. `PAYMENT_FAILED` is published for `expired`, or for `deleted` once the payment window (`expires_at`) is over. A `deleted` received before then comes from a cancellation and sends no notification. |
-| `payout.completed` | Driver payout / refund → `completed` |
+| `payout.*` (any outgoing transfer event) | Signal only: FedaPay does not document payout event names, so the payout is re-read with `GET /v1/payouts/{id}` and matched to a refund or a driver payout by its FedaPay ID. See [Outgoing transfers](#outgoing-transfers-refunds-and-driver-payouts). |
 
 The same transition logic is shared by the webhook, `verifyPayment`, the callback and the expiration worker. It is idempotent.
 
@@ -533,9 +533,9 @@ Content-Type: application/json
 |--------|-------------|
 | `pending` | Payout queued, not yet scheduled |
 | `scheduled` | Payout scheduled for processing |
-| `processing` | Payout being sent to FedaPay |
-| `completed` | Payout successfully sent to driver |
-| `failed` | Payout failed (see `FailureReason`) |
+| `processing` | FedaPay transfer started, waiting for FedaPay confirmation |
+| `completed` | Transfer confirmed by FedaPay (`sent`) |
+| `failed` | Transfer failed (see `FailureReason`); the trip's payments are back to `released` for a new attempt |
 | `cancelled` | Payout cancelled |
 
 #### Errors
@@ -936,7 +936,7 @@ Every payment and refund transition is recorded in `payment_status_history` / `r
 | `booking_sync_abandoned` | 5th failed attachment: the passenger is refunded in full |
 | `refund_creation_failed` | Automatic full refund could not be created; retried on the next tick |
 
-**Refund `Status` values**: `pending`, `processing`, `completed` (FedaPay payout started, or nothing to transfer), `retry_scheduled` (recoverable failure, back to `pending`, `RetryCount` incremented), `failed` (final failure: support handles it manually).
+**Refund `Status` values**: `pending`, `processing`, `payout_started` (FedaPay transfer started, waiting for confirmation; the refund stays `processing`), `completed` (transfer confirmed by FedaPay, or nothing to transfer), `retry_scheduled` (recoverable failure, back to `pending`, `RetryCount` incremented), `failed` (final failure: support handles it manually).
 
 **`InitiatedBy`**: `system`, `passenger`, `booking_service`, `support`.
 
@@ -953,6 +953,16 @@ Every payment and refund transition is recorded in `payment_status_history` / `r
 | `refund_worker` | FedaPay refund payouts |
 | `payout_worker` | Driver payout batch (`paidOut`) |
 | `support_manual_payout` | Manual payout triggered by a support agent (`paidOut`) |
+| `payout_reconciler` | Transfer confirmed or failed, detected by the reconciliation worker (lost webhook) |
+
+### Outgoing transfers (refunds and driver payouts)
+
+A FedaPay transfer that has been started is not delivered yet. Refunds and driver payouts stay `processing` until FedaPay reports a final status (`sent` or `failed`; `pending`, `started` and `processing` are intermediate).
+
+- **Confirmation**: a `payout.*` webhook triggers a re-read of the transfer (`GET /v1/payouts/{id}`). The **reconciliation worker** (`PAYOUT_RECONCILE_INTERVAL_SECONDS`, default 300, Redis lock) re-reads transfers still `processing` 10 minutes after their last update, to cover lost webhooks. It runs around the clock, **not only in the 0h–3h payment window**.
+- **Refund**: `sent` → `completed` and `REFUND_COMPLETED` is published. `failed` → back to `pending` with `RetryCount` + 1, so the refund worker retries in the next window. After `REFUND_MAX_RETRIES` the refund becomes `failed` and `REFUND_FAILED` is published. The FedaPay ID is stored before the transfer is started, so no transfer can leave untracked.
+- **Driver payout**: `sent` → `completed`. `failed` → payout `failed` and, in the same transaction, the trip's `paidOut` payments go back to `released`: the next payout batch creates a new payout. After **3 failed payouts** a trip is no longer retried automatically; support triggers it with `/api/v1/payment/support/triggerManualPayout`.
+- Confirmations are guarded on the `processing` status: the webhook and the reconciliation worker can both see the same transfer, but it is applied and notified only once.
 
 ### Passenger notifications (refunds)
 
@@ -961,7 +971,7 @@ Events published on the `notification-events` Redis stream (`ReferenceType` = `r
 | Event | When | Payload |
 |-------|------|---------|
 | `REFUND_PROCESSED` | Refund created (passenger cancellation, driver rejection, unconfirmable booking, etc.) | `amount`, `amount_to_passenger`, `reason` |
-| `REFUND_COMPLETED` | FedaPay payout to the passenger sent by the refund worker | `amount`, `currency`, `payment_provider_reference`, `reason` |
+| `REFUND_COMPLETED` | FedaPay transfer to the passenger confirmed (`sent`), by webhook or by the reconciliation worker | `amount`, `currency`, `payment_provider_reference`, `reason` |
 | `REFUND_FAILED` | Refund failed for good (max retries exceeded, missing phone number): handled manually by support | `amount`, `currency`, `reason` |
 
 `reason` is one of the [refund reasons](#refund-reasons) (e.g. `bookingUnavailable`), so the app can tell the passenger why they are refunded.
