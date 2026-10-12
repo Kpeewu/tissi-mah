@@ -88,7 +88,7 @@ func (c *BookingServiceClient) FailPayment(ctx context.Context, bookingID string
 }
 
 func (c *BookingServiceClient) GetBookingDetails(ctx context.Context, bookingID string) (*BookingDetails, error) {
-	resp, err := c.grpcClient.GetBookingDetails(ctx, &bookingpb.GetBookingDetailsRequest{
+	resp, err := c.grpcClient.GetBookingDetailsInternal(ctx, &bookingpb.GetBookingDetailsRequest{
 		BookingId: bookingID,
 	})
 	if err != nil {

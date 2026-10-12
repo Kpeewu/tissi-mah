@@ -96,18 +96,30 @@ func TestE2E_GetBookingDetails(t *testing.T) {
 		assert.Equal(t, codes.PermissionDenied, st.Code())
 	})
 
-	t.Run("succes - appel inter-service sans identite", func(t *testing.T) {
+	t.Run("erreur - appel sans identite refuse, meme avec UserId du passager", func(t *testing.T) {
 		cleanupBookingTables(t, ctx)
 
 		booking := fixtures.NewTestBooking(fixtures.WithBookingID("e2e-bk-details-internal"))
 		require.NoError(t, fixtures.InsertBooking(ctx, testPool, booking))
 
-		resp, err := grpcClient.GetBookingDetails(context.Background(), &bookingpb.GetBookingDetailsRequest{
+		_, err := grpcClient.GetBookingDetails(context.Background(), &bookingpb.GetBookingDetailsRequest{
+			BookingId: "e2e-bk-details-internal",
+			UserId:    booking.PassengerID,
+		})
+
+		require.Error(t, err)
+		st, _ := status.FromError(err)
+		assert.Equal(t, codes.Unauthenticated, st.Code())
+	})
+
+	t.Run("succes - route interne sans identite", func(t *testing.T) {
+		resp, err := grpcClient.GetBookingDetailsInternal(context.Background(), &bookingpb.GetBookingDetailsRequest{
 			BookingId: "e2e-bk-details-internal",
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, booking.PassengerID, resp.Booking.PassengerId)
+		require.NotNil(t, resp.Booking)
+		assert.Equal(t, "e2e-bk-details-internal", resp.Booking.BookingId)
 	})
 
 	t.Run("erreur - utilisateur inconnu de user-service", func(t *testing.T) {

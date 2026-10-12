@@ -91,17 +91,31 @@ func (h *BookingHandler) CreateBooking(ctx context.Context, req *bookingpb.Creat
 func (h *BookingHandler) GetBookingDetails(ctx context.Context, req *bookingpb.GetBookingDetailsRequest) (*bookingpb.GetBookingDetailsResponse, error) {
 	h.logger.Debug("handler: GetBookingDetails called", zap.String("bookingID", req.BookingId))
 
-	// UserID vide = appel inter-service (aucune identité dans le contexte) : pas de contrôle
-	// d'appartenance. req.UserId n'est jamais lu, sinon un client pourrait le vider.
-	var userID string
-	if id, ok := ctx.Value(middleware.UserIDKey).(string); ok {
-		userID = id
+	// req.UserId n'est jamais lu : l'identité vient du JWT, sinon un client pourrait la choisir.
+	userID, err := callerUserID(ctx)
+	if err != nil {
+		return &bookingpb.GetBookingDetailsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
 	result, err := h.service.GetBookingDetails(ctx, &serviceInterfaces.GetBookingDetailsInput{
 		BookingID: req.BookingId,
 		UserID:    userID,
 	})
+	if err != nil {
+		return &bookingpb.GetBookingDetailsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return &bookingpb.GetBookingDetailsResponse{
+		Booking: toProtoBookingDetail(result),
+	}, nil
+}
+
+// GetBookingDetailsInternal retourne le détail d'une réservation sans contrôle d'appartenance
+// (route interne : payment-service, chat-service).
+func (h *BookingHandler) GetBookingDetailsInternal(
+	ctx context.Context, req *bookingpb.GetBookingDetailsRequest,
+) (*bookingpb.GetBookingDetailsResponse, error) {
+	result, err := h.service.GetBookingDetailsInternal(ctx, req.BookingId)
 	if err != nil {
 		return &bookingpb.GetBookingDetailsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
 	}

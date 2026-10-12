@@ -23,6 +23,14 @@ service BookingService {
     };
   }
 
+  // GetBookingDetailsInternal retourne le détail d'une réservation sans contrôle d'appartenance.
+  // Route interne appelée par payment-service et chat-service — bloquée en bordure par l'api-gateway.
+  rpc GetBookingDetailsInternal(GetBookingDetailsRequest) returns (GetBookingDetailsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/booking/internal/getBookingDetails"
+    };
+  }
+
   // GetPassengerBookings retourne la liste paginée des réservations d'un passager.
   rpc GetPassengerBookings(GetPassengerBookingsRequest) returns (GetPassengerBookingsResponse) {
     option (google.api.http) = {
@@ -243,7 +251,7 @@ message CreateBookingResponse {
 
 message GetBookingDetailsRequest {
   string BookingId = 1;
-  string UserId    = 2; // passager ou conducteur (vérification d'autorisation)
+  string UserId    = 2; // ignoré : l'identité de l'appelant est issue du JWT
 }
 
 message SegmentDetail {

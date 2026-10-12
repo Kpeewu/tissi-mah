@@ -7,8 +7,12 @@ type BookingService interface {
 	// CreateBooking crée une nouvelle réservation.
 	CreateBooking(ctx context.Context, input *CreateBookingInput) (*CreateBookingResult, error)
 
-	// GetBookingDetails retourne les détails complets d'une réservation.
+	// GetBookingDetails retourne les détails complets d'une réservation à son passager ou son conducteur.
 	GetBookingDetails(ctx context.Context, input *GetBookingDetailsInput) (*BookingDetailResult, error)
+
+	// GetBookingDetailsInternal retourne les détails d'une réservation sans contrôle d'appartenance
+	// (appels inter-services uniquement).
+	GetBookingDetailsInternal(ctx context.Context, bookingID string) (*BookingDetailResult, error)
 
 	// GetPassengerBookings retourne la liste paginée des réservations d'un passager.
 	GetPassengerBookings(ctx context.Context, input *GetPassengerBookingsInput) ([]*BookingPreviewResult, error)

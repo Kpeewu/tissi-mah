@@ -114,6 +114,76 @@ func (d *testDeps) assertExpectations(t *testing.T) {
 // ApproveBooking
 // =============================================================================
 
+// =============================================================================
+// GetBookingDetails / GetBookingDetailsInternal
+// =============================================================================
+
+func TestGetBookingDetails(t *testing.T) {
+	detailsBooking := &domain.Booking{
+		BookingID: "booking-1", TripID: "trip-1", PassengerID: "passenger-1", DriverID: "driver-1",
+	}
+
+	for _, userID := range []string{"passenger-1", "driver-1"} {
+		t.Run("succes - lecture par "+userID, func(t *testing.T) {
+			d := newTestService()
+			d.readRepo.On("GetByIDWithDetails", mock.Anything, "booking-1").Return(detailsBooking, nil, nil, nil)
+			d.tripClient.On("GetTripDetails", mock.Anything, "trip-1").Return(&client.TripDetails{RoutePolyline: "poly"}, nil)
+
+			result, err := d.svc.GetBookingDetails(context.Background(), &serviceInterfaces.GetBookingDetailsInput{
+				BookingID: "booking-1",
+				UserID:    userID,
+			})
+
+			require.NoError(t, err)
+			assert.Equal(t, "booking-1", result.BookingID)
+			assert.Equal(t, "poly", result.RoutePolyline)
+		})
+	}
+
+	t.Run("erreur - un tiers ne peut pas lire la reservation", func(t *testing.T) {
+		d := newTestService()
+		d.readRepo.On("GetByIDWithDetails", mock.Anything, "booking-1").Return(detailsBooking, nil, nil, nil)
+
+		_, err := d.svc.GetBookingDetails(context.Background(), &serviceInterfaces.GetBookingDetailsInput{
+			BookingID: "booking-1",
+			UserID:    "intrus",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorUnauthorized)
+	})
+
+	t.Run("erreur - identite vide refusee sans lecture", func(t *testing.T) {
+		d := newTestService()
+
+		_, err := d.svc.GetBookingDetails(context.Background(), &serviceInterfaces.GetBookingDetailsInput{
+			BookingID: "booking-1",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorUnauthorized)
+		d.readRepo.AssertNotCalled(t, "GetByIDWithDetails", mock.Anything, mock.Anything)
+	})
+
+	t.Run("succes - route interne sans identite ni enrichissement", func(t *testing.T) {
+		d := newTestService()
+		d.readRepo.On("GetByIDWithDetails", mock.Anything, "booking-1").Return(detailsBooking, nil, nil, nil)
+
+		result, err := d.svc.GetBookingDetailsInternal(context.Background(), "booking-1")
+
+		require.NoError(t, err)
+		assert.Equal(t, "passenger-1", result.PassengerID)
+		assert.Empty(t, result.RoutePolyline)
+		d.tripClient.AssertNotCalled(t, "GetTripDetails", mock.Anything, mock.Anything)
+	})
+
+	t.Run("erreur - route interne avec ID vide", func(t *testing.T) {
+		d := newTestService()
+
+		_, err := d.svc.GetBookingDetailsInternal(context.Background(), "")
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorInvalidInput)
+	})
+}
+
 func TestApproveBooking(t *testing.T) {
 	t.Run("succes - approuve un booking", func(t *testing.T) {
 		d := newTestService()

@@ -55,15 +55,9 @@ var publicMethods = map[string]bool{
 	"/booking.BookingService/CheckDeletionEligibility":     true, // Route interne (auth-service, suppression de compte)
 	"/booking.BookingService/AnonymizeUserData":            true, // Route interne (auth-service, suppression de compte)
 	"/booking.BookingService/GetPassengerBookingIDs":       true, // Route interne (auth-service, suppression de compte)
+	"/booking.BookingService/GetBookingDetailsInternal":    true, // Route interne (payment-service, chat-service)
 	"/grpc.health.v1.Health/Check":                         true, // Readiness probe Kubernetes
 	"/grpc.health.v1.Health/Watch":                         true, // Liveness probe Kubernetes
-}
-
-// Méthodes appelées à la fois par les clients (via api-gateway, JWT Firebase) et en interne
-// sans identité : l'identité est résolue si x-firebase-uid est présent, sinon l'appel passe
-// sans identité dans le contexte (le handler traite alors l'appel comme inter-service).
-var optionalAuthMethods = map[string]bool{
-	"/booking.BookingService/GetBookingDetails": true, // Client + interne (payment-service, chat-service)
 }
 
 // BookingInterceptor retourne un intercepteur gRPC unaire qui :
@@ -79,9 +73,6 @@ func BookingInterceptor(secret []byte, resolver UserIDResolver) grpc.UnaryServer
 
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
-			if optionalAuthMethods[info.FullMethod] {
-				return handler(ctx, req)
-			}
 			return nil, status.Error(codes.Unauthenticated, "missing metadata")
 		}
 
@@ -96,12 +87,6 @@ func BookingInterceptor(secret []byte, resolver UserIDResolver) grpc.UnaryServer
 				ctx = context.WithValue(ctx, SupportRoleKey, roles[0])
 			}
 			return handler(ctx, req)
-		}
-
-		if optionalAuthMethods[info.FullMethod] {
-			if uids := md.Get("x-firebase-uid"); len(uids) == 0 || uids[0] == "" {
-				return handler(ctx, req)
-			}
 		}
 
 		ctx, err := authenticateFirebaseCaller(ctx, md, secret, resolver)

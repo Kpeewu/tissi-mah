@@ -303,29 +303,48 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 // =============================================================================
 
 func (s *bookingServiceImpl) GetBookingDetails(ctx context.Context, input *serviceInterfaces.GetBookingDetailsInput) (*serviceInterfaces.BookingDetailResult, error) {
-	if input.BookingID == "" {
-		return nil, bookingErrors.ErrorInvalidInput
+	// L'identité est obligatoire : les appels inter-services passent par GetBookingDetailsInternal.
+	if input.UserID == "" {
+		return nil, bookingErrors.ErrorUnauthorized
 	}
 
-	booking, segments, history, err := s.readRepo.GetByIDWithDetails(ctx, input.BookingID)
+	booking, segments, history, err := s.loadBookingWithDetails(ctx, input.BookingID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Vérification d'autorisation : l'utilisateur doit être le passager ou le conducteur
-	// Skippée pour les appels inter-services (UserID vide)
-	if input.UserID != "" && booking.PassengerID != input.UserID && booking.DriverID != input.UserID {
+	if booking.PassengerID != input.UserID && booking.DriverID != input.UserID {
 		return nil, bookingErrors.ErrorUnauthorized
 	}
 
 	detail := s.mapBookingToDetailResult(booking, segments, history)
-	// Enrichissement des noms d'auteurs de l'historique + polyline du trajet pour les
-	// requêtes d'un vrai utilisateur uniquement (les appels inter-services passent UserID vide).
-	if input.UserID != "" {
-		s.enrichHistoryActorNames(ctx, detail.History, nil)
-		detail.RoutePolyline = s.fetchRoutePolyline(ctx, booking.TripID)
-	}
+	// Enrichissement des noms d'auteurs de l'historique + polyline du trajet
+	s.enrichHistoryActorNames(ctx, detail.History, nil)
+	detail.RoutePolyline = s.fetchRoutePolyline(ctx, booking.TripID)
 	return detail, nil
+}
+
+// GetBookingDetailsInternal retourne le détail brut d'une réservation, sans contrôle
+// d'appartenance ni enrichissement. Réservé aux appels inter-services (payment-service, chat-service).
+func (s *bookingServiceImpl) GetBookingDetailsInternal(
+	ctx context.Context, bookingID string,
+) (*serviceInterfaces.BookingDetailResult, error) {
+	booking, segments, history, err := s.loadBookingWithDetails(ctx, bookingID)
+	if err != nil {
+		return nil, err
+	}
+	return s.mapBookingToDetailResult(booking, segments, history), nil
+}
+
+// loadBookingWithDetails valide l'ID et charge la réservation avec ses segments et son historique.
+func (s *bookingServiceImpl) loadBookingWithDetails(
+	ctx context.Context, bookingID string,
+) (*domain.Booking, []*domain.Segment, []*domain.StatusHistoryEntry, error) {
+	if bookingID == "" {
+		return nil, nil, nil, bookingErrors.ErrorInvalidInput
+	}
+	return s.readRepo.GetByIDWithDetails(ctx, bookingID)
 }
 
 // =============================================================================

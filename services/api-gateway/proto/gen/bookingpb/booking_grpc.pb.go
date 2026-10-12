@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	BookingService_CreateBooking_FullMethodName                      = "/booking.BookingService/CreateBooking"
 	BookingService_GetBookingDetails_FullMethodName                  = "/booking.BookingService/GetBookingDetails"
+	BookingService_GetBookingDetailsInternal_FullMethodName          = "/booking.BookingService/GetBookingDetailsInternal"
 	BookingService_GetPassengerBookings_FullMethodName               = "/booking.BookingService/GetPassengerBookings"
 	BookingService_GetDriverTripBookings_FullMethodName              = "/booking.BookingService/GetDriverTripBookings"
 	BookingService_ApproveBooking_FullMethodName                     = "/booking.BookingService/ApproveBooking"
@@ -55,6 +56,9 @@ type BookingServiceClient interface {
 	CreateBooking(ctx context.Context, in *CreateBookingRequest, opts ...grpc.CallOption) (*CreateBookingResponse, error)
 	// GetBookingDetails retourne les détails complets d'une réservation.
 	GetBookingDetails(ctx context.Context, in *GetBookingDetailsRequest, opts ...grpc.CallOption) (*GetBookingDetailsResponse, error)
+	// GetBookingDetailsInternal retourne le détail d'une réservation sans contrôle d'appartenance.
+	// Route interne appelée par payment-service et chat-service — bloquée en bordure par l'api-gateway.
+	GetBookingDetailsInternal(ctx context.Context, in *GetBookingDetailsRequest, opts ...grpc.CallOption) (*GetBookingDetailsResponse, error)
 	// GetPassengerBookings retourne la liste paginée des réservations d'un passager.
 	GetPassengerBookings(ctx context.Context, in *GetPassengerBookingsRequest, opts ...grpc.CallOption) (*GetPassengerBookingsResponse, error)
 	// GetDriverTripBookings retourne la liste paginée des réservations pour un trajet du conducteur.
@@ -141,6 +145,16 @@ func (c *bookingServiceClient) GetBookingDetails(ctx context.Context, in *GetBoo
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetBookingDetailsResponse)
 	err := c.cc.Invoke(ctx, BookingService_GetBookingDetails_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bookingServiceClient) GetBookingDetailsInternal(ctx context.Context, in *GetBookingDetailsRequest, opts ...grpc.CallOption) (*GetBookingDetailsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetBookingDetailsResponse)
+	err := c.cc.Invoke(ctx, BookingService_GetBookingDetailsInternal_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -377,6 +391,9 @@ type BookingServiceServer interface {
 	CreateBooking(context.Context, *CreateBookingRequest) (*CreateBookingResponse, error)
 	// GetBookingDetails retourne les détails complets d'une réservation.
 	GetBookingDetails(context.Context, *GetBookingDetailsRequest) (*GetBookingDetailsResponse, error)
+	// GetBookingDetailsInternal retourne le détail d'une réservation sans contrôle d'appartenance.
+	// Route interne appelée par payment-service et chat-service — bloquée en bordure par l'api-gateway.
+	GetBookingDetailsInternal(context.Context, *GetBookingDetailsRequest) (*GetBookingDetailsResponse, error)
 	// GetPassengerBookings retourne la liste paginée des réservations d'un passager.
 	GetPassengerBookings(context.Context, *GetPassengerBookingsRequest) (*GetPassengerBookingsResponse, error)
 	// GetDriverTripBookings retourne la liste paginée des réservations pour un trajet du conducteur.
@@ -454,6 +471,9 @@ func (UnimplementedBookingServiceServer) CreateBooking(context.Context, *CreateB
 }
 func (UnimplementedBookingServiceServer) GetBookingDetails(context.Context, *GetBookingDetailsRequest) (*GetBookingDetailsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetBookingDetails not implemented")
+}
+func (UnimplementedBookingServiceServer) GetBookingDetailsInternal(context.Context, *GetBookingDetailsRequest) (*GetBookingDetailsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetBookingDetailsInternal not implemented")
 }
 func (UnimplementedBookingServiceServer) GetPassengerBookings(context.Context, *GetPassengerBookingsRequest) (*GetPassengerBookingsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPassengerBookings not implemented")
@@ -574,6 +594,24 @@ func _BookingService_GetBookingDetails_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BookingServiceServer).GetBookingDetails(ctx, req.(*GetBookingDetailsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BookingService_GetBookingDetailsInternal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetBookingDetailsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).GetBookingDetailsInternal(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_GetBookingDetailsInternal_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).GetBookingDetailsInternal(ctx, req.(*GetBookingDetailsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -988,6 +1026,10 @@ var BookingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetBookingDetails",
 			Handler:    _BookingService_GetBookingDetails_Handler,
+		},
+		{
+			MethodName: "GetBookingDetailsInternal",
+			Handler:    _BookingService_GetBookingDetailsInternal_Handler,
 		},
 		{
 			MethodName: "GetPassengerBookings",
