@@ -13,12 +13,12 @@ import (
 )
 
 // withFirebaseUID injecte x-firebase-uid dans le contexte sortant, comme le ferait
-// l'api-gateway après validation du JWT, et enregistre la résolution de profil
-// correspondante sur mockUserClient (UploadIdDocument/UploadVehicleDocuments résolvent
-// l'UserID interne à partir de cet UID — le champ UserID du body est ignoré). Utilise
+// l'api-gateway après validation du JWT. L'intercepteur résout le Firebase UID en UserID
+// interne via GetUserIDByFirebaseID (mocké dans main_test.go pour retourner le Firebase UID
+// tel quel). Le handler charge ensuite le profil via GetUserProfileByUserID. Utilise
 // le Firebase UID directement comme UserID interne pour simplifier les assertions.
 func withFirebaseUID(ctx context.Context, firebaseUID string) context.Context {
-	mockUserClient.On("GetUserProfileByFirebaseID", mock.Anything, firebaseUID).
+	mockUserClient.On("GetUserProfileByUserID", mock.Anything, firebaseUID).
 		Return(&client.UserProfile{UserID: firebaseUID, FirstName: "Jean", LastName: "Dupont"}, nil).Maybe()
 	return metadata.NewOutgoingContext(ctx, metadata.Pairs("x-firebase-uid", firebaseUID))
 }

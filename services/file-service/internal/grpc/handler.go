@@ -249,20 +249,20 @@ func (h *FileHandler) ChangeDocument(ctx context.Context, req *filepb.ChangeDocu
 // UploadIdDocument reçoit les documents d'identité en base64 JSON, les upload vers S3/MinIO
 // et sauvegarde les URLs en base. Retourne toujours HTTP 200 avec ErrorMessage si erreur.
 //
-// Sécurité : le Firebase UID est celui vérifié par l'intercepteur (x-firebase-uid injecté
-// par l'api-gateway après validation JWT), puis résolu en profil (UUID + prenom + nom)
-// via user-service. Le champ req.UserID du body est ignoré car client-supplied et non sûr.
+// Sécurité : l'UserID interne est celui résolu par l'intercepteur depuis le Firebase UID
+// validé par l'api-gateway. Le profil (prénom/nom) est chargé par UserID interne.
+// Le champ req.UserID du body est ignoré car client-supplied et non sûr.
 func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadIdDocumentRequest) (*filepb.UploadIdDocumentResponse, error) {
-	firebaseUID, err := callerFirebaseUID(ctx)
+	userID, err := callerUserID(ctx)
 	if err != nil {
 		h.logger.Error("handler: UploadIdDocument - missing caller identity")
 		return nil, err
 	}
 
-	profile, err := h.userClient.GetUserProfileByFirebaseID(ctx, firebaseUID)
+	profile, err := h.userClient.GetUserProfileByUserID(ctx, userID)
 	if err != nil {
-		h.logger.Error("handler: UploadIdDocument - failed to resolve firebaseUID",
-			zap.String("firebaseUID", firebaseUID),
+		h.logger.Error("handler: UploadIdDocument - failed to load user profile",
+			zap.String("userID", userID),
 			zap.Error(err),
 		)
 		return &filepb.UploadIdDocumentResponse{
@@ -272,8 +272,7 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 	}
 
 	h.logger.Debug("handler: UploadIdDocument called",
-		zap.String("firebaseUID", firebaseUID),
-		zap.String("internalUserID", profile.UserID),
+		zap.String("userID", userID),
 		zap.String("documentType", req.DocumentType),
 	)
 
@@ -294,8 +293,7 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 	})
 	if err != nil {
 		h.logger.Error("handler: UploadIdDocument failed",
-			zap.String("firebaseUID", firebaseUID),
-			zap.String("internalUserID", profile.UserID),
+			zap.String("userID", userID),
 			zap.Error(err),
 		)
 		return &filepb.UploadIdDocumentResponse{
@@ -305,8 +303,7 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 	}
 
 	h.logger.Info("handler: UploadIdDocument success",
-		zap.String("firebaseUID", firebaseUID),
-		zap.String("internalUserID", profile.UserID),
+		zap.String("userID", userID),
 		zap.Int("count", len(docs)),
 	)
 	return &filepb.UploadIdDocumentResponse{
@@ -319,20 +316,19 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 // vers S3/MinIO et l'enregistre comme document "selfie" courant (photo de profil
 // immédiate + review "pending" pour validation support).
 //
-// Sécurité : le Firebase UID est celui vérifié par l'intercepteur (x-firebase-uid injecté
-// par l'api-gateway après validation JWT) puis résolu via user-service.
-// Aucun UserID n'est accepté dans le body.
+// Sécurité : l'UserID interne est celui résolu par l'intercepteur depuis le Firebase UID
+// validé par l'api-gateway. Aucun UserID n'est accepté dans le body.
 func (h *FileHandler) UploadSelfie(ctx context.Context, req *filepb.UploadSelfieRequest) (*filepb.UploadSelfieResponse, error) {
-	firebaseUID, err := callerFirebaseUID(ctx)
+	userID, err := callerUserID(ctx)
 	if err != nil {
 		h.logger.Error("handler: UploadSelfie - missing caller identity")
 		return nil, err
 	}
 
-	profile, err := h.userClient.GetUserProfileByFirebaseID(ctx, firebaseUID)
+	profile, err := h.userClient.GetUserProfileByUserID(ctx, userID)
 	if err != nil {
-		h.logger.Error("handler: UploadSelfie - failed to resolve firebaseUID",
-			zap.String("firebaseUID", firebaseUID),
+		h.logger.Error("handler: UploadSelfie - failed to load user profile",
+			zap.String("userID", userID),
 			zap.Error(err),
 		)
 		return &filepb.UploadSelfieResponse{
@@ -349,8 +345,7 @@ func (h *FileHandler) UploadSelfie(ctx context.Context, req *filepb.UploadSelfie
 	})
 	if err != nil {
 		h.logger.Error("handler: UploadSelfie failed",
-			zap.String("firebaseUID", firebaseUID),
-			zap.String("internalUserID", profile.UserID),
+			zap.String("userID", userID),
 			zap.Error(err),
 		)
 		return &filepb.UploadSelfieResponse{
@@ -360,8 +355,7 @@ func (h *FileHandler) UploadSelfie(ctx context.Context, req *filepb.UploadSelfie
 	}
 
 	h.logger.Info("handler: UploadSelfie success",
-		zap.String("firebaseUID", firebaseUID),
-		zap.String("internalUserID", profile.UserID),
+		zap.String("userID", userID),
 		zap.String("documentID", doc.DocumentID),
 	)
 	return &filepb.UploadSelfieResponse{
@@ -373,22 +367,21 @@ func (h *FileHandler) UploadSelfie(ctx context.Context, req *filepb.UploadSelfie
 // UploadVehicleDocuments reçoit les documents du véhicule en base64 JSON,
 // les upload vers S3/MinIO et sauvegarde les URLs en base.
 //
-// Sécurité : le Firebase UID est celui vérifié par l'intercepteur (x-firebase-uid injecté
-// par l'api-gateway après validation JWT), puis résolu en profil (UUID + prenom + nom)
-// via user-service. Le champ req.UserID du body est ignoré car client-supplied et non sûr.
+// Sécurité : l'UserID interne est celui résolu par l'intercepteur depuis le Firebase UID
+// validé par l'api-gateway. Le champ req.UserID du body est ignoré car client-supplied et non sûr.
 // Le véhicule doit appartenir à l'appelant (propriétaire lu sur vehicle-service) : un véhicule
 // d'autrui est refusé comme un véhicule inexistant, avant tout upload.
 func (h *FileHandler) UploadVehicleDocuments(ctx context.Context, req *filepb.UploadVehicleDocumentsRequest) (*filepb.UploadVehicleDocumentsResponse, error) {
-	firebaseUID, err := callerFirebaseUID(ctx)
+	userID, err := callerUserID(ctx)
 	if err != nil {
 		h.logger.Error("handler: UploadVehicleDocuments - missing caller identity")
 		return nil, err
 	}
 
-	profile, err := h.userClient.GetUserProfileByFirebaseID(ctx, firebaseUID)
+	profile, err := h.userClient.GetUserProfileByUserID(ctx, userID)
 	if err != nil {
-		h.logger.Error("handler: UploadVehicleDocuments - failed to resolve firebaseUID",
-			zap.String("firebaseUID", firebaseUID),
+		h.logger.Error("handler: UploadVehicleDocuments - failed to load user profile",
+			zap.String("userID", userID),
 			zap.Error(err),
 		)
 		return &filepb.UploadVehicleDocumentsResponse{
@@ -398,8 +391,7 @@ func (h *FileHandler) UploadVehicleDocuments(ctx context.Context, req *filepb.Up
 	}
 
 	h.logger.Debug("handler: UploadVehicleDocuments called",
-		zap.String("firebaseUID", firebaseUID),
-		zap.String("internalUserID", profile.UserID),
+		zap.String("userID", userID),
 		zap.String("vehicleID", req.VehicleID),
 	)
 
@@ -443,8 +435,7 @@ func (h *FileHandler) UploadVehicleDocuments(ctx context.Context, req *filepb.Up
 	})
 	if err != nil {
 		h.logger.Error("handler: UploadVehicleDocuments failed",
-			zap.String("firebaseUID", firebaseUID),
-			zap.String("internalUserID", profile.UserID),
+			zap.String("userID", userID),
 			zap.String("vehicleID", req.VehicleID),
 			zap.Error(err),
 		)
@@ -455,8 +446,7 @@ func (h *FileHandler) UploadVehicleDocuments(ctx context.Context, req *filepb.Up
 	}
 
 	h.logger.Info("handler: UploadVehicleDocuments success",
-		zap.String("firebaseUID", firebaseUID),
-		zap.String("internalUserID", profile.UserID),
+		zap.String("userID", userID),
 		zap.String("vehicleID", req.VehicleID),
 		zap.Int("count", len(docs)),
 	)
@@ -1090,15 +1080,6 @@ func callerUserID(ctx context.Context) (string, error) {
 	return userID, nil
 }
 
-// callerFirebaseUID retourne le Firebase UID de l'appelant, vérifié par l'intercepteur
-// (utilisé par les uploads, qui relisent le profil complet : UserID + prénom/nom).
-func callerFirebaseUID(ctx context.Context) (string, error) {
-	uid, ok := ctx.Value(middleware.FirebaseIDKey).(string)
-	if !ok || uid == "" {
-		return "", status.Error(codes.Unauthenticated, "missing caller identity")
-	}
-	return uid, nil
-}
 
 func toGRPCError(err error) error {
 	switch {

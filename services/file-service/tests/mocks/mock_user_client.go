@@ -22,8 +22,8 @@ func (m *MockUserClient) GetUserIDByFirebaseID(ctx context.Context, firebaseUID 
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockUserClient) GetUserProfileByFirebaseID(ctx context.Context, firebaseUID string) (*client.UserProfile, error) {
-	args := m.Called(ctx, firebaseUID)
+func (m *MockUserClient) GetUserProfileByUserID(ctx context.Context, userID string) (*client.UserProfile, error) {
+	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
