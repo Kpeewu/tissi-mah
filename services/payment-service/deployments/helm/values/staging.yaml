@@ -57,7 +57,6 @@ config:
   # au-delà, la transaction est supprimée et les places libérées.
   paymentTimeoutMinutes: "10"
   # Retour de la page FedaPay (callback_url) — handler public de l'api-gateway.
-  # À confirmer : URL publique de l'api-gateway de cet environnement
   paymentCallbackUrl: "https://api.staging.tissi-mah.com/api/v1/payment/callback"
   # Fenêtre horaire des batches automatiques (PayoutWorker, RefundWorker).
   paymentWindowEnabled: "true"
