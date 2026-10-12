@@ -665,9 +665,16 @@ func (s *paymentServiceImpl) GetPayoutStatus(ctx context.Context, payoutID strin
 	}, nil
 }
 
-func (s *paymentServiceImpl) GetDriverPayouts(ctx context.Context, driverID string, pageIndex int) ([]*serviceInterfaces.PayoutPreviewResult, error) {
+// GetDriverPayouts retourne les payouts du chauffeur appelant (UserID résolu par l'intercepteur).
+func (s *paymentServiceImpl) GetDriverPayouts(
+	ctx context.Context, pageIndex int,
+) ([]*serviceInterfaces.PayoutPreviewResult, error) {
 	if s.payoutReadRepo == nil {
 		return nil, paymentErrors.ErrorInternalServer
+	}
+	driverID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	payouts, err := s.payoutReadRepo.GetDriverPayouts(ctx, driverID, pageIndex)

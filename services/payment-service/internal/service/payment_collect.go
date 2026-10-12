@@ -763,26 +763,24 @@ func (s *paymentServiceImpl) getBooking(ctx context.Context, bookingID string) (
 	return booking, nil
 }
 
-// checkBookingOwnership vérifie que l'utilisateur authentifié (Firebase UID) est le passager de la réservation.
-// booking.PassengerID peut contenir le UserID interne ou le Firebase UID.
-func (s *paymentServiceImpl) checkBookingOwnership(ctx context.Context, booking *client.BookingDetails) error {
-	firebaseUID, _ := ctx.Value(middleware.FirebaseIDKey).(string)
-	if firebaseUID == "" {
-		return paymentErrors.ErrorUnauthorized
+// callerUserID retourne l'UserID interne de l'appelant, résolu par l'intercepteur depuis le Firebase UID
+// validé par l'api-gateway. Les endpoints client-facing ne font jamais confiance à un identifiant
+// d'utilisateur fourni dans la requête.
+func callerUserID(ctx context.Context) (string, error) {
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
+	if !ok || userID == "" {
+		return "", paymentErrors.ErrorUnauthorized
 	}
-	if booking.PassengerID == firebaseUID {
-		return nil
-	}
+	return userID, nil
+}
 
-	userID, err := s.userClient.GetUserIDByFirebaseID(ctx, firebaseUID)
+// checkBookingOwnership vérifie que l'appelant (UserID résolu par l'intercepteur) est le passager de la réservation.
+func (s *paymentServiceImpl) checkBookingOwnership(ctx context.Context, booking *client.BookingDetails) error {
+	userID, err := callerUserID(ctx)
 	if err != nil {
-		if errors.Is(err, paymentErrors.ErrorUserNotFound) {
-			return paymentErrors.ErrorPaymentNotOwned
-		}
-		s.logger.Error("resolve user from firebase uid failed", zap.Error(err))
-		return paymentErrors.ErrorInternalServer
+		return err
 	}
-	if userID == "" || userID != booking.PassengerID {
+	if userID != booking.PassengerID {
 		s.logger.Warn("payment access denied: user is not the booking passenger",
 			zap.String("bookingID", booking.BookingID),
 		)

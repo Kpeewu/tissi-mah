@@ -65,13 +65,17 @@ func TestMain(m *testing.M) {
 	// --- Mock clients (inter-service) ---
 	mockBookingClient := new(mocks.MockBookingClient)
 	mockBookingClient.On("ConfirmPayment", mock.Anything, mock.Anything, mock.Anything).Return("pendingApproval", nil).Maybe()
-	// Passager = Firebase UID des appels e2e (ctxWithUID) : le contrôle d'appartenance passe sans user-service
+	// Passager = UserID résolu depuis le Firebase UID des appels e2e (ctxWithUID)
 	mockBookingClient.On("GetBookingDetails", mock.Anything, mock.Anything).
-		Return(&client.BookingDetails{PassengerID: e2eFirebaseUID}, nil).Maybe()
+		Return(&client.BookingDetails{PassengerID: e2eUserID}, nil).Maybe()
 
 	mockUserClient := new(mocks.MockUserClient)
 	mockUserClient.On("GetUserByUserID", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
-	// Tout autre Firebase UID n'est pas le passager
+	// L'intercepteur résout l'appelant : e2eFirebaseUID est le passager, e2eIntruderFirebaseUID un
+	// utilisateur connu qui ne l'est pas ; tout autre Firebase UID est inconnu de user-service.
+	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, e2eFirebaseUID).Return(e2eUserID, nil).Maybe()
+	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, e2eIntruderFirebaseUID).
+		Return("e2e-intrus-user", nil).Maybe()
 	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, mock.Anything).
 		Return("", paymentErrors.ErrorUserNotFound).Maybe()
 
@@ -122,7 +126,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.PaymentInterceptor(nil)))
+	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.PaymentInterceptor(nil, mockUserClient)))
 	handler := grpcHandler.NewPaymentHandler(paymentService, logger)
 	paymentpb.RegisterPaymentServiceServer(srv, handler)
 

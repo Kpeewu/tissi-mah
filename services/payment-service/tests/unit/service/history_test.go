@@ -63,7 +63,6 @@ func TestPaymentHistory_EdgeCases(t *testing.T) {
 		withoutURL := pendingPayment()
 		withoutURL.PaymentURL = ""
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
-		d.expectOwner()
 		d.paymentReadRepo.On("GetPendingByBookingID", mock.Anything, "bk-1").Return(withoutURL, nil)
 		d.fedapay.On("GetTransactionToken", 101).Return(&fedapay.TokenResponse{URL: "https://checkout.fedapay.com/pay/new"}, nil)
 		d.paymentWriteRepo.On("UpdatePaymentURL", mock.Anything, "pay-1", "https://checkout.fedapay.com/pay/new").Return(nil)

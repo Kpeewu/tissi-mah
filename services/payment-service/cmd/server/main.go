@@ -170,7 +170,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	}
 
 	// --- gRPC server ---
-	srv, err := grpcServer.NewPaymentServer(cfg, paymentService, logger)
+	srv, err := grpcServer.NewPaymentServer(cfg, paymentService, userClient, logger)
 	if err != nil {
 		return fmt.Errorf("grpc server: %w", err)
 	}

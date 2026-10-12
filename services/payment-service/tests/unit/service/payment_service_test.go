@@ -104,12 +104,11 @@ func (d *testDeps) assertExpectations(t *testing.T) {
 	d.supportClient.AssertExpectations(t)
 }
 
-// expectBookingCaller configure la réservation bookingID (passager testPassengerID) et la résolution
-// de l'appelant de passengerCtx() vers callerUserID.
-func (d *testDeps) expectBookingCaller(bookingID, callerUserID string) {
+// expectBooking configure la réservation bookingID et son passager. L'appelant de passengerCtx()
+// est testPassengerID : il n'est pas le passager si passengerID diffère.
+func (d *testDeps) expectBooking(bookingID, passengerID string) {
 	d.bookingClient.On("GetBookingDetails", mock.Anything, bookingID).
-		Return(&client.BookingDetails{BookingID: bookingID, PassengerID: testPassengerID}, nil)
-	d.userClient.On("GetUserIDByFirebaseID", mock.Anything, testFirebaseUID).Return(callerUserID, nil)
+		Return(&client.BookingDetails{BookingID: bookingID, PassengerID: passengerID}, nil)
 }
 
 // =============================================================================
@@ -128,7 +127,7 @@ func TestGetPaymentStatus(t *testing.T) {
 			fixtures.WithPaymentStatus(domain.PaymentStatusHeld),
 		)
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-123").Return(payment, nil)
-		d.expectBookingCaller("booking-456", testPassengerID)
+		d.expectBooking("booking-456", testPassengerID)
 
 		result, err := d.svc.GetPaymentStatus(ctx, "pay-123")
 
@@ -158,7 +157,7 @@ func TestGetPaymentStatus(t *testing.T) {
 
 		payment := fixtures.NewTestPayment(fixtures.WithPaymentID("pay-123"), fixtures.WithPaymentBookingID("booking-456"))
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-123").Return(payment, nil)
-		d.expectBookingCaller("booking-456", "someone-else")
+		d.expectBooking("booking-456", "someone-else")
 
 		result, err := d.svc.GetPaymentStatus(passengerCtx(), "pay-123")
 
@@ -199,7 +198,7 @@ func TestGetPaymentByBooking(t *testing.T) {
 			fixtures.WithPaymentStatus(domain.PaymentStatusPending),
 		)
 		d.paymentReadRepo.On("GetByBookingID", mock.Anything, "booking-xyz").Return(payment, nil)
-		d.expectBookingCaller("booking-xyz", testPassengerID)
+		d.expectBooking("booking-xyz", testPassengerID)
 
 		result, err := d.svc.GetPaymentByBooking(ctx, "booking-xyz")
 
@@ -216,7 +215,7 @@ func TestGetPaymentByBooking(t *testing.T) {
 		ctx := passengerCtx()
 
 		d.paymentReadRepo.On("GetByBookingID", mock.Anything, "no-booking").Return(nil, paymentErrors.ErrorPaymentNotFound)
-		d.expectBookingCaller("no-booking", testPassengerID)
+		d.expectBooking("no-booking", testPassengerID)
 
 		result, err := d.svc.GetPaymentByBooking(ctx, "no-booking")
 
@@ -227,7 +226,7 @@ func TestGetPaymentByBooking(t *testing.T) {
 
 	t.Run("erreur - appelant autre que le passager : aucune lecture du paiement", func(t *testing.T) {
 		d := newTestService()
-		d.expectBookingCaller("booking-xyz", "someone-else")
+		d.expectBooking("booking-xyz", "someone-else")
 
 		result, err := d.svc.GetPaymentByBooking(passengerCtx(), "booking-xyz")
 
@@ -694,7 +693,7 @@ func TestGetRefundStatus(t *testing.T) {
 			fixtures.WithRefundStatus(domain.RefundStatusCompleted),
 		)
 		d.refundReadRepo.On("GetByID", mock.Anything, "ref-123").Return(refund, nil)
-		d.expectBookingCaller("booking-ref", testPassengerID)
+		d.expectBooking("booking-ref", testPassengerID)
 
 		result, err := d.svc.GetRefundStatus(ctx, "ref-123")
 
@@ -728,7 +727,7 @@ func TestGetRefundStatus(t *testing.T) {
 
 		refund := fixtures.NewTestRefund(fixtures.WithRefundID("ref-123"), fixtures.WithRefundBookingID("booking-ref"))
 		d.refundReadRepo.On("GetByID", mock.Anything, "ref-123").Return(refund, nil)
-		d.expectBookingCaller("booking-ref", "someone-else")
+		d.expectBooking("booking-ref", "someone-else")
 
 		result, err := d.svc.GetRefundStatus(passengerCtx(), "ref-123")
 
@@ -760,7 +759,7 @@ func TestGetRefundByBooking(t *testing.T) {
 			fixtures.WithRefundStatus(domain.RefundStatusPending),
 		)
 		d.refundReadRepo.On("GetByBookingID", mock.Anything, "booking-cancelled").Return(refund, nil)
-		d.expectBookingCaller("booking-cancelled", testPassengerID)
+		d.expectBooking("booking-cancelled", testPassengerID)
 
 		result, err := d.svc.GetRefundByBooking(ctx, "booking-cancelled")
 
@@ -780,7 +779,7 @@ func TestGetRefundByBooking(t *testing.T) {
 		ctx := passengerCtx()
 
 		d.refundReadRepo.On("GetByBookingID", mock.Anything, "booking-paid").Return(nil, paymentErrors.ErrorRefundNotFound)
-		d.expectBookingCaller("booking-paid", testPassengerID)
+		d.expectBooking("booking-paid", testPassengerID)
 
 		result, err := d.svc.GetRefundByBooking(ctx, "booking-paid")
 
@@ -802,7 +801,7 @@ func TestGetRefundByBooking(t *testing.T) {
 
 	t.Run("erreur - appelant autre que le passager : aucune lecture du remboursement", func(t *testing.T) {
 		d := newTestService()
-		d.expectBookingCaller("booking-cancelled", "someone-else")
+		d.expectBooking("booking-cancelled", "someone-else")
 
 		result, err := d.svc.GetRefundByBooking(passengerCtx(), "booking-cancelled")
 
@@ -883,7 +882,7 @@ func TestGetPayoutStatus(t *testing.T) {
 func TestGetDriverPayouts(t *testing.T) {
 	t.Run("succes - retourne la liste des payouts", func(t *testing.T) {
 		d := newTestService()
-		ctx := context.Background()
+		ctx := callerCtx("driver-1")
 
 		payouts := []*domain.Payout{
 			fixtures.NewTestPayout(
@@ -901,7 +900,7 @@ func TestGetDriverPayouts(t *testing.T) {
 		}
 		d.payoutReadRepo.On("GetDriverPayouts", mock.Anything, "driver-1", 0).Return(payouts, nil)
 
-		results, err := d.svc.GetDriverPayouts(ctx, "driver-1", 0)
+		results, err := d.svc.GetDriverPayouts(ctx, 0)
 
 		require.NoError(t, err)
 		assert.Len(t, results, 2)
@@ -915,14 +914,24 @@ func TestGetDriverPayouts(t *testing.T) {
 
 	t.Run("succes - liste vide", func(t *testing.T) {
 		d := newTestService()
-		ctx := context.Background()
+		ctx := callerCtx("driver-empty")
 
 		d.payoutReadRepo.On("GetDriverPayouts", mock.Anything, "driver-empty", 0).Return([]*domain.Payout{}, nil)
 
-		results, err := d.svc.GetDriverPayouts(ctx, "driver-empty", 0)
+		results, err := d.svc.GetDriverPayouts(ctx, 0)
 
 		require.NoError(t, err)
 		assert.Empty(t, results)
 		d.assertExpectations(t)
+	})
+
+	t.Run("erreur - appelant non résolu : aucune lecture des payouts", func(t *testing.T) {
+		d := newTestService()
+
+		results, err := d.svc.GetDriverPayouts(context.Background(), 0)
+
+		assert.Nil(t, results)
+		assert.ErrorIs(t, err, paymentErrors.ErrorUnauthorized)
+		d.payoutReadRepo.AssertNotCalled(t, "GetDriverPayouts", mock.Anything, mock.Anything, mock.Anything)
 	})
 }

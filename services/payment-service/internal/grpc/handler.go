@@ -392,9 +392,9 @@ func (h *PaymentHandler) GetPayoutHistory(ctx context.Context, req *paymentpb.Ge
 	return &paymentpb.GetPayoutHistoryResponse{Entries: entries}, nil
 }
 
-// GetDriverPayouts retourne les payouts d'un chauffeur.
+// GetDriverPayouts retourne les payouts du chauffeur appelant.
 func (h *PaymentHandler) GetDriverPayouts(ctx context.Context, req *paymentpb.GetDriverPayoutsRequest) (*paymentpb.GetDriverPayoutsResponse, error) {
-	results, err := h.service.GetDriverPayouts(ctx, req.DriverId, int(req.PageIndex))
+	results, err := h.service.GetDriverPayouts(ctx, int(req.PageIndex))
 	if err != nil {
 		return &paymentpb.GetDriverPayoutsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
 	}
