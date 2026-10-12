@@ -221,7 +221,7 @@ func (r *payoutWriteRepository) MarkPaymentsAsPaidOut(ctx context.Context, tripI
 
 // AnonymizeDriverRefs pseudonymise les références du chauffeur dans payouts.
 func (r *payoutWriteRepository) AnonymizeDriverRefs(ctx context.Context, driverID string) error {
-	anon := "deleted_" + driverID[:8]
+	anon := anonymizedUserID(driverID)
 	_, err := r.pool.Exec(ctx,
 		`UPDATE payouts
 		 SET driver_id          = $1,
