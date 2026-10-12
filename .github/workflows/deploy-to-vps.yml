@@ -624,9 +624,9 @@ jobs:
           echo "Deployment successful!"
           echo ""
           echo "Access your services:"
-          echo "  - API Gateway: http://dev.tissi-mah.com"
-          echo "  - Auth API: http://dev.tissi-mah.com/api/v1/auth/*"
-          echo "  - User API: http://dev.tissi-mah.com/api/v1/user/*"
+          echo "  - API Gateway: https://api.tissimah.kpeewu.dev"
+          echo "  - Auth API: https://api.tissimah.kpeewu.dev/api/v1/auth/*"
+          echo "  - User API: https://api.tissimah.kpeewu.dev/api/v1/user/*"
 
 # =============================================================================
 # Notes d'utilisation
