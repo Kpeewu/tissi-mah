@@ -19,7 +19,7 @@ import (
 // =============================================================================
 
 func TestE2E_Health(t *testing.T) {
-	ctx := ctxWithUID("e2e-test-user")
+	ctx := ctxWithUID(e2eFirebaseUID)
 
 	resp, err := grpcClient.Health(ctx, &paymentpb.HealthRequest{})
 
@@ -35,7 +35,7 @@ func TestE2E_Health(t *testing.T) {
 // =============================================================================
 
 func TestE2E_GetPaymentStatus(t *testing.T) {
-	ctx := ctxWithUID("e2e-test-user")
+	ctx := ctxWithUID(e2eFirebaseUID)
 
 	t.Run("succes - retourne le statut d un paiement existant", func(t *testing.T) {
 		cleanupPaymentTables(t, ctx)
@@ -79,7 +79,7 @@ func TestE2E_GetPaymentStatus(t *testing.T) {
 // =============================================================================
 
 func TestE2E_GetPaymentByBooking(t *testing.T) {
-	ctx := ctxWithUID("e2e-test-user")
+	ctx := ctxWithUID(e2eFirebaseUID)
 
 	t.Run("succes - retourne le paiement par booking", func(t *testing.T) {
 		cleanupPaymentTables(t, ctx)
@@ -107,6 +107,15 @@ func TestE2E_GetPaymentByBooking(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Equal(t, codes.Unauthenticated, status.Code(err))
+	})
+
+	t.Run("erreur - appelant autre que le passager", func(t *testing.T) {
+		_, err := grpcClient.GetPaymentByBooking(ctxWithUID("e2e-intrus"), &paymentpb.GetPaymentByBookingRequest{
+			BookingId: "e2e-booking-find",
+		})
+
+		require.Error(t, err)
+		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 	})
 }
 
@@ -153,7 +162,7 @@ func TestE2E_GetPaymentByBookingInternal(t *testing.T) {
 // =============================================================================
 
 func TestE2E_ReleasePayment(t *testing.T) {
-	ctx := ctxWithUID("e2e-test-user")
+	ctx := ctxWithUID(e2eFirebaseUID)
 
 	t.Run("succes - libere un paiement held", func(t *testing.T) {
 		cleanupPaymentTables(t, ctx)
@@ -207,7 +216,7 @@ func TestE2E_ReleasePayment(t *testing.T) {
 // =============================================================================
 
 func TestE2E_RequestRefund(t *testing.T) {
-	ctx := ctxWithUID("e2e-test-user")
+	ctx := ctxWithUID(e2eFirebaseUID)
 
 	t.Run("succes - remboursement complet annulation chauffeur", func(t *testing.T) {
 		cleanupPaymentTables(t, ctx)
@@ -268,7 +277,7 @@ func TestE2E_RequestRefund(t *testing.T) {
 // =============================================================================
 
 func TestE2E_GetRefundStatus(t *testing.T) {
-	ctx := ctxWithUID("e2e-test-user")
+	ctx := ctxWithUID(e2eFirebaseUID)
 
 	t.Run("succes - retourne le statut du remboursement", func(t *testing.T) {
 		cleanupPaymentTables(t, ctx)
@@ -314,7 +323,7 @@ func TestE2E_GetRefundStatus(t *testing.T) {
 // =============================================================================
 
 func TestE2E_FullPaymentLifecycle(t *testing.T) {
-	ctx := ctxWithUID("e2e-test-user")
+	ctx := ctxWithUID(e2eFirebaseUID)
 	cleanupPaymentTables(t, ctx)
 
 	// 1. Inserer un paiement held (simule un webhook FedaPay reussi)
