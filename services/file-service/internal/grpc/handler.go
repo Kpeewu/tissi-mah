@@ -376,6 +376,8 @@ func (h *FileHandler) UploadSelfie(ctx context.Context, req *filepb.UploadSelfie
 // Sécurité : le Firebase UID est celui vérifié par l'intercepteur (x-firebase-uid injecté
 // par l'api-gateway après validation JWT), puis résolu en profil (UUID + prenom + nom)
 // via user-service. Le champ req.UserID du body est ignoré car client-supplied et non sûr.
+// Le véhicule doit appartenir à l'appelant (propriétaire lu sur vehicle-service) : un véhicule
+// d'autrui est refusé comme un véhicule inexistant, avant tout upload.
 func (h *FileHandler) UploadVehicleDocuments(ctx context.Context, req *filepb.UploadVehicleDocumentsRequest) (*filepb.UploadVehicleDocumentsResponse, error) {
 	firebaseUID, err := callerFirebaseUID(ctx)
 	if err != nil {
@@ -400,6 +402,16 @@ func (h *FileHandler) UploadVehicleDocuments(ctx context.Context, req *filepb.Up
 		zap.String("internalUserID", profile.UserID),
 		zap.String("vehicleID", req.VehicleID),
 	)
+
+	// VehicleID vide : rejeté par le service (ErrorInvalidDocumentType), inutile d'interroger vehicle-service.
+	if req.VehicleID != "" {
+		if err := h.checkVehicleOwnership(ctx, req.VehicleID, profile.UserID); err != nil {
+			return &filepb.UploadVehicleDocumentsResponse{
+				Success:      false,
+				ErrorMessage: err.Error(),
+			}, nil
+		}
+	}
 
 	docs, err := h.service.UploadVehicleDocuments(ctx, serviceInterfaces.UploadVehicleDocumentsInput{
 		UserID:    profile.UserID,
@@ -452,6 +464,40 @@ func (h *FileHandler) UploadVehicleDocuments(ctx context.Context, req *filepb.Up
 		Success:   true,
 		Documents: toProtoUploadedDocuments(docs),
 	}, nil
+}
+
+// checkVehicleOwnership vérifie que le véhicule appartient à userID (UserID interne).
+// Retourne ErrorVehicleNotFound si le véhicule est inconnu ou appartient à un autre
+// utilisateur (pas d'énumération des véhicules d'autrui), ErrorVehicleServiceUnavailable
+// si vehicle-service ne répond pas (refus par défaut).
+func (h *FileHandler) checkVehicleOwnership(ctx context.Context, vehicleID, userID string) error {
+	if h.vehicleClient == nil {
+		h.logger.Error("handler: vehicle ownership check - vehicle-service client not configured")
+		return fileErrors.ErrorVehicleServiceUnavailable
+	}
+	ownerID, err := h.vehicleClient.GetVehicleOwnerID(ctx, vehicleID)
+	if err != nil {
+		if errors.Is(err, fileErrors.ErrorVehicleNotFound) {
+			h.logger.Warn("handler: vehicle ownership check - vehicle not found",
+				zap.String("vehicleID", vehicleID),
+				zap.String("callerUserID", userID),
+			)
+			return fileErrors.ErrorVehicleNotFound
+		}
+		h.logger.Error("handler: vehicle ownership check - vehicle-service unavailable",
+			zap.String("vehicleID", vehicleID),
+			zap.Error(err),
+		)
+		return fileErrors.ErrorVehicleServiceUnavailable
+	}
+	if ownerID != userID {
+		h.logger.Warn("handler: vehicle ownership check - vehicle not owned by caller",
+			zap.String("vehicleID", vehicleID),
+			zap.String("callerUserID", userID),
+		)
+		return fileErrors.ErrorVehicleNotFound
+	}
+	return nil
 }
 
 // --- Upload streaming : documents véhicule ---
@@ -1057,7 +1103,8 @@ func callerFirebaseUID(ctx context.Context) (string, error) {
 func toGRPCError(err error) error {
 	switch {
 	case errors.Is(err, fileErrors.ErrorDocumentNotFound),
-		errors.Is(err, fileErrors.ErrorReviewNotFound):
+		errors.Is(err, fileErrors.ErrorReviewNotFound),
+		errors.Is(err, fileErrors.ErrorVehicleNotFound):
 		return status.Error(codes.NotFound, err.Error())
 
 	case errors.Is(err, fileErrors.ErrorInvalidDocumentType),
@@ -1080,7 +1127,8 @@ func toGRPCError(err error) error {
 	case errors.Is(err, fileErrors.ErrorFileTooLarge):
 		return status.Error(codes.ResourceExhausted, err.Error())
 
-	case errors.Is(err, fileErrors.ErrorUploadFailed):
+	case errors.Is(err, fileErrors.ErrorUploadFailed),
+		errors.Is(err, fileErrors.ErrorVehicleServiceUnavailable):
 		return status.Error(codes.Unavailable, err.Error())
 
 	case errors.Is(err, fileErrors.ErrorDocumentAlreadySubmitted):

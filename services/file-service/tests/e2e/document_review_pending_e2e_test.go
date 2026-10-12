@@ -23,6 +23,12 @@ func withFirebaseUID(ctx context.Context, firebaseUID string) context.Context {
 	return metadata.NewOutgoingContext(ctx, metadata.Pairs("x-firebase-uid", firebaseUID))
 }
 
+// ownVehicle enregistre ownerUID comme propriétaire de vehicleID côté vehicle-service
+// (withFirebaseUID prend le Firebase UID comme UserID interne).
+func ownVehicle(vehicleID, ownerUID string) {
+	mockVehicleClient.On("GetVehicleOwnerID", mock.Anything, vehicleID).Return(ownerUID, nil).Maybe()
+}
+
 // =============================================================================
 // UploadIdDocument — création de la review "pending" à l'upload
 // =============================================================================
@@ -100,6 +106,7 @@ func TestE2E_UploadVehicleDocuments_CreatesPendingReviews(t *testing.T) {
 	t.Run("permis + assurance + carte grise créent chacun leur review pending", func(t *testing.T) {
 		cleanTables(t)
 		ctx := withFirebaseUID(context.Background(), "e2e-pending-vehicle-user")
+		ownVehicle("e2e-pending-vehicle-1", "e2e-pending-vehicle-user")
 
 		resp, err := grpcClient.UploadVehicleDocuments(ctx, &filepb.UploadVehicleDocumentsRequest{
 			VehicleID:           "e2e-pending-vehicle-1",
@@ -161,6 +168,8 @@ func TestE2E_UploadVehicleDocuments_CreatesPendingReviews(t *testing.T) {
 	t.Run("permis déjà soumis : aucune nouvelle review pending pour le permis, seulement assurance+carte grise", func(t *testing.T) {
 		cleanTables(t)
 		ctx := withFirebaseUID(context.Background(), "e2e-pending-vehicle-user-2")
+		ownVehicle("e2e-pending-vehicle-2a", "e2e-pending-vehicle-user-2")
+		ownVehicle("e2e-pending-vehicle-2b", "e2e-pending-vehicle-user-2")
 
 		// Premier véhicule : soumet le permis (crée sa review pending).
 		_, err := grpcClient.UploadVehicleDocuments(ctx, &filepb.UploadVehicleDocumentsRequest{
@@ -360,4 +369,36 @@ func TestE2E_ChangeDocument_PendingReviewOnResubmission(t *testing.T) {
 		assert.NotEqual(t, newVersoID, pendingReview.SecondUserDocumentId,
 			"la review pending a été créée avant le remplacement du verso, elle référence donc encore l'ancien verso")
 	})
+}
+
+// =============================================================================
+// UploadVehicleDocuments — propriété du véhicule
+// =============================================================================
+
+func TestE2E_UploadVehicleDocuments_VehicleOfAnotherUser_Refused(t *testing.T) {
+	cleanTables(t)
+	ownVehicle("e2e-vehicle-of-victim", "e2e-victim-user")
+	ctx := withFirebaseUID(context.Background(), "e2e-attacker-user")
+
+	resp, err := grpcClient.UploadVehicleDocuments(ctx, &filepb.UploadVehicleDocumentsRequest{
+		VehicleID:           "e2e-vehicle-of-victim",
+		Assurance:           fakeJPEG(),
+		VehicleRegistration: fakeJPEG(),
+		AssuranceMetadata: &filepb.VehicleDocMetadata{
+			DocumentNumber: "INS-ATTACK-001", IssuedAt: "2026-01-01T00:00:00Z",
+			ExpireAt: "2027-01-01T00:00:00Z", IssuingAuthority: "AXA",
+		},
+		RegistrationCardMetadata: &filepb.VehicleDocMetadata{
+			DocumentNumber: "REG-ATTACK-001", IssuedAt: "2020-01-01T00:00:00Z", IssuingAuthority: "DVLA",
+		},
+	})
+	require.NoError(t, err)
+	assert.False(t, resp.Success)
+	assert.Equal(t, "ErrorVehicleNotFound", resp.ErrorMessage)
+
+	docsResp, err := grpcClient.GetVehicleDocuments(context.Background(), &filepb.GetVehicleDocumentsRequest{
+		VehicleId: "e2e-vehicle-of-victim",
+	})
+	require.NoError(t, err)
+	assert.Empty(t, docsResp.Documents, "aucun document ne doit être rattaché au véhicule d'autrui")
 }

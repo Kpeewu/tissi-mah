@@ -29,4 +29,6 @@ var (
 	ErrorDriverLicenceRequired     = errors.New("ErrorDriverLicenceRequired")
 	ErrorReviewAlreadyCompleted    = errors.New("ErrorReviewAlreadyCompleted")
 	ErrorStatusSyncFailed          = errors.New("ErrorStatusSyncFailed")
+	ErrorVehicleNotFound           = errors.New("ErrorVehicleNotFound")
+	ErrorVehicleServiceUnavailable = errors.New("ErrorVehicleServiceUnavailable")
 )

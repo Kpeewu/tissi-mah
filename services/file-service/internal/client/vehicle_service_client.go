@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
+	fileErrors "github.com/Kpeewu/tissi-mah/services/file-service/pkg/errors"
 	vehiclepb "github.com/Kpeewu/tissi-mah/services/vehicle-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -79,4 +80,32 @@ func (c *VehicleServiceClient) GetVehicleInfo(ctx context.Context, vehicleID str
 		NumberOfSeats: v.NumberOfSeats,
 		IsVerified:    v.IsVerified,
 	}, nil
+}
+
+// GetVehicleOwnerID retourne le UserID interne du propriétaire d'un véhicule, pour les
+// contrôles de propriété. Contrairement à GetVehicleInfo, aucune dégradation gracieuse :
+// ErrorVehicleNotFound si le véhicule n'existe pas, ErrorVehicleServiceUnavailable si
+// vehicle-service ne répond pas.
+func (c *VehicleServiceClient) GetVehicleOwnerID(ctx context.Context, vehicleID string) (string, error) {
+	c.logger.Debug("client: GetVehicleOwnerID called", zap.String("vehicleID", vehicleID))
+
+	resp, err := c.grpcClient.GetVehicleInfo(ctx, &vehiclepb.GetVehicleInfoRequest{
+		VehicleId: vehicleID,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return "", fileErrors.ErrorVehicleNotFound
+		}
+		c.logger.Error("client: GetVehicleOwnerID failed",
+			zap.String("vehicleID", vehicleID),
+			zap.Error(err),
+		)
+		return "", fmt.Errorf("%w: %v", fileErrors.ErrorVehicleServiceUnavailable, err)
+	}
+
+	ownerID := resp.GetVehicle().GetUserId()
+	if ownerID == "" {
+		return "", fileErrors.ErrorVehicleNotFound
+	}
+	return ownerID, nil
 }

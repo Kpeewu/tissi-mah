@@ -3,6 +3,7 @@ package grpc_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/client"
@@ -82,7 +83,8 @@ func TestUploadVehicleDocuments_ResolvesFirebaseAndForwardsProfile(t *testing.T)
 			FirstName: "Jean",
 			LastName:  "Dupont",
 		}, nil)
-	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
+	mockVehicle := ownedVehicle("vehicle-1", "uuid-abc")
+	h := grpcHandler.NewFileHandler(spy, mockUser, mockVehicle, new(mocks.MockStorageClient), zap.NewNop())
 
 	resp, err := h.UploadVehicleDocuments(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadVehicleDocumentsRequest{
 		UserID:              "firebaseXYZ", // body-supplied, doit etre ignore
@@ -115,7 +117,8 @@ func TestUploadVehicleDocuments_IgnoresBodyUserID(t *testing.T) {
 			FirstName: "Ama",
 			LastName:  "Mensah",
 		}, nil)
-	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
+	mockVehicle := ownedVehicle("vehicle-2", "internal-from-legit")
+	h := grpcHandler.NewFileHandler(spy, mockUser, mockVehicle, new(mocks.MockStorageClient), zap.NewNop())
 
 	// Attaquant forge un UserID dans le body mais possede son propre JWT legitime.
 	resp, err := h.UploadVehicleDocuments(ctxWithFirebaseUID("legitFirebaseUID"), &filepb.UploadVehicleDocumentsRequest{
@@ -139,7 +142,8 @@ func TestUploadVehicleDocuments_ServiceError_ReturnsErrorMessage(t *testing.T) {
 	mockUser := new(mocks.MockUserClient)
 	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
 		Return(&client.UserProfile{UserID: "uuid-abc", FirstName: "Jean", LastName: "Dupont"}, nil)
-	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
+	mockVehicle := ownedVehicle("vehicle-1", "uuid-abc")
+	h := grpcHandler.NewFileHandler(spy, mockUser, mockVehicle, new(mocks.MockStorageClient), zap.NewNop())
 
 	resp, err := h.UploadVehicleDocuments(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadVehicleDocumentsRequest{
 		VehicleID: "vehicle-1",
@@ -156,7 +160,8 @@ func TestUploadVehicleDocuments_ForwardsPerDocMetadata(t *testing.T) {
 	mockUser := new(mocks.MockUserClient)
 	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
 		Return(&client.UserProfile{UserID: "uuid-abc", FirstName: "Jean", LastName: "Dupont"}, nil)
-	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
+	mockVehicle := ownedVehicle("vehicle-1", "uuid-abc")
+	h := grpcHandler.NewFileHandler(spy, mockUser, mockVehicle, new(mocks.MockStorageClient), zap.NewNop())
 
 	resp, err := h.UploadVehicleDocuments(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadVehicleDocumentsRequest{
 		VehicleID:           "vehicle-1",
@@ -206,4 +211,86 @@ func TestUploadVehicleDocuments_ForwardsPerDocMetadata(t *testing.T) {
 	assert.Empty(t, rc.ExpireAt, "expire_at optionnel pour registrationCard")
 
 	mockUser.AssertExpectations(t)
+}
+
+// ownedVehicle simule vehicle-service : vehicleID appartient à ownerID.
+func ownedVehicle(vehicleID, ownerID string) *mocks.MockVehicleClient {
+	m := new(mocks.MockVehicleClient)
+	m.On("GetVehicleOwnerID", mock.Anything, vehicleID).Return(ownerID, nil)
+	return m
+}
+
+func TestUploadVehicleDocuments_VehicleOwnershipRefused(t *testing.T) {
+	cases := []struct {
+		name        string
+		ownerID     string
+		ownerErr    error
+		wantMessage string
+	}{
+		{"véhicule d'un autre utilisateur", "uuid-other", nil, fileErrors.ErrorVehicleNotFound.Error()},
+		{"véhicule introuvable", "", fileErrors.ErrorVehicleNotFound, fileErrors.ErrorVehicleNotFound.Error()},
+		{
+			"vehicle-service indisponible", "",
+			fmt.Errorf("%w: boom", fileErrors.ErrorVehicleServiceUnavailable),
+			fileErrors.ErrorVehicleServiceUnavailable.Error(),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			spy := &spyFileService{}
+			mockUser := new(mocks.MockUserClient)
+			mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
+				Return(&client.UserProfile{UserID: "uuid-abc", FirstName: "Jean", LastName: "Dupont"}, nil)
+			mockVehicle := new(mocks.MockVehicleClient)
+			mockVehicle.On("GetVehicleOwnerID", mock.Anything, "vehicle-victim").Return(tc.ownerID, tc.ownerErr)
+			h := grpcHandler.NewFileHandler(spy, mockUser, mockVehicle, new(mocks.MockStorageClient), zap.NewNop())
+
+			resp, err := h.UploadVehicleDocuments(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadVehicleDocumentsRequest{
+				VehicleID:           "vehicle-victim",
+				Assurance:           []byte("assurance"),
+				VehicleRegistration: []byte("carte"),
+			})
+
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			assert.False(t, resp.Success)
+			assert.Equal(t, tc.wantMessage, resp.ErrorMessage)
+			assert.Nil(t, spy.gotVehicleInput, "aucun upload si le véhicule n'appartient pas à l'appelant")
+			mockVehicle.AssertExpectations(t)
+		})
+	}
+}
+
+func TestUploadVehicleDocuments_NoVehicleClient_ReturnsUnavailable(t *testing.T) {
+	spy := &spyFileService{}
+	mockUser := new(mocks.MockUserClient)
+	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
+		Return(&client.UserProfile{UserID: "uuid-abc"}, nil)
+	h := grpcHandler.NewFileHandler(spy, mockUser, nil, new(mocks.MockStorageClient), zap.NewNop())
+
+	resp, err := h.UploadVehicleDocuments(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadVehicleDocumentsRequest{
+		VehicleID: "vehicle-1",
+	})
+
+	require.NoError(t, err)
+	assert.False(t, resp.Success)
+	assert.Equal(t, fileErrors.ErrorVehicleServiceUnavailable.Error(), resp.ErrorMessage)
+	assert.Nil(t, spy.gotVehicleInput)
+}
+
+func TestUploadVehicleDocuments_UserServiceError_DoesNotCallVehicleService(t *testing.T) {
+	spy := &spyFileService{}
+	mockUser := new(mocks.MockUserClient)
+	mockUser.On("GetUserProfileByFirebaseID", mock.Anything, "firebaseXYZ").
+		Return((*client.UserProfile)(nil), errors.New("user-service down"))
+	mockVehicle := new(mocks.MockVehicleClient)
+	h := grpcHandler.NewFileHandler(spy, mockUser, mockVehicle, new(mocks.MockStorageClient), zap.NewNop())
+
+	resp, err := h.UploadVehicleDocuments(ctxWithFirebaseUID("firebaseXYZ"), &filepb.UploadVehicleDocumentsRequest{
+		VehicleID: "vehicle-1",
+	})
+
+	require.NoError(t, err)
+	assert.False(t, resp.Success)
+	mockVehicle.AssertNotCalled(t, "GetVehicleOwnerID", mock.Anything, mock.Anything)
 }

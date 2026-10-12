@@ -28,6 +28,11 @@ type VehicleClient interface {
 	// Retourne nil, nil si le véhicule n'est pas trouvé (dégradation gracieuse).
 	GetVehicleInfo(ctx context.Context, vehicleID string) (*VehicleInfo, error)
 
+	// GetVehicleOwnerID retourne le UserID interne du propriétaire (contrôle de propriété,
+	// sans dégradation gracieuse) : ErrorVehicleNotFound si inconnu,
+	// ErrorVehicleServiceUnavailable si vehicle-service est injoignable.
+	GetVehicleOwnerID(ctx context.Context, vehicleID string) (string, error)
+
 	// Close libère la connexion gRPC.
 	Close() error
 }

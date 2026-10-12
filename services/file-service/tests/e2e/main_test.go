@@ -29,6 +29,9 @@ var (
 	grpcConn       *grpc.ClientConn
 	mockStorage    *mocks.MockStorageClient
 	mockUserClient *mocks.MockUserClient
+	// mockVehicleClient : UploadVehicleDocuments vérifie la propriété du véhicule ; les
+	// tests enregistrent le propriétaire attendu via ownVehicle.
+	mockVehicleClient *mocks.MockVehicleClient
 )
 
 func TestMain(m *testing.M) {
@@ -83,7 +86,7 @@ func TestMain(m *testing.M) {
 	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, mock.Anything).
 		Return(func(_ context.Context, uid string) string { return uid }, nil).Maybe()
 	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.FileServiceInterceptor(nil, mockUserClient)))
-	mockVehicleClient := new(mocks.MockVehicleClient)
+	mockVehicleClient = new(mocks.MockVehicleClient)
 	// Dégradation gracieuse par défaut : pas d'infos véhicule résolues en e2e.
 	mockVehicleClient.On("GetVehicleInfo", mock.Anything, mock.Anything).Return(nil, nil)
 	handler := grpcHandler.NewFileHandler(svc, mockUserClient, mockVehicleClient, mockStorage, logger)
