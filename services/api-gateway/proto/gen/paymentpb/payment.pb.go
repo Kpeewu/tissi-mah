@@ -3279,7 +3279,7 @@ const file_payment_proto_rawDesc = "" +
 	"BookingIds\"Y\n" +
 	"\x19AnonymizeUserDataResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\xdb\x14\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage2\xfc\x15\n" +
 	"\x0ePaymentService\x12x\n" +
 	"\rCreatePayment\x12\x1d.payment.CreatePaymentRequest\x1a\x1e.payment.CreatePaymentResponse\"(\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/api/v1/payment/createPayment\x12x\n" +
 	"\rVerifyPayment\x12\x1d.payment.VerifyPaymentRequest\x1a\x1e.payment.PaymentStatusResponse\"(\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/api/v1/payment/verifyPayment\x12x\n" +
@@ -3287,7 +3287,8 @@ const file_payment_proto_rawDesc = "" +
 	"\x15HandlePaymentCallback\x12%.payment.HandlePaymentCallbackRequest\x1a\x1e.payment.PaymentStatusResponse\x12b\n" +
 	"\x17CancelPaymentForBooking\x12'.payment.CancelPaymentForBookingRequest\x1a\x1e.payment.PaymentStatusResponse\x12\x81\x01\n" +
 	"\x10GetPaymentStatus\x12 .payment.GetPaymentStatusRequest\x1a!.payment.GetPaymentStatusResponse\"(\x82\xd3\xe4\x93\x02\"\x12 /api/v1/payment/getPaymentStatus\x12\x8d\x01\n" +
-	"\x13GetPaymentByBooking\x12#.payment.GetPaymentByBookingRequest\x1a$.payment.GetPaymentByBookingResponse\"+\x82\xd3\xe4\x93\x02%\x12#/api/v1/payment/getPaymentByBooking\x12~\n" +
+	"\x13GetPaymentByBooking\x12#.payment.GetPaymentByBookingRequest\x1a$.payment.GetPaymentByBookingResponse\"+\x82\xd3\xe4\x93\x02%\x12#/api/v1/payment/getPaymentByBooking\x12\x9e\x01\n" +
+	"\x1bGetPaymentByBookingInternal\x12#.payment.GetPaymentByBookingRequest\x1a$.payment.GetPaymentByBookingResponse\"4\x82\xd3\xe4\x93\x02.\x12,/api/v1/payment/internal/getPaymentByBooking\x12~\n" +
 	"\x0eProcessWebhook\x12\x1e.payment.ProcessWebhookRequest\x1a\x1f.payment.ProcessWebhookResponse\"+\x82\xd3\xe4\x93\x02%:\x01*\" /api/v1/payment/webhooks/fedapay\x12\x81\x01\n" +
 	"\rRequestRefund\x12\x1d.payment.RequestRefundRequest\x1a\x1e.payment.RequestRefundResponse\"1\x82\xd3\xe4\x93\x02+:\x01*\"&/api/v1/payment/internal/requestRefund\x12}\n" +
 	"\x0fGetRefundStatus\x12\x1f.payment.GetRefundStatusRequest\x1a .payment.GetRefundStatusResponse\"'\x82\xd3\xe4\x93\x02!\x12\x1f/api/v1/payment/getRefundStatus\x12\x89\x01\n" +
@@ -3373,43 +3374,45 @@ var file_payment_proto_depIdxs = []int32{
 	4,  // 8: payment.PaymentService.CancelPaymentForBooking:input_type -> payment.CancelPaymentForBookingRequest
 	5,  // 9: payment.PaymentService.GetPaymentStatus:input_type -> payment.GetPaymentStatusRequest
 	6,  // 10: payment.PaymentService.GetPaymentByBooking:input_type -> payment.GetPaymentByBookingRequest
-	7,  // 11: payment.PaymentService.ProcessWebhook:input_type -> payment.ProcessWebhookRequest
-	8,  // 12: payment.PaymentService.RequestRefund:input_type -> payment.RequestRefundRequest
-	9,  // 13: payment.PaymentService.GetRefundStatus:input_type -> payment.GetRefundStatusRequest
-	10, // 14: payment.PaymentService.GetRefundByBooking:input_type -> payment.GetRefundByBookingRequest
-	11, // 15: payment.PaymentService.ReleasePayment:input_type -> payment.ReleasePaymentRequest
-	12, // 16: payment.PaymentService.GetPayoutStatus:input_type -> payment.GetPayoutStatusRequest
-	13, // 17: payment.PaymentService.GetDriverPayouts:input_type -> payment.GetDriverPayoutsRequest
-	14, // 18: payment.PaymentService.TriggerManualPayout:input_type -> payment.TriggerManualPayoutRequest
-	15, // 19: payment.PaymentService.GetPaymentHistory:input_type -> payment.GetPaymentHistoryRequest
-	16, // 20: payment.PaymentService.GetRefundHistory:input_type -> payment.GetRefundHistoryRequest
-	17, // 21: payment.PaymentService.GetPayoutHistory:input_type -> payment.GetPayoutHistoryRequest
-	18, // 22: payment.PaymentService.Health:input_type -> payment.HealthRequest
-	39, // 23: payment.PaymentService.CheckDeletionEligibility:input_type -> payment.CheckDeletionEligibilityRequest
-	41, // 24: payment.PaymentService.AnonymizeUserData:input_type -> payment.AnonymizeUserDataRequest
-	19, // 25: payment.PaymentService.CreatePayment:output_type -> payment.CreatePaymentResponse
-	20, // 26: payment.PaymentService.VerifyPayment:output_type -> payment.PaymentStatusResponse
-	20, // 27: payment.PaymentService.CancelPayment:output_type -> payment.PaymentStatusResponse
-	20, // 28: payment.PaymentService.HandlePaymentCallback:output_type -> payment.PaymentStatusResponse
-	20, // 29: payment.PaymentService.CancelPaymentForBooking:output_type -> payment.PaymentStatusResponse
-	21, // 30: payment.PaymentService.GetPaymentStatus:output_type -> payment.GetPaymentStatusResponse
-	22, // 31: payment.PaymentService.GetPaymentByBooking:output_type -> payment.GetPaymentByBookingResponse
-	23, // 32: payment.PaymentService.ProcessWebhook:output_type -> payment.ProcessWebhookResponse
-	24, // 33: payment.PaymentService.RequestRefund:output_type -> payment.RequestRefundResponse
-	25, // 34: payment.PaymentService.GetRefundStatus:output_type -> payment.GetRefundStatusResponse
-	26, // 35: payment.PaymentService.GetRefundByBooking:output_type -> payment.GetRefundByBookingResponse
-	27, // 36: payment.PaymentService.ReleasePayment:output_type -> payment.ReleasePaymentResponse
-	28, // 37: payment.PaymentService.GetPayoutStatus:output_type -> payment.GetPayoutStatusResponse
-	29, // 38: payment.PaymentService.GetDriverPayouts:output_type -> payment.GetDriverPayoutsResponse
-	31, // 39: payment.PaymentService.TriggerManualPayout:output_type -> payment.TriggerManualPayoutResponse
-	33, // 40: payment.PaymentService.GetPaymentHistory:output_type -> payment.GetPaymentHistoryResponse
-	35, // 41: payment.PaymentService.GetRefundHistory:output_type -> payment.GetRefundHistoryResponse
-	37, // 42: payment.PaymentService.GetPayoutHistory:output_type -> payment.GetPayoutHistoryResponse
-	38, // 43: payment.PaymentService.Health:output_type -> payment.HealthResponse
-	40, // 44: payment.PaymentService.CheckDeletionEligibility:output_type -> payment.CheckDeletionEligibilityResponse
-	42, // 45: payment.PaymentService.AnonymizeUserData:output_type -> payment.AnonymizeUserDataResponse
-	25, // [25:46] is the sub-list for method output_type
-	4,  // [4:25] is the sub-list for method input_type
+	6,  // 11: payment.PaymentService.GetPaymentByBookingInternal:input_type -> payment.GetPaymentByBookingRequest
+	7,  // 12: payment.PaymentService.ProcessWebhook:input_type -> payment.ProcessWebhookRequest
+	8,  // 13: payment.PaymentService.RequestRefund:input_type -> payment.RequestRefundRequest
+	9,  // 14: payment.PaymentService.GetRefundStatus:input_type -> payment.GetRefundStatusRequest
+	10, // 15: payment.PaymentService.GetRefundByBooking:input_type -> payment.GetRefundByBookingRequest
+	11, // 16: payment.PaymentService.ReleasePayment:input_type -> payment.ReleasePaymentRequest
+	12, // 17: payment.PaymentService.GetPayoutStatus:input_type -> payment.GetPayoutStatusRequest
+	13, // 18: payment.PaymentService.GetDriverPayouts:input_type -> payment.GetDriverPayoutsRequest
+	14, // 19: payment.PaymentService.TriggerManualPayout:input_type -> payment.TriggerManualPayoutRequest
+	15, // 20: payment.PaymentService.GetPaymentHistory:input_type -> payment.GetPaymentHistoryRequest
+	16, // 21: payment.PaymentService.GetRefundHistory:input_type -> payment.GetRefundHistoryRequest
+	17, // 22: payment.PaymentService.GetPayoutHistory:input_type -> payment.GetPayoutHistoryRequest
+	18, // 23: payment.PaymentService.Health:input_type -> payment.HealthRequest
+	39, // 24: payment.PaymentService.CheckDeletionEligibility:input_type -> payment.CheckDeletionEligibilityRequest
+	41, // 25: payment.PaymentService.AnonymizeUserData:input_type -> payment.AnonymizeUserDataRequest
+	19, // 26: payment.PaymentService.CreatePayment:output_type -> payment.CreatePaymentResponse
+	20, // 27: payment.PaymentService.VerifyPayment:output_type -> payment.PaymentStatusResponse
+	20, // 28: payment.PaymentService.CancelPayment:output_type -> payment.PaymentStatusResponse
+	20, // 29: payment.PaymentService.HandlePaymentCallback:output_type -> payment.PaymentStatusResponse
+	20, // 30: payment.PaymentService.CancelPaymentForBooking:output_type -> payment.PaymentStatusResponse
+	21, // 31: payment.PaymentService.GetPaymentStatus:output_type -> payment.GetPaymentStatusResponse
+	22, // 32: payment.PaymentService.GetPaymentByBooking:output_type -> payment.GetPaymentByBookingResponse
+	22, // 33: payment.PaymentService.GetPaymentByBookingInternal:output_type -> payment.GetPaymentByBookingResponse
+	23, // 34: payment.PaymentService.ProcessWebhook:output_type -> payment.ProcessWebhookResponse
+	24, // 35: payment.PaymentService.RequestRefund:output_type -> payment.RequestRefundResponse
+	25, // 36: payment.PaymentService.GetRefundStatus:output_type -> payment.GetRefundStatusResponse
+	26, // 37: payment.PaymentService.GetRefundByBooking:output_type -> payment.GetRefundByBookingResponse
+	27, // 38: payment.PaymentService.ReleasePayment:output_type -> payment.ReleasePaymentResponse
+	28, // 39: payment.PaymentService.GetPayoutStatus:output_type -> payment.GetPayoutStatusResponse
+	29, // 40: payment.PaymentService.GetDriverPayouts:output_type -> payment.GetDriverPayoutsResponse
+	31, // 41: payment.PaymentService.TriggerManualPayout:output_type -> payment.TriggerManualPayoutResponse
+	33, // 42: payment.PaymentService.GetPaymentHistory:output_type -> payment.GetPaymentHistoryResponse
+	35, // 43: payment.PaymentService.GetRefundHistory:output_type -> payment.GetRefundHistoryResponse
+	37, // 44: payment.PaymentService.GetPayoutHistory:output_type -> payment.GetPayoutHistoryResponse
+	38, // 45: payment.PaymentService.Health:output_type -> payment.HealthResponse
+	40, // 46: payment.PaymentService.CheckDeletionEligibility:output_type -> payment.CheckDeletionEligibilityResponse
+	42, // 47: payment.PaymentService.AnonymizeUserData:output_type -> payment.AnonymizeUserDataResponse
+	26, // [26:48] is the sub-list for method output_type
+	4,  // [4:26] is the sub-list for method input_type
 	4,  // [4:4] is the sub-list for extension type_name
 	4,  // [4:4] is the sub-list for extension extendee
 	0,  // [0:4] is the sub-list for field type_name

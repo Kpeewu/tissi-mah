@@ -186,6 +186,41 @@ func local_request_PaymentService_GetPaymentByBooking_0(ctx context.Context, mar
 	return msg, metadata, err
 }
 
+var filter_PaymentService_GetPaymentByBookingInternal_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+
+func request_PaymentService_GetPaymentByBookingInternal_0(ctx context.Context, marshaler runtime.Marshaler, client PaymentServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq GetPaymentByBookingRequest
+		metadata runtime.ServerMetadata
+	)
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_PaymentService_GetPaymentByBookingInternal_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if req.Body != nil {
+		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	msg, err := client.GetPaymentByBookingInternal(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+}
+
+func local_request_PaymentService_GetPaymentByBookingInternal_0(ctx context.Context, marshaler runtime.Marshaler, server PaymentServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq GetPaymentByBookingRequest
+		metadata runtime.ServerMetadata
+	)
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_PaymentService_GetPaymentByBookingInternal_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	msg, err := server.GetPaymentByBookingInternal(ctx, &protoReq)
+	return msg, metadata, err
+}
+
 func request_PaymentService_ProcessWebhook_0(ctx context.Context, marshaler runtime.Marshaler, client PaymentServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
 		protoReq ProcessWebhookRequest
@@ -666,6 +701,26 @@ func RegisterPaymentServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		}
 		forward_PaymentService_GetPaymentByBooking_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodGet, pattern_PaymentService_GetPaymentByBookingInternal_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/payment.PaymentService/GetPaymentByBookingInternal", runtime.WithHTTPPathPattern("/api/v1/payment/internal/getPaymentByBooking"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_PaymentService_GetPaymentByBookingInternal_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_PaymentService_GetPaymentByBookingInternal_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodPost, pattern_PaymentService_ProcessWebhook_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -1031,6 +1086,23 @@ func RegisterPaymentServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		}
 		forward_PaymentService_GetPaymentByBooking_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodGet, pattern_PaymentService_GetPaymentByBookingInternal_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/payment.PaymentService/GetPaymentByBookingInternal", runtime.WithHTTPPathPattern("/api/v1/payment/internal/getPaymentByBooking"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_PaymentService_GetPaymentByBookingInternal_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_PaymentService_GetPaymentByBookingInternal_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodPost, pattern_PaymentService_ProcessWebhook_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -1239,41 +1311,43 @@ func RegisterPaymentServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 }
 
 var (
-	pattern_PaymentService_CreatePayment_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "createPayment"}, ""))
-	pattern_PaymentService_VerifyPayment_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "verifyPayment"}, ""))
-	pattern_PaymentService_CancelPayment_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "cancelPayment"}, ""))
-	pattern_PaymentService_GetPaymentStatus_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "getPaymentStatus"}, ""))
-	pattern_PaymentService_GetPaymentByBooking_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "getPaymentByBooking"}, ""))
-	pattern_PaymentService_ProcessWebhook_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "payment", "webhooks", "fedapay"}, ""))
-	pattern_PaymentService_RequestRefund_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "payment", "internal", "requestRefund"}, ""))
-	pattern_PaymentService_GetRefundStatus_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "getRefundStatus"}, ""))
-	pattern_PaymentService_GetRefundByBooking_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "getRefundByBooking"}, ""))
-	pattern_PaymentService_ReleasePayment_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "payment", "internal", "releasePayment"}, ""))
-	pattern_PaymentService_GetPayoutStatus_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "getPayoutStatus"}, ""))
-	pattern_PaymentService_GetDriverPayouts_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "getDriverPayouts"}, ""))
-	pattern_PaymentService_TriggerManualPayout_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "payment", "support", "triggerManualPayout"}, ""))
-	pattern_PaymentService_GetPaymentHistory_0   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "payment", "support", "getPaymentHistory"}, ""))
-	pattern_PaymentService_GetRefundHistory_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "payment", "support", "getRefundHistory"}, ""))
-	pattern_PaymentService_GetPayoutHistory_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "payment", "support", "getPayoutHistory"}, ""))
-	pattern_PaymentService_Health_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "health"}, ""))
+	pattern_PaymentService_CreatePayment_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "createPayment"}, ""))
+	pattern_PaymentService_VerifyPayment_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "verifyPayment"}, ""))
+	pattern_PaymentService_CancelPayment_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "cancelPayment"}, ""))
+	pattern_PaymentService_GetPaymentStatus_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "getPaymentStatus"}, ""))
+	pattern_PaymentService_GetPaymentByBooking_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "getPaymentByBooking"}, ""))
+	pattern_PaymentService_GetPaymentByBookingInternal_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "payment", "internal", "getPaymentByBooking"}, ""))
+	pattern_PaymentService_ProcessWebhook_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "payment", "webhooks", "fedapay"}, ""))
+	pattern_PaymentService_RequestRefund_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "payment", "internal", "requestRefund"}, ""))
+	pattern_PaymentService_GetRefundStatus_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "getRefundStatus"}, ""))
+	pattern_PaymentService_GetRefundByBooking_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "getRefundByBooking"}, ""))
+	pattern_PaymentService_ReleasePayment_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "payment", "internal", "releasePayment"}, ""))
+	pattern_PaymentService_GetPayoutStatus_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "getPayoutStatus"}, ""))
+	pattern_PaymentService_GetDriverPayouts_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "getDriverPayouts"}, ""))
+	pattern_PaymentService_TriggerManualPayout_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "payment", "support", "triggerManualPayout"}, ""))
+	pattern_PaymentService_GetPaymentHistory_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "payment", "support", "getPaymentHistory"}, ""))
+	pattern_PaymentService_GetRefundHistory_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "payment", "support", "getRefundHistory"}, ""))
+	pattern_PaymentService_GetPayoutHistory_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"api", "v1", "payment", "support", "getPayoutHistory"}, ""))
+	pattern_PaymentService_Health_0                      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "payment", "health"}, ""))
 )
 
 var (
-	forward_PaymentService_CreatePayment_0       = runtime.ForwardResponseMessage
-	forward_PaymentService_VerifyPayment_0       = runtime.ForwardResponseMessage
-	forward_PaymentService_CancelPayment_0       = runtime.ForwardResponseMessage
-	forward_PaymentService_GetPaymentStatus_0    = runtime.ForwardResponseMessage
-	forward_PaymentService_GetPaymentByBooking_0 = runtime.ForwardResponseMessage
-	forward_PaymentService_ProcessWebhook_0      = runtime.ForwardResponseMessage
-	forward_PaymentService_RequestRefund_0       = runtime.ForwardResponseMessage
-	forward_PaymentService_GetRefundStatus_0     = runtime.ForwardResponseMessage
-	forward_PaymentService_GetRefundByBooking_0  = runtime.ForwardResponseMessage
-	forward_PaymentService_ReleasePayment_0      = runtime.ForwardResponseMessage
-	forward_PaymentService_GetPayoutStatus_0     = runtime.ForwardResponseMessage
-	forward_PaymentService_GetDriverPayouts_0    = runtime.ForwardResponseMessage
-	forward_PaymentService_TriggerManualPayout_0 = runtime.ForwardResponseMessage
-	forward_PaymentService_GetPaymentHistory_0   = runtime.ForwardResponseMessage
-	forward_PaymentService_GetRefundHistory_0    = runtime.ForwardResponseMessage
-	forward_PaymentService_GetPayoutHistory_0    = runtime.ForwardResponseMessage
-	forward_PaymentService_Health_0              = runtime.ForwardResponseMessage
+	forward_PaymentService_CreatePayment_0               = runtime.ForwardResponseMessage
+	forward_PaymentService_VerifyPayment_0               = runtime.ForwardResponseMessage
+	forward_PaymentService_CancelPayment_0               = runtime.ForwardResponseMessage
+	forward_PaymentService_GetPaymentStatus_0            = runtime.ForwardResponseMessage
+	forward_PaymentService_GetPaymentByBooking_0         = runtime.ForwardResponseMessage
+	forward_PaymentService_GetPaymentByBookingInternal_0 = runtime.ForwardResponseMessage
+	forward_PaymentService_ProcessWebhook_0              = runtime.ForwardResponseMessage
+	forward_PaymentService_RequestRefund_0               = runtime.ForwardResponseMessage
+	forward_PaymentService_GetRefundStatus_0             = runtime.ForwardResponseMessage
+	forward_PaymentService_GetRefundByBooking_0          = runtime.ForwardResponseMessage
+	forward_PaymentService_ReleasePayment_0              = runtime.ForwardResponseMessage
+	forward_PaymentService_GetPayoutStatus_0             = runtime.ForwardResponseMessage
+	forward_PaymentService_GetDriverPayouts_0            = runtime.ForwardResponseMessage
+	forward_PaymentService_TriggerManualPayout_0         = runtime.ForwardResponseMessage
+	forward_PaymentService_GetPaymentHistory_0           = runtime.ForwardResponseMessage
+	forward_PaymentService_GetRefundHistory_0            = runtime.ForwardResponseMessage
+	forward_PaymentService_GetPayoutHistory_0            = runtime.ForwardResponseMessage
+	forward_PaymentService_Health_0                      = runtime.ForwardResponseMessage
 )
