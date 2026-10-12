@@ -124,6 +124,29 @@ service PaymentService {
     };
   }
 
+  // GetPaymentHistory retourne l'historique des statuts d'un paiement (PaymentId) ou de tous les
+  // paiements d'une réservation (BookingId). Réservé au support.
+  rpc GetPaymentHistory(GetPaymentHistoryRequest) returns (GetPaymentHistoryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payment/support/getPaymentHistory"
+    };
+  }
+
+  // GetRefundHistory retourne l'historique des statuts d'un remboursement (RefundId) ou des
+  // remboursements d'une réservation (BookingId). Réservé au support.
+  rpc GetRefundHistory(GetRefundHistoryRequest) returns (GetRefundHistoryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payment/support/getRefundHistory"
+    };
+  }
+
+  // GetPayoutHistory retourne l'historique des statuts d'un payout chauffeur. Réservé au support.
+  rpc GetPayoutHistory(GetPayoutHistoryRequest) returns (GetPayoutHistoryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payment/support/getPayoutHistory"
+    };
+  }
+
   // Health vérifie l'état du service
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {
@@ -216,6 +239,22 @@ message GetDriverPayoutsRequest {
 
 message TriggerManualPayoutRequest {
   string TripId = 1;
+}
+
+// PaymentId ou BookingId (PaymentId prioritaire si les deux sont fournis)
+message GetPaymentHistoryRequest {
+  string PaymentId = 1;
+  string BookingId = 2;
+}
+
+// RefundId ou BookingId (RefundId prioritaire si les deux sont fournis)
+message GetRefundHistoryRequest {
+  string RefundId  = 1;
+  string BookingId = 2;
+}
+
+message GetPayoutHistoryRequest {
+  string PayoutId = 1;
 }
 
 message HealthRequest {}
@@ -367,6 +406,55 @@ message TriggerManualPayoutResponse {
   bool   Success      = 1;
   int32  NetAmount    = 2;
   string ErrorMessage = 3;
+}
+
+message PaymentHistoryEntry {
+  string HistoryId      = 1;
+  string PaymentId      = 2;
+  string Status         = 3; // statut atteint (pending, held, failed…) ou événement (attempt_failed, booking_synced…)
+  string ProviderStatus = 4; // statut FedaPay observé
+  string InitiatedBy    = 5; // system | passenger | booking_service | support
+  string Source         = 6; // canal (fedapay_webhook, expiration_worker…)
+  string OccurredAt     = 7; // RFC3339
+  string Notes          = 8;
+}
+
+message GetPaymentHistoryResponse {
+  repeated PaymentHistoryEntry Entries = 1;
+  string ErrorMessage                  = 2;
+}
+
+message RefundHistoryEntry {
+  string HistoryId   = 1;
+  string RefundId    = 2;
+  string Status      = 3; // pending | processing | retry_scheduled | failed | completed
+  int32  RetryCount  = 4;
+  string InitiatedBy = 5;
+  string Source      = 6;
+  string OccurredAt  = 7; // RFC3339
+  string Notes       = 8;
+}
+
+message GetRefundHistoryResponse {
+  repeated RefundHistoryEntry Entries = 1;
+  string ErrorMessage                 = 2;
+}
+
+message PayoutHistoryEntry {
+  string HistoryId        = 1;
+  string PayoutId         = 2;
+  string Status           = 3; // scheduled | processing | failed | completed | launched_by_support
+  string InitiatedBy      = 4; // system | support
+  string SupportUserId    = 5;
+  string SupportFirstName = 6;
+  string SupportLastName  = 7;
+  string OccurredAt       = 8; // RFC3339
+  string Notes            = 9;
+}
+
+message GetPayoutHistoryResponse {
+  repeated PayoutHistoryEntry Entries = 1;
+  string ErrorMessage                 = 2;
 }
 
 message HealthResponse {

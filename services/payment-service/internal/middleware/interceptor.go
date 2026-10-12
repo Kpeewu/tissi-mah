@@ -42,6 +42,9 @@ var publicMethods = map[string]bool{
 // Routes gRPC protégées par JWT support (x-support-uid injecté par l'api-gateway)
 var supportMethods = map[string]bool{
 	"/payment.PaymentService/TriggerManualPayout": true,
+	"/payment.PaymentService/GetPaymentHistory":   true,
+	"/payment.PaymentService/GetRefundHistory":    true,
+	"/payment.PaymentService/GetPayoutHistory":    true,
 }
 
 // PaymentInterceptor retourne un intercepteur gRPC unaire qui :
