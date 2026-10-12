@@ -37,10 +37,12 @@ func toGRPCError(err error, fallback string) error {
 	return status.Error(codes.Internal, fallback)
 }
 
-func (h *NotificationHandler) getFirebaseUID(ctx context.Context) (string, error) {
-	uid, ok := ctx.Value(middleware.FirebaseIDKey).(string)
+// getUserID retourne l'UserID interne de l'appelant, résolu par l'intercepteur depuis
+// le Firebase UID validé par l'api-gateway.
+func (h *NotificationHandler) getUserID(ctx context.Context) (string, error) {
+	uid, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || uid == "" {
-		return "", status.Error(codes.Unauthenticated, "missing firebase uid")
+		return "", status.Error(codes.Unauthenticated, "missing caller identity")
 	}
 	return uid, nil
 }
@@ -48,7 +50,7 @@ func (h *NotificationHandler) getFirebaseUID(ctx context.Context) (string, error
 // === Inbox ===
 
 func (h *NotificationHandler) GetInbox(ctx context.Context, req *notifpb.GetInboxRequest) (*notifpb.GetInboxResponse, error) {
-	uid, err := h.getFirebaseUID(ctx)
+	uid, err := h.getUserID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +81,7 @@ func (h *NotificationHandler) GetInbox(ctx context.Context, req *notifpb.GetInbo
 }
 
 func (h *NotificationHandler) MarkAsRead(ctx context.Context, req *notifpb.MarkAsReadRequest) (*notifpb.MarkAsReadResponse, error) {
-	uid, err := h.getFirebaseUID(ctx)
+	uid, err := h.getUserID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +94,7 @@ func (h *NotificationHandler) MarkAsRead(ctx context.Context, req *notifpb.MarkA
 }
 
 func (h *NotificationHandler) MarkAllAsRead(ctx context.Context, req *notifpb.MarkAllAsReadRequest) (*notifpb.MarkAllAsReadResponse, error) {
-	uid, err := h.getFirebaseUID(ctx)
+	uid, err := h.getUserID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +108,7 @@ func (h *NotificationHandler) MarkAllAsRead(ctx context.Context, req *notifpb.Ma
 }
 
 func (h *NotificationHandler) GetUnreadCount(ctx context.Context, req *notifpb.GetUnreadCountRequest) (*notifpb.GetUnreadCountResponse, error) {
-	uid, err := h.getFirebaseUID(ctx)
+	uid, err := h.getUserID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +124,7 @@ func (h *NotificationHandler) GetUnreadCount(ctx context.Context, req *notifpb.G
 // === Preferences ===
 
 func (h *NotificationHandler) GetPreferences(ctx context.Context, req *notifpb.GetPreferencesRequest) (*notifpb.GetPreferencesResponse, error) {
-	uid, err := h.getFirebaseUID(ctx)
+	uid, err := h.getUserID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +141,7 @@ func (h *NotificationHandler) GetPreferences(ctx context.Context, req *notifpb.G
 }
 
 func (h *NotificationHandler) UpdatePreferences(ctx context.Context, req *notifpb.UpdatePreferencesRequest) (*notifpb.UpdatePreferencesResponse, error) {
-	uid, err := h.getFirebaseUID(ctx)
+	uid, err := h.getUserID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +156,7 @@ func (h *NotificationHandler) UpdatePreferences(ctx context.Context, req *notifp
 // === Device Tokens ===
 
 func (h *NotificationHandler) RegisterDeviceToken(ctx context.Context, req *notifpb.RegisterDeviceTokenRequest) (*notifpb.RegisterDeviceTokenResponse, error) {
-	uid, err := h.getFirebaseUID(ctx)
+	uid, err := h.getUserID(ctx)
 	if err != nil {
 		return nil, err
 	}
