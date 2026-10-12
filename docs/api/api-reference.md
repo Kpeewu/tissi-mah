@@ -518,7 +518,6 @@ Champs fichiers selon le type : `IDCardRecto`+`IDCardVerso` (IDCard), `Passport`
 
 ```json
 {
-  "UserID": "uuid",
   "VehicleID": "uuid",
   "DriverLicenceRecto": "<base64>",
   "DriverLicenceVerso": "<base64>",
@@ -528,6 +527,8 @@ Champs fichiers selon le type : `IDCardRecto`+`IDCardVerso` (IDCard), `Passport`
 ```
 
 `DriverLicenceRecto` / `DriverLicenceVerso` : ignorés si l'utilisateur a déjà un permis courant (soumis via `uploadIdDocument` ou un précédent flux véhicule), obligatoires sinon (les deux faces ensemble). Le permis est stocké comme documents utilisateur (`driverLicenceFront` / `driverLicenceBack`, type logique `driverLicence`) et couvre tous les véhicules.
+
+Le propriétaire est l'appelant (`UserID` du body ignoré) et `VehicleID` doit lui appartenir : un véhicule inconnu ou d'un autre utilisateur renvoie `ErrorVehicleNotFound` (vehicle-service injoignable : `ErrorVehicleServiceUnavailable`), sans aucun upload.
 
 #### `PATCH /api/v1/file/changeDocument` 🔒
 

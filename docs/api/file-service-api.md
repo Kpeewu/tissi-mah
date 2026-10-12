@@ -183,7 +183,7 @@ Uploads the vehicle documents (insurance, registration card) and, if the user do
 
 **Authentication:** Required (Firebase JWT)
 
-> **Security note:** The user identity is resolved server-side from the Firebase JWT (`x-firebase-uid`). Any `UserID` field in the request body is ignored. The caller cannot impersonate another user.
+> **Security note:** The user identity is resolved server-side from the Firebase JWT (`x-firebase-uid`). Any `UserID` field in the request body is ignored. The caller cannot impersonate another user. The vehicle must belong to the caller (owner read from vehicle-service before any upload): a vehicle owned by another user is rejected exactly like an unknown one (`ErrorVehicleNotFound`).
 
 #### Request
 
@@ -206,7 +206,7 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `VehicleID` | string | Yes | Vehicle ID |
+| `VehicleID` | string | Yes | Vehicle ID — must belong to the caller |
 | `DriverLicenceRecto` | bytes (base64) | If no current licence | Front of driver's licence — ignored if the user already has a current licence, required otherwise |
 | `DriverLicenceVerso` | bytes (base64) | If no current licence | Back of driver's licence — same rule as `DriverLicenceRecto` (both sides required together) |
 | `Assurance` | bytes (base64) | Yes | Insurance document |
@@ -269,6 +269,8 @@ Content-Type: application/json
 | `ErrorInvalidDocumentType` | 400 | A required file is missing or `VehicleID` is empty |
 | `ErrorDriverLicenceRequired` | 400 | No current driver licence on file and `DriverLicenceRecto` / `DriverLicenceVerso` not both provided |
 | `ErrorUserServiceUnavailable` | 503 | user-service unreachable (Firebase UID or profile resolution failed) |
+| `ErrorVehicleNotFound` | 404 | `VehicleID` unknown or owned by another user — nothing is uploaded |
+| `ErrorVehicleServiceUnavailable` | 503 | vehicle-service unreachable (ownership could not be checked) — nothing is uploaded |
 | `ErrorUploadFailed` | 500 | S3/MinIO upload failed |
 | `ErrorInternalServer` | 500 | Internal error |
 
