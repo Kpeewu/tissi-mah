@@ -47,7 +47,8 @@ func (c *RatingServiceClient) Close() error {
 func (c *RatingServiceClient) GetDriverRatingAverage(ctx context.Context, driverID string) (float64, int32, error) {
 	c.logger.Debug("client: GetDriverRatingAverage called", zap.String("driverID", driverID))
 
-	resp, err := c.grpcClient.GetUserRatingsAverage(ctx, &ratingpb.GetUserRatingsAverageRequest{
+	// Route interne : appelée sans identité (y compris depuis des routes publiques).
+	resp, err := c.grpcClient.GetUserRatingsAverageInternal(ctx, &ratingpb.GetUserRatingsAverageRequest{
 		UserRatedId: driverID,
 	})
 	if err != nil {

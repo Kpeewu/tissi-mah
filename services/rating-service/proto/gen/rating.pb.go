@@ -28,9 +28,9 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Le rater est l'appelant (UserID résolu depuis le Firebase UID par l'intercepteur).
 type RateUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RaterId       string                 `protobuf:"bytes,1,opt,name=RaterId,proto3" json:"RaterId,omitempty"`
 	UserRatedId   string                 `protobuf:"bytes,2,opt,name=UserRatedId,proto3" json:"UserRatedId,omitempty"`
 	NumberOfStars int32                  `protobuf:"varint,3,opt,name=NumberOfStars,proto3" json:"NumberOfStars,omitempty"`
 	Comment       string                 `protobuf:"bytes,4,opt,name=Comment,proto3" json:"Comment,omitempty"` // Optionnel
@@ -66,13 +66,6 @@ func (x *RateUserRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RateUserRequest.ProtoReflect.Descriptor instead.
 func (*RateUserRequest) Descriptor() ([]byte, []int) {
 	return file_rating_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *RateUserRequest) GetRaterId() string {
-	if x != nil {
-		return x.RaterId
-	}
-	return ""
 }
 
 func (x *RateUserRequest) GetUserRatedId() string {
@@ -184,10 +177,10 @@ func (x *GetUserRatingsAverageRequest) GetUserRatedId() string {
 	return ""
 }
 
+// Seul le rater peut modifier sa note : c'est l'appelant (UserID résolu par l'intercepteur).
 type UpdateRatingRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RatingId      string                 `protobuf:"bytes,1,opt,name=RatingId,proto3" json:"RatingId,omitempty"`
-	RaterId       string                 `protobuf:"bytes,2,opt,name=RaterId,proto3" json:"RaterId,omitempty"`
 	UserRatedId   string                 `protobuf:"bytes,3,opt,name=UserRatedId,proto3" json:"UserRatedId,omitempty"`
 	NumberOfStars int32                  `protobuf:"varint,4,opt,name=NumberOfStars,proto3" json:"NumberOfStars,omitempty"`
 	Comment       string                 `protobuf:"bytes,5,opt,name=Comment,proto3" json:"Comment,omitempty"` // Optionnel
@@ -228,13 +221,6 @@ func (*UpdateRatingRequest) Descriptor() ([]byte, []int) {
 func (x *UpdateRatingRequest) GetRatingId() string {
 	if x != nil {
 		return x.RatingId
-	}
-	return ""
-}
-
-func (x *UpdateRatingRequest) GetRaterId() string {
-	if x != nil {
-		return x.RaterId
 	}
 	return ""
 }
@@ -692,22 +678,20 @@ var File_rating_proto protoreflect.FileDescriptor
 
 const file_rating_proto_rawDesc = "" +
 	"\n" +
-	"\frating.proto\x12\x06rating\x1a\x1cgoogle/api/annotations.proto\"\x8d\x01\n" +
-	"\x0fRateUserRequest\x12\x18\n" +
-	"\aRaterId\x18\x01 \x01(\tR\aRaterId\x12 \n" +
+	"\frating.proto\x12\x06rating\x1a\x1cgoogle/api/annotations.proto\"\x82\x01\n" +
+	"\x0fRateUserRequest\x12 \n" +
 	"\vUserRatedId\x18\x02 \x01(\tR\vUserRatedId\x12$\n" +
 	"\rNumberOfStars\x18\x03 \x01(\x05R\rNumberOfStars\x12\x18\n" +
-	"\aComment\x18\x04 \x01(\tR\aComment\"9\n" +
+	"\aComment\x18\x04 \x01(\tR\aCommentJ\x04\b\x01\x10\x02R\aRaterId\"9\n" +
 	"\x15GetUserRatingsRequest\x12 \n" +
 	"\vUserRatedId\x18\x01 \x01(\tR\vUserRatedId\"@\n" +
 	"\x1cGetUserRatingsAverageRequest\x12 \n" +
-	"\vUserRatedId\x18\x01 \x01(\tR\vUserRatedId\"\xad\x01\n" +
+	"\vUserRatedId\x18\x01 \x01(\tR\vUserRatedId\"\xa2\x01\n" +
 	"\x13UpdateRatingRequest\x12\x1a\n" +
-	"\bRatingId\x18\x01 \x01(\tR\bRatingId\x12\x18\n" +
-	"\aRaterId\x18\x02 \x01(\tR\aRaterId\x12 \n" +
+	"\bRatingId\x18\x01 \x01(\tR\bRatingId\x12 \n" +
 	"\vUserRatedId\x18\x03 \x01(\tR\vUserRatedId\x12$\n" +
 	"\rNumberOfStars\x18\x04 \x01(\x05R\rNumberOfStars\x12\x18\n" +
-	"\aComment\x18\x05 \x01(\tR\aComment\"\x0f\n" +
+	"\aComment\x18\x05 \x01(\tR\aCommentJ\x04\b\x02\x10\x03R\aRaterId\"\x0f\n" +
 	"\rHealthRequest\"d\n" +
 	"\x10RateUserResponse\x12\"\n" +
 	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12,\n" +
@@ -737,11 +721,12 @@ const file_rating_proto_rawDesc = "" +
 	"\x0eRaterFirstName\x18\b \x01(\tR\x0eRaterFirstName\x12$\n" +
 	"\rRaterLastName\x18\t \x01(\tR\rRaterLastName\x122\n" +
 	"\x14RaterProfileImageURL\x18\n" +
-	" \x01(\tR\x14RaterProfileImageURL2\xd9\x04\n" +
+	" \x01(\tR\x14RaterProfileImageURL2\x80\x06\n" +
 	"\rRatingService\x12b\n" +
 	"\bRateUser\x12\x17.rating.RateUserRequest\x1a\x18.rating.RateUserResponse\"#\x82\xd3\xe4\x93\x02\x1d:\x01*\"\x18/api/v1/ratings/rateUser\x12|\n" +
 	"\x0eGetUserRatings\x12\x1d.rating.GetUserRatingsRequest\x1a\x1e.rating.GetUserRatingsResponse\"+\x82\xd3\xe4\x93\x02%\x12#/api/v1/ratings/user/getUserRatings\x12\x98\x01\n" +
-	"\x15GetUserRatingsAverage\x12$.rating.GetUserRatingsAverageRequest\x1a%.rating.GetUserRatingsAverageResponse\"2\x82\xd3\xe4\x93\x02,\x12*/api/v1/ratings/user/getUserRatingsAverage\x12r\n" +
+	"\x15GetUserRatingsAverage\x12$.rating.GetUserRatingsAverageRequest\x1a%.rating.GetUserRatingsAverageResponse\"2\x82\xd3\xe4\x93\x02,\x12*/api/v1/ratings/user/getUserRatingsAverage\x12\xa4\x01\n" +
+	"\x1dGetUserRatingsAverageInternal\x12$.rating.GetUserRatingsAverageRequest\x1a%.rating.GetUserRatingsAverageResponse\"6\x82\xd3\xe4\x93\x020\x12./api/v1/ratings/internal/getUserRatingsAverage\x12r\n" +
 	"\fUpdateRating\x12\x1b.rating.UpdateRatingRequest\x1a\x1c.rating.UpdateRatingResponse\"'\x82\xd3\xe4\x93\x02!:\x01*2\x1c/api/v1/ratings/updateRating\x12W\n" +
 	"\x06Health\x12\x15.rating.HealthRequest\x1a\x16.rating.HealthResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/api/v1/ratings/healthBFZDgithub.com/Kpeewu/tissi-mah/services/rating-service/proto/gen;ratingb\x06proto3"
 
@@ -778,15 +763,17 @@ var file_rating_proto_depIdxs = []int32{
 	0,  // 3: rating.RatingService.RateUser:input_type -> rating.RateUserRequest
 	1,  // 4: rating.RatingService.GetUserRatings:input_type -> rating.GetUserRatingsRequest
 	2,  // 5: rating.RatingService.GetUserRatingsAverage:input_type -> rating.GetUserRatingsAverageRequest
-	3,  // 6: rating.RatingService.UpdateRating:input_type -> rating.UpdateRatingRequest
-	4,  // 7: rating.RatingService.Health:input_type -> rating.HealthRequest
-	5,  // 8: rating.RatingService.RateUser:output_type -> rating.RateUserResponse
-	6,  // 9: rating.RatingService.GetUserRatings:output_type -> rating.GetUserRatingsResponse
-	7,  // 10: rating.RatingService.GetUserRatingsAverage:output_type -> rating.GetUserRatingsAverageResponse
-	8,  // 11: rating.RatingService.UpdateRating:output_type -> rating.UpdateRatingResponse
-	9,  // 12: rating.RatingService.Health:output_type -> rating.HealthResponse
-	8,  // [8:13] is the sub-list for method output_type
-	3,  // [3:8] is the sub-list for method input_type
+	2,  // 6: rating.RatingService.GetUserRatingsAverageInternal:input_type -> rating.GetUserRatingsAverageRequest
+	3,  // 7: rating.RatingService.UpdateRating:input_type -> rating.UpdateRatingRequest
+	4,  // 8: rating.RatingService.Health:input_type -> rating.HealthRequest
+	5,  // 9: rating.RatingService.RateUser:output_type -> rating.RateUserResponse
+	6,  // 10: rating.RatingService.GetUserRatings:output_type -> rating.GetUserRatingsResponse
+	7,  // 11: rating.RatingService.GetUserRatingsAverage:output_type -> rating.GetUserRatingsAverageResponse
+	7,  // 12: rating.RatingService.GetUserRatingsAverageInternal:output_type -> rating.GetUserRatingsAverageResponse
+	8,  // 13: rating.RatingService.UpdateRating:output_type -> rating.UpdateRatingResponse
+	9,  // 14: rating.RatingService.Health:output_type -> rating.HealthResponse
+	9,  // [9:15] is the sub-list for method output_type
+	3,  // [3:9] is the sub-list for method input_type
 	3,  // [3:3] is the sub-list for extension type_name
 	3,  // [3:3] is the sub-list for extension extendee
 	0,  // [0:3] is the sub-list for field type_name

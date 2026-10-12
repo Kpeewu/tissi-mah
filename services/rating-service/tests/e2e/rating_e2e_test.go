@@ -18,13 +18,10 @@ import (
 // =============================================================================
 
 func TestE2E_RateUser(t *testing.T) {
-	ctx := ctxWithUID("e2e-test-user")
-
 	t.Run("succès - créer une note via gRPC", func(t *testing.T) {
 		cleanupRatingsTable(t, context.Background())
 
-		resp, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-			RaterId:       "e2e-rater-001",
+		resp, err := grpcClient.RateUser(ctxWithUID("e2e-rater-001"), &ratingpb.RateUserRequest{
 			UserRatedId:   "e2e-rated-001",
 			NumberOfStars: 5,
 			Comment:       "Trajet parfait",
@@ -49,8 +46,7 @@ func TestE2E_RateUser(t *testing.T) {
 	t.Run("erreur - auto-notation", func(t *testing.T) {
 		cleanupRatingsTable(t, context.Background())
 
-		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-			RaterId:       "same-user",
+		_, err := grpcClient.RateUser(ctxWithUID("same-user"), &ratingpb.RateUserRequest{
 			UserRatedId:   "same-user",
 			NumberOfStars: 5,
 		})
@@ -65,8 +61,7 @@ func TestE2E_RateUser(t *testing.T) {
 	t.Run("erreur - étoiles invalides (0)", func(t *testing.T) {
 		cleanupRatingsTable(t, context.Background())
 
-		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-			RaterId:       "e2e-rater",
+		_, err := grpcClient.RateUser(ctxWithUID("e2e-rater"), &ratingpb.RateUserRequest{
 			UserRatedId:   "e2e-rated",
 			NumberOfStars: 0,
 		})
@@ -79,8 +74,7 @@ func TestE2E_RateUser(t *testing.T) {
 	t.Run("erreur - étoiles invalides (6)", func(t *testing.T) {
 		cleanupRatingsTable(t, context.Background())
 
-		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-			RaterId:       "e2e-rater",
+		_, err := grpcClient.RateUser(ctxWithUID("e2e-rater"), &ratingpb.RateUserRequest{
 			UserRatedId:   "e2e-rated",
 			NumberOfStars: 6,
 		})
@@ -90,25 +84,23 @@ func TestE2E_RateUser(t *testing.T) {
 		assert.Equal(t, codes.InvalidArgument, st.Code())
 	})
 
-	t.Run("erreur - rater_id vide", func(t *testing.T) {
+	t.Run("erreur - appelant inconnu de user-service", func(t *testing.T) {
 		cleanupRatingsTable(t, context.Background())
 
-		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
+		_, err := grpcClient.RateUser(ctxWithUID(e2eUnknownFirebaseUID), &ratingpb.RateUserRequest{
 			UserRatedId:   "e2e-rated",
 			NumberOfStars: 4,
 		})
 
 		require.Error(t, err)
 		st, _ := status.FromError(err)
-		assert.Equal(t, codes.InvalidArgument, st.Code())
-		assert.Contains(t, st.Message(), "ErrorMissingRaterID")
+		assert.Equal(t, codes.PermissionDenied, st.Code())
 	})
 
 	t.Run("erreur - user_rated_id vide", func(t *testing.T) {
 		cleanupRatingsTable(t, context.Background())
 
-		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-			RaterId:       "e2e-rater",
+		_, err := grpcClient.RateUser(ctxWithUID("e2e-rater"), &ratingpb.RateUserRequest{
 			NumberOfStars: 4,
 		})
 
@@ -122,16 +114,14 @@ func TestE2E_RateUser(t *testing.T) {
 		cleanupRatingsTable(t, context.Background())
 
 		// Première note : OK
-		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-			RaterId:       "e2e-rater-dup",
+		_, err := grpcClient.RateUser(ctxWithUID("e2e-rater-dup"), &ratingpb.RateUserRequest{
 			UserRatedId:   "e2e-rated-dup",
 			NumberOfStars: 4,
 		})
 		require.NoError(t, err)
 
 		// Deuxième note : erreur
-		_, err = grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-			RaterId:       "e2e-rater-dup",
+		_, err = grpcClient.RateUser(ctxWithUID("e2e-rater-dup"), &ratingpb.RateUserRequest{
 			UserRatedId:   "e2e-rated-dup",
 			NumberOfStars: 5,
 		})
@@ -153,12 +143,12 @@ func TestE2E_GetUserRatings(t *testing.T) {
 		cleanupRatingsTable(t, context.Background())
 
 		// Créer 2 notes
-		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-			RaterId: "rater-a", UserRatedId: "user-target", NumberOfStars: 5, Comment: "Super",
+		_, err := grpcClient.RateUser(ctxWithUID("rater-a"), &ratingpb.RateUserRequest{
+			UserRatedId: "user-target", NumberOfStars: 5, Comment: "Super",
 		})
 		require.NoError(t, err)
-		_, err = grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-			RaterId: "rater-b", UserRatedId: "user-target", NumberOfStars: 3,
+		_, err = grpcClient.RateUser(ctxWithUID("rater-b"), &ratingpb.RateUserRequest{
+			UserRatedId: "user-target", NumberOfStars: 3,
 		})
 		require.NoError(t, err)
 
@@ -200,11 +190,14 @@ func TestE2E_GetUserRatingsAverage(t *testing.T) {
 
 		// 5 + 3 + 4 = 12 / 3 = 4.0
 		userRatedID := "user-avg-e2e"
-		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{RaterId: "r-a", UserRatedId: userRatedID, NumberOfStars: 5})
+		_, err := grpcClient.RateUser(ctxWithUID("r-a"),
+			&ratingpb.RateUserRequest{UserRatedId: userRatedID, NumberOfStars: 5})
 		require.NoError(t, err)
-		_, err = grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{RaterId: "r-b", UserRatedId: userRatedID, NumberOfStars: 3})
+		_, err = grpcClient.RateUser(ctxWithUID("r-b"),
+			&ratingpb.RateUserRequest{UserRatedId: userRatedID, NumberOfStars: 3})
 		require.NoError(t, err)
-		_, err = grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{RaterId: "r-c", UserRatedId: userRatedID, NumberOfStars: 4})
+		_, err = grpcClient.RateUser(ctxWithUID("r-c"),
+			&ratingpb.RateUserRequest{UserRatedId: userRatedID, NumberOfStars: 4})
 		require.NoError(t, err)
 
 		resp, err := grpcClient.GetUserRatingsAverage(ctx, &ratingpb.GetUserRatingsAverageRequest{UserRatedId: userRatedID})
@@ -219,11 +212,14 @@ func TestE2E_GetUserRatingsAverage(t *testing.T) {
 
 		// 5 + 4 + 4 = 13 / 3 = 4.333...
 		userRatedID := "user-avg-round"
-		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{RaterId: "r-1", UserRatedId: userRatedID, NumberOfStars: 5})
+		_, err := grpcClient.RateUser(ctxWithUID("r-1"),
+			&ratingpb.RateUserRequest{UserRatedId: userRatedID, NumberOfStars: 5})
 		require.NoError(t, err)
-		_, err = grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{RaterId: "r-2", UserRatedId: userRatedID, NumberOfStars: 4})
+		_, err = grpcClient.RateUser(ctxWithUID("r-2"),
+			&ratingpb.RateUserRequest{UserRatedId: userRatedID, NumberOfStars: 4})
 		require.NoError(t, err)
-		_, err = grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{RaterId: "r-3", UserRatedId: userRatedID, NumberOfStars: 4})
+		_, err = grpcClient.RateUser(ctxWithUID("r-3"),
+			&ratingpb.RateUserRequest{UserRatedId: userRatedID, NumberOfStars: 4})
 		require.NoError(t, err)
 
 		resp, err := grpcClient.GetUserRatingsAverage(ctx, &ratingpb.GetUserRatingsAverageRequest{UserRatedId: userRatedID})
@@ -254,16 +250,15 @@ func TestE2E_UpdateRating(t *testing.T) {
 		cleanupRatingsTable(t, context.Background())
 
 		// Créer une note
-		createResp, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-			RaterId: "e2e-rater-upd", UserRatedId: "e2e-rated-upd", NumberOfStars: 3, Comment: "Initial",
+		createResp, err := grpcClient.RateUser(ctxWithUID("e2e-rater-upd"), &ratingpb.RateUserRequest{
+			UserRatedId: "e2e-rated-upd", NumberOfStars: 3, Comment: "Initial",
 		})
 		require.NoError(t, err)
 		ratingID := createResp.Rating.RatingId
 
 		// Modifier
-		updateResp, err := grpcClient.UpdateRating(ctx, &ratingpb.UpdateRatingRequest{
+		updateResp, err := grpcClient.UpdateRating(ctxWithUID("e2e-rater-upd"), &ratingpb.UpdateRatingRequest{
 			RatingId:      ratingID,
-			RaterId:       "e2e-rater-upd",
 			UserRatedId:   "e2e-rated-upd",
 			NumberOfStars: 5,
 			Comment:       "Bien mieux !",
@@ -280,16 +275,15 @@ func TestE2E_UpdateRating(t *testing.T) {
 		cleanupRatingsTable(t, context.Background())
 
 		// Créer une note
-		createResp, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-			RaterId: "original-rater", UserRatedId: "rated-user", NumberOfStars: 4,
+		createResp, err := grpcClient.RateUser(ctxWithUID("original-rater"), &ratingpb.RateUserRequest{
+			UserRatedId: "rated-user", NumberOfStars: 4,
 		})
 		require.NoError(t, err)
 		ratingID := createResp.Rating.RatingId
 
 		// Tentative de modification par un autre rater
-		_, err = grpcClient.UpdateRating(ctx, &ratingpb.UpdateRatingRequest{
+		_, err = grpcClient.UpdateRating(ctxWithUID("other-rater"), &ratingpb.UpdateRatingRequest{
 			RatingId:      ratingID,
-			RaterId:       "other-rater",
 			UserRatedId:   "rated-user",
 			NumberOfStars: 1,
 		})
@@ -302,9 +296,8 @@ func TestE2E_UpdateRating(t *testing.T) {
 	t.Run("erreur - note inexistante", func(t *testing.T) {
 		cleanupRatingsTable(t, context.Background())
 
-		_, err := grpcClient.UpdateRating(ctx, &ratingpb.UpdateRatingRequest{
+		_, err := grpcClient.UpdateRating(ctxWithUID("rater-x"), &ratingpb.UpdateRatingRequest{
 			RatingId:      "nonexistent-id",
-			RaterId:       "rater-x",
 			UserRatedId:   "rated-x",
 			NumberOfStars: 5,
 		})
@@ -320,12 +313,12 @@ func TestE2E_UpdateRating(t *testing.T) {
 		userRatedID := "rated-avg-update"
 
 		// Créer 2 notes : 4 + 4 = 8 / 2 = 4.0
-		resp1, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-			RaterId: "rater-1", UserRatedId: userRatedID, NumberOfStars: 4,
+		resp1, err := grpcClient.RateUser(ctxWithUID("rater-1"), &ratingpb.RateUserRequest{
+			UserRatedId: userRatedID, NumberOfStars: 4,
 		})
 		require.NoError(t, err)
-		resp2, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-			RaterId: "rater-2", UserRatedId: userRatedID, NumberOfStars: 4,
+		resp2, err := grpcClient.RateUser(ctxWithUID("rater-2"), &ratingpb.RateUserRequest{
+			UserRatedId: userRatedID, NumberOfStars: 4,
 		})
 		require.NoError(t, err)
 		_ = resp2
@@ -335,9 +328,8 @@ func TestE2E_UpdateRating(t *testing.T) {
 		assert.Equal(t, 4.0, avgResp.Average)
 
 		// Modifier la première note : 2 + 4 = 6 / 2 = 3.0
-		_, err = grpcClient.UpdateRating(ctx, &ratingpb.UpdateRatingRequest{
+		_, err = grpcClient.UpdateRating(ctxWithUID("rater-1"), &ratingpb.UpdateRatingRequest{
 			RatingId:      resp1.Rating.RatingId,
-			RaterId:       "rater-1",
 			UserRatedId:   userRatedID,
 			NumberOfStars: 2,
 		})
@@ -387,15 +379,15 @@ func TestE2E_FullScenario(t *testing.T) {
 	assert.Equal(t, int32(0), avgResp.TotalRatings)
 
 	// 3. Passager A note le conducteur : 5 étoiles
-	rateResp1, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-		RaterId: "passenger-a", UserRatedId: userRatedID, NumberOfStars: 5, Comment: "Parfait",
+	rateResp1, err := grpcClient.RateUser(ctxWithUID("passenger-a"), &ratingpb.RateUserRequest{
+		UserRatedId: userRatedID, NumberOfStars: 5, Comment: "Parfait",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, int32(5), rateResp1.Rating.NumberOfStars)
 
 	// 4. Passager B note le conducteur : 3 étoiles
-	_, err = grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-		RaterId: "passenger-b", UserRatedId: userRatedID, NumberOfStars: 3,
+	_, err = grpcClient.RateUser(ctxWithUID("passenger-b"), &ratingpb.RateUserRequest{
+		UserRatedId: userRatedID, NumberOfStars: 3,
 	})
 	require.NoError(t, err)
 
@@ -411,9 +403,8 @@ func TestE2E_FullScenario(t *testing.T) {
 	assert.Len(t, listResp.Ratings, 2)
 
 	// 7. Passager A met à jour sa note : 5 → 1
-	_, err = grpcClient.UpdateRating(ctx, &ratingpb.UpdateRatingRequest{
+	_, err = grpcClient.UpdateRating(ctxWithUID("passenger-a"), &ratingpb.UpdateRatingRequest{
 		RatingId:      rateResp1.Rating.RatingId,
-		RaterId:       "passenger-a",
 		UserRatedId:   userRatedID,
 		NumberOfStars: 1,
 		Comment:       "Finalement non",
@@ -426,9 +417,8 @@ func TestE2E_FullScenario(t *testing.T) {
 	assert.Equal(t, 2.0, avgResp.Average)
 
 	// 9. Passager B ne peut pas modifier la note du passager A
-	_, err = grpcClient.UpdateRating(ctx, &ratingpb.UpdateRatingRequest{
+	_, err = grpcClient.UpdateRating(ctxWithUID("passenger-b"), &ratingpb.UpdateRatingRequest{
 		RatingId:      rateResp1.Rating.RatingId,
-		RaterId:       "passenger-b",
 		UserRatedId:   userRatedID,
 		NumberOfStars: 5,
 	})
@@ -437,8 +427,8 @@ func TestE2E_FullScenario(t *testing.T) {
 	assert.Equal(t, codes.PermissionDenied, st.Code())
 
 	// 10. Passager A ne peut pas re-noter le même conducteur
-	_, err = grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-		RaterId: "passenger-a", UserRatedId: userRatedID, NumberOfStars: 4,
+	_, err = grpcClient.RateUser(ctxWithUID("passenger-a"), &ratingpb.RateUserRequest{
+		UserRatedId: userRatedID, NumberOfStars: 4,
 	})
 	require.Error(t, err)
 	st, _ = status.FromError(err)
@@ -451,8 +441,8 @@ func TestE2E_FullScenario(t *testing.T) {
 	}
 
 	// 12. Insérer un rating pour un autre user — ne doit pas affecter driver-full-scenario
-	_, err = grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-		RaterId: "passenger-c", UserRatedId: "other-driver", NumberOfStars: 1,
+	_, err = grpcClient.RateUser(ctxWithUID("passenger-c"), &ratingpb.RateUserRequest{
+		UserRatedId: "other-driver", NumberOfStars: 1,
 	})
 	require.NoError(t, err)
 
@@ -480,12 +470,43 @@ func TestE2E_DBConstraints(t *testing.T) {
 		require.NoError(t, fixtures.InsertRating(ctx, testPool, rating))
 
 		// Tenter via gRPC
-		_, err := grpcClient.RateUser(ctx, &ratingpb.RateUserRequest{
-			RaterId: "constraint-rater", UserRatedId: "constraint-rated", NumberOfStars: 3,
+		_, err := grpcClient.RateUser(ctxWithUID("constraint-rater"), &ratingpb.RateUserRequest{
+			UserRatedId: "constraint-rated", NumberOfStars: 3,
 		})
 
 		require.Error(t, err)
 		st, _ := status.FromError(err)
 		assert.Equal(t, codes.AlreadyExists, st.Code())
+	})
+}
+
+// =============================================================================
+// GetUserRatingsAverageInternal E2E
+// =============================================================================
+
+// booking-service et trips-service lisent la moyenne sans identité d'appelant (aucune metadata).
+func TestE2E_GetUserRatingsAverageInternal(t *testing.T) {
+	cleanupRatingsTable(t, context.Background())
+
+	_, err := grpcClient.RateUser(ctxWithUID("internal-rater"), &ratingpb.RateUserRequest{
+		UserRatedId: "internal-rated", NumberOfStars: 4,
+	})
+	require.NoError(t, err)
+
+	t.Run("succès - sans metadata", func(t *testing.T) {
+		resp, err := grpcClient.GetUserRatingsAverageInternal(context.Background(),
+			&ratingpb.GetUserRatingsAverageRequest{UserRatedId: "internal-rated"})
+
+		require.NoError(t, err)
+		assert.Equal(t, 4.0, resp.Average)
+		assert.Equal(t, int32(1), resp.TotalRatings)
+	})
+
+	t.Run("erreur - la route client exige une identité", func(t *testing.T) {
+		_, err := grpcClient.GetUserRatingsAverage(context.Background(),
+			&ratingpb.GetUserRatingsAverageRequest{UserRatedId: "internal-rated"})
+
+		require.Error(t, err)
+		assert.Equal(t, codes.Unauthenticated, status.Code(err))
 	})
 }

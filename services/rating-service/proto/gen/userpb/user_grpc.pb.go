@@ -23,14 +23,17 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	UserService_GetUserByUserID_FullMethodName   = "/user.UserService/GetUserByUserID"
-	UserService_GetUsersByUserIDs_FullMethodName = "/user.UserService/GetUsersByUserIDs"
+	UserService_GetUserByFirebaseID_FullMethodName = "/user.UserService/GetUserByFirebaseID"
+	UserService_GetUserByUserID_FullMethodName     = "/user.UserService/GetUserByUserID"
+	UserService_GetUsersByUserIDs_FullMethodName   = "/user.UserService/GetUsersByUserIDs"
 )
 
 // UserServiceClient is the client API for UserService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type UserServiceClient interface {
+	// Résout le Firebase UID de l'appelant en profil (UserID interne) — utilisé par l'intercepteur
+	GetUserByFirebaseID(ctx context.Context, in *GetUserByFirebaseIDRequest, opts ...grpc.CallOption) (*UserProfileResponse, error)
 	// Récupère le profil utilisateur lié à un UserID
 	GetUserByUserID(ctx context.Context, in *GetUserByUserIDRequest, opts ...grpc.CallOption) (*UserProfileResponse, error)
 	// Récupère en batch les profils de plusieurs utilisateurs (léger : sans email/phone)
@@ -43,6 +46,16 @@ type userServiceClient struct {
 
 func NewUserServiceClient(cc grpc.ClientConnInterface) UserServiceClient {
 	return &userServiceClient{cc}
+}
+
+func (c *userServiceClient) GetUserByFirebaseID(ctx context.Context, in *GetUserByFirebaseIDRequest, opts ...grpc.CallOption) (*UserProfileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UserProfileResponse)
+	err := c.cc.Invoke(ctx, UserService_GetUserByFirebaseID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *userServiceClient) GetUserByUserID(ctx context.Context, in *GetUserByUserIDRequest, opts ...grpc.CallOption) (*UserProfileResponse, error) {
@@ -69,6 +82,8 @@ func (c *userServiceClient) GetUsersByUserIDs(ctx context.Context, in *GetUsersB
 // All implementations must embed UnimplementedUserServiceServer
 // for forward compatibility.
 type UserServiceServer interface {
+	// Résout le Firebase UID de l'appelant en profil (UserID interne) — utilisé par l'intercepteur
+	GetUserByFirebaseID(context.Context, *GetUserByFirebaseIDRequest) (*UserProfileResponse, error)
 	// Récupère le profil utilisateur lié à un UserID
 	GetUserByUserID(context.Context, *GetUserByUserIDRequest) (*UserProfileResponse, error)
 	// Récupère en batch les profils de plusieurs utilisateurs (léger : sans email/phone)
@@ -83,6 +98,9 @@ type UserServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedUserServiceServer struct{}
 
+func (UnimplementedUserServiceServer) GetUserByFirebaseID(context.Context, *GetUserByFirebaseIDRequest) (*UserProfileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUserByFirebaseID not implemented")
+}
 func (UnimplementedUserServiceServer) GetUserByUserID(context.Context, *GetUserByUserIDRequest) (*UserProfileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUserByUserID not implemented")
 }
@@ -108,6 +126,24 @@ func RegisterUserServiceServer(s grpc.ServiceRegistrar, srv UserServiceServer) {
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&UserService_ServiceDesc, srv)
+}
+
+func _UserService_GetUserByFirebaseID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserByFirebaseIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetUserByFirebaseID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetUserByFirebaseID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetUserByFirebaseID(ctx, req.(*GetUserByFirebaseIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _UserService_GetUserByUserID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -153,6 +189,10 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "user.UserService",
 	HandlerType: (*UserServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetUserByFirebaseID",
+			Handler:    _UserService_GetUserByFirebaseID_Handler,
+		},
 		{
 			MethodName: "GetUserByUserID",
 			Handler:    _UserService_GetUserByUserID_Handler,

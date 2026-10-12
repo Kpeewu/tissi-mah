@@ -98,7 +98,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	ratingService := service.NewRatingService(readRepo, writeRepo, userClient, ratingCache, notifRedis, logger)
 
 	// --- gRPC server ---
-	srv, err := grpcServer.NewRatingServer(cfg, ratingService, logger)
+	srv, err := grpcServer.NewRatingServer(cfg, ratingService, userClient, logger)
 	if err != nil {
 		return fmt.Errorf("grpc server: %w", err)
 	}

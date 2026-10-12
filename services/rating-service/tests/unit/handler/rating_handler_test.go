@@ -14,6 +14,7 @@ import (
 
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/domain"
 	grpcHandler "github.com/Kpeewu/tissi-mah/services/rating-service/internal/grpc"
+	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/middleware"
 	ratingErrors "github.com/Kpeewu/tissi-mah/services/rating-service/pkg/errors"
 	ratingpb "github.com/Kpeewu/tissi-mah/services/rating-service/proto/gen"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/tests/mocks"
@@ -22,6 +23,11 @@ import (
 // --------------------------------------------------------------------------
 // Helpers
 // --------------------------------------------------------------------------
+
+// callerCtx simule un appelant authentifié : l'intercepteur a résolu son UserID interne.
+func callerCtx(userID string) context.Context {
+	return context.WithValue(context.Background(), middleware.UserIDKey, userID)
+}
 
 func newHandler() (*grpcHandler.RatingHandler, *mocks.MockRatingService) {
 	mockService := new(mocks.MockRatingService)
@@ -46,7 +52,7 @@ func assertGRPCCode(t *testing.T, err error, expected codes.Code) {
 
 func TestRateUser_Success(t *testing.T) {
 	handler, mockService := newHandler()
-	ctx := context.Background()
+	ctx := callerCtx("rater-123")
 
 	now := time.Now().UTC()
 	comment := "Excellent"
@@ -64,7 +70,6 @@ func TestRateUser_Success(t *testing.T) {
 		Return(rating, nil)
 
 	resp, err := handler.RateUser(ctx, &ratingpb.RateUserRequest{
-		RaterId:       "rater-123",
 		UserRatedId:   "rated-456",
 		NumberOfStars: 5,
 		Comment:       "Excellent",
@@ -83,31 +88,40 @@ func TestRateUser_Success(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-func TestRateUser_MissingRaterID(t *testing.T) {
+func TestRateUser_MissingCaller(t *testing.T) {
 	handler, mockService := newHandler()
-	ctx := context.Background()
 
-	mockService.On("RateUser", mock.Anything, "", "rated-456", int16(4), "").
-		Return(nil, ratingErrors.ErrorMissingRaterID)
-
-	_, err := handler.RateUser(ctx, &ratingpb.RateUserRequest{
+	_, err := handler.RateUser(context.Background(), &ratingpb.RateUserRequest{
 		UserRatedId:   "rated-456",
 		NumberOfStars: 4,
 	})
 
-	assertGRPCCode(t, err, codes.InvalidArgument)
-	mockService.AssertExpectations(t)
+	assertGRPCCode(t, err, codes.Unauthenticated)
+	mockService.AssertNotCalled(t, "RateUser", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestUpdateRating_MissingCaller(t *testing.T) {
+	handler, mockService := newHandler()
+
+	_, err := handler.UpdateRating(context.Background(), &ratingpb.UpdateRatingRequest{
+		RatingId:      "rating-1",
+		UserRatedId:   "rated-456",
+		NumberOfStars: 4,
+	})
+
+	assertGRPCCode(t, err, codes.Unauthenticated)
+	mockService.AssertNotCalled(t, "UpdateRating",
+		mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestRateUser_SelfRating(t *testing.T) {
 	handler, mockService := newHandler()
-	ctx := context.Background()
+	ctx := callerCtx("same-user")
 
 	mockService.On("RateUser", mock.Anything, "same-user", "same-user", int16(4), "").
 		Return(nil, ratingErrors.ErrorSelfRating)
 
 	_, err := handler.RateUser(ctx, &ratingpb.RateUserRequest{
-		RaterId:       "same-user",
 		UserRatedId:   "same-user",
 		NumberOfStars: 4,
 	})
@@ -118,13 +132,12 @@ func TestRateUser_SelfRating(t *testing.T) {
 
 func TestRateUser_AlreadyExists(t *testing.T) {
 	handler, mockService := newHandler()
-	ctx := context.Background()
+	ctx := callerCtx("rater-123")
 
 	mockService.On("RateUser", mock.Anything, "rater-123", "rated-456", int16(4), "").
 		Return(nil, ratingErrors.ErrorRatingAlreadyExists)
 
 	_, err := handler.RateUser(ctx, &ratingpb.RateUserRequest{
-		RaterId:       "rater-123",
 		UserRatedId:   "rated-456",
 		NumberOfStars: 4,
 	})
@@ -135,7 +148,7 @@ func TestRateUser_AlreadyExists(t *testing.T) {
 
 func TestRateUser_NilComment(t *testing.T) {
 	handler, mockService := newHandler()
-	ctx := context.Background()
+	ctx := callerCtx("rater-123")
 
 	now := time.Now().UTC()
 	rating := &domain.Rating{
@@ -152,7 +165,6 @@ func TestRateUser_NilComment(t *testing.T) {
 		Return(rating, nil)
 
 	resp, err := handler.RateUser(ctx, &ratingpb.RateUserRequest{
-		RaterId:       "rater-123",
 		UserRatedId:   "rated-456",
 		NumberOfStars: 4,
 	})
@@ -268,7 +280,7 @@ func TestGetUserRatingsAverage_MissingUserRatedID(t *testing.T) {
 
 func TestUpdateRating_Success(t *testing.T) {
 	handler, mockService := newHandler()
-	ctx := context.Background()
+	ctx := callerCtx("rater-123")
 
 	now := time.Now().UTC()
 	comment := "Mise à jour"
@@ -287,7 +299,6 @@ func TestUpdateRating_Success(t *testing.T) {
 
 	resp, err := handler.UpdateRating(ctx, &ratingpb.UpdateRatingRequest{
 		RatingId:      "rating-001",
-		RaterId:       "rater-123",
 		UserRatedId:   "rated-456",
 		NumberOfStars: 5,
 		Comment:       "Mise à jour",
@@ -303,14 +314,13 @@ func TestUpdateRating_Success(t *testing.T) {
 
 func TestUpdateRating_NotFound(t *testing.T) {
 	handler, mockService := newHandler()
-	ctx := context.Background()
+	ctx := callerCtx("rater-123")
 
 	mockService.On("UpdateRating", mock.Anything, "rater-123", "rating-unknown", "rated-456", int16(5), "").
 		Return(nil, ratingErrors.ErrorRatingNotFound)
 
 	_, err := handler.UpdateRating(ctx, &ratingpb.UpdateRatingRequest{
 		RatingId:      "rating-unknown",
-		RaterId:       "rater-123",
 		UserRatedId:   "rated-456",
 		NumberOfStars: 5,
 	})
@@ -321,14 +331,13 @@ func TestUpdateRating_NotFound(t *testing.T) {
 
 func TestUpdateRating_Unauthorized(t *testing.T) {
 	handler, mockService := newHandler()
-	ctx := context.Background()
+	ctx := callerCtx("other-rater")
 
 	mockService.On("UpdateRating", mock.Anything, "other-rater", "rating-001", "rated-456", int16(5), "").
 		Return(nil, ratingErrors.ErrorUnauthorizedAction)
 
 	_, err := handler.UpdateRating(ctx, &ratingpb.UpdateRatingRequest{
 		RatingId:      "rating-001",
-		RaterId:       "other-rater",
 		UserRatedId:   "rated-456",
 		NumberOfStars: 5,
 	})
@@ -339,14 +348,13 @@ func TestUpdateRating_Unauthorized(t *testing.T) {
 
 func TestUpdateRating_InvalidStars(t *testing.T) {
 	handler, mockService := newHandler()
-	ctx := context.Background()
+	ctx := callerCtx("rater-123")
 
 	mockService.On("UpdateRating", mock.Anything, "rater-123", "rating-001", "rated-456", int16(0), "").
 		Return(nil, ratingErrors.ErrorInvalidStars)
 
 	_, err := handler.UpdateRating(ctx, &ratingpb.UpdateRatingRequest{
 		RatingId:      "rating-001",
-		RaterId:       "rater-123",
 		UserRatedId:   "rated-456",
 		NumberOfStars: 0,
 	})
