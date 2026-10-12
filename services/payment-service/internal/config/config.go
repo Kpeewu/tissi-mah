@@ -8,20 +8,20 @@ import (
 )
 
 type Config struct {
-	Server            ServerConfig
-	Environment       EnvironmentConfig
-	Database          DatabaseConfig
-	Redis             RedisConfig
-	NotificationRedis RedisConfig
-	FedaPay           FedaPayConfig
-	BookingService    ServiceEndpoint
-	UserService       ServiceEndpoint
-	SupportService    ServiceEndpoint
-	Payout            PayoutConfig
-	Refund            RefundConfig
-	RefundWorker      RefundWorkerConfig
-	Expiration        ExpirationConfig
-	Worker            WorkerConfig
+	Server             ServerConfig
+	Environment        EnvironmentConfig
+	Database           DatabaseConfig
+	Redis              RedisConfig
+	NotificationRedis  RedisConfig
+	FedaPay            FedaPayConfig
+	BookingService     ServiceEndpoint
+	UserService        ServiceEndpoint
+	SupportService     ServiceEndpoint
+	Payout             PayoutConfig
+	Refund             RefundConfig
+	RefundWorker       RefundWorkerConfig
+	Expiration         ExpirationConfig
+	Worker             WorkerConfig
 	PaymentWindow      PaymentWindowConfig
 	LogLevel           string
 	InternalHMACSecret string
@@ -47,9 +47,9 @@ type RedisConfig struct {
 }
 
 type FedaPayConfig struct {
-	APIURL               string
-	APIKey               string
-	WebhookSecret        string
+	APIURL                string
+	APIKey                string
+	WebhookSecret         string
 	MaxConcurrentRequests int
 	// CallbackURL est l'URL de retour après paiement sur la page FedaPay
 	// (ex: https://api.tissimah.kpeewu.dev/api/v1/payment/callback). FedaPay y ajoute ?id=&status=.
@@ -81,6 +81,9 @@ type PayoutConfig struct {
 	IntervalSeconds        int
 	ContestationDelayHours int
 	PlatformFeePercent     int
+	// ReconcileIntervalSeconds : tick du worker qui vérifie auprès de FedaPay les virements
+	// (payouts chauffeurs et remboursements) démarrés mais non confirmés. Hors fenêtre horaire.
+	ReconcileIntervalSeconds int
 }
 
 type ExpirationConfig struct {
@@ -100,8 +103,8 @@ type RefundConfig struct {
 // PaymentWindowConfig contrôle la fenêtre horaire des batches automatiques
 // (PayoutWorker chauffeurs, RefundWorker passagers). Hors fenêtre, les
 // workers ticker mais ne déclenchent pas leur batch.
-// L'ExpirationWorker, les webhooks FedaPay et le RPC TriggerManualPayout
-// ne sont PAS impactés.
+// L'ExpirationWorker, le worker de réconciliation des virements, les webhooks FedaPay
+// et le RPC TriggerManualPayout ne sont PAS impactés.
 type PaymentWindowConfig struct {
 	Enabled   bool
 	Timezone  string // ex: "Africa/Lome"
@@ -148,9 +151,10 @@ func Load() (*Config, error) {
 			Port: sharedconfig.GetStringOrDefault(values, "SUPPORT_SERVICE_PORT", "50063"),
 		},
 		Payout: PayoutConfig{
-			IntervalSeconds:        getIntOrDefault(values, "PAYOUT_INTERVAL_SECONDS", 1800),
-			ContestationDelayHours: getIntOrDefault(values, "CONTESTATION_DELAY_HOURS", 2),
-			PlatformFeePercent:     getIntOrDefault(values, "PLATFORM_FEE_PERCENT", 10),
+			IntervalSeconds:          getIntOrDefault(values, "PAYOUT_INTERVAL_SECONDS", 1800),
+			ContestationDelayHours:   getIntOrDefault(values, "CONTESTATION_DELAY_HOURS", 2),
+			PlatformFeePercent:       getIntOrDefault(values, "PLATFORM_FEE_PERCENT", 10),
+			ReconcileIntervalSeconds: getIntOrDefault(values, "PAYOUT_RECONCILE_INTERVAL_SECONDS", 300),
 		},
 		Expiration: ExpirationConfig{
 			IntervalSeconds:       getIntOrDefault(values, "EXPIRATION_INTERVAL_SECONDS", 60),

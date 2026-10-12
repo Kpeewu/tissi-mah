@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"context"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/domain"
 	paymentErrors "github.com/Kpeewu/tissi-mah/services/payment-service/pkg/errors"
@@ -84,5 +85,35 @@ func (m *MockRefundRepositoryWrite) MarkRefundCompleted(ctx context.Context, ref
 
 func (m *MockRefundRepositoryWrite) MarkRefundFailed(ctx context.Context, refundID string, reason string, incrementRetry bool) error {
 	args := m.Called(ctx, refundID, reason, incrementRetry)
+	return args.Error(0)
+}
+
+// GetByProviderReference retourne ErrorRefundNotFound sans expectation déclarée (webhook payout chauffeur).
+func (m *MockRefundRepositoryRead) GetByProviderReference(ctx context.Context, providerReference string) (*domain.Refund, error) {
+	if !m.hasExpectation("GetByProviderReference") {
+		return nil, paymentErrors.ErrorRefundNotFound
+	}
+	args := m.Called(ctx, providerReference)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Refund), args.Error(1)
+}
+
+func (m *MockRefundRepositoryRead) GetProcessingRefundsToReconcile(ctx context.Context, updatedBefore time.Time, limit int) ([]*domain.Refund, error) {
+	args := m.Called(ctx, updatedBefore, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Refund), args.Error(1)
+}
+
+func (m *MockRefundRepositoryWrite) SetRefundProviderReference(ctx context.Context, refundID string, paymentProviderReference string) error {
+	args := m.Called(ctx, refundID, paymentProviderReference)
+	return args.Error(0)
+}
+
+func (m *MockRefundRepositoryWrite) MarkRefundPayoutFailed(ctx context.Context, refundID string, reason string) error {
+	args := m.Called(ctx, refundID, reason)
 	return args.Error(0)
 }

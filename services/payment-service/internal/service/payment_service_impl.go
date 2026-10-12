@@ -183,25 +183,10 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 
 // handleWebhookEvent applique un événement webhook FedaPay (payout ou collecte).
 func (s *paymentServiceImpl) handleWebhookEvent(ctx context.Context, payload *fedapay.WebhookPayload) error {
-	// Traiter les événements payout séparément
-	if payload.Name == "payout.completed" {
-		providerRef := strconv.Itoa(payload.Entity.ID)
-		payout, err := s.payoutReadRepo.GetByProviderReference(ctx, providerRef)
-		if err != nil {
-			s.logger.Warn("payout not found for webhook", zap.String("providerRef", providerRef))
-			return nil
-		}
-		err = s.payoutWriteRepo.UpdatePayoutStatus(ctx, payout.PayoutID, domain.PayoutStatusCompleted, providerRef)
-		if err != nil {
-			s.logger.Error("update payout status from webhook failed",
-				zap.String("payoutID", payout.PayoutID),
-				zap.Error(err),
-			)
-			return err
-		}
-		s.writePayoutHistory(ctx, payout.PayoutID, "completed", "system", "", "", "", "Confirmé par FedaPay webhook")
-		s.logger.Info("payout completed via webhook", zap.String("payoutID", payout.PayoutID))
-		return nil
+	// Virements sortants (remboursements et payouts chauffeurs) : les noms des événements payout.* ne sont
+	// pas documentés par FedaPay, le statut est relu via GetPayout (cf. payout_confirmation.go)
+	if strings.HasPrefix(payload.Name, "payout.") {
+		return s.confirmProviderPayout(ctx, strconv.Itoa(payload.Entity.ID))
 	}
 
 	// Événements de collecte : traduits en statut FedaPay puis appliqués via la logique commune

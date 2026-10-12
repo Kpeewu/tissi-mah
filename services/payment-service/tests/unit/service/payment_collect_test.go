@@ -779,7 +779,8 @@ func TestProcessWebhook_ProcessingFailureKeepsEventReplayable(t *testing.T) {
 		d.paymentWriteRepo.On("SaveWebhookEvent", mock.Anything, mock.Anything).Return(nil)
 		d.payoutReadRepo.On("GetByProviderReference", mock.Anything, "555").
 			Return(&domain.Payout{PayoutID: "po-1"}, nil)
-		d.payoutWriteRepo.On("UpdatePayoutStatus", mock.Anything, "po-1", domain.PayoutStatusCompleted, "555").
+		d.fedapay.On("GetPayout", 555).Return(&fedapay.PayoutItem{ID: 555, Status: "sent"}, nil)
+		d.payoutWriteRepo.On("ConfirmPayoutCompleted", mock.Anything, "po-1").
 			Return(paymentErrors.ErrorInternalServer)
 
 		err := d.svc.ProcessWebhook(context.Background(), &serviceInterfaces.ProcessWebhookInput{

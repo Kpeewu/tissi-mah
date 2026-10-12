@@ -226,45 +226,32 @@ func (s *paymentServiceImpl) processRefund(ctx context.Context, refund *domain.R
 		return nil
 	}
 
-	// 7. Démarrer le payout FedaPay (comme pour les chauffeurs)
+	// 7. Enregistrer la référence FedaPay avant le démarrage : aucun virement ne part sans être traçable
+	// (un payout créé mais jamais démarré n'envoie rien).
+	providerRef := strconv.Itoa(fedapayPayout.ID)
+	if err := s.refundWriteRepo.SetRefundProviderReference(ctx, refund.RefundID, providerRef); err != nil {
+		s.logger.Error("set refund provider reference failed", zap.Error(err), zap.String("refundID", refund.RefundID))
+		s.markRefundFailed(ctx, refund, "store fedapay reference: "+err.Error(), true) //nolint:errcheck
+		return nil
+	}
+
+	// 8. Démarrer le payout FedaPay (comme pour les chauffeurs)
 	if _, err := s.fedapayClient.StartPayouts([]int{fedapayPayout.ID}); err != nil {
 		s.logger.Error("fedapay start refund payout failed", zap.Error(err), zap.String("refundID", refund.RefundID))
 		s.markRefundFailed(ctx, refund, "fedapay start: "+err.Error(), true) //nolint:errcheck
 		return nil
 	}
 
-	// 8. Finaliser
-	providerRef := strconv.Itoa(fedapayPayout.ID)
-	if err := s.refundWriteRepo.MarkRefundCompleted(ctx, refund.RefundID, providerRef); err != nil {
-		s.logger.Error("mark refund completed failed", zap.Error(err))
-		return nil
-	}
-	s.writeRefundHistory(ctx, refund.RefundID, string(domain.RefundStatusCompleted), refund.RetryCount,
-		"Virement FedaPay "+providerRef+" démarré")
+	// 9. Le refund reste processing jusqu'à la confirmation FedaPay (webhook payout.* ou réconciliation),
+	// qui le passe en completed et notifie le passager (cf. payout_confirmation.go).
+	s.writeRefundHistory(ctx, refund.RefundID, domain.RefundEventPayoutStarted, refund.RetryCount,
+		"Virement FedaPay "+providerRef+" démarré, en attente de confirmation")
 
-	s.logger.Info("refund completed",
+	s.logger.Info("refund payout started",
 		zap.String("refundID", refund.RefundID),
 		zap.String("providerReference", providerRef),
 		zap.Int("amountToPassenger", refund.AmountToPassenger),
 	)
-
-	// 9. Notifier le passager (non bloquant)
-	if s.notifRedis != nil {
-		if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
-			EventType:     notification.RefundCompleted,
-			UserID:        booking.PassengerID,
-			ReferenceID:   refund.RefundID,
-			ReferenceType: notification.RefRefund,
-			Payload: map[string]string{
-				"amount":                     fmt.Sprintf("%d", refund.AmountToPassenger),
-				"currency":                   "XOF",
-				"payment_provider_reference": providerRef,
-				"reason":                     string(refund.RefundReason),
-			},
-		}); pubErr != nil {
-			s.logger.Error("failed to publish REFUND_COMPLETED notification", zap.Error(pubErr))
-		}
-	}
 
 	return nil
 }

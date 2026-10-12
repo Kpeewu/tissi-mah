@@ -166,6 +166,7 @@ func run(bootstrapLogger *zap.Logger) error {
 		go service.StartPayoutWorker(ctx, impl, cfg.Payout.IntervalSeconds, paymentWindow, logger)
 		go service.StartExpirationWorker(ctx, impl, cfg.Expiration.IntervalSeconds, cfg.Expiration.PaymentTimeoutMinutes, logger)
 		go service.StartRefundWorker(ctx, impl, cfg.RefundWorker.IntervalSeconds, paymentWindow, logger)
+		go service.StartPayoutReconciler(ctx, impl, cfg.Payout.ReconcileIntervalSeconds, logger)
 	}
 
 	// --- gRPC server ---

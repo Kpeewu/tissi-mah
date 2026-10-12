@@ -268,7 +268,7 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 	s.payoutWriteRepo.UpdatePayoutStatus(ctx, payoutID, domain.PayoutStatusProcessing, strconv.Itoa(fedapayPayout.ID)) //nolint:errcheck
 
 	// Historique : payout en cours de traitement
-	s.writePayoutHistory(ctx, payoutID, "processing", "system", "", "", "", "FedaPay payout démarré")
+	s.writePayoutHistory(ctx, payoutID, "processing", "system", "", "", "", "FedaPay payout démarré, en attente de confirmation")
 
 	// MAJ les paiements du trip → paidOut
 	paidOutIDs, err := s.payoutWriteRepo.MarkPaymentsAsPaidOut(ctx, tripID)

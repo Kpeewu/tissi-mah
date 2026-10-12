@@ -3,6 +3,7 @@ package implementations
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -14,6 +15,16 @@ import (
 )
 
 const payoutsPageSize = 20
+
+// maxAutomaticPayoutAttempts : payouts échoués au-delà desquels un trajet n'est plus repris
+// automatiquement par le batch (relance par le support via TriggerManualPayout).
+const maxAutomaticPayoutAttempts = 3
+
+const payoutSelectColumns = `payout_id, payout_reference, driver_id, trip_id,
+	gross_amount, platform_fee, net_amount, payout_method, payout_destination,
+	destination_name, status, scheduled_at, completed_at, failed_at, cancelled_at,
+	payment_provider, payment_provider_reference, failure_reason,
+	retry_count, last_retry_at, created_at, updated_at`
 
 type payoutReadRepository struct {
 	pool   *pgxpool.Pool
@@ -66,13 +77,7 @@ func (r *payoutReadRepository) GetDriverPayouts(ctx context.Context, driverID st
 	var payouts []*domain.Payout
 	for rows.Next() {
 		p := &domain.Payout{}
-		if err := rows.Scan(
-			&p.PayoutID, &p.PayoutReference, &p.DriverID, &p.TripID,
-			&p.GrossAmount, &p.PlatformFee, &p.NetAmount, &p.PayoutMethod, &p.PayoutDestination,
-			&p.DestinationName, &p.Status, &p.ScheduledAt, &p.CompletedAt, &p.FailedAt, &p.CancelledAt,
-			&p.PaymentProvider, &p.PaymentProviderReference, &p.FailureReason,
-			&p.RetryCount, &p.LastRetryAt, &p.CreatedAt, &p.UpdatedAt,
-		); err != nil {
+		if err := scanPayoutRow(rows, p); err != nil {
 			r.logger.Error("scan payout failed", zap.Error(err))
 			return nil, paymentErrors.ErrorDataRetrievalFailed
 		}
@@ -101,8 +106,8 @@ func (r *payoutReadRepository) GetBatchByID(ctx context.Context, batchID string)
 	return &b, nil
 }
 
-// GetTripsReadyForPayout retourne les trip_id dont tous les paiements sont en status released
-// et pour lesquels aucun payout n'existe encore.
+// GetTripsReadyForPayout retourne les trip_id dont tous les paiements sont en status released,
+// sans payout actif ni completed, et dont les payouts n'ont pas échoué maxAutomaticPayoutAttempts fois.
 func (r *payoutReadRepository) GetTripsReadyForPayout(ctx context.Context) ([]string, error) {
 	query := `SELECT DISTINCT p.trip_id
 		FROM payments p
@@ -114,9 +119,13 @@ func (r *payoutReadRepository) GetTripsReadyForPayout(ctx context.Context) ([]st
 		AND NOT EXISTS (
 			SELECT 1 FROM payouts po
 			WHERE po.trip_id = p.trip_id AND po.status NOT IN ('failed', 'cancelled')
-		)`
+		)
+		AND (
+			SELECT count(*) FROM payouts pf
+			WHERE pf.trip_id = p.trip_id AND pf.status = 'failed'
+		) < $1`
 
-	rows, err := r.pool.Query(ctx, query)
+	rows, err := r.pool.Query(ctx, query, maxAutomaticPayoutAttempts)
 	if err != nil {
 		r.logger.Error("get trips ready for payout failed", zap.Error(err))
 		return nil, paymentErrors.ErrorDataRetrievalFailed
@@ -199,15 +208,40 @@ func (r *payoutReadRepository) GetByProviderReference(ctx context.Context, provi
 	return r.scanPayout(ctx, query, providerReference)
 }
 
+func (r *payoutReadRepository) GetProcessingPayoutsToReconcile(
+	ctx context.Context, updatedBefore time.Time, limit int,
+) ([]*domain.Payout, error) {
+	query := `SELECT ` + payoutSelectColumns + `
+		FROM payouts
+		WHERE status = 'processing' AND COALESCE(payment_provider_reference, '') <> '' AND updated_at < $1
+		ORDER BY updated_at ASC
+		LIMIT $2`
+
+	rows, err := r.pool.Query(ctx, query, updatedBefore, limit)
+	if err != nil {
+		r.logger.Error("get processing payouts to reconcile failed", zap.Error(err))
+		return nil, paymentErrors.ErrorDataRetrievalFailed
+	}
+	defer rows.Close()
+
+	var payouts []*domain.Payout
+	for rows.Next() {
+		p := &domain.Payout{}
+		if err := scanPayoutRow(rows, p); err != nil {
+			r.logger.Error("scan processing payout failed", zap.Error(err))
+			return nil, paymentErrors.ErrorDataRetrievalFailed
+		}
+		payouts = append(payouts, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, paymentErrors.ErrorDataRetrievalFailed
+	}
+	return payouts, nil
+}
+
 func (r *payoutReadRepository) scanPayout(ctx context.Context, query string, arg interface{}) (*domain.Payout, error) {
 	p := &domain.Payout{}
-	err := r.pool.QueryRow(ctx, query, arg).Scan(
-		&p.PayoutID, &p.PayoutReference, &p.DriverID, &p.TripID,
-		&p.GrossAmount, &p.PlatformFee, &p.NetAmount, &p.PayoutMethod, &p.PayoutDestination,
-		&p.DestinationName, &p.Status, &p.ScheduledAt, &p.CompletedAt, &p.FailedAt, &p.CancelledAt,
-		&p.PaymentProvider, &p.PaymentProviderReference, &p.FailureReason,
-		&p.RetryCount, &p.LastRetryAt, &p.CreatedAt, &p.UpdatedAt,
-	)
+	err := scanPayoutRow(r.pool.QueryRow(ctx, query, arg), p)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, paymentErrors.ErrorPayoutNotFound
@@ -216,6 +250,17 @@ func (r *payoutReadRepository) scanPayout(ctx context.Context, query string, arg
 		return nil, paymentErrors.ErrorDataRetrievalFailed
 	}
 	return p, nil
+}
+
+// scanPayoutRow lit une ligne sélectionnée avec les colonnes de payoutSelectColumns.
+func scanPayoutRow(row rowScanner, p *domain.Payout) error {
+	return row.Scan(
+		&p.PayoutID, &p.PayoutReference, &p.DriverID, &p.TripID,
+		&p.GrossAmount, &p.PlatformFee, &p.NetAmount, &p.PayoutMethod, &p.PayoutDestination,
+		&p.DestinationName, &p.Status, &p.ScheduledAt, &p.CompletedAt, &p.FailedAt, &p.CancelledAt,
+		&p.PaymentProvider, &p.PaymentProviderReference, &p.FailureReason,
+		&p.RetryCount, &p.LastRetryAt, &p.CreatedAt, &p.UpdatedAt,
+	)
 }
 
 // HasActivePayout vérifie si un chauffeur a un payout en attente.

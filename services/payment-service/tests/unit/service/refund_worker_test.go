@@ -407,7 +407,7 @@ func TestProcessPendingRefunds_MarkProcessingAlreadyProcessed(t *testing.T) {
 func TestProcessPendingRefunds_Notifications(t *testing.T) {
 	booking := &client.BookingDetails{BookingID: "book-1", PassengerID: "user-1"}
 
-	t.Run("remboursement réalisé → REFUND_COMPLETED avec le motif", func(t *testing.T) {
+	t.Run("virement démarré → refund laissé processing, REFUND_COMPLETED à la confirmation FedaPay", func(t *testing.T) {
 		rdb := newNotifRedis(t)
 		fedapayMock := new(mocks.MockFedaPayClient)
 		d := buildRefundWorkerTestService(t, 3, fedapayMock, rdb)
@@ -429,21 +429,43 @@ func TestProcessPendingRefunds_Notifications(t *testing.T) {
 			Return(&client.UserInfo{UserID: "user-1", FirstName: "Awa", Name: "Diallo"}, nil)
 		d.refundWriteRepo.On("MarkRefundProcessing", mock.Anything, "ref-ok").Return(nil)
 		fedapayMock.On("CreatePayout", 5500, "togocel", "90112233", "Awa", "Diallo").Return(&fedapay.PayoutItem{ID: 777}, nil)
+		d.refundWriteRepo.On("SetRefundProviderReference", mock.Anything, "ref-ok", "777").Return(nil)
 		fedapayMock.On("StartPayouts", []int{777}).Return([]fedapay.PayoutItem{{ID: 777}}, nil)
-		d.refundWriteRepo.On("MarkRefundCompleted", mock.Anything, "ref-ok", "777").Return(nil)
 
 		require.NoError(t, service.AsImpl(d.svc).ProcessPendingRefunds(context.Background()))
 
-		event := findEvent(publishedEvents(t, rdb), notification.RefundCompleted)
-		require.NotNil(t, event, "REFUND_COMPLETED doit être publié")
-		assert.Equal(t, "user-1", event.UserID)
-		assert.Equal(t, "ref-ok", event.ReferenceID)
-		assert.Equal(t, "5500", event.Payload["amount"])
-		assert.Equal(t, "bookingUnavailable", event.Payload["reason"])
+		d.refundWriteRepo.AssertNotCalled(t, "MarkRefundCompleted", mock.Anything, mock.Anything, mock.Anything)
+		assert.Nil(t, findEvent(publishedEvents(t, rdb), notification.RefundCompleted),
+			"REFUND_COMPLETED attend la confirmation FedaPay")
 		d.assertExpectations(t)
+		assert.Equal(t, []string{"processing", domain.RefundEventPayoutStarted}, d.refundHistoryStatuses())
+		assert.Equal(t, "Virement FedaPay 777 démarré, en attente de confirmation", d.refundHistory()[1].Notes)
+	})
 
-		assert.Equal(t, []string{"processing", "completed"}, d.refundHistoryStatuses())
-		assert.Equal(t, "Virement FedaPay 777 démarré", d.refundHistory()[1].Notes)
+	t.Run("référence FedaPay non enregistrée → virement non démarré, nouvelle tentative", func(t *testing.T) {
+		fedapayMock := new(mocks.MockFedaPayClient)
+		d := buildRefundWorkerTestService(t, 3, fedapayMock, nil)
+
+		refund := &domain.Refund{
+			RefundID: "ref-noref", PaymentID: "pay-1", BookingID: "book-1",
+			AmountToPassenger: 5500, Status: domain.RefundStatusPending,
+		}
+		d.refundReadRepo.On("GetPendingRefundsForPayout", mock.Anything, 20).Return([]*domain.Refund{refund}, nil)
+		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").
+			Return(&domain.Payment{PaymentID: "pay-1", PassengerPhoneNumber: "90112233"}, nil)
+		d.bookingClient.On("GetBookingDetails", mock.Anything, "book-1").Return(booking, nil)
+		d.userClient.On("GetUserByUserID", mock.Anything, "user-1").
+			Return(&client.UserInfo{FirstName: "Awa", Name: "Diallo"}, nil)
+		d.refundWriteRepo.On("MarkRefundProcessing", mock.Anything, "ref-noref").Return(nil)
+		fedapayMock.On("CreatePayout", 5500, "togocel", "90112233", "Awa", "Diallo").Return(&fedapay.PayoutItem{ID: 778}, nil)
+		d.refundWriteRepo.On("SetRefundProviderReference", mock.Anything, "ref-noref", "778").
+			Return(paymentErrors.ErrorInternalServer)
+		d.refundWriteRepo.On("MarkRefundFailed", mock.Anything, "ref-noref", mock.Anything, true).Return(nil)
+
+		require.NoError(t, service.AsImpl(d.svc).ProcessPendingRefunds(context.Background()))
+
+		fedapayMock.AssertNotCalled(t, "StartPayouts", mock.Anything)
+		assert.Equal(t, []string{"processing", domain.RefundEventRetryScheduled}, d.refundHistoryStatuses())
 	})
 
 	t.Run("max retries dépassé → REFUND_FAILED", func(t *testing.T) {

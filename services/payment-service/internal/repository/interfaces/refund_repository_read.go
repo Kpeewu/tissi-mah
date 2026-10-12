@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/domain"
 )
@@ -14,4 +15,9 @@ type RefundRepositoryRead interface {
 	// GetPendingRefundsForPayout retourne les refunds status='pending' avec amount_to_passenger > 0,
 	// triés par created_at ASC (FIFO), limités à `limit` entrées.
 	GetPendingRefundsForPayout(ctx context.Context, limit int) ([]*domain.Refund, error)
+	// GetByProviderReference retourne le refund dont le virement FedaPay a cet ID.
+	GetByProviderReference(ctx context.Context, providerReference string) (*domain.Refund, error)
+	// GetProcessingRefundsToReconcile retourne les refunds processing avec un virement FedaPay
+	// non modifiés depuis updatedBefore (confirmation à vérifier auprès de FedaPay).
+	GetProcessingRefundsToReconcile(ctx context.Context, updatedBefore time.Time, limit int) ([]*domain.Refund, error)
 }

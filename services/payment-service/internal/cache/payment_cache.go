@@ -18,6 +18,7 @@ const (
 	tripPayoutLockTTL   = 2 * time.Minute
 	refundLockTTL       = 2 * time.Minute
 	expirationLockTTL   = 5 * time.Minute
+	reconcileLockTTL    = 5 * time.Minute
 	keyPrefix           = "payment:"
 )
 
@@ -106,6 +107,18 @@ func (c *PaymentCache) AcquireRefundLock(ctx context.Context, refundID string) (
 // ReleaseRefundLock libère le verrou d'un refund.
 func (c *PaymentCache) ReleaseRefundLock(ctx context.Context, refundID string) {
 	key := keyPrefix + "refund:lock:" + refundID
+	c.client.Del(ctx, key) //nolint:errcheck
+}
+
+// AcquireReconcileLock tente d'acquérir le verrou distribué du worker de réconciliation des virements.
+func (c *PaymentCache) AcquireReconcileLock(ctx context.Context) (bool, error) {
+	key := keyPrefix + "reconcile:lock"
+	return c.client.SetNX(ctx, key, "locked", reconcileLockTTL).Result()
+}
+
+// ReleaseReconcileLock libère le verrou du worker de réconciliation des virements.
+func (c *PaymentCache) ReleaseReconcileLock(ctx context.Context) {
+	key := keyPrefix + "reconcile:lock"
 	c.client.Del(ctx, key) //nolint:errcheck
 }
 

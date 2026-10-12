@@ -233,6 +233,7 @@ const (
 	PaymentEventRefundCreationFailed = "refund_creation_failed" // remboursement automatique en échec (retenté)
 
 	RefundEventRetryScheduled = "retry_scheduled" // échec récupérable : le refund repasse pending
+	RefundEventPayoutStarted  = "payout_started"  // virement FedaPay démarré, en attente de confirmation
 )
 
 // Acteurs à l'origine d'une entrée d'historique (initiated_by).
@@ -257,6 +258,7 @@ const (
 	HistorySourceRefundWorker        = "refund_worker"
 	HistorySourcePayoutWorker        = "payout_worker"
 	HistorySourceSupportManualPayout = "support_manual_payout"
+	HistorySourcePayoutReconciler    = "payout_reconciler"
 )
 
 // PaymentStatusHistory est une entrée de payment_status_history.
