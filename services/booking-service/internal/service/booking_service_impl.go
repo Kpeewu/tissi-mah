@@ -968,6 +968,9 @@ func (s *bookingServiceImpl) ConfirmPayment(ctx context.Context, input *serviceI
 // confirmPaymentOnce rattache le paiement à la réservation selon son statut courant :
 //   - paymentPending : places déjà tenues → pendingApproval / approved
 //   - paymentFailed  : places libérées → re-réservation (ErrorNoSeatsAvailable si complet) puis confirmation
+//
+// Un trajet terminé ou annulé n'accepte plus de confirmation (ErrorNoSeatsAvailable) : payment-service
+// rembourse alors le passager, au lieu de laisser un paiement held qui ne serait jamais libéré.
 func (s *bookingServiceImpl) confirmPaymentOnce(ctx context.Context, input *serviceInterfaces.ConfirmPaymentInput) (string, error) {
 	booking, err := s.readRepo.GetByID(ctx, input.BookingID)
 	if err != nil {
@@ -992,6 +995,9 @@ func (s *bookingServiceImpl) confirmPaymentOnce(ctx context.Context, input *serv
 			zap.String("tripID", booking.TripID), zap.Error(err))
 	} else if tripDetails != nil && tripDetails.AutoApproveEnabled {
 		newStatus = domain.BookingStatusApproved
+	}
+	if tripDetails != nil && tripDetails.Status != "scheduled" && tripDetails.Status != "inProgress" {
+		return "", bookingErrors.ErrorNoSeatsAvailable
 	}
 
 	pickupOrder, dropoffOrder := int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder)
@@ -1040,9 +1046,6 @@ func (s *bookingServiceImpl) reserveSeatsForReactivation(ctx context.Context, bo
 	if tripDetails == nil {
 		// Sans les détails du trajet, impossible de vérifier la disponibilité
 		return bookingErrors.ErrorInternalServer
-	}
-	if tripDetails.Status != "scheduled" && tripDetails.Status != "inProgress" {
-		return bookingErrors.ErrorNoSeatsAvailable
 	}
 
 	// Le passager a pu refaire une réservation sur ce trajet après la libération : pas de doublon

@@ -1083,6 +1083,28 @@ func TestConfirmPayment(t *testing.T) {
 		d.writeRepo.AssertNotCalled(t, "ConfirmPayment", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
+	t.Run("erreur - trajet terminé, confirmation refusée pour une réservation paymentPending", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("booking-ended"),
+			fixtures.WithTripID("trip-ended"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentPending),
+			fixtures.WithNoPaymentCompleted(),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-ended").Return(booking, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-ended").Return(&client.TripDetails{TripID: "trip-ended", Status: "completed"}, nil)
+
+		_, err := d.svc.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
+			BookingID:     "booking-ended",
+			TransactionID: "txn-ended",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorNoSeatsAvailable)
+		d.writeRepo.AssertNotCalled(t, "ConfirmPayment", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
 	t.Run("erreur - réactivation impossible, le passager a déjà une autre réservation active", func(t *testing.T) {
 		d := newTestService()
 		ctx := context.Background()
