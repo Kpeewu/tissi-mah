@@ -27,4 +27,5 @@ var (
 	ErrorPassengerNotVerified    = errors.New("ErrorPassengerNotVerified")
 	ErrorUserNotFound            = errors.New("ErrorUserNotFound")
 	ErrorNoShowTooEarly          = errors.New("ErrorNoShowTooEarly")
+	ErrorNoShowReportClosed      = errors.New("ErrorNoShowReportClosed")
 )

@@ -570,6 +570,30 @@ func TestReportNoShow(t *testing.T) {
 			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
+	t.Run("erreur - signalement apres la fin de la fenetre de declaration", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		booking := fixtures.NewTestBookingWithPayment(
+			fixtures.WithBookingID("booking-noshow-late"),
+			fixtures.WithPassengerID("passenger-1"),
+			fixtures.WithDriverID("driver-1"),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-noshow-late").Return(booking, nil)
+		// Prise en charge prévue il y a 4 h : la fenêtre de 3 h est close
+		d.expectDeparture(booking, time.Now().UTC().Add(-4*time.Hour).Format(time.RFC3339))
+
+		err := d.svc.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{
+			BookingID:  "booking-noshow-late",
+			ReporterID: "driver-1",
+			NoShowType: "passenger",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorNoShowReportClosed)
+		d.writeRepo.AssertNotCalled(t, "ReportNoShow",
+			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
 	t.Run("erreur - heure de prise en charge inconnue", func(t *testing.T) {
 		d := newTestService()
 		ctx := context.Background()

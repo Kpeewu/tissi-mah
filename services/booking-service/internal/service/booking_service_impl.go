@@ -771,13 +771,19 @@ func canReportNoShow(booking *domain.Booking, reporterID, noShowType string) boo
 	}
 }
 
-// noShowReportDelay : attente minimale au point de rendez-vous, après l'heure de prise en charge
-// prévue, avant de pouvoir déclarer l'autre partie absente.
-const noShowReportDelay = 15 * time.Minute
+const (
+	// noShowReportDelay : attente minimale au point de rendez-vous, après l'heure de prise en charge
+	// prévue, avant de pouvoir déclarer l'autre partie absente.
+	noShowReportDelay = 15 * time.Minute
+	// noShowReportWindow : au-delà de ce délai après l'heure de prise en charge prévue, l'absence
+	// ne peut plus être déclarée.
+	noShowReportWindow = 3 * time.Hour
+)
 
-// checkNoShowReportable vérifie qu'une absence peut déjà être constatée : l'heure de prise en
-// charge prévue (source de vérité : trips-service) doit être passée d'au moins noShowReportDelay.
-// Si cette heure est inconnue, on refuse plutôt que de laisser passer un signalement anticipé.
+// checkNoShowReportable vérifie que l'absence est déclarée dans la fenêtre
+// [prise en charge prévue + noShowReportDelay, prise en charge prévue + noShowReportWindow].
+// L'heure de prise en charge vient de trips-service ; si elle est inconnue, on refuse plutôt que
+// de laisser passer un signalement hors fenêtre.
 func (s *bookingServiceImpl) checkNoShowReportable(ctx context.Context, booking *domain.Booking) error {
 	scheduledPickup, err := time.Parse(time.RFC3339, s.getDepartureDatetime(ctx, booking))
 	if err != nil {
@@ -786,8 +792,12 @@ func (s *bookingServiceImpl) checkNoShowReportable(ctx context.Context, booking 
 		return bookingErrors.ErrorDataRetrievalFailed
 	}
 
-	if time.Now().Before(scheduledPickup.Add(noShowReportDelay)) {
+	now := time.Now()
+	if now.Before(scheduledPickup.Add(noShowReportDelay)) {
 		return bookingErrors.ErrorNoShowTooEarly
+	}
+	if now.After(scheduledPickup.Add(noShowReportWindow)) {
+		return bookingErrors.ErrorNoShowReportClosed
 	}
 	return nil
 }

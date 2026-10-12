@@ -696,7 +696,8 @@ func toGRPCError(err error) error {
 		errors.Is(err, bookingErrors.ErrorBookingNotInProgress),
 		errors.Is(err, bookingErrors.ErrorPaymentAlreadyConfirmed),
 		errors.Is(err, bookingErrors.ErrorPaymentAlreadyFailed),
-		errors.Is(err, bookingErrors.ErrorNoShowTooEarly):
+		errors.Is(err, bookingErrors.ErrorNoShowTooEarly),
+		errors.Is(err, bookingErrors.ErrorNoShowReportClosed):
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, bookingErrors.ErrorSeatReservationFailed):
 		return status.Error(codes.ResourceExhausted, err.Error())
