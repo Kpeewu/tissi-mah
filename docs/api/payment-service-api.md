@@ -19,9 +19,10 @@ This document describes the HTTP/REST API exposed by the payment-service through
 | `/api/v1/payment/verifyPayment` | Firebase JWT required (booking passenger) |
 | `/api/v1/payment/cancelPayment` | Firebase JWT required (booking passenger) |
 | `/api/v1/payment/callback` | Public (FedaPay return URL; status re-checked with FedaPay) |
-| `/api/v1/payment/getPaymentStatus` | Firebase JWT required |
-| `/api/v1/payment/getPaymentByBooking` | Firebase JWT required |
-| `/api/v1/payment/getRefundStatus` | Firebase JWT required |
+| `/api/v1/payment/getPaymentStatus` | Firebase JWT required (booking passenger) |
+| `/api/v1/payment/getPaymentByBooking` | Firebase JWT required (booking passenger) |
+| `/api/v1/payment/getRefundStatus` | Firebase JWT required (booking passenger) |
+| `/api/v1/payment/getRefundByBooking` | Firebase JWT required (booking passenger) |
 | `/api/v1/payment/getPayoutStatus` | Firebase JWT required |
 | `/api/v1/payment/getDriverPayouts` | Firebase JWT required |
 | `/api/v1/payment/webhooks/fedapay` | Public (HMAC-SHA256 signature verified internally) |
@@ -237,7 +238,7 @@ On any error (invalid id, unknown transaction, FedaPay unavailable), the redirec
 
 Returns the current status of a payment.
 
-**Authentication:** Firebase JWT required
+**Authentication:** Firebase JWT required — the caller must be the booking's passenger (403 otherwise)
 
 #### Query Parameters
 
@@ -284,6 +285,7 @@ Content-Type: application/json
 
 | Error | HTTP Code | Description |
 |-------|-----------|-------------|
+| `ErrorPaymentNotOwned` | 403 | The caller is not the booking's passenger |
 | `ErrorPaymentNotFound` | 404 | Payment does not exist |
 | `ErrorInternalServer` | 500 | Internal server error |
 
@@ -293,7 +295,7 @@ Content-Type: application/json
 
 Returns the payment associated with a booking.
 
-**Authentication:** Firebase JWT required
+**Authentication:** Firebase JWT required — the caller must be the booking's passenger (403 otherwise)
 
 #### Query Parameters
 
@@ -327,6 +329,9 @@ Content-Type: application/json
 
 | Error | HTTP Code | Description |
 |-------|-----------|-------------|
+| `ErrorInvalidInput` | 400 | `BookingId` is empty |
+| `ErrorPaymentNotOwned` | 403 | The caller is not the booking's passenger (checked before reading the payment) |
+| `ErrorBookingNotFound` | 404 | Booking does not exist |
 | `ErrorPaymentNotFound` | 404 | No payment found for this booking |
 | `ErrorInternalServer` | 500 | Internal server error |
 
@@ -399,7 +404,7 @@ An event is recorded on receipt and only marked as processed (`webhook_events.pr
 
 Returns the details and status of a refund.
 
-**Authentication:** Firebase JWT required
+**Authentication:** Firebase JWT required — the caller must be the booking's passenger (403 otherwise)
 
 #### Query Parameters
 
@@ -435,6 +440,7 @@ Content-Type: application/json
 
 | Error | HTTP Code | Description |
 |-------|-----------|-------------|
+| `ErrorPaymentNotOwned` | 403 | The caller is not the booking's passenger |
 | `ErrorRefundNotFound` | 404 | Refund does not exist |
 | `ErrorInternalServer` | 500 | Internal server error |
 
@@ -448,7 +454,7 @@ assigned server-side when booking-service triggers the refund (cancellation, no-
 when a worker creates it later. Poll this endpoint after a cancellation until it stops
 returning `ErrorRefundNotFound`.
 
-**Authentication:** Firebase JWT required
+**Authentication:** Firebase JWT required — the caller must be the booking's passenger (403 otherwise)
 
 #### Query Parameters
 
@@ -489,6 +495,8 @@ worker), `processing`, `completed` (FedaPay payout done) or `failed`; `Processed
 | Error | HTTP Code | Description |
 |-------|-----------|-------------|
 | `ErrorInvalidInput` | 400 | `BookingId` is empty |
+| `ErrorPaymentNotOwned` | 403 | The caller is not the booking's passenger (checked before reading the refund) |
+| `ErrorBookingNotFound` | 404 | Booking does not exist |
 | `ErrorRefundNotFound` | 404 | No refund exists (yet) for this booking |
 | `ErrorInternalServer` | 500 | Internal server error |
 
@@ -856,6 +864,19 @@ Releases a held payment to the driver after the contestation delay. Called by bo
     "ErrorMessage": ""
 }
 ```
+
+---
+
+### GET /api/v1/payment/internal/getPaymentByBooking
+
+Returns the payment of a booking without any caller identity or ownership check. Called by
+booking-service's `paymentPending` sweeper, which runs without a user identity, to decide
+whether a stale booking must be released (no payment, `failed`, `refunded`), confirmed (`held`)
+or left to payment-service's expiration worker (`pending`). Blocked at the api-gateway (404).
+
+Same request (`BookingId` query parameter) and response as
+[`getPaymentByBooking`](#get-apiv1paymentgetpaymentbybooking). `ErrorPaymentNotFound` (gRPC
+`NotFound`) when the booking has no payment.
 
 ---
 
