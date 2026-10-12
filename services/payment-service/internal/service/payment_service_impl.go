@@ -262,6 +262,12 @@ func (s *paymentServiceImpl) GetPaymentStatus(ctx context.Context, paymentID str
 }
 
 func (s *paymentServiceImpl) GetPaymentByBooking(ctx context.Context, bookingID string) (*serviceInterfaces.PaymentByBookingResult, error) {
+	return s.GetPaymentByBookingInternal(ctx, bookingID)
+}
+
+// GetPaymentByBookingInternal retourne le paiement d'une réservation sans contrôle d'appartenance.
+// Réservé aux appels inter-services (sweeper paymentPending de booking-service).
+func (s *paymentServiceImpl) GetPaymentByBookingInternal(ctx context.Context, bookingID string) (*serviceInterfaces.PaymentByBookingResult, error) {
 	// Essayer le cache
 	if s.cache != nil {
 		cached, _ := s.cache.GetPaymentByBookingID(ctx, bookingID)

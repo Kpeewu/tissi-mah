@@ -19,27 +19,28 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PaymentService_CreatePayment_FullMethodName            = "/payment.PaymentService/CreatePayment"
-	PaymentService_VerifyPayment_FullMethodName            = "/payment.PaymentService/VerifyPayment"
-	PaymentService_CancelPayment_FullMethodName            = "/payment.PaymentService/CancelPayment"
-	PaymentService_HandlePaymentCallback_FullMethodName    = "/payment.PaymentService/HandlePaymentCallback"
-	PaymentService_CancelPaymentForBooking_FullMethodName  = "/payment.PaymentService/CancelPaymentForBooking"
-	PaymentService_GetPaymentStatus_FullMethodName         = "/payment.PaymentService/GetPaymentStatus"
-	PaymentService_GetPaymentByBooking_FullMethodName      = "/payment.PaymentService/GetPaymentByBooking"
-	PaymentService_ProcessWebhook_FullMethodName           = "/payment.PaymentService/ProcessWebhook"
-	PaymentService_RequestRefund_FullMethodName            = "/payment.PaymentService/RequestRefund"
-	PaymentService_GetRefundStatus_FullMethodName          = "/payment.PaymentService/GetRefundStatus"
-	PaymentService_GetRefundByBooking_FullMethodName       = "/payment.PaymentService/GetRefundByBooking"
-	PaymentService_ReleasePayment_FullMethodName           = "/payment.PaymentService/ReleasePayment"
-	PaymentService_GetPayoutStatus_FullMethodName          = "/payment.PaymentService/GetPayoutStatus"
-	PaymentService_GetDriverPayouts_FullMethodName         = "/payment.PaymentService/GetDriverPayouts"
-	PaymentService_TriggerManualPayout_FullMethodName      = "/payment.PaymentService/TriggerManualPayout"
-	PaymentService_GetPaymentHistory_FullMethodName        = "/payment.PaymentService/GetPaymentHistory"
-	PaymentService_GetRefundHistory_FullMethodName         = "/payment.PaymentService/GetRefundHistory"
-	PaymentService_GetPayoutHistory_FullMethodName         = "/payment.PaymentService/GetPayoutHistory"
-	PaymentService_Health_FullMethodName                   = "/payment.PaymentService/Health"
-	PaymentService_CheckDeletionEligibility_FullMethodName = "/payment.PaymentService/CheckDeletionEligibility"
-	PaymentService_AnonymizeUserData_FullMethodName        = "/payment.PaymentService/AnonymizeUserData"
+	PaymentService_CreatePayment_FullMethodName               = "/payment.PaymentService/CreatePayment"
+	PaymentService_VerifyPayment_FullMethodName               = "/payment.PaymentService/VerifyPayment"
+	PaymentService_CancelPayment_FullMethodName               = "/payment.PaymentService/CancelPayment"
+	PaymentService_HandlePaymentCallback_FullMethodName       = "/payment.PaymentService/HandlePaymentCallback"
+	PaymentService_CancelPaymentForBooking_FullMethodName     = "/payment.PaymentService/CancelPaymentForBooking"
+	PaymentService_GetPaymentStatus_FullMethodName            = "/payment.PaymentService/GetPaymentStatus"
+	PaymentService_GetPaymentByBooking_FullMethodName         = "/payment.PaymentService/GetPaymentByBooking"
+	PaymentService_GetPaymentByBookingInternal_FullMethodName = "/payment.PaymentService/GetPaymentByBookingInternal"
+	PaymentService_ProcessWebhook_FullMethodName              = "/payment.PaymentService/ProcessWebhook"
+	PaymentService_RequestRefund_FullMethodName               = "/payment.PaymentService/RequestRefund"
+	PaymentService_GetRefundStatus_FullMethodName             = "/payment.PaymentService/GetRefundStatus"
+	PaymentService_GetRefundByBooking_FullMethodName          = "/payment.PaymentService/GetRefundByBooking"
+	PaymentService_ReleasePayment_FullMethodName              = "/payment.PaymentService/ReleasePayment"
+	PaymentService_GetPayoutStatus_FullMethodName             = "/payment.PaymentService/GetPayoutStatus"
+	PaymentService_GetDriverPayouts_FullMethodName            = "/payment.PaymentService/GetDriverPayouts"
+	PaymentService_TriggerManualPayout_FullMethodName         = "/payment.PaymentService/TriggerManualPayout"
+	PaymentService_GetPaymentHistory_FullMethodName           = "/payment.PaymentService/GetPaymentHistory"
+	PaymentService_GetRefundHistory_FullMethodName            = "/payment.PaymentService/GetRefundHistory"
+	PaymentService_GetPayoutHistory_FullMethodName            = "/payment.PaymentService/GetPayoutHistory"
+	PaymentService_Health_FullMethodName                      = "/payment.PaymentService/Health"
+	PaymentService_CheckDeletionEligibility_FullMethodName    = "/payment.PaymentService/CheckDeletionEligibility"
+	PaymentService_AnonymizeUserData_FullMethodName           = "/payment.PaymentService/AnonymizeUserData"
 )
 
 // PaymentServiceClient is the client API for PaymentService service.
@@ -66,6 +67,9 @@ type PaymentServiceClient interface {
 	GetPaymentStatus(ctx context.Context, in *GetPaymentStatusRequest, opts ...grpc.CallOption) (*GetPaymentStatusResponse, error)
 	// GetPaymentByBooking retourne le paiement associé à une réservation
 	GetPaymentByBooking(ctx context.Context, in *GetPaymentByBookingRequest, opts ...grpc.CallOption) (*GetPaymentByBookingResponse, error)
+	// GetPaymentByBookingInternal retourne le paiement d'une réservation sans contrôle d'appartenance.
+	// Route interne (sweeper paymentPending de booking-service) — bloquée en bordure par l'api-gateway.
+	GetPaymentByBookingInternal(ctx context.Context, in *GetPaymentByBookingRequest, opts ...grpc.CallOption) (*GetPaymentByBookingResponse, error)
 	// ProcessWebhook traite les webhooks FedaPay (public, vérifié par HMAC)
 	ProcessWebhook(ctx context.Context, in *ProcessWebhookRequest, opts ...grpc.CallOption) (*ProcessWebhookResponse, error)
 	// RequestRefund crée un remboursement (interne — appelé par booking-service)
@@ -174,6 +178,16 @@ func (c *paymentServiceClient) GetPaymentByBooking(ctx context.Context, in *GetP
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetPaymentByBookingResponse)
 	err := c.cc.Invoke(ctx, PaymentService_GetPaymentByBooking_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *paymentServiceClient) GetPaymentByBookingInternal(ctx context.Context, in *GetPaymentByBookingRequest, opts ...grpc.CallOption) (*GetPaymentByBookingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPaymentByBookingResponse)
+	err := c.cc.Invoke(ctx, PaymentService_GetPaymentByBookingInternal_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -344,6 +358,9 @@ type PaymentServiceServer interface {
 	GetPaymentStatus(context.Context, *GetPaymentStatusRequest) (*GetPaymentStatusResponse, error)
 	// GetPaymentByBooking retourne le paiement associé à une réservation
 	GetPaymentByBooking(context.Context, *GetPaymentByBookingRequest) (*GetPaymentByBookingResponse, error)
+	// GetPaymentByBookingInternal retourne le paiement d'une réservation sans contrôle d'appartenance.
+	// Route interne (sweeper paymentPending de booking-service) — bloquée en bordure par l'api-gateway.
+	GetPaymentByBookingInternal(context.Context, *GetPaymentByBookingRequest) (*GetPaymentByBookingResponse, error)
 	// ProcessWebhook traite les webhooks FedaPay (public, vérifié par HMAC)
 	ProcessWebhook(context.Context, *ProcessWebhookRequest) (*ProcessWebhookResponse, error)
 	// RequestRefund crée un remboursement (interne — appelé par booking-service)
@@ -408,6 +425,9 @@ func (UnimplementedPaymentServiceServer) GetPaymentStatus(context.Context, *GetP
 }
 func (UnimplementedPaymentServiceServer) GetPaymentByBooking(context.Context, *GetPaymentByBookingRequest) (*GetPaymentByBookingResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPaymentByBooking not implemented")
+}
+func (UnimplementedPaymentServiceServer) GetPaymentByBookingInternal(context.Context, *GetPaymentByBookingRequest) (*GetPaymentByBookingResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPaymentByBookingInternal not implemented")
 }
 func (UnimplementedPaymentServiceServer) ProcessWebhook(context.Context, *ProcessWebhookRequest) (*ProcessWebhookResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ProcessWebhook not implemented")
@@ -594,6 +614,24 @@ func _PaymentService_GetPaymentByBooking_Handler(srv interface{}, ctx context.Co
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PaymentServiceServer).GetPaymentByBooking(ctx, req.(*GetPaymentByBookingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PaymentService_GetPaymentByBookingInternal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPaymentByBookingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaymentServiceServer).GetPaymentByBookingInternal(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PaymentService_GetPaymentByBookingInternal_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaymentServiceServer).GetPaymentByBookingInternal(ctx, req.(*GetPaymentByBookingRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -884,6 +922,10 @@ var PaymentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetPaymentByBooking",
 			Handler:    _PaymentService_GetPaymentByBooking_Handler,
+		},
+		{
+			MethodName: "GetPaymentByBookingInternal",
+			Handler:    _PaymentService_GetPaymentByBookingInternal_Handler,
 		},
 		{
 			MethodName: "ProcessWebhook",

@@ -35,6 +35,14 @@ func (m *MockPaymentService) GetPaymentByBooking(ctx context.Context, bookingID 
 	return args.Get(0).(*serviceInterfaces.PaymentByBookingResult), args.Error(1)
 }
 
+func (m *MockPaymentService) GetPaymentByBookingInternal(ctx context.Context, bookingID string) (*serviceInterfaces.PaymentByBookingResult, error) {
+	args := m.Called(ctx, bookingID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.PaymentByBookingResult), args.Error(1)
+}
+
 func (m *MockPaymentService) ProcessWebhook(ctx context.Context, input *serviceInterfaces.ProcessWebhookInput) error {
 	args := m.Called(ctx, input)
 	return args.Error(0)

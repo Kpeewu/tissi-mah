@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -97,6 +98,53 @@ func TestE2E_GetPaymentByBooking(t *testing.T) {
 		require.NotNil(t, resp)
 		assert.Equal(t, "e2e-booking-find", resp.BookingId)
 		assert.Equal(t, int32(4000), resp.Amount)
+	})
+
+	t.Run("erreur - sans identite", func(t *testing.T) {
+		_, err := grpcClient.GetPaymentByBooking(context.Background(), &paymentpb.GetPaymentByBookingRequest{
+			BookingId: "e2e-booking-find",
+		})
+
+		require.Error(t, err)
+		assert.Equal(t, codes.Unauthenticated, status.Code(err))
+	})
+}
+
+// =============================================================================
+// GetPaymentByBookingInternal E2E
+// =============================================================================
+
+func TestE2E_GetPaymentByBookingInternal(t *testing.T) {
+	// Appel inter-service (sweeper booking-service) : aucune metadata
+	ctx := context.Background()
+
+	t.Run("succes - retourne le paiement sans identite", func(t *testing.T) {
+		cleanupPaymentTables(t, ctx)
+
+		payment := fixtures.NewTestPayment(
+			fixtures.WithPaymentBookingID("e2e-booking-internal"),
+			fixtures.WithPaymentStatus(domain.PaymentStatusHeld),
+		)
+		require.NoError(t, fixtures.InsertPayment(ctx, testPool, payment))
+
+		resp, err := grpcClient.GetPaymentByBookingInternal(ctx, &paymentpb.GetPaymentByBookingRequest{
+			BookingId: "e2e-booking-internal",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, "e2e-booking-internal", resp.BookingId)
+		assert.Equal(t, "held", resp.Status)
+	})
+
+	t.Run("erreur - reservation sans paiement", func(t *testing.T) {
+		cleanupPaymentTables(t, ctx)
+
+		_, err := grpcClient.GetPaymentByBookingInternal(ctx, &paymentpb.GetPaymentByBookingRequest{
+			BookingId: "e2e-booking-sans-paiement",
+		})
+
+		require.Error(t, err)
+		assert.Equal(t, codes.NotFound, status.Code(err))
 	})
 }
 
