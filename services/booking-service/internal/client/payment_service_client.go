@@ -98,16 +98,17 @@ func (c *PaymentServiceClient) ReleasePayment(ctx context.Context, bookingID str
 }
 
 // GetPaymentStatusByBooking retourne le statut du dernier paiement d'une réservation ("" si aucun).
+// Passe par le RPC interne : le sweeper appelle sans identité utilisateur.
 func (c *PaymentServiceClient) GetPaymentStatusByBooking(ctx context.Context, bookingID string) (string, error) {
-	resp, err := c.grpcClient.GetPaymentByBooking(ctx, &paymentpb.GetPaymentByBookingRequest{
+	resp, err := c.grpcClient.GetPaymentByBookingInternal(ctx, &paymentpb.GetPaymentByBookingRequest{
 		BookingId: bookingID,
 	})
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 			return "", nil
 		}
-		c.logger.Error("client: GetPaymentByBooking failed", zap.Error(err), zap.String("bookingID", bookingID))
-		return "", fmt.Errorf("payment-service: GetPaymentByBooking failed: %w", err)
+		c.logger.Error("client: GetPaymentByBookingInternal failed", zap.Error(err), zap.String("bookingID", bookingID))
+		return "", fmt.Errorf("payment-service: GetPaymentByBookingInternal failed: %w", err)
 	}
 
 	return resp.Status, nil
