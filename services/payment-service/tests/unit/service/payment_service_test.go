@@ -819,7 +819,7 @@ func TestGetRefundByBooking(t *testing.T) {
 func TestGetPayoutStatus(t *testing.T) {
 	t.Run("succes - retourne le statut du payout", func(t *testing.T) {
 		d := newTestService()
-		ctx := context.Background()
+		ctx := callerCtx("driver-abc")
 
 		payout := fixtures.NewTestPayout(
 			fixtures.WithPayoutID("payout-123"),
@@ -844,10 +844,11 @@ func TestGetPayoutStatus(t *testing.T) {
 
 	t.Run("succes - payout echoue avec raison", func(t *testing.T) {
 		d := newTestService()
-		ctx := context.Background()
+		ctx := callerCtx("driver-fail")
 
 		payout := fixtures.NewTestPayout(
 			fixtures.WithPayoutID("payout-fail"),
+			fixtures.WithPayoutDriverID("driver-fail"),
 			fixtures.WithPayoutStatus(domain.PayoutStatusFailed),
 			fixtures.WithPayoutFailureReason("Solde insuffisant"),
 		)
@@ -871,6 +872,23 @@ func TestGetPayoutStatus(t *testing.T) {
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, paymentErrors.ErrorPayoutNotFound)
+		d.assertExpectations(t)
+	})
+
+	t.Run("erreur - accès refusé, le payout appartient à un autre chauffeur", func(t *testing.T) {
+		d := newTestService()
+		ctx := callerCtx("intruder")
+
+		payout := fixtures.NewTestPayout(
+			fixtures.WithPayoutID("payout-other"),
+			fixtures.WithPayoutDriverID("driver-owner"),
+		)
+		d.payoutReadRepo.On("GetByID", mock.Anything, "payout-other").Return(payout, nil)
+
+		result, err := d.svc.GetPayoutStatus(ctx, "payout-other")
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, paymentErrors.ErrorPaymentNotOwned)
 		d.assertExpectations(t)
 	})
 }

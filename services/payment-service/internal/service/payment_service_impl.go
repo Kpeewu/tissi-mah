@@ -636,6 +636,7 @@ func refundToStatusResult(refund *domain.Refund) *serviceInterfaces.RefundStatus
 // GetPayoutStatus / GetDriverPayouts (implémentés en Phase 5)
 // =============================================================================
 
+// GetPayoutStatus retourne le statut d'un payout. L'appelant doit être le chauffeur propriétaire du payout.
 func (s *paymentServiceImpl) GetPayoutStatus(ctx context.Context, payoutID string) (*serviceInterfaces.PayoutStatusResult, error) {
 	if s.payoutReadRepo == nil {
 		return nil, paymentErrors.ErrorInternalServer
@@ -644,6 +645,17 @@ func (s *paymentServiceImpl) GetPayoutStatus(ctx context.Context, payoutID strin
 	payout, err := s.payoutReadRepo.GetByID(ctx, payoutID)
 	if err != nil {
 		return nil, err
+	}
+
+	driverID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if driverID != payout.DriverID {
+		s.logger.Warn("payout access denied: caller is not the payout driver",
+			zap.String("payoutID", payoutID),
+		)
+		return nil, paymentErrors.ErrorPaymentNotOwned
 	}
 
 	var failureReason string
