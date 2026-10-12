@@ -44,15 +44,19 @@ var adminMethods = map[string]bool{
 
 // Routes gRPC publiques ou internes (pas de JWT requis)
 var publicMethods = map[string]bool{
-	"/booking.BookingService/Health":                      true,
-	"/booking.BookingService/StartBookingsForWaypoint":    true, // Route interne (trips-service)
-	"/booking.BookingService/CompleteBookingsForWaypoint": true, // Route interne (trips-service)
-	"/booking.BookingService/ConfirmPayment":              true, // Route interne (payment-service)
-	"/booking.BookingService/FailPayment":                 true, // Route interne (payment-service)
-	"/booking.BookingService/CancelBookingsForWaypoint":   true, // Route interne (trips-service)
-	"/booking.BookingService/CancelBookingsForTrip":       true, // Route interne (trips-service)
-	"/grpc.health.v1.Health/Check":                        true, // Readiness probe Kubernetes
-	"/grpc.health.v1.Health/Watch":                        true, // Liveness probe Kubernetes
+	"/booking.BookingService/Health":                       true,
+	"/booking.BookingService/StartBookingsForWaypoint":     true, // Route interne (trips-service)
+	"/booking.BookingService/CompleteBookingsForWaypoint":  true, // Route interne (trips-service)
+	"/booking.BookingService/ConfirmPayment":               true, // Route interne (payment-service)
+	"/booking.BookingService/FailPayment":                  true, // Route interne (payment-service)
+	"/booking.BookingService/CancelBookingsForWaypoint":    true, // Route interne (trips-service)
+	"/booking.BookingService/CancelBookingsForTrip":        true, // Route interne (trips-service)
+	"/booking.BookingService/GetActivePassengerIDsForTrip": true, // Route interne (trips-service)
+	"/booking.BookingService/CheckDeletionEligibility":     true, // Route interne (auth-service, suppression de compte)
+	"/booking.BookingService/AnonymizeUserData":            true, // Route interne (auth-service, suppression de compte)
+	"/booking.BookingService/GetPassengerBookingIDs":       true, // Route interne (auth-service, suppression de compte)
+	"/grpc.health.v1.Health/Check":                         true, // Readiness probe Kubernetes
+	"/grpc.health.v1.Health/Watch":                         true, // Liveness probe Kubernetes
 }
 
 // Méthodes appelées à la fois par les clients (via api-gateway, JWT Firebase) et en interne

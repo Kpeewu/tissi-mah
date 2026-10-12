@@ -607,3 +607,37 @@ func TestE2E_CompleteBookingsForWaypoint(t *testing.T) {
 		assert.NotEmpty(t, detailResp.Booking.CompletedAt)
 	})
 }
+
+// =============================================================================
+// Suppression de compte E2E (appels internes auth-service, sans metadata)
+// =============================================================================
+
+func TestE2E_AccountDeletionInternalCalls(t *testing.T) {
+	ctx := context.Background()
+	cleanupBookingTables(t, ctx)
+
+	booking := fixtures.NewTestBooking(
+		fixtures.WithBookingID("e2e-bk-deletion"),
+		fixtures.WithPassengerID("e2e-pax-deletion"),
+		fixtures.WithBookingStatus(domain.BookingStatusCompleted),
+	)
+	require.NoError(t, fixtures.InsertBooking(ctx, testPool, booking))
+
+	eligibility, err := grpcClient.CheckDeletionEligibility(ctx, &bookingpb.CheckDeletionEligibilityRequest{
+		UserId: "e2e-pax-deletion",
+	})
+	require.NoError(t, err)
+	assert.True(t, eligibility.CanDelete)
+
+	ids, err := grpcClient.GetPassengerBookingIDs(ctx, &bookingpb.GetPassengerBookingIDsRequest{
+		UserId: "e2e-pax-deletion",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"e2e-bk-deletion"}, ids.BookingIds)
+
+	anonymized, err := grpcClient.AnonymizeUserData(ctx, &bookingpb.AnonymizeUserDataRequest{
+		UserId: "e2e-pax-deletion",
+	})
+	require.NoError(t, err)
+	assert.True(t, anonymized.Success)
+}
