@@ -22,6 +22,7 @@ func NewChatServer(
 	cfg *config.Config,
 	svc svcInterfaces.ChatService,
 	encryptor *crypto.MessageEncryptor,
+	userIDResolver middleware.UserIDResolver,
 	logger *zap.Logger,
 ) (*grpcutil.Server, error) {
 	port, err := strconv.Atoi(cfg.Server.Port)
@@ -36,7 +37,7 @@ func NewChatServer(
 			EnableReflection:  cfg.Environment.Mode != "prod",
 		},
 		logger,
-		grpc.UnaryInterceptor(middleware.ChatInterceptor([]byte(cfg.InternalHMACSecret))),
+		grpc.UnaryInterceptor(middleware.ChatInterceptor([]byte(cfg.InternalHMACSecret), userIDResolver)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)

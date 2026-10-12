@@ -221,9 +221,13 @@ func (h *ChatHandler) CloseThread(ctx context.Context, req *chatpb.CloseThreadRe
 // Helpers
 // =============================================================================
 
+// getUserID retourne l'UserID interne de l'appelant, résolu par l'intercepteur depuis
+// le Firebase UID validé par l'api-gateway.
 func getUserID(ctx context.Context) string {
-	uid, _ := ctx.Value(middleware.FirebaseIDKey).(string)
-	return uid
+	if uid, ok := ctx.Value(middleware.UserIDKey).(string); ok {
+		return uid
+	}
+	return ""
 }
 
 func toProtoMessage(m *domain.ChatMessage, plaintext string) *chatpb.MessageInfo {

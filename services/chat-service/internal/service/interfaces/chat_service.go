@@ -7,15 +7,15 @@ import (
 )
 
 type GetOrCreateThreadInput struct {
-	UserID    string // Firebase UID de l'appelant
+	UserID    string // UserID interne de l'appelant (résolu par l'intercepteur)
 	BookingID string
 }
 
 type SendMessageInput struct {
-	UserID      string // Firebase UID de l'expéditeur
-	ThreadID    string
-	Content     string // texte brut; le filtre PII est appliqué dans la couche service
-	ForceFlagged bool  // true si la modération a signalé le message
+	UserID       string // UserID interne de l'expéditeur (résolu par l'intercepteur)
+	ThreadID     string
+	Content      string // texte brut; le filtre PII est appliqué dans la couche service
+	ForceFlagged bool   // true si la modération a signalé le message
 }
 
 type SendMessageResult struct {
@@ -31,8 +31,8 @@ type GetMessagesInput struct {
 }
 
 type GetMessagesResult struct {
-	Messages   []*domain.ChatMessage
-	HasMore    bool
+	Messages    []*domain.ChatMessage
+	HasMore     bool
 	UnreadCount int32
 }
 

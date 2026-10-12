@@ -29,7 +29,6 @@ const (
 type chatServiceImpl struct {
 	threadRepo        repoInterfaces.ChatThreadRepository
 	messageRepo       repoInterfaces.ChatMessageRepository
-	userClient        client.UserClient
 	bookingClient     client.BookingClient
 	tripClient        client.TripClient
 	moderationClient  client.ModerationClient // nil si désactivé
@@ -42,7 +41,6 @@ type chatServiceImpl struct {
 func NewChatService(
 	threadRepo repoInterfaces.ChatThreadRepository,
 	messageRepo repoInterfaces.ChatMessageRepository,
-	userClient client.UserClient,
 	bookingClient client.BookingClient,
 	tripClient client.TripClient,
 	moderationClient client.ModerationClient,
@@ -53,7 +51,6 @@ func NewChatService(
 	return &chatServiceImpl{
 		threadRepo:       threadRepo,
 		messageRepo:      messageRepo,
-		userClient:       userClient,
 		bookingClient:    bookingClient,
 		tripClient:       tripClient,
 		moderationClient: moderationClient,
@@ -64,37 +61,26 @@ func NewChatService(
 	}
 }
 
-// resolveInternalUserID convertit un Firebase UID en UserID interne.
-// Toutes les opérations chat (autorisation, sender_id, comparaisons avec
-// thread.DriverID/PassengerID retournés par booking-service) utilisent
-// uniquement le UserID interne — jamais le Firebase UID.
-func (s *chatServiceImpl) resolveInternalUserID(ctx context.Context, firebaseUID string) (string, error) {
-	if firebaseUID == "" {
+// requireUserID vérifie que l'appelant est identifié. userID est l'UserID interne résolu
+// depuis le Firebase UID par l'intercepteur : toutes les opérations chat (autorisation,
+// sender_id, comparaisons avec booking.DriverID/PassengerID) l'utilisent — jamais le Firebase UID.
+func requireUserID(userID string) (string, error) {
+	if userID == "" {
 		return "", chatErrors.ErrUnauthorized
 	}
-	internalID, err := s.userClient.GetUserIDByFirebaseID(ctx, firebaseUID)
-	if err != nil {
-		s.logger.Error("chat: resolve firebase uid to internal user id failed",
-			zap.String("firebaseUID", firebaseUID),
-			zap.Error(err),
-		)
-		return "", chatErrors.ErrUnauthorized
-	}
-	return internalID, nil
+	return userID, nil
 }
 
 // GetOrCreateThread ouvre ou retrouve le thread lié à une réservation.
 // Vérifie que la réservation est "approved" et que le trajet n'est pas terminé.
-// input.UserID est le Firebase UID injecté par l'api-gateway ; il est résolu
-// en UserID interne pour comparaison avec booking.DriverID / booking.PassengerID.
+// input.UserID est l'UserID interne de l'appelant (résolu par l'intercepteur), comparé
+// à booking.DriverID / booking.PassengerID.
 func (s *chatServiceImpl) GetOrCreateThread(ctx context.Context, input svcInterfaces.GetOrCreateThreadInput) (*domain.ChatThread, error) {
 	if input.BookingID == "" {
 		return nil, chatErrors.ErrMissingBookingID
 	}
 
-	// Résoudre Firebase UID → UserID interne (toutes les comparaisons
-	// d'autorisation se font avec l'UserID interne).
-	internalUserID, err := s.resolveInternalUserID(ctx, input.UserID)
+	internalUserID, err := requireUserID(input.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -173,8 +159,8 @@ func (s *chatServiceImpl) SendMessage(ctx context.Context, input svcInterfaces.S
 		return nil, chatErrors.ErrMessageTooLong
 	}
 
-	// Résoudre Firebase UID → UserID interne (sender_id stocké en DB).
-	internalUserID, err := s.resolveInternalUserID(ctx, input.UserID)
+	// UserID interne de l'expéditeur (sender_id stocké en DB).
+	internalUserID, err := requireUserID(input.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +285,7 @@ func (s *chatServiceImpl) GetMessages(ctx context.Context, input svcInterfaces.G
 		return nil, chatErrors.ErrMissingThreadID
 	}
 
-	internalUserID, err := s.resolveInternalUserID(ctx, input.UserID)
+	internalUserID, err := requireUserID(input.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +331,7 @@ func (s *chatServiceImpl) GetMessages(ctx context.Context, input svcInterfaces.G
 
 // GetUserThreads retourne les threads d'un utilisateur.
 func (s *chatServiceImpl) GetUserThreads(ctx context.Context, input svcInterfaces.GetUserThreadsInput) ([]*domain.ChatThread, error) {
-	internalUserID, err := s.resolveInternalUserID(ctx, input.UserID)
+	internalUserID, err := requireUserID(input.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -361,7 +347,7 @@ func (s *chatServiceImpl) MarkRead(ctx context.Context, userID string, threadID 
 	if threadID == "" || lastReadMessageID == "" {
 		return chatErrors.ErrMissingThreadID
 	}
-	internalUserID, err := s.resolveInternalUserID(ctx, userID)
+	internalUserID, err := requireUserID(userID)
 	if err != nil {
 		return err
 	}
@@ -383,7 +369,7 @@ func (s *chatServiceImpl) FlagMessage(ctx context.Context, userID string, messag
 	if messageID == "" {
 		return chatErrors.ErrMissingMessageID
 	}
-	internalUserID, err := s.resolveInternalUserID(ctx, userID)
+	internalUserID, err := requireUserID(userID)
 	if err != nil {
 		return err
 	}
