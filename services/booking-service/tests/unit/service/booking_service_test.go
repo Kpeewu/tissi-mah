@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -436,9 +437,6 @@ func TestReportNoShow(t *testing.T) {
 		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, booking.TripID, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		d.expectDeparture(booking, pastPickup)
-		d.paymentClient.On("RequestRefund", mock.Anything, mock.MatchedBy(func(input interface{}) bool {
-			return true
-		})).Return(nil).Maybe()
 
 		err := d.svc.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{
 			BookingID:   "booking-noshow",
@@ -448,6 +446,8 @@ func TestReportNoShow(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		// Remboursement transmis par le worker après le délai de contestation, pas à la déclaration
+		d.paymentClient.AssertNotCalled(t, "RequestRefund", mock.Anything, mock.Anything)
 		d.readRepo.AssertExpectations(t)
 		d.writeRepo.AssertExpectations(t)
 	})
@@ -468,9 +468,6 @@ func TestReportNoShow(t *testing.T) {
 		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, booking.TripID, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		d.expectDeparture(booking, pastPickup)
-		d.paymentClient.On("RequestRefund", mock.Anything, mock.MatchedBy(func(input interface{}) bool {
-			return true
-		})).Return(nil).Maybe()
 
 		err := d.svc.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{
 			BookingID:   "booking-noshow-driver",
@@ -546,29 +543,42 @@ func TestReportNoShow(t *testing.T) {
 		})
 	}
 
-	t.Run("erreur - signalement avant la fin du delai d'attente", func(t *testing.T) {
-		d := newTestService()
-		ctx := context.Background()
+	// Fenêtre de déclaration : de prise en charge prévue + 15 min à prise en charge prévue + 3 h
+	outOfWindowCases := []struct {
+		name       string
+		pickupAgo  time.Duration
+		reporterID string
+		noShowType string
+		wantErr    error
+	}{
+		{"erreur - signalement avant la fin du delai d'attente",
+			5 * time.Minute, "passenger-1", "driver", bookingErrors.ErrorNoShowTooEarly},
+		{"erreur - signalement apres la fin de la fenetre de declaration",
+			4 * time.Hour, "driver-1", "passenger", bookingErrors.ErrorNoShowReportClosed},
+	}
+	for _, tc := range outOfWindowCases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := newTestService()
 
-		booking := fixtures.NewTestBookingWithPayment(
-			fixtures.WithBookingID("booking-noshow-early"),
-			fixtures.WithPassengerID("passenger-1"),
-			fixtures.WithDriverID("driver-1"),
-		)
-		d.readRepo.On("GetByID", mock.Anything, "booking-noshow-early").Return(booking, nil)
-		// Prise en charge prévue il y a 5 min : le délai d'attente n'est pas écoulé
-		d.expectDeparture(booking, time.Now().UTC().Add(-5*time.Minute).Format(time.RFC3339))
+			booking := fixtures.NewTestBookingWithPayment(
+				fixtures.WithBookingID("booking-noshow-window"),
+				fixtures.WithPassengerID("passenger-1"),
+				fixtures.WithDriverID("driver-1"),
+			)
+			d.readRepo.On("GetByID", mock.Anything, "booking-noshow-window").Return(booking, nil)
+			d.expectDeparture(booking, time.Now().UTC().Add(-tc.pickupAgo).Format(time.RFC3339))
 
-		err := d.svc.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{
-			BookingID:  "booking-noshow-early",
-			ReporterID: "passenger-1",
-			NoShowType: "driver",
+			err := d.svc.ReportNoShow(context.Background(), &serviceInterfaces.ReportNoShowInput{
+				BookingID:  "booking-noshow-window",
+				ReporterID: tc.reporterID,
+				NoShowType: tc.noShowType,
+			})
+
+			assert.ErrorIs(t, err, tc.wantErr)
+			d.writeRepo.AssertNotCalled(t, "ReportNoShow",
+				mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		})
-
-		assert.ErrorIs(t, err, bookingErrors.ErrorNoShowTooEarly)
-		d.writeRepo.AssertNotCalled(t, "ReportNoShow",
-			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-	})
+	}
 
 	t.Run("erreur - heure de prise en charge inconnue", func(t *testing.T) {
 		d := newTestService()
@@ -618,6 +628,272 @@ func TestReportNoShow(t *testing.T) {
 		})
 
 		assert.ErrorIs(t, err, bookingErrors.ErrorInvalidInput)
+	})
+}
+
+// =============================================================================
+// ContestNoShow
+// =============================================================================
+
+func TestContestNoShow(t *testing.T) {
+	reportedAt := time.Now().UTC().Add(-time.Hour)
+
+	// noShowBooking : passager déclaré absent par le chauffeur
+	noShowBooking := func() *domain.Booking {
+		return fixtures.NewTestBookingWithPayment(
+			fixtures.WithBookingID("booking-contest"),
+			fixtures.WithPassengerID("passenger-1"),
+			fixtures.WithDriverID("driver-1"),
+			fixtures.WithNoShowReported("passenger", "driver-1", reportedAt),
+		)
+	}
+
+	t.Run("succes - la partie accusee conteste", func(t *testing.T) {
+		d := newTestService()
+		d.readRepo.On("GetByID", mock.Anything, "booking-contest").Return(noShowBooking(), nil)
+		d.writeRepo.On("ContestNoShow", mock.Anything, "booking-contest", "passenger-1",
+			"J'attendais au point de rendez-vous", domain.NoShowContestWindow).Return(nil)
+
+		err := d.svc.ContestNoShow(context.Background(), &serviceInterfaces.ContestNoShowInput{
+			BookingID:   "booking-contest",
+			ContesterID: "passenger-1",
+			Reason:      "  J'attendais au point de rendez-vous  ",
+		})
+
+		require.NoError(t, err)
+		d.writeRepo.AssertExpectations(t)
+	})
+
+	for _, tc := range []struct{ name, contesterID string }{
+		{"erreur - le declarant ne peut pas contester", "driver-1"},
+		{"erreur - un tiers ne peut pas contester", "intrus"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := newTestService()
+			d.readRepo.On("GetByID", mock.Anything, "booking-contest").Return(noShowBooking(), nil)
+
+			err := d.svc.ContestNoShow(context.Background(), &serviceInterfaces.ContestNoShowInput{
+				BookingID:   "booking-contest",
+				ContesterID: tc.contesterID,
+				Reason:      "Contestation",
+			})
+
+			assert.ErrorIs(t, err, bookingErrors.ErrorUnauthorized)
+			d.writeRepo.AssertNotCalled(t, "ContestNoShow",
+				mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		})
+	}
+
+	t.Run("erreur - chauffeur declare absent : seul le chauffeur conteste", func(t *testing.T) {
+		d := newTestService()
+		b := noShowBooking()
+		driverType := "driver"
+		b.NoShowType = &driverType
+		d.readRepo.On("GetByID", mock.Anything, "booking-contest").Return(b, nil)
+
+		err := d.svc.ContestNoShow(context.Background(), &serviceInterfaces.ContestNoShowInput{
+			BookingID:   "booking-contest",
+			ContesterID: "passenger-1",
+			Reason:      "Contestation",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorUnauthorized)
+	})
+
+	t.Run("erreur - reservation sans no-show", func(t *testing.T) {
+		d := newTestService()
+		b := fixtures.NewTestBookingWithPayment(
+			fixtures.WithBookingID("booking-contest"),
+			fixtures.WithPassengerID("passenger-1"),
+			fixtures.WithBookingStatus(domain.BookingStatusApproved),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-contest").Return(b, nil)
+
+		err := d.svc.ContestNoShow(context.Background(), &serviceInterfaces.ContestNoShowInput{
+			BookingID:   "booking-contest",
+			ContesterID: "passenger-1",
+			Reason:      "Contestation",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorInvalidStatusTransition)
+	})
+
+	for _, tc := range []struct{ name, reason string }{
+		{"erreur - motif vide", "   "},
+		{"erreur - motif trop long", strings.Repeat("é", 1001)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := newTestService()
+
+			err := d.svc.ContestNoShow(context.Background(), &serviceInterfaces.ContestNoShowInput{
+				BookingID:   "booking-contest",
+				ContesterID: "passenger-1",
+				Reason:      tc.reason,
+			})
+
+			assert.ErrorIs(t, err, bookingErrors.ErrorInvalidInput)
+			d.readRepo.AssertNotCalled(t, "GetByID", mock.Anything, mock.Anything)
+		})
+	}
+}
+
+// =============================================================================
+// ResolveNoShowContest
+// =============================================================================
+
+func TestResolveNoShowContest(t *testing.T) {
+	t.Run("succes - decision enregistree puis remboursement transmis", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		resolved := fixtures.NewTestBookingWithPayment(
+			fixtures.WithBookingID("booking-resolve"),
+			fixtures.WithTripID("trip-resolve"),
+			fixtures.WithNoShowReported("driver", "passenger-1", time.Now().UTC().Add(-2*time.Hour)),
+			fixtures.WithRefundReason(domain.RefundReasonNoShowPassenger),
+		)
+		d.writeRepo.On("ResolveNoShowContest", mock.Anything, "booking-resolve", "support-1",
+			domain.RefundReasonNoShowPassenger, "Chauffeur géolocalisé au point de rendez-vous").Return(nil)
+		d.readRepo.On("GetByID", mock.Anything, "booking-resolve").Return(resolved, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-resolve").Return(nil, nil).Maybe()
+
+		refundSent := make(chan *client.RefundInput, 1)
+		d.paymentClient.On("RequestRefund", mock.Anything, mock.Anything).
+			Run(func(args mock.Arguments) {
+				if in, ok := args.Get(1).(*client.RefundInput); ok {
+					refundSent <- in
+				}
+			}).
+			Return(nil)
+		d.writeRepo.On("MarkRefundRequested", mock.Anything, "booking-resolve").Return(nil).Maybe()
+
+		err := d.svc.ResolveNoShowContest(ctx, &serviceInterfaces.ResolveNoShowContestInput{
+			BookingID:    "booking-resolve",
+			SupportUID:   "support-1",
+			RefundReason: domain.RefundReasonNoShowPassenger,
+			Note:         "Chauffeur géolocalisé au point de rendez-vous",
+		})
+		require.NoError(t, err)
+
+		select {
+		case in := <-refundSent:
+			assert.Equal(t, domain.RefundReasonNoShowPassenger, in.RefundReason)
+		case <-time.After(2 * time.Second):
+			t.Fatal("RequestRefund non appelé après la décision du support")
+		}
+	})
+
+	for _, tc := range []struct {
+		name  string
+		input serviceInterfaces.ResolveNoShowContestInput
+	}{
+		{"erreur - motif non autorise", serviceInterfaces.ResolveNoShowContestInput{
+			BookingID: "b", SupportUID: "s", RefundReason: domain.RefundReasonCancelledByPassenger, Note: "n"}},
+		{"erreur - note vide", serviceInterfaces.ResolveNoShowContestInput{
+			BookingID: "b", SupportUID: "s", RefundReason: domain.RefundReasonNoShowDriver, Note: "  "}},
+		{"erreur - agent support absent", serviceInterfaces.ResolveNoShowContestInput{
+			BookingID: "b", RefundReason: domain.RefundReasonNoShowDriver, Note: "n"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := newTestService()
+			input := tc.input
+
+			err := d.svc.ResolveNoShowContest(context.Background(), &input)
+
+			assert.ErrorIs(t, err, bookingErrors.ErrorInvalidInput)
+			d.writeRepo.AssertNotCalled(t, "ResolveNoShowContest",
+				mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		})
+	}
+
+	t.Run("erreur - no-show non conteste", func(t *testing.T) {
+		d := newTestService()
+		d.writeRepo.On("ResolveNoShowContest", mock.Anything, "booking-resolve", "support-1",
+			domain.RefundReasonNoShowDriver, "Décision").Return(bookingErrors.ErrorNoShowNotContested)
+
+		err := d.svc.ResolveNoShowContest(context.Background(), &serviceInterfaces.ResolveNoShowContestInput{
+			BookingID:    "booking-resolve",
+			SupportUID:   "support-1",
+			RefundReason: domain.RefundReasonNoShowDriver,
+			Note:         "Décision",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorNoShowNotContested)
+		d.paymentClient.AssertNotCalled(t, "RequestRefund", mock.Anything, mock.Anything)
+	})
+}
+
+// =============================================================================
+// Notifications du no-show : destinataires
+// =============================================================================
+
+func TestNoShowNotifications(t *testing.T) {
+	pastPickup := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)
+
+	newBooking := func(opts ...fixtures.BookingOption) *domain.Booking {
+		return fixtures.NewTestCashBooking(append([]fixtures.BookingOption{
+			fixtures.WithBookingID("booking-notif"),
+			fixtures.WithPassengerID("passenger-n"),
+			fixtures.WithDriverID("driver-n"),
+			fixtures.WithBookingStatus(domain.BookingStatusApproved),
+		}, opts...)...)
+	}
+
+	for _, tc := range []struct {
+		name, reporterID, noShowType, want string
+	}{
+		{"declaration - passager absent : le passager est prevenu",
+			"driver-n", "passenger", notification.NoShowAtDeparture + ":passenger-n"},
+		{"declaration - chauffeur absent : le chauffeur est prevenu",
+			"passenger-n", "driver", notification.DriverNoShowReported + ":driver-n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d, rdb := newTestServiceWithNotif(t)
+			b := newBooking()
+			d.readRepo.On("GetByID", mock.Anything, "booking-notif").Return(b, nil)
+			d.expectDeparture(b, pastPickup)
+			d.writeRepo.On("ReportNoShow", mock.Anything, "booking-notif", tc.reporterID, tc.noShowType, "").Return(nil)
+			d.tripClient.On("IncrementLegBookedSeats",
+				mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+			require.NoError(t, d.svc.ReportNoShow(context.Background(), &serviceInterfaces.ReportNoShowInput{
+				BookingID: "booking-notif", ReporterID: tc.reporterID, NoShowType: tc.noShowType,
+			}))
+
+			assert.Equal(t, []string{tc.want}, publishedNotifications(t, rdb))
+		})
+	}
+
+	t.Run("contestation : le declarant est prevenu", func(t *testing.T) {
+		d, rdb := newTestServiceWithNotif(t)
+		b := newBooking(fixtures.WithNoShowReported("passenger", "driver-n", time.Now().UTC().Add(-time.Hour)))
+		d.readRepo.On("GetByID", mock.Anything, "booking-notif").Return(b, nil)
+		d.writeRepo.On("ContestNoShow", mock.Anything, "booking-notif", "passenger-n", "J'étais là",
+			domain.NoShowContestWindow).Return(nil)
+
+		require.NoError(t, d.svc.ContestNoShow(context.Background(), &serviceInterfaces.ContestNoShowInput{
+			BookingID: "booking-notif", ContesterID: "passenger-n", Reason: "J'étais là",
+		}))
+
+		assert.Equal(t, []string{notification.NoShowContested + ":driver-n"}, publishedNotifications(t, rdb))
+	})
+
+	t.Run("decision du support : les deux parties sont prevenues", func(t *testing.T) {
+		d, rdb := newTestServiceWithNotif(t)
+		b := newBooking(fixtures.WithNoShowReported("passenger", "driver-n", time.Now().UTC().Add(-time.Hour)))
+		d.writeRepo.On("ResolveNoShowContest", mock.Anything, "booking-notif", "support-1",
+			domain.RefundReasonTripCancelled, "Doute").Return(nil)
+		d.readRepo.On("GetByID", mock.Anything, "booking-notif").Return(b, nil)
+
+		require.NoError(t, d.svc.ResolveNoShowContest(context.Background(), &serviceInterfaces.ResolveNoShowContestInput{
+			BookingID: "booking-notif", SupportUID: "support-1",
+			RefundReason: domain.RefundReasonTripCancelled, Note: "Doute",
+		}))
+
+		assert.ElementsMatch(t, []string{
+			notification.NoShowContestResolved + ":passenger-n",
+			notification.NoShowContestResolved + ":driver-n",
+		}, publishedNotifications(t, rdb))
 	})
 }
 

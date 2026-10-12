@@ -87,6 +87,31 @@ func WithCancellationReason(reason string) BookingOption {
 	return func(b *domain.Booking) { b.CancellationReason = &reason }
 }
 
+// WithNoShowReported pose un no-show déclaré à reportedAt.
+func WithNoShowReported(noShowType, reportedBy string, reportedAt time.Time) BookingOption {
+	return func(b *domain.Booking) {
+		b.Status = domain.BookingStatusNoShow
+		b.NoShowType = &noShowType
+		b.NoShowReportedBy = &reportedBy
+		b.NoShowReportedAt = &reportedAt
+	}
+}
+
+// WithRefundReason pose le motif du remboursement dû.
+func WithRefundReason(reason string) BookingOption {
+	return func(b *domain.Booking) { b.RefundReason = &reason }
+}
+
+// WithNoShowContested pose une contestation du no-show à contestedAt.
+func WithNoShowContested(contestedBy string, contestedAt time.Time) BookingOption {
+	return func(b *domain.Booking) {
+		reason := "J'étais présent au point de rendez-vous"
+		b.NoShowContestedBy = &contestedBy
+		b.NoShowContestedAt = &contestedAt
+		b.NoShowContestReason = &reason
+	}
+}
+
 // NewTestBooking cree un Booking avec des valeurs par defaut
 func NewTestBooking(opts ...BookingOption) *domain.Booking {
 	now := time.Now().UTC()
@@ -150,9 +175,12 @@ func InsertBooking(ctx context.Context, pool *pgxpool.Pool, b *domain.Booking) e
 		subtotal, service_fee, total_amount, payment_method, status,
 		payment_completed_at, approved_at, rejected_at, cancelled_at, completed_at,
 		canceller_id, cancellation_reason, no_show_type, no_show_reported_by,
-		no_show_reported_at, no_show_description
+		no_show_reported_at, no_show_description, refund_reason,
+		no_show_contested_at, no_show_contested_by, no_show_contest_reason,
+		no_show_resolved_at, no_show_resolved_by, no_show_resolution, no_show_resolution_note
 	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-		$15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)`
+		$15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28,
+		$29, $30, $31, $32, $33, $34, $35)`
 
 	_, err := pool.Exec(ctx, query,
 		b.BookingID, b.BookingReference, b.TripID, b.PassengerID, b.DriverID,
@@ -162,7 +190,9 @@ func InsertBooking(ctx context.Context, pool *pgxpool.Pool, b *domain.Booking) e
 		b.Subtotal, b.ServiceFee, b.TotalAmount, b.PaymentMethod, b.Status,
 		b.PaymentCompletedAt, b.ApprovedAt, b.RejectedAt, b.CancelledAt, b.CompletedAt,
 		b.CancellerID, b.CancellationReason, b.NoShowType, b.NoShowReportedBy,
-		b.NoShowReportedAt, b.NoShowDescription,
+		b.NoShowReportedAt, b.NoShowDescription, b.RefundReason,
+		b.NoShowContestedAt, b.NoShowContestedBy, b.NoShowContestReason,
+		b.NoShowResolvedAt, b.NoShowResolvedBy, b.NoShowResolution, b.NoShowResolutionNote,
 	)
 	return err
 }

@@ -39,7 +39,9 @@ func (r *bookingReadRepositoryImpl) GetByID(ctx context.Context, bookingID strin
 		       canceller_id, cancellation_reason,
 		       no_show_type, no_show_reported_by, no_show_reported_at, no_show_description,
 		       payment_released_at, created_at, updated_at,
-		       refund_reason, refund_requested_at, refund_request_attempts
+		       refund_reason, refund_requested_at, refund_request_attempts,
+		       no_show_contested_at, no_show_contested_by, no_show_contest_reason,
+		       no_show_resolved_at, no_show_resolved_by, no_show_resolution, no_show_resolution_note
 		FROM bookings
 		WHERE booking_id = $1`
 
@@ -56,6 +58,8 @@ func (r *bookingReadRepositoryImpl) GetByID(ctx context.Context, bookingID strin
 		&b.NoShowType, &b.NoShowReportedBy, &b.NoShowReportedAt, &b.NoShowDescription,
 		&b.PaymentReleasedAt, &b.CreatedAt, &b.UpdatedAt,
 		&b.RefundReason, &b.RefundRequestedAt, &b.RefundRequestAttempts,
+		&b.NoShowContestedAt, &b.NoShowContestedBy, &b.NoShowContestReason,
+		&b.NoShowResolvedAt, &b.NoShowResolvedBy, &b.NoShowResolution, &b.NoShowResolutionNote,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -438,8 +442,11 @@ func (r *bookingReadRepositoryImpl) GetCompletedBookingsPendingRelease(ctx conte
 
 // GetBookingsPendingRefundRequest retourne les réservations dont le remboursement dû n'a pas été
 // acquitté par payment-service, modifiées avant updatedBefore et refusées moins de maxAttempts fois.
+// Un no-show n'est retenu qu'une fois son délai de contestation (noShowContestWindow) écoulé sans
+// contestation, ou après la décision du support. L'horloge de la base sert de référence, comme
+// pour ContestNoShow : une réservation retenue ici ne peut plus être contestée.
 func (r *bookingReadRepositoryImpl) GetBookingsPendingRefundRequest(
-	ctx context.Context, updatedBefore time.Time, maxAttempts, limit int,
+	ctx context.Context, updatedBefore time.Time, maxAttempts, limit int, noShowContestWindow time.Duration,
 ) ([]*domain.Booking, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT booking_id, trip_id, pickup_waypoint_id, subtotal, service_fee, status,
@@ -451,8 +458,12 @@ func (r *bookingReadRepositoryImpl) GetBookingsPendingRefundRequest(
 		  AND refund_request_attempts < $2
 		  AND updated_at < $1
 		  AND deleted_at IS NULL
+		  AND (status <> 'noShow'
+		       OR no_show_resolved_at IS NOT NULL
+		       OR (no_show_contested_at IS NULL
+		           AND no_show_reported_at < NOW() - make_interval(secs => $4)))
 		ORDER BY updated_at ASC
-		LIMIT $3`, updatedBefore, maxAttempts, limit)
+		LIMIT $3`, updatedBefore, maxAttempts, limit, noShowContestWindow.Seconds())
 	if err != nil {
 		r.logger.Error("GetBookingsPendingRefundRequest failed", zap.Error(err))
 		return nil, bookingErrors.ErrorDataRetrievalFailed
@@ -762,6 +773,9 @@ func buildAdminFilterClause(filter domain.BookingAdminFilter) (string, []interfa
 	}
 	if filter.DateTo != nil {
 		add("b.created_at <= $%d", *filter.DateTo)
+	}
+	if filter.NoShowContestPending {
+		conditions = append(conditions, "b.no_show_contested_at IS NOT NULL AND b.no_show_resolved_at IS NULL")
 	}
 
 	return "WHERE " + strings.Join(conditions, " AND "), args

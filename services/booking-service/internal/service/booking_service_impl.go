@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Kpeewu/tissi-mah/pkg/notification"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/cache"
@@ -736,26 +737,17 @@ func (s *bookingServiceImpl) ReportNoShow(ctx context.Context, input *serviceInt
 
 	s.invalidateBookingCaches(ctx, input.BookingID)
 
-	// Notifier le passager de l'absence signalée
-	if s.notifRedis != nil {
-		if err := notification.Publish(ctx, s.notifRedis, notification.Event{
-			EventType:     notification.NoShowAtDeparture,
-			UserID:        booking.PassengerID,
-			ReferenceID:   booking.BookingID,
-			ReferenceType: notification.RefBooking,
-			Payload: map[string]string{
-				"trip_id": booking.TripID,
-			},
-		}); err != nil {
-			s.logger.Error("failed to publish NO_SHOW_AT_DEPARTURE notification", zap.Error(err))
-		}
+	// Notifier la partie déclarée absente, qui peut contester avant l'échéance
+	eventType := notification.NoShowAtDeparture
+	if input.NoShowType == "driver" {
+		eventType = notification.DriverNoShowReported
 	}
+	s.publishNoShowEvent(ctx, eventType, noShowAccusedID(booking, input.NoShowType), booking, map[string]string{
+		"contest_deadline": formatNotificationTime(time.Now().Add(domain.NoShowContestWindow)),
+	})
 
-	// Demander le remboursement au payment-service (fire-and-forget)
-	if s.shouldRequestRefund(booking) {
-		go s.requestRefundAsync(booking.BookingID)
-	}
-
+	// Pas de demande de remboursement ici : refund_reason est enregistré avec la transition et le
+	// worker le transmet à l'expiration du délai de contestation (ou après la décision du support).
 	return nil
 }
 
@@ -771,13 +763,19 @@ func canReportNoShow(booking *domain.Booking, reporterID, noShowType string) boo
 	}
 }
 
-// noShowReportDelay : attente minimale au point de rendez-vous, après l'heure de prise en charge
-// prévue, avant de pouvoir déclarer l'autre partie absente.
-const noShowReportDelay = 15 * time.Minute
+const (
+	// noShowReportDelay : attente minimale au point de rendez-vous, après l'heure de prise en charge
+	// prévue, avant de pouvoir déclarer l'autre partie absente.
+	noShowReportDelay = 15 * time.Minute
+	// noShowReportWindow : au-delà de ce délai après l'heure de prise en charge prévue, l'absence
+	// ne peut plus être déclarée.
+	noShowReportWindow = 3 * time.Hour
+)
 
-// checkNoShowReportable vérifie qu'une absence peut déjà être constatée : l'heure de prise en
-// charge prévue (source de vérité : trips-service) doit être passée d'au moins noShowReportDelay.
-// Si cette heure est inconnue, on refuse plutôt que de laisser passer un signalement anticipé.
+// checkNoShowReportable vérifie que l'absence est déclarée dans la fenêtre
+// [prise en charge prévue + noShowReportDelay, prise en charge prévue + noShowReportWindow].
+// L'heure de prise en charge vient de trips-service ; si elle est inconnue, on refuse plutôt que
+// de laisser passer un signalement hors fenêtre.
 func (s *bookingServiceImpl) checkNoShowReportable(ctx context.Context, booking *domain.Booking) error {
 	scheduledPickup, err := time.Parse(time.RFC3339, s.getDepartureDatetime(ctx, booking))
 	if err != nil {
@@ -786,10 +784,153 @@ func (s *bookingServiceImpl) checkNoShowReportable(ctx context.Context, booking 
 		return bookingErrors.ErrorDataRetrievalFailed
 	}
 
-	if time.Now().Before(scheduledPickup.Add(noShowReportDelay)) {
+	now := time.Now()
+	if now.Before(scheduledPickup.Add(noShowReportDelay)) {
 		return bookingErrors.ErrorNoShowTooEarly
 	}
+	if now.After(scheduledPickup.Add(noShowReportWindow)) {
+		return bookingErrors.ErrorNoShowReportClosed
+	}
 	return nil
+}
+
+// =============================================================================
+// ContestNoShow
+// =============================================================================
+
+// maxNoShowContestReasonLength borne le motif d'une contestation (en caractères).
+const maxNoShowContestReasonLength = 1000
+
+func (s *bookingServiceImpl) ContestNoShow(ctx context.Context, input *serviceInterfaces.ContestNoShowInput) error {
+	reason := strings.TrimSpace(input.Reason)
+	if input.BookingID == "" || input.ContesterID == "" || reason == "" ||
+		utf8.RuneCountInString(reason) > maxNoShowContestReasonLength {
+		return bookingErrors.ErrorInvalidInput
+	}
+
+	booking, err := s.readRepo.GetByID(ctx, input.BookingID)
+	if err != nil {
+		return err
+	}
+	if booking.Status != domain.BookingStatusNoShow || booking.NoShowType == nil {
+		return bookingErrors.ErrorInvalidStatusTransition
+	}
+
+	// Seule la partie déclarée absente peut contester
+	if input.ContesterID != noShowAccusedID(booking, *booking.NoShowType) {
+		s.logger.Warn("service: ContestNoShow refusé, l'appelant n'est pas la partie accusée",
+			zap.String("bookingID", input.BookingID))
+		return bookingErrors.ErrorUnauthorized
+	}
+
+	err = s.writeRepo.ContestNoShow(ctx, input.BookingID, input.ContesterID, reason, domain.NoShowContestWindow)
+	if err != nil {
+		return err
+	}
+
+	s.invalidateBookingCaches(ctx, input.BookingID)
+
+	// Prévenir le déclarant que l'absence est contestée et soumise au support
+	s.publishNoShowEvent(ctx, notification.NoShowContested, derefString(booking.NoShowReportedBy), booking, nil)
+	return nil
+}
+
+// =============================================================================
+// ResolveNoShowContest (support)
+// =============================================================================
+
+// noShowResolutionReasons : motifs de remboursement que le support peut retenir pour un no-show contesté.
+var noShowResolutionReasons = map[string]bool{
+	domain.RefundReasonNoShowDriver:    true,
+	domain.RefundReasonNoShowPassenger: true,
+	domain.RefundReasonTripCancelled:   true,
+}
+
+func (s *bookingServiceImpl) ResolveNoShowContest(
+	ctx context.Context, input *serviceInterfaces.ResolveNoShowContestInput,
+) error {
+	note := strings.TrimSpace(input.Note)
+	if input.BookingID == "" || input.SupportUID == "" || !noShowResolutionReasons[input.RefundReason] ||
+		note == "" || utf8.RuneCountInString(note) > maxNoShowContestReasonLength {
+		return bookingErrors.ErrorInvalidInput
+	}
+
+	err := s.writeRepo.ResolveNoShowContest(ctx, input.BookingID, input.SupportUID, input.RefundReason, note)
+	if err != nil {
+		return err
+	}
+	s.logger.Info("no-show contest resolved",
+		zap.String("bookingID", input.BookingID),
+		zap.String("supportUID", input.SupportUID),
+		zap.String("refundReason", input.RefundReason),
+	)
+
+	s.invalidateBookingCaches(ctx, input.BookingID)
+
+	booking, err := s.readRepo.GetByID(ctx, input.BookingID)
+	if err != nil {
+		// Décision enregistrée : le worker transmettra le remboursement
+		s.logger.Warn("ResolveNoShowContest: reload booking failed",
+			zap.String("bookingID", input.BookingID), zap.Error(err))
+		return nil
+	}
+
+	// Transmission immédiate, rejouée par le worker en cas d'échec
+	if s.shouldRequestRefund(booking) {
+		go s.requestRefundAsync(booking.BookingID)
+	}
+
+	decision := map[string]string{"decision": noShowDecisionLabels[input.RefundReason]}
+	s.publishNoShowEvent(ctx, notification.NoShowContestResolved, booking.PassengerID, booking, decision)
+	s.publishNoShowEvent(ctx, notification.NoShowContestResolved, booking.DriverID, booking, decision)
+	return nil
+}
+
+// noShowAccusedID retourne l'UserID de la partie déclarée absente pour ce type de no-show.
+func noShowAccusedID(booking *domain.Booking, noShowType string) string {
+	if noShowType == "driver" {
+		return booking.DriverID
+	}
+	return booking.PassengerID
+}
+
+// noShowDecisionLabels : libellé, pour les notifications, du motif retenu par le support.
+var noShowDecisionLabels = map[string]string{
+	domain.RefundReasonNoShowDriver:    "l'absence du conducteur est retenue",
+	domain.RefundReasonNoShowPassenger: "l'absence du passager est retenue",
+	domain.RefundReasonTripCancelled:   "le trajet est considéré comme annulé, sans faute de l'une ou l'autre partie",
+}
+
+// publishNoShowEvent publie une notification liée au no-show d'une réservation (best-effort).
+func (s *bookingServiceImpl) publishNoShowEvent(
+	ctx context.Context, eventType, userID string, booking *domain.Booking, extra map[string]string,
+) {
+	if s.notifRedis == nil || userID == "" {
+		return
+	}
+	payload := map[string]string{
+		"trip_id":           booking.TripID,
+		"booking_id":        booking.BookingID,
+		"notification_type": eventType,
+	}
+	for k, v := range extra {
+		payload[k] = v
+	}
+	if err := notification.Publish(ctx, s.notifRedis, notification.Event{
+		EventType:     eventType,
+		UserID:        userID,
+		ReferenceID:   booking.BookingID,
+		ReferenceType: notification.RefBooking,
+		Payload:       payload,
+	}); err != nil {
+		s.logger.Error("failed to publish no-show notification",
+			zap.String("eventType", eventType), zap.String("bookingID", booking.BookingID), zap.Error(err))
+	}
+}
+
+// formatNotificationTime formate une date pour un texte de notification (GMT, fuseau du Togo).
+func formatNotificationTime(t time.Time) string {
+	return t.UTC().Format("02/01/2006 à 15:04") + " GMT"
 }
 
 // =============================================================================
@@ -1250,6 +1391,13 @@ func (s *bookingServiceImpl) mapBookingToDetailResult(booking *domain.Booking, s
 		CreatedAt:          booking.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:          booking.UpdatedAt.Format(time.RFC3339),
 		PassengerMessage:   derefString(booking.PassengerMessage),
+
+		NoShowContestedAt:    formatTimeOptional(booking.NoShowContestedAt),
+		NoShowContestedBy:    derefString(booking.NoShowContestedBy),
+		NoShowContestReason:  derefString(booking.NoShowContestReason),
+		NoShowResolvedAt:     formatTimeOptional(booking.NoShowResolvedAt),
+		NoShowResolution:     derefString(booking.NoShowResolution),
+		NoShowResolutionNote: derefString(booking.NoShowResolutionNote),
 	}
 
 	for _, seg := range segments {
@@ -1895,8 +2043,9 @@ func (s *bookingServiceImpl) ListBookingsAdmin(ctx context.Context, input *servi
 	}
 
 	filter := domain.BookingAdminFilter{
-		Status:           input.Status,
-		BookingReference: input.BookingReference,
+		Status:               input.Status,
+		BookingReference:     input.BookingReference,
+		NoShowContestPending: input.NoShowContestPending,
 	}
 	if input.DateFrom != "" {
 		t, err := time.Parse(time.RFC3339, input.DateFrom)
@@ -2003,8 +2152,9 @@ func (s *bookingServiceImpl) GetBookingDetailAdmin(ctx context.Context, bookingI
 	detail.RoutePolyline = s.fetchRoutePolyline(ctx, booking.TripID)
 
 	return &serviceInterfaces.BookingDetailAdminResult{
-		Booking:       detail,
-		PassengerName: passengerName,
-		DriverName:    driverName,
+		Booking:          detail,
+		PassengerName:    passengerName,
+		DriverName:       driverName,
+		NoShowResolvedBy: derefString(booking.NoShowResolvedBy),
 	}, nil
 }

@@ -511,6 +511,113 @@ func (r *bookingWriteRepositoryImpl) ReportNoShow(ctx context.Context, bookingID
 	return tx.Commit(ctx)
 }
 
+// ContestNoShow enregistre la contestation d'un no-show par la partie accusée. Elle n'est acceptée
+// que dans contestWindow après la déclaration (horloge de la base, comme le worker de remboursement)
+// et tant que le remboursement dû n'a pas été transmis à payment-service.
+func (r *bookingWriteRepositoryImpl) ContestNoShow(
+	ctx context.Context, bookingID, contesterID, reason string, contestWindow time.Duration,
+) error {
+	r.logger.Debug("contesting no-show", zap.String("bookingID", bookingID))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var (
+		currentStatus string
+		contested     bool
+		withinWindow  bool
+		refundSent    bool
+	)
+	err = tx.QueryRow(ctx, `
+		SELECT status,
+		       no_show_contested_at IS NOT NULL,
+		       COALESCE(no_show_reported_at >= NOW() - make_interval(secs => $2), false),
+		       refund_requested_at IS NOT NULL
+		FROM bookings WHERE booking_id = $1 FOR UPDATE`, bookingID, contestWindow.Seconds(),
+	).Scan(&currentStatus, &contested, &withinWindow, &refundSent)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return bookingErrors.ErrorBookingNotFound
+		}
+		return bookingErrors.ErrorDataRetrievalFailed
+	}
+
+	switch {
+	case currentStatus != string(domain.BookingStatusNoShow):
+		return bookingErrors.ErrorInvalidStatusTransition
+	case contested:
+		return bookingErrors.ErrorNoShowAlreadyContested
+	case !withinWindow || refundSent:
+		return bookingErrors.ErrorNoShowContestClosed
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE bookings SET no_show_contested_at = NOW(), no_show_contested_by = $2,
+		       no_show_contest_reason = $3, updated_at = NOW()
+		WHERE booking_id = $1`,
+		bookingID, contesterID, reason)
+	if err != nil {
+		r.logger.Error("contest no-show update failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	return tx.Commit(ctx)
+}
+
+// ResolveNoShowContest enregistre la décision du support sur un no-show contesté. Le motif retenu
+// remplace refund_reason (réservation payée en ligne uniquement) ; le worker de remboursement le
+// transmet dès que no_show_resolved_at est posé.
+func (r *bookingWriteRepositoryImpl) ResolveNoShowContest(
+	ctx context.Context, bookingID, supportUID, refundReason, note string,
+) error {
+	r.logger.Debug("resolving no-show contest", zap.String("bookingID", bookingID), zap.String("reason", refundReason))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var (
+		currentStatus string
+		contested     bool
+		resolved      bool
+	)
+	err = tx.QueryRow(ctx, `
+		SELECT status, no_show_contested_at IS NOT NULL, no_show_resolved_at IS NOT NULL
+		FROM bookings WHERE booking_id = $1 FOR UPDATE`, bookingID,
+	).Scan(&currentStatus, &contested, &resolved)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return bookingErrors.ErrorBookingNotFound
+		}
+		return bookingErrors.ErrorDataRetrievalFailed
+	}
+
+	switch {
+	case currentStatus != string(domain.BookingStatusNoShow) || !contested:
+		return bookingErrors.ErrorNoShowNotContested
+	case resolved:
+		return bookingErrors.ErrorNoShowAlreadyResolved
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE bookings SET no_show_resolved_at = NOW(), no_show_resolved_by = $2,
+		       no_show_resolution = $3, no_show_resolution_note = $4,
+		       refund_reason = `+refundReasonIfPaid("$5")+`, updated_at = NOW()
+		WHERE booking_id = $1`,
+		bookingID, supportUID, refundReason, note, refundReason)
+	if err != nil {
+		r.logger.Error("resolve no-show contest update failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	return tx.Commit(ctx)
+}
+
 // ConfirmPayment confirme le paiement d'une réservation : expectedStatus → newStatus
 // (pendingApproval, ou approved avec approved_at si le trajet est en auto-approbation).
 // expectedStatus vaut paymentPending, ou paymentFailed pour réactiver une réservation dont

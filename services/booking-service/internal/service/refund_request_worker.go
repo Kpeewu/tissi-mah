@@ -57,7 +57,7 @@ func (s *bookingServiceImpl) ProcessRefundRequests(ctx context.Context) {
 
 	updatedBefore := time.Now().UTC().Add(-refundRequestGracePeriod)
 	bookings, err := s.readRepo.GetBookingsPendingRefundRequest(
-		ctx, updatedBefore, maxRefundRequestAttempts, refundRequestBatchSize,
+		ctx, updatedBefore, maxRefundRequestAttempts, refundRequestBatchSize, domain.NoShowContestWindow,
 	)
 	if err != nil {
 		s.logger.Error("refund request worker: query failed", zap.Error(err))

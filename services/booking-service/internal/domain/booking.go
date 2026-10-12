@@ -30,6 +30,11 @@ const (
 	RefundReasonWaypointCancelled    = "waypointCancelled"
 )
 
+// NoShowContestWindow : délai, à compter de la déclaration, pendant lequel la partie accusée
+// d'absence peut la contester. Le remboursement dû n'est transmis qu'à son expiration, ou après
+// la décision du support si l'absence est contestée.
+const NoShowContestWindow = 48 * time.Hour
+
 // PaymentMethod représente le mode de paiement d'une réservation.
 type PaymentMethod string
 
@@ -79,4 +84,12 @@ type Booking struct {
 	RefundReason          *string
 	RefundRequestedAt     *time.Time
 	RefundRequestAttempts int16
+	// Contestation par la partie accusée et arbitrage du support (cf. migration 000009)
+	NoShowContestedAt    *time.Time
+	NoShowContestedBy    *string
+	NoShowContestReason  *string
+	NoShowResolvedAt     *time.Time
+	NoShowResolvedBy     *string
+	NoShowResolution     *string
+	NoShowResolutionNote *string
 }

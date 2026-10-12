@@ -79,8 +79,11 @@ func (m *MockBookingRepositoryRead) GetCompletedBookingsPendingRelease(ctx conte
 	return args.Get(0).([]*domain.Booking), args.Error(1)
 }
 
-func (m *MockBookingRepositoryRead) GetBookingsPendingRefundRequest(ctx context.Context, updatedBefore time.Time, maxAttempts, limit int) ([]*domain.Booking, error) {
-	args := m.Called(ctx, updatedBefore, maxAttempts, limit)
+// GetBookingsPendingRefundRequest simule la sélection des remboursements dus du worker.
+func (m *MockBookingRepositoryRead) GetBookingsPendingRefundRequest(
+	ctx context.Context, updatedBefore time.Time, maxAttempts, limit int, noShowContestWindow time.Duration,
+) ([]*domain.Booking, error) {
+	args := m.Called(ctx, updatedBefore, maxAttempts, limit, noShowContestWindow)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

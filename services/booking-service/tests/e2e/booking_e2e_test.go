@@ -400,6 +400,103 @@ func TestE2E_ConfirmPayment(t *testing.T) {
 }
 
 // =============================================================================
+// ContestNoShow E2E
+// =============================================================================
+
+func TestE2E_ContestNoShow(t *testing.T) {
+	ctx := ctxWithUID("e2e-test-user")
+	cleanupBookingTables(t, ctx)
+
+	booking := fixtures.NewTestBookingWithPayment(
+		fixtures.WithBookingID("e2e-bk-contest"),
+		fixtures.WithPassengerID("e2e-passenger-contest"),
+		fixtures.WithDriverID("e2e-driver-contest"),
+		fixtures.WithNoShowReported("passenger", "e2e-driver-contest", time.Now().UTC().Add(-time.Hour)),
+		fixtures.WithRefundReason(domain.RefundReasonNoShowPassenger),
+	)
+	require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
+
+	contest := func(uid string) error {
+		_, err := grpcClient.ContestNoShow(ctxWithUID(uid), &bookingpb.ContestNoShowRequest{
+			BookingId: "e2e-bk-contest",
+			Reason:    "J'attendais au point de rendez-vous",
+		})
+		return err
+	}
+
+	t.Run("erreur - le declarant ne peut pas contester", func(t *testing.T) {
+		st, _ := status.FromError(contest("e2e-driver-contest"))
+		assert.Equal(t, codes.PermissionDenied, st.Code())
+	})
+
+	t.Run("succes - le passager accuse conteste", func(t *testing.T) {
+		require.NoError(t, contest("e2e-passenger-contest"))
+
+		var contestedBy string
+		require.NoError(t, testPool.QueryRow(ctx,
+			`SELECT no_show_contested_by FROM bookings WHERE booking_id = 'e2e-bk-contest'`,
+		).Scan(&contestedBy))
+		assert.Equal(t, "e2e-passenger-contest", contestedBy)
+	})
+
+	t.Run("erreur - seconde contestation", func(t *testing.T) {
+		st, _ := status.FromError(contest("e2e-passenger-contest"))
+		assert.Equal(t, codes.FailedPrecondition, st.Code())
+	})
+}
+
+// =============================================================================
+// ResolveNoShowContest E2E (support)
+// =============================================================================
+
+func TestE2E_ResolveNoShowContest(t *testing.T) {
+	ctx := ctxWithUID("e2e-test-user")
+	cleanupBookingTables(t, ctx)
+
+	now := time.Now().UTC()
+	booking := fixtures.NewTestBookingWithPayment(
+		fixtures.WithBookingID("e2e-bk-resolve"),
+		fixtures.WithPassengerID("e2e-passenger-resolve"),
+		fixtures.WithDriverID("e2e-driver-resolve"),
+		fixtures.WithNoShowReported("driver", "e2e-passenger-resolve", now.Add(-2*time.Hour)),
+		fixtures.WithRefundReason(domain.RefundReasonNoShowDriver),
+		fixtures.WithNoShowContested("e2e-driver-resolve", now.Add(-time.Hour)),
+	)
+	require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
+
+	req := &bookingpb.ResolveNoShowContestRequest{
+		BookingId:    "e2e-bk-resolve",
+		RefundReason: domain.RefundReasonNoShowPassenger,
+		Note:         "Chauffeur présent au point de rendez-vous",
+	}
+
+	t.Run("erreur - un utilisateur ne peut pas trancher", func(t *testing.T) {
+		_, err := grpcClient.ResolveNoShowContest(ctxWithUID("e2e-driver-resolve"), req)
+		st, _ := status.FromError(err)
+		assert.Equal(t, codes.Unauthenticated, st.Code())
+	})
+
+	t.Run("succes - le support tranche", func(t *testing.T) {
+		resp, err := grpcClient.ResolveNoShowContest(ctxWithSupportUID("e2e-support-1"), req)
+		require.NoError(t, err)
+		assert.True(t, resp.Success)
+
+		detail, err := grpcClient.GetBookingDetailAdmin(ctxWithSupportUID("e2e-support-1"),
+			&bookingpb.GetBookingDetailAdminRequest{BookingId: "e2e-bk-resolve"})
+		require.NoError(t, err)
+		assert.Equal(t, domain.RefundReasonNoShowPassenger, detail.Booking.NoShowResolution)
+		assert.Equal(t, "e2e-driver-resolve", detail.Booking.NoShowContestedBy)
+		assert.Equal(t, "e2e-support-1", detail.NoShowResolvedBy)
+	})
+
+	t.Run("erreur - decision deja prise", func(t *testing.T) {
+		_, err := grpcClient.ResolveNoShowContest(ctxWithSupportUID("e2e-support-2"), req)
+		st, _ := status.FromError(err)
+		assert.Equal(t, codes.FailedPrecondition, st.Code())
+	})
+}
+
+// =============================================================================
 // ReportNoShow E2E
 // =============================================================================
 

@@ -40,6 +40,7 @@ type UserIDResolver interface {
 var adminMethods = map[string]bool{
 	"/booking.BookingService/ListBookings":          true,
 	"/booking.BookingService/GetBookingDetailAdmin": true,
+	"/booking.BookingService/ResolveNoShowContest":  true,
 }
 
 // Routes gRPC publiques ou internes (pas de JWT requis)

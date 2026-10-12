@@ -113,6 +113,15 @@ service BookingService {
     };
   }
 
+  // ContestNoShow conteste une absence déclarée, par la partie accusée, dans les 48 h suivant
+  // la déclaration. Le remboursement dû reste bloqué jusqu'à la décision du support.
+  rpc ContestNoShow(ContestNoShowRequest) returns (ContestNoShowResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/booking/contestNoShow"
+      body: "*"
+    };
+  }
+
   // ConfirmPayment confirme le paiement d'une réservation.
   // Route interne appelée par payment-service quand FedaPay a approuvé la collecte :
   // paymentPending → approved (auto-approbation) ou pendingApproval. Une réservation
@@ -178,6 +187,15 @@ service BookingService {
   rpc GetBookingDetailAdmin(GetBookingDetailAdminRequest) returns (GetBookingDetailAdminResponse) {
     option (google.api.http) = {
       get: "/api/v1/booking/admin/getBookingDetail"
+    };
+  }
+
+  // ResolveNoShowContest tranche une contestation de no-show : le support choisit le motif de
+  // remboursement final (noShowDriver | noShowPassenger | tripCancelled), transmis à payment-service.
+  rpc ResolveNoShowContest(ResolveNoShowContestRequest) returns (ResolveNoShowContestResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/booking/admin/resolveNoShowContest"
+      body: "*"
     };
   }
 
@@ -319,6 +337,13 @@ message BookingDetail {
   repeated StatusHistoryEntry History   = 29;
   string PassengerMessage               = 30; // message laissé par le passager lors de la réservation
   string RoutePolyline                  = 31; // Google encoded polyline du trajet (vide si indisponible)
+  // Contestation du no-show par la partie accusée et décision du support (vides sinon)
+  string NoShowContestedAt              = 32;
+  string NoShowContestedBy              = 33;
+  string NoShowContestReason            = 34;
+  string NoShowResolvedAt               = 35;
+  string NoShowResolution               = 36; // motif de remboursement retenu par le support
+  string NoShowResolutionNote           = 37;
 }
 
 message GetBookingDetailsResponse {
@@ -491,6 +516,20 @@ message ReportNoShowResponse {
 }
 
 // =============================================================================
+// ContestNoShow
+// =============================================================================
+
+message ContestNoShowRequest {
+  string BookingId = 1;
+  string Reason    = 2; // obligatoire, 1000 caractères max
+}
+
+message ContestNoShowResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
 // ConfirmPayment
 // =============================================================================
 
@@ -646,6 +685,7 @@ message ListBookingsRequest {
   string DateTo           = 7; // RFC3339, borne haute sur created_at (optionnel)
   int32  Index            = 8; // index de page (0-based)
   int32  PageSize         = 9; // taille de page (défaut 20, max 100)
+  bool   NoShowContestPending = 10; // file d'attente : no-shows contestés non tranchés
 }
 
 message AdminBookingPreview {
@@ -681,6 +721,22 @@ message GetBookingDetailAdminResponse {
   string PassengerName  = 2; // enrichi via user-service (best-effort)
   string DriverName     = 3; // enrichi via user-service (best-effort)
   string ErrorMessage   = 4;
+  string NoShowResolvedBy = 5; // UID de l'agent support qui a tranché la contestation
+}
+
+// =============================================================================
+// ResolveNoShowContest (support)
+// =============================================================================
+
+message ResolveNoShowContestRequest {
+  string BookingId    = 1;
+  string RefundReason = 2; // noShowDriver | noShowPassenger | tripCancelled
+  string Note         = 3; // justification de la décision, obligatoire (1000 caractères max)
+}
+
+message ResolveNoShowContestResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
 }
 
 // =============================================================================

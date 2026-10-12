@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"context"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/domain"
 	"github.com/stretchr/testify/mock"
@@ -49,6 +50,22 @@ func (m *MockBookingRepositoryWrite) CompleteBookingsForWaypoint(ctx context.Con
 
 func (m *MockBookingRepositoryWrite) ReportNoShow(ctx context.Context, bookingID, reporterID, noShowType, description string) error {
 	args := m.Called(ctx, bookingID, reporterID, noShowType, description)
+	return args.Error(0)
+}
+
+// ContestNoShow simule l'enregistrement d'une contestation de no-show.
+func (m *MockBookingRepositoryWrite) ContestNoShow(
+	ctx context.Context, bookingID, contesterID, reason string, contestWindow time.Duration,
+) error {
+	args := m.Called(ctx, bookingID, contesterID, reason, contestWindow)
+	return args.Error(0)
+}
+
+// ResolveNoShowContest simule l'enregistrement de la décision du support.
+func (m *MockBookingRepositoryWrite) ResolveNoShowContest(
+	ctx context.Context, bookingID, supportUID, refundReason, note string,
+) error {
+	args := m.Called(ctx, bookingID, supportUID, refundReason, note)
 	return args.Error(0)
 }
 
