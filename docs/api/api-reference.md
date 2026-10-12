@@ -761,6 +761,8 @@ Base : `/booking`
 | `PATCH /api/v1/booking/rejectBooking` | 🔒 | `{ "DriverId": "uuid", "BookingId": "uuid", "Reason": "..." }` |
 | `PATCH /api/v1/booking/cancelBooking` | 🔒 | `{ "UserId": "uuid", "BookingId": "uuid", "Reason": "..." }` |
 | `POST /api/v1/booking/reportNoShow` | 🔒 | `{ "BookingId": "uuid", "NoShowType": "driver\|passenger", "Description": "..." }` |
+| `POST /api/v1/booking/contestNoShow` | 🔒 | `{ "BookingId": "uuid", "Reason": "..." }` |
+| `POST /api/v1/booking/admin/resolveNoShowContest` | 🔒 support | `{ "BookingId": "uuid", "RefundReason": "noShowDriver\|noShowPassenger\|tripCancelled", "Note": "..." }` |
 
 ---
 

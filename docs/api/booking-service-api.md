@@ -460,8 +460,13 @@ Any other combination returns `403 ErrorUnauthorized`.
 
 Timing and status rules:
 
-- A no-show can only be reported **15 minutes after the scheduled pickup time** of the booking's pickup waypoint (read from trips-service). Before that, the call returns `400 ErrorNoShowTooEarly` (gRPC `FailedPrecondition`). If the scheduled pickup time cannot be read, the call fails (`ErrorDataRetrievalFailed`) and nothing is recorded.
+- A no-show can only be reported between **15 minutes and 3 hours after the scheduled pickup time** of the booking's pickup waypoint (read from trips-service). Before that, the call returns `400 ErrorNoShowTooEarly`; after, `400 ErrorNoShowReportClosed` (gRPC `FailedPrecondition`). If the scheduled pickup time cannot be read, the call fails (`ErrorDataRetrievalFailed`) and nothing is recorded.
 - The booking must be `approved` or `inProgress`. Once it is `inProgress` (the driver has validated the pickup and the passenger is on board), a `driver` no-show is refused (`ErrorInvalidStatusTransition`).
+
+Contest period:
+
+- The party reported absent is notified (`NO_SHOW_AT_DEPARTURE` for a passenger, `DRIVER_NO_SHOW_REPORTED` for a driver) and can contest within **48 hours** with [`contestNoShow`](#post-apiv1bookingcontestnoshow).
+- No money moves during these 48 hours. The refund (`noShowDriver`: 100 % to the passenger) or the driver payment (`noShowPassenger`) is sent to payment-service only once the period ends without a contest, or once support has [resolved](#post-apiv1bookingadminresolvenoshowcontest) the contest.
 
 **Authentication:** Firebase JWT required
 
@@ -487,6 +492,38 @@ Content-Type: application/json
 | `BookingId` | string | Yes | Booking UUID |
 | `NoShowType` | string | Yes | `driver` or `passenger` |
 | `Description` | string | No | Additional details |
+
+---
+
+### POST /api/v1/booking/contestNoShow
+
+Contests a reported no-show. The caller is the JWT user and must be the party reported absent: the driver for a `driver` no-show, the passenger for a `passenger` no-show (otherwise `403 ErrorUnauthorized`). The reporter is notified (`NO_SHOW_CONTESTED`) and the refund stays blocked until support decides.
+
+**Authentication:** Firebase JWT required — rate limit tier `sensitive`
+
+#### Request
+
+```json
+{
+    "BookingId": "bk-550e8400-e29b-41d4-a716-446655440020",
+    "Reason": "I was waiting at the pickup point from 7:55"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `BookingId` | string | Yes | Booking UUID |
+| `Reason` | string | Yes | Why the no-show is wrong, 1000 characters max |
+
+#### Errors
+
+| Error | HTTP | When |
+|-------|------|------|
+| `ErrorInvalidInput` | 400 | Empty or too long `Reason` |
+| `ErrorUnauthorized` | 403 | Caller is not the party reported absent |
+| `ErrorInvalidStatusTransition` | 400 | Booking is not `noShow` |
+| `ErrorNoShowAlreadyContested` | 400 | The no-show has already been contested |
+| `ErrorNoShowContestClosed` | 400 | More than 48 h since the report, or refund already sent |
 
 ---
 
@@ -529,7 +566,7 @@ On success, notifications are sent: `NEW_BOOKING_REQUEST` to the driver, plus `B
 >
 > **Cancelling a `paymentPending` booking:** `cancelBooking` first deletes the FedaPay transaction through payment-service (`CancelPaymentForBooking`). If FedaPay had already approved it, the booking is cancelled with a refund.
 >
-> **Refund requests:** when a booking paid online is cancelled, rejected or marked as no-show, the refund reason (`refund_reason`) is stored in the same transaction as the status change. The request is sent to payment-service right away. If it fails, a worker replays it every `REFUND_REQUEST_WORKER_INTERVAL_SECONDS` (default 60) until payment-service acknowledges it (`refund_requested_at`).
+> **Refund requests:** when a booking paid online is cancelled, rejected or marked as no-show, the refund reason (`refund_reason`) is stored in the same transaction as the status change. The request is sent to payment-service right away, except for a no-show: it waits for the end of the 48 h contest period, or for the support decision if the no-show is contested. If it fails, a worker replays it every `REFUND_REQUEST_WORKER_INTERVAL_SECONDS` (default 60) until payment-service acknowledges it (`refund_requested_at`).
 > - Transient failures (payment-service or trips-service unavailable, timeout) are retried with no limit.
 > - Rejections (`InvalidArgument`, `NotFound`, `FailedPrecondition`) are counted (`refund_request_attempts`). After 5, the request is no longer replayed and an error is logged for manual handling.
 
@@ -822,6 +859,7 @@ Liste paginée et filtrée de toutes les réservations, enrichie des noms passag
 | `Status` | Filtre par statut (`created`, `paymentPending`, `pendingApproval`, `approved`, `rejected`, `cancelled`, `inProgress`, `completed`, `noShow`, `expired`) |
 | `BookingReference` | Recherche exacte par référence |
 | `DateFrom` / `DateTo` | Bornes RFC3339 sur `created_at` |
+| `NoShowContestPending` | `true` : uniquement les no-shows contestés en attente de décision (file d'attente du support) |
 | `Index` | Index de page (0-based) |
 | `PageSize` | Taille de page (défaut 20, max 100) |
 
@@ -836,8 +874,37 @@ d'appartenance, enrichi de `PassengerName` / `DriverName`. Chaque entrée de
 (vide pour les transitions automatiques, `ChangedByType` = `system`). `Booking.RoutePolyline`
 contient le Google encoded polyline du trajet (preview carte ; vide si indisponible).
 
+`Booking` inclut la contestation éventuelle (`NoShowContestedAt`, `NoShowContestedBy`,
+`NoShowContestReason`) et la décision (`NoShowResolvedAt`, `NoShowResolution`,
+`NoShowResolutionNote`) ; ces champs sont aussi visibles des deux parties via `getBookingDetails`.
+`NoShowResolvedBy` (UID de l'agent) n'est renvoyé qu'ici.
+
 **Query param** : `BookingId`.
-**Response** : `{ Booking: BookingDetail, PassengerName, DriverName }`.
+**Response** : `{ Booking: BookingDetail, PassengerName, DriverName, NoShowResolvedBy }`.
+
+### POST /api/v1/booking/admin/resolveNoShowContest
+
+Tranche une contestation de no-show. L'agent choisit librement le motif de remboursement final ;
+il remplace `refund_reason` (réservation payée en ligne uniquement) et la demande part aussitôt
+vers payment-service. Les deux parties reçoivent `NO_SHOW_CONTEST_RESOLVED`. Tier de rate
+limiting `support_review`.
+
+```json
+{
+    "BookingId": "bk-550e8400-e29b-41d4-a716-446655440020",
+    "RefundReason": "noShowPassenger",
+    "Note": "Conducteur présent au point de rendez-vous (échanges dans le chat)"
+}
+```
+
+| Champ | Description |
+|-------|-------------|
+| `RefundReason` | `noShowDriver` (passager remboursé à 100 %), `noShowPassenger` (conducteur payé), `tripCancelled` (passager remboursé, sans faute) |
+| `Note` | Justification de la décision, obligatoire, 1000 caractères max |
+
+Erreurs : `ErrorInvalidInput` (motif hors liste, note vide), `ErrorNoShowNotContested` (pas de
+contestation), `ErrorNoShowAlreadyResolved` (déjà tranchée) — ces deux dernières en
+`FailedPrecondition` (HTTP 400).
 
 ---
 
@@ -897,6 +964,12 @@ TotalAmount = Subtotal + ServiceFee
 | `ErrorTripNotBookable` | 422 | FAILED_PRECONDITION (9) | Trip is not bookable |
 | `ErrorBookingNotPending` | 422 | FAILED_PRECONDITION (9) | Booking is not in expected status |
 | `ErrorBookingNotCancellable` | 422 | FAILED_PRECONDITION (9) | Booking cannot be cancelled |
+| `ErrorNoShowTooEarly` | 400 | FAILED_PRECONDITION (9) | Less than 15 min after the scheduled pickup |
+| `ErrorNoShowReportClosed` | 400 | FAILED_PRECONDITION (9) | More than 3 h after the scheduled pickup |
+| `ErrorNoShowAlreadyContested` | 400 | FAILED_PRECONDITION (9) | No-show already contested |
+| `ErrorNoShowContestClosed` | 400 | FAILED_PRECONDITION (9) | Contest period (48 h) over, or refund already sent |
+| `ErrorNoShowNotContested` | 400 | FAILED_PRECONDITION (9) | Support decision on a no-show that is not contested |
+| `ErrorNoShowAlreadyResolved` | 400 | FAILED_PRECONDITION (9) | Contest already resolved |
 | `ErrorInternalServer` | 500 | INTERNAL (13) | Internal server error |
 
 ## Environment Variables

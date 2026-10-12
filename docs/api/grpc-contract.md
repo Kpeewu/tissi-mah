@@ -800,6 +800,8 @@ api-gateway      ──gRPC──> booking-service   (HTTP transcoding via grpc-
 | `RejectBooking` | Unary | `PATCH /api/v1/booking/rejectBooking` | JWT | Driver rejects a pending booking |
 | `CancelBooking` | Unary | `PATCH /api/v1/booking/cancelBooking` | JWT | Cancel a booking (passenger or driver) |
 | `ReportNoShow` | Unary | `POST /api/v1/booking/reportNoShow` | JWT | Report passenger or driver no-show |
+| `ContestNoShow` | Unary | `POST /api/v1/booking/contestNoShow` | JWT | Party reported absent contests within 48 h |
+| `ResolveNoShowContest` | Unary | `POST /api/v1/booking/admin/resolveNoShowContest` | JWT support | Support picks the final refund reason |
 | `ConfirmPayment` | Unary | `POST /api/v1/booking/internal/confirmPayment` | Internal | Confirm payment (called by payment-service) — returns `approved` or `pendingApproval` |
 | `StartBookingsForWaypoint` | Unary | `PATCH /api/v1/booking/internal/startBookingsForWaypoint` | Internal | Start approved bookings for a waypoint |
 | `CompleteBookingsForWaypoint` | Unary | `PATCH /api/v1/booking/internal/completeBookingsForWaypoint` | Internal | Complete active bookings for a waypoint |
