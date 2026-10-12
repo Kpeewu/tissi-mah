@@ -122,16 +122,32 @@ func (r *payoutWriteRepository) UpdateBatch(ctx context.Context, batch *domain.P
 	return nil
 }
 
-// MarkPaymentsAsPaidOut met à jour tous les paiements released d'un trip → paid_out.
-func (r *payoutWriteRepository) MarkPaymentsAsPaidOut(ctx context.Context, tripID string) error {
-	query := `UPDATE payments SET status = 'paidOut' WHERE trip_id = $1 AND status = 'released'`
+// MarkPaymentsAsPaidOut met à jour tous les paiements released d'un trip → paid_out
+// et retourne les identifiants des paiements mis à jour.
+func (r *payoutWriteRepository) MarkPaymentsAsPaidOut(ctx context.Context, tripID string) ([]string, error) {
+	query := `UPDATE payments SET status = 'paidOut' WHERE trip_id = $1 AND status = 'released' RETURNING payment_id`
 
-	_, err := r.pool.Exec(ctx, query, tripID)
+	rows, err := r.pool.Query(ctx, query, tripID)
 	if err != nil {
 		r.logger.Error("mark payments as paid out failed", zap.Error(err))
-		return paymentErrors.ErrorInternalServer
+		return nil, paymentErrors.ErrorInternalServer
 	}
-	return nil
+	defer rows.Close()
+
+	var paymentIDs []string
+	for rows.Next() {
+		var paymentID string
+		if err := rows.Scan(&paymentID); err != nil {
+			r.logger.Error("scan paid out payment id failed", zap.Error(err))
+			return nil, paymentErrors.ErrorInternalServer
+		}
+		paymentIDs = append(paymentIDs, paymentID)
+	}
+	if err := rows.Err(); err != nil {
+		r.logger.Error("mark payments as paid out failed", zap.Error(err))
+		return nil, paymentErrors.ErrorInternalServer
+	}
+	return paymentIDs, nil
 }
 
 // AnonymizeDriverRefs pseudonymise les références du chauffeur dans payouts.

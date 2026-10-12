@@ -9,7 +9,6 @@ import (
 
 	pkgDatabase "github.com/Kpeewu/tissi-mah/pkg/database"
 	pkgLogger "github.com/Kpeewu/tissi-mah/pkg/logger"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/cache"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/config"
@@ -17,6 +16,7 @@ import (
 	grpcServer "github.com/Kpeewu/tissi-mah/services/payment-service/internal/grpc"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/repository/implementations"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/service"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
@@ -127,14 +127,18 @@ func run(bootstrapLogger *zap.Logger) error {
 	// --- Payout repositories ---
 	payoutReadRepo := implementations.NewPayoutReadRepository(pool, logger)
 	payoutWriteRepo := implementations.NewPayoutWriteRepository(pool, logger)
-	payoutHistoryRepo := implementations.NewPayoutHistoryWriteRepository(pool, logger)
+	payoutHistoryRepo := implementations.NewPayoutHistoryRepository(pool, logger)
+
+	// --- Historique des paiements et remboursements ---
+	paymentHistoryRepo := implementations.NewPaymentHistoryRepository(pool, logger)
+	refundHistoryRepo := implementations.NewRefundHistoryRepository(pool, logger)
 
 	// --- Payment service ---
 	paymentService := service.NewPaymentService(
 		paymentReadRepo, paymentWriteRepo,
 		refundReadRepo, refundWriteRepo,
 		payoutReadRepo, payoutWriteRepo,
-		payoutHistoryRepo,
+		payoutHistoryRepo, paymentHistoryRepo, refundHistoryRepo,
 		bookingClient, userClient, supportClient,
 		fedapayClient,
 		paymentCache,

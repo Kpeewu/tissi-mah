@@ -27,25 +27,31 @@ type testDeps struct {
 	refundWriteRepo   *mocks.MockRefundRepositoryWrite
 	payoutReadRepo    *mocks.MockPayoutRepositoryRead
 	payoutWriteRepo   *mocks.MockPayoutRepositoryWrite
-	payoutHistoryRepo *mocks.MockPayoutHistoryRepositoryWrite
-	bookingClient     *mocks.MockBookingClient
-	userClient        *mocks.MockUserClient
-	supportClient     *mocks.MockSupportClient
-	svc               serviceInterfaces.PaymentService
+	payoutHistoryRepo *mocks.MockPayoutHistoryRepository
+	// Historique paiements/remboursements : CreateHistoryEntry accepté par défaut (cf. newHistoryMocks),
+	// les tests dédiés inspectent les appels enregistrés.
+	paymentHistoryRepo *mocks.MockPaymentHistoryRepository
+	refundHistoryRepo  *mocks.MockRefundHistoryRepository
+	bookingClient      *mocks.MockBookingClient
+	userClient         *mocks.MockUserClient
+	supportClient      *mocks.MockSupportClient
+	svc                serviceInterfaces.PaymentService
 }
 
 func newTestService() *testDeps {
 	d := &testDeps{
-		paymentReadRepo:   new(mocks.MockPaymentRepositoryRead),
-		paymentWriteRepo:  new(mocks.MockPaymentRepositoryWrite),
-		refundReadRepo:    new(mocks.MockRefundRepositoryRead),
-		refundWriteRepo:   new(mocks.MockRefundRepositoryWrite),
-		payoutReadRepo:    new(mocks.MockPayoutRepositoryRead),
-		payoutWriteRepo:   new(mocks.MockPayoutRepositoryWrite),
-		payoutHistoryRepo: new(mocks.MockPayoutHistoryRepositoryWrite),
-		bookingClient:     new(mocks.MockBookingClient),
-		userClient:        new(mocks.MockUserClient),
-		supportClient:     new(mocks.MockSupportClient),
+		paymentReadRepo:    new(mocks.MockPaymentRepositoryRead),
+		paymentWriteRepo:   new(mocks.MockPaymentRepositoryWrite),
+		refundReadRepo:     new(mocks.MockRefundRepositoryRead),
+		refundWriteRepo:    new(mocks.MockRefundRepositoryWrite),
+		payoutReadRepo:     new(mocks.MockPayoutRepositoryRead),
+		payoutWriteRepo:    new(mocks.MockPayoutRepositoryWrite),
+		payoutHistoryRepo:  new(mocks.MockPayoutHistoryRepository),
+		paymentHistoryRepo: newPaymentHistoryMock(),
+		refundHistoryRepo:  newRefundHistoryMock(),
+		bookingClient:      new(mocks.MockBookingClient),
+		userClient:         new(mocks.MockUserClient),
+		supportClient:      new(mocks.MockSupportClient),
 	}
 
 	cfg := &config.Config{
@@ -70,7 +76,7 @@ func newTestService() *testDeps {
 		d.refundWriteRepo,
 		d.payoutReadRepo,
 		d.payoutWriteRepo,
-		d.payoutHistoryRepo,
+		d.payoutHistoryRepo, d.paymentHistoryRepo, d.refundHistoryRepo,
 		d.bookingClient,
 		d.userClient,
 		d.supportClient,
@@ -200,6 +206,11 @@ func TestReleasePayment(t *testing.T) {
 
 		require.NoError(t, err)
 		d.assertExpectations(t)
+		history := d.paymentHistory()
+		require.Len(t, history, 1)
+		assert.Equal(t, "released", history[0].Status)
+		assert.Equal(t, domain.HistoryInitiatedByBookingService, history[0].InitiatedBy)
+		assert.Equal(t, domain.HistorySourceBookingService, history[0].Source)
 	})
 
 	t.Run("erreur - paiement non held", func(t *testing.T) {
@@ -215,6 +226,7 @@ func TestReleasePayment(t *testing.T) {
 
 		assert.ErrorIs(t, err, paymentErrors.ErrorInvalidPaymentStatus)
 		d.assertExpectations(t)
+		assert.Empty(t, d.paymentHistory())
 	})
 
 	t.Run("erreur - paiement deja released", func(t *testing.T) {
@@ -292,6 +304,16 @@ func TestRequestRefund(t *testing.T) {
 		assert.Equal(t, "pending", result.Status)
 		assert.Equal(t, 5500, result.RefundAmount)
 		d.assertExpectations(t)
+
+		assert.Equal(t, []string{"refunded"}, d.paymentHistoryStatuses("pay-refund"))
+		assert.Contains(t, d.paymentHistory()[0].Notes, "cancelledByDriver")
+		refundHistory := d.refundHistory()
+		require.Len(t, refundHistory, 1)
+		assert.Equal(t, result.RefundID, refundHistory[0].RefundID)
+		assert.Equal(t, "pending", refundHistory[0].Status)
+		assert.Equal(t, domain.HistoryInitiatedByBookingService, refundHistory[0].InitiatedBy)
+		assert.Equal(t, domain.HistorySourceBookingService, refundHistory[0].Source)
+		assert.Contains(t, refundHistory[0].Notes, "règle driverCancellation (100%)")
 	})
 
 	t.Run("succes - remboursement partiel passager apres grace period (pending)", func(t *testing.T) {
@@ -372,6 +394,10 @@ func TestRequestRefund(t *testing.T) {
 		assert.Equal(t, "completed", result.Status)
 		assert.Equal(t, 0, result.RefundAmount)
 		d.assertExpectations(t)
+		refundHistory := d.refundHistory()
+		require.Len(t, refundHistory, 1)
+		assert.Equal(t, "completed", refundHistory[0].Status)
+		assert.Contains(t, refundHistory[0].Notes, "aucun virement passager requis")
 	})
 
 	t.Run("erreur - motif de remboursement inconnu", func(t *testing.T) {
@@ -427,6 +453,8 @@ func TestRequestRefund(t *testing.T) {
 		d.refundWriteRepo.AssertNotCalled(t, "CreateRefund", mock.Anything, mock.Anything)
 		d.paymentWriteRepo.AssertNotCalled(t, "UpdatePaymentStatus",
 			mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		assert.Empty(t, d.paymentHistory(), "rejeu : rien de nouveau à historiser")
+		assert.Empty(t, d.refundHistory())
 	})
 
 	t.Run("idempotent - demande concurrente : la violation d'unicite retourne le refund gagnant", func(t *testing.T) {
@@ -456,6 +484,9 @@ func TestRequestRefund(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "ref-winner", result.RefundID)
 		d.refundWriteRepo.AssertNumberOfCalls(t, "CreateRefund", 1)
+		// Le perdant n'historise pas sa création avortée ; il rattrape le passage en refunded
+		assert.Empty(t, d.refundHistory())
+		assert.Equal(t, []string{"refunded"}, d.paymentHistoryStatuses("pay-race"))
 	})
 
 	t.Run("erreur - paiement non held/released", func(t *testing.T) {

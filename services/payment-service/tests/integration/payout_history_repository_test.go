@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPayoutHistoryWriteRepository_CreateHistoryEntry(t *testing.T) {
+func TestPayoutHistoryRepository(t *testing.T) {
 	ctx := context.Background()
-	historyRepo := newTestPayoutHistoryWriteRepository()
+	historyRepo := newTestPayoutHistoryRepository()
 	payoutWriteRepo := newTestPayoutWriteRepository()
 
 	t.Run("entry système - champs support NULL en DB", func(t *testing.T) {
@@ -138,5 +138,36 @@ func TestPayoutHistoryWriteRepository_CreateHistoryEntry(t *testing.T) {
 			statuses = append(statuses, s)
 		}
 		assert.Equal(t, []string{"scheduled", "processing", "completed"}, statuses)
+
+		entries, err := historyRepo.ListByPayoutID(ctx, "po-hist-multi-1")
+		require.NoError(t, err)
+		require.Len(t, entries, 3)
+		assert.Equal(t, "scheduled", entries[0].Status)
+		assert.Equal(t, "completed", entries[2].Status)
+		assert.Empty(t, entries[0].SupportUserID)
+	})
+
+	t.Run("ListByPayoutID - champs support relus", func(t *testing.T) {
+		cleanupPaymentTables(t, ctx)
+
+		payout := fixtures.NewTestPayout(fixtures.WithPayoutID("po-hist-read-1"))
+		require.NoError(t, payoutWriteRepo.CreatePayout(ctx, payout))
+		require.NoError(t, historyRepo.CreateHistoryEntry(ctx, &domain.PayoutStatusHistory{
+			HistoryID: uuid.New().String(), PayoutID: "po-hist-read-1", Status: "launched_by_support",
+			InitiatedBy: "support", SupportUserID: "support-42", SupportFirstName: "Awa", SupportLastName: "Diallo",
+			OccurredAt: time.Now().UTC(), Notes: "manuel",
+		}))
+
+		entries, err := historyRepo.ListByPayoutID(ctx, "po-hist-read-1")
+		require.NoError(t, err)
+		require.Len(t, entries, 1)
+		assert.Equal(t, "support-42", entries[0].SupportUserID)
+		assert.Equal(t, "Awa", entries[0].SupportFirstName)
+		assert.Equal(t, "Diallo", entries[0].SupportLastName)
+		assert.Equal(t, "manuel", entries[0].Notes)
+
+		empty, err := historyRepo.ListByPayoutID(ctx, "po-unknown")
+		require.NoError(t, err)
+		assert.Empty(t, empty)
 	})
 }

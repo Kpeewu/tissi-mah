@@ -78,7 +78,9 @@ func TestMain(m *testing.M) {
 	refundWriteRepo := implementations.NewRefundWriteRepository(testPool, logger)
 	payoutReadRepo := implementations.NewPayoutReadRepository(testPool, logger)
 	payoutWriteRepo := implementations.NewPayoutWriteRepository(testPool, logger)
-	payoutHistoryRepo := implementations.NewPayoutHistoryWriteRepository(testPool, logger)
+	payoutHistoryRepo := implementations.NewPayoutHistoryRepository(testPool, logger)
+	paymentHistoryRepo := implementations.NewPaymentHistoryRepository(testPool, logger)
+	refundHistoryRepo := implementations.NewRefundHistoryRepository(testPool, logger)
 
 	cfg := &config.Config{
 		Refund: config.RefundConfig{
@@ -98,7 +100,7 @@ func TestMain(m *testing.M) {
 		paymentReadRepo, paymentWriteRepo,
 		refundReadRepo, refundWriteRepo,
 		payoutReadRepo, payoutWriteRepo,
-		payoutHistoryRepo,
+		payoutHistoryRepo, paymentHistoryRepo, refundHistoryRepo,
 		mockBookingClient, mockUserClient,
 		mockSupportClient,
 		nil, // fedapayClient

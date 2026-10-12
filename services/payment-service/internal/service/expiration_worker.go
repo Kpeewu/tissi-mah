@@ -77,6 +77,7 @@ func (s *paymentServiceImpl) ProcessExpiredPayments(ctx context.Context, timeout
 // ExpireDuePayments traite un lot de paiements pending expirés (sans verrou distribué :
 // l'appelant doit garantir l'exclusivité, cf. ProcessExpiredPayments).
 func (s *paymentServiceImpl) ExpireDuePayments(ctx context.Context, timeoutMinutes int) error {
+	ctx = withHistoryOrigin(ctx, domain.HistoryInitiatedBySystem, domain.HistorySourceExpirationWorker)
 	payments, err := s.paymentReadRepo.GetExpiredPendingPayments(ctx, time.Now().UTC())
 	if err != nil {
 		return fmt.Errorf("get expired pending payments: %w", err)
@@ -120,6 +121,7 @@ func (s *paymentServiceImpl) ExpireDuePayments(ctx context.Context, timeoutMinut
 // maxBookingSyncAttempts fois, après quoi le rattachement est abandonné et le passager remboursé.
 // Sans verrou distribué : l'appelant doit garantir l'exclusivité (cf. ProcessExpiredPayments).
 func (s *paymentServiceImpl) RetryUnsyncedHeldPayments(ctx context.Context) error {
+	ctx = withHistoryOrigin(ctx, domain.HistoryInitiatedBySystem, domain.HistorySourceBookingSyncWorker)
 	completedBefore := time.Now().UTC().Add(-unsyncedHeldGracePeriod)
 	payments, err := s.paymentReadRepo.GetUnsyncedHeldPayments(ctx, completedBefore, unsyncedHeldBatchSize)
 	if err != nil {
@@ -148,6 +150,9 @@ func (s *paymentServiceImpl) RetryUnsyncedHeldPayments(ctx context.Context) erro
 			// Remboursement déjà créé (passage en refunded manqué) : ne pas rembourser une seconde fois
 			if err := s.paymentWriteRepo.MarkBookingSynced(ctx, payment.PaymentID); err != nil {
 				s.logger.Warn("mark booking synced failed", zap.String("paymentID", payment.PaymentID), zap.Error(err))
+			} else {
+				s.writePaymentHistory(ctx, payment.PaymentID, domain.PaymentEventBookingSynced, "",
+					"Remboursement déjà existant, reprise du rattachement arrêtée")
 			}
 			refundedCount++
 			continue
@@ -198,6 +203,8 @@ func (s *paymentServiceImpl) retryUnsyncedHeldPayment(
 		if attempts < maxBookingSyncAttempts {
 			return status, false
 		}
+		s.writePaymentHistory(ctx, payment.PaymentID, domain.PaymentEventBookingSyncAbandoned, "",
+			fmt.Sprintf("Rattachement abandonné après %d tentatives, remboursement intégral", attempts))
 	}
 
 	s.logger.Error("max booking sync attempts reached, refunding passenger",

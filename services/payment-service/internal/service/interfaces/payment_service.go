@@ -27,6 +27,15 @@ type PaymentService interface {
 	GetDriverPayouts(ctx context.Context, driverID string, pageIndex int) ([]*PayoutPreviewResult, error)
 	TriggerManualPayout(ctx context.Context, tripID string, supportUserID string) (int, error)
 
+	// GetPaymentHistory retourne l'historique d'un paiement (paymentID) ou de tous les paiements
+	// d'une réservation (bookingID), du plus ancien au plus récent. Réservé au support.
+	GetPaymentHistory(ctx context.Context, paymentID string, bookingID string) ([]*PaymentHistoryEntryResult, error)
+	// GetRefundHistory retourne l'historique d'un remboursement (refundID) ou des remboursements
+	// d'une réservation (bookingID). Réservé au support.
+	GetRefundHistory(ctx context.Context, refundID string, bookingID string) ([]*RefundHistoryEntryResult, error)
+	// GetPayoutHistory retourne l'historique d'un payout chauffeur. Réservé au support.
+	GetPayoutHistory(ctx context.Context, payoutID string) ([]*PayoutHistoryEntryResult, error)
+
 	// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte côté payment-service.
 	// Bloquant si le chauffeur a un payout en attente (pending/scheduled/processing).
 	CheckDeletionEligibility(ctx context.Context, userID string) (bool, string, error)
@@ -161,4 +170,41 @@ type PayoutPreviewResult struct {
 	Status          string
 	CompletedAt     string
 	CreatedAt       string
+}
+
+// PaymentHistoryEntryResult est une entrée de payment_status_history.
+type PaymentHistoryEntryResult struct {
+	HistoryID      string
+	PaymentID      string
+	Status         string
+	ProviderStatus string
+	InitiatedBy    string
+	Source         string
+	OccurredAt     string // RFC3339
+	Notes          string
+}
+
+// RefundHistoryEntryResult est une entrée de refund_status_history.
+type RefundHistoryEntryResult struct {
+	HistoryID   string
+	RefundID    string
+	Status      string
+	RetryCount  int
+	InitiatedBy string
+	Source      string
+	OccurredAt  string // RFC3339
+	Notes       string
+}
+
+// PayoutHistoryEntryResult est une entrée de payout_status_history.
+type PayoutHistoryEntryResult struct {
+	HistoryID        string
+	PayoutID         string
+	Status           string
+	InitiatedBy      string
+	SupportUserID    string
+	SupportFirstName string
+	SupportLastName  string
+	OccurredAt       string // RFC3339
+	Notes            string
 }

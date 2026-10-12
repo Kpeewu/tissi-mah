@@ -55,6 +55,7 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 		zap.String("bookingID", input.BookingID),
 		zap.String("method", input.PaymentMethod),
 	)
+	ctx = withHistoryOrigin(ctx, domain.HistoryInitiatedByPassenger, domain.HistorySourceCreatePayment)
 
 	booking, refundPhone, expiresAt, err := s.validatePayableBooking(ctx, input)
 	if err != nil {
@@ -131,6 +132,10 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 		s.logger.Error("save payment failed", zap.Error(err))
 		return nil, paymentErrors.ErrorInternalServer
 	}
+
+	s.writePaymentHistory(ctx, paymentID, string(domain.PaymentStatusPending), fedapay.TransactionStatusPending,
+		fmt.Sprintf("Transaction FedaPay %d créée (%d XOF), expire le %s",
+			transaction.ID, booking.TotalAmount, expiresAt.Format(time.RFC3339)))
 
 	if s.cache != nil {
 		s.cache.InvalidatePaymentByBookingID(ctx, booking.BookingID)
@@ -213,6 +218,9 @@ func (s *paymentServiceImpl) reusePendingPayment(ctx context.Context, payment *d
 		paymentURL = tokenResp.URL
 		if err := s.paymentWriteRepo.UpdatePaymentURL(ctx, payment.PaymentID, paymentURL); err != nil {
 			s.logger.Warn("persist regenerated payment url failed", zap.String("paymentID", payment.PaymentID), zap.Error(err))
+		} else {
+			s.writePaymentHistory(ctx, payment.PaymentID, domain.PaymentEventURLRenewed, payment.ProviderStatus,
+				"Lien de paiement FedaPay régénéré")
 		}
 	}
 
@@ -239,6 +247,7 @@ func (s *paymentServiceImpl) VerifyPayment(ctx context.Context, paymentID string
 	if paymentID == "" {
 		return nil, paymentErrors.ErrorInvalidInput
 	}
+	ctx = withHistoryOrigin(ctx, domain.HistoryInitiatedByPassenger, domain.HistorySourceVerifyPayment)
 
 	payment, err := s.paymentReadRepo.GetByID(ctx, paymentID)
 	if err != nil {
@@ -266,6 +275,7 @@ func (s *paymentServiceImpl) CancelPayment(ctx context.Context, paymentID string
 	if paymentID == "" {
 		return nil, paymentErrors.ErrorInvalidInput
 	}
+	ctx = withHistoryOrigin(ctx, domain.HistoryInitiatedByPassenger, domain.HistorySourceCancelPayment)
 
 	payment, err := s.paymentReadRepo.GetByID(ctx, paymentID)
 	if err != nil {
@@ -299,6 +309,7 @@ func (s *paymentServiceImpl) HandlePaymentCallback(ctx context.Context, fedapayT
 	if id, err := strconv.Atoi(fedapayTransactionID); err != nil || id <= 0 {
 		return nil, paymentErrors.ErrorInvalidInput
 	}
+	ctx = withHistoryOrigin(ctx, domain.HistoryInitiatedBySystem, domain.HistorySourceFedaPayCallback)
 
 	payment, err := s.paymentReadRepo.GetByExternalTransactionID(ctx, fedapayTransactionID)
 	if err != nil {
@@ -320,6 +331,7 @@ func (s *paymentServiceImpl) CancelPaymentForBooking(ctx context.Context, bookin
 	if bookingID == "" {
 		return nil, paymentErrors.ErrorInvalidInput
 	}
+	ctx = withHistoryOrigin(ctx, domain.HistoryInitiatedByBookingService, domain.HistorySourceBookingService)
 
 	payment, err := s.paymentReadRepo.GetPendingByBookingID(ctx, bookingID)
 	if err != nil {
@@ -403,6 +415,10 @@ func (s *paymentServiceImpl) applyProviderStatus(ctx context.Context, payment *d
 			if err := s.paymentWriteRepo.UpdateProviderStatus(ctx, payment.PaymentID, providerStatus); err != nil {
 				return payment.Status, err
 			}
+			if payment.ProviderStatus != providerStatus {
+				s.writePaymentHistory(ctx, payment.PaymentID, domain.PaymentEventAttemptFailed, providerStatus,
+					"Tentative non aboutie sur la page FedaPay, nouvelle tentative possible")
+			}
 			s.invalidatePaymentCache(ctx, payment.BookingID)
 			s.logger.Info("payment attempt not successful, retry possible",
 				zap.String("paymentID", payment.PaymentID),
@@ -449,6 +465,8 @@ func (s *paymentServiceImpl) applyApproval(ctx context.Context, payment *domain.
 		if err := s.paymentWriteRepo.UpdateProviderStatus(ctx, payment.PaymentID, fedapay.TransactionStatusApproved); err != nil {
 			s.logger.Warn("update provider status failed", zap.String("paymentID", payment.PaymentID), zap.Error(err))
 		}
+		s.writePaymentHistory(ctx, payment.PaymentID, string(domain.PaymentStatusHeld), fedapay.TransactionStatusApproved,
+			"Paiement approuvé par FedaPay")
 
 	case domain.PaymentStatusFailed:
 		// Approbation tardive (après expiration ou annulation) : l'argent est encaissé, il doit être
@@ -465,6 +483,8 @@ func (s *paymentServiceImpl) applyApproval(ctx context.Context, payment *domain.
 				zap.String("paymentID", payment.PaymentID), zap.Error(err))
 			return payment.Status, err
 		}
+		s.writePaymentHistory(ctx, payment.PaymentID, string(domain.PaymentStatusHeld), fedapay.TransactionStatusApproved,
+			"Approbation FedaPay tardive sur un paiement échoué")
 
 	default:
 		// held / released / paidOut / refunded : déjà traité
@@ -503,6 +523,7 @@ func (s *paymentServiceImpl) attachHeldPayment(
 	ctx context.Context, payment *domain.Payment,
 ) (domain.PaymentStatus, attachOutcome) {
 	bookingStatus, err := s.bookingClient.ConfirmPayment(ctx, payment.BookingID, payment.ExternalTransactionID)
+	syncNotes := fmt.Sprintf("Réservation confirmée (%s)", bookingStatus)
 	switch {
 	case err == nil:
 		s.logger.Info("payment held, booking confirmed",
@@ -510,6 +531,7 @@ func (s *paymentServiceImpl) attachHeldPayment(
 			zap.String("bookingStatus", bookingStatus),
 		)
 	case errors.Is(err, paymentErrors.ErrorPaymentAlreadyProcessed):
+		syncNotes = "Réservation déjà confirmée"
 		s.logger.Info("booking already confirmed", zap.String("bookingID", payment.BookingID))
 	case errors.Is(err, paymentErrors.ErrorNoSeatsAvailable):
 		// Les places ont été réattribuées : remboursement intégral
@@ -524,12 +546,15 @@ func (s *paymentServiceImpl) attachHeldPayment(
 	default:
 		// booking-service indisponible : le paiement reste held, le worker de rattachement retentera
 		s.logger.Error("confirm payment to booking-service failed", zap.String("paymentID", payment.PaymentID), zap.Error(err))
+		s.writeBookingSyncFailed(ctx, payment, "booking-service injoignable : "+err.Error())
 		return domain.PaymentStatusHeld, attachUnreachable
 	}
 
 	if err := s.paymentWriteRepo.MarkBookingSynced(ctx, payment.PaymentID); err != nil {
 		// Sans gravité : la prochaine reprise obtiendra « déjà confirmé » et marquera le paiement
 		s.logger.Warn("mark booking synced failed", zap.String("paymentID", payment.PaymentID), zap.Error(err))
+	} else {
+		s.writePaymentHistory(ctx, payment.PaymentID, domain.PaymentEventBookingSynced, "", syncNotes)
 	}
 	return domain.PaymentStatusHeld, attachConfirmed
 }
@@ -547,6 +572,7 @@ func (s *paymentServiceImpl) handleUnconfirmableBooking(
 			zap.String("bookingID", payment.BookingID),
 			zap.Error(err),
 		)
+		s.writeBookingSyncFailed(ctx, payment, "Réservation non confirmable, détails indisponibles : "+err.Error())
 		return domain.PaymentStatusHeld
 	}
 	if booking.Status == bookingStatusPaymentPending || booking.Status == bookingStatusPaymentFailed {
@@ -556,6 +582,7 @@ func (s *paymentServiceImpl) handleUnconfirmableBooking(
 			zap.String("bookingID", payment.BookingID),
 			zap.String("bookingStatus", booking.Status),
 		)
+		s.writeBookingSyncFailed(ctx, payment, "Réservation non confirmable mais encore payable ("+booking.Status+")")
 		return domain.PaymentStatusHeld
 	}
 
@@ -579,6 +606,8 @@ func (s *paymentServiceImpl) refundUnconfirmablePayment(
 			zap.String("reason", string(reason)),
 			zap.Error(err),
 		)
+		s.writePaymentHistory(ctx, paymentID, domain.PaymentEventRefundCreationFailed, "",
+			fmt.Sprintf("Remboursement intégral (%s) en échec : %v", reason, err))
 		return domain.PaymentStatusHeld
 	}
 	return domain.PaymentStatusRefunded
@@ -665,6 +694,7 @@ func (s *paymentServiceImpl) failPendingPayment(ctx context.Context, payment *do
 	if err := s.paymentWriteRepo.UpdateProviderStatus(ctx, payment.PaymentID, providerStatus); err != nil {
 		s.logger.Warn("update provider status failed", zap.String("paymentID", payment.PaymentID), zap.Error(err))
 	}
+	s.writePaymentHistory(ctx, payment.PaymentID, string(domain.PaymentStatusFailed), providerStatus, reason)
 
 	s.invalidatePaymentCache(ctx, payment.BookingID)
 
@@ -791,6 +821,12 @@ func (s *paymentServiceImpl) cancelOrphanTransaction(transactionID int) {
 	if err := s.fedapayClient.CancelTransaction(transactionID); err != nil {
 		s.logger.Error("cancel orphan FedaPay transaction failed", zap.Int("transactionID", transactionID), zap.Error(err))
 	}
+}
+
+// writeBookingSyncFailed historise un échec de rattachement d'un paiement held à sa réservation.
+func (s *paymentServiceImpl) writeBookingSyncFailed(ctx context.Context, payment *domain.Payment, notes string) {
+	s.writePaymentHistory(ctx, payment.PaymentID, domain.PaymentEventBookingSyncFailed, "",
+		fmt.Sprintf("Tentative %d : %s", payment.BookingSyncAttempts+1, notes))
 }
 
 // invalidatePaymentCache invalide le cache du paiement d'une réservation.

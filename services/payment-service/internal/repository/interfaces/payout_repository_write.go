@@ -14,7 +14,8 @@ type PayoutRepositoryWrite interface {
 	IncrementRetryCount(ctx context.Context, payoutID string) error
 	CreateBatch(ctx context.Context, batch *domain.PayoutBatch) error
 	UpdateBatch(ctx context.Context, batch *domain.PayoutBatch) error
-	MarkPaymentsAsPaidOut(ctx context.Context, tripID string) error
+	// MarkPaymentsAsPaidOut passe les paiements released du trip en paidOut et retourne leurs identifiants.
+	MarkPaymentsAsPaidOut(ctx context.Context, tripID string) ([]string, error)
 
 	// AnonymizeDriverRefs pseudonymise driver_id, payout_destination et destination_name
 	// dans payouts pour l'utilisateur donné.

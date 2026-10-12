@@ -106,9 +106,12 @@ func (m *MockPayoutRepositoryWrite) UpdateBatch(ctx context.Context, batch *doma
 	return args.Error(0)
 }
 
-func (m *MockPayoutRepositoryWrite) MarkPaymentsAsPaidOut(ctx context.Context, tripID string) error {
+func (m *MockPayoutRepositoryWrite) MarkPaymentsAsPaidOut(ctx context.Context, tripID string) ([]string, error) {
 	args := m.Called(ctx, tripID)
-	return args.Error(0)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
 }
 
 func (m *MockPayoutRepositoryRead) HasActivePayout(ctx context.Context, driverID string) (bool, error) {

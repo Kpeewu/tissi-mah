@@ -45,16 +45,18 @@ func newCollectTestService() *collectDeps {
 func buildCollectTestService(notifRedis *redis.Client) *collectDeps {
 	d := &collectDeps{
 		testDeps: &testDeps{
-			paymentReadRepo:   new(mocks.MockPaymentRepositoryRead),
-			paymentWriteRepo:  new(mocks.MockPaymentRepositoryWrite),
-			refundReadRepo:    new(mocks.MockRefundRepositoryRead),
-			refundWriteRepo:   new(mocks.MockRefundRepositoryWrite),
-			payoutReadRepo:    new(mocks.MockPayoutRepositoryRead),
-			payoutWriteRepo:   new(mocks.MockPayoutRepositoryWrite),
-			payoutHistoryRepo: new(mocks.MockPayoutHistoryRepositoryWrite),
-			bookingClient:     new(mocks.MockBookingClient),
-			userClient:        new(mocks.MockUserClient),
-			supportClient:     new(mocks.MockSupportClient),
+			paymentReadRepo:    new(mocks.MockPaymentRepositoryRead),
+			paymentWriteRepo:   new(mocks.MockPaymentRepositoryWrite),
+			refundReadRepo:     new(mocks.MockRefundRepositoryRead),
+			refundWriteRepo:    new(mocks.MockRefundRepositoryWrite),
+			payoutReadRepo:     new(mocks.MockPayoutRepositoryRead),
+			payoutWriteRepo:    new(mocks.MockPayoutRepositoryWrite),
+			payoutHistoryRepo:  new(mocks.MockPayoutHistoryRepository),
+			paymentHistoryRepo: newPaymentHistoryMock(),
+			refundHistoryRepo:  newRefundHistoryMock(),
+			bookingClient:      new(mocks.MockBookingClient),
+			userClient:         new(mocks.MockUserClient),
+			supportClient:      new(mocks.MockSupportClient),
 		},
 		fedapay: new(mocks.MockFedaPayClient),
 	}
@@ -72,7 +74,7 @@ func buildCollectTestService(notifRedis *redis.Client) *collectDeps {
 		d.paymentReadRepo, d.paymentWriteRepo,
 		d.refundReadRepo, d.refundWriteRepo,
 		d.payoutReadRepo, d.payoutWriteRepo,
-		d.payoutHistoryRepo,
+		d.payoutHistoryRepo, d.paymentHistoryRepo, d.refundHistoryRepo,
 		d.bookingClient, d.userClient, d.supportClient,
 		d.fedapay,
 		nil, // cache
@@ -178,6 +180,13 @@ func TestCreatePayment_Redirect(t *testing.T) {
 		assert.Equal(t, createdAt.Add(10*time.Minute).Format(time.RFC3339), result.ExpiresAt)
 		d.fedapay.AssertExpectations(t)
 		d.paymentWriteRepo.AssertExpectations(t)
+		history := d.paymentHistory()
+		require.Len(t, history, 1)
+		assert.Equal(t, "pending", history[0].Status)
+		assert.Equal(t, "pending", history[0].ProviderStatus)
+		assert.Equal(t, domain.HistoryInitiatedByPassenger, history[0].InitiatedBy)
+		assert.Equal(t, domain.HistorySourceCreatePayment, history[0].Source)
+		assert.Contains(t, history[0].Notes, "Transaction FedaPay 101")
 	})
 
 	t.Run("succes - réutilise le paiement pending existant", func(t *testing.T) {
@@ -195,6 +204,7 @@ func TestCreatePayment_Redirect(t *testing.T) {
 		assert.Equal(t, "pay-1", result.PaymentID)
 		assert.Equal(t, "https://checkout.fedapay.com/pay/tok", result.PaymentURL)
 		d.fedapay.AssertNotCalled(t, "CreateTransaction", mock.Anything)
+		assert.Empty(t, d.paymentHistory(), "réutilisation sans régénération : rien à historiser")
 	})
 
 	t.Run("erreur - l'utilisateur n'est pas le passager", func(t *testing.T) {
@@ -284,6 +294,7 @@ func TestCreatePayment_Redirect(t *testing.T) {
 
 		assert.ErrorIs(t, err, paymentErrors.ErrorInternalServer)
 		d.fedapay.AssertCalled(t, "CancelTransaction", 103)
+		assert.Empty(t, d.paymentHistory())
 	})
 }
 
@@ -313,6 +324,12 @@ func TestVerifyPayment(t *testing.T) {
 		assert.Empty(t, result.PaymentURL)
 		d.bookingClient.AssertCalled(t, "ConfirmPayment", mock.Anything, "bk-1", "101")
 		d.bookingClient.AssertNotCalled(t, "FailPayment", mock.Anything, mock.Anything, mock.Anything)
+		assert.Equal(t, []string{"held", domain.PaymentEventBookingSynced}, d.paymentHistoryStatuses("pay-1"))
+		for _, e := range d.paymentHistory() {
+			assert.Equal(t, domain.HistoryInitiatedByPassenger, e.InitiatedBy)
+			assert.Equal(t, domain.HistorySourceVerifyPayment, e.Source)
+		}
+		assert.Equal(t, "approved", d.paymentHistory()[0].ProviderStatus)
 	})
 
 	t.Run("declined → reste pending (nouvelle tentative possible), places non libérées", func(t *testing.T) {
@@ -335,6 +352,10 @@ func TestVerifyPayment(t *testing.T) {
 		assert.NotEmpty(t, result.PaymentURL)
 		d.paymentWriteRepo.AssertNotCalled(t, "MarkPaymentFailed", mock.Anything, mock.Anything, mock.Anything)
 		d.bookingClient.AssertNotCalled(t, "FailPayment", mock.Anything, mock.Anything, mock.Anything)
+		history := d.paymentHistory()
+		require.Len(t, history, 1)
+		assert.Equal(t, domain.PaymentEventAttemptFailed, history[0].Status)
+		assert.Equal(t, "declined", history[0].ProviderStatus)
 	})
 
 	t.Run("expired → failed et places libérées", func(t *testing.T) {
@@ -354,6 +375,11 @@ func TestVerifyPayment(t *testing.T) {
 		assert.Equal(t, "failed", result.Status)
 		assert.True(t, result.SeatsReleased)
 		d.bookingClient.AssertCalled(t, "FailPayment", mock.Anything, "bk-1", mock.Anything)
+		history := d.paymentHistory()
+		require.Len(t, history, 1)
+		assert.Equal(t, "failed", history[0].Status)
+		assert.Equal(t, "expired", history[0].ProviderStatus)
+		assert.Equal(t, "FedaPay: transaction expired", history[0].Notes)
 	})
 
 	t.Run("approbation tardive sur paiement failed sans places → remboursement intégral", func(t *testing.T) {
@@ -382,6 +408,9 @@ func TestVerifyPayment(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "refunded", result.Status)
 		d.refundWriteRepo.AssertExpectations(t)
+		assert.Equal(t, []string{"held", "refunded"}, d.paymentHistoryStatuses("pay-1"))
+		assert.Contains(t, d.paymentHistory()[0].Notes, "tardive")
+		assert.Equal(t, []string{"pending"}, d.refundHistoryStatuses())
 	})
 
 	t.Run("approbation tardive, booking-service indisponible → held non rattaché", func(t *testing.T) {
@@ -407,6 +436,8 @@ func TestVerifyPayment(t *testing.T) {
 		d.paymentWriteRepo.AssertNotCalled(t, "MarkBookingSynced", mock.Anything, mock.Anything)
 		d.refundWriteRepo.AssertNotCalled(t, "CreateRefund", mock.Anything, mock.Anything)
 		// L'argent est encaissé : PAYMENT_COMPLETED est publié même sans rattachement
+		assert.Equal(t, []string{"held", domain.PaymentEventBookingSyncFailed}, d.paymentHistoryStatuses("pay-1"))
+		assert.Contains(t, d.paymentHistory()[1].Notes, "Tentative 1 : booking-service injoignable")
 		assert.NotNil(t, findEvent(publishedEvents(t, rdb), notification.PaymentCompleted))
 	})
 
@@ -441,6 +472,11 @@ func TestVerifyPayment(t *testing.T) {
 		d.refundWriteRepo.AssertExpectations(t)
 
 		events := publishedEvents(t, rdb)
+		assert.Equal(t, []string{"held", "refunded"}, d.paymentHistoryStatuses("pay-1"))
+		refundHistory := d.refundHistory()
+		require.Len(t, refundHistory, 1)
+		assert.Equal(t, "pending", refundHistory[0].Status)
+		assert.Contains(t, refundHistory[0].Notes, "bookingUnavailable")
 		refundEvent := findEvent(events, notification.RefundProcessed)
 		require.NotNil(t, refundEvent, "REFUND_PROCESSED doit être publié")
 		assert.Equal(t, testPassengerID, refundEvent.UserID)
@@ -470,6 +506,7 @@ func TestVerifyPayment(t *testing.T) {
 		assert.Equal(t, "held", result.Status)
 		d.refundWriteRepo.AssertNotCalled(t, "CreateRefund", mock.Anything, mock.Anything)
 		assert.Empty(t, publishedEvents(t, rdb))
+		assert.Equal(t, []string{"held", domain.PaymentEventBookingSyncFailed}, d.paymentHistoryStatuses("pay-1"))
 	})
 
 	t.Run("erreur - paiement d'un autre utilisateur", func(t *testing.T) {
@@ -511,6 +548,12 @@ func TestCancelPayment(t *testing.T) {
 		d.bookingClient.AssertCalled(t, "FailPayment", mock.Anything, "bk-1", mock.Anything)
 		// Abandon volontaire : pas une erreur de paiement
 		assert.Nil(t, findEvent(publishedEvents(t, rdb), notification.PaymentFailed))
+		history := d.paymentHistory()
+		require.Len(t, history, 1)
+		assert.Equal(t, "failed", history[0].Status)
+		assert.Equal(t, "deleted", history[0].ProviderStatus)
+		assert.Equal(t, domain.HistoryInitiatedByPassenger, history[0].InitiatedBy)
+		assert.Equal(t, domain.HistorySourceCancelPayment, history[0].Source)
 	})
 
 	t.Run("course avec une approbation : applique l'approbation sans annuler", func(t *testing.T) {
@@ -546,6 +589,7 @@ func TestCancelPayment(t *testing.T) {
 		assert.ErrorIs(t, err, paymentErrors.ErrorFedaPayAPIError)
 		d.paymentWriteRepo.AssertNotCalled(t, "MarkPaymentFailed", mock.Anything, mock.Anything, mock.Anything)
 		d.bookingClient.AssertNotCalled(t, "FailPayment", mock.Anything, mock.Anything, mock.Anything)
+		assert.Empty(t, d.paymentHistory())
 	})
 }
 
@@ -565,6 +609,12 @@ func TestCancelPaymentForBooking(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "failed", result.Status)
+		history := d.paymentHistory()
+		require.Len(t, history, 1)
+		assert.Equal(t, "failed", history[0].Status)
+		assert.Equal(t, "Réservation annulée", history[0].Notes)
+		assert.Equal(t, domain.HistoryInitiatedByBookingService, history[0].InitiatedBy)
+		assert.Equal(t, domain.HistorySourceBookingService, history[0].Source)
 		d.bookingClient.AssertNotCalled(t, "FailPayment", mock.Anything, mock.Anything, mock.Anything)
 		assert.Nil(t, findEvent(publishedEvents(t, rdb), notification.PaymentFailed))
 	})
@@ -602,6 +652,9 @@ func TestHandlePaymentCallback(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "held", result.Status)
 		assert.Equal(t, "pay-1", result.PaymentID)
+		assert.Equal(t, []string{"held", domain.PaymentEventBookingSynced}, d.paymentHistoryStatuses("pay-1"))
+		assert.Equal(t, domain.HistoryInitiatedBySystem, d.paymentHistory()[0].InitiatedBy)
+		assert.Equal(t, domain.HistorySourceFedaPayCallback, d.paymentHistory()[0].Source)
 	})
 
 	t.Run("transaction expired/deleted : PAYMENT_FAILED seulement à l'expiration", func(t *testing.T) {
@@ -670,6 +723,10 @@ func TestProcessWebhook_DeclinedKeepsPending(t *testing.T) {
 	d.paymentWriteRepo.AssertNotCalled(t, "MarkPaymentFailed", mock.Anything, mock.Anything, mock.Anything)
 	d.bookingClient.AssertNotCalled(t, "FailPayment", mock.Anything, mock.Anything, mock.Anything)
 	d.paymentWriteRepo.AssertCalled(t, "MarkWebhookEventProcessed", mock.Anything, "101:transaction.declined")
+	history := d.paymentHistory()
+	require.Len(t, history, 1)
+	assert.Equal(t, domain.PaymentEventAttemptFailed, history[0].Status)
+	assert.Equal(t, domain.HistorySourceFedaPayWebhook, history[0].Source)
 }
 
 // =============================================================================
@@ -696,6 +753,7 @@ func TestProcessWebhook_ProcessingFailureKeepsEventReplayable(t *testing.T) {
 
 		assert.ErrorIs(t, err, paymentErrors.ErrorInternalServer)
 		d.paymentWriteRepo.AssertNotCalled(t, "MarkWebhookEventProcessed", mock.Anything, mock.Anything)
+		assert.Empty(t, d.paymentHistory(), "transition non appliquée : rien à historiser")
 	})
 
 	t.Run("événement déjà traité - ignoré", func(t *testing.T) {
@@ -785,6 +843,13 @@ func TestExpireDuePayments(t *testing.T) {
 	failedEvent := findEvent(publishedEvents(t, rdb), notification.PaymentFailed)
 	require.NotNil(t, failedEvent, "l'expiration doit notifier le passager")
 	assert.Equal(t, "pay-1", failedEvent.ReferenceID)
+
+	assert.Equal(t, []string{"failed"}, d.paymentHistoryStatuses("pay-1"))
+	assert.Equal(t, []string{"held", domain.PaymentEventBookingSynced}, d.paymentHistoryStatuses("pay-2"))
+	assert.Empty(t, d.paymentHistoryStatuses("pay-3"), "DELETE en échec : aucune transition")
+	for _, e := range d.paymentHistory() {
+		assert.Equal(t, domain.HistorySourceExpirationWorker, e.Source)
+	}
 }
 
 // =============================================================================
@@ -837,6 +902,8 @@ func TestRetryUnsyncedHeldPayments(t *testing.T) {
 
 		d.paymentWriteRepo.AssertCalled(t, "MarkBookingSynced", mock.Anything, "pay-1")
 		d.paymentWriteRepo.AssertNotCalled(t, "IncrementBookingSyncAttempts", mock.Anything, mock.Anything)
+		assert.Equal(t, []string{domain.PaymentEventBookingSynced}, d.paymentHistoryStatuses("pay-1"))
+		assert.Equal(t, domain.HistorySourceBookingSyncWorker, d.paymentHistory()[0].Source)
 	})
 
 	t.Run("plus de places → remboursement seatsUnavailable, compteur inchangé", func(t *testing.T) {
@@ -852,6 +919,7 @@ func TestRetryUnsyncedHeldPayments(t *testing.T) {
 
 		d.refundWriteRepo.AssertNumberOfCalls(t, "CreateRefund", 1)
 		d.paymentWriteRepo.AssertNotCalled(t, "IncrementBookingSyncAttempts", mock.Anything, mock.Anything)
+		assert.Equal(t, []string{"refunded"}, d.paymentHistoryStatuses("pay-2"))
 	})
 
 	t.Run("booking-service indisponible sous le plafond → tentative comptée, pas de remboursement", func(t *testing.T) {
@@ -864,6 +932,7 @@ func TestRetryUnsyncedHeldPayments(t *testing.T) {
 		d.paymentWriteRepo.AssertCalled(t, "IncrementBookingSyncAttempts", mock.Anything, "pay-3")
 		d.paymentWriteRepo.AssertNotCalled(t, "MarkBookingSynced", mock.Anything, mock.Anything)
 		d.refundWriteRepo.AssertNotCalled(t, "CreateRefund", mock.Anything, mock.Anything)
+		assert.Equal(t, []string{domain.PaymentEventBookingSyncFailed}, d.paymentHistoryStatuses("pay-3"))
 	})
 
 	t.Run("5e échec → remboursement intégral bookingUnavailable sur le montant encaissé", func(t *testing.T) {
@@ -879,6 +948,10 @@ func TestRetryUnsyncedHeldPayments(t *testing.T) {
 
 		d.refundWriteRepo.AssertNumberOfCalls(t, "CreateRefund", 1)
 		d.paymentWriteRepo.AssertCalled(t, "UpdatePaymentStatus", mock.Anything, "pay-5", domain.PaymentStatusRefunded, "")
+		assert.Equal(t, []string{
+			domain.PaymentEventBookingSyncFailed, domain.PaymentEventBookingSyncAbandoned, "refunded",
+		}, d.paymentHistoryStatuses("pay-5"))
+		assert.Contains(t, d.paymentHistory()[0].Notes, "Tentative 5")
 	})
 
 	t.Run("plafond atteint, remboursement précédent en échec → remboursé sans ConfirmPayment", func(t *testing.T) {
@@ -892,6 +965,8 @@ func TestRetryUnsyncedHeldPayments(t *testing.T) {
 		d.bookingClient.AssertNotCalled(t, "ConfirmPayment", mock.Anything, mock.Anything, mock.Anything)
 		d.paymentWriteRepo.AssertNotCalled(t, "IncrementBookingSyncAttempts", mock.Anything, mock.Anything)
 		d.refundWriteRepo.AssertNumberOfCalls(t, "CreateRefund", 1)
+		// Plafond déjà atteint lors d'un tick précédent : pas de nouvel « abandon »
+		assert.Equal(t, []string{"refunded"}, d.paymentHistoryStatuses("pay-6"))
 	})
 
 	t.Run("remboursement déjà créé → marqué rattaché, pas de second remboursement", func(t *testing.T) {
@@ -905,5 +980,6 @@ func TestRetryUnsyncedHeldPayments(t *testing.T) {
 		d.paymentWriteRepo.AssertCalled(t, "MarkBookingSynced", mock.Anything, "pay-4")
 		d.bookingClient.AssertNotCalled(t, "ConfirmPayment", mock.Anything, mock.Anything, mock.Anything)
 		d.refundWriteRepo.AssertNotCalled(t, "CreateRefund", mock.Anything, mock.Anything)
+		assert.Equal(t, []string{domain.PaymentEventBookingSynced}, d.paymentHistoryStatuses("pay-4"))
 	})
 }
