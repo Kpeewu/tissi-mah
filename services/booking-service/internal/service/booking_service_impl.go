@@ -1371,7 +1371,9 @@ func (s *bookingServiceImpl) GetDriverBookings(ctx context.Context, input *servi
 // GetActivePassengerSummariesForTrip
 // =============================================================================
 
-func (s *bookingServiceImpl) GetActivePassengerSummariesForTrip(ctx context.Context, tripID, driverID string) ([]*serviceInterfaces.PassengerSummaryResult, error) {
+func (s *bookingServiceImpl) GetActivePassengerSummariesForTrip(
+	ctx context.Context, tripID, driverID string,
+) ([]*serviceInterfaces.PassengerSummaryResult, error) {
 	if tripID == "" || driverID == "" {
 		return nil, bookingErrors.ErrorInvalidInput
 	}

@@ -467,7 +467,8 @@ func TestReportNoShow(t *testing.T) {
 			})
 
 			assert.ErrorIs(t, err, bookingErrors.ErrorUnauthorized)
-			d.writeRepo.AssertNotCalled(t, "ReportNoShow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+			d.writeRepo.AssertNotCalled(t, "ReportNoShow",
+				mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		})
 	}
 
@@ -1284,8 +1285,10 @@ func TestGetActivePassengerSummariesForTrip(t *testing.T) {
 		d := newTestService()
 		ctx := context.Background()
 
-		d.tripClient.On("GetTripDetails", mock.Anything, "trip-sum").Return(&client.TripDetails{TripID: "trip-sum", DriverID: "driver-sum"}, nil)
-		d.readRepo.On("GetActivePassengerSummariesForTrip", mock.Anything, "trip-sum").Return([]*domain.RawPassengerSummary{}, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-sum").
+			Return(&client.TripDetails{TripID: "trip-sum", DriverID: "driver-sum"}, nil)
+		d.readRepo.On("GetActivePassengerSummariesForTrip", mock.Anything, "trip-sum").
+			Return([]*domain.RawPassengerSummary{}, nil)
 
 		results, err := d.svc.GetActivePassengerSummariesForTrip(ctx, "trip-sum", "driver-sum")
 
@@ -1298,7 +1301,8 @@ func TestGetActivePassengerSummariesForTrip(t *testing.T) {
 		d := newTestService()
 		ctx := context.Background()
 
-		d.tripClient.On("GetTripDetails", mock.Anything, "trip-sum").Return(&client.TripDetails{TripID: "trip-sum", DriverID: "driver-sum"}, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-sum").
+			Return(&client.TripDetails{TripID: "trip-sum", DriverID: "driver-sum"}, nil)
 
 		_, err := d.svc.GetActivePassengerSummariesForTrip(ctx, "trip-sum", "intrus")
 

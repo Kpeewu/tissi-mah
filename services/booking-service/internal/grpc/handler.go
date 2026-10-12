@@ -93,7 +93,10 @@ func (h *BookingHandler) GetBookingDetails(ctx context.Context, req *bookingpb.G
 
 	// UserID vide = appel inter-service (aucune identité dans le contexte) : pas de contrôle
 	// d'appartenance. req.UserId n'est jamais lu, sinon un client pourrait le vider.
-	userID, _ := ctx.Value(middleware.UserIDKey).(string)
+	var userID string
+	if id, ok := ctx.Value(middleware.UserIDKey).(string); ok {
+		userID = id
+	}
 
 	result, err := h.service.GetBookingDetails(ctx, &serviceInterfaces.GetBookingDetailsInput{
 		BookingID: req.BookingId,

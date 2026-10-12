@@ -23,9 +23,8 @@ func TestPaymentInterceptor_InternalRoutesWithoutMetadata(t *testing.T) {
 	for _, method := range internalMethods {
 		t.Run(method, func(t *testing.T) {
 			info := &grpc.UnaryServerInfo{FullMethod: method}
-			resp, err := interceptor(context.Background(), nil, info, func(ctx context.Context, req interface{}) (interface{}, error) {
-				return "ok", nil
-			})
+			okHandler := func(_ context.Context, _ interface{}) (interface{}, error) { return "ok", nil }
+			resp, err := interceptor(context.Background(), nil, info, okHandler)
 
 			require.NoError(t, err)
 			assert.Equal(t, "ok", resp)
@@ -37,7 +36,7 @@ func TestPaymentInterceptor_ProtectedRouteWithoutMetadata(t *testing.T) {
 	interceptor := PaymentInterceptor(nil)
 	info := &grpc.UnaryServerInfo{FullMethod: "/payment.PaymentService/CreatePayment"}
 
-	_, err := interceptor(context.Background(), nil, info, func(ctx context.Context, req interface{}) (interface{}, error) {
+	_, err := interceptor(context.Background(), nil, info, func(_ context.Context, _ interface{}) (interface{}, error) {
 		t.Fatal("le handler ne doit pas être appelé")
 		return nil, nil
 	})

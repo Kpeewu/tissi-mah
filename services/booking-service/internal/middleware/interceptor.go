@@ -114,7 +114,9 @@ func BookingInterceptor(secret []byte, resolver UserIDResolver) grpc.UnaryServer
 
 // authenticateFirebaseCaller vérifie x-firebase-uid (et sa signature HMAC si présente),
 // résout l'UserID interne correspondant et les injecte dans le contexte.
-func authenticateFirebaseCaller(ctx context.Context, md metadata.MD, secret []byte, resolver UserIDResolver) (context.Context, error) {
+func authenticateFirebaseCaller(
+	ctx context.Context, md metadata.MD, secret []byte, resolver UserIDResolver,
+) (context.Context, error) {
 	uids := md.Get("x-firebase-uid")
 	if len(uids) == 0 || uids[0] == "" {
 		return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
