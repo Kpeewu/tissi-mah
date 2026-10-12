@@ -195,7 +195,7 @@ func TestGetDriverTripDetails_Handler(t *testing.T) {
 
 	t.Run("service erreur NotFound", func(t *testing.T) {
 		handler, svc := newHandler()
-		ctx := context.WithValue(context.Background(), middleware.FirebaseIDKey, "driver-1")
+		ctx := context.WithValue(context.Background(), middleware.UserIDKey, "driver-1")
 		svc.On("GetDriverTripDetails", ctx, mock.Anything).
 			Return((*serviceInterfaces.DriverTripDetailResult)(nil), tripErrors.ErrorTripNotFound)
 		_, err := handler.GetDriverTripDetails(ctx, &trippb.GetDriverTripDetailsRequest{TripId: "bad"})

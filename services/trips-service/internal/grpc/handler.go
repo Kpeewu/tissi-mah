@@ -38,13 +38,13 @@ func (h *TripHandler) CreateTrip(ctx context.Context, req *trippb.CreateTripRequ
 		zap.Int("waypointCount", len(req.TripWaypoints)),
 	)
 
-	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	driverID, err := callerUserID(ctx)
 	if err != nil {
 		return &trippb.CreateTripResponse{ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
 	input := &serviceInterfaces.CreateTripInput{
-		DriverID:                 driverAuthID,
+		DriverID:                 driverID,
 		VehicleID:                req.VehicleId,
 		DepartureDatetime:        req.DepartureDatetime,
 		EstimatedArrivalDatetime: req.EstimatedArrivalDatetime,
@@ -79,7 +79,7 @@ func (h *TripHandler) CreateRecurringTrip(ctx context.Context, req *trippb.Creat
 		zap.String("recurrenceType", req.RecurrenceType),
 	)
 
-	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	driverID, err := callerUserID(ctx)
 	if err != nil {
 		return &trippb.CreateRecurringTripResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
 	}
@@ -90,7 +90,7 @@ func (h *TripHandler) CreateRecurringTrip(ctx context.Context, req *trippb.Creat
 	}
 
 	input := &serviceInterfaces.CreateRecurringTripInput{
-		DriverID:              driverAuthID,
+		DriverID:              driverID,
 		VehicleID:             req.VehicleId,
 		DepartureTime:         req.DepartureTime,
 		RecurrenceType:        req.RecurrenceType,
@@ -122,13 +122,13 @@ func (h *TripHandler) CreateRecurringTrip(ctx context.Context, req *trippb.Creat
 func (h *TripHandler) GetTripsPreviews(ctx context.Context, req *trippb.GetTripsPreviewsRequest) (*trippb.GetTripsPreviewsResponse, error) {
 	h.logger.Debug("handler: GetTripsPreviews called", zap.Int32("index", req.Index))
 
-	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	driverID, err := callerUserID(ctx)
 	if err != nil {
 		return &trippb.GetTripsPreviewsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
 	results, err := h.service.GetTripsPreviews(ctx, &serviceInterfaces.GetTripsPreviewsInput{
-		DriverID:  driverAuthID,
+		DriverID:  driverID,
 		PageIndex: int(req.Index),
 	})
 	if err != nil {
@@ -162,13 +162,13 @@ func (h *TripHandler) GetTripsPreviews(ctx context.Context, req *trippb.GetTrips
 func (h *TripHandler) GetCompletedTripsPreviews(ctx context.Context, req *trippb.GetCompletedTripsPreviewsRequest) (*trippb.GetCompletedTripsPreviewsResponse, error) {
 	h.logger.Debug("handler: GetCompletedTripsPreviews called", zap.Int32("index", req.Index))
 
-	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	driverID, err := callerUserID(ctx)
 	if err != nil {
 		return &trippb.GetCompletedTripsPreviewsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
 	results, err := h.service.GetCompletedTripsPreviews(ctx, &serviceInterfaces.GetTripsPreviewsInput{
-		DriverID:  driverAuthID,
+		DriverID:  driverID,
 		PageIndex: int(req.Index),
 	})
 	if err != nil {
@@ -202,13 +202,13 @@ func (h *TripHandler) GetCompletedTripsPreviews(ctx context.Context, req *trippb
 func (h *TripHandler) ChangeTripDateAndTime(ctx context.Context, req *trippb.ChangeTripDateAndTimeRequest) (*trippb.ChangeTripDateAndTimeResponse, error) {
 	h.logger.Debug("handler: ChangeTripDateAndTime called", zap.String("tripID", req.TripId))
 
-	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	driverID, err := callerUserID(ctx)
 	if err != nil {
 		return &trippb.ChangeTripDateAndTimeResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
 	err = h.service.ChangeTripDateAndTime(ctx, &serviceInterfaces.ChangeTripDateAndTimeInput{
-		DriverID:          driverAuthID,
+		DriverID:          driverID,
 		TripID:            req.TripId,
 		DepartureDatetime: req.DepartureDatetime,
 	})
@@ -228,13 +228,13 @@ func (h *TripHandler) ChangeTripVehicle(ctx context.Context, req *trippb.ChangeT
 		zap.String("vehicleID", req.VehicleId),
 	)
 
-	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	driverID, err := callerUserID(ctx)
 	if err != nil {
 		return &trippb.ChangeTripVehicleResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
 	err = h.service.ChangeTripVehicle(ctx, &serviceInterfaces.ChangeTripVehicleInput{
-		DriverID:  driverAuthID,
+		DriverID:  driverID,
 		TripID:    req.TripId,
 		VehicleID: req.VehicleId,
 	})
@@ -251,13 +251,13 @@ func (h *TripHandler) ChangeTripVehicle(ctx context.Context, req *trippb.ChangeT
 func (h *TripHandler) ChangeTripAllowances(ctx context.Context, req *trippb.ChangeTripAllowancesRequest) (*trippb.ChangeTripAllowancesResponse, error) {
 	h.logger.Debug("handler: ChangeTripAllowances called", zap.String("tripID", req.TripId))
 
-	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	driverID, err := callerUserID(ctx)
 	if err != nil {
 		return &trippb.ChangeTripAllowancesResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
 	err = h.service.ChangeTripAllowances(ctx, &serviceInterfaces.ChangeTripAllowancesInput{
-		DriverID:      driverAuthID,
+		DriverID:      driverID,
 		TripID:        req.TripId,
 		AllowPets:     req.AllowPets,
 		AllowFood:     req.AllowFood,
@@ -280,13 +280,13 @@ func (h *TripHandler) ChangeAutoApprove(ctx context.Context, req *trippb.ChangeA
 		zap.Bool("autoApprove", req.AutoApprove),
 	)
 
-	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	driverID, err := callerUserID(ctx)
 	if err != nil {
 		return &trippb.ChangeAutoApproveResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
 	err = h.service.ChangeAutoApprove(ctx, &serviceInterfaces.ChangeAutoApproveInput{
-		DriverID:    driverAuthID,
+		DriverID:    driverID,
 		TripID:      req.TripId,
 		AutoApprove: req.AutoApprove,
 	})
@@ -303,13 +303,13 @@ func (h *TripHandler) ChangeAutoApprove(ctx context.Context, req *trippb.ChangeA
 func (h *TripHandler) StartTrip(ctx context.Context, req *trippb.StartTripRequest) (*trippb.StartTripResponse, error) {
 	h.logger.Debug("handler: StartTrip called", zap.String("tripID", req.TripId))
 
-	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	driverID, err := callerUserID(ctx)
 	if err != nil {
 		return &trippb.StartTripResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
 	err = h.service.StartTrip(ctx, &serviceInterfaces.StartTripInput{
-		DriverID: driverAuthID,
+		DriverID: driverID,
 		TripID:   req.TripId,
 	})
 	if err != nil {
@@ -325,13 +325,13 @@ func (h *TripHandler) StartTrip(ctx context.Context, req *trippb.StartTripReques
 func (h *TripHandler) EndTrip(ctx context.Context, req *trippb.EndTripRequest) (*trippb.EndTripResponse, error) {
 	h.logger.Debug("handler: EndTrip called", zap.String("tripID", req.TripId))
 
-	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	driverID, err := callerUserID(ctx)
 	if err != nil {
 		return &trippb.EndTripResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
 	err = h.service.EndTrip(ctx, &serviceInterfaces.EndTripInput{
-		DriverID: driverAuthID,
+		DriverID: driverID,
 		TripID:   req.TripId,
 	})
 	if err != nil {
@@ -347,13 +347,13 @@ func (h *TripHandler) EndTrip(ctx context.Context, req *trippb.EndTripRequest) (
 func (h *TripHandler) ConfirmWaypointDeparture(ctx context.Context, req *trippb.ConfirmWaypointDepartureRequest) (*trippb.ConfirmWaypointDepartureResponse, error) {
 	h.logger.Debug("handler: ConfirmWaypointDeparture called", zap.String("waypointID", req.WaypointId))
 
-	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	driverID, err := callerUserID(ctx)
 	if err != nil {
 		return &trippb.ConfirmWaypointDepartureResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
 	err = h.service.ConfirmWaypointDeparture(ctx, &serviceInterfaces.ConfirmWaypointDepartureInput{
-		DriverID:   driverAuthID,
+		DriverID:   driverID,
 		WaypointID: req.WaypointId,
 	})
 	if err != nil {
@@ -369,13 +369,13 @@ func (h *TripHandler) ConfirmWaypointDeparture(ctx context.Context, req *trippb.
 func (h *TripHandler) ConfirmWaypointArrival(ctx context.Context, req *trippb.ConfirmWaypointArrivalRequest) (*trippb.ConfirmWaypointArrivalResponse, error) {
 	h.logger.Debug("handler: ConfirmWaypointArrival called", zap.String("waypointID", req.WaypointId))
 
-	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	driverID, err := callerUserID(ctx)
 	if err != nil {
 		return &trippb.ConfirmWaypointArrivalResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
 	err = h.service.ConfirmWaypointArrival(ctx, &serviceInterfaces.ConfirmWaypointArrivalInput{
-		DriverID:   driverAuthID,
+		DriverID:   driverID,
 		WaypointID: req.WaypointId,
 	})
 	if err != nil {
@@ -439,10 +439,10 @@ func (h *TripHandler) GetTripByID(ctx context.Context, req *trippb.GetTripByIDRe
 func (h *TripHandler) GetDriverTripDetails(ctx context.Context, req *trippb.GetDriverTripDetailsRequest) (*trippb.GetDriverTripDetailsResponse, error) {
 	h.logger.Debug("handler: GetDriverTripDetails called", zap.String("tripID", req.TripId))
 
-	// Extraire le DriverID depuis le contexte JWT (injecté par le middleware)
-	driverID, ok := ctx.Value(middleware.FirebaseIDKey).(string)
-	if !ok || driverID == "" {
-		return &trippb.GetDriverTripDetailsResponse{ErrorMessage: "missing firebase uid"}, toGRPCError(tripErrors.ErrorUnauthorized)
+	// Le conducteur est l'appelant (UserID résolu par l'intercepteur)
+	driverID, err := callerUserID(ctx)
+	if err != nil {
+		return &trippb.GetDriverTripDetailsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
 	result, err := h.service.GetDriverTripDetails(ctx, &serviceInterfaces.GetDriverTripDetailsInput{
@@ -621,13 +621,13 @@ func (h *TripHandler) UpdateAvailableSeats(ctx context.Context, req *trippb.Upda
 func (h *TripHandler) CancelTrip(ctx context.Context, req *trippb.CancelTripRequest) (*trippb.CancelTripResponse, error) {
 	h.logger.Debug("handler: CancelTrip called", zap.String("tripID", req.TripId))
 
-	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	driverID, err := callerUserID(ctx)
 	if err != nil {
 		return &trippb.CancelTripResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
 	err = h.service.CancelTrip(ctx, &serviceInterfaces.CancelTripInput{
-		DriverID:           driverAuthID,
+		DriverID:           driverID,
 		TripID:             req.TripId,
 		CancellationReason: req.CancellationReason,
 	})
@@ -643,13 +643,13 @@ func (h *TripHandler) CancelTrip(ctx context.Context, req *trippb.CancelTripRequ
 func (h *TripHandler) CancelWaypoint(ctx context.Context, req *trippb.CancelWaypointRequest) (*trippb.CancelWaypointResponse, error) {
 	h.logger.Debug("handler: CancelWaypoint called", zap.String("waypointID", req.WaypointId))
 
-	driverAuthID, err := firebaseUIDFromCtx(ctx)
+	driverID, err := callerUserID(ctx)
 	if err != nil {
 		return &trippb.CancelWaypointResponse{Success: false, ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
 	err = h.service.CancelWaypoint(ctx, &serviceInterfaces.CancelWaypointInput{
-		DriverID:           driverAuthID,
+		DriverID:           driverID,
 		WaypointID:         req.WaypointId,
 		CancellationReason: req.CancellationReason,
 	})
@@ -703,14 +703,15 @@ func (h *TripHandler) Health(_ context.Context, _ *trippb.HealthRequest) (*tripp
 	}, nil
 }
 
-// firebaseUIDFromCtx extrait le Firebase UID injecté par le middleware depuis le contexte.
-// Retourne ErrorUnauthorized si absent.
-func firebaseUIDFromCtx(ctx context.Context) (string, error) {
-	uid, ok := ctx.Value(middleware.FirebaseIDKey).(string)
-	if !ok || uid == "" {
+// callerUserID retourne l'UserID interne de l'appelant, résolu par l'intercepteur depuis
+// le Firebase UID validé par l'api-gateway. Les endpoints client-facing ne font JAMAIS
+// confiance à un DriverId fourni dans la requête. Retourne ErrorUnauthorized si absent.
+func callerUserID(ctx context.Context) (string, error) {
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
+	if !ok || userID == "" {
 		return "", tripErrors.ErrorUnauthorized
 	}
-	return uid, nil
+	return userID, nil
 }
 
 // toServiceWaypoints convertit les waypoints proto en input de service.

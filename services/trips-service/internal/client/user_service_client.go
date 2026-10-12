@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
+	tripErrors "github.com/Kpeewu/tissi-mah/services/trips-service/pkg/errors"
 	userpb "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -86,22 +87,22 @@ func (c *UserServiceClient) GetDriverName(ctx context.Context, userID string) (s
 	return strings.TrimSpace(resp.FirstName + " " + resp.Name), nil
 }
 
-// GetUserIDByAuthID résout un Firebase UID en UserID interne via user-service.
-func (c *UserServiceClient) GetUserIDByAuthID(ctx context.Context, firebaseUID string) (string, error) {
-	c.logger.Debug("client: GetUserIDByAuthID called", zap.String("firebaseUID", firebaseUID))
-
+// GetUserIDByFirebaseID résout le Firebase UID de l'appelant en UserID interne (utilisé par
+// l'intercepteur). Retourne ErrorUserNotFound si aucun profil ne correspond.
+func (c *UserServiceClient) GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error) {
 	resp, err := c.grpcClient.GetUserByFirebaseID(ctx, &userpb.GetUserByFirebaseIDRequest{
 		FirebaseID: firebaseUID,
 	})
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-			c.logger.Debug("client: user not found by firebaseUID", zap.String("firebaseUID", firebaseUID))
-			return "", fmt.Errorf("user-service: user not found for firebaseUID %s", firebaseUID)
+			return "", tripErrors.ErrorUserNotFound
 		}
-		c.logger.Error("client: GetUserByFirebaseID failed", zap.Error(err), zap.String("firebaseUID", firebaseUID))
+		c.logger.Error("client: GetUserByFirebaseID failed", zap.Error(err))
 		return "", fmt.Errorf("user-service: GetUserByFirebaseID failed: %w", err)
 	}
-
+	if resp.UserID == "" {
+		return "", tripErrors.ErrorUserNotFound
+	}
 	return resp.UserID, nil
 }
 

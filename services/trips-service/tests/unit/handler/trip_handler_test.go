@@ -33,9 +33,9 @@ func newHandler() (*grpcHandler.TripHandler, *mocks.MockTripService) {
 	return handler, mockService
 }
 
-// ctxWithUID retourne un contexte contenant le Firebase UID attendu par les handlers.
+// ctxWithUID retourne un contexte contenant l'UserID de l'appelant, tel que résolu par l'intercepteur.
 func ctxWithUID() context.Context {
-	return context.WithValue(context.Background(), middleware.FirebaseIDKey, "driver-1")
+	return context.WithValue(context.Background(), middleware.UserIDKey, "driver-1")
 }
 
 // assertGRPCCode vérifie que l'erreur est un statut gRPC avec le code attendu.

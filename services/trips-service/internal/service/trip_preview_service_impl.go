@@ -15,7 +15,7 @@ import (
 // enrichie avec le nom du conducteur et les infos du véhicule.
 // Utilise un cache-aside à 3 niveaux : previews DB, driver name, vehicle info.
 func (s *tripServiceImpl) GetTripsPreviews(ctx context.Context, input *serviceInterfaces.GetTripsPreviewsInput) ([]*serviceInterfaces.TripPreviewResult, error) {
-	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	driverUserID, err := requireDriverID(input.DriverID)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (s *tripServiceImpl) GetTripsPreviews(ctx context.Context, input *serviceIn
 // GetCompletedTripsPreviews retourne la liste paginée des trajets complétés du conducteur
 // enrichie avec le nom du conducteur et les infos du véhicule.
 func (s *tripServiceImpl) GetCompletedTripsPreviews(ctx context.Context, input *serviceInterfaces.GetTripsPreviewsInput) ([]*serviceInterfaces.CompletedTripPreviewResult, error) {
-	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	driverUserID, err := requireDriverID(input.DriverID)
 	if err != nil {
 		return nil, err
 	}

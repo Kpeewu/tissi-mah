@@ -32,10 +32,6 @@ func newTestService() (
 	writeRepo := new(mocks.MockTripRepositoryWrite)
 	userClient := new(mocks.MockUserClient)
 	vehicleClient := new(mocks.MockVehicleClient)
-	// Par défaut, résout authID -> userID en retournant l'authID (identity).
-	// Les tests peuvent surcharger avec .On("GetUserIDByAuthID", ...) explicite.
-	userClient.On("GetUserIDByAuthID", mock.Anything, mock.AnythingOfType("string")).
-		Return(func(_ context.Context, authID string) string { return authID }, nil).Maybe()
 	svc := service.NewTripService(readRepo, writeRepo, userClient, vehicleClient, nil, nil, nil, nil, zap.NewNop())
 	return readRepo, writeRepo, userClient, vehicleClient, svc
 }
@@ -85,7 +81,6 @@ func TestCreateTrip(t *testing.T) {
 		_, writeRepo, userClient, vehicleClient, svc := newTestService()
 		ctx := context.Background()
 
-		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(true, nil)
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").
 			Return("Toyota", "Corolla", "AB1234", 5, true, nil)
@@ -111,10 +106,9 @@ func TestCreateTrip(t *testing.T) {
 	})
 
 	t.Run("erreur - moins de 2 waypoints → ErrorInvalidWaypoints", func(t *testing.T) {
-		_, _, userClient, _, svc := newTestService()
+		_, _, _, _, svc := newTestService()
 		ctx := context.Background()
 
-		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 
 		input := validCreateTripInput("driver-1", "vehicle-1")
 		input.Waypoints = []serviceInterfaces.WaypointInput{
@@ -131,7 +125,6 @@ func TestCreateTrip(t *testing.T) {
 		_, _, userClient, _, svc := newTestService()
 		ctx := context.Background()
 
-		userClient.On("GetUserIDByAuthID", ctx, "driver-unverified").Return("driver-unverified", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-unverified").Return(false, nil)
 
 		trip, err := svc.CreateTrip(ctx, validCreateTripInput("driver-unverified", "vehicle-1"))
@@ -145,7 +138,6 @@ func TestCreateTrip(t *testing.T) {
 		_, writeRepo, userClient, vehicleClient, svc := newTestService()
 		ctx := context.Background()
 
-		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(true, nil)
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").
 			Return("Toyota", "Corolla", "AB1234", 5, true, nil)
@@ -162,7 +154,6 @@ func TestCreateTrip(t *testing.T) {
 		_, writeRepo, userClient, vehicleClient, svc := newTestService()
 		ctx := context.Background()
 
-		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(true, nil)
 		// Véhicule existant mais documents pas tous approuvés par le support.
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").
@@ -179,7 +170,6 @@ func TestCreateTrip(t *testing.T) {
 		_, writeRepo, userClient, vehicleClient, svc := newTestService()
 		ctx := context.Background()
 
-		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(true, nil)
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-ghost").
 			Return("", "", "", 0, false, nil)

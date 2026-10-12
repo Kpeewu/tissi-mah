@@ -35,7 +35,6 @@ func TestCreateRecurringTrip(t *testing.T) {
 	t.Run("succès weekly", func(t *testing.T) {
 		_, writeRepo, userClient, vehicleClient, svc := newTestService()
 		ctx := context.Background()
-		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(true, nil)
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").
 			Return("Toyota", "Corolla", "AB1234", 5, true, nil)
@@ -49,7 +48,6 @@ func TestCreateRecurringTrip(t *testing.T) {
 	t.Run("succès daily (days_of_week ignoré)", func(t *testing.T) {
 		_, writeRepo, userClient, vehicleClient, svc := newTestService()
 		ctx := context.Background()
-		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(true, nil)
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").
 			Return("Toyota", "Corolla", "AB1234", 5, true, nil)
@@ -65,18 +63,16 @@ func TestCreateRecurringTrip(t *testing.T) {
 	})
 
 	t.Run("erreur - driverID vide → Unauthorized", func(t *testing.T) {
-		_, _, userClient, _, svc := newTestService()
+		_, _, _, _, svc := newTestService()
 		ctx := context.Background()
-		userClient.On("GetUserIDByAuthID", ctx, "").Return("", nil).Maybe()
 
 		_, err := svc.CreateRecurringTrip(ctx, validRecurringInput("", "vehicle-1"))
 		assert.ErrorIs(t, err, tripErrors.ErrorUnauthorized)
 	})
 
 	t.Run("erreur - RecurrenceType invalide → InvalidInput", func(t *testing.T) {
-		_, _, userClient, _, svc := newTestService()
+		_, _, _, _, svc := newTestService()
 		ctx := context.Background()
-		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 
 		input := validRecurringInput("driver-1", "vehicle-1")
 		input.RecurrenceType = "hourly"
@@ -86,9 +82,8 @@ func TestCreateRecurringTrip(t *testing.T) {
 	})
 
 	t.Run("erreur - weekly sans days_of_week → InvalidInput", func(t *testing.T) {
-		_, _, userClient, _, svc := newTestService()
+		_, _, _, _, svc := newTestService()
 		ctx := context.Background()
-		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 
 		input := validRecurringInput("driver-1", "vehicle-1")
 		input.DaysOfWeek = nil
@@ -98,9 +93,8 @@ func TestCreateRecurringTrip(t *testing.T) {
 	})
 
 	t.Run("erreur - < 2 waypoints → InvalidWaypoints", func(t *testing.T) {
-		_, _, userClient, _, svc := newTestService()
+		_, _, _, _, svc := newTestService()
 		ctx := context.Background()
-		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 
 		input := validRecurringInput("driver-1", "vehicle-1")
 		input.Waypoints = input.Waypoints[:1]
@@ -112,7 +106,6 @@ func TestCreateRecurringTrip(t *testing.T) {
 	t.Run("erreur - driver non vérifié → propagation", func(t *testing.T) {
 		_, _, userClient, _, svc := newTestService()
 		ctx := context.Background()
-		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		userClient.On("IsVerifiedDriver", ctx, "driver-1").Return(false, nil)
 
 		_, err := svc.CreateRecurringTrip(ctx, validRecurringInput("driver-1", "vehicle-1"))
@@ -120,9 +113,8 @@ func TestCreateRecurringTrip(t *testing.T) {
 	})
 
 	t.Run("erreur - EndDate < StartDate → InvalidDatetime", func(t *testing.T) {
-		_, _, userClient, _, svc := newTestService()
+		_, _, _, _, svc := newTestService()
 		ctx := context.Background()
-		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 
 		input := validRecurringInput("driver-1", "vehicle-1")
 		now := time.Now().UTC()
@@ -134,9 +126,8 @@ func TestCreateRecurringTrip(t *testing.T) {
 	})
 
 	t.Run("erreur - DepartureTime mal formé → InvalidDatetime", func(t *testing.T) {
-		_, _, userClient, _, svc := newTestService()
+		_, _, _, _, svc := newTestService()
 		ctx := context.Background()
-		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 
 		input := validRecurringInput("driver-1", "vehicle-1")
 		input.DepartureTime = "not-a-date"

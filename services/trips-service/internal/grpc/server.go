@@ -18,6 +18,7 @@ import (
 func NewTripServer(
 	cfg *config.Config,
 	service serviceInterfaces.TripService,
+	userIDResolver middleware.UserIDResolver,
 	logger *zap.Logger,
 ) (*grpcutil.Server, error) {
 	port, err := strconv.Atoi(cfg.Server.Port)
@@ -34,7 +35,7 @@ func NewTripServer(
 	srv, err := grpcutil.NewServer(
 		serverCfg,
 		logger,
-		grpc.UnaryInterceptor(middleware.TripInterceptor([]byte(cfg.InternalHMACSecret))),
+		grpc.UnaryInterceptor(middleware.TripInterceptor([]byte(cfg.InternalHMACSecret), userIDResolver)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)

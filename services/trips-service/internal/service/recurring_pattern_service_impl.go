@@ -18,8 +18,7 @@ func (s *tripServiceImpl) CreateRecurringTrip(ctx context.Context, input *servic
 		zap.String("recurrenceType", input.RecurrenceType),
 	)
 
-	// Résoudre Firebase UID → UserID interne
-	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	driverUserID, err := requireDriverID(input.DriverID)
 	if err != nil {
 		return "", err
 	}
