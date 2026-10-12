@@ -445,7 +445,7 @@ func (s *chatServiceImpl) resolveRole(thread *domain.ChatThread, userID string) 
 // AnonymizeUserData ferme les threads actifs et pseudonymise les références de l'utilisateur.
 func (s *chatServiceImpl) AnonymizeUserData(ctx context.Context, userID string) error {
 	if userID == "" {
-		return chatErrors.ErrMissingBookingID
+		return chatErrors.ErrMissingUserID
 	}
 	if err := s.threadRepo.AnonymizeUserRefs(ctx, userID); err != nil {
 		return err

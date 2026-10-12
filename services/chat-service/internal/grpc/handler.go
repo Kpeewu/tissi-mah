@@ -275,7 +275,7 @@ func toGRPCError(err error) error {
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case chatErrors.ErrEmptyMessage, chatErrors.ErrMessageTooLong,
 		chatErrors.ErrMissingBookingID, chatErrors.ErrMissingThreadID, chatErrors.ErrMissingMessageID,
-		chatErrors.ErrMessageBlocked:
+		chatErrors.ErrMissingUserID, chatErrors.ErrMessageBlocked:
 		return status.Error(codes.InvalidArgument, err.Error())
 	case chatErrors.ErrBookingServiceUnavailable, chatErrors.ErrTripServiceUnavailable:
 		return status.Error(codes.Unavailable, err.Error())
