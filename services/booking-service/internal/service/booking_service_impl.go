@@ -715,6 +715,10 @@ func (s *bookingServiceImpl) ReportNoShow(ctx context.Context, input *serviceInt
 		return bookingErrors.ErrorUnauthorized
 	}
 
+	if err := s.checkNoShowReportable(ctx, booking); err != nil {
+		return err
+	}
+
 	if err := s.writeRepo.ReportNoShow(ctx, input.BookingID, input.ReporterID, input.NoShowType, input.Description); err != nil {
 		return err
 	}
@@ -765,6 +769,27 @@ func canReportNoShow(booking *domain.Booking, reporterID, noShowType string) boo
 	default:
 		return false
 	}
+}
+
+// noShowReportDelay : attente minimale au point de rendez-vous, après l'heure de prise en charge
+// prévue, avant de pouvoir déclarer l'autre partie absente.
+const noShowReportDelay = 15 * time.Minute
+
+// checkNoShowReportable vérifie qu'une absence peut déjà être constatée : l'heure de prise en
+// charge prévue (source de vérité : trips-service) doit être passée d'au moins noShowReportDelay.
+// Si cette heure est inconnue, on refuse plutôt que de laisser passer un signalement anticipé.
+func (s *bookingServiceImpl) checkNoShowReportable(ctx context.Context, booking *domain.Booking) error {
+	scheduledPickup, err := time.Parse(time.RFC3339, s.getDepartureDatetime(ctx, booking))
+	if err != nil {
+		s.logger.Warn("service: ReportNoShow refusé, heure de prise en charge inconnue",
+			zap.String("bookingID", booking.BookingID), zap.Error(err))
+		return bookingErrors.ErrorDataRetrievalFailed
+	}
+
+	if time.Now().Before(scheduledPickup.Add(noShowReportDelay)) {
+		return bookingErrors.ErrorNoShowTooEarly
+	}
+	return nil
 }
 
 // =============================================================================

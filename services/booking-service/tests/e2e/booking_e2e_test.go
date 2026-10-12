@@ -412,6 +412,8 @@ func TestE2E_ReportNoShow(t *testing.T) {
 		booking := fixtures.NewTestBooking(
 			fixtures.WithBookingID("e2e-bk-noshow"),
 			fixtures.WithDriverID("e2e-driver-noshow"),
+			fixtures.WithTripID(noShowTripID),
+			fixtures.WithPickupWaypointID(noShowWaypointID),
 			fixtures.WithBookingStatus(domain.BookingStatusInProgress),
 		)
 		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
@@ -434,6 +436,27 @@ func TestE2E_ReportNoShow(t *testing.T) {
 		assert.Equal(t, "noShow", detailResp.Booking.Status)
 		assert.Equal(t, "passenger", detailResp.Booking.NoShowType)
 		assert.Equal(t, "e2e-driver-noshow", detailResp.Booking.NoShowReportedBy)
+	})
+
+	t.Run("succes - chauffeur absent avant la prise en charge", func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("e2e-bk-noshow-driver"),
+			fixtures.WithPassengerID("e2e-passenger-waiting"),
+			fixtures.WithTripID(noShowTripID),
+			fixtures.WithPickupWaypointID(noShowWaypointID),
+			fixtures.WithBookingStatus(domain.BookingStatusApproved),
+		)
+		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
+
+		resp, err := grpcClient.ReportNoShow(ctxWithUID("e2e-passenger-waiting"), &bookingpb.ReportNoShowRequest{
+			BookingId:  "e2e-bk-noshow-driver",
+			NoShowType: "driver",
+		})
+
+		require.NoError(t, err)
+		assert.True(t, resp.Success)
 	})
 
 	t.Run("erreur - type no-show invalide", func(t *testing.T) {

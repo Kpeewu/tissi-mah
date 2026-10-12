@@ -12,6 +12,7 @@ import (
 	"time"
 
 	postgresHelper "github.com/Kpeewu/tissi-mah/pkg-test/postgres"
+	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/client"
 	grpcHandler "github.com/Kpeewu/tissi-mah/services/booking-service/internal/grpc"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/middleware"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/repository/implementations"
@@ -60,6 +61,14 @@ func TestMain(m *testing.M) {
 
 	// --- Mock clients (inter-service) ---
 	mockTripClient := new(mocks.MockTripClient)
+	// Trajet des tests no-show : prise en charge prévue il y a 1 h (délai d'attente écoulé)
+	mockTripClient.On("GetTripDetails", mock.Anything, noShowTripID).Return(&client.TripDetails{
+		TripID: noShowTripID,
+		Waypoints: []client.TripWaypoint{{
+			WaypointID:              noShowWaypointID,
+			ScheduledPickupDatetime: time.Now().UTC().Add(-time.Hour).Format(time.RFC3339),
+		}},
+	}, nil).Maybe()
 	mockTripClient.On("GetTripDetails", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	mockTripClient.On("UpdateAvailableSeats", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	mockTripClient.On("IncrementLegBookedSeats", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
