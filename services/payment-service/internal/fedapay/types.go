@@ -21,6 +21,13 @@ const (
 	TransactionStatusDeleted = "deleted"
 )
 
+// Statuts d'un payout (virement sortant) FedaPay : pending, started, processing, sent, failed.
+// Seuls sent (fonds livrés) et failed sont finaux.
+const (
+	PayoutStatusSent   = "sent"
+	PayoutStatusFailed = "failed"
+)
+
 // ErrTransactionNotFound est retournée quand FedaPay répond 404 (transaction inexistante ou supprimée).
 var ErrTransactionNotFound = errors.New("fedapay: transaction not found")
 
@@ -54,7 +61,7 @@ type PayoutItem struct {
 	Klass         string `json:"klass"`
 	Reference     string `json:"reference"`
 	Amount        int    `json:"amount"`
-	Status        string `json:"status"` // pending, started, completed, failed
+	Status        string `json:"status"` // pending, started, processing, sent, failed
 	Mode          string `json:"mode"`
 	FailReason    string `json:"fail_reason"`
 	SentAt        string `json:"sent_at"`

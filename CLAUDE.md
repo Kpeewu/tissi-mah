@@ -264,6 +264,7 @@ sur les 4 pays (Togo, Ghana, Bénin, Burkina Faso).
 | `PAYMENT_CALLBACK_URL` | oui (non-local) | `callback_url` FedaPay = `https://<api-gateway>/api/v1/payment/callback` — fail-fast si vide hors `local` |
 | `PAYMENT_TIMEOUT_MINUTES` | non (10) | Fenêtre de paiement depuis la création de la réservation ; au-delà, transaction FedaPay supprimée (DELETE) + places libérées |
 | `EXPIRATION_INTERVAL_SECONDS` | non (60) | Tick du worker d'expiration |
+| `PAYOUT_RECONCILE_INTERVAL_SECONDS` | non (300) | Tick du worker de réconciliation des virements (remboursements + payouts) — hors fenêtre horaire |
 
 **Flux** : `createPayment` → `PaymentUrl` (page FedaPay) → callback → deep link → `verifyPayment` (source de vérité).
 `declined`/`canceled` FedaPay ne sont pas finaux (paiement reste `pending`). booking-service : sweeper
@@ -271,6 +272,13 @@ sur les 4 pays (Togo, Ghana, Bénin, Burkina Faso).
 remboursements dus enregistrés avec la transition (`refund_reason`) et rejoués par un worker
 (`REFUND_REQUEST_WORKER_INTERVAL_SECONDS`, 60) jusqu'à acquittement (`requestRefund` idempotent par paiement) ;
 `ConfirmPayment` est interne (`/api/v1/booking/internal/confirmPayment`) et applique l'auto-approbation.
+**Virements sortants** (remboursements, payouts chauffeurs) : restent `processing` jusqu'à la confirmation
+FedaPay (`sent` → `completed`, `failed` → nouvelle tentative), relue via `GetPayout` sur webhook `payout.*` ou
+par le worker de réconciliation ; payout chauffeur repris automatiquement au plus 3 fois, ensuite relance support.
+**Historique** : chaque transition est tracée dans `payment_status_history` / `refund_status_history`
+(`payout_status_history` pour les payouts) avec `initiated_by` + `source` (posés via `withHistoryOrigin` au point
+d'entrée), écrite seulement après succès de la transition ; lecture support via
+`/api/v1/payment/support/get{Payment,Refund,Payout}History` (JWT support).
 
 ### geolocation-service
 

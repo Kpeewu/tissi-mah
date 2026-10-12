@@ -87,11 +87,26 @@ func (r *refundWriteRepository) MarkRefundProcessing(ctx context.Context, refund
 	return nil
 }
 
+func (r *refundWriteRepository) SetRefundProviderReference(ctx context.Context, refundID string, paymentProviderReference string) error {
+	query := `UPDATE refunds SET payment_provider_reference = $2 WHERE refund_id = $1 AND status = 'processing'`
+
+	tag, err := r.pool.Exec(ctx, query, refundID, paymentProviderReference)
+	if err != nil {
+		r.logger.Error("set refund provider reference failed", zap.Error(err), zap.String("refundID", refundID))
+		return paymentErrors.ErrorInternalServer
+	}
+	if tag.RowsAffected() == 0 {
+		return paymentErrors.ErrorRefundAlreadyProcessed
+	}
+
+	return nil
+}
+
 func (r *refundWriteRepository) MarkRefundCompleted(ctx context.Context, refundID string, paymentProviderReference string) error {
 	query := `UPDATE refunds SET status = 'completed', completed_at = $2,
 		payment_provider_reference = COALESCE(NULLIF($3, ''), payment_provider_reference),
 		failure_reason = NULL
-		WHERE refund_id = $1`
+		WHERE refund_id = $1 AND status = 'processing'`
 
 	now := time.Now().UTC()
 	tag, err := r.pool.Exec(ctx, query, refundID, now, paymentProviderReference)
@@ -100,7 +115,24 @@ func (r *refundWriteRepository) MarkRefundCompleted(ctx context.Context, refundI
 		return paymentErrors.ErrorInternalServer
 	}
 	if tag.RowsAffected() == 0 {
-		return paymentErrors.ErrorRefundNotFound
+		return paymentErrors.ErrorRefundAlreadyProcessed
+	}
+
+	return nil
+}
+
+func (r *refundWriteRepository) MarkRefundPayoutFailed(ctx context.Context, refundID string, reason string) error {
+	query := `UPDATE refunds SET status = 'pending', failure_reason = $2,
+		retry_count = retry_count + 1, last_retry_at = $3
+		WHERE refund_id = $1 AND status = 'processing'`
+
+	tag, err := r.pool.Exec(ctx, query, refundID, reason, time.Now().UTC())
+	if err != nil {
+		r.logger.Error("mark refund payout failed", zap.Error(err), zap.String("refundID", refundID))
+		return paymentErrors.ErrorInternalServer
+	}
+	if tag.RowsAffected() == 0 {
+		return paymentErrors.ErrorRefundAlreadyProcessed
 	}
 
 	return nil

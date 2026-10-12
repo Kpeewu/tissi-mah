@@ -179,3 +179,43 @@ func TestPayoutWriteRepository_MarkPayoutFailed(t *testing.T) {
 		assert.Equal(t, "Solde insuffisant", *result.FailureReason)
 	})
 }
+
+func TestPayoutWriteRepository_MarkPaymentsAsPaidOut(t *testing.T) {
+	ctx := context.Background()
+	paymentWriteRepo := newTestPaymentWriteRepository()
+	payoutWriteRepo := newTestPayoutWriteRepository()
+
+	t.Run("passe les paiements released du trip en paidOut et retourne leurs identifiants", func(t *testing.T) {
+		cleanupPaymentTables(t, ctx)
+		for _, p := range []*domain.Payment{
+			fixtures.NewTestPayment(fixtures.WithPaymentID("pay-po-1"), fixtures.WithPaymentTripID("trip-po"),
+				fixtures.WithPaymentStatus(domain.PaymentStatusReleased)),
+			fixtures.NewTestPayment(fixtures.WithPaymentID("pay-po-2"), fixtures.WithPaymentTripID("trip-po"),
+				fixtures.WithPaymentStatus(domain.PaymentStatusReleased)),
+			fixtures.NewTestPayment(fixtures.WithPaymentID("pay-po-refunded"), fixtures.WithPaymentTripID("trip-po"),
+				fixtures.WithPaymentStatus(domain.PaymentStatusRefunded)),
+			fixtures.NewTestPayment(fixtures.WithPaymentID("pay-po-other"), fixtures.WithPaymentTripID("trip-other"),
+				fixtures.WithPaymentStatus(domain.PaymentStatusReleased)),
+		} {
+			require.NoError(t, paymentWriteRepo.CreatePayment(ctx, p))
+		}
+
+		paymentIDs, err := payoutWriteRepo.MarkPaymentsAsPaidOut(ctx, "trip-po")
+
+		require.NoError(t, err)
+		assert.ElementsMatch(t, []string{"pay-po-1", "pay-po-2"}, paymentIDs)
+
+		var status string
+		require.NoError(t, testPool.QueryRow(ctx, `SELECT status FROM payments WHERE payment_id = 'pay-po-other'`).Scan(&status))
+		assert.Equal(t, "released", status)
+	})
+
+	t.Run("aucun paiement released : liste vide", func(t *testing.T) {
+		cleanupPaymentTables(t, ctx)
+
+		paymentIDs, err := payoutWriteRepo.MarkPaymentsAsPaidOut(ctx, "trip-empty")
+
+		require.NoError(t, err)
+		assert.Empty(t, paymentIDs)
+	})
+}

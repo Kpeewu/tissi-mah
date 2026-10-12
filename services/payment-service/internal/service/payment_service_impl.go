@@ -27,22 +27,24 @@ import (
 )
 
 type paymentServiceImpl struct {
-	paymentReadRepo   repoInterfaces.PaymentRepositoryRead
-	paymentWriteRepo  repoInterfaces.PaymentRepositoryWrite
-	refundReadRepo    repoInterfaces.RefundRepositoryRead
-	refundWriteRepo   repoInterfaces.RefundRepositoryWrite
-	payoutReadRepo    repoInterfaces.PayoutRepositoryRead
-	payoutWriteRepo   repoInterfaces.PayoutRepositoryWrite
-	payoutHistoryRepo repoInterfaces.PayoutHistoryRepositoryWrite
-	bookingClient     client.BookingClient
-	userClient        client.UserClient
-	supportClient     client.SupportClient
-	fedapayClient     fedapay.FedaPayClient
-	cache             *cache.PaymentCache
-	notifRedis        *redis.Client
-	cfg               *config.Config
-	logger            *zap.Logger
-	webhookSem        chan struct{} // sémaphore pour limiter les webhooks concurrents
+	paymentReadRepo    repoInterfaces.PaymentRepositoryRead
+	paymentWriteRepo   repoInterfaces.PaymentRepositoryWrite
+	refundReadRepo     repoInterfaces.RefundRepositoryRead
+	refundWriteRepo    repoInterfaces.RefundRepositoryWrite
+	payoutReadRepo     repoInterfaces.PayoutRepositoryRead
+	payoutWriteRepo    repoInterfaces.PayoutRepositoryWrite
+	payoutHistoryRepo  repoInterfaces.PayoutHistoryRepository
+	paymentHistoryRepo repoInterfaces.PaymentHistoryRepository
+	refundHistoryRepo  repoInterfaces.RefundHistoryRepository
+	bookingClient      client.BookingClient
+	userClient         client.UserClient
+	supportClient      client.SupportClient
+	fedapayClient      fedapay.FedaPayClient
+	cache              *cache.PaymentCache
+	notifRedis         *redis.Client
+	cfg                *config.Config
+	logger             *zap.Logger
+	webhookSem         chan struct{} // sémaphore pour limiter les webhooks concurrents
 }
 
 // NewPaymentService crée le service de paiement.
@@ -53,7 +55,9 @@ func NewPaymentService(
 	refundWriteRepo repoInterfaces.RefundRepositoryWrite,
 	payoutReadRepo repoInterfaces.PayoutRepositoryRead,
 	payoutWriteRepo repoInterfaces.PayoutRepositoryWrite,
-	payoutHistoryRepo repoInterfaces.PayoutHistoryRepositoryWrite,
+	payoutHistoryRepo repoInterfaces.PayoutHistoryRepository,
+	paymentHistoryRepo repoInterfaces.PaymentHistoryRepository,
+	refundHistoryRepo repoInterfaces.RefundHistoryRepository,
 	bookingClient client.BookingClient,
 	userClient client.UserClient,
 	supportClient client.SupportClient,
@@ -69,22 +73,24 @@ func NewPaymentService(
 	}
 
 	return &paymentServiceImpl{
-		paymentReadRepo:   paymentReadRepo,
-		paymentWriteRepo:  paymentWriteRepo,
-		refundReadRepo:    refundReadRepo,
-		refundWriteRepo:   refundWriteRepo,
-		payoutReadRepo:    payoutReadRepo,
-		payoutWriteRepo:   payoutWriteRepo,
-		payoutHistoryRepo: payoutHistoryRepo,
-		bookingClient:     bookingClient,
-		userClient:        userClient,
-		supportClient:     supportClient,
-		fedapayClient:     fedapayClient,
-		cache:             paymentCache,
-		notifRedis:        notifRedis,
-		cfg:               cfg,
-		logger:            logger.Named("service"),
-		webhookSem:        make(chan struct{}, webhookMaxConcurrent),
+		paymentReadRepo:    paymentReadRepo,
+		paymentWriteRepo:   paymentWriteRepo,
+		refundReadRepo:     refundReadRepo,
+		refundWriteRepo:    refundWriteRepo,
+		payoutReadRepo:     payoutReadRepo,
+		payoutWriteRepo:    payoutWriteRepo,
+		payoutHistoryRepo:  payoutHistoryRepo,
+		paymentHistoryRepo: paymentHistoryRepo,
+		refundHistoryRepo:  refundHistoryRepo,
+		bookingClient:      bookingClient,
+		userClient:         userClient,
+		supportClient:      supportClient,
+		fedapayClient:      fedapayClient,
+		cache:              paymentCache,
+		notifRedis:         notifRedis,
+		cfg:                cfg,
+		logger:             logger.Named("service"),
+		webhookSem:         make(chan struct{}, webhookMaxConcurrent),
 	}
 }
 
@@ -123,6 +129,7 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 	}
 
 	s.logger.Debug("processing webhook")
+	ctx = withHistoryOrigin(ctx, domain.HistoryInitiatedBySystem, domain.HistorySourceFedaPayWebhook)
 
 	// Vérifier la signature HMAC
 	if !s.fedapayClient.VerifyWebhookSignature(input.Signature, input.RawPayload) {
@@ -176,25 +183,10 @@ func (s *paymentServiceImpl) ProcessWebhook(ctx context.Context, input *serviceI
 
 // handleWebhookEvent applique un événement webhook FedaPay (payout ou collecte).
 func (s *paymentServiceImpl) handleWebhookEvent(ctx context.Context, payload *fedapay.WebhookPayload) error {
-	// Traiter les événements payout séparément
-	if payload.Name == "payout.completed" {
-		providerRef := strconv.Itoa(payload.Entity.ID)
-		payout, err := s.payoutReadRepo.GetByProviderReference(ctx, providerRef)
-		if err != nil {
-			s.logger.Warn("payout not found for webhook", zap.String("providerRef", providerRef))
-			return nil
-		}
-		err = s.payoutWriteRepo.UpdatePayoutStatus(ctx, payout.PayoutID, domain.PayoutStatusCompleted, providerRef)
-		if err != nil {
-			s.logger.Error("update payout status from webhook failed",
-				zap.String("payoutID", payout.PayoutID),
-				zap.Error(err),
-			)
-			return err
-		}
-		s.writeHistory(ctx, payout.PayoutID, "completed", "system", "", "", "", "Confirmé par FedaPay webhook")
-		s.logger.Info("payout completed via webhook", zap.String("payoutID", payout.PayoutID))
-		return nil
+	// Virements sortants (remboursements et payouts chauffeurs) : les noms des événements payout.* ne sont
+	// pas documentés par FedaPay, le statut est relu via GetPayout (cf. payout_confirmation.go)
+	if strings.HasPrefix(payload.Name, "payout.") {
+		return s.confirmProviderPayout(ctx, strconv.Itoa(payload.Entity.ID))
 	}
 
 	// Événements de collecte : traduits en statut FedaPay puis appliqués via la logique commune
@@ -317,6 +309,8 @@ func (s *paymentServiceImpl) GetPaymentByBooking(ctx context.Context, bookingID 
 // =============================================================================
 
 func (s *paymentServiceImpl) ReleasePayment(ctx context.Context, bookingID string) error {
+	ctx = withHistoryOrigin(ctx, domain.HistoryInitiatedByBookingService, domain.HistorySourceBookingService)
+
 	payment, err := s.paymentReadRepo.GetByBookingID(ctx, bookingID)
 	if err != nil {
 		return err
@@ -333,6 +327,7 @@ func (s *paymentServiceImpl) ReleasePayment(ctx context.Context, bookingID strin
 	if err := s.paymentWriteRepo.UpdatePaymentStatus(ctx, payment.PaymentID, domain.PaymentStatusReleased, ""); err != nil {
 		return err
 	}
+	s.writePaymentHistory(ctx, payment.PaymentID, string(domain.PaymentStatusReleased), "", "Trajet terminé, fonds libérés pour le versement chauffeur")
 
 	if s.cache != nil {
 		s.cache.InvalidatePaymentByBookingID(ctx, bookingID)
@@ -348,6 +343,7 @@ func (s *paymentServiceImpl) ReleasePayment(ctx context.Context, bookingID strin
 
 func (s *paymentServiceImpl) RequestRefund(ctx context.Context, input *serviceInterfaces.RequestRefundInput) (*serviceInterfaces.RequestRefundResult, error) {
 	s.logger.Info("requesting refund", zap.String("bookingID", input.BookingID), zap.String("reason", input.RefundReason))
+	ctx = withHistoryOrigin(ctx, domain.HistoryInitiatedByBookingService, domain.HistorySourceBookingService)
 
 	// Un motif hors enum refund_reason ferait échouer l'INSERT avec une erreur SQL opaque
 	if !domain.RefundReason(input.RefundReason).IsValid() {
@@ -460,11 +456,14 @@ func (s *paymentServiceImpl) createRefundForPayment(ctx context.Context, payment
 			}
 			return nil, err
 		}
+		s.writeRefundHistory(ctx, refundID, string(refundStatus), 0, refundCreatedNotes(refund))
 	}
 
 	// MAJ statut du paiement → refunded
 	if err := s.paymentWriteRepo.UpdatePaymentStatus(ctx, payment.PaymentID, domain.PaymentStatusRefunded, ""); err != nil {
 		s.logger.Error("update payment status to refunded failed", zap.Error(err))
+	} else {
+		s.writePaymentHistory(ctx, payment.PaymentID, string(domain.PaymentStatusRefunded), "", paymentRefundedNotes(refund))
 	}
 
 	if s.cache != nil {
@@ -527,6 +526,8 @@ func (s *paymentServiceImpl) existingRefundResult(
 		err := s.paymentWriteRepo.UpdatePaymentStatus(ctx, payment.PaymentID, domain.PaymentStatusRefunded, "")
 		if err != nil {
 			s.logger.Error("update payment status to refunded failed", zap.Error(err))
+		} else {
+			s.writePaymentHistory(ctx, payment.PaymentID, string(domain.PaymentStatusRefunded), "", paymentRefundedNotes(refund))
 		}
 	}
 
@@ -709,6 +710,7 @@ func (s *paymentServiceImpl) TriggerManualPayout(ctx context.Context, tripID str
 	}
 
 	// Exécuter le payout (écrit déjà "scheduled"/"processing"/"failed" dans l'historique)
+	ctx = withHistoryOrigin(ctx, domain.HistoryInitiatedBySupport, domain.HistorySourceSupportManualPayout)
 	payoutID, netAmount, err := s.processPayoutForTrip(ctx, tripID)
 	if err != nil {
 		return 0, err
@@ -720,7 +722,7 @@ func (s *paymentServiceImpl) TriggerManualPayout(ctx context.Context, tripID str
 	}
 
 	// Entrée d'historique avec les informations de l'agent support (source de vérité DB)
-	s.writeHistory(ctx, payoutID, "launched_by_support", "support",
+	s.writePayoutHistory(ctx, payoutID, "launched_by_support", "support",
 		supportUser.UserID, supportUser.FirstName, supportUser.LastName,
 		fmt.Sprintf("Paiement initié manuellement par %s %s", supportUser.FirstName, supportUser.LastName),
 	)
@@ -738,6 +740,24 @@ func (s *paymentServiceImpl) TriggerManualPayout(ctx context.Context, tripID str
 // =============================================================================
 // Helpers
 // =============================================================================
+
+// refundCreatedNotes décrit un remboursement à sa création (règle et ventilation des montants).
+func refundCreatedNotes(refund *domain.Refund) string {
+	notes := fmt.Sprintf("Motif %s, règle %s (%d%%) : %d XOF passager, %d XOF chauffeur, %d XOF plateforme",
+		refund.RefundReason, refund.RefundRuleApplied, refund.RefundPercentage,
+		refund.AmountToPassenger, refund.AmountToDriver, refund.AmountToPlatform,
+	)
+	if refund.AmountToPassenger == 0 {
+		notes += " — aucun virement passager requis"
+	}
+	return notes
+}
+
+// paymentRefundedNotes décrit le passage d'un paiement en refunded.
+func paymentRefundedNotes(refund *domain.Refund) string {
+	return fmt.Sprintf("Remboursement %s (%s, %d XOF au passager)",
+		refund.RefundReference, refund.RefundReason, refund.AmountToPassenger)
+}
 
 func formatOptionalTime(t *time.Time) string {
 	if t == nil || t.IsZero() {

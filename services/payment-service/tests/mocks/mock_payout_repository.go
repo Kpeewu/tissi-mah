@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"context"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/domain"
 	"github.com/stretchr/testify/mock"
@@ -106,9 +107,12 @@ func (m *MockPayoutRepositoryWrite) UpdateBatch(ctx context.Context, batch *doma
 	return args.Error(0)
 }
 
-func (m *MockPayoutRepositoryWrite) MarkPaymentsAsPaidOut(ctx context.Context, tripID string) error {
+func (m *MockPayoutRepositoryWrite) MarkPaymentsAsPaidOut(ctx context.Context, tripID string) ([]string, error) {
 	args := m.Called(ctx, tripID)
-	return args.Error(0)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
 }
 
 func (m *MockPayoutRepositoryRead) HasActivePayout(ctx context.Context, driverID string) (bool, error) {
@@ -119,4 +123,25 @@ func (m *MockPayoutRepositoryRead) HasActivePayout(ctx context.Context, driverID
 func (m *MockPayoutRepositoryWrite) AnonymizeDriverRefs(ctx context.Context, driverID string) error {
 	args := m.Called(ctx, driverID)
 	return args.Error(0)
+}
+
+func (m *MockPayoutRepositoryRead) GetProcessingPayoutsToReconcile(ctx context.Context, updatedBefore time.Time, limit int) ([]*domain.Payout, error) {
+	args := m.Called(ctx, updatedBefore, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Payout), args.Error(1)
+}
+
+func (m *MockPayoutRepositoryWrite) ConfirmPayoutCompleted(ctx context.Context, payoutID string) error {
+	args := m.Called(ctx, payoutID)
+	return args.Error(0)
+}
+
+func (m *MockPayoutRepositoryWrite) FailProcessingPayout(ctx context.Context, payoutID string, tripID string, reason string) ([]string, error) {
+	args := m.Called(ctx, payoutID, tripID, reason)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
 }

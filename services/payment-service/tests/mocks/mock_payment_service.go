@@ -131,3 +131,27 @@ func (m *MockPaymentService) CancelPaymentForBooking(ctx context.Context, bookin
 	}
 	return args.Get(0).(*serviceInterfaces.PaymentSyncResult), args.Error(1)
 }
+
+func (m *MockPaymentService) GetPaymentHistory(ctx context.Context, paymentID string, bookingID string) ([]*serviceInterfaces.PaymentHistoryEntryResult, error) {
+	args := m.Called(ctx, paymentID, bookingID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*serviceInterfaces.PaymentHistoryEntryResult), args.Error(1)
+}
+
+func (m *MockPaymentService) GetRefundHistory(ctx context.Context, refundID string, bookingID string) ([]*serviceInterfaces.RefundHistoryEntryResult, error) {
+	args := m.Called(ctx, refundID, bookingID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*serviceInterfaces.RefundHistoryEntryResult), args.Error(1)
+}
+
+func (m *MockPaymentService) GetPayoutHistory(ctx context.Context, payoutID string) ([]*serviceInterfaces.PayoutHistoryEntryResult, error) {
+	args := m.Called(ctx, payoutID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*serviceInterfaces.PayoutHistoryEntryResult), args.Error(1)
+}

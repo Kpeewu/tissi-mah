@@ -63,6 +63,7 @@ func (s *paymentServiceImpl) ProcessPendingRefunds(ctx context.Context) error {
 	if s.refundReadRepo == nil || s.refundWriteRepo == nil || s.fedapayClient == nil {
 		return nil
 	}
+	ctx = withHistoryOrigin(ctx, domain.HistoryInitiatedBySystem, domain.HistorySourceRefundWorker)
 
 	batchSize := s.cfg.RefundWorker.BatchSize
 	if batchSize <= 0 {
@@ -152,7 +153,7 @@ func (s *paymentServiceImpl) processRefund(ctx context.Context, refund *domain.R
 		)
 		// Marquer définitivement failed (sans incrémenter) pour sortir de la file pending.
 		reason := fmt.Sprintf("max retries (%d) exceeded", maxRetries)
-		if err := s.refundWriteRepo.MarkRefundFailed(ctx, refund.RefundID, reason, false); err != nil {
+		if err := s.markRefundFailed(ctx, refund, reason, false); err != nil {
 			s.logger.Error("mark refund failed (max retries) failed", zap.Error(err))
 			return nil
 		}
@@ -164,7 +165,7 @@ func (s *paymentServiceImpl) processRefund(ctx context.Context, refund *domain.R
 	payment, err := s.paymentReadRepo.GetByID(ctx, refund.PaymentID)
 	if err != nil {
 		s.logger.Error("get payment for refund failed", zap.Error(err), zap.String("paymentID", refund.PaymentID))
-		s.refundWriteRepo.MarkRefundFailed(ctx, refund.RefundID, "payment not found: "+err.Error(), true) //nolint:errcheck
+		s.markRefundFailed(ctx, refund, "payment not found: "+err.Error(), true) //nolint:errcheck
 		return nil
 	}
 
@@ -178,7 +179,7 @@ func (s *paymentServiceImpl) processRefund(ctx context.Context, refund *domain.R
 			zap.String("refundID", refund.RefundID),
 			zap.String("paymentID", refund.PaymentID),
 		)
-		err := s.refundWriteRepo.MarkRefundFailed(ctx, refund.RefundID, "missing passenger phone number", false)
+		err := s.markRefundFailed(ctx, refund, "missing passenger phone number", false)
 		if err != nil {
 			s.logger.Error("mark refund failed (missing phone) failed", zap.Error(err))
 			return nil
@@ -191,14 +192,14 @@ func (s *paymentServiceImpl) processRefund(ctx context.Context, refund *domain.R
 	booking, err := s.bookingClient.GetBookingDetails(ctx, refund.BookingID)
 	if err != nil {
 		s.logger.Error("get booking for refund failed", zap.Error(err), zap.String("bookingID", refund.BookingID))
-		s.refundWriteRepo.MarkRefundFailed(ctx, refund.RefundID, "booking lookup failed: "+err.Error(), true) //nolint:errcheck
+		s.markRefundFailed(ctx, refund, "booking lookup failed: "+err.Error(), true) //nolint:errcheck
 		return nil
 	}
 
 	user, err := s.userClient.GetUserByUserID(ctx, booking.PassengerID)
 	if err != nil {
 		s.logger.Error("get user for refund failed", zap.Error(err), zap.String("passengerID", booking.PassengerID))
-		s.refundWriteRepo.MarkRefundFailed(ctx, refund.RefundID, "user lookup failed: "+err.Error(), true) //nolint:errcheck
+		s.markRefundFailed(ctx, refund, "user lookup failed: "+err.Error(), true) //nolint:errcheck
 		return nil
 	}
 
@@ -211,6 +212,8 @@ func (s *paymentServiceImpl) processRefund(ctx context.Context, refund *domain.R
 		s.logger.Error("mark refund processing failed", zap.Error(err))
 		return nil
 	}
+	s.writeRefundHistory(ctx, refund.RefundID, string(domain.RefundStatusProcessing), refund.RetryCount,
+		fmt.Sprintf("Virement FedaPay de %d XOF en cours", refund.AmountToPassenger))
 
 	// 6. Appel FedaPay — même endpoint que le payout chauffeur, numéro passager cette fois
 	fedapayPayout, err := s.fedapayClient.CreatePayout(
@@ -219,48 +222,51 @@ func (s *paymentServiceImpl) processRefund(ctx context.Context, refund *domain.R
 	)
 	if err != nil {
 		s.logger.Error("fedapay refund payout failed", zap.Error(err), zap.String("refundID", refund.RefundID))
-		s.refundWriteRepo.MarkRefundFailed(ctx, refund.RefundID, "fedapay: "+err.Error(), true) //nolint:errcheck
+		s.markRefundFailed(ctx, refund, "fedapay: "+err.Error(), true) //nolint:errcheck
 		return nil
 	}
 
-	// 7. Démarrer le payout FedaPay (comme pour les chauffeurs)
+	// 7. Enregistrer la référence FedaPay avant le démarrage : aucun virement ne part sans être traçable
+	// (un payout créé mais jamais démarré n'envoie rien).
+	providerRef := strconv.Itoa(fedapayPayout.ID)
+	if err := s.refundWriteRepo.SetRefundProviderReference(ctx, refund.RefundID, providerRef); err != nil {
+		s.logger.Error("set refund provider reference failed", zap.Error(err), zap.String("refundID", refund.RefundID))
+		s.markRefundFailed(ctx, refund, "store fedapay reference: "+err.Error(), true) //nolint:errcheck
+		return nil
+	}
+
+	// 8. Démarrer le payout FedaPay (comme pour les chauffeurs)
 	if _, err := s.fedapayClient.StartPayouts([]int{fedapayPayout.ID}); err != nil {
 		s.logger.Error("fedapay start refund payout failed", zap.Error(err), zap.String("refundID", refund.RefundID))
-		s.refundWriteRepo.MarkRefundFailed(ctx, refund.RefundID, "fedapay start: "+err.Error(), true) //nolint:errcheck
+		s.markRefundFailed(ctx, refund, "fedapay start: "+err.Error(), true) //nolint:errcheck
 		return nil
 	}
 
-	// 8. Finaliser
-	providerRef := strconv.Itoa(fedapayPayout.ID)
-	if err := s.refundWriteRepo.MarkRefundCompleted(ctx, refund.RefundID, providerRef); err != nil {
-		s.logger.Error("mark refund completed failed", zap.Error(err))
-		return nil
-	}
+	// 9. Le refund reste processing jusqu'à la confirmation FedaPay (webhook payout.* ou réconciliation),
+	// qui le passe en completed et notifie le passager (cf. payout_confirmation.go).
+	s.writeRefundHistory(ctx, refund.RefundID, domain.RefundEventPayoutStarted, refund.RetryCount,
+		"Virement FedaPay "+providerRef+" démarré, en attente de confirmation")
 
-	s.logger.Info("refund completed",
+	s.logger.Info("refund payout started",
 		zap.String("refundID", refund.RefundID),
 		zap.String("providerReference", providerRef),
 		zap.Int("amountToPassenger", refund.AmountToPassenger),
 	)
 
-	// 9. Notifier le passager (non bloquant)
-	if s.notifRedis != nil {
-		if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
-			EventType:     notification.RefundCompleted,
-			UserID:        booking.PassengerID,
-			ReferenceID:   refund.RefundID,
-			ReferenceType: notification.RefRefund,
-			Payload: map[string]string{
-				"amount":                     fmt.Sprintf("%d", refund.AmountToPassenger),
-				"currency":                   "XOF",
-				"payment_provider_reference": providerRef,
-				"reason":                     string(refund.RefundReason),
-			},
-		}); pubErr != nil {
-			s.logger.Error("failed to publish REFUND_COMPLETED notification", zap.Error(pubErr))
-		}
-	}
+	return nil
+}
 
+// markRefundFailed enregistre l'échec d'un refund puis l'historise : retry_scheduled si l'échec est
+// récupérable (le refund repasse pending, retry_count incrémenté), failed sinon.
+func (s *paymentServiceImpl) markRefundFailed(ctx context.Context, refund *domain.Refund, reason string, incrementRetry bool) error {
+	if err := s.refundWriteRepo.MarkRefundFailed(ctx, refund.RefundID, reason, incrementRetry); err != nil {
+		return err
+	}
+	if incrementRetry {
+		s.writeRefundHistory(ctx, refund.RefundID, domain.RefundEventRetryScheduled, refund.RetryCount+1, reason)
+	} else {
+		s.writeRefundHistory(ctx, refund.RefundID, string(domain.RefundStatusFailed), refund.RetryCount, reason)
+	}
 	return nil
 }
 

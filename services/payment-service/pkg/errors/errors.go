@@ -16,6 +16,7 @@ var (
 	ErrorRefundAmountExceedsPayment = errors.New("ErrorRefundAmountExceedsPayment")
 	ErrorPayoutNotFound           = errors.New("ErrorPayoutNotFound")
 	ErrorPayoutAlreadyExists      = errors.New("ErrorPayoutAlreadyExists")
+	ErrorPayoutAlreadyProcessed   = errors.New("ErrorPayoutAlreadyProcessed")
 	ErrorInsufficientBalance      = errors.New("ErrorInsufficientBalance")
 	ErrorFedaPayAPIError          = errors.New("ErrorFedaPayAPIError")
 	ErrorWebhookVerificationFailed = errors.New("ErrorWebhookVerificationFailed")

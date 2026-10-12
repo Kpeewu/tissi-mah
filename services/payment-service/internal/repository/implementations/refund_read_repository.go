@@ -3,6 +3,7 @@ package implementations
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -64,6 +65,42 @@ func (r *refundReadRepository) GetPendingRefundsForPayout(ctx context.Context, l
 		var ref domain.Refund
 		if err := scanRefundRow(rows, &ref); err != nil {
 			r.logger.Error("scan pending refund failed", zap.Error(err))
+			return nil, paymentErrors.ErrorDataRetrievalFailed
+		}
+		refunds = append(refunds, &ref)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, paymentErrors.ErrorDataRetrievalFailed
+	}
+
+	return refunds, nil
+}
+
+func (r *refundReadRepository) GetByProviderReference(ctx context.Context, providerReference string) (*domain.Refund, error) {
+	return r.scanRefund(ctx, `SELECT `+refundSelectColumns+` FROM refunds WHERE payment_provider_reference = $1`, providerReference)
+}
+
+func (r *refundReadRepository) GetProcessingRefundsToReconcile(
+	ctx context.Context, updatedBefore time.Time, limit int,
+) ([]*domain.Refund, error) {
+	query := `SELECT ` + refundSelectColumns + `
+		FROM refunds
+		WHERE status = 'processing' AND COALESCE(payment_provider_reference, '') <> '' AND updated_at < $1
+		ORDER BY updated_at ASC
+		LIMIT $2`
+
+	rows, err := r.pool.Query(ctx, query, updatedBefore, limit)
+	if err != nil {
+		r.logger.Error("get processing refunds to reconcile failed", zap.Error(err))
+		return nil, paymentErrors.ErrorDataRetrievalFailed
+	}
+	defer rows.Close()
+
+	var refunds []*domain.Refund
+	for rows.Next() {
+		var ref domain.Refund
+		if err := scanRefundRow(rows, &ref); err != nil {
+			r.logger.Error("scan processing refund failed", zap.Error(err))
 			return nil, paymentErrors.ErrorDataRetrievalFailed
 		}
 		refunds = append(refunds, &ref)

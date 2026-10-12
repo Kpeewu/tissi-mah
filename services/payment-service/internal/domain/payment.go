@@ -219,6 +219,73 @@ type PayoutStatusHistory struct {
 }
 
 // =============================================================================
+// Historique des paiements et remboursements
+// =============================================================================
+
+// Événements d'historique sans changement de statut interne (les transitions de statut
+// utilisent directement PaymentStatus / RefundStatus).
+const (
+	PaymentEventAttemptFailed        = "attempt_failed"         // tentative refusée/annulée sur la page FedaPay (paiement toujours pending)
+	PaymentEventURLRenewed           = "payment_url_renewed"    // lien de paiement FedaPay régénéré
+	PaymentEventBookingSynced        = "booking_synced"         // paiement held rattaché à sa réservation
+	PaymentEventBookingSyncFailed    = "booking_sync_failed"    // rattachement à retenter
+	PaymentEventBookingSyncAbandoned = "booking_sync_abandoned" // plafond de reprises atteint : remboursement intégral
+	PaymentEventRefundCreationFailed = "refund_creation_failed" // remboursement automatique en échec (retenté)
+
+	RefundEventRetryScheduled = "retry_scheduled" // échec récupérable : le refund repasse pending
+	RefundEventPayoutStarted  = "payout_started"  // virement FedaPay démarré, en attente de confirmation
+)
+
+// Acteurs à l'origine d'une entrée d'historique (initiated_by).
+const (
+	HistoryInitiatedBySystem         = "system"
+	HistoryInitiatedByPassenger      = "passenger"
+	HistoryInitiatedByBookingService = "booking_service"
+	HistoryInitiatedBySupport        = "support"
+)
+
+// Canaux à l'origine d'une entrée d'historique (source).
+const (
+	HistorySourceUnknown             = "unknown"
+	HistorySourceCreatePayment       = "create_payment"
+	HistorySourceVerifyPayment       = "verify_payment"
+	HistorySourceCancelPayment       = "cancel_payment"
+	HistorySourceFedaPayCallback     = "fedapay_callback"
+	HistorySourceFedaPayWebhook      = "fedapay_webhook"
+	HistorySourceBookingService      = "booking_service"
+	HistorySourceExpirationWorker    = "expiration_worker"
+	HistorySourceBookingSyncWorker   = "booking_sync_worker"
+	HistorySourceRefundWorker        = "refund_worker"
+	HistorySourcePayoutWorker        = "payout_worker"
+	HistorySourceSupportManualPayout = "support_manual_payout"
+	HistorySourcePayoutReconciler    = "payout_reconciler"
+)
+
+// PaymentStatusHistory est une entrée de payment_status_history.
+type PaymentStatusHistory struct {
+	HistoryID      string
+	PaymentID      string
+	Status         string // PaymentStatus atteint ou PaymentEvent*
+	ProviderStatus string // statut FedaPay observé (vide si non pertinent)
+	InitiatedBy    string
+	Source         string
+	OccurredAt     time.Time
+	Notes          string
+}
+
+// RefundStatusHistory est une entrée de refund_status_history.
+type RefundStatusHistory struct {
+	HistoryID   string
+	RefundID    string
+	Status      string // RefundStatus atteint ou RefundEventRetryScheduled
+	RetryCount  int16
+	InitiatedBy string
+	Source      string
+	OccurredAt  time.Time
+	Notes       string
+}
+
+// =============================================================================
 // PayoutBatch
 // =============================================================================
 

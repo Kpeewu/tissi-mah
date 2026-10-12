@@ -291,6 +291,91 @@ func (h *PaymentHandler) TriggerManualPayout(ctx context.Context, req *paymentpb
 	}, nil
 }
 
+// GetPaymentHistory retourne l'historique des statuts d'un paiement ou des paiements d'une réservation (support).
+func (h *PaymentHandler) GetPaymentHistory(ctx context.Context, req *paymentpb.GetPaymentHistoryRequest) (*paymentpb.GetPaymentHistoryResponse, error) {
+	if supportUID, ok := ctx.Value(middleware.SupportUIDKey).(string); !ok || supportUID == "" {
+		return &paymentpb.GetPaymentHistoryResponse{ErrorMessage: paymentErrors.ErrorUnauthorized.Error()},
+			status.Error(codes.Unauthenticated, paymentErrors.ErrorUnauthorized.Error())
+	}
+
+	results, err := h.service.GetPaymentHistory(ctx, req.PaymentId, req.BookingId)
+	if err != nil {
+		return &paymentpb.GetPaymentHistoryResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	entries := make([]*paymentpb.PaymentHistoryEntry, 0, len(results))
+	for _, r := range results {
+		entries = append(entries, &paymentpb.PaymentHistoryEntry{
+			HistoryId:      r.HistoryID,
+			PaymentId:      r.PaymentID,
+			Status:         r.Status,
+			ProviderStatus: r.ProviderStatus,
+			InitiatedBy:    r.InitiatedBy,
+			Source:         r.Source,
+			OccurredAt:     r.OccurredAt,
+			Notes:          r.Notes,
+		})
+	}
+	return &paymentpb.GetPaymentHistoryResponse{Entries: entries}, nil
+}
+
+// GetRefundHistory retourne l'historique des statuts d'un remboursement ou des remboursements d'une réservation (support).
+func (h *PaymentHandler) GetRefundHistory(ctx context.Context, req *paymentpb.GetRefundHistoryRequest) (*paymentpb.GetRefundHistoryResponse, error) {
+	if supportUID, ok := ctx.Value(middleware.SupportUIDKey).(string); !ok || supportUID == "" {
+		return &paymentpb.GetRefundHistoryResponse{ErrorMessage: paymentErrors.ErrorUnauthorized.Error()},
+			status.Error(codes.Unauthenticated, paymentErrors.ErrorUnauthorized.Error())
+	}
+
+	results, err := h.service.GetRefundHistory(ctx, req.RefundId, req.BookingId)
+	if err != nil {
+		return &paymentpb.GetRefundHistoryResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	entries := make([]*paymentpb.RefundHistoryEntry, 0, len(results))
+	for _, r := range results {
+		entries = append(entries, &paymentpb.RefundHistoryEntry{
+			HistoryId:   r.HistoryID,
+			RefundId:    r.RefundID,
+			Status:      r.Status,
+			RetryCount:  int32(r.RetryCount),
+			InitiatedBy: r.InitiatedBy,
+			Source:      r.Source,
+			OccurredAt:  r.OccurredAt,
+			Notes:       r.Notes,
+		})
+	}
+	return &paymentpb.GetRefundHistoryResponse{Entries: entries}, nil
+}
+
+// GetPayoutHistory retourne l'historique des statuts d'un payout chauffeur (support).
+func (h *PaymentHandler) GetPayoutHistory(ctx context.Context, req *paymentpb.GetPayoutHistoryRequest) (*paymentpb.GetPayoutHistoryResponse, error) {
+	if supportUID, ok := ctx.Value(middleware.SupportUIDKey).(string); !ok || supportUID == "" {
+		return &paymentpb.GetPayoutHistoryResponse{ErrorMessage: paymentErrors.ErrorUnauthorized.Error()},
+			status.Error(codes.Unauthenticated, paymentErrors.ErrorUnauthorized.Error())
+	}
+
+	results, err := h.service.GetPayoutHistory(ctx, req.PayoutId)
+	if err != nil {
+		return &paymentpb.GetPayoutHistoryResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	entries := make([]*paymentpb.PayoutHistoryEntry, 0, len(results))
+	for _, r := range results {
+		entries = append(entries, &paymentpb.PayoutHistoryEntry{
+			HistoryId:        r.HistoryID,
+			PayoutId:         r.PayoutID,
+			Status:           r.Status,
+			InitiatedBy:      r.InitiatedBy,
+			SupportUserId:    r.SupportUserID,
+			SupportFirstName: r.SupportFirstName,
+			SupportLastName:  r.SupportLastName,
+			OccurredAt:       r.OccurredAt,
+			Notes:            r.Notes,
+		})
+	}
+	return &paymentpb.GetPayoutHistoryResponse{Entries: entries}, nil
+}
+
 // GetDriverPayouts retourne les payouts d'un chauffeur.
 func (h *PaymentHandler) GetDriverPayouts(ctx context.Context, req *paymentpb.GetDriverPayoutsRequest) (*paymentpb.GetDriverPayoutsResponse, error) {
 	results, err := h.service.GetDriverPayouts(ctx, req.DriverId, int(req.PageIndex))

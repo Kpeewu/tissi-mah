@@ -140,6 +140,9 @@ var SupportProtectedRoutes = map[string]bool{
 
 	// payment-service — actions support
 	"/api/v1/payment/support/triggerManualPayout": true,
+	"/api/v1/payment/support/getPaymentHistory":   true,
+	"/api/v1/payment/support/getRefundHistory":    true,
+	"/api/v1/payment/support/getPayoutHistory":    true,
 
 	// chat-service — accès support au contenu déchiffré d'un message signalé
 	"/api/v1/chat/messages/{MessageId}/flagged-content": true,

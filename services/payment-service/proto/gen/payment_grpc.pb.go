@@ -34,6 +34,9 @@ const (
 	PaymentService_GetPayoutStatus_FullMethodName          = "/payment.PaymentService/GetPayoutStatus"
 	PaymentService_GetDriverPayouts_FullMethodName         = "/payment.PaymentService/GetDriverPayouts"
 	PaymentService_TriggerManualPayout_FullMethodName      = "/payment.PaymentService/TriggerManualPayout"
+	PaymentService_GetPaymentHistory_FullMethodName        = "/payment.PaymentService/GetPaymentHistory"
+	PaymentService_GetRefundHistory_FullMethodName         = "/payment.PaymentService/GetRefundHistory"
+	PaymentService_GetPayoutHistory_FullMethodName         = "/payment.PaymentService/GetPayoutHistory"
 	PaymentService_Health_FullMethodName                   = "/payment.PaymentService/Health"
 	PaymentService_CheckDeletionEligibility_FullMethodName = "/payment.PaymentService/CheckDeletionEligibility"
 	PaymentService_AnonymizeUserData_FullMethodName        = "/payment.PaymentService/AnonymizeUserData"
@@ -81,6 +84,14 @@ type PaymentServiceClient interface {
 	GetDriverPayouts(ctx context.Context, in *GetDriverPayoutsRequest, opts ...grpc.CallOption) (*GetDriverPayoutsResponse, error)
 	// TriggerManualPayout permet à un agent support de lancer manuellement un payout pour un trajet
 	TriggerManualPayout(ctx context.Context, in *TriggerManualPayoutRequest, opts ...grpc.CallOption) (*TriggerManualPayoutResponse, error)
+	// GetPaymentHistory retourne l'historique des statuts d'un paiement (PaymentId) ou de tous les
+	// paiements d'une réservation (BookingId). Réservé au support.
+	GetPaymentHistory(ctx context.Context, in *GetPaymentHistoryRequest, opts ...grpc.CallOption) (*GetPaymentHistoryResponse, error)
+	// GetRefundHistory retourne l'historique des statuts d'un remboursement (RefundId) ou des
+	// remboursements d'une réservation (BookingId). Réservé au support.
+	GetRefundHistory(ctx context.Context, in *GetRefundHistoryRequest, opts ...grpc.CallOption) (*GetRefundHistoryResponse, error)
+	// GetPayoutHistory retourne l'historique des statuts d'un payout chauffeur. Réservé au support.
+	GetPayoutHistory(ctx context.Context, in *GetPayoutHistoryRequest, opts ...grpc.CallOption) (*GetPayoutHistoryResponse, error)
 	// Health vérifie l'état du service
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 	// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
@@ -249,6 +260,36 @@ func (c *paymentServiceClient) TriggerManualPayout(ctx context.Context, in *Trig
 	return out, nil
 }
 
+func (c *paymentServiceClient) GetPaymentHistory(ctx context.Context, in *GetPaymentHistoryRequest, opts ...grpc.CallOption) (*GetPaymentHistoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPaymentHistoryResponse)
+	err := c.cc.Invoke(ctx, PaymentService_GetPaymentHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *paymentServiceClient) GetRefundHistory(ctx context.Context, in *GetRefundHistoryRequest, opts ...grpc.CallOption) (*GetRefundHistoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetRefundHistoryResponse)
+	err := c.cc.Invoke(ctx, PaymentService_GetRefundHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *paymentServiceClient) GetPayoutHistory(ctx context.Context, in *GetPayoutHistoryRequest, opts ...grpc.CallOption) (*GetPayoutHistoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPayoutHistoryResponse)
+	err := c.cc.Invoke(ctx, PaymentService_GetPayoutHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *paymentServiceClient) Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthResponse)
@@ -321,6 +362,14 @@ type PaymentServiceServer interface {
 	GetDriverPayouts(context.Context, *GetDriverPayoutsRequest) (*GetDriverPayoutsResponse, error)
 	// TriggerManualPayout permet à un agent support de lancer manuellement un payout pour un trajet
 	TriggerManualPayout(context.Context, *TriggerManualPayoutRequest) (*TriggerManualPayoutResponse, error)
+	// GetPaymentHistory retourne l'historique des statuts d'un paiement (PaymentId) ou de tous les
+	// paiements d'une réservation (BookingId). Réservé au support.
+	GetPaymentHistory(context.Context, *GetPaymentHistoryRequest) (*GetPaymentHistoryResponse, error)
+	// GetRefundHistory retourne l'historique des statuts d'un remboursement (RefundId) ou des
+	// remboursements d'une réservation (BookingId). Réservé au support.
+	GetRefundHistory(context.Context, *GetRefundHistoryRequest) (*GetRefundHistoryResponse, error)
+	// GetPayoutHistory retourne l'historique des statuts d'un payout chauffeur. Réservé au support.
+	GetPayoutHistory(context.Context, *GetPayoutHistoryRequest) (*GetPayoutHistoryResponse, error)
 	// Health vérifie l'état du service
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	// CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
@@ -383,6 +432,15 @@ func (UnimplementedPaymentServiceServer) GetDriverPayouts(context.Context, *GetD
 }
 func (UnimplementedPaymentServiceServer) TriggerManualPayout(context.Context, *TriggerManualPayoutRequest) (*TriggerManualPayoutResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method TriggerManualPayout not implemented")
+}
+func (UnimplementedPaymentServiceServer) GetPaymentHistory(context.Context, *GetPaymentHistoryRequest) (*GetPaymentHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPaymentHistory not implemented")
+}
+func (UnimplementedPaymentServiceServer) GetRefundHistory(context.Context, *GetRefundHistoryRequest) (*GetRefundHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetRefundHistory not implemented")
+}
+func (UnimplementedPaymentServiceServer) GetPayoutHistory(context.Context, *GetPayoutHistoryRequest) (*GetPayoutHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPayoutHistory not implemented")
 }
 func (UnimplementedPaymentServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -684,6 +742,60 @@ func _PaymentService_TriggerManualPayout_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PaymentService_GetPaymentHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPaymentHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaymentServiceServer).GetPaymentHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PaymentService_GetPaymentHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaymentServiceServer).GetPaymentHistory(ctx, req.(*GetPaymentHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PaymentService_GetRefundHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRefundHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaymentServiceServer).GetRefundHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PaymentService_GetRefundHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaymentServiceServer).GetRefundHistory(ctx, req.(*GetRefundHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PaymentService_GetPayoutHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPayoutHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaymentServiceServer).GetPayoutHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PaymentService_GetPayoutHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaymentServiceServer).GetPayoutHistory(ctx, req.(*GetPayoutHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PaymentService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthRequest)
 	if err := dec(in); err != nil {
@@ -804,6 +916,18 @@ var PaymentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TriggerManualPayout",
 			Handler:    _PaymentService_TriggerManualPayout_Handler,
+		},
+		{
+			MethodName: "GetPaymentHistory",
+			Handler:    _PaymentService_GetPaymentHistory_Handler,
+		},
+		{
+			MethodName: "GetRefundHistory",
+			Handler:    _PaymentService_GetRefundHistory_Handler,
+		},
+		{
+			MethodName: "GetPayoutHistory",
+			Handler:    _PaymentService_GetPayoutHistory_Handler,
 		},
 		{
 			MethodName: "Health",

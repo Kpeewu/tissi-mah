@@ -61,6 +61,7 @@ func (s *paymentServiceImpl) ProcessPayoutBatch(ctx context.Context) error {
 	if s.cache == nil || s.payoutReadRepo == nil || s.payoutWriteRepo == nil {
 		return nil
 	}
+	ctx = withHistoryOrigin(ctx, domain.HistoryInitiatedBySystem, domain.HistorySourcePayoutWorker)
 
 	// 1. Acquérir le lock global pour la discovery uniquement
 	acquired, err := s.cache.AcquirePayoutLock(ctx)
@@ -252,14 +253,14 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 	}
 
 	// Historique : payout planifié
-	s.writeHistory(ctx, payoutID, "scheduled", "system", "", "", "", "Payout planifié")
+	s.writePayoutHistory(ctx, payoutID, "scheduled", "system", "", "", "", "Payout planifié")
 
 	// Démarrer le payout FedaPay
 	_, err = s.fedapayClient.StartPayouts([]int{fedapayPayout.ID})
 	if err != nil {
 		s.logger.Error("fedapay start payout failed", zap.Error(err), zap.String("payoutID", payoutID))
 		s.payoutWriteRepo.MarkPayoutFailed(ctx, payoutID, "fedapay start failed: "+err.Error()) //nolint:errcheck
-		s.writeHistory(ctx, payoutID, "failed", "system", "", "", "", "FedaPay start failed: "+err.Error())
+		s.writePayoutHistory(ctx, payoutID, "failed", "system", "", "", "", "FedaPay start failed: "+err.Error())
 		return "", 0, err
 	}
 
@@ -267,11 +268,15 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 	s.payoutWriteRepo.UpdatePayoutStatus(ctx, payoutID, domain.PayoutStatusProcessing, strconv.Itoa(fedapayPayout.ID)) //nolint:errcheck
 
 	// Historique : payout en cours de traitement
-	s.writeHistory(ctx, payoutID, "processing", "system", "", "", "", "FedaPay payout démarré")
+	s.writePayoutHistory(ctx, payoutID, "processing", "system", "", "", "", "FedaPay payout démarré, en attente de confirmation")
 
 	// MAJ les paiements du trip → paidOut
-	if err := s.payoutWriteRepo.MarkPaymentsAsPaidOut(ctx, tripID); err != nil {
+	paidOutIDs, err := s.payoutWriteRepo.MarkPaymentsAsPaidOut(ctx, tripID)
+	if err != nil {
 		s.logger.Error("mark payments as paid out failed", zap.Error(err))
+	}
+	for _, paymentID := range paidOutIDs {
+		s.writePaymentHistory(ctx, paymentID, string(domain.PaymentStatusPaidOut), "", "Payout "+payoutRef+" ("+payoutID+")")
 	}
 
 	// Notifier le conducteur (non bloquant)
@@ -296,29 +301,4 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 	)
 
 	return payoutID, netAmount, nil
-}
-
-// writeHistory écrit une entrée dans payout_status_history de manière non bloquante.
-func (s *paymentServiceImpl) writeHistory(ctx context.Context, payoutID, status, initiatedBy, supportUserID, supportFirstName, supportLastName, notes string) {
-	if s.payoutHistoryRepo == nil {
-		return
-	}
-	entry := &domain.PayoutStatusHistory{
-		HistoryID:        uuid.New().String(),
-		PayoutID:         payoutID,
-		Status:           status,
-		InitiatedBy:      initiatedBy,
-		SupportUserID:    supportUserID,
-		SupportFirstName: supportFirstName,
-		SupportLastName:  supportLastName,
-		OccurredAt:       time.Now().UTC(),
-		Notes:            notes,
-	}
-	if err := s.payoutHistoryRepo.CreateHistoryEntry(ctx, entry); err != nil {
-		s.logger.Error("write payout history failed",
-			zap.Error(err),
-			zap.String("payoutID", payoutID),
-			zap.String("status", status),
-		)
-	}
 }

@@ -82,6 +82,75 @@ func (r *payoutWriteRepository) MarkPayoutFailed(ctx context.Context, payoutID s
 	return nil
 }
 
+func (r *payoutWriteRepository) ConfirmPayoutCompleted(ctx context.Context, payoutID string) error {
+	query := `UPDATE payouts SET status = 'completed', completed_at = $2, failure_reason = NULL
+		WHERE payout_id = $1 AND status = 'processing'`
+
+	tag, err := r.pool.Exec(ctx, query, payoutID, time.Now().UTC())
+	if err != nil {
+		r.logger.Error("confirm payout completed failed", zap.Error(err), zap.String("payoutID", payoutID))
+		return paymentErrors.ErrorInternalServer
+	}
+	if tag.RowsAffected() == 0 {
+		return paymentErrors.ErrorPayoutAlreadyProcessed
+	}
+	return nil
+}
+
+func (r *payoutWriteRepository) FailProcessingPayout(
+	ctx context.Context, payoutID string, tripID string, reason string,
+) ([]string, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		r.logger.Error("fail processing payout: begin failed", zap.Error(err), zap.String("payoutID", payoutID))
+		return nil, paymentErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	tag, err := tx.Exec(ctx,
+		`UPDATE payouts SET status = 'failed', failed_at = $2, failure_reason = $3
+		 WHERE payout_id = $1 AND status = 'processing'`,
+		payoutID, time.Now().UTC(), reason,
+	)
+	if err != nil {
+		r.logger.Error("fail processing payout failed", zap.Error(err), zap.String("payoutID", payoutID))
+		return nil, paymentErrors.ErrorInternalServer
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, paymentErrors.ErrorPayoutAlreadyProcessed
+	}
+
+	rows, err := tx.Query(ctx,
+		`UPDATE payments SET status = 'released' WHERE trip_id = $1 AND status = 'paidOut' RETURNING payment_id`,
+		tripID,
+	)
+	if err != nil {
+		r.logger.Error("release paid out payments failed", zap.Error(err), zap.String("tripID", tripID))
+		return nil, paymentErrors.ErrorInternalServer
+	}
+	var paymentIDs []string
+	for rows.Next() {
+		var paymentID string
+		if err := rows.Scan(&paymentID); err != nil {
+			rows.Close()
+			r.logger.Error("scan released payment id failed", zap.Error(err))
+			return nil, paymentErrors.ErrorInternalServer
+		}
+		paymentIDs = append(paymentIDs, paymentID)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		r.logger.Error("release paid out payments failed", zap.Error(err), zap.String("tripID", tripID))
+		return nil, paymentErrors.ErrorInternalServer
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		r.logger.Error("fail processing payout: commit failed", zap.Error(err), zap.String("payoutID", payoutID))
+		return nil, paymentErrors.ErrorInternalServer
+	}
+	return paymentIDs, nil
+}
+
 func (r *payoutWriteRepository) IncrementRetryCount(ctx context.Context, payoutID string) error {
 	now := time.Now().UTC()
 	query := `UPDATE payouts SET retry_count = retry_count + 1, last_retry_at = $2 WHERE payout_id = $1`
@@ -122,16 +191,32 @@ func (r *payoutWriteRepository) UpdateBatch(ctx context.Context, batch *domain.P
 	return nil
 }
 
-// MarkPaymentsAsPaidOut met à jour tous les paiements released d'un trip → paid_out.
-func (r *payoutWriteRepository) MarkPaymentsAsPaidOut(ctx context.Context, tripID string) error {
-	query := `UPDATE payments SET status = 'paidOut' WHERE trip_id = $1 AND status = 'released'`
+// MarkPaymentsAsPaidOut met à jour tous les paiements released d'un trip → paid_out
+// et retourne les identifiants des paiements mis à jour.
+func (r *payoutWriteRepository) MarkPaymentsAsPaidOut(ctx context.Context, tripID string) ([]string, error) {
+	query := `UPDATE payments SET status = 'paidOut' WHERE trip_id = $1 AND status = 'released' RETURNING payment_id`
 
-	_, err := r.pool.Exec(ctx, query, tripID)
+	rows, err := r.pool.Query(ctx, query, tripID)
 	if err != nil {
 		r.logger.Error("mark payments as paid out failed", zap.Error(err))
-		return paymentErrors.ErrorInternalServer
+		return nil, paymentErrors.ErrorInternalServer
 	}
-	return nil
+	defer rows.Close()
+
+	var paymentIDs []string
+	for rows.Next() {
+		var paymentID string
+		if err := rows.Scan(&paymentID); err != nil {
+			r.logger.Error("scan paid out payment id failed", zap.Error(err))
+			return nil, paymentErrors.ErrorInternalServer
+		}
+		paymentIDs = append(paymentIDs, paymentID)
+	}
+	if err := rows.Err(); err != nil {
+		r.logger.Error("mark payments as paid out failed", zap.Error(err))
+		return nil, paymentErrors.ErrorInternalServer
+	}
+	return paymentIDs, nil
 }
 
 // AnonymizeDriverRefs pseudonymise les références du chauffeur dans payouts.
