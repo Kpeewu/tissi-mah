@@ -466,7 +466,7 @@ Kong est configuré via Helm values dans `infrastructure/helm-charts/kong/values
 ```yaml
 environment: vps-dev
 kong:
-  host: dev.tissi-mah.com
+  host: api.tissimah.kpeewu.dev
   replicaCount: 1
   
 redis:

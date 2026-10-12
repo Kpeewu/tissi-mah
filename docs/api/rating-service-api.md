@@ -7,7 +7,7 @@ This document describes the HTTP/REST API exposed by the rating-service through 
 | Environment | Base URL |
 |-------------|----------|
 | Local | `http://localhost:8080/api/v1` |
-| VPS-Dev | `https://dev.tissi-mah.com/api/v1` |
+| VPS-Dev | `https://api.tissimah.kpeewu.dev/api/v1` |
 | Staging | `https://staging.tissi-mah.com/api/v1` |
 | Production | `https://api.tissi-mah.com/api/v1` |
 
