@@ -7,7 +7,7 @@ This document describes the HTTP/REST API exposed by the vehicle-service through
 | Environment | Base URL |
 |-------------|----------|
 | Local | `http://localhost:8080` |
-| VPS-Dev | `https://dev.tissi-mah.com` |
+| VPS-Dev | `https://api.tissimah.kpeewu.dev` |
 | Staging | `https://staging.tissi-mah.com` |
 | Production | `https://api.tissi-mah.com` |
 
