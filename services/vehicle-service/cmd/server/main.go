@@ -90,6 +90,15 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer tripsClient.Close() //nolint:errcheck
 	logger.Info("trips-service client ready", zap.String("address", tripsServiceAddr))
 
+	// --- User-service client (résolution Firebase UID → UserID dans l'intercepteur) ---
+	userServiceAddr := cfg.UserService.Address()
+	userClient, err := client.NewUserServiceClient(userServiceAddr, logger)
+	if err != nil {
+		return fmt.Errorf("user-service client: %w", err)
+	}
+	defer userClient.Close() //nolint:errcheck
+	logger.Info("user-service client ready", zap.String("address", userServiceAddr))
+
 	// --- Repositories ---
 	readRepo := implementations.NewVehicleReadRepository(pool, logger)
 	writeRepo := implementations.NewVehicleWriteRepository(pool, logger)
@@ -98,7 +107,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	vehicleService := service.NewVehicleService(readRepo, writeRepo, fileClient, tripsClient, vehicleCache, logger)
 
 	// --- gRPC server ---
-	srv, err := grpcServer.NewVehicleServer(cfg, vehicleService, logger)
+	srv, err := grpcServer.NewVehicleServer(cfg, vehicleService, userClient, logger)
 	if err != nil {
 		return fmt.Errorf("grpc server: %w", err)
 	}
@@ -107,6 +116,7 @@ func run(bootstrapLogger *zap.Logger) error {
 		zap.String("port", cfg.Server.Port),
 		zap.String("file-service", fileServiceAddr),
 		zap.String("trips-service", tripsServiceAddr),
+		zap.String("user-service", userServiceAddr),
 		zap.Bool("cache-enabled", vehicleCache != nil),
 	)
 

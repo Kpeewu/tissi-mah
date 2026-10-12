@@ -6,6 +6,7 @@ import (
 
 	"github.com/Kpeewu/tissi-mah/services/vehicle-service/internal/domain"
 	grpcHandler "github.com/Kpeewu/tissi-mah/services/vehicle-service/internal/grpc"
+	"github.com/Kpeewu/tissi-mah/services/vehicle-service/internal/middleware"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/vehicle-service/internal/service/interfaces"
 	vehicleErrors "github.com/Kpeewu/tissi-mah/services/vehicle-service/pkg/errors"
 	vehiclepb "github.com/Kpeewu/tissi-mah/services/vehicle-service/proto/gen"
@@ -24,6 +25,11 @@ func newMockAndHandler() (*mocks.MockVehicleService, *grpcHandler.VehicleHandler
 	return svc, handler
 }
 
+// callerCtx simule un appelant authentifié : l'intercepteur a résolu son UserID interne ("u1").
+func callerCtx() context.Context {
+	return context.WithValue(context.Background(), middleware.UserIDKey, "u1")
+}
+
 func assertGRPCCode(t *testing.T, err error, want codes.Code) {
 	t.Helper()
 	require.Error(t, err)
@@ -39,8 +45,8 @@ func TestAddVehicle_Handler(t *testing.T) {
 			return in.UserID == "u1" && in.Brand == "T" && in.LicencePlate == "AA" && in.NumberOfSeats == 4
 		})).Return("veh-1", nil)
 
-		resp, err := h.AddVehicle(context.Background(), &vehiclepb.AddVehicleRequest{
-			UserId: "u1", Brand: "T", NumberOfSeats: 4, LicencePlate: "AA",
+		resp, err := h.AddVehicle(callerCtx(), &vehiclepb.AddVehicleRequest{
+			Brand: "T", NumberOfSeats: 4, LicencePlate: "AA",
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "veh-1", resp.VehicleId)
@@ -49,14 +55,14 @@ func TestAddVehicle_Handler(t *testing.T) {
 	t.Run("input invalide → InvalidArgument", func(t *testing.T) {
 		svc, h := newMockAndHandler()
 		svc.On("AddVehicle", mock.Anything, mock.Anything).Return("", vehicleErrors.ErrorInvalidInput)
-		_, err := h.AddVehicle(context.Background(), &vehiclepb.AddVehicleRequest{})
+		_, err := h.AddVehicle(callerCtx(), &vehiclepb.AddVehicleRequest{})
 		assertGRPCCode(t, err, codes.InvalidArgument)
 	})
 
 	t.Run("plaque conflit → AlreadyExists", func(t *testing.T) {
 		svc, h := newMockAndHandler()
 		svc.On("AddVehicle", mock.Anything, mock.Anything).Return("", vehicleErrors.ErrorLicencePlateConflict)
-		_, err := h.AddVehicle(context.Background(), &vehiclepb.AddVehicleRequest{UserId: "u", Brand: "b", LicencePlate: "x"})
+		_, err := h.AddVehicle(callerCtx(), &vehiclepb.AddVehicleRequest{Brand: "b", LicencePlate: "x"})
 		assertGRPCCode(t, err, codes.AlreadyExists)
 	})
 }
@@ -68,8 +74,8 @@ func TestUpdateVehicle_Handler(t *testing.T) {
 			return in.VehicleID == "v1" && in.UserID == "u1" && in.Color == "Red"
 		})).Return(nil)
 
-		resp, err := h.UpdateVehicle(context.Background(), &vehiclepb.UpdateVehicleRequest{
-			VehicleId: "v1", UserId: "u1", Color: "Red",
+		resp, err := h.UpdateVehicle(callerCtx(), &vehiclepb.UpdateVehicleRequest{
+			VehicleId: "v1", Color: "Red",
 		})
 		require.NoError(t, err)
 		assert.True(t, resp.Success)
@@ -78,14 +84,14 @@ func TestUpdateVehicle_Handler(t *testing.T) {
 	t.Run("unauthorized → PermissionDenied", func(t *testing.T) {
 		svc, h := newMockAndHandler()
 		svc.On("UpdateVehicle", mock.Anything, mock.Anything).Return(vehicleErrors.ErrorUnauthorized)
-		_, err := h.UpdateVehicle(context.Background(), &vehiclepb.UpdateVehicleRequest{VehicleId: "v1", UserId: "u1"})
+		_, err := h.UpdateVehicle(callerCtx(), &vehiclepb.UpdateVehicleRequest{VehicleId: "v1"})
 		assertGRPCCode(t, err, codes.PermissionDenied)
 	})
 
 	t.Run("not found → NotFound", func(t *testing.T) {
 		svc, h := newMockAndHandler()
 		svc.On("UpdateVehicle", mock.Anything, mock.Anything).Return(vehicleErrors.ErrorVehicleNotFound)
-		_, err := h.UpdateVehicle(context.Background(), &vehiclepb.UpdateVehicleRequest{VehicleId: "v1", UserId: "u1"})
+		_, err := h.UpdateVehicle(callerCtx(), &vehiclepb.UpdateVehicleRequest{VehicleId: "v1"})
 		assertGRPCCode(t, err, codes.NotFound)
 	})
 }
@@ -94,7 +100,7 @@ func TestDeleteVehicle_Handler(t *testing.T) {
 	t.Run("succès", func(t *testing.T) {
 		svc, h := newMockAndHandler()
 		svc.On("DeleteVehicle", mock.Anything, "u1", "v1").Return(nil)
-		resp, err := h.DeleteVehicle(context.Background(), &vehiclepb.DeleteVehicleRequest{UserId: "u1", VehicleId: "v1"})
+		resp, err := h.DeleteVehicle(callerCtx(), &vehiclepb.DeleteVehicleRequest{VehicleId: "v1"})
 		require.NoError(t, err)
 		assert.True(t, resp.Success)
 	})
@@ -103,7 +109,7 @@ func TestDeleteVehicle_Handler(t *testing.T) {
 		svc, h := newMockAndHandler()
 		svc.On("DeleteVehicle", mock.Anything, mock.Anything, mock.Anything).
 			Return(vehicleErrors.ErrorUnauthorized)
-		_, err := h.DeleteVehicle(context.Background(), &vehiclepb.DeleteVehicleRequest{UserId: "u", VehicleId: "v"})
+		_, err := h.DeleteVehicle(callerCtx(), &vehiclepb.DeleteVehicleRequest{VehicleId: "v"})
 		assertGRPCCode(t, err, codes.PermissionDenied)
 	})
 
@@ -111,7 +117,7 @@ func TestDeleteVehicle_Handler(t *testing.T) {
 		svc, h := newMockAndHandler()
 		svc.On("DeleteVehicle", mock.Anything, mock.Anything, mock.Anything).
 			Return(vehicleErrors.ErrorInvalidInput)
-		_, err := h.DeleteVehicle(context.Background(), &vehiclepb.DeleteVehicleRequest{})
+		_, err := h.DeleteVehicle(callerCtx(), &vehiclepb.DeleteVehicleRequest{})
 		assertGRPCCode(t, err, codes.InvalidArgument)
 	})
 }
@@ -131,7 +137,7 @@ func TestGetVehicleDetails_Handler(t *testing.T) {
 		}
 		svc.On("GetVehicleDetails", mock.Anything, "u1", "v1").Return(details, nil)
 
-		resp, err := h.GetVehicleDetails(context.Background(), &vehiclepb.GetVehicleDetailsRequest{UserId: "u1", VehicleId: "v1"})
+		resp, err := h.GetVehicleDetails(callerCtx(), &vehiclepb.GetVehicleDetailsRequest{VehicleId: "v1"})
 		require.NoError(t, err)
 		assert.Equal(t, "v1", resp.Vehicle.VehicleId)
 		assert.Equal(t, "u1", resp.Vehicle.UserId)
@@ -146,7 +152,7 @@ func TestGetVehicleDetails_Handler(t *testing.T) {
 		svc, h := newMockAndHandler()
 		svc.On("GetVehicleDetails", mock.Anything, "u1", "bad").
 			Return(nil, vehicleErrors.ErrorVehicleNotFound)
-		_, err := h.GetVehicleDetails(context.Background(), &vehiclepb.GetVehicleDetailsRequest{UserId: "u1", VehicleId: "bad"})
+		_, err := h.GetVehicleDetails(callerCtx(), &vehiclepb.GetVehicleDetailsRequest{VehicleId: "bad"})
 		assertGRPCCode(t, err, codes.NotFound)
 	})
 
@@ -154,7 +160,7 @@ func TestGetVehicleDetails_Handler(t *testing.T) {
 		svc, h := newMockAndHandler()
 		svc.On("GetVehicleDetails", mock.Anything, "u1", "v1").
 			Return(nil, vehicleErrors.ErrorUnauthorized)
-		_, err := h.GetVehicleDetails(context.Background(), &vehiclepb.GetVehicleDetailsRequest{UserId: "u1", VehicleId: "v1"})
+		_, err := h.GetVehicleDetails(callerCtx(), &vehiclepb.GetVehicleDetailsRequest{VehicleId: "v1"})
 		assertGRPCCode(t, err, codes.PermissionDenied)
 	})
 }
@@ -171,7 +177,7 @@ func TestGetUserVehicles_Handler(t *testing.T) {
 			{VehicleID: "v2", Brand: "T2", BrandModel: "C2", LicencePlate: "BB", IsVerified: false},
 		}, nil)
 
-		resp, err := h.GetUserVehicles(context.Background(), &vehiclepb.GetUserVehiclesRequest{UserId: "u1"})
+		resp, err := h.GetUserVehicles(callerCtx(), &vehiclepb.GetUserVehiclesRequest{})
 		require.NoError(t, err)
 		require.Len(t, resp.Vehicles, 2)
 		assert.Equal(t, "v1", resp.Vehicles[0].VehicleId)
@@ -189,23 +195,23 @@ func TestGetUserVehicles_Handler(t *testing.T) {
 	t.Run("liste vide", func(t *testing.T) {
 		svc, h := newMockAndHandler()
 		svc.On("GetUserVehicles", mock.Anything, "u1").Return([]*domain.VehiclePreview{}, nil)
-		resp, err := h.GetUserVehicles(context.Background(), &vehiclepb.GetUserVehiclesRequest{UserId: "u1"})
+		resp, err := h.GetUserVehicles(callerCtx(), &vehiclepb.GetUserVehiclesRequest{})
 		require.NoError(t, err)
 		assert.Empty(t, resp.Vehicles)
 	})
 
-	t.Run("invalid input → InvalidArgument", func(t *testing.T) {
+	t.Run("appelant non résolu → Unauthenticated, service non appelé", func(t *testing.T) {
 		svc, h := newMockAndHandler()
-		svc.On("GetUserVehicles", mock.Anything, "").Return(nil, vehicleErrors.ErrorInvalidInput)
-		_, err := h.GetUserVehicles(context.Background(), &vehiclepb.GetUserVehiclesRequest{UserId: ""})
-		assertGRPCCode(t, err, codes.InvalidArgument)
+		_, err := h.GetUserVehicles(context.Background(), &vehiclepb.GetUserVehiclesRequest{})
+		assertGRPCCode(t, err, codes.Unauthenticated)
+		svc.AssertNotCalled(t, "GetUserVehicles", mock.Anything, mock.Anything)
 	})
 
 	t.Run("data retrieval failed → Internal", func(t *testing.T) {
 		svc, h := newMockAndHandler()
 		svc.On("GetUserVehicles", mock.Anything, "u1").
 			Return(nil, vehicleErrors.ErrorDataRetrievalFailed)
-		_, err := h.GetUserVehicles(context.Background(), &vehiclepb.GetUserVehiclesRequest{UserId: "u1"})
+		_, err := h.GetUserVehicles(callerCtx(), &vehiclepb.GetUserVehiclesRequest{})
 		assertGRPCCode(t, err, codes.Internal)
 	})
 }
@@ -237,7 +243,7 @@ func TestErrorMapping_Handler(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			svc, h := newMockAndHandler()
 			svc.On("AddVehicle", mock.Anything, mock.Anything).Return("", c.err)
-			_, err := h.AddVehicle(context.Background(), &vehiclepb.AddVehicleRequest{UserId: "u", Brand: "b", LicencePlate: "p"})
+			_, err := h.AddVehicle(callerCtx(), &vehiclepb.AddVehicleRequest{Brand: "b", LicencePlate: "p"})
 			assertGRPCCode(t, err, c.want)
 		})
 	}
