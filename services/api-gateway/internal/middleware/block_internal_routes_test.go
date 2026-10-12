@@ -33,6 +33,7 @@ func TestBlockInternalRoutes(t *testing.T) {
 	blocked := []string{
 		"/api/v1/payment/internal/releasePayment",
 		"/api/v1/payment/internal/requestRefund",
+		"/api/v1/payment/internal/getPaymentByBooking",
 		"/api/v1/booking/internal/cancelBookingsForTrip",
 		"/api/v1/trip/internal/updateAvailableSeats",
 		// Tentatives de contournement

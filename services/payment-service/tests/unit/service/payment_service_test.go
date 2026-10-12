@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/payment-service/fixtures"
+	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/config"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/domain"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/service"
@@ -103,6 +104,14 @@ func (d *testDeps) assertExpectations(t *testing.T) {
 	d.supportClient.AssertExpectations(t)
 }
 
+// expectBookingCaller configure la réservation bookingID (passager testPassengerID) et la résolution
+// de l'appelant de passengerCtx() vers callerUserID.
+func (d *testDeps) expectBookingCaller(bookingID, callerUserID string) {
+	d.bookingClient.On("GetBookingDetails", mock.Anything, bookingID).
+		Return(&client.BookingDetails{BookingID: bookingID, PassengerID: testPassengerID}, nil)
+	d.userClient.On("GetUserIDByFirebaseID", mock.Anything, testFirebaseUID).Return(callerUserID, nil)
+}
+
 // =============================================================================
 // GetPaymentStatus
 // =============================================================================
@@ -110,7 +119,7 @@ func (d *testDeps) assertExpectations(t *testing.T) {
 func TestGetPaymentStatus(t *testing.T) {
 	t.Run("succes - retourne le statut du paiement", func(t *testing.T) {
 		d := newTestService()
-		ctx := context.Background()
+		ctx := passengerCtx()
 
 		payment := fixtures.NewTestPayment(
 			fixtures.WithPaymentID("pay-123"),
@@ -119,6 +128,7 @@ func TestGetPaymentStatus(t *testing.T) {
 			fixtures.WithPaymentStatus(domain.PaymentStatusHeld),
 		)
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-123").Return(payment, nil)
+		d.expectBookingCaller("booking-456", testPassengerID)
 
 		result, err := d.svc.GetPaymentStatus(ctx, "pay-123")
 
@@ -142,6 +152,35 @@ func TestGetPaymentStatus(t *testing.T) {
 		assert.ErrorIs(t, err, paymentErrors.ErrorPaymentNotFound)
 		d.assertExpectations(t)
 	})
+
+	t.Run("erreur - appelant autre que le passager", func(t *testing.T) {
+		d := newTestService()
+
+		payment := fixtures.NewTestPayment(fixtures.WithPaymentID("pay-123"), fixtures.WithPaymentBookingID("booking-456"))
+		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-123").Return(payment, nil)
+		d.expectBookingCaller("booking-456", "someone-else")
+
+		result, err := d.svc.GetPaymentStatus(passengerCtx(), "pay-123")
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, paymentErrors.ErrorPaymentNotOwned)
+		d.assertExpectations(t)
+	})
+
+	t.Run("erreur - sans identite", func(t *testing.T) {
+		d := newTestService()
+
+		payment := fixtures.NewTestPayment(fixtures.WithPaymentID("pay-123"), fixtures.WithPaymentBookingID("booking-456"))
+		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-123").Return(payment, nil)
+		d.bookingClient.On("GetBookingDetails", mock.Anything, "booking-456").
+			Return(&client.BookingDetails{BookingID: "booking-456", PassengerID: testPassengerID}, nil)
+
+		result, err := d.svc.GetPaymentStatus(context.Background(), "pay-123")
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, paymentErrors.ErrorUnauthorized)
+		d.assertExpectations(t)
+	})
 }
 
 // =============================================================================
@@ -151,7 +190,7 @@ func TestGetPaymentStatus(t *testing.T) {
 func TestGetPaymentByBooking(t *testing.T) {
 	t.Run("succes - retourne le paiement par booking", func(t *testing.T) {
 		d := newTestService()
-		ctx := context.Background()
+		ctx := passengerCtx()
 
 		payment := fixtures.NewTestPayment(
 			fixtures.WithPaymentID("pay-abc"),
@@ -160,6 +199,7 @@ func TestGetPaymentByBooking(t *testing.T) {
 			fixtures.WithPaymentStatus(domain.PaymentStatusPending),
 		)
 		d.paymentReadRepo.On("GetByBookingID", mock.Anything, "booking-xyz").Return(payment, nil)
+		d.expectBookingCaller("booking-xyz", testPassengerID)
 
 		result, err := d.svc.GetPaymentByBooking(ctx, "booking-xyz")
 
@@ -173,14 +213,60 @@ func TestGetPaymentByBooking(t *testing.T) {
 
 	t.Run("erreur - booking sans paiement", func(t *testing.T) {
 		d := newTestService()
-		ctx := context.Background()
+		ctx := passengerCtx()
 
 		d.paymentReadRepo.On("GetByBookingID", mock.Anything, "no-booking").Return(nil, paymentErrors.ErrorPaymentNotFound)
+		d.expectBookingCaller("no-booking", testPassengerID)
 
 		result, err := d.svc.GetPaymentByBooking(ctx, "no-booking")
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, paymentErrors.ErrorPaymentNotFound)
+		d.assertExpectations(t)
+	})
+
+	t.Run("erreur - appelant autre que le passager : aucune lecture du paiement", func(t *testing.T) {
+		d := newTestService()
+		d.expectBookingCaller("booking-xyz", "someone-else")
+
+		result, err := d.svc.GetPaymentByBooking(passengerCtx(), "booking-xyz")
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, paymentErrors.ErrorPaymentNotOwned)
+		d.paymentReadRepo.AssertNotCalled(t, "GetByBookingID", mock.Anything, mock.Anything)
+		d.assertExpectations(t)
+	})
+
+	t.Run("erreur - BookingId vide", func(t *testing.T) {
+		d := newTestService()
+
+		result, err := d.svc.GetPaymentByBooking(passengerCtx(), "")
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, paymentErrors.ErrorInvalidInput)
+		d.bookingClient.AssertNotCalled(t, "GetBookingDetails", mock.Anything, mock.Anything)
+	})
+}
+
+// =============================================================================
+// GetPaymentByBookingInternal
+// =============================================================================
+
+func TestGetPaymentByBookingInternal(t *testing.T) {
+	t.Run("succes - sans identite ni controle d'appartenance", func(t *testing.T) {
+		d := newTestService()
+
+		payment := fixtures.NewTestPayment(
+			fixtures.WithPaymentBookingID("booking-xyz"),
+			fixtures.WithPaymentStatus(domain.PaymentStatusHeld),
+		)
+		d.paymentReadRepo.On("GetByBookingID", mock.Anything, "booking-xyz").Return(payment, nil)
+
+		result, err := d.svc.GetPaymentByBookingInternal(context.Background(), "booking-xyz")
+
+		require.NoError(t, err)
+		assert.Equal(t, "held", result.Status)
+		d.bookingClient.AssertNotCalled(t, "GetBookingDetails", mock.Anything, mock.Anything)
 		d.assertExpectations(t)
 	})
 }
@@ -593,7 +679,7 @@ func TestRequestRefund(t *testing.T) {
 func TestGetRefundStatus(t *testing.T) {
 	t.Run("succes - retourne le statut du remboursement", func(t *testing.T) {
 		d := newTestService()
-		ctx := context.Background()
+		ctx := passengerCtx()
 
 		refund := fixtures.NewTestRefund(
 			fixtures.WithRefundID("ref-123"),
@@ -608,6 +694,7 @@ func TestGetRefundStatus(t *testing.T) {
 			fixtures.WithRefundStatus(domain.RefundStatusCompleted),
 		)
 		d.refundReadRepo.On("GetByID", mock.Anything, "ref-123").Return(refund, nil)
+		d.expectBookingCaller("booking-ref", testPassengerID)
 
 		result, err := d.svc.GetRefundStatus(ctx, "ref-123")
 
@@ -635,6 +722,20 @@ func TestGetRefundStatus(t *testing.T) {
 		assert.ErrorIs(t, err, paymentErrors.ErrorRefundNotFound)
 		d.assertExpectations(t)
 	})
+
+	t.Run("erreur - appelant autre que le passager", func(t *testing.T) {
+		d := newTestService()
+
+		refund := fixtures.NewTestRefund(fixtures.WithRefundID("ref-123"), fixtures.WithRefundBookingID("booking-ref"))
+		d.refundReadRepo.On("GetByID", mock.Anything, "ref-123").Return(refund, nil)
+		d.expectBookingCaller("booking-ref", "someone-else")
+
+		result, err := d.svc.GetRefundStatus(passengerCtx(), "ref-123")
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, paymentErrors.ErrorPaymentNotOwned)
+		d.assertExpectations(t)
+	})
 }
 
 // =============================================================================
@@ -644,7 +745,7 @@ func TestGetRefundStatus(t *testing.T) {
 func TestGetRefundByBooking(t *testing.T) {
 	t.Run("succes - retourne le remboursement de la reservation", func(t *testing.T) {
 		d := newTestService()
-		ctx := context.Background()
+		ctx := passengerCtx()
 
 		refund := fixtures.NewTestRefund(
 			fixtures.WithRefundID("ref-456"),
@@ -659,6 +760,7 @@ func TestGetRefundByBooking(t *testing.T) {
 			fixtures.WithRefundStatus(domain.RefundStatusPending),
 		)
 		d.refundReadRepo.On("GetByBookingID", mock.Anything, "booking-cancelled").Return(refund, nil)
+		d.expectBookingCaller("booking-cancelled", testPassengerID)
 
 		result, err := d.svc.GetRefundByBooking(ctx, "booking-cancelled")
 
@@ -675,9 +777,10 @@ func TestGetRefundByBooking(t *testing.T) {
 
 	t.Run("erreur - aucun remboursement pour cette reservation", func(t *testing.T) {
 		d := newTestService()
-		ctx := context.Background()
+		ctx := passengerCtx()
 
 		d.refundReadRepo.On("GetByBookingID", mock.Anything, "booking-paid").Return(nil, paymentErrors.ErrorRefundNotFound)
+		d.expectBookingCaller("booking-paid", testPassengerID)
 
 		result, err := d.svc.GetRefundByBooking(ctx, "booking-paid")
 
@@ -695,6 +798,18 @@ func TestGetRefundByBooking(t *testing.T) {
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, paymentErrors.ErrorInvalidInput)
 		d.refundReadRepo.AssertNotCalled(t, "GetByBookingID", mock.Anything, mock.Anything)
+	})
+
+	t.Run("erreur - appelant autre que le passager : aucune lecture du remboursement", func(t *testing.T) {
+		d := newTestService()
+		d.expectBookingCaller("booking-cancelled", "someone-else")
+
+		result, err := d.svc.GetRefundByBooking(passengerCtx(), "booking-cancelled")
+
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, paymentErrors.ErrorPaymentNotOwned)
+		d.refundReadRepo.AssertNotCalled(t, "GetByBookingID", mock.Anything, mock.Anything)
+		d.assertExpectations(t)
 	})
 }
 

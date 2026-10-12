@@ -12,10 +12,12 @@ import (
 	"time"
 
 	postgresHelper "github.com/Kpeewu/tissi-mah/pkg-test/postgres"
+	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/client"
 	grpcHandler "github.com/Kpeewu/tissi-mah/services/payment-service/internal/grpc"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/middleware"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/repository/implementations"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/service"
+	paymentErrors "github.com/Kpeewu/tissi-mah/services/payment-service/pkg/errors"
 	paymentpb "github.com/Kpeewu/tissi-mah/services/payment-service/proto/gen"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/tests/mocks"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -63,10 +65,15 @@ func TestMain(m *testing.M) {
 	// --- Mock clients (inter-service) ---
 	mockBookingClient := new(mocks.MockBookingClient)
 	mockBookingClient.On("ConfirmPayment", mock.Anything, mock.Anything, mock.Anything).Return("pendingApproval", nil).Maybe()
-	mockBookingClient.On("GetBookingDetails", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	// Passager = Firebase UID des appels e2e (ctxWithUID) : le contrôle d'appartenance passe sans user-service
+	mockBookingClient.On("GetBookingDetails", mock.Anything, mock.Anything).
+		Return(&client.BookingDetails{PassengerID: e2eFirebaseUID}, nil).Maybe()
 
 	mockUserClient := new(mocks.MockUserClient)
 	mockUserClient.On("GetUserByUserID", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	// Tout autre Firebase UID n'est pas le passager
+	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, mock.Anything).
+		Return("", paymentErrors.ErrorUserNotFound).Maybe()
 
 	mockSupportClient = new(mocks.MockSupportClient)
 

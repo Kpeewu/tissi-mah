@@ -245,6 +245,9 @@ func (s *paymentServiceImpl) GetPaymentStatus(ctx context.Context, paymentID str
 	if err != nil {
 		return nil, err
 	}
+	if err := s.authorizeBookingRead(ctx, payment.BookingID); err != nil {
+		return nil, err
+	}
 
 	return &serviceInterfaces.PaymentStatusResult{
 		PaymentID:        payment.PaymentID,
@@ -262,6 +265,19 @@ func (s *paymentServiceImpl) GetPaymentStatus(ctx context.Context, paymentID str
 }
 
 func (s *paymentServiceImpl) GetPaymentByBooking(ctx context.Context, bookingID string) (*serviceInterfaces.PaymentByBookingResult, error) {
+	if bookingID == "" {
+		return nil, paymentErrors.ErrorInvalidInput
+	}
+	// Contrôle avant toute lecture (cache compris)
+	if err := s.authorizeBookingRead(ctx, bookingID); err != nil {
+		return nil, err
+	}
+	return s.GetPaymentByBookingInternal(ctx, bookingID)
+}
+
+// GetPaymentByBookingInternal retourne le paiement d'une réservation sans contrôle d'appartenance.
+// Réservé aux appels inter-services (sweeper paymentPending de booking-service).
+func (s *paymentServiceImpl) GetPaymentByBookingInternal(ctx context.Context, bookingID string) (*serviceInterfaces.PaymentByBookingResult, error) {
 	// Essayer le cache
 	if s.cache != nil {
 		cached, _ := s.cache.GetPaymentByBookingID(ctx, bookingID)
@@ -556,6 +572,9 @@ func (s *paymentServiceImpl) GetRefundStatus(ctx context.Context, refundID strin
 	if err != nil {
 		return nil, err
 	}
+	if err := s.authorizeBookingRead(ctx, refund.BookingID); err != nil {
+		return nil, err
+	}
 
 	return refundToStatusResult(refund), nil
 }
@@ -571,6 +590,9 @@ func (s *paymentServiceImpl) GetRefundByBooking(ctx context.Context, bookingID s
 	if bookingID == "" {
 		return nil, paymentErrors.ErrorInvalidInput
 	}
+	if err := s.authorizeBookingRead(ctx, bookingID); err != nil {
+		return nil, err
+	}
 
 	refund, err := s.refundReadRepo.GetByBookingID(ctx, bookingID)
 	if err != nil {
@@ -578,6 +600,16 @@ func (s *paymentServiceImpl) GetRefundByBooking(ctx context.Context, bookingID s
 	}
 
 	return refundToStatusResult(refund), nil
+}
+
+// authorizeBookingRead vérifie que l'appelant est le passager de la réservation
+// (lectures client : GetPaymentStatus, GetPaymentByBooking, GetRefundStatus, GetRefundByBooking).
+func (s *paymentServiceImpl) authorizeBookingRead(ctx context.Context, bookingID string) error {
+	booking, err := s.getBooking(ctx, bookingID)
+	if err != nil {
+		return err
+	}
+	return s.checkBookingOwnership(ctx, booking)
 }
 
 // refundToStatusResult projette un Refund domaine vers le résultat exposé aux clients

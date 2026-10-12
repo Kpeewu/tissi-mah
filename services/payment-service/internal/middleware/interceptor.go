@@ -35,6 +35,8 @@ var publicMethods = map[string]bool{
 	"/payment.PaymentService/HandlePaymentCallback": true,
 	// Route interne (booking-service, gRPC uniquement — pas d'annotation HTTP)
 	"/payment.PaymentService/CancelPaymentForBooking": true,
+	// Route interne (sweeper paymentPending de booking-service) — GetPaymentByBooking exige l'identité du passager
+	"/payment.PaymentService/GetPaymentByBookingInternal": true,
 	// Routes internes (auth-service, suppression de compte — pas d'annotation HTTP)
 	"/payment.PaymentService/CheckDeletionEligibility": true,
 	"/payment.PaymentService/AnonymizeUserData":        true,

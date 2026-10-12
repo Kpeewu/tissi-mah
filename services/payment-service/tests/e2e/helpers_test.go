@@ -7,6 +7,9 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// e2eFirebaseUID est le Firebase UID du passager des réservations simulées par le mock booking-service.
+const e2eFirebaseUID = "e2e-test-user"
+
 // ctxWithUID retourne un contexte avec le Firebase UID dans les metadata gRPC
 func ctxWithUID(uid string) context.Context {
 	md := metadata.Pairs("x-firebase-uid", uid)

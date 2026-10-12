@@ -62,6 +62,14 @@ service PaymentService {
     };
   }
 
+  // GetPaymentByBookingInternal retourne le paiement d'une réservation sans contrôle d'appartenance.
+  // Route interne (sweeper paymentPending de booking-service) — bloquée en bordure par l'api-gateway.
+  rpc GetPaymentByBookingInternal(GetPaymentByBookingRequest) returns (GetPaymentByBookingResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payment/internal/getPaymentByBooking"
+    };
+  }
+
   // ProcessWebhook traite les webhooks FedaPay (public, vérifié par HMAC)
   rpc ProcessWebhook(ProcessWebhookRequest) returns (ProcessWebhookResponse) {
     option (google.api.http) = {

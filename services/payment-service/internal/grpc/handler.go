@@ -140,6 +140,22 @@ func (h *PaymentHandler) GetPaymentByBooking(ctx context.Context, req *paymentpb
 		return &paymentpb.GetPaymentByBookingResponse{ErrorMessage: err.Error()}, toGRPCError(err)
 	}
 
+	return toPaymentByBookingResponse(result), nil
+}
+
+// GetPaymentByBookingInternal retourne le paiement d'une réservation sans contrôle d'appartenance (interne).
+func (h *PaymentHandler) GetPaymentByBookingInternal(ctx context.Context, req *paymentpb.GetPaymentByBookingRequest) (*paymentpb.GetPaymentByBookingResponse, error) {
+	result, err := h.service.GetPaymentByBookingInternal(ctx, req.BookingId)
+	if err != nil {
+		return &paymentpb.GetPaymentByBookingResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return toPaymentByBookingResponse(result), nil
+}
+
+// toPaymentByBookingResponse projette le résultat service vers la réponse gRPC
+// (partagé par GetPaymentByBooking et GetPaymentByBookingInternal).
+func toPaymentByBookingResponse(result *serviceInterfaces.PaymentByBookingResult) *paymentpb.GetPaymentByBookingResponse {
 	return &paymentpb.GetPaymentByBookingResponse{
 		PaymentId:        result.PaymentID,
 		BookingId:        result.BookingID,
@@ -152,7 +168,7 @@ func (h *PaymentHandler) GetPaymentByBooking(ctx context.Context, req *paymentpb
 		PaymentUrl:       result.PaymentURL,
 		ProviderStatus:   result.ProviderStatus,
 		ExpiresAt:        result.ExpiresAt,
-	}, nil
+	}
 }
 
 // ProcessWebhook traite les webhooks FedaPay.
