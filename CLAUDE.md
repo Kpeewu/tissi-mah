@@ -66,6 +66,8 @@ Les services qui référencent des utilisateurs résolvent le Firebase UID en Us
 inter-service fait pour le compte d'un utilisateur propage son identité avec `grpcutil.ForwardIdentity(ctx)`.
 Les RPC internes sans annotation HTTP (ex : `CheckDeletionEligibility`, `AnonymizeUserData`) sont listés
 dans `publicMethods` de l'intercepteur, car ils sont appelés sans metadata.
+Un RPC client n'est jamais « optionnellement » authentifié : si des services ont besoin de la même
+donnée sans identité, on expose un RPC interne distinct sous `/internal/` (ex : `GetBookingDetailsInternal`).
 
 ---
 

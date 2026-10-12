@@ -14,7 +14,7 @@ This document describes the HTTP/REST API exposed by the booking-service through
 ## Authentication
 
 All `/api/v1/booking/*` endpoints (except `/api/v1/booking/health` and `/api/v1/booking/internal/*`) require a valid **Firebase JWT**.
-The `/api/v1/booking/internal/*` routes are for inter-service use (trips-service) and are not exposed to mobile clients.
+The `/api/v1/booking/internal/*` routes are for inter-service use (trips-service, payment-service, chat-service) and are blocked at the api-gateway.
 
 ```http
 Authorization: Bearer <firebase-id-token>
@@ -152,7 +152,9 @@ Content-Type: application/json
 
 Returns the complete details of a booking including segments and status history.
 
-**Authentication:** Firebase JWT required (the JWT user must be the passenger or driver of the booking)
+**Authentication:** Firebase JWT required (the JWT user must be the passenger or driver of the booking).
+A call without caller identity is rejected (`401`); there is no unauthenticated variant of this route.
+Inter-service callers use the internal route [`getBookingDetails` (internal)](#get-apiv1bookinginternalgetbookingdetails).
 
 #### Query Parameters
 
@@ -778,6 +780,23 @@ Returns the list of passenger IDs with an `inProgress` booking for a given trip.
 ```json
 { "PassengerIDs": ["550e8400-e29b-41d4-a716-446655440010", "550e8400-e29b-41d4-a716-446655440011"] }
 ```
+
+---
+
+### GET /api/v1/booking/internal/getBookingDetails
+
+Returns the raw details of a booking (same `Booking` payload as `getBookingDetails`, without the
+history actor names and the route polyline). **Internal route** (gRPC `GetBookingDetailsInternal`),
+called by payment-service and chat-service, which perform their own access checks. Blocked at the
+api-gateway like every `/internal/` route.
+
+**Authentication:** Not required (internal)
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `BookingId` | string | Yes | Booking UUID |
 
 ---
 
