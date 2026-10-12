@@ -240,9 +240,11 @@ message GetPayoutStatusRequest {
   string PayoutId = 1;
 }
 
+// Le chauffeur est l'appelant (UserID résolu depuis le Firebase UID par l'intercepteur).
 message GetDriverPayoutsRequest {
-  string DriverId  = 1;
-  int32  PageIndex = 2;
+  reserved 1;
+  reserved "DriverId";
+  int32 PageIndex = 2;
 }
 
 message TriggerManualPayoutRequest {

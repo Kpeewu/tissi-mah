@@ -39,6 +39,15 @@ service RatingService {
     };
   }
 
+  // GetUserRatingsAverageInternal - Moyenne des notes d'un utilisateur, sans identité d'appelant.
+  // Route interne (booking-service, trips-service — y compris depuis des routes publiques) :
+  // bloquée en bordure par l'api-gateway.
+  rpc GetUserRatingsAverageInternal(GetUserRatingsAverageRequest) returns (GetUserRatingsAverageResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/ratings/internal/getUserRatingsAverage"
+    };
+  }
+
   // UpdateRating - Modifier une note existante
   rpc UpdateRating(UpdateRatingRequest) returns (UpdateRatingResponse) {
     option (google.api.http) = {
@@ -59,8 +68,10 @@ service RatingService {
 // Request Messages
 // =============================================================================
 
+// Le rater est l'appelant (UserID résolu depuis le Firebase UID par l'intercepteur).
 message RateUserRequest {
-  string RaterId = 1;
+  reserved 1;
+  reserved "RaterId";
   string UserRatedId = 2;
   int32 NumberOfStars = 3;
   string Comment = 4; // Optionnel
@@ -74,9 +85,11 @@ message GetUserRatingsAverageRequest {
   string UserRatedId = 1;
 }
 
+// Seul le rater peut modifier sa note : c'est l'appelant (UserID résolu par l'intercepteur).
 message UpdateRatingRequest {
   string RatingId = 1;
-  string RaterId = 2;
+  reserved 2;
+  reserved "RaterId";
   string UserRatedId = 3;
   int32 NumberOfStars = 4;
   string Comment = 5; // Optionnel
