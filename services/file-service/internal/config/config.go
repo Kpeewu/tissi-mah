@@ -18,6 +18,7 @@ type Config struct {
 	ModerationEnabled    bool
 	ModerationFailClosed bool
 	LogLevel             string
+	InternalHMACSecret   string
 }
 
 type ServiceConfig struct {
@@ -113,6 +114,7 @@ func Load() (*Config, error) {
 		ModerationEnabled:    getBoolOrDefault(values, "MODERATION_ENABLED", true),
 		ModerationFailClosed: getBoolOrDefault(values, "MODERATION_FAIL_CLOSED", false),
 		LogLevel:             sharedconfig.MustGetString(values, "LOG_LEVEL"),
+		InternalHMACSecret:   sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),
 	}
 
 	if err := validate(config); err != nil {

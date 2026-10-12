@@ -9,6 +9,7 @@ import (
 
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/domain"
+	"github.com/Kpeewu/tissi-mah/services/file-service/internal/middleware"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/file-service/internal/service/interfaces"
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/storage"
 	fileErrors "github.com/Kpeewu/tissi-mah/services/file-service/pkg/errors"
@@ -125,15 +126,19 @@ func (h *FileHandler) UploadUserDocument(stream filepb.FileService_UploadUserDoc
 
 // --- Suppression document (HTTP via api-gateway) ---
 
-// DeleteFile supprime un document après vérification que UserID est bien propriétaire.
+// DeleteFile supprime un document après vérification que l'appelant en est propriétaire.
 func (h *FileHandler) DeleteFile(ctx context.Context, req *filepb.DeleteFileRequest) (*filepb.DeleteFileResponse, error) {
+	userID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	h.logger.Debug("handler: DeleteFile called",
-		zap.String("userID", req.UserID),
+		zap.String("userID", userID),
 		zap.String("fileID", req.FileID),
 	)
 
-	err := h.service.DeleteFile(ctx, serviceInterfaces.DeleteFileInput{
-		UserID: req.UserID,
+	err = h.service.DeleteFile(ctx, serviceInterfaces.DeleteFileInput{
+		UserID: userID,
 		FileID: req.FileID,
 	})
 	if err != nil {
@@ -151,8 +156,8 @@ func (h *FileHandler) DeleteFile(ctx context.Context, req *filepb.DeleteFileRequ
 // --- Lecture document (HTTP via api-gateway) ---
 
 // GetDocument récupère un document par son ID avec contrôle d'accès.
-// Si UserID fourni : vérifie la propriété. Si x-support-uid présent en metadata : accès direct.
-// Le SupportID vient exclusivement de la metadata gRPC injectée par JWTSupport — req.SupportID est ignoré.
+// Agent support (x-support-uid en metadata, injecté par JWTSupport) : accès direct.
+// Sinon l'appelant (UserID résolu par l'intercepteur) doit être propriétaire du document.
 func (h *FileHandler) GetDocument(ctx context.Context, req *filepb.GetDocumentRequest) (*filepb.GetDocumentResponse, error) {
 	var supportID string
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
@@ -161,15 +166,23 @@ func (h *FileHandler) GetDocument(ctx context.Context, req *filepb.GetDocumentRe
 		}
 	}
 
+	var userID string
+	if supportID == "" {
+		var err error
+		if userID, err = callerUserID(ctx); err != nil {
+			return nil, err
+		}
+	}
+
 	h.logger.Debug("handler: GetDocument called",
 		zap.String("fileID", req.FileID),
-		zap.String("userID", req.UserID),
+		zap.String("userID", userID),
 		zap.Bool("isSupportAccess", supportID != ""),
 	)
 
 	result, err := h.service.GetDocument(ctx, serviceInterfaces.GetDocumentInput{
 		FileID:    req.FileID,
-		UserID:    req.UserID,
+		UserID:    userID,
 		SupportID: supportID,
 	})
 	if err != nil {
@@ -190,15 +203,19 @@ func (h *FileHandler) GetDocument(ctx context.Context, req *filepb.GetDocumentRe
 
 // --- Remplacement de document (HTTP via api-gateway) ---
 
-// ChangeDocument remplace le fichier d'un document utilisateur existant.
+// ChangeDocument remplace le fichier d'un document existant de l'appelant.
 func (h *FileHandler) ChangeDocument(ctx context.Context, req *filepb.ChangeDocumentRequest) (*filepb.ChangeDocumentResponse, error) {
+	userID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	h.logger.Debug("handler: ChangeDocument called",
-		zap.String("userID", req.UserID),
+		zap.String("userID", userID),
 		zap.String("fileID", req.FileID),
 	)
 
 	doc, err := h.service.ChangeDocument(ctx, serviceInterfaces.ChangeDocumentInput{
-		UserID:         req.UserID,
+		UserID:         userID,
 		FileID:         req.FileID,
 		NewDocument:    req.NewDocument,
 		DocumentNumber: req.DocumentNumber,
@@ -232,21 +249,15 @@ func (h *FileHandler) ChangeDocument(ctx context.Context, req *filepb.ChangeDocu
 // UploadIdDocument reçoit les documents d'identité en base64 JSON, les upload vers S3/MinIO
 // et sauvegarde les URLs en base. Retourne toujours HTTP 200 avec ErrorMessage si erreur.
 //
-// Sécurité : le Firebase UID est lu depuis la metadata gRPC x-firebase-uid (injectée
+// Sécurité : le Firebase UID est celui vérifié par l'intercepteur (x-firebase-uid injecté
 // par l'api-gateway après validation JWT), puis résolu en profil (UUID + prenom + nom)
 // via user-service. Le champ req.UserID du body est ignoré car client-supplied et non sûr.
 func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadIdDocumentRequest) (*filepb.UploadIdDocumentResponse, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		h.logger.Error("handler: UploadIdDocument - missing metadata")
-		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	firebaseUID, err := callerFirebaseUID(ctx)
+	if err != nil {
+		h.logger.Error("handler: UploadIdDocument - missing caller identity")
+		return nil, err
 	}
-	uids := md.Get("x-firebase-uid")
-	if len(uids) == 0 || uids[0] == "" {
-		h.logger.Error("handler: UploadIdDocument - missing x-firebase-uid")
-		return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
-	}
-	firebaseUID := uids[0]
 
 	profile, err := h.userClient.GetUserProfileByFirebaseID(ctx, firebaseUID)
 	if err != nil {
@@ -308,21 +319,15 @@ func (h *FileHandler) UploadIdDocument(ctx context.Context, req *filepb.UploadId
 // vers S3/MinIO et l'enregistre comme document "selfie" courant (photo de profil
 // immédiate + review "pending" pour validation support).
 //
-// Sécurité : le Firebase UID est lu depuis la metadata gRPC x-firebase-uid
-// (injectée par l'api-gateway après validation JWT) puis résolu via user-service.
+// Sécurité : le Firebase UID est celui vérifié par l'intercepteur (x-firebase-uid injecté
+// par l'api-gateway après validation JWT) puis résolu via user-service.
 // Aucun UserID n'est accepté dans le body.
 func (h *FileHandler) UploadSelfie(ctx context.Context, req *filepb.UploadSelfieRequest) (*filepb.UploadSelfieResponse, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		h.logger.Error("handler: UploadSelfie - missing metadata")
-		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	firebaseUID, err := callerFirebaseUID(ctx)
+	if err != nil {
+		h.logger.Error("handler: UploadSelfie - missing caller identity")
+		return nil, err
 	}
-	uids := md.Get("x-firebase-uid")
-	if len(uids) == 0 || uids[0] == "" {
-		h.logger.Error("handler: UploadSelfie - missing x-firebase-uid")
-		return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
-	}
-	firebaseUID := uids[0]
 
 	profile, err := h.userClient.GetUserProfileByFirebaseID(ctx, firebaseUID)
 	if err != nil {
@@ -368,21 +373,15 @@ func (h *FileHandler) UploadSelfie(ctx context.Context, req *filepb.UploadSelfie
 // UploadVehicleDocuments reçoit les documents du véhicule en base64 JSON,
 // les upload vers S3/MinIO et sauvegarde les URLs en base.
 //
-// Sécurité : le Firebase UID est lu depuis la metadata gRPC x-firebase-uid (injectée
+// Sécurité : le Firebase UID est celui vérifié par l'intercepteur (x-firebase-uid injecté
 // par l'api-gateway après validation JWT), puis résolu en profil (UUID + prenom + nom)
 // via user-service. Le champ req.UserID du body est ignoré car client-supplied et non sûr.
 func (h *FileHandler) UploadVehicleDocuments(ctx context.Context, req *filepb.UploadVehicleDocumentsRequest) (*filepb.UploadVehicleDocumentsResponse, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		h.logger.Error("handler: UploadVehicleDocuments - missing metadata")
-		return nil, status.Error(codes.Unauthenticated, "missing metadata")
+	firebaseUID, err := callerFirebaseUID(ctx)
+	if err != nil {
+		h.logger.Error("handler: UploadVehicleDocuments - missing caller identity")
+		return nil, err
 	}
-	uids := md.Get("x-firebase-uid")
-	if len(uids) == 0 || uids[0] == "" {
-		h.logger.Error("handler: UploadVehicleDocuments - missing x-firebase-uid")
-		return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
-	}
-	firebaseUID := uids[0]
 
 	profile, err := h.userClient.GetUserProfileByFirebaseID(ctx, firebaseUID)
 	if err != nil {
@@ -1033,6 +1032,27 @@ func (h *FileHandler) logHandlerError(handlerName string, err error) {
 // =============================================================================
 // Error mapping domain → gRPC
 // =============================================================================
+
+// callerUserID retourne l'UserID interne de l'appelant, résolu par l'intercepteur depuis
+// le Firebase UID validé par l'api-gateway. Les endpoints client-facing ne font JAMAIS
+// confiance à un UserID fourni dans la requête.
+func callerUserID(ctx context.Context) (string, error) {
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
+	if !ok || userID == "" {
+		return "", status.Error(codes.Unauthenticated, "missing caller identity")
+	}
+	return userID, nil
+}
+
+// callerFirebaseUID retourne le Firebase UID de l'appelant, vérifié par l'intercepteur
+// (utilisé par les uploads, qui relisent le profil complet : UserID + prénom/nom).
+func callerFirebaseUID(ctx context.Context) (string, error) {
+	uid, ok := ctx.Value(middleware.FirebaseIDKey).(string)
+	if !ok || uid == "" {
+		return "", status.Error(codes.Unauthenticated, "missing caller identity")
+	}
+	return uid, nil
+}
 
 func toGRPCError(err error) error {
 	switch {

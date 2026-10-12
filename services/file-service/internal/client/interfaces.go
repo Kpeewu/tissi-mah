@@ -37,8 +37,8 @@ type VehicleClient interface {
 // metadata gRPC (x-firebase-uid) et doit le résoudre en UUID interne avant
 // de stocker les documents (convention partagée avec user-service et kyc-service).
 type UserClient interface {
-	// GetInternalUserIDByFirebaseID résout un Firebase UID en UserID interne MongoDB.
-	GetInternalUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error)
+	// GetUserIDByFirebaseID résout un Firebase UID en UserID interne (intercepteur).
+	GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error)
 
 	// GetUserProfileByFirebaseID retourne l'UUID interne + prenom/nom.
 	// Utilisé par UploadVehicleDocuments pour construire le docName humain-lisible.

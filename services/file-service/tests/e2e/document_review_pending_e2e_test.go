@@ -261,11 +261,11 @@ func TestE2E_ChangeDocument_PendingReviewOnResubmission(t *testing.T) {
 		require.NoError(t, err)
 
 		// Resoumission via ChangeDocument.
-		changeResp, err := grpcClient.ChangeDocument(ctx, &filepb.ChangeDocumentRequest{
-			UserID:      "e2e-resubmit-passport",
-			FileID:      passportID,
-			NewDocument: fakeJPEG(),
-		})
+		changeResp, err := grpcClient.ChangeDocument(withFirebaseUID(ctx, "e2e-resubmit-passport"),
+			&filepb.ChangeDocumentRequest{
+				FileID:      passportID,
+				NewDocument: fakeJPEG(),
+			})
 		require.NoError(t, err)
 		require.True(t, changeResp.Success, changeResp.ErrorMessage)
 		newPassportID := changeResp.Document.DocumentID
@@ -322,17 +322,19 @@ func TestE2E_ChangeDocument_PendingReviewOnResubmission(t *testing.T) {
 		require.NoError(t, err)
 
 		// Recto d'abord.
-		changeRecto, err := grpcClient.ChangeDocument(ctx, &filepb.ChangeDocumentRequest{
-			UserID: "e2e-resubmit-idcard", FileID: rectoID, NewDocument: fakeJPEG(),
-		})
+		changeRecto, err := grpcClient.ChangeDocument(withFirebaseUID(ctx, "e2e-resubmit-idcard"),
+			&filepb.ChangeDocumentRequest{
+				FileID: rectoID, NewDocument: fakeJPEG(),
+			})
 		require.NoError(t, err)
 		require.True(t, changeRecto.Success, changeRecto.ErrorMessage)
 		newRectoID := changeRecto.Document.DocumentID
 
 		// Puis verso.
-		changeVerso, err := grpcClient.ChangeDocument(ctx, &filepb.ChangeDocumentRequest{
-			UserID: "e2e-resubmit-idcard", FileID: versoID, NewDocument: fakeJPEG(),
-		})
+		changeVerso, err := grpcClient.ChangeDocument(withFirebaseUID(ctx, "e2e-resubmit-idcard"),
+			&filepb.ChangeDocumentRequest{
+				FileID: versoID, NewDocument: fakeJPEG(),
+			})
 		require.NoError(t, err)
 		require.True(t, changeVerso.Success, changeVerso.ErrorMessage)
 		newVersoID := changeVerso.Document.DocumentID

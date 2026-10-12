@@ -11,6 +11,7 @@ import (
 
 	postgresHelper "github.com/Kpeewu/tissi-mah/pkg-test/postgres"
 	grpcHandler "github.com/Kpeewu/tissi-mah/services/file-service/internal/grpc"
+	"github.com/Kpeewu/tissi-mah/services/file-service/internal/middleware"
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/repository/implementations"
 	fileService "github.com/Kpeewu/tissi-mah/services/file-service/internal/service"
 	filepb "github.com/Kpeewu/tissi-mah/services/file-service/proto/gen"
@@ -73,12 +74,15 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	srv := grpc.NewServer()
 	// mockUserClient : UploadIdDocument/UploadVehicleDocuments résolvent le Firebase UID
 	// (injecté via metadata x-firebase-uid) en profil utilisateur via user-service. Les
 	// tests qui exercent ces RPCs enregistrent leur propre attente via stubUserProfile
 	// (le mock testify sous-jacent ne supporte pas les valeurs de retour dynamiques).
 	mockUserClient = new(mocks.MockUserClient)
+	// Résolveur de l'intercepteur : le Firebase UID des appels e2e sert d'UserID (identité).
+	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, mock.Anything).
+		Return(func(_ context.Context, uid string) string { return uid }, nil).Maybe()
+	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.FileServiceInterceptor(nil, mockUserClient)))
 	mockVehicleClient := new(mocks.MockVehicleClient)
 	// Dégradation gracieuse par défaut : pas d'infos véhicule résolues en e2e.
 	mockVehicleClient.On("GetVehicleInfo", mock.Anything, mock.Anything).Return(nil, nil)

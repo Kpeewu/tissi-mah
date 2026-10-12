@@ -41,8 +41,7 @@ func TestChangeDocument_ErrorDocumentAlreadySubmitted_ReturnsAlreadyExists(t *te
 	spy := &spyChangeDocument{changeErr: fileErrors.ErrorDocumentAlreadySubmitted}
 	h := newChangeDocHandler(spy)
 
-	resp, err := h.ChangeDocument(context.Background(), &filepb.ChangeDocumentRequest{
-		UserID:      "user-1",
+	resp, err := h.ChangeDocument(callerCtx(), &filepb.ChangeDocumentRequest{
 		FileID:      "doc-1",
 		NewDocument: []byte("data"),
 	})
@@ -58,8 +57,7 @@ func TestChangeDocument_ErrorDocumentNotReplaceable_FailedPrecondition(t *testin
 	spy := &spyChangeDocument{changeErr: fileErrors.ErrorDocumentNotReplaceable}
 	h := newChangeDocHandler(spy)
 
-	resp, err := h.ChangeDocument(context.Background(), &filepb.ChangeDocumentRequest{
-		UserID:      "user-1",
+	resp, err := h.ChangeDocument(callerCtx(), &filepb.ChangeDocumentRequest{
 		FileID:      "doc-1",
 		NewDocument: []byte("data"),
 	})
@@ -73,8 +71,7 @@ func TestChangeDocument_ErrorMissingDocumentMetadata_ErrorMessage(t *testing.T) 
 	spy := &spyChangeDocument{changeErr: fileErrors.ErrorMissingDocumentMetadata}
 	h := newChangeDocHandler(spy)
 
-	resp, err := h.ChangeDocument(context.Background(), &filepb.ChangeDocumentRequest{
-		UserID:      "user-1",
+	resp, err := h.ChangeDocument(callerCtx(), &filepb.ChangeDocumentRequest{
 		FileID:      "doc-1",
 		NewDocument: []byte("data"),
 	})
@@ -94,8 +91,7 @@ func TestChangeDocument_ForwardsMetadataFields(t *testing.T) {
 	}
 	h := newChangeDocHandler(spy)
 
-	_, err := h.ChangeDocument(context.Background(), &filepb.ChangeDocumentRequest{
-		UserID:         "user-1",
+	_, err := h.ChangeDocument(callerCtx(), &filepb.ChangeDocumentRequest{
 		FileID:         "doc-1",
 		NewDocument:    []byte("data"),
 		DocumentNumber: "NUM-123",
@@ -122,8 +118,7 @@ func TestChangeDocument_OptionalMetadataEmptyByDefault(t *testing.T) {
 	}
 	h := newChangeDocHandler(spy)
 
-	_, err := h.ChangeDocument(context.Background(), &filepb.ChangeDocumentRequest{
-		UserID:      "user-1",
+	_, err := h.ChangeDocument(callerCtx(), &filepb.ChangeDocumentRequest{
 		FileID:      "doc-1",
 		NewDocument: []byte("data"),
 		// Pas de DocumentNumber, IssuedAt, ExpireAt, IssuingPlace

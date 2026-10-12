@@ -280,8 +280,7 @@ func TestE2E_GetCurrentUserDocument(t *testing.T) {
 		require.NoError(t, err)
 
 		// Le remplacement passe par ChangeDocument, pas par un second UploadUserDocument.
-		changeResp, err := grpcClient.ChangeDocument(ctx, &filepb.ChangeDocumentRequest{
-			UserID:      "e2e-replace-user",
+		changeResp, err := grpcClient.ChangeDocument(withFirebaseUID(ctx, "e2e-replace-user"), &filepb.ChangeDocumentRequest{
 			FileID:      first.DocumentId,
 			NewDocument: fakeJPEG(),
 		})
@@ -350,9 +349,8 @@ func TestE2E_GetDocument(t *testing.T) {
 
 		uploaded := uploadUserDoc(t, "e2e-owner", "idCardFront")
 
-		resp, err := grpcClient.GetDocument(ctx, &filepb.GetDocumentRequest{
+		resp, err := grpcClient.GetDocument(withFirebaseUID(ctx, "e2e-owner"), &filepb.GetDocumentRequest{
 			FileID: uploaded.DocumentId,
-			UserID: "e2e-owner",
 		})
 
 		require.NoError(t, err)
@@ -382,9 +380,8 @@ func TestE2E_GetDocument(t *testing.T) {
 
 		uploaded := uploadUserDoc(t, "real-owner", "idCardFront")
 
-		resp, err := grpcClient.GetDocument(ctx, &filepb.GetDocumentRequest{
+		resp, err := grpcClient.GetDocument(withFirebaseUID(ctx, "other-user"), &filepb.GetDocumentRequest{
 			FileID: uploaded.DocumentId,
-			UserID: "other-user",
 		})
 
 		require.NoError(t, err) // handler retourne 200 avec ErrorMessage
@@ -395,9 +392,8 @@ func TestE2E_GetDocument(t *testing.T) {
 	t.Run("erreur - document inexistant", func(t *testing.T) {
 		cleanTables(t)
 
-		resp, err := grpcClient.GetDocument(ctx, &filepb.GetDocumentRequest{
+		resp, err := grpcClient.GetDocument(withFirebaseUID(ctx, "some-user"), &filepb.GetDocumentRequest{
 			FileID: "nonexistent-file-id",
-			UserID: "some-user",
 		})
 
 		require.NoError(t, err) // handler retourne 200 avec ErrorMessage
@@ -418,8 +414,7 @@ func TestE2E_DeleteFile(t *testing.T) {
 
 		uploaded := uploadUserDoc(t, "e2e-del-owner", "idCardFront")
 
-		resp, err := grpcClient.DeleteFile(ctx, &filepb.DeleteFileRequest{
-			UserID: "e2e-del-owner",
+		resp, err := grpcClient.DeleteFile(withFirebaseUID(ctx, "e2e-del-owner"), &filepb.DeleteFileRequest{
 			FileID: uploaded.DocumentId,
 		})
 
@@ -433,8 +428,7 @@ func TestE2E_DeleteFile(t *testing.T) {
 
 		uploaded := uploadUserDoc(t, "e2e-real-owner", "passport")
 
-		resp, err := grpcClient.DeleteFile(ctx, &filepb.DeleteFileRequest{
-			UserID: "other-user",
+		resp, err := grpcClient.DeleteFile(withFirebaseUID(ctx, "other-user"), &filepb.DeleteFileRequest{
 			FileID: uploaded.DocumentId,
 		})
 
@@ -446,8 +440,7 @@ func TestE2E_DeleteFile(t *testing.T) {
 	t.Run("erreur - document inexistant", func(t *testing.T) {
 		cleanTables(t)
 
-		resp, err := grpcClient.DeleteFile(ctx, &filepb.DeleteFileRequest{
-			UserID: "some-user",
+		resp, err := grpcClient.DeleteFile(withFirebaseUID(ctx, "some-user"), &filepb.DeleteFileRequest{
 			FileID: "nonexistent-id",
 		})
 
@@ -896,8 +889,7 @@ func TestE2E_FullScenario(t *testing.T) {
 		idCardFront.DocumentId,
 	)
 	require.NoError(t, err)
-	replaceResp, err := grpcClient.ChangeDocument(ctx, &filepb.ChangeDocumentRequest{
-		UserID:      userID,
+	replaceResp, err := grpcClient.ChangeDocument(withFirebaseUID(ctx, userID), &filepb.ChangeDocumentRequest{
 		FileID:      idCardFront.DocumentId,
 		NewDocument: fakeJPEG(),
 	})
@@ -915,9 +907,8 @@ func TestE2E_FullScenario(t *testing.T) {
 	assert.Equal(t, idCardFront2ID, currentDoc.DocumentId)
 
 	// 10. GetDocument avec accès propriétaire
-	docResp, err := grpcClient.GetDocument(ctx, &filepb.GetDocumentRequest{
+	docResp, err := grpcClient.GetDocument(withFirebaseUID(ctx, userID), &filepb.GetDocumentRequest{
 		FileID: idCardFront2ID,
-		UserID: userID,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, docResp.File)

@@ -453,9 +453,9 @@ func (x *UploadSelfieResponse) GetDocument() *UploadedDocument {
 	return nil
 }
 
+// Le propriétaire est l'appelant (UserID résolu depuis le Firebase UID par l'intercepteur).
 type DeleteFileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserID        string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
 	FileID        string                 `protobuf:"bytes,2,opt,name=FileID,proto3" json:"FileID,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -489,13 +489,6 @@ func (x *DeleteFileRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteFileRequest.ProtoReflect.Descriptor instead.
 func (*DeleteFileRequest) Descriptor() ([]byte, []int) {
 	return file_file_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *DeleteFileRequest) GetUserID() string {
-	if x != nil {
-		return x.UserID
-	}
-	return ""
 }
 
 func (x *DeleteFileRequest) GetFileID() string {
@@ -557,10 +550,11 @@ func (x *DeleteFileResponse) GetErrorMessage() string {
 	return ""
 }
 
+// Utilisateur : doit être propriétaire du document (UserID résolu depuis le Firebase UID par
+// l'intercepteur). Agent support : accès direct via x-support-uid en metadata gRPC.
 type GetDocumentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FileID        string                 `protobuf:"bytes,1,opt,name=FileID,proto3" json:"FileID,omitempty"`
-	UserID        string                 `protobuf:"bytes,2,opt,name=UserID,proto3" json:"UserID,omitempty"` // Optionnel — vérifie la propriété
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -598,13 +592,6 @@ func (*GetDocumentRequest) Descriptor() ([]byte, []int) {
 func (x *GetDocumentRequest) GetFileID() string {
 	if x != nil {
 		return x.FileID
-	}
-	return ""
-}
-
-func (x *GetDocumentRequest) GetUserID() string {
-	if x != nil {
-		return x.UserID
 	}
 	return ""
 }
@@ -729,9 +716,9 @@ func (x *GetDocumentResponse) GetFile() *DocumentFile {
 	return nil
 }
 
+// Le propriétaire est l'appelant (UserID résolu depuis le Firebase UID par l'intercepteur).
 type ChangeDocumentRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	UserID         string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"`
 	FileID         string                 `protobuf:"bytes,2,opt,name=FileID,proto3" json:"FileID,omitempty"`
 	NewDocument    []byte                 `protobuf:"bytes,3,opt,name=NewDocument,proto3" json:"NewDocument,omitempty"`
 	DocumentNumber string                 `protobuf:"bytes,4,opt,name=DocumentNumber,proto3" json:"DocumentNumber,omitempty"` // Optionnel — remplace l'existant si fourni
@@ -770,13 +757,6 @@ func (x *ChangeDocumentRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ChangeDocumentRequest.ProtoReflect.Descriptor instead.
 func (*ChangeDocumentRequest) Descriptor() ([]byte, []int) {
 	return file_file_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *ChangeDocumentRequest) GetUserID() string {
-	if x != nil {
-		return x.UserID
-	}
-	return ""
 }
 
 func (x *ChangeDocumentRequest) GetFileID() string {
@@ -3581,16 +3561,14 @@ const file_file_proto_rawDesc = "" +
 	"\x14UploadSelfieResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\x122\n" +
-	"\bDocument\x18\x03 \x01(\v2\x16.file.UploadedDocumentR\bDocument\"C\n" +
+	"\bDocument\x18\x03 \x01(\v2\x16.file.UploadedDocumentR\bDocument\"9\n" +
 	"\x11DeleteFileRequest\x12\x16\n" +
-	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12\x16\n" +
-	"\x06FileID\x18\x02 \x01(\tR\x06FileID\"R\n" +
+	"\x06FileID\x18\x02 \x01(\tR\x06FileIDJ\x04\b\x01\x10\x02R\x06UserID\"R\n" +
 	"\x12DeleteFileResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
-	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\"D\n" +
+	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\":\n" +
 	"\x12GetDocumentRequest\x12\x16\n" +
-	"\x06FileID\x18\x01 \x01(\tR\x06FileID\x12\x16\n" +
-	"\x06UserID\x18\x02 \x01(\tR\x06UserID\"\x92\x01\n" +
+	"\x06FileID\x18\x01 \x01(\tR\x06FileIDJ\x04\b\x02\x10\x03R\x06UserID\"\x92\x01\n" +
 	"\fDocumentFile\x12\x16\n" +
 	"\x06FileID\x18\x01 \x01(\tR\x06FileID\x12\x18\n" +
 	"\aFileURL\x18\x02 \x01(\tR\aFileURL\x12\x1a\n" +
@@ -3598,15 +3576,14 @@ const file_file_proto_rawDesc = "" +
 	"\x15PresignedUrlExpiresAt\x18\x04 \x01(\tR\x15PresignedUrlExpiresAt\"a\n" +
 	"\x13GetDocumentResponse\x12\"\n" +
 	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12&\n" +
-	"\x04File\x18\x02 \x01(\v2\x12.file.DocumentFileR\x04File\"\xed\x01\n" +
+	"\x04File\x18\x02 \x01(\v2\x12.file.DocumentFileR\x04File\"\xe3\x01\n" +
 	"\x15ChangeDocumentRequest\x12\x16\n" +
-	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12\x16\n" +
 	"\x06FileID\x18\x02 \x01(\tR\x06FileID\x12 \n" +
 	"\vNewDocument\x18\x03 \x01(\fR\vNewDocument\x12&\n" +
 	"\x0eDocumentNumber\x18\x04 \x01(\tR\x0eDocumentNumber\x12\x1a\n" +
 	"\bIssuedAt\x18\x05 \x01(\tR\bIssuedAt\x12\x1a\n" +
 	"\bExpireAt\x18\x06 \x01(\tR\bExpireAt\x12\"\n" +
-	"\fIssuingPlace\x18\a \x01(\tR\fIssuingPlace\"\x8a\x01\n" +
+	"\fIssuingPlace\x18\a \x01(\tR\fIssuingPlaceJ\x04\b\x01\x10\x02R\x06UserID\"\x8a\x01\n" +
 	"\x16ChangeDocumentResponse\x12\x18\n" +
 	"\aSuccess\x18\x01 \x01(\bR\aSuccess\x12\"\n" +
 	"\fErrorMessage\x18\x02 \x01(\tR\fErrorMessage\x122\n" +

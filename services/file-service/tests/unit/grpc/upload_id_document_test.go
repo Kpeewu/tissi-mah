@@ -8,6 +8,7 @@ import (
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/file-service/internal/domain"
 	grpcHandler "github.com/Kpeewu/tissi-mah/services/file-service/internal/grpc"
+	"github.com/Kpeewu/tissi-mah/services/file-service/internal/middleware"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/file-service/internal/service/interfaces"
 	fileErrors "github.com/Kpeewu/tissi-mah/services/file-service/pkg/errors"
 	filepb "github.com/Kpeewu/tissi-mah/services/file-service/proto/gen"
@@ -117,9 +118,14 @@ func (s *spyFileService) GetDocumentReviewHistory(context.Context, string, strin
 }
 func (s *spyFileService) DeleteAllUserFiles(context.Context, string) error { panic("not implemented") }
 
+// ctxWithFirebaseUID simule un appelant authentifié : l'intercepteur a vérifié son Firebase UID.
 func ctxWithFirebaseUID(uid string) context.Context {
-	md := metadata.New(map[string]string{"x-firebase-uid": uid})
-	return metadata.NewIncomingContext(context.Background(), md)
+	return context.WithValue(context.Background(), middleware.FirebaseIDKey, uid)
+}
+
+// callerCtx simule un appelant authentifié : l'intercepteur a résolu son UserID interne ("user-1").
+func callerCtx() context.Context {
+	return context.WithValue(context.Background(), middleware.UserIDKey, "user-1")
 }
 
 func TestUploadIdDocument_MissingMetadata_ReturnsUnauthenticated(t *testing.T) {

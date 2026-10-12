@@ -39,7 +39,7 @@ func NewFileServer(
 	srv, err := grpcutil.NewServer(
 		serverCfg,
 		logger,
-		grpc.UnaryInterceptor(middleware.FileServiceInterceptor()),
+		grpc.UnaryInterceptor(middleware.FileServiceInterceptor([]byte(cfg.InternalHMACSecret), userClient)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)

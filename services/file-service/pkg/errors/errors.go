@@ -20,6 +20,7 @@ var (
 	ErrorInvalidReviewType         = errors.New("ErrorInvalidReviewType")
 	ErrorInvalidReasonRejection    = errors.New("ErrorInvalidReasonRejection")
 	ErrorUserServiceUnavailable    = errors.New("ErrorUserServiceUnavailable")
+	ErrorUserNotFound              = errors.New("ErrorUserNotFound")
 	ErrorInvalidInput              = errors.New("ErrorInvalidInput")
 	ErrorContentBlocked            = errors.New("ErrorContentBlocked")
 	ErrorDocumentAlreadySubmitted  = errors.New("ErrorDocumentAlreadySubmitted")
