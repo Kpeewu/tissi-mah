@@ -49,6 +49,9 @@ type BookingService interface {
 	// ReportNoShow signale l'absence d'un passager ou d'un conducteur.
 	ReportNoShow(ctx context.Context, input *ReportNoShowInput) error
 
+	// ContestNoShow conteste une absence déclarée (partie accusée, dans le délai de contestation).
+	ContestNoShow(ctx context.Context, input *ContestNoShowInput) error
+
 	// ConfirmPayment confirme le paiement d'une réservation et retourne son nouveau statut
 	// (approved si le trajet est en auto-approbation, pendingApproval sinon). Une réservation
 	// paymentFailed (approbation FedaPay tardive) est réactivée si les places sont encore disponibles.
@@ -179,6 +182,13 @@ type ReportNoShowInput struct {
 	ReporterID  string
 	NoShowType  string
 	Description string
+}
+
+// ContestNoShowInput : contestation d'un no-show par la partie accusée (ContesterID issu du JWT).
+type ContestNoShowInput struct {
+	BookingID   string
+	ContesterID string
+	Reason      string
 }
 
 type ConfirmPaymentInput struct {

@@ -32,6 +32,7 @@ const (
 	BookingService_CancelBookingsForWaypoint_FullMethodName          = "/booking.BookingService/CancelBookingsForWaypoint"
 	BookingService_CancelBookingsForTrip_FullMethodName              = "/booking.BookingService/CancelBookingsForTrip"
 	BookingService_ReportNoShow_FullMethodName                       = "/booking.BookingService/ReportNoShow"
+	BookingService_ContestNoShow_FullMethodName                      = "/booking.BookingService/ContestNoShow"
 	BookingService_ConfirmPayment_FullMethodName                     = "/booking.BookingService/ConfirmPayment"
 	BookingService_FailPayment_FullMethodName                        = "/booking.BookingService/FailPayment"
 	BookingService_GetActivePassengerIDsForTrip_FullMethodName       = "/booking.BookingService/GetActivePassengerIDsForTrip"
@@ -83,6 +84,9 @@ type BookingServiceClient interface {
 	CancelBookingsForTrip(ctx context.Context, in *CancelBookingsForTripRequest, opts ...grpc.CallOption) (*CancelBookingsForTripResponse, error)
 	// ReportNoShow signale l'absence d'un passager ou d'un conducteur.
 	ReportNoShow(ctx context.Context, in *ReportNoShowRequest, opts ...grpc.CallOption) (*ReportNoShowResponse, error)
+	// ContestNoShow conteste une absence déclarée, par la partie accusée, dans les 48 h suivant
+	// la déclaration. Le remboursement dû reste bloqué jusqu'à la décision du support.
+	ContestNoShow(ctx context.Context, in *ContestNoShowRequest, opts ...grpc.CallOption) (*ContestNoShowResponse, error)
 	// ConfirmPayment confirme le paiement d'une réservation.
 	// Route interne appelée par payment-service quand FedaPay a approuvé la collecte :
 	// paymentPending → approved (auto-approbation) ou pendingApproval. Une réservation
@@ -261,6 +265,16 @@ func (c *bookingServiceClient) ReportNoShow(ctx context.Context, in *ReportNoSho
 	return out, nil
 }
 
+func (c *bookingServiceClient) ContestNoShow(ctx context.Context, in *ContestNoShowRequest, opts ...grpc.CallOption) (*ContestNoShowResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ContestNoShowResponse)
+	err := c.cc.Invoke(ctx, BookingService_ContestNoShow_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *bookingServiceClient) ConfirmPayment(ctx context.Context, in *ConfirmPaymentRequest, opts ...grpc.CallOption) (*ConfirmPaymentResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ConfirmPaymentResponse)
@@ -418,6 +432,9 @@ type BookingServiceServer interface {
 	CancelBookingsForTrip(context.Context, *CancelBookingsForTripRequest) (*CancelBookingsForTripResponse, error)
 	// ReportNoShow signale l'absence d'un passager ou d'un conducteur.
 	ReportNoShow(context.Context, *ReportNoShowRequest) (*ReportNoShowResponse, error)
+	// ContestNoShow conteste une absence déclarée, par la partie accusée, dans les 48 h suivant
+	// la déclaration. Le remboursement dû reste bloqué jusqu'à la décision du support.
+	ContestNoShow(context.Context, *ContestNoShowRequest) (*ContestNoShowResponse, error)
 	// ConfirmPayment confirme le paiement d'une réservation.
 	// Route interne appelée par payment-service quand FedaPay a approuvé la collecte :
 	// paymentPending → approved (auto-approbation) ou pendingApproval. Une réservation
@@ -504,6 +521,9 @@ func (UnimplementedBookingServiceServer) CancelBookingsForTrip(context.Context, 
 }
 func (UnimplementedBookingServiceServer) ReportNoShow(context.Context, *ReportNoShowRequest) (*ReportNoShowResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ReportNoShow not implemented")
+}
+func (UnimplementedBookingServiceServer) ContestNoShow(context.Context, *ContestNoShowRequest) (*ContestNoShowResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ContestNoShow not implemented")
 }
 func (UnimplementedBookingServiceServer) ConfirmPayment(context.Context, *ConfirmPaymentRequest) (*ConfirmPaymentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ConfirmPayment not implemented")
@@ -796,6 +816,24 @@ func _BookingService_ReportNoShow_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BookingService_ContestNoShow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ContestNoShowRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).ContestNoShow(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_ContestNoShow_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).ContestNoShow(ctx, req.(*ContestNoShowRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BookingService_ConfirmPayment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ConfirmPaymentRequest)
 	if err := dec(in); err != nil {
@@ -1070,6 +1108,10 @@ var BookingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReportNoShow",
 			Handler:    _BookingService_ReportNoShow_Handler,
+		},
+		{
+			MethodName: "ContestNoShow",
+			Handler:    _BookingService_ContestNoShow_Handler,
 		},
 		{
 			MethodName: "ConfirmPayment",

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -436,9 +437,6 @@ func TestReportNoShow(t *testing.T) {
 		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, booking.TripID, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		d.expectDeparture(booking, pastPickup)
-		d.paymentClient.On("RequestRefund", mock.Anything, mock.MatchedBy(func(input interface{}) bool {
-			return true
-		})).Return(nil).Maybe()
 
 		err := d.svc.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{
 			BookingID:   "booking-noshow",
@@ -448,6 +446,8 @@ func TestReportNoShow(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		// Remboursement transmis par le worker après le délai de contestation, pas à la déclaration
+		d.paymentClient.AssertNotCalled(t, "RequestRefund", mock.Anything, mock.Anything)
 		d.readRepo.AssertExpectations(t)
 		d.writeRepo.AssertExpectations(t)
 	})
@@ -468,9 +468,6 @@ func TestReportNoShow(t *testing.T) {
 		d.tripClient.On("IncrementLegBookedSeats", mock.Anything, booking.TripID, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		d.expectDeparture(booking, pastPickup)
-		d.paymentClient.On("RequestRefund", mock.Anything, mock.MatchedBy(func(input interface{}) bool {
-			return true
-		})).Return(nil).Maybe()
 
 		err := d.svc.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{
 			BookingID:   "booking-noshow-driver",
@@ -643,6 +640,112 @@ func TestReportNoShow(t *testing.T) {
 
 		assert.ErrorIs(t, err, bookingErrors.ErrorInvalidInput)
 	})
+}
+
+// =============================================================================
+// ContestNoShow
+// =============================================================================
+
+func TestContestNoShow(t *testing.T) {
+	reportedAt := time.Now().UTC().Add(-time.Hour)
+
+	// noShowBooking : passager déclaré absent par le chauffeur
+	noShowBooking := func() *domain.Booking {
+		return fixtures.NewTestBookingWithPayment(
+			fixtures.WithBookingID("booking-contest"),
+			fixtures.WithPassengerID("passenger-1"),
+			fixtures.WithDriverID("driver-1"),
+			fixtures.WithNoShowReported("passenger", "driver-1", reportedAt),
+		)
+	}
+
+	t.Run("succes - la partie accusee conteste", func(t *testing.T) {
+		d := newTestService()
+		d.readRepo.On("GetByID", mock.Anything, "booking-contest").Return(noShowBooking(), nil)
+		d.writeRepo.On("ContestNoShow", mock.Anything, "booking-contest", "passenger-1",
+			"J'attendais au point de rendez-vous", domain.NoShowContestWindow).Return(nil)
+
+		err := d.svc.ContestNoShow(context.Background(), &serviceInterfaces.ContestNoShowInput{
+			BookingID:   "booking-contest",
+			ContesterID: "passenger-1",
+			Reason:      "  J'attendais au point de rendez-vous  ",
+		})
+
+		require.NoError(t, err)
+		d.writeRepo.AssertExpectations(t)
+	})
+
+	for _, tc := range []struct{ name, contesterID string }{
+		{"erreur - le declarant ne peut pas contester", "driver-1"},
+		{"erreur - un tiers ne peut pas contester", "intrus"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := newTestService()
+			d.readRepo.On("GetByID", mock.Anything, "booking-contest").Return(noShowBooking(), nil)
+
+			err := d.svc.ContestNoShow(context.Background(), &serviceInterfaces.ContestNoShowInput{
+				BookingID:   "booking-contest",
+				ContesterID: tc.contesterID,
+				Reason:      "Contestation",
+			})
+
+			assert.ErrorIs(t, err, bookingErrors.ErrorUnauthorized)
+			d.writeRepo.AssertNotCalled(t, "ContestNoShow",
+				mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		})
+	}
+
+	t.Run("erreur - chauffeur declare absent : seul le chauffeur conteste", func(t *testing.T) {
+		d := newTestService()
+		b := noShowBooking()
+		driverType := "driver"
+		b.NoShowType = &driverType
+		d.readRepo.On("GetByID", mock.Anything, "booking-contest").Return(b, nil)
+
+		err := d.svc.ContestNoShow(context.Background(), &serviceInterfaces.ContestNoShowInput{
+			BookingID:   "booking-contest",
+			ContesterID: "passenger-1",
+			Reason:      "Contestation",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorUnauthorized)
+	})
+
+	t.Run("erreur - reservation sans no-show", func(t *testing.T) {
+		d := newTestService()
+		b := fixtures.NewTestBookingWithPayment(
+			fixtures.WithBookingID("booking-contest"),
+			fixtures.WithPassengerID("passenger-1"),
+			fixtures.WithBookingStatus(domain.BookingStatusApproved),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-contest").Return(b, nil)
+
+		err := d.svc.ContestNoShow(context.Background(), &serviceInterfaces.ContestNoShowInput{
+			BookingID:   "booking-contest",
+			ContesterID: "passenger-1",
+			Reason:      "Contestation",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorInvalidStatusTransition)
+	})
+
+	for _, tc := range []struct{ name, reason string }{
+		{"erreur - motif vide", "   "},
+		{"erreur - motif trop long", strings.Repeat("é", 1001)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := newTestService()
+
+			err := d.svc.ContestNoShow(context.Background(), &serviceInterfaces.ContestNoShowInput{
+				BookingID:   "booking-contest",
+				ContesterID: "passenger-1",
+				Reason:      tc.reason,
+			})
+
+			assert.ErrorIs(t, err, bookingErrors.ErrorInvalidInput)
+			d.readRepo.AssertNotCalled(t, "GetByID", mock.Anything, mock.Anything)
+		})
+	}
 }
 
 // =============================================================================

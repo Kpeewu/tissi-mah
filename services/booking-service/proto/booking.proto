@@ -113,6 +113,15 @@ service BookingService {
     };
   }
 
+  // ContestNoShow conteste une absence déclarée, par la partie accusée, dans les 48 h suivant
+  // la déclaration. Le remboursement dû reste bloqué jusqu'à la décision du support.
+  rpc ContestNoShow(ContestNoShowRequest) returns (ContestNoShowResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/booking/contestNoShow"
+      body: "*"
+    };
+  }
+
   // ConfirmPayment confirme le paiement d'une réservation.
   // Route interne appelée par payment-service quand FedaPay a approuvé la collecte :
   // paymentPending → approved (auto-approbation) ou pendingApproval. Une réservation
@@ -486,6 +495,20 @@ message ReportNoShowRequest {
 }
 
 message ReportNoShowResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// ContestNoShow
+// =============================================================================
+
+message ContestNoShowRequest {
+  string BookingId = 1;
+  string Reason    = 2; // obligatoire, 1000 caractères max
+}
+
+message ContestNoShowResponse {
   bool   Success      = 1;
   string ErrorMessage = 2;
 }

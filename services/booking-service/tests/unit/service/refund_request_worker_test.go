@@ -27,7 +27,8 @@ func refundDueBooking(bookingID, reason string) *domain.Booking {
 
 // expectPendingRefunds configure le lot retourné au worker.
 func (d *testDeps) expectPendingRefunds(bookings ...*domain.Booking) {
-	d.readRepo.On("GetBookingsPendingRefundRequest", mock.Anything, mock.Anything, 5, 100).Return(bookings, nil)
+	d.readRepo.On("GetBookingsPendingRefundRequest", mock.Anything, mock.Anything, 5, 100, domain.NoShowContestWindow).
+		Return(bookings, nil)
 }
 
 // expectDeparture configure la date de départ du waypoint de pickup.

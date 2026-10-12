@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Kpeewu/tissi-mah/pkg/notification"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/cache"
@@ -751,11 +752,8 @@ func (s *bookingServiceImpl) ReportNoShow(ctx context.Context, input *serviceInt
 		}
 	}
 
-	// Demander le remboursement au payment-service (fire-and-forget)
-	if s.shouldRequestRefund(booking) {
-		go s.requestRefundAsync(booking.BookingID)
-	}
-
+	// Pas de demande de remboursement ici : refund_reason est enregistré avec la transition et le
+	// worker le transmet à l'expiration du délai de contestation (ou après la décision du support).
 	return nil
 }
 
@@ -800,6 +798,52 @@ func (s *bookingServiceImpl) checkNoShowReportable(ctx context.Context, booking 
 		return bookingErrors.ErrorNoShowReportClosed
 	}
 	return nil
+}
+
+// =============================================================================
+// ContestNoShow
+// =============================================================================
+
+// maxNoShowContestReasonLength borne le motif d'une contestation (en caractères).
+const maxNoShowContestReasonLength = 1000
+
+func (s *bookingServiceImpl) ContestNoShow(ctx context.Context, input *serviceInterfaces.ContestNoShowInput) error {
+	reason := strings.TrimSpace(input.Reason)
+	if input.BookingID == "" || input.ContesterID == "" || reason == "" ||
+		utf8.RuneCountInString(reason) > maxNoShowContestReasonLength {
+		return bookingErrors.ErrorInvalidInput
+	}
+
+	booking, err := s.readRepo.GetByID(ctx, input.BookingID)
+	if err != nil {
+		return err
+	}
+	if booking.Status != domain.BookingStatusNoShow || booking.NoShowType == nil {
+		return bookingErrors.ErrorInvalidStatusTransition
+	}
+
+	// Seule la partie déclarée absente peut contester
+	if input.ContesterID != noShowAccusedID(booking) {
+		s.logger.Warn("service: ContestNoShow refusé, l'appelant n'est pas la partie accusée",
+			zap.String("bookingID", input.BookingID))
+		return bookingErrors.ErrorUnauthorized
+	}
+
+	err = s.writeRepo.ContestNoShow(ctx, input.BookingID, input.ContesterID, reason, domain.NoShowContestWindow)
+	if err != nil {
+		return err
+	}
+
+	s.invalidateBookingCaches(ctx, input.BookingID)
+	return nil
+}
+
+// noShowAccusedID retourne l'UserID de la partie déclarée absente.
+func noShowAccusedID(booking *domain.Booking) string {
+	if booking.NoShowType != nil && *booking.NoShowType == "driver" {
+		return booking.DriverID
+	}
+	return booking.PassengerID
 }
 
 // =============================================================================

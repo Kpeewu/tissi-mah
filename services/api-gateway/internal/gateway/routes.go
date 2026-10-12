@@ -55,6 +55,7 @@ var ProtectedRoutes = map[string]bool{
 	"/api/v1/booking/rejectBooking":               true,
 	"/api/v1/booking/cancelBooking":               true,
 	"/api/v1/booking/reportNoShow":                true,
+	"/api/v1/booking/contestNoShow":               true,
 	// confirmPayment est interne (/api/v1/booking/internal/confirmPayment, appelé par payment-service)
 
 	// payment-service (protégé)
@@ -203,6 +204,9 @@ var RouteRateLimitConfig = map[string]RateLimitTier{
 	"/api/v1/file/uploadIdDocument":       TierCreateAccount,
 	"/api/v1/file/uploadSelfie":           TierCreateAccount,
 	"/api/v1/file/uploadVehicleDocuments": TierCreateAccount,
+
+	// booking-service — contestation d'un no-show : une seule par réservation
+	"/api/v1/booking/contestNoShow": TierSensitive,
 
 	// kyc-service — décisions support sur les documents : opérations sensibles
 	"/api/v1/kyc/admin/validateDocument": TierSupportReview,

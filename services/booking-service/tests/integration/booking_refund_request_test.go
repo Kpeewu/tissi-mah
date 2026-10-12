@@ -10,6 +10,7 @@ import (
 
 	"github.com/Kpeewu/tissi-mah/services/booking-service/fixtures"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/domain"
+	bookingErrors "github.com/Kpeewu/tissi-mah/services/booking-service/pkg/errors"
 )
 
 // =============================================================================
@@ -120,7 +121,7 @@ func TestBookingRepository_RefundRequestLifecycle(t *testing.T) {
 
 	pendingIDs := func(t *testing.T, updatedBefore time.Time) []string {
 		t.Helper()
-		bookings, err := readRepo.GetBookingsPendingRefundRequest(ctx, updatedBefore, 5, 100)
+		bookings, err := readRepo.GetBookingsPendingRefundRequest(ctx, updatedBefore, 5, 100, domain.NoShowContestWindow)
 		require.NoError(t, err)
 		ids := make([]string, 0, len(bookings))
 		for _, b := range bookings {
@@ -163,4 +164,92 @@ func TestBookingRepository_RefundRequestLifecycle(t *testing.T) {
 	}
 
 	assert.Equal(t, []string{"bk-life-3"}, pendingIDs(t, time.Now().UTC().Add(time.Minute)))
+}
+
+// =============================================================================
+// No-show : remboursement bloqué pendant le délai de contestation
+// =============================================================================
+
+func TestBookingRepository_NoShowRefundWaitsForContestWindow(t *testing.T) {
+	ctx := context.Background()
+	writeRepo := newTestBookingWriteRepository()
+	readRepo := newTestBookingReadRepository()
+	now := time.Now().UTC()
+
+	insertNoShow := func(t *testing.T, id string, reportedAt time.Time, opts ...fixtures.BookingOption) {
+		t.Helper()
+		opts = append([]fixtures.BookingOption{
+			fixtures.WithBookingID(id),
+			fixtures.WithPassengerID("pax-" + id),
+			fixtures.WithDriverID("driver-" + id),
+			fixtures.WithNoShowReported("driver", "pax-"+id, reportedAt),
+			fixtures.WithRefundReason(domain.RefundReasonNoShowDriver),
+		}, opts...)
+		b := fixtures.NewTestBookingWithPayment(opts...)
+		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, b))
+	}
+
+	pendingIDs := func(t *testing.T) []string {
+		t.Helper()
+		bookings, err := readRepo.GetBookingsPendingRefundRequest(
+			ctx, time.Now().UTC().Add(time.Minute), 5, 100, domain.NoShowContestWindow)
+		require.NoError(t, err)
+		ids := make([]string, 0, len(bookings))
+		for _, b := range bookings {
+			ids = append(ids, b.BookingID)
+		}
+		return ids
+	}
+
+	t.Run("selection par le worker", func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+		insertNoShow(t, "bk-ns-recent", now.Add(-time.Hour))
+		insertNoShow(t, "bk-ns-expired", now.Add(-49*time.Hour))
+		insertNoShow(t, "bk-ns-contested", now.Add(-49*time.Hour),
+			fixtures.WithNoShowContested("driver-bk-ns-contested", now.Add(-48*time.Hour)))
+
+		// Délai de contestation en cours ou contestation non tranchée : bloqué
+		assert.Equal(t, []string{"bk-ns-expired"}, pendingIDs(t))
+	})
+
+	t.Run("contestation", func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+		insertNoShow(t, "bk-ns-open", now.Add(-time.Hour))
+		insertNoShow(t, "bk-ns-closed", now.Add(-49*time.Hour))
+		approved := fixtures.NewTestBookingWithPayment(
+			fixtures.WithBookingID("bk-ns-approved"),
+			fixtures.WithBookingStatus(domain.BookingStatusApproved),
+		)
+		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, approved))
+
+		require.NoError(t, writeRepo.ContestNoShow(ctx, "bk-ns-open", "driver-bk-ns-open", "J'étais là",
+			domain.NoShowContestWindow))
+		b, err := readRepo.GetByID(ctx, "bk-ns-open")
+		require.NoError(t, err)
+		require.NotNil(t, b.NoShowContestedAt)
+		assert.Equal(t, "driver-bk-ns-open", *b.NoShowContestedBy)
+		assert.Equal(t, "J'étais là", *b.NoShowContestReason)
+
+		err = writeRepo.ContestNoShow(ctx, "bk-ns-open", "driver-bk-ns-open", "Encore", domain.NoShowContestWindow)
+		assert.ErrorIs(t, err, bookingErrors.ErrorNoShowAlreadyContested)
+
+		err = writeRepo.ContestNoShow(ctx, "bk-ns-closed", "driver-bk-ns-closed", "Trop tard",
+			domain.NoShowContestWindow)
+		assert.ErrorIs(t, err, bookingErrors.ErrorNoShowContestClosed)
+
+		err = writeRepo.ContestNoShow(ctx, "bk-ns-approved", "x", "Pas un no-show", domain.NoShowContestWindow)
+		assert.ErrorIs(t, err, bookingErrors.ErrorInvalidStatusTransition)
+
+		// Contestée : le remboursement reste bloqué ; délai expiré sans contestation : transmis
+		assert.Equal(t, []string{"bk-ns-closed"}, pendingIDs(t))
+	})
+
+	t.Run("remboursement deja transmis : contestation close", func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+		insertNoShow(t, "bk-ns-sent", now.Add(-time.Hour))
+		require.NoError(t, writeRepo.MarkRefundRequested(ctx, "bk-ns-sent"))
+
+		err := writeRepo.ContestNoShow(ctx, "bk-ns-sent", "driver-bk-ns-sent", "J'étais là", domain.NoShowContestWindow)
+		assert.ErrorIs(t, err, bookingErrors.ErrorNoShowContestClosed)
+	})
 }

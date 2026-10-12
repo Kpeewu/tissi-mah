@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/domain"
 )
@@ -30,6 +31,10 @@ type BookingRepositoryWrite interface {
 
 	// ReportNoShow signale l'absence d'un passager ou d'un conducteur.
 	ReportNoShow(ctx context.Context, bookingID, reporterID, noShowType, description string) error
+
+	// ContestNoShow enregistre la contestation d'un no-show, si elle intervient dans contestWindow
+	// après la déclaration et avant toute demande de remboursement.
+	ContestNoShow(ctx context.Context, bookingID, contesterID, reason string, contestWindow time.Duration) error
 
 	// ConfirmPayment confirme le paiement d'une réservation.
 	// Retourne le nouveau statut et autoApprove du trajet associé.

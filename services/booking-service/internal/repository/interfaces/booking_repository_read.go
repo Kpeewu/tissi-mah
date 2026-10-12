@@ -41,8 +41,9 @@ type BookingRepositoryRead interface {
 
 	// GetBookingsPendingRefundRequest retourne les réservations dont le remboursement dû n'a pas été
 	// acquitté par payment-service, modifiées avant updatedBefore et refusées moins de maxAttempts fois.
+	// Un no-show n'est retenu qu'après son délai de contestation sans contestation, ou une fois tranché.
 	GetBookingsPendingRefundRequest(
-		ctx context.Context, updatedBefore time.Time, maxAttempts, limit int,
+		ctx context.Context, updatedBefore time.Time, maxAttempts, limit int, noShowContestWindow time.Duration,
 	) ([]*domain.Booking, error)
 
 	// GetStalePaymentPendingBookingIDs retourne les réservations en paymentPending créées avant

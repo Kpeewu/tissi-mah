@@ -456,6 +456,27 @@ func (h *BookingHandler) ReportNoShow(ctx context.Context, req *bookingpb.Report
 	return &bookingpb.ReportNoShowResponse{Success: true}, nil
 }
 
+// ContestNoShow conteste une absence déclarée ; l'appelant (JWT) doit être la partie accusée.
+func (h *BookingHandler) ContestNoShow(
+	ctx context.Context, req *bookingpb.ContestNoShowRequest,
+) (*bookingpb.ContestNoShowResponse, error) {
+	contesterID, err := callerUserID(ctx)
+	if err != nil {
+		return &bookingpb.ContestNoShowResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	err = h.service.ContestNoShow(ctx, &serviceInterfaces.ContestNoShowInput{
+		BookingID:   req.BookingId,
+		ContesterID: contesterID,
+		Reason:      req.Reason,
+	})
+	if err != nil {
+		return &bookingpb.ContestNoShowResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	return &bookingpb.ContestNoShowResponse{Success: true}, nil
+}
+
 // ConfirmPayment confirme le paiement d'une réservation.
 func (h *BookingHandler) ConfirmPayment(ctx context.Context, req *bookingpb.ConfirmPaymentRequest) (*bookingpb.ConfirmPaymentResponse, error) {
 	newStatus, err := h.service.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
@@ -697,7 +718,9 @@ func toGRPCError(err error) error {
 		errors.Is(err, bookingErrors.ErrorPaymentAlreadyConfirmed),
 		errors.Is(err, bookingErrors.ErrorPaymentAlreadyFailed),
 		errors.Is(err, bookingErrors.ErrorNoShowTooEarly),
-		errors.Is(err, bookingErrors.ErrorNoShowReportClosed):
+		errors.Is(err, bookingErrors.ErrorNoShowReportClosed),
+		errors.Is(err, bookingErrors.ErrorNoShowAlreadyContested),
+		errors.Is(err, bookingErrors.ErrorNoShowContestClosed):
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, bookingErrors.ErrorSeatReservationFailed):
 		return status.Error(codes.ResourceExhausted, err.Error())

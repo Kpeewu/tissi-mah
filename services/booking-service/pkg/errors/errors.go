@@ -28,4 +28,6 @@ var (
 	ErrorUserNotFound            = errors.New("ErrorUserNotFound")
 	ErrorNoShowTooEarly          = errors.New("ErrorNoShowTooEarly")
 	ErrorNoShowReportClosed      = errors.New("ErrorNoShowReportClosed")
+	ErrorNoShowAlreadyContested  = errors.New("ErrorNoShowAlreadyContested")
+	ErrorNoShowContestClosed     = errors.New("ErrorNoShowContestClosed")
 )
