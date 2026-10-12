@@ -385,6 +385,7 @@ func TestReportNoShow(t *testing.T) {
 
 		booking := fixtures.NewTestBookingWithPayment(
 			fixtures.WithBookingID("booking-noshow-driver"),
+			fixtures.WithPassengerID("passenger-1"),
 			fixtures.WithDriverID("driver-2"),
 			fixtures.WithTripID("trip-2"),
 		)
@@ -416,6 +417,7 @@ func TestReportNoShow(t *testing.T) {
 
 		booking := fixtures.NewTestCashBooking(
 			fixtures.WithBookingID("booking-noshow-cash"),
+			fixtures.WithDriverID("reporter-1"),
 			fixtures.WithTripID("trip-3"),
 		)
 
@@ -435,6 +437,39 @@ func TestReportNoShow(t *testing.T) {
 		d.readRepo.AssertExpectations(t)
 		d.writeRepo.AssertExpectations(t)
 	})
+
+	unauthorizedCases := []struct {
+		name       string
+		reporterID string
+		noShowType string
+	}{
+		{"erreur - un tiers ne peut pas signaler", "intrus", "driver"},
+		{"erreur - le passager ne peut pas se declarer absent", "passenger-x", "passenger"},
+		{"erreur - le chauffeur ne peut pas se declarer absent", "driver-x", "driver"},
+	}
+	for _, tc := range unauthorizedCases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := newTestService()
+			ctx := context.Background()
+
+			booking := fixtures.NewTestBookingWithPayment(
+				fixtures.WithBookingID("booking-noshow-unauth"),
+				fixtures.WithPassengerID("passenger-x"),
+				fixtures.WithDriverID("driver-x"),
+				fixtures.WithBookingStatus(domain.BookingStatusInProgress),
+			)
+			d.readRepo.On("GetByID", mock.Anything, "booking-noshow-unauth").Return(booking, nil)
+
+			err := d.svc.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{
+				BookingID:  "booking-noshow-unauth",
+				ReporterID: tc.reporterID,
+				NoShowType: tc.noShowType,
+			})
+
+			assert.ErrorIs(t, err, bookingErrors.ErrorUnauthorized)
+			d.writeRepo.AssertNotCalled(t, "ReportNoShow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		})
+	}
 
 	t.Run("erreur - type no-show invalide", func(t *testing.T) {
 		d := newTestService()

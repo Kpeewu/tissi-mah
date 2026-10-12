@@ -685,6 +685,17 @@ func (s *bookingServiceImpl) ReportNoShow(ctx context.Context, input *serviceInt
 		return err
 	}
 
+	// Seule une partie de la réservation signale l'absence de l'autre : le chauffeur
+	// déclare un passager absent, le passager un chauffeur absent. Le type détermine le
+	// motif de remboursement, il ne peut donc pas être choisi librement.
+	if !canReportNoShow(booking, input.ReporterID, input.NoShowType) {
+		s.logger.Warn("service: ReportNoShow refusé, déclarant non autorisé",
+			zap.String("bookingID", input.BookingID),
+			zap.String("noShowType", input.NoShowType),
+		)
+		return bookingErrors.ErrorUnauthorized
+	}
+
 	if err := s.writeRepo.ReportNoShow(ctx, input.BookingID, input.ReporterID, input.NoShowType, input.Description); err != nil {
 		return err
 	}
@@ -723,6 +734,18 @@ func (s *bookingServiceImpl) ReportNoShow(ctx context.Context, input *serviceInt
 	}
 
 	return nil
+}
+
+// canReportNoShow vérifie que reporterID est la partie habilitée à signaler ce type de no-show.
+func canReportNoShow(booking *domain.Booking, reporterID, noShowType string) bool {
+	switch reporterID {
+	case booking.DriverID:
+		return noShowType == "passenger"
+	case booking.PassengerID:
+		return noShowType == "driver"
+	default:
+		return false
+	}
 }
 
 // =============================================================================
