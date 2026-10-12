@@ -60,9 +60,11 @@ Client → Bearer JWT → api-gateway (Firebase Admin SDK: signature, issuer, au
 
 **Clé de contexte Firebase UID** : `middleware.FirebaseIDKey` (type opaque `contextKey`)
 
-**Identité de l'appelant** : les acteurs (passager, chauffeur, déclarant…) ne sont **jamais** lus depuis le body.
-Les services qui référencent des utilisateurs résolvent le Firebase UID en UserID interne via user-service
-`GetUserByFirebaseID` (booking-service : dans l'intercepteur, clé `middleware.UserIDKey`). Un appel
+**Identité de l'appelant** : les acteurs (passager, chauffeur, déclarant, noteur, propriétaire…) ne sont **jamais** lus depuis le body.
+Chaque service qui référence des utilisateurs résout le Firebase UID en UserID interne **dans son intercepteur**
+(client user-service `GetUserIDByFirebaseID`, clé `middleware.UserIDKey`, lue via `callerUserID(ctx)`) ;
+inconnu → `PermissionDenied`, user-service indisponible → `Unavailable`. Seul l'UserID interne est stocké
+ou comparé : aucun repli UserID → Firebase UID (les données antérieures portant un Firebase UID ne sont pas migrées). Un appel
 inter-service fait pour le compte d'un utilisateur propage son identité avec `grpcutil.ForwardIdentity(ctx)`.
 Les RPC internes sans annotation HTTP (ex : `CheckDeletionEligibility`, `AnonymizeUserData`) sont listés
 dans `publicMethods` de l'intercepteur, car ils sont appelés sans metadata.
@@ -135,16 +137,17 @@ grpc/handler.go → middleware/interceptor.go (lire x-firebase-uid) → service 
 ### rating-service — Notation des utilisateurs
 
 ```
-grpc/handler.go → middleware/interceptor.go (public) → service → repository (PostgreSQL) + cache (Redis)
+grpc/handler.go → middleware/interceptor.go (x-firebase-uid → UserID) → service → repository (PostgreSQL) + cache (Redis)
 ```
 
 **Port** : 50054 (gRPC)
 
 **Endpoints HTTP** (via api-gateway) :
-- `POST /api/v1/ratings/rateUser` — Créer une note (public, RaterId dans le body)
-- `GET /api/v1/ratings/user/getUserRatings` — Notes d'un utilisateur (public, cachées 5 min)
-- `GET /api/v1/ratings/user/getUserRatingsAverage` — Moyenne arrondie 1 décimale (public, cachée 5 min)
-- `PATCH /api/v1/ratings/updateRating` — Modifier une note (public, RaterId dans le body)
+- `POST /api/v1/ratings/rateUser` — Créer une note (Firebase JWT, le noteur est l'appelant)
+- `GET /api/v1/ratings/user/getUserRatings` — Notes d'un utilisateur (Firebase JWT, cachées 5 min)
+- `GET /api/v1/ratings/user/getUserRatingsAverage` — Moyenne arrondie 1 décimale (Firebase JWT, cachée 5 min)
+- `PATCH /api/v1/ratings/updateRating` — Modifier une note (Firebase JWT, seul le noteur = l'appelant)
+- `GetUserRatingsAverageInternal` — Moyenne sans identité (`/internal/`, booking-service et trips-service)
 - `GET /api/v1/ratings/health` — Health check (public)
 
 **Note** : La suppression de notes n'est pas autorisée. Cache Redis avec dégradation gracieuse.

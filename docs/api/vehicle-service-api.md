@@ -13,15 +13,16 @@ This document describes the HTTP/REST API exposed by the vehicle-service through
 
 ## Authentication
 
-Vehicle-service endpoints are currently **public** (no Firebase JWT required).
-`UserId` is provided in the request body for create, update, and delete operations.
-
-> **Note:** When Firebase JWT is fully integrated, protected endpoints will require a valid token and `UserId` will be extracted from the JWT instead of the body.
+Vehicle endpoints (except `health`) require a **Firebase JWT** (`Authorization: Bearer <token>`).
+The vehicle owner is always the **caller**: the api-gateway validates the JWT and injects the Firebase UID,
+which vehicle-service resolves to the internal UserID (user-service `GetUserByFirebaseID`).
+No user identifier is accepted in the request body.
 
 ## Common Headers
 
 | Header | Required | Description |
 |--------|----------|-------------|
+| `Authorization` | Yes (except health) | `Bearer <firebase-id-token>` |
 | `Content-Type` | Yes (POST/PATCH) | `application/json` |
 | `Accept` | No | `application/json` |
 | `X-Request-ID` | No | Client-generated UUID for request tracing |
@@ -46,9 +47,9 @@ All errors follow this format:
 
 ### POST /api/v1/vehicle/add
 
-Creates a new vehicle for a user.
+Creates a new vehicle owned by the caller.
 
-**Authentication:** Not required (public)
+**Authentication:** Firebase JWT required (owner = caller)
 
 #### Request
 
@@ -58,7 +59,6 @@ Host: api.tissi-mah.com
 Content-Type: application/json
 
 {
-    "UserId": "firebase-uid-abc123",
     "Brand": "Toyota",
     "NumberOfSeats": 5,
     "BrandModel": "Corolla",
@@ -72,7 +72,6 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `UserId` | string | Yes | Firebase UID of the vehicle owner |
 | `Brand` | string | Yes | Vehicle brand (e.g. Toyota, Honda) |
 | `NumberOfSeats` | integer | Yes | Number of available passenger seats |
 | `BrandModel` | string | Yes | Vehicle model (e.g. Corolla, Civic) |
@@ -111,8 +110,8 @@ Content-Type: application/json
 ```bash
 curl -X POST https://api.tissi-mah.com/api/v1/vehicle/add \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <firebase-id-token>" \
   -d '{
-    "UserId": "firebase-uid-abc123",
     "Brand": "Toyota",
     "NumberOfSeats": 5,
     "BrandModel": "Corolla",
@@ -127,7 +126,7 @@ curl -X POST https://api.tissi-mah.com/api/v1/vehicle/add \
 
 Updates the mutable fields of a vehicle (color, licence plate and/or model year). Only the owner can update their vehicle.
 
-**Authentication:** Not required (public, UserId in body)
+**Authentication:** Firebase JWT required (owner = caller)
 
 #### Request
 
@@ -137,7 +136,6 @@ Host: api.tissi-mah.com
 Content-Type: application/json
 
 {
-    "UserId": "firebase-uid-abc123",
     "VehicleId": "v-550e8400-e29b-41d4-a716-446655440000",
     "Color": "Gris",
     "LicencePlate": "TG-5678-CD",
@@ -149,7 +147,6 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `UserId` | string | Yes | Firebase UID of the vehicle owner |
 | `VehicleId` | string | Yes | ID of the vehicle to update |
 | `Color` | string | No | New vehicle color |
 | `LicencePlate` | string | No | New licence plate (must be unique) |
@@ -180,7 +177,7 @@ Content-Type: application/json
 |-------|-----------|-------------|
 | `ErrorInvalidInput` | 400 | Missing or invalid field |
 | `ErrorVehicleNotFound` | 404 | Vehicle does not exist |
-| `ErrorUnauthorized` | 403 | UserId does not own this vehicle |
+| `ErrorUnauthorized` | 403 | The caller does not own this vehicle |
 | `ErrorLicencePlateConflict` | 409 | New licence plate already registered |
 
 #### Example (cURL)
@@ -188,8 +185,8 @@ Content-Type: application/json
 ```bash
 curl -X PATCH https://api.tissi-mah.com/api/v1/vehicle/update \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <firebase-id-token>" \
   -d '{
-    "UserId": "firebase-uid-abc123",
     "VehicleId": "v-550e8400",
     "Color": "Gris"
   }'
@@ -201,7 +198,7 @@ curl -X PATCH https://api.tissi-mah.com/api/v1/vehicle/update \
 
 Deletes a vehicle. Only the owner can delete their vehicle.
 
-**Authentication:** Not required (public, UserId in body)
+**Authentication:** Firebase JWT required (owner = caller)
 
 #### Request
 
@@ -211,7 +208,6 @@ Host: api.tissi-mah.com
 Content-Type: application/json
 
 {
-    "UserId": "firebase-uid-abc123",
     "VehicleId": "v-550e8400-e29b-41d4-a716-446655440000"
 }
 ```
@@ -220,7 +216,6 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `UserId` | string | Yes | Firebase UID of the vehicle owner |
 | `VehicleId` | string | Yes | ID of the vehicle to delete |
 
 #### Response (Success)
@@ -247,15 +242,15 @@ Content-Type: application/json
 | Error | HTTP Code | Description |
 |-------|-----------|-------------|
 | `ErrorVehicleNotFound` | 404 | Vehicle does not exist |
-| `ErrorUnauthorized` | 403 | UserId does not own this vehicle |
+| `ErrorUnauthorized` | 403 | The caller does not own this vehicle |
 
 #### Example (cURL)
 
 ```bash
 curl -X POST https://api.tissi-mah.com/api/v1/vehicle/delete \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <firebase-id-token>" \
   -d '{
-    "UserId": "firebase-uid-abc123",
     "VehicleId": "v-550e8400"
   }'
 ```
@@ -266,7 +261,7 @@ curl -X POST https://api.tissi-mah.com/api/v1/vehicle/delete \
 
 Retrieves full details of a vehicle, including documents fetched from file-service (assurance and registration card URLs, plus the driver's licence recto/verso URLs).
 
-**Authentication:** Not required (public)
+**Authentication:** Firebase JWT required (owner = caller)
 
 #### Request
 
@@ -276,7 +271,6 @@ Host: api.tissi-mah.com
 Content-Type: application/json
 
 {
-    "UserId": "firebase-uid-abc123",
     "VehicleId": "v-550e8400-e29b-41d4-a716-446655440000"
 }
 ```
@@ -285,7 +279,6 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `UserId` | string | Yes | Firebase UID of the requester |
 | `VehicleId` | string | Yes | ID of the vehicle |
 
 #### Response (Success)
@@ -297,7 +290,7 @@ Content-Type: application/json
 {
     "Vehicle": {
         "VehicleId": "v-550e8400-e29b-41d4-a716-446655440000",
-        "UserId": "firebase-uid-abc123",
+        "UserId": "8b1d4173-d563-4f81-aeb1-8bf565816545",
         "Brand": "Toyota",
         "NumberOfSeats": 5,
         "BrandModel": "Corolla",
@@ -322,7 +315,7 @@ Content-Type: application/json
 |-------|------|-------------|
 | `Vehicle` | object | Full vehicle details |
 | `Vehicle.VehicleId` | string | Unique vehicle ID |
-| `Vehicle.UserId` | string | Firebase UID of the owner |
+| `Vehicle.UserId` | string | Internal UserID of the owner |
 | `Vehicle.Brand` | string | Vehicle brand |
 | `Vehicle.NumberOfSeats` | integer | Number of passenger seats |
 | `Vehicle.BrandModel` | string | Vehicle model |
@@ -343,15 +336,15 @@ Content-Type: application/json
 | Error | HTTP Code | Description |
 |-------|-----------|-------------|
 | `ErrorVehicleNotFound` | 404 | Vehicle does not exist |
-| `ErrorUnauthorized` | 403 | UserId does not own this vehicle |
+| `ErrorUnauthorized` | 403 | The caller does not own this vehicle |
 
 #### Example (cURL)
 
 ```bash
 curl -X POST https://api.tissi-mah.com/api/v1/vehicle/details \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <firebase-id-token>" \
   -d '{
-    "UserId": "firebase-uid-abc123",
     "VehicleId": "v-550e8400"
   }'
 ```
@@ -360,9 +353,9 @@ curl -X POST https://api.tissi-mah.com/api/v1/vehicle/details \
 
 ### POST /api/v1/vehicle/getUserVehicles
 
-Retrieves the list of all vehicles belonging to a user.
+Retrieves the list of all vehicles belonging to the caller.
 
-**Authentication:** Not required (public)
+**Authentication:** Firebase JWT required (owner = caller)
 
 #### Request
 
@@ -372,7 +365,6 @@ Host: api.tissi-mah.com
 Content-Type: application/json
 
 {
-    "UserId": "firebase-uid-abc123"
 }
 ```
 
@@ -380,7 +372,6 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `UserId` | string | Yes | Firebase UID of the user |
 
 #### Response (Success)
 
@@ -446,7 +437,7 @@ Content-Type: application/json
 
 | Error | HTTP Code | Description |
 |-------|-----------|-------------|
-| `ErrorInvalidInput` | 400 | Missing UserId |
+| `ErrorInvalidInput` | 400 | Invalid input |
 | `ErrorDataRetrievalFailed` | 500 | Database query failed |
 
 #### Example (cURL)
@@ -454,7 +445,8 @@ Content-Type: application/json
 ```bash
 curl -X POST https://api.tissi-mah.com/api/v1/vehicle/getUserVehicles \
   -H "Content-Type: application/json" \
-  -d '{"UserId": "firebase-uid-abc123"}'
+  -H "Authorization: Bearer <firebase-id-token>" \
+  -d '{}'
 ```
 
 ---
@@ -498,7 +490,7 @@ curl https://api.tissi-mah.com/api/v1/vehicle/health
 | Rule | Description |
 |------|-------------|
 | **Unique licence plate** | Each licence plate can only be registered once across the platform |
-| **Owner-only modification** | Only the vehicle owner (matching `UserId`) can update or delete their vehicle |
+| **Owner-only modification** | Only the vehicle owner (the authenticated caller) can read, update or delete their vehicle |
 | **Verification by admin** | `IsVerified` is set to `false` on creation and can only be changed by an admin |
 | **Fault-tolerant documents** | Document URLs are populated from file-service; if unavailable, empty strings are returned without error |
 
@@ -509,7 +501,7 @@ curl https://api.tissi-mah.com/api/v1/vehicle/health
 | Error | HTTP | gRPC Code | Description | User Action |
 |-------|------|-----------|-------------|-------------|
 | `ErrorVehicleNotFound` | 404 | NOT_FOUND (5) | Vehicle does not exist | Check vehicle ID |
-| `ErrorUnauthorized` | 403 | PERMISSION_DENIED (7) | UserId does not own this vehicle | Use the correct UserId |
+| `ErrorUnauthorized` | 403 | PERMISSION_DENIED (7) | The caller does not own this vehicle | Use one of your own vehicles |
 | `ErrorLicencePlateConflict` | 409 | ALREADY_EXISTS (6) | Licence plate already registered | Use a different licence plate |
 | `ErrorInvalidInput` | 400 | INVALID_ARGUMENT (3) | Missing or invalid request field | Fix the request body |
 | `ErrorDataRetrievalFailed` | 500 | INTERNAL (13) | Database query failed | Retry later |

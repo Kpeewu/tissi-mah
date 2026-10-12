@@ -404,7 +404,6 @@ Base : `/vehicle`
 
 ```json
 {
-  "UserId": "uuid",
   "Brand": "Toyota",
   "BrandModel": "Corolla",
   "Color": "Blanc",
@@ -417,8 +416,10 @@ Base : `/vehicle`
 
 #### `POST /api/v1/vehicle/getUserVehicles` 🔒
 
+Véhicules de l'appelant (identité issue du JWT, aucun `UserId` dans le body).
+
 ```json
-{ "UserId": "uuid" }
+{}
 ```
 
 **Réponse :**
@@ -440,19 +441,19 @@ Base : `/vehicle`
 #### `POST /api/v1/vehicle/details` 🔒
 
 ```json
-{ "UserId": "uuid", "VehicleId": "uuid" }
+{ "VehicleId": "uuid" }
 ```
 
 #### `PATCH /api/v1/vehicle/update` 🔒
 
 ```json
-{ "UserId": "uuid", "VehicleId": "uuid", "Color": "Noir", "LicencePlate": "TG-5678-CD" }
+{ "VehicleId": "uuid", "Color": "Noir", "LicencePlate": "TG-5678-CD" }
 ```
 
 #### `POST /api/v1/vehicle/delete` 🔒
 
 ```json
-{ "UserId": "uuid", "VehicleId": "uuid" }
+{ "VehicleId": "uuid" }
 ```
 
 ---
@@ -531,7 +532,7 @@ Champs fichiers selon le type : `IDCardRecto`+`IDCardVerso` (IDCard), `Passport`
 #### `PATCH /api/v1/file/changeDocument` 🔒
 
 ```json
-{ "UserID": "uuid", "FileID": "uuid", "NewDocument": "<base64>" }
+{ "FileID": "uuid", "NewDocument": "<base64>" }
 ```
 
 #### `GET /api/v1/file/getDocument?FileID=uuid` 🔒
@@ -543,7 +544,7 @@ Champs fichiers selon le type : `IDCardRecto`+`IDCardVerso` (IDCard), `Passport`
 #### `POST /api/v1/file/deleteFile` 🔒
 
 ```json
-{ "UserID": "uuid", "FileID": "uuid" }
+{ "FileID": "uuid" }
 ```
 
 ---
@@ -850,7 +851,6 @@ Base : `/api/v1/ratings`
 
 ```json
 {
-  "RaterId": "uuid-du-noteur",
   "UserRatedId": "uuid-du-noté",
   "NumberOfStars": 5,
   "Comment": "Très ponctuel et agréable"
@@ -870,7 +870,6 @@ Base : `/api/v1/ratings`
 ```json
 {
   "RatingId": "uuid",
-  "RaterId": "uuid",
   "UserRatedId": "uuid",
   "NumberOfStars": 4,
   "Comment": "Bon conducteur"

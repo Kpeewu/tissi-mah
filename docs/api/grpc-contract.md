@@ -354,10 +354,11 @@ message OperationResponse {
 
 | RPC | Type | HTTP Route | Auth | Cache | Description |
 |-----|------|------------|------|-------|-------------|
-| `RateUser` | Unary | `POST /api/v1/ratings/rateUser` | Public | Invalidates | Submit a rating (RaterId in body) |
-| `GetUserRatings` | Unary | `GET /api/v1/ratings/user/getUserRatings` | Public | 5 min TTL | Get ratings for a user |
-| `GetUserRatingsAverage` | Unary | `GET /api/v1/ratings/user/getUserRatingsAverage` | Public | 5 min TTL | Get user's average rating |
-| `UpdateRating` | Unary | `PATCH /api/v1/ratings/updateRating` | Public | Invalidates | Update a rating (RaterId in body) |
+| `RateUser` | Unary | `POST /api/v1/ratings/rateUser` | Firebase JWT | Invalidates | Submit a rating (rater = caller) |
+| `GetUserRatings` | Unary | `GET /api/v1/ratings/user/getUserRatings` | Firebase JWT | 5 min TTL | Get ratings for a user |
+| `GetUserRatingsAverage` | Unary | `GET /api/v1/ratings/user/getUserRatingsAverage` | Firebase JWT | 5 min TTL | Get user's average rating |
+| `GetUserRatingsAverageInternal` | Unary | `GET /api/v1/ratings/internal/getUserRatingsAverage` (blocked at edge) | Internal | 5 min TTL | Average without caller identity (booking-service, trips-service) |
+| `UpdateRating` | Unary | `PATCH /api/v1/ratings/updateRating` | Firebase JWT | Invalidates | Update a rating (rater = caller) |
 | `Health` | Unary | `GET /api/v1/ratings/health` | Public | - | Health check |
 
 ### Messages (PascalCase)
@@ -366,7 +367,7 @@ message OperationResponse {
 // --- Client-facing ---
 
 message RateUserRequest {
-    string RaterId = 1;
+    reserved 1;                  // RaterId : le rater est l'appelant (UserID résolu par l'intercepteur)
     string UserRatedId = 2;
     int32 NumberOfStars = 3;
     string Comment = 4;          // optional
@@ -391,7 +392,7 @@ message GetUserRatingsAverageResponse {
 
 message UpdateRatingRequest {
     string RatingId = 1;
-    string RaterId = 2;
+    reserved 2;                  // RaterId : le rater est l'appelant (UserID résolu par l'intercepteur)
     string UserRatedId = 3;
     int32 NumberOfStars = 4;
     string Comment = 5;          // optional
@@ -449,8 +450,9 @@ Redis est non-bloquant : si Redis est indisponible, le service fonctionne sans c
 ### Notes
 
 - Les utilisateurs ne peuvent **pas supprimer** leurs avis
-- Le `RaterId` et `UserRatedId` sont des UserIDs validés contre le user-service (doivent exister)
-- Tous les endpoints sont publics (pas de JWT Firebase requis pour l'instant)
+- Le rater est l'appelant : l'intercepteur résout le Firebase UID en UserID interne (`GetUserByFirebaseID`) ; `RaterId` n'est plus lu dans le body
+- `UserRatedId` est un UserID interne validé contre le user-service (doit exister)
+- Les endpoints client exigent un JWT Firebase ; les services internes lisent la moyenne via `GetUserRatingsAverageInternal`
 
 ---
 
