@@ -16,6 +16,7 @@ import (
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/middleware"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/repository/implementations"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/service"
+	bookingErrors "github.com/Kpeewu/tissi-mah/services/booking-service/pkg/errors"
 	bookingpb "github.com/Kpeewu/tissi-mah/services/booking-service/proto/gen"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/tests/mocks"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -69,6 +70,11 @@ func TestMain(m *testing.M) {
 	mockUserClient.On("UserExists", mock.Anything, mock.Anything).Return(true, nil).Maybe()
 	mockUserClient.On("IsPassengerVerified", mock.Anything, mock.Anything).Return(true, nil).Maybe()
 	mockUserClient.On("GetPassengerInfo", mock.Anything, mock.Anything).Return("Test User", true, nil).Maybe()
+	// Résolution Firebase UID → UserID : identité, sauf pour l'UID inconnu de user-service.
+	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, unknownFirebaseUID).Return("", bookingErrors.ErrorUserNotFound).Maybe()
+	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, mock.Anything).Return(
+		func(_ context.Context, uid string) string { return uid }, nil,
+	).Maybe()
 
 	mockPaymentClient := new(mocks.MockPaymentClient)
 	mockPaymentClient.On("RequestRefund", mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -96,7 +102,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.BookingInterceptor(nil)))
+	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.BookingInterceptor(nil, mockUserClient)))
 	handler := grpcHandler.NewBookingHandler(bookingService, logger)
 	bookingpb.RegisterBookingServiceServer(srv, handler)
 

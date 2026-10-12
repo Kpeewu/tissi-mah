@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/middleware"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/booking-service/internal/service/interfaces"
 	bookingErrors "github.com/Kpeewu/tissi-mah/services/booking-service/pkg/errors"
 	bookingpb "github.com/Kpeewu/tissi-mah/services/booking-service/proto/gen"
@@ -28,8 +29,13 @@ func NewBookingHandler(service serviceInterfaces.BookingService, logger *zap.Log
 
 // CreateBooking crée une nouvelle réservation.
 func (h *BookingHandler) CreateBooking(ctx context.Context, req *bookingpb.CreateBookingRequest) (*bookingpb.CreateBookingResponse, error) {
+	passengerID, err := callerUserID(ctx)
+	if err != nil {
+		return &bookingpb.CreateBookingResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
 	h.logger.Debug("handler: CreateBooking called",
-		zap.String("passengerID", req.PassengerId),
+		zap.String("passengerID", passengerID),
 		zap.String("tripID", req.TripId),
 	)
 
@@ -55,7 +61,7 @@ func (h *BookingHandler) CreateBooking(ctx context.Context, req *bookingpb.Creat
 	}
 
 	input := &serviceInterfaces.CreateBookingInput{
-		PassengerID:        req.PassengerId,
+		PassengerID:        passengerID,
 		TripID:             req.TripId,
 		PickupWaypointID:   req.PickupWaypointId,
 		DropoffWaypointID:  req.DropoffWaypointId,
@@ -85,9 +91,13 @@ func (h *BookingHandler) CreateBooking(ctx context.Context, req *bookingpb.Creat
 func (h *BookingHandler) GetBookingDetails(ctx context.Context, req *bookingpb.GetBookingDetailsRequest) (*bookingpb.GetBookingDetailsResponse, error) {
 	h.logger.Debug("handler: GetBookingDetails called", zap.String("bookingID", req.BookingId))
 
+	// UserID vide = appel inter-service (aucune identité dans le contexte) : pas de contrôle
+	// d'appartenance. req.UserId n'est jamais lu, sinon un client pourrait le vider.
+	userID, _ := ctx.Value(middleware.UserIDKey).(string)
+
 	result, err := h.service.GetBookingDetails(ctx, &serviceInterfaces.GetBookingDetailsInput{
 		BookingID: req.BookingId,
-		UserID:    req.UserId,
+		UserID:    userID,
 	})
 	if err != nil {
 		return &bookingpb.GetBookingDetailsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
@@ -176,8 +186,13 @@ func toProtoBookingDetail(result *serviceInterfaces.BookingDetailResult) *bookin
 
 // GetPassengerBookings retourne la liste paginée des réservations d'un passager.
 func (h *BookingHandler) GetPassengerBookings(ctx context.Context, req *bookingpb.GetPassengerBookingsRequest) (*bookingpb.GetPassengerBookingsResponse, error) {
+	passengerID, err := callerUserID(ctx)
+	if err != nil {
+		return &bookingpb.GetPassengerBookingsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
 	results, err := h.service.GetPassengerBookings(ctx, &serviceInterfaces.GetPassengerBookingsInput{
-		PassengerID:  req.PassengerId,
+		PassengerID:  passengerID,
 		PageIndex:    int(req.Index),
 		StatusFilter: req.StatusFilter,
 	})
@@ -192,8 +207,13 @@ func (h *BookingHandler) GetPassengerBookings(ctx context.Context, req *bookingp
 
 // GetDriverTripBookings retourne les réservations d'un trajet conducteur (enrichies + compteurs).
 func (h *BookingHandler) GetDriverTripBookings(ctx context.Context, req *bookingpb.GetDriverTripBookingsRequest) (*bookingpb.GetDriverTripBookingsResponse, error) {
+	driverID, err := callerUserID(ctx)
+	if err != nil {
+		return &bookingpb.GetDriverTripBookingsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
 	result, err := h.service.GetDriverTripBookings(ctx, &serviceInterfaces.GetDriverTripBookingsInput{
-		DriverID:  req.DriverId,
+		DriverID:  driverID,
 		TripID:    req.TripId,
 		PageIndex: int(req.Index),
 	})
@@ -210,8 +230,13 @@ func (h *BookingHandler) GetDriverTripBookings(ctx context.Context, req *booking
 
 // GetDriverPendingBookings retourne la liste agrégée des demandes en attente du conducteur.
 func (h *BookingHandler) GetDriverPendingBookings(ctx context.Context, req *bookingpb.GetDriverPendingBookingsRequest) (*bookingpb.GetDriverPendingBookingsResponse, error) {
+	driverID, err := callerUserID(ctx)
+	if err != nil {
+		return &bookingpb.GetDriverPendingBookingsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
 	results, err := h.service.GetDriverPendingBookings(ctx, &serviceInterfaces.GetDriverPendingBookingsInput{
-		DriverID:  req.DriverId,
+		DriverID:  driverID,
 		PageIndex: int(req.Index),
 	})
 	if err != nil {
@@ -225,8 +250,13 @@ func (h *BookingHandler) GetDriverPendingBookings(ctx context.Context, req *book
 
 // GetDriverBookings retourne l'historique paginé des réservations d'un conducteur, tous statuts confondus.
 func (h *BookingHandler) GetDriverBookings(ctx context.Context, req *bookingpb.GetDriverBookingsRequest) (*bookingpb.GetDriverBookingsResponse, error) {
+	driverID, err := callerUserID(ctx)
+	if err != nil {
+		return &bookingpb.GetDriverBookingsResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
 	results, err := h.service.GetDriverBookings(ctx, &serviceInterfaces.GetDriverBookingsInput{
-		DriverID:     req.DriverId,
+		DriverID:     driverID,
 		StatusFilter: req.StatusFilter,
 		PageIndex:    int(req.Index),
 	})
@@ -265,8 +295,13 @@ func (h *BookingHandler) GetActivePassengerSummariesForTrip(ctx context.Context,
 
 // ApproveBooking approuve une réservation.
 func (h *BookingHandler) ApproveBooking(ctx context.Context, req *bookingpb.ApproveBookingRequest) (*bookingpb.ApproveBookingResponse, error) {
-	err := h.service.ApproveBooking(ctx, &serviceInterfaces.ApproveBookingInput{
-		DriverID:  req.DriverId,
+	driverID, err := callerUserID(ctx)
+	if err != nil {
+		return &bookingpb.ApproveBookingResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	err = h.service.ApproveBooking(ctx, &serviceInterfaces.ApproveBookingInput{
+		DriverID:  driverID,
 		BookingID: req.BookingId,
 	})
 	if err != nil {
@@ -278,8 +313,13 @@ func (h *BookingHandler) ApproveBooking(ctx context.Context, req *bookingpb.Appr
 
 // RejectBooking rejette une réservation.
 func (h *BookingHandler) RejectBooking(ctx context.Context, req *bookingpb.RejectBookingRequest) (*bookingpb.RejectBookingResponse, error) {
-	err := h.service.RejectBooking(ctx, &serviceInterfaces.RejectBookingInput{
-		DriverID:  req.DriverId,
+	driverID, err := callerUserID(ctx)
+	if err != nil {
+		return &bookingpb.RejectBookingResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	err = h.service.RejectBooking(ctx, &serviceInterfaces.RejectBookingInput{
+		DriverID:  driverID,
 		BookingID: req.BookingId,
 		Reason:    req.Reason,
 	})
@@ -292,8 +332,15 @@ func (h *BookingHandler) RejectBooking(ctx context.Context, req *bookingpb.Rejec
 
 // CancelBooking annule une réservation.
 func (h *BookingHandler) CancelBooking(ctx context.Context, req *bookingpb.CancelBookingRequest) (*bookingpb.CancelBookingResponse, error) {
-	err := h.service.CancelBooking(ctx, &serviceInterfaces.CancelBookingInput{
-		UserID:    req.UserId,
+	// L'annuleur détermine le motif de remboursement (chauffeur → 100 %) : il doit
+	// venir du JWT, jamais du body.
+	userID, err := callerUserID(ctx)
+	if err != nil {
+		return &bookingpb.CancelBookingResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	err = h.service.CancelBooking(ctx, &serviceInterfaces.CancelBookingInput{
+		UserID:    userID,
 		BookingID: req.BookingId,
 		Reason:    req.Reason,
 	})
@@ -369,9 +416,14 @@ func (h *BookingHandler) CancelBookingsForTrip(ctx context.Context, req *booking
 
 // ReportNoShow signale un no-show.
 func (h *BookingHandler) ReportNoShow(ctx context.Context, req *bookingpb.ReportNoShowRequest) (*bookingpb.ReportNoShowResponse, error) {
-	err := h.service.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{
+	reporterID, err := callerUserID(ctx)
+	if err != nil {
+		return &bookingpb.ReportNoShowResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	err = h.service.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{
 		BookingID:   req.BookingId,
-		ReporterID:  req.ReporterId,
+		ReporterID:  reporterID,
 		NoShowType:  req.NoShowType,
 		Description: req.Description,
 	})
@@ -461,6 +513,17 @@ func (h *BookingHandler) Health(ctx context.Context, req *bookingpb.HealthReques
 // =============================================================================
 // Helpers
 // =============================================================================
+
+// callerUserID retourne l'UserID interne de l'appelant, résolu par l'intercepteur depuis
+// le Firebase UID validé par l'api-gateway. Les endpoints client-facing ne font JAMAIS
+// confiance à un PassengerId/DriverId/UserId/ReporterId fourni dans la requête.
+func callerUserID(ctx context.Context) (string, error) {
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
+	if !ok || userID == "" {
+		return "", bookingErrors.ErrorUnauthorized
+	}
+	return userID, nil
+}
 
 func toProtoBookingPreviews(results []*serviceInterfaces.BookingPreviewResult) []*bookingpb.BookingPreview {
 	previews := make([]*bookingpb.BookingPreview, 0, len(results))

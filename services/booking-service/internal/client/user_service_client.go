@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
+	bookingErrors "github.com/Kpeewu/tissi-mah/services/booking-service/pkg/errors"
 	userpb "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -125,4 +126,24 @@ func (c *UserServiceClient) GetPassengerInfo(ctx context.Context, userID string)
 
 	fullName := strings.TrimSpace(resp.FirstName + " " + resp.Name)
 	return fullName, resp.IsPassengerProfileVerified, nil
+}
+
+// GetUserIDByFirebaseID résout le Firebase UID de l'appelant en UserID interne.
+// Les réservations référencent passagers et chauffeurs par UserID interne : c'est
+// l'identité à utiliser pour tout contrôle d'appartenance.
+func (c *UserServiceClient) GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error) {
+	resp, err := c.grpcClient.GetUserByFirebaseID(ctx, &userpb.GetUserByFirebaseIDRequest{
+		FirebaseID: firebaseUID,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return "", bookingErrors.ErrorUserNotFound
+		}
+		c.logger.Error("client: GetUserByFirebaseID failed", zap.Error(err))
+		return "", fmt.Errorf("user-service: GetUserByFirebaseID failed: %w", err)
+	}
+	if resp.UserID == "" {
+		return "", bookingErrors.ErrorUserNotFound
+	}
+	return resp.UserID, nil
 }
