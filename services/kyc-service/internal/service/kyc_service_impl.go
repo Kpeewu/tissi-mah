@@ -107,40 +107,20 @@ func (s *kycServiceImpl) resolveSupportAgents(ctx context.Context, uids []string
 	return result
 }
 
-// resolveInternalUserID résout le Firebase UID reçu depuis l'api-gateway
-// en UserID interne MongoDB via le user-service. Le file-service stocke les
-// documents avec l'UserID interne, pas avec le Firebase UID.
-func (s *kycServiceImpl) resolveInternalUserID(ctx context.Context, firebaseUID string) (string, error) {
-	internalID, err := s.userClient.GetUserIDByFirebaseID(ctx, firebaseUID)
-	if err != nil {
-		s.logger.Error("failed to resolve firebaseUID to internal userID",
-			zap.String("firebaseUID", firebaseUID),
-			zap.Error(err),
-		)
-		return "", kycErrors.ErrorUserNotFound
-	}
-	return internalID, nil
-}
-
 // =============================================================================
 // GetKYCStatus
 // =============================================================================
 
 func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serviceInterfaces.KYCStatus, error) {
-	s.logger.Debug("get kyc status", zap.String("firebaseUID", userID))
+	s.logger.Debug("get kyc status", zap.String("userID", userID))
 
 	if userID == "" {
 		s.logger.Error("user_id is required")
 		return nil, kycErrors.ErrorMissingUserID
 	}
 
-	// Résoudre le Firebase UID en UserID interne MongoDB.
-	internalUserID, err := s.resolveInternalUserID(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	reviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, internalUserID)
+	// userID est l'UserID interne de l'appelant (résolu par l'intercepteur).
+	reviews, err := s.fileClient.GetDocumentReviewsByUserID(ctx, userID)
 	if err != nil {
 		s.logger.Error("failed to get reviews for kyc status", zap.Error(err))
 		return nil, kycErrors.ErrorFileServiceUnavailable
@@ -185,7 +165,7 @@ func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serv
 
 	// Vérification identité (passager) / conducteur — calculée depuis les documents
 	// COURANTS (selfie + pièce ; conducteur = selfie + permis + ≥1 véhicule validé).
-	userDocs, vehicleDocs, err := s.loadVerificationDocs(ctx, internalUserID)
+	userDocs, vehicleDocs, err := s.loadVerificationDocs(ctx, userID)
 	if err != nil {
 		s.logger.Error("failed to load documents for kyc status", zap.Error(err))
 		return nil, kycErrors.ErrorFileServiceUnavailable
@@ -193,7 +173,7 @@ func (s *kycServiceImpl) GetKYCStatus(ctx context.Context, userID string) (*serv
 	identityVerified, driverVerified := domain.ComputeProfileVerification(userDocs, vehicleDocs)
 
 	s.logger.Info("kyc status retrieved",
-		zap.String("userID", internalUserID),
+		zap.String("userID", userID),
 		zap.Bool("identityVerified", identityVerified),
 		zap.Bool("driverVerified", driverVerified),
 		zap.Int("pendingCount", len(pendingReviews)),

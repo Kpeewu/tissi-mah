@@ -25,10 +25,6 @@ import (
 func newTestService() (*mocks.MockFileServiceClient, *mocks.MockUserClient, serviceInterfaces.KYCService) {
 	mockFileClient := new(mocks.MockFileServiceClient)
 	mockUserClient := new(mocks.MockUserClient)
-	// Pass-through : les tests utilisent des IDs "user-XXX" directement comme
-	// si le Firebase UID et l'UserID interne étaient identiques.
-	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, mock.AnythingOfType("string")).
-		Return(func(_ context.Context, firebaseUID string) string { return firebaseUID }, nil).Maybe()
 	// Propagation best-effort après ValidateDocument / OverrideReview :
 	// recharge les documents courants puis pousse les flags. Optionnelle (.Maybe()).
 	mockFileClient.On("GetUserDocumentSummaries", mock.Anything, mock.AnythingOfType("string")).

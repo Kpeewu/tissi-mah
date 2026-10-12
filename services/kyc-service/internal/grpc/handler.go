@@ -32,11 +32,12 @@ func NewKYCHandler(service serviceInterfaces.KYCService, logger *zap.Logger) *KY
 // Helpers
 // =============================================================================
 
-// getUserID extrait le Firebase UID depuis le contexte gRPC.
+// getUserID extrait l'UserID interne de l'appelant, résolu par l'intercepteur depuis
+// le Firebase UID validé par l'api-gateway.
 func getUserID(ctx context.Context) (string, error) {
-	uid, ok := ctx.Value(middleware.FirebaseIDKey).(string)
+	uid, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || uid == "" {
-		return "", status.Error(codes.Unauthenticated, "missing firebase ID in context")
+		return "", status.Error(codes.Unauthenticated, "missing user ID in context")
 	}
 	return uid, nil
 }
