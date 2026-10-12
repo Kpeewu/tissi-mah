@@ -962,7 +962,7 @@ func (r *bookingWriteRepositoryImpl) IncrementRefundRequestAttempts(
 
 // AnonymizeUserRefs pseudonymise les références d'un utilisateur dans bookings et bookings_status_history.
 func (r *bookingWriteRepositoryImpl) AnonymizeUserRefs(ctx context.Context, userID string) error {
-	anon := "deleted_" + userID[:8]
+	anon := anonymizedUserID(userID)
 
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
