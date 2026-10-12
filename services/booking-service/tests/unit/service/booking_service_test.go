@@ -543,53 +543,42 @@ func TestReportNoShow(t *testing.T) {
 		})
 	}
 
-	t.Run("erreur - signalement avant la fin du delai d'attente", func(t *testing.T) {
-		d := newTestService()
-		ctx := context.Background()
+	// Fenêtre de déclaration : de prise en charge prévue + 15 min à prise en charge prévue + 3 h
+	outOfWindowCases := []struct {
+		name       string
+		pickupAgo  time.Duration
+		reporterID string
+		noShowType string
+		wantErr    error
+	}{
+		{"erreur - signalement avant la fin du delai d'attente",
+			5 * time.Minute, "passenger-1", "driver", bookingErrors.ErrorNoShowTooEarly},
+		{"erreur - signalement apres la fin de la fenetre de declaration",
+			4 * time.Hour, "driver-1", "passenger", bookingErrors.ErrorNoShowReportClosed},
+	}
+	for _, tc := range outOfWindowCases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := newTestService()
 
-		booking := fixtures.NewTestBookingWithPayment(
-			fixtures.WithBookingID("booking-noshow-early"),
-			fixtures.WithPassengerID("passenger-1"),
-			fixtures.WithDriverID("driver-1"),
-		)
-		d.readRepo.On("GetByID", mock.Anything, "booking-noshow-early").Return(booking, nil)
-		// Prise en charge prévue il y a 5 min : le délai d'attente n'est pas écoulé
-		d.expectDeparture(booking, time.Now().UTC().Add(-5*time.Minute).Format(time.RFC3339))
+			booking := fixtures.NewTestBookingWithPayment(
+				fixtures.WithBookingID("booking-noshow-window"),
+				fixtures.WithPassengerID("passenger-1"),
+				fixtures.WithDriverID("driver-1"),
+			)
+			d.readRepo.On("GetByID", mock.Anything, "booking-noshow-window").Return(booking, nil)
+			d.expectDeparture(booking, time.Now().UTC().Add(-tc.pickupAgo).Format(time.RFC3339))
 
-		err := d.svc.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{
-			BookingID:  "booking-noshow-early",
-			ReporterID: "passenger-1",
-			NoShowType: "driver",
+			err := d.svc.ReportNoShow(context.Background(), &serviceInterfaces.ReportNoShowInput{
+				BookingID:  "booking-noshow-window",
+				ReporterID: tc.reporterID,
+				NoShowType: tc.noShowType,
+			})
+
+			assert.ErrorIs(t, err, tc.wantErr)
+			d.writeRepo.AssertNotCalled(t, "ReportNoShow",
+				mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		})
-
-		assert.ErrorIs(t, err, bookingErrors.ErrorNoShowTooEarly)
-		d.writeRepo.AssertNotCalled(t, "ReportNoShow",
-			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-	})
-
-	t.Run("erreur - signalement apres la fin de la fenetre de declaration", func(t *testing.T) {
-		d := newTestService()
-		ctx := context.Background()
-
-		booking := fixtures.NewTestBookingWithPayment(
-			fixtures.WithBookingID("booking-noshow-late"),
-			fixtures.WithPassengerID("passenger-1"),
-			fixtures.WithDriverID("driver-1"),
-		)
-		d.readRepo.On("GetByID", mock.Anything, "booking-noshow-late").Return(booking, nil)
-		// Prise en charge prévue il y a 4 h : la fenêtre de 3 h est close
-		d.expectDeparture(booking, time.Now().UTC().Add(-4*time.Hour).Format(time.RFC3339))
-
-		err := d.svc.ReportNoShow(ctx, &serviceInterfaces.ReportNoShowInput{
-			BookingID:  "booking-noshow-late",
-			ReporterID: "driver-1",
-			NoShowType: "passenger",
-		})
-
-		assert.ErrorIs(t, err, bookingErrors.ErrorNoShowReportClosed)
-		d.writeRepo.AssertNotCalled(t, "ReportNoShow",
-			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-	})
+	}
 
 	t.Run("erreur - heure de prise en charge inconnue", func(t *testing.T) {
 		d := newTestService()
