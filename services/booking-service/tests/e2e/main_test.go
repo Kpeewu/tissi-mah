@@ -76,7 +76,6 @@ func TestMain(m *testing.M) {
 	mockTripClient.On("CompleteBookingsForWaypoint", mock.Anything, mock.Anything, mock.Anything).Return([]string{}, nil).Maybe()
 
 	mockUserClient := new(mocks.MockUserClient)
-	mockUserClient.On("UserExists", mock.Anything, mock.Anything).Return(true, nil).Maybe()
 	mockUserClient.On("IsPassengerVerified", mock.Anything, mock.Anything).Return(true, nil).Maybe()
 	mockUserClient.On("GetPassengerInfo", mock.Anything, mock.Anything).Return("Test User", true, nil).Maybe()
 	// Résolution Firebase UID → UserID : identité, sauf pour l'UID inconnu de user-service.
