@@ -17,7 +17,8 @@ type PaymentService interface {
 	CancelPaymentForBooking(ctx context.Context, bookingID string, reason string) (*PaymentSyncResult, error)
 	GetPaymentStatus(ctx context.Context, paymentID string) (*PaymentStatusResult, error)
 	GetPaymentByBooking(ctx context.Context, bookingID string) (*PaymentByBookingResult, error)
-	// GetPaymentByBookingInternal retourne le paiement d'une réservation sans contrôle d'appartenance (interne, booking-service).
+	// GetPaymentByBookingInternal retourne le paiement d'une réservation sans contrôle d'appartenance
+	// (interne, booking-service).
 	GetPaymentByBookingInternal(ctx context.Context, bookingID string) (*PaymentByBookingResult, error)
 	ProcessWebhook(ctx context.Context, input *ProcessWebhookInput) error
 	RequestRefund(ctx context.Context, input *RequestRefundInput) (*RequestRefundResult, error)

@@ -72,7 +72,8 @@ func TestMain(m *testing.M) {
 	mockUserClient := new(mocks.MockUserClient)
 	mockUserClient.On("GetUserByUserID", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	// Tout autre Firebase UID n'est pas le passager
-	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, mock.Anything).Return("", paymentErrors.ErrorUserNotFound).Maybe()
+	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, mock.Anything).
+		Return("", paymentErrors.ErrorUserNotFound).Maybe()
 
 	mockSupportClient = new(mocks.MockSupportClient)
 
