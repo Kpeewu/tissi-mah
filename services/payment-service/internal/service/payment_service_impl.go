@@ -440,26 +440,34 @@ func (s *paymentServiceImpl) createRefundForPayment(ctx context.Context, payment
 		refundStatus = domain.RefundStatusPending
 	}
 
+	// Le chauffeur reçoit sa part si la règle lui en attribue une (annulation tardive ou no-show passager).
+	var driverPayoutStatus *string
+	if calc.AmountToDriver > 0 {
+		s := "pending"
+		driverPayoutStatus = &s
+	}
+
 	refund := &domain.Refund{
-		RefundID:           refundID,
-		RefundReference:    refundRef,
-		PaymentID:          payment.PaymentID,
-		BookingID:          input.BookingID,
-		RefundReason:       reason,
-		RefundRuleApplied:  rule,
-		OriginalAmount:     input.OriginalAmount,
-		RefundPercentage:   int16(calc.RefundPercentage),
-		RefundAmount:       calc.RefundAmount,
-		ServiceFeeRefunded: calc.ServiceFeeRefunded,
-		AmountToPassenger:  calc.AmountToPassenger,
-		AmountToDriver:     calc.AmountToDriver,
-		AmountToPlatform:   calc.AmountToPlatform,
-		Status:             refundStatus,
-		RefundMethod:       string(payment.PaymentMethod),
-		ProcessedAt:        &now,
-		CompletedAt:        completedAt,
-		PayoutDestination:  payment.PassengerPhoneNumber,
-		PaymentProvider:    "fedapay",
+		RefundID:            refundID,
+		RefundReference:     refundRef,
+		PaymentID:           payment.PaymentID,
+		BookingID:           input.BookingID,
+		RefundReason:        reason,
+		RefundRuleApplied:   rule,
+		OriginalAmount:      input.OriginalAmount,
+		RefundPercentage:    int16(calc.RefundPercentage),
+		RefundAmount:        calc.RefundAmount,
+		ServiceFeeRefunded:  calc.ServiceFeeRefunded,
+		AmountToPassenger:   calc.AmountToPassenger,
+		AmountToDriver:      calc.AmountToDriver,
+		AmountToPlatform:    calc.AmountToPlatform,
+		Status:              refundStatus,
+		RefundMethod:        string(payment.PaymentMethod),
+		ProcessedAt:         &now,
+		CompletedAt:         completedAt,
+		PayoutDestination:   payment.PassengerPhoneNumber,
+		PaymentProvider:     "fedapay",
+		DriverPayoutStatus:  driverPayoutStatus,
 	}
 
 	if s.refundWriteRepo != nil {
