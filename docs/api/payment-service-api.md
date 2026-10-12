@@ -26,6 +26,7 @@ This document describes the HTTP/REST API exposed by the payment-service through
 | `/api/v1/payment/getDriverPayouts` | Firebase JWT required |
 | `/api/v1/payment/webhooks/fedapay` | Public (HMAC-SHA256 signature verified internally) |
 | `/api/v1/payment/internal/*` | Public (inter-service only, not for mobile clients) |
+| `/api/v1/payment/support/*` | Support JWT required (back-office, `x-support-uid` injected by the api-gateway) |
 | `/api/v1/payment/health` | Public |
 
 ```http
@@ -601,6 +602,172 @@ Health check endpoint.
 
 ---
 
+## Support Endpoints (back-office)
+
+These routes require a support-service JWT (`SupportProtectedRoutes` in the api-gateway), not a Firebase JWT. They return the status history of a payment, refund or driver payout, oldest entry first. See [Status history](#status-history) for the values of `Status`, `InitiatedBy` and `Source`.
+
+### GET /api/v1/payment/support/getPaymentHistory
+
+Returns the status history of a payment, or of every payment of a booking (a booking can have several payments, e.g. a failed one then a new attempt).
+
+**Authentication:** Support JWT required
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `PaymentId` | string | One of the two | Payment UUID (takes precedence if both are set) |
+| `BookingId` | string | One of the two | Booking UUID |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Entries": [
+        {
+            "HistoryId": "1b4e28ba-2fa1-11d2-883f-0016d3cca427",
+            "PaymentId": "pay-550e8400-e29b-41d4-a716-446655440010",
+            "Status": "pending",
+            "ProviderStatus": "pending",
+            "InitiatedBy": "passenger",
+            "Source": "create_payment",
+            "OccurredAt": "2026-10-12T08:30:00Z",
+            "Notes": "Transaction FedaPay 101 créée (5500 XOF), expire le 2026-10-12T08:40:00Z"
+        },
+        {
+            "HistoryId": "6fa459ea-ee8a-3ca4-894e-db77e160355e",
+            "PaymentId": "pay-550e8400-e29b-41d4-a716-446655440010",
+            "Status": "held",
+            "ProviderStatus": "approved",
+            "InitiatedBy": "system",
+            "Source": "fedapay_webhook",
+            "OccurredAt": "2026-10-12T08:33:12Z",
+            "Notes": "Paiement approuvé par FedaPay"
+        }
+    ],
+    "ErrorMessage": ""
+}
+```
+
+An unknown identifier returns an empty `Entries` list.
+
+#### Errors
+
+| Error | HTTP Code | Description |
+|-------|-----------|-------------|
+| `ErrorInvalidInput` | 400 | Neither `PaymentId` nor `BookingId` set |
+| `ErrorUnauthorized` | 401 | Missing support identity |
+| `ErrorDataRetrievalFailed` | 500 | Database error |
+
+---
+
+### GET /api/v1/payment/support/getRefundHistory
+
+Returns the status history of a refund, or of the refunds of a booking.
+
+**Authentication:** Support JWT required
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `RefundId` | string | One of the two | Refund UUID (takes precedence if both are set) |
+| `BookingId` | string | One of the two | Booking UUID |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Entries": [
+        {
+            "HistoryId": "9a7b1c2d-0000-4000-8000-000000000001",
+            "RefundId": "ref-550e8400-e29b-41d4-a716-446655440030",
+            "Status": "pending",
+            "RetryCount": 0,
+            "InitiatedBy": "booking_service",
+            "Source": "booking_service",
+            "OccurredAt": "2026-10-12T09:00:00Z",
+            "Notes": "Motif cancelledByDriver, règle driverCancellation (100%) : 5500 XOF passager, 0 XOF chauffeur, 0 XOF plateforme"
+        },
+        {
+            "HistoryId": "9a7b1c2d-0000-4000-8000-000000000002",
+            "RefundId": "ref-550e8400-e29b-41d4-a716-446655440030",
+            "Status": "retry_scheduled",
+            "RetryCount": 1,
+            "InitiatedBy": "system",
+            "Source": "refund_worker",
+            "OccurredAt": "2026-10-13T00:00:05Z",
+            "Notes": "fedapay: ..."
+        }
+    ],
+    "ErrorMessage": ""
+}
+```
+
+#### Errors
+
+| Error | HTTP Code | Description |
+|-------|-----------|-------------|
+| `ErrorInvalidInput` | 400 | Neither `RefundId` nor `BookingId` set |
+| `ErrorUnauthorized` | 401 | Missing support identity |
+| `ErrorDataRetrievalFailed` | 500 | Database error |
+
+---
+
+### GET /api/v1/payment/support/getPayoutHistory
+
+Returns the status history of a driver payout, including the support agent who triggered a manual payout.
+
+**Authentication:** Support JWT required
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `PayoutId` | string | Yes | Payout UUID |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Entries": [
+        {
+            "HistoryId": "c0ffee00-0000-4000-8000-000000000001",
+            "PayoutId": "pout-550e8400-e29b-41d4-a716-446655440050",
+            "Status": "launched_by_support",
+            "InitiatedBy": "support",
+            "SupportUserId": "support-42",
+            "SupportFirstName": "Awa",
+            "SupportLastName": "Diallo",
+            "OccurredAt": "2026-10-12T10:00:00Z",
+            "Notes": "Paiement initié manuellement par Awa Diallo"
+        }
+    ],
+    "ErrorMessage": ""
+}
+```
+
+Payout `Status` values: `scheduled`, `processing`, `failed`, `completed`, `launched_by_support`.
+
+#### Errors
+
+| Error | HTTP Code | Description |
+|-------|-----------|-------------|
+| `ErrorInvalidInput` | 400 | `PayoutId` missing |
+| `ErrorUnauthorized` | 401 | Missing support identity |
+| `ErrorDataRetrievalFailed` | 500 | Database error |
+
+---
+
 ## Internal Endpoints (inter-service only)
 
 These routes are called by booking-service and are not accessible to mobile clients.
@@ -753,6 +920,39 @@ approval for a booking that is no longer confirmable (cancelled, rejected…) �
 - **Trip cancelled or stop removed by the driver** (`CancelBookingsForTrip` / `CancelBookingsForWaypoint`): bookings are cancelled first, then booking-service calls `CancelPaymentForBooking` asynchronously for each `paymentPending` booking (and `RequestRefund` with `tripCancelled` / `waypointCancelled` for paid ones).
   - If FedaPay had already approved, the approval reaches a cancelled booking and the passenger is refunded in full (`bookingUnavailable`).
   - If the call fails, the expiration worker deletes the transaction when the payment window ends.
+
+### Status history
+
+Every payment and refund transition is recorded in `payment_status_history` / `refund_status_history` (driver payouts: `payout_status_history`), readable through the [support endpoints](#support-endpoints-back-office). An entry is written only after the transition succeeded in the database, so a replayed webhook or a concurrent request does not create duplicates. History writes never block the payment flow: a failed write is only logged.
+
+**Payment `Status` values**: a status reached (`pending`, `held`, `failed`, `released`, `refunded`, `paidOut`) or one of these events, which do not change the payment status:
+
+| Event | Meaning |
+|-------|---------|
+| `attempt_failed` | Attempt declined/canceled on the FedaPay page; the payment stays `pending` (`ProviderStatus` = `declined` / `canceled`) |
+| `payment_url_renewed` | FedaPay payment link regenerated when the passenger called `createPayment` again |
+| `booking_synced` | `held` payment attached to its booking (`ConfirmPayment` accepted or booking already confirmed) |
+| `booking_sync_failed` | Attachment failed (booking-service unreachable, booking temporarily not confirmable); retried by the worker |
+| `booking_sync_abandoned` | 5th failed attachment: the passenger is refunded in full |
+| `refund_creation_failed` | Automatic full refund could not be created; retried on the next tick |
+
+**Refund `Status` values**: `pending`, `processing`, `completed` (FedaPay payout started, or nothing to transfer), `retry_scheduled` (recoverable failure, back to `pending`, `RetryCount` incremented), `failed` (final failure: support handles it manually).
+
+**`InitiatedBy`**: `system`, `passenger`, `booking_service`, `support`.
+
+**`Source`** (channel that triggered the transition):
+
+| Source | Trigger |
+|--------|---------|
+| `create_payment` / `verify_payment` / `cancel_payment` | Passenger calls from the mobile app |
+| `fedapay_callback` | Browser return from the FedaPay page (`/api/v1/payment/callback`) |
+| `fedapay_webhook` | FedaPay webhook |
+| `booking_service` | `CancelPaymentForBooking`, `requestRefund`, `releasePayment` |
+| `expiration_worker` | Expired pending payments |
+| `booking_sync_worker` | Retry of unattached `held` payments |
+| `refund_worker` | FedaPay refund payouts |
+| `payout_worker` | Driver payout batch (`paidOut`) |
+| `support_manual_payout` | Manual payout triggered by a support agent (`paidOut`) |
 
 ### Passenger notifications (refunds)
 

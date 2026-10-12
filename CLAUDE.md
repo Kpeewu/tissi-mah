@@ -271,6 +271,10 @@ sur les 4 pays (Togo, Ghana, Bénin, Burkina Faso).
 remboursements dus enregistrés avec la transition (`refund_reason`) et rejoués par un worker
 (`REFUND_REQUEST_WORKER_INTERVAL_SECONDS`, 60) jusqu'à acquittement (`requestRefund` idempotent par paiement) ;
 `ConfirmPayment` est interne (`/api/v1/booking/internal/confirmPayment`) et applique l'auto-approbation.
+**Historique** : chaque transition est tracée dans `payment_status_history` / `refund_status_history`
+(`payout_status_history` pour les payouts) avec `initiated_by` + `source` (posés via `withHistoryOrigin` au point
+d'entrée), écrite seulement après succès de la transition ; lecture support via
+`/api/v1/payment/support/get{Payment,Refund,Payout}History` (JWT support).
 
 ### geolocation-service
 
