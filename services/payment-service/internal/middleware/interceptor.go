@@ -35,8 +35,11 @@ var publicMethods = map[string]bool{
 	"/payment.PaymentService/HandlePaymentCallback": true,
 	// Route interne (booking-service, gRPC uniquement — pas d'annotation HTTP)
 	"/payment.PaymentService/CancelPaymentForBooking": true,
-	"/grpc.health.v1.Health/Check":                    true, // Readiness probe Kubernetes
-	"/grpc.health.v1.Health/Watch":                    true, // Liveness probe Kubernetes
+	// Routes internes (auth-service, suppression de compte — pas d'annotation HTTP)
+	"/payment.PaymentService/CheckDeletionEligibility": true,
+	"/payment.PaymentService/AnonymizeUserData":        true,
+	"/grpc.health.v1.Health/Check":                     true, // Readiness probe Kubernetes
+	"/grpc.health.v1.Health/Watch":                     true, // Liveness probe Kubernetes
 }
 
 // Routes gRPC protégées par JWT support (x-support-uid injecté par l'api-gateway)
