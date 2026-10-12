@@ -1371,9 +1371,22 @@ func (s *bookingServiceImpl) GetDriverBookings(ctx context.Context, input *servi
 // GetActivePassengerSummariesForTrip
 // =============================================================================
 
-func (s *bookingServiceImpl) GetActivePassengerSummariesForTrip(ctx context.Context, tripID string) ([]*serviceInterfaces.PassengerSummaryResult, error) {
-	if tripID == "" {
+func (s *bookingServiceImpl) GetActivePassengerSummariesForTrip(ctx context.Context, tripID, driverID string) ([]*serviceInterfaces.PassengerSummaryResult, error) {
+	if tripID == "" || driverID == "" {
 		return nil, bookingErrors.ErrorInvalidInput
+	}
+
+	// Données personnelles des passagers : réservées au chauffeur du trajet.
+	tripDetails, err := s.tripClient.GetTripDetails(ctx, tripID)
+	if err != nil {
+		s.logger.Error("service: GetTripDetails failed", zap.Error(err))
+		return nil, bookingErrors.ErrorInternalServer
+	}
+	if tripDetails == nil {
+		return nil, bookingErrors.ErrorTripNotFound
+	}
+	if tripDetails.DriverID != driverID {
+		return nil, bookingErrors.ErrorUnauthorized
 	}
 
 	rawSummaries, err := s.readRepo.GetActivePassengerSummariesForTrip(ctx, tripID)

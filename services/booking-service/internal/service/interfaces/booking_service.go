@@ -24,7 +24,8 @@ type BookingService interface {
 	GetDriverBookings(ctx context.Context, input *GetDriverBookingsInput) ([]*DriverBookingPreviewResult, error)
 
 	// GetActivePassengerSummariesForTrip retourne les passagers actifs d'un trajet enrichis de leurs informations.
-	GetActivePassengerSummariesForTrip(ctx context.Context, tripID string) ([]*PassengerSummaryResult, error)
+	// Réservé au chauffeur du trajet (driverID = UserID interne de l'appelant).
+	GetActivePassengerSummariesForTrip(ctx context.Context, tripID, driverID string) ([]*PassengerSummaryResult, error)
 
 	// ApproveBooking approuve une réservation.
 	ApproveBooking(ctx context.Context, input *ApproveBookingInput) error

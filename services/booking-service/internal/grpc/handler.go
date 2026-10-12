@@ -271,7 +271,12 @@ func (h *BookingHandler) GetDriverBookings(ctx context.Context, req *bookingpb.G
 
 // GetActivePassengerSummariesForTrip retourne les passagers actifs d'un trajet enrichis.
 func (h *BookingHandler) GetActivePassengerSummariesForTrip(ctx context.Context, req *bookingpb.GetActivePassengerSummariesForTripRequest) (*bookingpb.GetActivePassengerSummariesForTripResponse, error) {
-	results, err := h.service.GetActivePassengerSummariesForTrip(ctx, req.TripId)
+	driverID, err := callerUserID(ctx)
+	if err != nil {
+		return &bookingpb.GetActivePassengerSummariesForTripResponse{ErrorMessage: err.Error()}, toGRPCError(err)
+	}
+
+	results, err := h.service.GetActivePassengerSummariesForTrip(ctx, req.TripId, driverID)
 	if err != nil {
 		return &bookingpb.GetActivePassengerSummariesForTripResponse{ErrorMessage: err.Error()}, toGRPCError(err)
 	}

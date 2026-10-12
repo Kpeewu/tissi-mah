@@ -1274,3 +1274,46 @@ func TestGetBookingDetailAdmin(t *testing.T) {
 		assert.ErrorIs(t, err, bookingErrors.ErrorBookingNotFound)
 	})
 }
+
+// =============================================================================
+// GetActivePassengerSummariesForTrip
+// =============================================================================
+
+func TestGetActivePassengerSummariesForTrip(t *testing.T) {
+	t.Run("succes - le chauffeur du trajet voit ses passagers", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-sum").Return(&client.TripDetails{TripID: "trip-sum", DriverID: "driver-sum"}, nil)
+		d.readRepo.On("GetActivePassengerSummariesForTrip", mock.Anything, "trip-sum").Return([]*domain.RawPassengerSummary{}, nil)
+
+		results, err := d.svc.GetActivePassengerSummariesForTrip(ctx, "trip-sum", "driver-sum")
+
+		require.NoError(t, err)
+		assert.Empty(t, results)
+		d.readRepo.AssertExpectations(t)
+	})
+
+	t.Run("erreur - un autre utilisateur ne peut pas lire les passagers", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-sum").Return(&client.TripDetails{TripID: "trip-sum", DriverID: "driver-sum"}, nil)
+
+		_, err := d.svc.GetActivePassengerSummariesForTrip(ctx, "trip-sum", "intrus")
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorUnauthorized)
+		d.readRepo.AssertNotCalled(t, "GetActivePassengerSummariesForTrip", mock.Anything, mock.Anything)
+	})
+
+	t.Run("erreur - trajet introuvable", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-absent").Return(nil, nil)
+
+		_, err := d.svc.GetActivePassengerSummariesForTrip(ctx, "trip-absent", "driver-sum")
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorTripNotFound)
+	})
+}
