@@ -438,6 +438,33 @@ func TestE2E_ReportNoShow(t *testing.T) {
 		assert.Equal(t, "e2e-driver-noshow", detailResp.Booking.NoShowReportedBy)
 	})
 
+	t.Run("erreur - chauffeur absent declare alors que le passager est a bord", func(t *testing.T) {
+		cleanupBookingTables(t, ctx)
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("e2e-bk-noshow-aboard"),
+			fixtures.WithPassengerID("e2e-passenger-aboard"),
+			fixtures.WithTripID(noShowTripID),
+			fixtures.WithPickupWaypointID(noShowWaypointID),
+			fixtures.WithBookingStatus(domain.BookingStatusInProgress),
+		)
+		require.NoError(t, fixtures.InsertBookingWithHistory(ctx, testPool, booking))
+
+		_, err := grpcClient.ReportNoShow(ctxWithUID("e2e-passenger-aboard"), &bookingpb.ReportNoShowRequest{
+			BookingId:  "e2e-bk-noshow-aboard",
+			NoShowType: "driver",
+		})
+
+		require.Error(t, err)
+		st, _ := status.FromError(err)
+		assert.Equal(t, codes.FailedPrecondition, st.Code())
+
+		detailResp, err := grpcClient.GetBookingDetails(ctxWithUID("e2e-passenger-aboard"),
+			&bookingpb.GetBookingDetailsRequest{BookingId: "e2e-bk-noshow-aboard"})
+		require.NoError(t, err)
+		assert.Equal(t, "inProgress", detailResp.Booking.Status)
+	})
+
 	t.Run("succes - chauffeur absent avant la prise en charge", func(t *testing.T) {
 		cleanupBookingTables(t, ctx)
 
