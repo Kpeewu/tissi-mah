@@ -882,7 +882,7 @@ func (r *tripWriteRepositoryImpl) SyncLegBookedSeats(ctx context.Context, tripID
 
 // AnonymizeDriverRefs pseudonymise driver_id et canceller_id dans trips et recurring_patterns.
 func (r *tripWriteRepositoryImpl) AnonymizeDriverRefs(ctx context.Context, userID string) error {
-	anon := "deleted_" + userID[:8]
+	anon := anonymizedUserID(userID)
 
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
