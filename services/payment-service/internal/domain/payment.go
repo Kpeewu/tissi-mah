@@ -33,6 +33,7 @@ type Payment struct {
 	BookingID             string
 	TripID                string
 	Amount                int
+	ServiceFeeAmount      int // frais de service inclus dans Amount, revient à la plateforme
 	PaymentMethod         PaymentMethod
 	PaymentProvider       string
 	Status                PaymentStatus

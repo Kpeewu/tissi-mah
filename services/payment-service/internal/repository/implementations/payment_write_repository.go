@@ -26,13 +26,13 @@ func NewPaymentWriteRepository(pool *pgxpool.Pool, logger *zap.Logger) repoInter
 
 func (r *paymentWriteRepository) CreatePayment(ctx context.Context, payment *domain.Payment) error {
 	query := `INSERT INTO payments (
-		payment_id, booking_id, trip_id, amount, payment_method, payment_provider,
+		payment_id, booking_id, trip_id, amount, service_fee_amount, payment_method, payment_provider,
 		status, external_transaction_id, payment_reference, passenger_phone_number, metadata,
 		payment_url, provider_status, provider_status_updated_at, expires_at
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NULLIF($12, ''), NULLIF($13, ''), NOW(), $14)`
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NULLIF($13, ''), NULLIF($14, ''), NOW(), $15)`
 
 	_, err := r.pool.Exec(ctx, query,
-		payment.PaymentID, payment.BookingID, payment.TripID, payment.Amount,
+		payment.PaymentID, payment.BookingID, payment.TripID, payment.Amount, payment.ServiceFeeAmount,
 		payment.PaymentMethod, payment.PaymentProvider,
 		payment.Status, payment.ExternalTransactionID, payment.PaymentReference,
 		payment.PassengerPhoneNumber, payment.Metadata,

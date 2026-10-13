@@ -109,6 +109,7 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 		BookingID:             booking.BookingID,
 		TripID:                booking.TripID,
 		Amount:                booking.TotalAmount,
+		ServiceFeeAmount:      booking.ServiceFee,
 		PaymentMethod:         domain.PaymentMobileMoney,
 		PaymentProvider:       "fedapay",
 		Status:                domain.PaymentStatusPending,

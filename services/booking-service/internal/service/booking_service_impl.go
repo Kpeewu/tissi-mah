@@ -33,7 +33,7 @@ type bookingServiceImpl struct {
 	ratingClient  client.RatingClient
 	cache         *cache.BookingCache
 	notifRedis    *redis.Client
-	serviceFee    int // pourcentage
+	serviceFeeAmount int // montant fixe
 	logger        *zap.Logger
 }
 
@@ -46,20 +46,20 @@ func NewBookingService(
 	ratingClient client.RatingClient,
 	bookingCache *cache.BookingCache,
 	notifRedis *redis.Client,
-	serviceFeePercent int,
+	serviceFeeAmount int,
 	logger *zap.Logger,
 ) serviceInterfaces.BookingService {
 	return &bookingServiceImpl{
-		readRepo:      readRepo,
-		writeRepo:     writeRepo,
-		tripClient:    tripClient,
-		userClient:    userClient,
-		paymentClient: paymentClient,
-		ratingClient:  ratingClient,
-		cache:         bookingCache,
-		notifRedis:    notifRedis,
-		serviceFee:    serviceFeePercent,
-		logger:        logger,
+		readRepo:         readRepo,
+		writeRepo:        writeRepo,
+		tripClient:       tripClient,
+		userClient:       userClient,
+		paymentClient:    paymentClient,
+		ratingClient:     ratingClient,
+		cache:            bookingCache,
+		notifRedis:       notifRedis,
+		serviceFeeAmount: serviceFeeAmount,
+		logger:           logger,
 	}
 }
 
@@ -147,7 +147,7 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 		return nil, err
 	}
 	subtotal := input.SeatsBooked * pricePerSeat
-	serviceFee := subtotal * s.serviceFee / 100
+	serviceFee := s.serviceFeeAmount
 	totalAmount := subtotal + serviceFee
 
 	// 8. Générer l'ID et la référence
@@ -2013,13 +2013,13 @@ func (s *bookingServiceImpl) GetPassengerBookingIDs(ctx context.Context, passeng
 	return s.readRepo.GetPassengerBookingIDs(ctx, passengerID)
 }
 
-// GetServiceFeePercent est un helper utilisé dans le handler pour les calculs.
-func GetServiceFeePercent(svc serviceInterfaces.BookingService) int {
+// GetServiceFeeAmount est un helper utilisé dans le handler pour les calculs.
+func GetServiceFeeAmount(svc serviceInterfaces.BookingService) int {
 	impl, ok := svc.(*bookingServiceImpl)
 	if !ok {
-		return 10
+		return 0
 	}
-	return impl.serviceFee
+	return impl.serviceFeeAmount
 }
 
 // =============================================================================

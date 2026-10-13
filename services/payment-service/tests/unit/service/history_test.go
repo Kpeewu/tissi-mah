@@ -110,7 +110,7 @@ func TestPaymentHistory_EdgeCases(t *testing.T) {
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
 		d.userClient.On("GetUserByUserID", mock.Anything, "driver-1").
 			Return(&client.UserInfo{UserID: "driver-1", FirstName: "Kodjo", Name: "Mensah", WithdrawNumber: "90998877"}, nil)
-		d.fedapay.On("CreatePayout", 5500, "togocel", "90998877", "Kodjo", "Mensah").Return(&fedapay.PayoutItem{ID: 888}, nil)
+		d.fedapay.On("CreatePayout", 5000, "togocel", "90998877", "Kodjo", "Mensah").Return(&fedapay.PayoutItem{ID: 888}, nil)
 		d.payoutWriteRepo.On("CreatePayout", mock.Anything, mock.Anything).Return(nil)
 		d.payoutHistoryRepo.On("CreateHistoryEntry", mock.Anything, mock.Anything).Return(nil)
 		d.fedapay.On("StartPayouts", []int{888}).Return([]fedapay.PayoutItem{{ID: 888}}, nil)
@@ -120,7 +120,7 @@ func TestPaymentHistory_EdgeCases(t *testing.T) {
 		netAmount, err := d.svc.TriggerManualPayout(context.Background(), "trip-1", "support-1")
 
 		require.NoError(t, err)
-		assert.Equal(t, 5500, netAmount)
+		assert.Equal(t, 5000, netAmount)
 		assert.Equal(t, []string{"paidOut"}, d.paymentHistoryStatuses("pay-1"))
 		assert.Equal(t, []string{"paidOut"}, d.paymentHistoryStatuses("pay-9"))
 		for _, e := range d.paymentHistory() {

@@ -101,7 +101,7 @@ func TestMain(m *testing.M) {
 		mockTripClient, mockUserClient, mockPaymentClient, mockRatingClient,
 		nil, // cache
 		nil, // notifRedis
-		10,  // serviceFeePercent
+		10,  // serviceFeeAmount
 		logger,
 	)
 

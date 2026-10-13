@@ -31,6 +31,10 @@ func WithPaymentAmount(amount int) PaymentOption {
 	return func(p *domain.Payment) { p.Amount = amount }
 }
 
+func WithPaymentServiceFeeAmount(amount int) PaymentOption {
+	return func(p *domain.Payment) { p.ServiceFeeAmount = amount }
+}
+
 func WithPaymentMethod(method domain.PaymentMethod) PaymentOption {
 	return func(p *domain.Payment) { p.PaymentMethod = method }
 }
@@ -88,6 +92,7 @@ func NewTestPayment(opts ...PaymentOption) *domain.Payment {
 		BookingID:             uuid.New().String(),
 		TripID:                uuid.New().String(),
 		Amount:                5000,
+		ServiceFeeAmount:      500,
 		PaymentMethod:         domain.PaymentMobileMoney,
 		PaymentProvider:       "fedapay",
 		Status:                domain.PaymentStatusPending,
@@ -263,11 +268,11 @@ func NewTestPayout(opts ...PayoutOption) *domain.Payout {
 // InsertPayment insere un Payment dans la base de donnees de test
 func InsertPayment(ctx context.Context, pool *pgxpool.Pool, p *domain.Payment) error {
 	query := `INSERT INTO payments (
-		payment_id, booking_id, trip_id, amount, payment_method, payment_provider,
+		payment_id, booking_id, trip_id, amount, service_fee_amount, payment_method, payment_provider,
 		status, external_transaction_id, payment_reference, metadata,
 		completed_at, failed_at, failure_reason,
 		payment_url, provider_status, expires_at
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NULLIF($14, ''), NULLIF($15, ''), $16)`
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NULLIF($15, ''), NULLIF($16, ''), $17)`
 
 	expiresAt := p.ExpiresAt
 	if expiresAt.IsZero() {
@@ -275,7 +280,7 @@ func InsertPayment(ctx context.Context, pool *pgxpool.Pool, p *domain.Payment) e
 	}
 
 	_, err := pool.Exec(ctx, query,
-		p.PaymentID, p.BookingID, p.TripID, p.Amount,
+		p.PaymentID, p.BookingID, p.TripID, p.Amount, p.ServiceFeeAmount,
 		p.PaymentMethod, p.PaymentProvider,
 		p.Status, p.ExternalTransactionID, p.PaymentReference,
 		p.Metadata, p.CompletedAt, p.FailedAt, p.FailureReason,

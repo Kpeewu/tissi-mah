@@ -117,6 +117,7 @@ func pendingPayment() *domain.Payment {
 		BookingID:             "bk-1",
 		TripID:                "trip-1",
 		Amount:                5500,
+		ServiceFeeAmount:      500,
 		PaymentMethod:         domain.PaymentMobileMoney,
 		Status:                domain.PaymentStatusPending,
 		ExternalTransactionID: "101",

@@ -55,7 +55,7 @@ func newTestService() *testDeps {
 		d.ratingClient,
 		nil, // cache
 		nil, // notifRedis
-		10,  // serviceFeePercent
+		10,  // serviceFeeAmount
 		logger,
 	)
 	return d
@@ -79,7 +79,7 @@ func newTestServiceWithNotif(t *testing.T) (*testDeps, *redis.Client) {
 		d.ratingClient,
 		nil, // cache
 		rdb,
-		10, // serviceFeePercent
+		10, // serviceFeeAmount
 		zap.NewNop(),
 	)
 	return d, rdb

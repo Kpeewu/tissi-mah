@@ -187,14 +187,16 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 		return "", 0, nil
 	}
 
-	// Calculer le montant total à verser au chauffeur
+	// Calculer le montant total et les frais de service
 	grossAmount := 0
+	totalServiceFee := 0
 	for _, p := range payments {
 		grossAmount += p.Amount
+		totalServiceFee += p.ServiceFeeAmount
 	}
 
-	// Appliquer la commission plateforme
-	platformFee := grossAmount * s.cfg.Payout.PlatformFeePercent / 100
+	// Les frais de service reviennent entièrement à la plateforme ; le chauffeur reçoit le sous-total
+	platformFee := totalServiceFee
 	netAmount := grossAmount - platformFee
 
 	// Récupérer le booking pour trouver le driverID
