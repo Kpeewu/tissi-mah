@@ -219,6 +219,38 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 		return "", 0, fmt.Errorf("driver %s has no withdraw number", booking.DriverID)
 	}
 
+	// Vérifier si un payout FedaPay existe déjà pour ce trip (protection contre double virement sur retry)
+	if existingPayout, _ := s.payoutReadRepo.GetByTripID(ctx, tripID); existingPayout != nil && existingPayout.PaymentProviderReference != "" {
+		if existingFedaID, _ := strconv.Atoi(existingPayout.PaymentProviderReference); existingFedaID > 0 {
+			item, err := s.fedapayClient.GetPayout(existingFedaID)
+			if err != nil {
+				s.logger.Error("check existing fedapay payout failed, aborting retry",
+					zap.Error(err), zap.String("tripID", tripID))
+				return "", 0, err
+			}
+			switch item.Status {
+			case "sent":
+				s.payoutWriteRepo.ConfirmPayoutCompleted(ctx, existingPayout.PayoutID)            //nolint:errcheck
+				s.payoutWriteRepo.MarkPaymentsAsPaidOut(ctx, tripID)                              //nolint:errcheck
+				s.writePayoutHistory(ctx, existingPayout.PayoutID, "completed", "system", "", "", "", "Réconcilié : payout FedaPay déjà envoyé")
+				return existingPayout.PayoutID, existingPayout.NetAmount, nil
+			case "started", "processing":
+				s.payoutWriteRepo.UpdatePayoutStatus(ctx, existingPayout.PayoutID, domain.PayoutStatusProcessing, existingPayout.PaymentProviderReference) //nolint:errcheck
+				return existingPayout.PayoutID, 0, nil
+			case "pending":
+				if _, err := s.fedapayClient.StartPayouts([]int{existingFedaID}); err != nil {
+					s.payoutWriteRepo.MarkPayoutFailed(ctx, existingPayout.PayoutID, "fedapay start retry failed: "+err.Error()) //nolint:errcheck
+					return "", 0, err
+				}
+				s.payoutWriteRepo.UpdatePayoutStatus(ctx, existingPayout.PayoutID, domain.PayoutStatusProcessing, existingPayout.PaymentProviderReference) //nolint:errcheck
+				s.writePayoutHistory(ctx, existingPayout.PayoutID, "processing", "system", "", "", "", "Payout FedaPay redémarré (StartPayouts retry)")
+				s.payoutWriteRepo.MarkPaymentsAsPaidOut(ctx, tripID) //nolint:errcheck
+				return existingPayout.PayoutID, existingPayout.NetAmount, nil
+			// case "failed" : fallthrough — un nouveau CreatePayout est légitime
+			}
+		}
+	}
+
 	// Créer le payout FedaPay
 	fedapayPayout, err := s.fedapayClient.CreatePayout(
 		netAmount, "togocel", user.WithdrawNumber,

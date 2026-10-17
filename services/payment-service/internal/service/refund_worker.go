@@ -218,7 +218,41 @@ func (s *paymentServiceImpl) processRefund(ctx context.Context, refund *domain.R
 	s.writeRefundHistory(ctx, refund.RefundID, string(domain.RefundStatusProcessing), refund.RetryCount,
 		fmt.Sprintf("Virement FedaPay de %d XOF en cours", refund.AmountToPassenger))
 
-	// 6. Appel FedaPay — même endpoint que le payout chauffeur, numéro passager cette fois
+	// 6. Protection contre le double virement : si un payout FedaPay a déjà été créé (référence conservée
+	// après MarkRefundFailed), vérifier son statut avant d'en créer un nouveau.
+	if refund.PaymentProviderReference != "" {
+		if existingFedaID, _ := strconv.Atoi(refund.PaymentProviderReference); existingFedaID > 0 {
+			item, err := s.fedapayClient.GetPayout(existingFedaID)
+			if err != nil {
+				s.logger.Error("check existing fedapay refund payout failed, aborting retry",
+					zap.Error(err), zap.String("refundID", refund.RefundID))
+				s.markRefundFailed(ctx, refund, "fedapay check failed: "+err.Error(), true) //nolint:errcheck
+				return nil
+			}
+			switch item.Status {
+			case "sent":
+				s.refundWriteRepo.MarkRefundCompleted(ctx, refund.RefundID, refund.PaymentProviderReference) //nolint:errcheck
+				s.writeRefundHistory(ctx, refund.RefundID, "completed", refund.RetryCount,
+					"Réconcilié : payout FedaPay déjà envoyé")
+				s.publishRefundCompleted(ctx, refund, refund.PaymentProviderReference)
+				return nil
+			case "started", "processing":
+				// En transit — le réconciliateur finira, rien à faire ici
+				return nil
+			case "pending":
+				if _, err := s.fedapayClient.StartPayouts([]int{existingFedaID}); err != nil {
+					s.markRefundFailed(ctx, refund, "fedapay start retry failed: "+err.Error(), true) //nolint:errcheck
+					return nil
+				}
+				s.writeRefundHistory(ctx, refund.RefundID, domain.RefundEventPayoutStarted, refund.RetryCount,
+					"Virement FedaPay "+refund.PaymentProviderReference+" redémarré")
+				return nil
+			// case "failed" : fallthrough — CreatePayout légitime
+			}
+		}
+	}
+
+	// 6b. Appel FedaPay — même endpoint que le payout chauffeur, numéro passager cette fois
 	fedapayPayout, err := s.fedapayClient.CreatePayout(
 		refund.AmountToPassenger, "togocel", phoneNumber,
 		user.FirstName, user.Name,
@@ -399,7 +433,41 @@ func (s *paymentServiceImpl) processDriverRefundPayout(ctx context.Context, refu
 	s.writeRefundHistory(ctx, refund.RefundID, domain.RefundEventDriverPayoutStarted, refund.DriverPayoutRetryCount,
 		fmt.Sprintf("Virement FedaPay de %d XOF chauffeur en cours", refund.AmountToDriver))
 
-	// 6. Appel FedaPay
+	// 6. Protection contre le double virement : si une référence FedaPay existe déjà (conservée
+	// après MarkDriverPayoutFailed), vérifier son statut avant d'en créer un nouveau.
+	if refund.DriverPayoutProviderRef != "" {
+		if existingFedaID, _ := strconv.Atoi(refund.DriverPayoutProviderRef); existingFedaID > 0 {
+			item, err := s.fedapayClient.GetPayout(existingFedaID)
+			if err != nil {
+				s.logger.Error("check existing fedapay driver refund payout failed, aborting retry",
+					zap.Error(err), zap.String("refundID", refund.RefundID))
+				s.refundWriteRepo.MarkDriverPayoutFailed(ctx, refund.RefundID, "fedapay check failed: "+err.Error(), true) //nolint:errcheck
+				return nil
+			}
+			switch item.Status {
+			case "sent":
+				s.refundWriteRepo.MarkDriverPayoutCompleted(ctx, refund.RefundID) //nolint:errcheck
+				s.writeRefundHistory(ctx, refund.RefundID, domain.RefundEventDriverPayoutStarted,
+					refund.DriverPayoutRetryCount, "Réconcilié : driver payout FedaPay déjà envoyé")
+				return nil
+			case "started", "processing":
+				return nil
+			case "pending":
+				if _, err := s.fedapayClient.StartPayouts([]int{existingFedaID}); err != nil {
+					s.refundWriteRepo.MarkDriverPayoutFailed(ctx, refund.RefundID,
+						"fedapay start retry failed: "+err.Error(), true) //nolint:errcheck
+					return nil
+				}
+				s.writeRefundHistory(ctx, refund.RefundID, domain.RefundEventDriverPayoutStarted,
+					refund.DriverPayoutRetryCount,
+					"Driver payout FedaPay "+refund.DriverPayoutProviderRef+" redémarré")
+				return nil
+			// case "failed" : fallthrough — CreatePayout légitime
+			}
+		}
+	}
+
+	// 6b. Appel FedaPay
 	fedapayPayout, err := s.fedapayClient.CreatePayout(
 		refund.AmountToDriver, "togocel", user.WithdrawNumber,
 		user.FirstName, user.Name,
