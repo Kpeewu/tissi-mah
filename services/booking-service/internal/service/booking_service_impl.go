@@ -130,7 +130,11 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 	if s.cache != nil {
 		// Initialiser les compteurs par segment si absents
 		if err := s.cache.InitSegmentSeatCounters(ctx, input.TripID, tripDetails.TotalSeats, maxOrder); err != nil {
-			s.logger.Warn("service: InitSegmentSeatCounters failed, continuing without cache", zap.Error(err))
+			// Redis indisponible : fallback sur la disponibilité DB
+			s.logger.Warn("service: InitSegmentSeatCounters failed, falling back to DB check", zap.Error(err))
+			if tripDetails.AvailableSeats < input.SeatsBooked {
+				return nil, bookingErrors.ErrorNoSeatsAvailable
+			}
 		} else {
 			if err := s.cache.ReserveSegmentSeats(ctx, input.TripID, pickupOrder, dropoffOrder, input.SeatsBooked); err != nil {
 				return nil, bookingErrors.ErrorNoSeatsAvailable
@@ -144,11 +148,14 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 	pricePerSeat, err := s.calculatePriceFromWaypoints(tripDetails.Waypoints, input.PickupWaypointID, input.DropoffWaypointID)
 	if err != nil {
 		s.logger.Error("service: calculatePriceFromWaypoints failed", zap.Error(err))
+		if s.cache != nil {
+			_ = s.cache.RestoreSegmentSeats(ctx, input.TripID, pickupOrder, dropoffOrder, input.SeatsBooked)
+		}
 		return nil, err
 	}
 	subtotal := input.SeatsBooked * pricePerSeat
 	serviceFee := s.serviceFeeAmount
-	totalAmount := subtotal + serviceFee
+	totalAmount := subtotal + serviceFee + input.ExtraDetourPrice
 
 	// 8. Générer l'ID et la référence
 	bookingID := uuid.New().String()
@@ -226,6 +233,9 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 				zap.String("dropoffWP", seg.DropoffWaypointID),
 				zap.Error(err),
 			)
+			if s.cache != nil {
+				_ = s.cache.RestoreSegmentSeats(ctx, input.TripID, pickupOrder, dropoffOrder, input.SeatsBooked)
+			}
 			return nil, err
 		}
 
@@ -1307,8 +1317,6 @@ func (s *bookingServiceImpl) validateCreateInput(input *serviceInterfaces.Create
 
 	validMethods := map[string]bool{
 		string(domain.PaymentMobileMoney): true,
-		string(domain.PaymentCard):        true,
-		string(domain.PaymentPaypal):      true,
 		string(domain.PaymentCash):        true,
 	}
 	if !validMethods[input.PaymentMethod] {

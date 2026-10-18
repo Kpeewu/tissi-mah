@@ -11,6 +11,7 @@ import (
 	bookingErrors "github.com/Kpeewu/tissi-mah/services/booking-service/pkg/errors"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
@@ -105,6 +106,11 @@ func (r *bookingWriteRepositoryImpl) insertBooking(ctx context.Context, tx pgx.T
 		b.PassengerMessage, b.ExtraMinutesDetour, b.ExtraDetourPrice,
 	)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" &&
+			pgErr.ConstraintName == "idx_bookings_unique_active_passenger_trip" {
+			return bookingErrors.ErrorDuplicateBooking
+		}
 		r.logger.Error("insertBooking failed", zap.Error(err), zap.String("bookingID", b.BookingID))
 		return fmt.Errorf("%w: %s", bookingErrors.ErrorInternalServer, err.Error())
 	}

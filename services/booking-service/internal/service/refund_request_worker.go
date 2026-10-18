@@ -150,10 +150,15 @@ func (s *bookingServiceImpl) requestRefund(ctx context.Context, booking *domain.
 		return errDepartureUnknown
 	}
 
+	originalAmount := booking.Subtotal
+	if booking.ExtraDetourPrice != nil {
+		originalAmount += *booking.ExtraDetourPrice
+	}
+
 	return s.paymentClient.RequestRefund(ctx, &client.RefundInput{
 		BookingID:         booking.BookingID,
 		RefundReason:      reason,
-		OriginalAmount:    booking.Subtotal,
+		OriginalAmount:    originalAmount,
 		ServiceFee:        booking.ServiceFee,
 		DepartureDatetime: departureDatetime,
 		ApprovedAt:        formatTimeOptional(booking.ApprovedAt),

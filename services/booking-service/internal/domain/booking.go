@@ -40,8 +40,6 @@ type PaymentMethod string
 
 const (
 	PaymentMobileMoney PaymentMethod = "mobileMoney"
-	PaymentCard        PaymentMethod = "card"
-	PaymentPaypal      PaymentMethod = "paypal"
 	PaymentCash        PaymentMethod = "cash"
 )
 

@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_bookings_unique_active_passenger_trip;

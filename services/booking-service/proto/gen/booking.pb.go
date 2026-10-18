@@ -185,7 +185,7 @@ type CreateBookingRequest struct {
 	PickupWaypointId   string                 `protobuf:"bytes,3,opt,name=PickupWaypointId,proto3" json:"PickupWaypointId,omitempty"`
 	DropoffWaypointId  string                 `protobuf:"bytes,4,opt,name=DropoffWaypointId,proto3" json:"DropoffWaypointId,omitempty"`
 	SeatsBooked        int32                  `protobuf:"varint,5,opt,name=SeatsBooked,proto3" json:"SeatsBooked,omitempty"`
-	PaymentMethod      string                 `protobuf:"bytes,6,opt,name=PaymentMethod,proto3" json:"PaymentMethod,omitempty"` // mobileMoney | card | paypal | cash
+	PaymentMethod      string                 `protobuf:"bytes,6,opt,name=PaymentMethod,proto3" json:"PaymentMethod,omitempty"` // mobileMoney | cash
 	Segments           []*SegmentInput        `protobuf:"bytes,7,rep,name=Segments,proto3" json:"Segments,omitempty"`
 	PassengerMessage   string                 `protobuf:"bytes,8,opt,name=PassengerMessage,proto3" json:"PassengerMessage,omitempty"`      // message optionnel du passager au conducteur
 	ExtraMinutesDetour int32                  `protobuf:"varint,9,opt,name=ExtraMinutesDetour,proto3" json:"ExtraMinutesDetour,omitempty"` // détour en minutes calculé côté client (0 = inconnu)
@@ -2860,7 +2860,7 @@ type DriverBookingPreview struct {
 	PassengerTripCount  int32                  `protobuf:"varint,13,opt,name=PassengerTripCount,proto3" json:"PassengerTripCount,omitempty"`   // nombre de trajets complétés (DB booking-service)
 	IsPassengerVerified bool                   `protobuf:"varint,14,opt,name=IsPassengerVerified,proto3" json:"IsPassengerVerified,omitempty"` // IsPassengerProfileVerified depuis user-service
 	PassengerMessage    string                 `protobuf:"bytes,15,opt,name=PassengerMessage,proto3" json:"PassengerMessage,omitempty"`        // message laissé lors de la réservation
-	PaymentMethod       string                 `protobuf:"bytes,16,opt,name=PaymentMethod,proto3" json:"PaymentMethod,omitempty"`              // mobileMoney | card | paypal | cash
+	PaymentMethod       string                 `protobuf:"bytes,16,opt,name=PaymentMethod,proto3" json:"PaymentMethod,omitempty"`              // mobileMoney | cash
 	CreatedAt           string                 `protobuf:"bytes,17,opt,name=CreatedAt,proto3" json:"CreatedAt,omitempty"`                      // RFC3339 — pour affichage "il y a N min"
 	ExtraMinutesDetour  int32                  `protobuf:"varint,18,opt,name=ExtraMinutesDetour,proto3" json:"ExtraMinutesDetour,omitempty"`   // détour en minutes (0 = inconnu)
 	PassengerId         string                 `protobuf:"bytes,19,opt,name=PassengerId,proto3" json:"PassengerId,omitempty"`                  // UUID interne du passager

@@ -248,7 +248,7 @@ message CreateBookingRequest {
   string PickupWaypointId   = 3;
   string DropoffWaypointId  = 4;
   int32  SeatsBooked        = 5;
-  string PaymentMethod      = 6; // mobileMoney | card | paypal | cash
+  string PaymentMethod      = 6; // mobileMoney | cash
   repeated SegmentInput Segments = 7;
   string PassengerMessage   = 8; // message optionnel du passager au conducteur
   int32  ExtraMinutesDetour = 9; // détour en minutes calculé côté client (0 = inconnu)
@@ -602,7 +602,7 @@ message DriverBookingPreview {
   int32  PassengerTripCount  = 13; // nombre de trajets complétés (DB booking-service)
   bool   IsPassengerVerified = 14; // IsPassengerProfileVerified depuis user-service
   string PassengerMessage    = 15; // message laissé lors de la réservation
-  string PaymentMethod       = 16; // mobileMoney | card | paypal | cash
+  string PaymentMethod       = 16; // mobileMoney | cash
   string CreatedAt           = 17; // RFC3339 — pour affichage "il y a N min"
   int32  ExtraMinutesDetour  = 18; // détour en minutes (0 = inconnu)
   string PassengerId         = 19; // UUID interne du passager
