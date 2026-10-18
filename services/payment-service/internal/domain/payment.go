@@ -24,8 +24,6 @@ type PaymentMethod string
 
 const (
 	PaymentMobileMoney PaymentMethod = "mobileMoney"
-	PaymentCard        PaymentMethod = "card"
-	PaymentPaypal      PaymentMethod = "paypal"
 )
 
 type Payment struct {
@@ -39,7 +37,8 @@ type Payment struct {
 	Status                PaymentStatus
 	ExternalTransactionID string
 	PaymentReference      string
-	PassengerPhoneNumber  string // Numéro togocel de remboursement fourni par le passager (le paiement se fait sur la page FedaPay).
+	PassengerPhoneNumber  string // Numéro Mobile Money au format E.164 (+22890123456) ou local (8 chiffres, Togo), utilisé pour le remboursement.
+	PayoutOperator        string // Code FedaPay de l'opérateur de remboursement passager (ex. "togocel", "mtn_open").
 	PaymentURL            string // Lien de la page de paiement FedaPay (redirection)
 	ProviderStatus        string // Dernier statut FedaPay observé (pending, approved, declined, canceled, expired, deleted)
 	ExpiresAt             time.Time

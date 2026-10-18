@@ -38,6 +38,7 @@ func (h *PaymentHandler) CreatePayment(ctx context.Context, req *paymentpb.Creat
 		Amount:               int(req.Amount), //nolint:staticcheck // champ déprécié, ignoré par le service
 		PassengerPhoneNumber: req.PassengerPhoneNumber,
 		MobileMoneyMode:      req.MobileMoneyMode, //nolint:staticcheck // champ déprécié, ignoré par le service
+		PayoutOperator:       req.PayoutOperator,
 	})
 	if err != nil {
 		h.logger.Error("handler: CreatePayment failed", zap.Error(err))

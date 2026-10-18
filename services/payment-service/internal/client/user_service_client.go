@@ -51,10 +51,11 @@ func (c *UserServiceClient) GetUserByUserID(ctx context.Context, userID string) 
 	}
 
 	return &UserInfo{
-		UserID:         resp.UserID,
-		Name:           resp.Name,
-		FirstName:      resp.FirstName,
-		WithdrawNumber: resp.WithdrawNumber,
+		UserID:           resp.UserID,
+		Name:             resp.Name,
+		FirstName:        resp.FirstName,
+		WithdrawNumber:   resp.WithdrawNumber,
+		WithdrawOperator: resp.WithdrawOperator,
 	}, nil
 }
 

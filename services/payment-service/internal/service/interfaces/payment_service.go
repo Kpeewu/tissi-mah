@@ -57,8 +57,9 @@ type CreatePaymentInput struct {
 	TripID               string
 	PaymentMethod        string
 	Amount               int    // déprécié : ignoré, le montant est celui de la réservation
-	PassengerPhoneNumber string // numéro togocel de remboursement
+	PassengerPhoneNumber string // numéro Mobile Money au format E.164 ou local (8 chiffres, Togo)
 	MobileMoneyMode      string // déprécié : ignoré, l'opérateur est choisi sur la page FedaPay
+	PayoutOperator       string // code FedaPay de l'opérateur de remboursement (ex. "togocel", "mtn_open")
 }
 
 type CreatePaymentResult struct {

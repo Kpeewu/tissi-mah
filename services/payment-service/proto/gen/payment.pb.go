@@ -29,9 +29,10 @@ type CreatePaymentRequest struct {
 	PaymentMethod string                 `protobuf:"bytes,3,opt,name=PaymentMethod,proto3" json:"PaymentMethod,omitempty"` // mobileMoney
 	// Deprecated: Marked as deprecated in payment.proto.
 	Amount               int32  `protobuf:"varint,4,opt,name=Amount,proto3" json:"Amount,omitempty"`                            // ignoré : le montant est celui de la réservation
-	PassengerPhoneNumber string `protobuf:"bytes,5,opt,name=PassengerPhoneNumber,proto3" json:"PassengerPhoneNumber,omitempty"` // numéro togocel (8 chiffres) utilisé pour un éventuel remboursement
+	PassengerPhoneNumber string `protobuf:"bytes,5,opt,name=PassengerPhoneNumber,proto3" json:"PassengerPhoneNumber,omitempty"` // numéro Mobile Money au format E.164 (ex. +22890123456) utilisé pour un éventuel remboursement
 	// Deprecated: Marked as deprecated in payment.proto.
 	MobileMoneyMode string `protobuf:"bytes,6,opt,name=MobileMoneyMode,proto3" json:"MobileMoneyMode,omitempty"` // ignoré : l'opérateur est choisi sur la page FedaPay
+	PayoutOperator  string `protobuf:"bytes,7,opt,name=PayoutOperator,proto3" json:"PayoutOperator,omitempty"`   // code FedaPay de l'opérateur de remboursement (ex. "togocel", "mtn_open", "moov", "sbin")
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -106,6 +107,13 @@ func (x *CreatePaymentRequest) GetPassengerPhoneNumber() string {
 func (x *CreatePaymentRequest) GetMobileMoneyMode() string {
 	if x != nil {
 		return x.MobileMoneyMode
+	}
+	return ""
+}
+
+func (x *CreatePaymentRequest) GetPayoutOperator() string {
+	if x != nil {
+		return x.PayoutOperator
 	}
 	return ""
 }
@@ -3015,14 +3023,15 @@ var File_payment_proto protoreflect.FileDescriptor
 
 const file_payment_proto_rawDesc = "" +
 	"\n" +
-	"\rpayment.proto\x12\apayment\x1a\x1cgoogle/api/annotations.proto\"\xf0\x01\n" +
+	"\rpayment.proto\x12\apayment\x1a\x1cgoogle/api/annotations.proto\"\x98\x02\n" +
 	"\x14CreatePaymentRequest\x12\x1c\n" +
 	"\tBookingId\x18\x01 \x01(\tR\tBookingId\x12\x16\n" +
 	"\x06TripId\x18\x02 \x01(\tR\x06TripId\x12$\n" +
 	"\rPaymentMethod\x18\x03 \x01(\tR\rPaymentMethod\x12\x1a\n" +
 	"\x06Amount\x18\x04 \x01(\x05B\x02\x18\x01R\x06Amount\x122\n" +
 	"\x14PassengerPhoneNumber\x18\x05 \x01(\tR\x14PassengerPhoneNumber\x12,\n" +
-	"\x0fMobileMoneyMode\x18\x06 \x01(\tB\x02\x18\x01R\x0fMobileMoneyMode\"4\n" +
+	"\x0fMobileMoneyMode\x18\x06 \x01(\tB\x02\x18\x01R\x0fMobileMoneyMode\x12&\n" +
+	"\x0ePayoutOperator\x18\a \x01(\tR\x0ePayoutOperator\"4\n" +
 	"\x14VerifyPaymentRequest\x12\x1c\n" +
 	"\tPaymentId\x18\x01 \x01(\tR\tPaymentId\"4\n" +
 	"\x14CancelPaymentRequest\x12\x1c\n" +

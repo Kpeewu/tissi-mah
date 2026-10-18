@@ -11,6 +11,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/Kpeewu/tissi-mah/pkg/notification"
+	"github.com/Kpeewu/tissi-mah/pkg/phone"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/domain"
 	paymentErrors "github.com/Kpeewu/tissi-mah/services/payment-service/pkg/errors"
 )
@@ -253,8 +254,23 @@ func (s *paymentServiceImpl) processRefund(ctx context.Context, refund *domain.R
 	}
 
 	// 6b. Appel FedaPay — même endpoint que le payout chauffeur, numéro passager cette fois
+	passengerPhone, ok := phone.Normalize(phoneNumber)
+	if !ok {
+		s.logger.Error("refund passenger phone not normalizable", zap.String("refundID", refund.RefundID), zap.String("phone", phoneNumber))
+		s.markRefundFailed(ctx, refund, "numéro de remboursement passager non normalisable", true) //nolint:errcheck
+		return nil
+	}
+	passengerOperator := payment.PayoutOperator
+	if passengerOperator == "" && passengerPhone.CountryCode == "tg" {
+		passengerOperator = "togocel" // rétrocompat paiements antérieurs à la migration PayoutOperator
+	}
+	if passengerOperator == "" {
+		s.logger.Error("refund passenger operator missing", zap.String("refundID", refund.RefundID), zap.String("countryCode", passengerPhone.CountryCode))
+		s.markRefundFailed(ctx, refund, "opérateur de remboursement passager manquant", true) //nolint:errcheck
+		return nil
+	}
 	fedapayPayout, err := s.fedapayClient.CreatePayout(
-		refund.AmountToPassenger, "togocel", phoneNumber,
+		refund.AmountToPassenger, passengerOperator, passengerPhone.LocalNumber, passengerPhone.CountryCode,
 		user.FirstName, user.Name,
 	)
 	if err != nil {
@@ -468,8 +484,23 @@ func (s *paymentServiceImpl) processDriverRefundPayout(ctx context.Context, refu
 	}
 
 	// 6b. Appel FedaPay
+	driverPhone, ok := phone.Normalize(user.WithdrawNumber)
+	if !ok {
+		s.logger.Error("driver withdraw number not normalizable", zap.String("refundID", refund.RefundID), zap.String("userID", user.UserID))
+		s.refundWriteRepo.MarkDriverPayoutFailed(ctx, refund.RefundID, "numéro de retrait chauffeur non normalisable", true) //nolint:errcheck
+		return nil
+	}
+	driverOperator := user.WithdrawOperator
+	if driverOperator == "" && driverPhone.CountryCode == "tg" {
+		driverOperator = "togocel" // rétrocompat chauffeurs togolais antérieurs à la migration WithdrawOperator
+	}
+	if driverOperator == "" {
+		s.logger.Error("driver operator missing", zap.String("refundID", refund.RefundID), zap.String("countryCode", driverPhone.CountryCode))
+		s.refundWriteRepo.MarkDriverPayoutFailed(ctx, refund.RefundID, fmt.Sprintf("opérateur manquant pour pays=%s", driverPhone.CountryCode), true) //nolint:errcheck
+		return nil
+	}
 	fedapayPayout, err := s.fedapayClient.CreatePayout(
-		refund.AmountToDriver, "togocel", user.WithdrawNumber,
+		refund.AmountToDriver, driverOperator, driverPhone.LocalNumber, driverPhone.CountryCode,
 		user.FirstName, user.Name,
 	)
 	if err != nil {

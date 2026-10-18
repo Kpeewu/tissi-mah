@@ -54,8 +54,9 @@ type BookingDetails struct {
 
 // UserInfo contient les informations utilisateur nécessaires au payout.
 type UserInfo struct {
-	UserID         string
-	Name           string
-	FirstName      string
-	WithdrawNumber string
+	UserID           string
+	Name             string
+	FirstName        string
+	WithdrawNumber   string
+	WithdrawOperator string
 }

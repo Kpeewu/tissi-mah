@@ -8,7 +8,7 @@ import (
 )
 
 // CreatePayout crée un nouveau payout FedaPay vers un numéro Mobile Money.
-func (c *Client) CreatePayout(amount int, mode string, phoneNumber string, firstName string, lastName string) (*PayoutItem, error) {
+func (c *Client) CreatePayout(amount int, mode string, phoneNumber string, countryCode string, firstName string, lastName string) (*PayoutItem, error) {
 	payload := map[string]interface{}{
 		"amount":   amount,
 		"currency": map[string]string{"iso": "XOF"},
@@ -18,7 +18,7 @@ func (c *Client) CreatePayout(amount int, mode string, phoneNumber string, first
 			"lastname":  lastName,
 			"phone_number": map[string]string{
 				"number":  phoneNumber,
-				"country": "tg",
+				"country": countryCode,
 			},
 		},
 	}

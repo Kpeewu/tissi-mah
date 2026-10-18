@@ -12,7 +12,9 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/Kpeewu/tissi-mah/pkg/notification"
+	"github.com/Kpeewu/tissi-mah/pkg/phone"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/domain"
+	paymentErrors "github.com/Kpeewu/tissi-mah/services/payment-service/pkg/errors"
 )
 
 const maxPayoutRetries = 3
@@ -252,8 +254,19 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 	}
 
 	// Créer le payout FedaPay
+	withdrawPhone, ok := phone.Normalize(user.WithdrawNumber)
+	if !ok {
+		return "", 0, fmt.Errorf("%w: numéro de retrait non normalisable pour l'utilisateur %s", paymentErrors.ErrorInvalidInput, user.UserID)
+	}
+	withdrawOperator := user.WithdrawOperator
+	if withdrawOperator == "" && withdrawPhone.CountryCode == "tg" {
+		withdrawOperator = "togocel" // rétrocompat chauffeurs togolais antérieurs à la migration WithdrawOperator
+	}
+	if withdrawOperator == "" {
+		return "", 0, fmt.Errorf("%w: opérateur de retrait manquant pour l'utilisateur %s (pays=%s)", paymentErrors.ErrorInvalidInput, user.UserID, withdrawPhone.CountryCode)
+	}
 	fedapayPayout, err := s.fedapayClient.CreatePayout(
-		netAmount, "togocel", user.WithdrawNumber,
+		netAmount, withdrawOperator, withdrawPhone.LocalNumber, withdrawPhone.CountryCode,
 		user.FirstName, user.Name,
 	)
 	if err != nil {

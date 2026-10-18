@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/Kpeewu/tissi-mah/pkg/notification"
+	"github.com/Kpeewu/tissi-mah/pkg/phone"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/domain"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/fedapay"
@@ -116,6 +116,7 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 		ExternalTransactionID: strconv.Itoa(transaction.ID),
 		PaymentReference:      paymentRef,
 		PassengerPhoneNumber:  refundPhone,
+		PayoutOperator:        input.PayoutOperator,
 		PaymentURL:            tokenResp.URL,
 		ProviderStatus:        fedapay.TransactionStatusPending,
 		ExpiresAt:             expiresAt,
@@ -165,10 +166,14 @@ func (s *paymentServiceImpl) validatePayableBooking(ctx context.Context, input *
 	if input.BookingID == "" || input.PaymentMethod != string(domain.PaymentMobileMoney) {
 		return nil, "", time.Time{}, paymentErrors.ErrorInvalidInput
 	}
-	refundPhone, ok := normalizeTogoPhoneNumber(input.PassengerPhoneNumber)
+	phoneResult, ok := phone.Normalize(input.PassengerPhoneNumber)
 	if !ok {
 		return nil, "", time.Time{}, paymentErrors.ErrorInvalidInput
 	}
+	if !phone.IsValidOperator(phoneResult.CountryCode, input.PayoutOperator) {
+		return nil, "", time.Time{}, paymentErrors.ErrorInvalidInput
+	}
+	refundPhone := phoneResult.E164
 
 	booking, err := s.getBooking(ctx, input.BookingID)
 	if err != nil {
@@ -863,26 +868,3 @@ func pendingPaymentURL(payment *domain.Payment) string {
 	return payment.PaymentURL
 }
 
-// normalizeTogoPhoneNumber normalise un numéro togolais sur 8 chiffres (préfixes +228 / 00228 / 228 retirés).
-func normalizeTogoPhoneNumber(raw string) (string, bool) {
-	var digits strings.Builder
-	for _, r := range strings.TrimSpace(raw) {
-		switch {
-		case unicode.IsDigit(r):
-			digits.WriteRune(r)
-		case r == '+' || r == ' ' || r == '-' || r == '.':
-			// séparateurs tolérés
-		default:
-			return "", false
-		}
-	}
-	number := digits.String()
-	number = strings.TrimPrefix(number, "00228")
-	if len(number) == 11 {
-		number = strings.TrimPrefix(number, "228")
-	}
-	if len(number) != 8 {
-		return "", false
-	}
-	return number, true
-}
