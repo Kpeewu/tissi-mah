@@ -237,6 +237,10 @@ func (h *UserHandler) UpdateProfile(ctx context.Context, req *userpb.UpdateProfi
 		v := *req.WithdrawNumber
 		updateReq.WithdrawNumber = &v
 	}
+	if req.WithdrawOperator != nil {
+		v := *req.WithdrawOperator
+		updateReq.WithdrawOperator = &v
+	}
 	if req.Bio != nil {
 		v := *req.Bio
 		updateReq.Bio = &v
@@ -268,6 +272,8 @@ func (h *UserHandler) Health(_ context.Context, _ *userpb.HealthRequest) (*userp
 // toGRPCError traduit les erreurs domaine en codes de statut gRPC.
 func toGRPCError(err error) error {
 	switch {
+	case errors.Is(err, userErrors.ErrorInvalidInput):
+		return status.Error(codes.InvalidArgument, err.Error())
 	case errors.Is(err, userErrors.ErrorUserNotFound):
 		return status.Error(codes.NotFound, err.Error())
 	case errors.Is(err, userErrors.ErrorProfileAlreadyExists):
@@ -314,6 +320,7 @@ func toProtoUserProfile(u *domain.User) *userpb.UserProfileResponse {
 		IsPassengerProfileVerified: u.IsPassengerProfileVerified,
 		TripPreferences:            toProtoTripPreferences(u.TripPreferences),
 		WithdrawNumber:             u.WithdrawNumber,
+		WithdrawOperator:           u.WithdrawOperator,
 		LanguageCode:               u.LanguageCode,
 	}
 }
@@ -343,5 +350,6 @@ func toProtoFullProfile(p *serviceInterfaces.FullProfile) *userpb.FullUserProfil
 		IDCardExpirationDate:       p.IDCardExpirationDate,
 		DriveLicenceExpirationDate: p.DriveLicenceExpirationDate,
 		WithdrawNumber:             p.WithdrawNumber,
+		WithdrawOperator:           p.WithdrawOperator,
 	}
 }

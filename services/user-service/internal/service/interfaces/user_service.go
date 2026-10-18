@@ -30,6 +30,7 @@ type FullProfile struct {
 	IDCardExpirationDate       string
 	DriveLicenceExpirationDate string
 	WithdrawNumber             string
+	WithdrawOperator           string
 }
 
 // UpdateProfileRequest contient les champs à mettre à jour (optionnels).
@@ -41,8 +42,9 @@ type UpdateProfileRequest struct {
 	BirthDate      *string
 	Email          *string
 	PhoneNumber    *string
-	WithdrawNumber *string
-	Bio            *string
+	WithdrawNumber   *string
+	WithdrawOperator *string
+	Bio              *string
 }
 
 type UserService interface {

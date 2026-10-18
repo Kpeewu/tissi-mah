@@ -646,17 +646,18 @@ func (x *AddTripPreferencesRequest) GetPreferences() []*TripPreference {
 }
 
 type UpdateProfileRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	UserID         string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"` // Déprécié/ignoré — l'utilisateur est résolu depuis le JWT (x-firebase-uid)
-	FirstName      *string                `protobuf:"bytes,2,opt,name=FirstName,proto3,oneof" json:"FirstName,omitempty"`
-	LastName       *string                `protobuf:"bytes,3,opt,name=LastName,proto3,oneof" json:"LastName,omitempty"`
-	BirthDate      *string                `protobuf:"bytes,4,opt,name=BirthDate,proto3,oneof" json:"BirthDate,omitempty"`
-	Email          *string                `protobuf:"bytes,5,opt,name=Email,proto3,oneof" json:"Email,omitempty"`
-	PhoneNumber    *string                `protobuf:"bytes,6,opt,name=PhoneNumber,proto3,oneof" json:"PhoneNumber,omitempty"`
-	WithdrawNumber *string                `protobuf:"bytes,8,opt,name=WithdrawNumber,proto3,oneof" json:"WithdrawNumber,omitempty"`
-	Bio            *string                `protobuf:"bytes,9,opt,name=Bio,proto3,oneof" json:"Bio,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	UserID           string                 `protobuf:"bytes,1,opt,name=UserID,proto3" json:"UserID,omitempty"` // Déprécié/ignoré — l'utilisateur est résolu depuis le JWT (x-firebase-uid)
+	FirstName        *string                `protobuf:"bytes,2,opt,name=FirstName,proto3,oneof" json:"FirstName,omitempty"`
+	LastName         *string                `protobuf:"bytes,3,opt,name=LastName,proto3,oneof" json:"LastName,omitempty"`
+	BirthDate        *string                `protobuf:"bytes,4,opt,name=BirthDate,proto3,oneof" json:"BirthDate,omitempty"`
+	Email            *string                `protobuf:"bytes,5,opt,name=Email,proto3,oneof" json:"Email,omitempty"`
+	PhoneNumber      *string                `protobuf:"bytes,6,opt,name=PhoneNumber,proto3,oneof" json:"PhoneNumber,omitempty"`
+	WithdrawNumber   *string                `protobuf:"bytes,8,opt,name=WithdrawNumber,proto3,oneof" json:"WithdrawNumber,omitempty"`
+	Bio              *string                `protobuf:"bytes,9,opt,name=Bio,proto3,oneof" json:"Bio,omitempty"`
+	WithdrawOperator *string                `protobuf:"bytes,10,opt,name=WithdrawOperator,proto3,oneof" json:"WithdrawOperator,omitempty"` // code FedaPay de l'opérateur de retrait (ex. "togocel", "mtn_open")
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *UpdateProfileRequest) Reset() {
@@ -741,6 +742,13 @@ func (x *UpdateProfileRequest) GetWithdrawNumber() string {
 func (x *UpdateProfileRequest) GetBio() string {
 	if x != nil && x.Bio != nil {
 		return *x.Bio
+	}
+	return ""
+}
+
+func (x *UpdateProfileRequest) GetWithdrawOperator() string {
+	if x != nil && x.WithdrawOperator != nil {
+		return *x.WithdrawOperator
 	}
 	return ""
 }
@@ -857,6 +865,7 @@ type UserProfileResponse struct {
 	LanguageCode               string                 `protobuf:"bytes,18,opt,name=LanguageCode,proto3" json:"LanguageCode,omitempty"`
 	Email                      string                 `protobuf:"bytes,19,opt,name=Email,proto3" json:"Email,omitempty"`
 	PhoneNumber                string                 `protobuf:"bytes,20,opt,name=PhoneNumber,proto3" json:"PhoneNumber,omitempty"`
+	WithdrawOperator           string                 `protobuf:"bytes,21,opt,name=WithdrawOperator,proto3" json:"WithdrawOperator,omitempty"` // code FedaPay de l'opérateur de retrait
 	unknownFields              protoimpl.UnknownFields
 	sizeCache                  protoimpl.SizeCache
 }
@@ -1031,6 +1040,13 @@ func (x *UserProfileResponse) GetPhoneNumber() string {
 	return ""
 }
 
+func (x *UserProfileResponse) GetWithdrawOperator() string {
+	if x != nil {
+		return x.WithdrawOperator
+	}
+	return ""
+}
+
 // GetMyProfileResponse — réponse client enrichie avec données auth
 type GetMyProfileResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1109,6 +1125,7 @@ type FullUserProfile struct {
 	IDCardExpirationDate       string                 `protobuf:"bytes,20,opt,name=IDCardExpirationDate,proto3" json:"IDCardExpirationDate,omitempty"`
 	DriveLicenceExpirationDate string                 `protobuf:"bytes,21,opt,name=DriveLicenceExpirationDate,proto3" json:"DriveLicenceExpirationDate,omitempty"`
 	WithdrawNumber             string                 `protobuf:"bytes,22,opt,name=WithdrawNumber,proto3" json:"WithdrawNumber,omitempty"`
+	WithdrawOperator           string                 `protobuf:"bytes,23,opt,name=WithdrawOperator,proto3" json:"WithdrawOperator,omitempty"` // code FedaPay de l'opérateur de retrait
 	unknownFields              protoimpl.UnknownFields
 	sizeCache                  protoimpl.SizeCache
 }
@@ -1293,6 +1310,13 @@ func (x *FullUserProfile) GetDriveLicenceExpirationDate() string {
 func (x *FullUserProfile) GetWithdrawNumber() string {
 	if x != nil {
 		return x.WithdrawNumber
+	}
+	return ""
+}
+
+func (x *FullUserProfile) GetWithdrawOperator() string {
+	if x != nil {
+		return x.WithdrawOperator
 	}
 	return ""
 }
@@ -1567,7 +1591,7 @@ const file_user_proto_rawDesc = "" +
 	"\x13CreateDriverAccount\x18\x02 \x01(\bR\x13CreateDriverAccount\"k\n" +
 	"\x19AddTripPreferencesRequest\x12\x16\n" +
 	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x126\n" +
-	"\vPreferences\x18\x02 \x03(\v2\x14.user.TripPreferenceR\vPreferences\"\x92\x03\n" +
+	"\vPreferences\x18\x02 \x03(\v2\x14.user.TripPreferenceR\vPreferences\"\xd8\x03\n" +
 	"\x14UpdateProfileRequest\x12\x16\n" +
 	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12!\n" +
 	"\tFirstName\x18\x02 \x01(\tH\x00R\tFirstName\x88\x01\x01\x12\x1f\n" +
@@ -1576,7 +1600,9 @@ const file_user_proto_rawDesc = "" +
 	"\x05Email\x18\x05 \x01(\tH\x03R\x05Email\x88\x01\x01\x12%\n" +
 	"\vPhoneNumber\x18\x06 \x01(\tH\x04R\vPhoneNumber\x88\x01\x01\x12+\n" +
 	"\x0eWithdrawNumber\x18\b \x01(\tH\x05R\x0eWithdrawNumber\x88\x01\x01\x12\x15\n" +
-	"\x03Bio\x18\t \x01(\tH\x06R\x03Bio\x88\x01\x01B\f\n" +
+	"\x03Bio\x18\t \x01(\tH\x06R\x03Bio\x88\x01\x01\x12/\n" +
+	"\x10WithdrawOperator\x18\n" +
+	" \x01(\tH\aR\x10WithdrawOperator\x88\x01\x01B\f\n" +
 	"\n" +
 	"_FirstNameB\v\n" +
 	"\t_LastNameB\f\n" +
@@ -1585,13 +1611,14 @@ const file_user_proto_rawDesc = "" +
 	"\x06_EmailB\x0e\n" +
 	"\f_PhoneNumberB\x11\n" +
 	"\x0f_WithdrawNumberB\x06\n" +
-	"\x04_BioJ\x04\b\a\x10\bR\x11ProfilePictureURL\"\x0f\n" +
+	"\x04_BioB\x13\n" +
+	"\x11_WithdrawOperatorJ\x04\b\a\x10\bR\x11ProfilePictureURL\"\x0f\n" +
 	"\rHealthRequest\"N\n" +
 	"\x0eTripPreference\x12\x1e\n" +
 	"\n" +
 	"Preference\x18\x01 \x01(\tR\n" +
 	"Preference\x12\x1c\n" +
-	"\tIsAllowed\x18\x02 \x01(\bR\tIsAllowed\"\x87\x06\n" +
+	"\tIsAllowed\x18\x02 \x01(\bR\tIsAllowed\"\xb3\x06\n" +
 	"\x13UserProfileResponse\x12\x16\n" +
 	"\x06UserID\x18\x01 \x01(\tR\x06UserID\x12\x16\n" +
 	"\x06AuthID\x18\x02 \x01(\tR\x06AuthID\x12\x12\n" +
@@ -1613,10 +1640,11 @@ const file_user_proto_rawDesc = "" +
 	"\x0eWithdrawNumber\x18\x11 \x01(\tR\x0eWithdrawNumber\x12\"\n" +
 	"\fLanguageCode\x18\x12 \x01(\tR\fLanguageCode\x12\x14\n" +
 	"\x05Email\x18\x13 \x01(\tR\x05Email\x12 \n" +
-	"\vPhoneNumber\x18\x14 \x01(\tR\vPhoneNumber\"e\n" +
+	"\vPhoneNumber\x18\x14 \x01(\tR\vPhoneNumber\x12*\n" +
+	"\x10WithdrawOperator\x18\x15 \x01(\tR\x10WithdrawOperator\"e\n" +
 	"\x14GetMyProfileResponse\x12\"\n" +
 	"\fErrorMessage\x18\x01 \x01(\tR\fErrorMessage\x12)\n" +
-	"\x04User\x18\x02 \x01(\v2\x15.user.FullUserProfileR\x04User\"\xcb\x06\n" +
+	"\x04User\x18\x02 \x01(\v2\x15.user.FullUserProfileR\x04User\"\xf7\x06\n" +
 	"\x0fFullUserProfile\x12\x16\n" +
 	"\x06AuthID\x18\x01 \x01(\tR\x06AuthID\x12\x16\n" +
 	"\x06UserID\x18\x02 \x01(\tR\x06UserID\x12\x12\n" +
@@ -1640,7 +1668,8 @@ const file_user_proto_rawDesc = "" +
 	"\x0fTripPreferences\x18\x13 \x03(\v2\x14.user.TripPreferenceR\x0fTripPreferences\x122\n" +
 	"\x14IDCardExpirationDate\x18\x14 \x01(\tR\x14IDCardExpirationDate\x12>\n" +
 	"\x1aDriveLicenceExpirationDate\x18\x15 \x01(\tR\x1aDriveLicenceExpirationDate\x12&\n" +
-	"\x0eWithdrawNumber\x18\x16 \x01(\tR\x0eWithdrawNumber\"X\n" +
+	"\x0eWithdrawNumber\x18\x16 \x01(\tR\x0eWithdrawNumber\x12*\n" +
+	"\x10WithdrawOperator\x18\x17 \x01(\tR\x10WithdrawOperator\"X\n" +
 	"\bUserFile\x12\x16\n" +
 	"\x06FileID\x18\x01 \x01(\tR\x06FileID\x12\x18\n" +
 	"\aFileURL\x18\x02 \x01(\tR\aFileURL\x12\x1a\n" +

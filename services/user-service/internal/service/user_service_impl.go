@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/Kpeewu/tissi-mah/pkg/phone"
 	"github.com/Kpeewu/tissi-mah/services/user-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/user-service/internal/domain"
 	"github.com/Kpeewu/tissi-mah/services/user-service/internal/middleware"
@@ -344,8 +345,20 @@ func (s *userServiceImpl) UpdateProfile(ctx context.Context, req serviceInterfac
 	if req.BirthDate != nil {
 		user.DateOfBirth = *req.BirthDate
 	}
-	if req.WithdrawNumber != nil {
-		user.WithdrawNumber = *req.WithdrawNumber
+	if req.WithdrawNumber != nil || req.WithdrawOperator != nil {
+		// Les deux champs doivent être fournis ensemble pour rester cohérents.
+		if req.WithdrawNumber == nil || req.WithdrawOperator == nil {
+			return nil, userErrors.ErrorInvalidInput
+		}
+		phoneResult, ok := phone.Normalize(*req.WithdrawNumber)
+		if !ok {
+			return nil, userErrors.ErrorInvalidInput
+		}
+		if !phone.IsValidOperator(phoneResult.CountryCode, *req.WithdrawOperator) {
+			return nil, userErrors.ErrorInvalidInput
+		}
+		user.WithdrawNumber = phoneResult.E164
+		user.WithdrawOperator = *req.WithdrawOperator
 	}
 	if req.Bio != nil {
 		user.Bio = *req.Bio
@@ -407,5 +420,6 @@ func toFullProfile(user *domain.User, authInfo *client.AuthInfo, idExpiry, drExp
 		IDCardExpirationDate:       idExpiry,
 		DriveLicenceExpirationDate: drExpiry,
 		WithdrawNumber:             user.WithdrawNumber,
+		WithdrawOperator:           user.WithdrawOperator,
 	}
 }

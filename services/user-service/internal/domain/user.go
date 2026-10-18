@@ -28,6 +28,7 @@ type User struct {
 	IsDriverProfileVerified    bool             `bson:"is_driver_profile_verified"`
 	IsPassengerProfileVerified bool             `bson:"is_passenger_profile_verified"`
 	WithdrawNumber             string           `bson:"withdraw_number,omitempty"`
+	WithdrawOperator           string           `bson:"withdraw_operator,omitempty"` // code FedaPay (ex. "togocel", "mtn_open")
 	LanguageCode               string           `bson:"language_code,omitempty"`
 	TripPreferences            []TripPreference `bson:"trip_preferences,omitempty"`
 	CreatedAt                  time.Time        `bson:"created_at"`
@@ -81,6 +82,7 @@ func (u *User) AnonymizeAndDelete() {
 	u.ProfileImageURL = ""
 	u.HasProfileImage = false
 	u.WithdrawNumber = ""
+	u.WithdrawOperator = ""
 	u.TripPreferences = nil
 	u.IsDriver = false
 	u.IsPassenger = false
