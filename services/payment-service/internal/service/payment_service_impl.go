@@ -291,6 +291,9 @@ func (s *paymentServiceImpl) GetPaymentByBookingInternal(ctx context.Context, bo
 				PaymentReference: cached.PaymentReference,
 				CreatedAt:        cached.CreatedAt.Format(time.RFC3339),
 				CompletedAt:      formatOptionalTime(cached.CompletedAt),
+				PaymentURL:       pendingPaymentURL(cached),
+				ProviderStatus:   cached.ProviderStatus,
+				ExpiresAt:        formatOptionalTime(&cached.ExpiresAt),
 			}, nil
 		}
 	}
