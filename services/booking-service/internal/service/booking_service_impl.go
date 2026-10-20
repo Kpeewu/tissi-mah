@@ -787,7 +787,8 @@ const (
 // L'heure de prise en charge vient de trips-service ; si elle est inconnue, on refuse plutôt que
 // de laisser passer un signalement hors fenêtre.
 func (s *bookingServiceImpl) checkNoShowReportable(ctx context.Context, booking *domain.Booking) error {
-	scheduledPickup, err := time.Parse(time.RFC3339, s.getDepartureDatetime(ctx, booking))
+	departureDatetime, _ := s.getDepartureDatetime(ctx, booking)
+	scheduledPickup, err := time.Parse(time.RFC3339, departureDatetime)
 	if err != nil {
 		s.logger.Warn("service: ReportNoShow refusé, heure de prise en charge inconnue",
 			zap.String("bookingID", booking.BookingID), zap.Error(err))
@@ -1867,18 +1868,20 @@ func (s *bookingServiceImpl) cancelPendingPaymentAsync(bookingID string, reason 
 }
 
 // getDepartureDatetime récupère la date de départ du waypoint de pickup.
-func (s *bookingServiceImpl) getDepartureDatetime(ctx context.Context, booking *domain.Booking) string {
+// Retourne ("", false) si trips-service est injoignable (erreur transitoire).
+// Retourne ("", true) si trips-service répond mais le waypoint est absent (supprimé — permanent).
+func (s *bookingServiceImpl) getDepartureDatetime(ctx context.Context, booking *domain.Booking) (string, bool) {
 	tripDetails, err := s.tripClient.GetTripDetails(ctx, booking.TripID)
 	if err != nil || tripDetails == nil {
 		s.logger.Warn("getDepartureDatetime: cannot fetch trip details",
 			zap.String("tripID", booking.TripID), zap.Error(err),
 		)
-		return ""
+		return "", false
 	}
 
 	for _, wp := range tripDetails.Waypoints {
 		if wp.WaypointID == booking.PickupWaypointID {
-			return wp.ScheduledPickupDatetime
+			return wp.ScheduledPickupDatetime, false
 		}
 	}
 
@@ -1886,7 +1889,7 @@ func (s *bookingServiceImpl) getDepartureDatetime(ctx context.Context, booking *
 		zap.String("tripID", booking.TripID),
 		zap.String("pickupWaypointID", booking.PickupWaypointID),
 	)
-	return ""
+	return "", true
 }
 
 // =============================================================================
