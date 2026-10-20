@@ -659,12 +659,12 @@ func (r *bookingWriteRepositoryImpl) ConfirmPayment(ctx context.Context, booking
 	}
 
 	query := `UPDATE bookings SET status = $2::booking_status, payment_completed_at = NOW(),
-		cancellation_reason = NULL WHERE booking_id = $1`
+		fedapay_transaction_id = $3, cancellation_reason = NULL WHERE booking_id = $1`
 	if newStatus == domain.BookingStatusApproved {
 		query = `UPDATE bookings SET status = $2::booking_status, payment_completed_at = NOW(),
-			approved_at = NOW(), cancellation_reason = NULL WHERE booking_id = $1`
+			approved_at = NOW(), fedapay_transaction_id = $3, cancellation_reason = NULL WHERE booking_id = $1`
 	}
-	if _, err = tx.Exec(ctx, query, bookingID, string(newStatus)); err != nil {
+	if _, err = tx.Exec(ctx, query, bookingID, string(newStatus), transactionID); err != nil {
 		r.logger.Error("confirm payment update failed", zap.Error(err))
 		return bookingErrors.ErrorInternalServer
 	}
