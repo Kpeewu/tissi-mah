@@ -3,12 +3,14 @@ package service
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/Kpeewu/tissi-mah/pkg/notification"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/domain"
 )
@@ -28,6 +30,10 @@ const (
 // errDepartureUnknown : la date de départ, nécessaire à la règle des 24h d'une annulation passager,
 // n'a pas pu être lue auprès de trips-service. Transitoire : la demande est rejouée.
 var errDepartureUnknown = errors.New("departure datetime unavailable")
+
+// errPickupWaypointGone : trips-service a répondu mais le waypoint de prise en charge est absent
+// de la liste (supprimé par le chauffeur). Permanent : comptabilisé dans les refus définitifs.
+var errPickupWaypointGone = errors.New("pickup waypoint no longer in trip details")
 
 // StartRefundRequestWorker lance le worker qui rejoue les demandes de remboursement non acquittées
 // par payment-service (indisponibilité, timeout, redémarrage du pod pendant la goroutine).
@@ -130,6 +136,18 @@ func (s *bookingServiceImpl) processRefundRequest(ctx context.Context, booking *
 			zap.Int("attempts", attempts),
 			zap.Error(err),
 		)
+		if s.notifRedis != nil {
+			_ = notification.Publish(ctx, s.notifRedis, notification.Event{
+				EventType:     notification.RefundRequestAbandoned,
+				UserID:        booking.PassengerID,
+				ReferenceID:   booking.BookingID,
+				ReferenceType: notification.RefBooking,
+				Payload: map[string]string{
+					"reason":   reason,
+					"attempts": strconv.Itoa(attempts),
+				},
+			})
+		}
 		return
 	}
 	s.logger.Warn("refund request rejected by payment-service, will retry",
@@ -145,8 +163,11 @@ func (s *bookingServiceImpl) requestRefund(ctx context.Context, booking *domain.
 	reason := *booking.RefundReason
 
 	// Le départ n'est exigé que pour la règle des 24h d'une annulation passager
-	departureDatetime := s.getDepartureDatetime(ctx, booking)
+	departureDatetime, waypointGone := s.getDepartureDatetime(ctx, booking)
 	if departureDatetime == "" && reason == domain.RefundReasonCancelledByPassenger {
+		if waypointGone {
+			return errPickupWaypointGone
+		}
 		return errDepartureUnknown
 	}
 
@@ -183,9 +204,11 @@ func refundEventAt(booking *domain.Booking) time.Time {
 	return at.UTC()
 }
 
-// isPermanentRefundError indique un refus de payment-service qu'un rejeu immédiat ne corrigera pas
-// (motif inconnu, paiement introuvable ou dans un état non remboursable).
+// isPermanentRefundError indique un refus qu'un rejeu immédiat ne corrigera pas.
 func isPermanentRefundError(err error) bool {
+	if errors.Is(err, errPickupWaypointGone) {
+		return true
+	}
 	switch status.Code(err) {
 	case codes.InvalidArgument, codes.NotFound, codes.FailedPrecondition:
 		return true
