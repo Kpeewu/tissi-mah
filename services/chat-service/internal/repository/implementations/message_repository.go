@@ -172,7 +172,7 @@ func collectMessages(rows pgx.Rows) ([]*domain.ChatMessage, error) {
 
 // AnonymizeUserRefs pseudonymise sender_id dans les messages de l'utilisateur.
 func (r *chatMessageRepository) AnonymizeUserRefs(ctx context.Context, userID string) error {
-	anon := "deleted_" + userID[:8]
+	anon := anonymizedUserID(userID)
 	_, err := r.db.Exec(ctx,
 		`UPDATE chat_messages SET sender_id = $1 WHERE sender_id = $2`,
 		anon, userID,

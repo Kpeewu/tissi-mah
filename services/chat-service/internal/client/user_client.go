@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	chatErrors "github.com/Kpeewu/tissi-mah/services/chat-service/pkg/errors"
 	userpb "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -44,9 +45,12 @@ func (c *userClientImpl) GetUserIDByFirebaseID(ctx context.Context, firebaseUID 
 	})
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-			return "", fmt.Errorf("user-service: user not found for firebaseUID %s", firebaseUID)
+			return "", chatErrors.ErrUserNotFound
 		}
 		return "", fmt.Errorf("user-service: GetUserByFirebaseID: %w", err)
+	}
+	if resp.UserID == "" {
+		return "", chatErrors.ErrUserNotFound
 	}
 	return resp.UserID, nil
 }

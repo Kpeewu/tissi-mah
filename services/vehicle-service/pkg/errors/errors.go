@@ -9,4 +9,5 @@ var (
 	ErrorLicencePlateConflict = errors.New("ErrorLicencePlateConflict")
 	ErrorDataRetrievalFailed  = errors.New("ErrorDataRetrievalFailed")
 	ErrorInvalidInput         = errors.New("ErrorInvalidInput")
+	ErrorUserNotFound         = errors.New("ErrorUserNotFound")
 )

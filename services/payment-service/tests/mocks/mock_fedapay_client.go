@@ -46,8 +46,8 @@ func (m *MockFedaPayClient) CancelTransaction(transactionID int) error {
 	return args.Error(0)
 }
 
-func (m *MockFedaPayClient) CreatePayout(amount int, mode string, phoneNumber string, firstName string, lastName string) (*fedapay.PayoutItem, error) {
-	args := m.Called(amount, mode, phoneNumber, firstName, lastName)
+func (m *MockFedaPayClient) CreatePayout(amount int, mode string, phoneNumber string, countryCode string, firstName string, lastName string) (*fedapay.PayoutItem, error) {
+	args := m.Called(amount, mode, phoneNumber, countryCode, firstName, lastName)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

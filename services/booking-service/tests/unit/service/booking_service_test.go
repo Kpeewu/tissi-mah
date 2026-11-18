@@ -55,7 +55,7 @@ func newTestService() *testDeps {
 		d.ratingClient,
 		nil, // cache
 		nil, // notifRedis
-		10,  // serviceFeePercent
+		10,  // serviceFeeAmount
 		logger,
 	)
 	return d
@@ -79,7 +79,7 @@ func newTestServiceWithNotif(t *testing.T) (*testDeps, *redis.Client) {
 		d.ratingClient,
 		nil, // cache
 		rdb,
-		10, // serviceFeePercent
+		10, // serviceFeeAmount
 		zap.NewNop(),
 	)
 	return d, rdb
@@ -1077,6 +1077,28 @@ func TestConfirmPayment(t *testing.T) {
 		_, err := d.svc.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
 			BookingID:     "booking-full",
 			TransactionID: "txn-full",
+		})
+
+		assert.ErrorIs(t, err, bookingErrors.ErrorNoSeatsAvailable)
+		d.writeRepo.AssertNotCalled(t, "ConfirmPayment", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("erreur - trajet terminé, confirmation refusée pour une réservation paymentPending", func(t *testing.T) {
+		d := newTestService()
+		ctx := context.Background()
+
+		booking := fixtures.NewTestBooking(
+			fixtures.WithBookingID("booking-ended"),
+			fixtures.WithTripID("trip-ended"),
+			fixtures.WithBookingStatus(domain.BookingStatusPaymentPending),
+			fixtures.WithNoPaymentCompleted(),
+		)
+		d.readRepo.On("GetByID", mock.Anything, "booking-ended").Return(booking, nil)
+		d.tripClient.On("GetTripDetails", mock.Anything, "trip-ended").Return(&client.TripDetails{TripID: "trip-ended", Status: "completed"}, nil)
+
+		_, err := d.svc.ConfirmPayment(ctx, &serviceInterfaces.ConfirmPaymentInput{
+			BookingID:     "booking-ended",
+			TransactionID: "txn-ended",
 		})
 
 		assert.ErrorIs(t, err, bookingErrors.ErrorNoSeatsAvailable)

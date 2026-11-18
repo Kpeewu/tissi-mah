@@ -26,10 +26,11 @@ func (m *MockUserClient) GetDriverInfo(ctx context.Context, userID string) (stri
 	return args.String(0), args.String(1), args.Error(2)
 }
 
-func (m *MockUserClient) GetUserIDByAuthID(ctx context.Context, authID string) (string, error) {
-	args := m.Called(ctx, authID)
+// GetUserIDByFirebaseID sert de UserIDResolver à l'intercepteur (tests e2e).
+func (m *MockUserClient) GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error) {
+	args := m.Called(ctx, firebaseUID)
 	if fn, ok := args.Get(0).(func(context.Context, string) string); ok {
-		return fn(ctx, authID), args.Error(1)
+		return fn(ctx, firebaseUID), args.Error(1)
 	}
 	return args.String(0), args.Error(1)
 }

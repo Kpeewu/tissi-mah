@@ -45,11 +45,6 @@ type MockUserClient struct {
 	mock.Mock
 }
 
-func (m *MockUserClient) UserExists(ctx context.Context, userID string) (bool, error) {
-	args := m.Called(ctx, userID)
-	return args.Bool(0), args.Error(1)
-}
-
 func (m *MockUserClient) IsPassengerVerified(ctx context.Context, userID string) (bool, error) {
 	args := m.Called(ctx, userID)
 	return args.Bool(0), args.Error(1)

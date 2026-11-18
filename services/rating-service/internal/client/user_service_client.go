@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
+	ratingErrors "github.com/Kpeewu/tissi-mah/services/rating-service/pkg/errors"
 	userpb "github.com/Kpeewu/tissi-mah/services/rating-service/proto/gen/userpb"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -43,6 +44,25 @@ func NewUserServiceClient(address string, logger *zap.Logger) (*UserServiceClien
 // Close libère la connexion gRPC. À appeler au shutdown du service.
 func (c *UserServiceClient) Close() error {
 	return c.conn.Close()
+}
+
+// GetUserIDByFirebaseID résout le Firebase UID de l'appelant en UserID interne (utilisé par
+// l'intercepteur). Retourne ErrorUserNotFound si aucun profil ne correspond.
+func (c *UserServiceClient) GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error) {
+	resp, err := c.grpcClient.GetUserByFirebaseID(ctx, &userpb.GetUserByFirebaseIDRequest{
+		FirebaseID: firebaseUID,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return "", ratingErrors.ErrorUserNotFound
+		}
+		c.logger.Error("client: GetUserByFirebaseID failed", zap.Error(err))
+		return "", fmt.Errorf("user-service: GetUserByFirebaseID failed: %w", err)
+	}
+	if resp.UserID == "" {
+		return "", ratingErrors.ErrorUserNotFound
+	}
+	return resp.UserID, nil
 }
 
 // UserExists vérifie qu'un utilisateur existe dans user-service via son UserID.

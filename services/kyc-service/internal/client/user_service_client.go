@@ -6,6 +6,7 @@ import (
 
 	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
 	"github.com/Kpeewu/tissi-mah/services/kyc-service/internal/domain"
+	kycErrors "github.com/Kpeewu/tissi-mah/services/kyc-service/pkg/errors"
 	userpb "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -47,10 +48,9 @@ func (c *UserServiceClient) Close() error {
 	return c.conn.Close()
 }
 
-// GetUserIDByFirebaseID résout un Firebase UID en UserID interne MongoDB via user-service.
-// Le kyc-service reçoit le Firebase UID depuis le contexte (injecté par l'api-gateway),
-// mais le file-service stocke les documents avec l'UserID interne MongoDB.
-// Cette méthode fait le pont entre les deux.
+// GetUserIDByFirebaseID résout le Firebase UID de l'appelant en UserID interne via user-service
+// (utilisé par l'intercepteur). Le file-service stocke les documents avec l'UserID interne.
+// Retourne ErrorUserNotFound si aucun profil ne correspond.
 func (c *UserServiceClient) GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error) {
 	c.logger.Debug("client: GetUserIDByFirebaseID called", zap.String("firebaseUID", firebaseUID))
 
@@ -60,12 +60,14 @@ func (c *UserServiceClient) GetUserIDByFirebaseID(ctx context.Context, firebaseU
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 			c.logger.Debug("client: user not found by firebaseUID", zap.String("firebaseUID", firebaseUID))
-			return "", fmt.Errorf("user-service: user not found for firebaseUID %s", firebaseUID)
+			return "", kycErrors.ErrorUserNotFound
 		}
 		c.logger.Error("client: GetUserByFirebaseID failed", zap.Error(err), zap.String("firebaseUID", firebaseUID))
 		return "", fmt.Errorf("user-service: GetUserByFirebaseID failed: %w", err)
 	}
-
+	if resp.UserID == "" {
+		return "", kycErrors.ErrorUserNotFound
+	}
 	return resp.UserID, nil
 }
 

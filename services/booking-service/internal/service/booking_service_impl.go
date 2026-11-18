@@ -33,7 +33,7 @@ type bookingServiceImpl struct {
 	ratingClient  client.RatingClient
 	cache         *cache.BookingCache
 	notifRedis    *redis.Client
-	serviceFee    int // pourcentage
+	serviceFeeAmount int // montant fixe
 	logger        *zap.Logger
 }
 
@@ -46,20 +46,20 @@ func NewBookingService(
 	ratingClient client.RatingClient,
 	bookingCache *cache.BookingCache,
 	notifRedis *redis.Client,
-	serviceFeePercent int,
+	serviceFeeAmount int,
 	logger *zap.Logger,
 ) serviceInterfaces.BookingService {
 	return &bookingServiceImpl{
-		readRepo:      readRepo,
-		writeRepo:     writeRepo,
-		tripClient:    tripClient,
-		userClient:    userClient,
-		paymentClient: paymentClient,
-		ratingClient:  ratingClient,
-		cache:         bookingCache,
-		notifRedis:    notifRedis,
-		serviceFee:    serviceFeePercent,
-		logger:        logger,
+		readRepo:         readRepo,
+		writeRepo:        writeRepo,
+		tripClient:       tripClient,
+		userClient:       userClient,
+		paymentClient:    paymentClient,
+		ratingClient:     ratingClient,
+		cache:            bookingCache,
+		notifRedis:       notifRedis,
+		serviceFeeAmount: serviceFeeAmount,
+		logger:           logger,
 	}
 }
 
@@ -130,7 +130,11 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 	if s.cache != nil {
 		// Initialiser les compteurs par segment si absents
 		if err := s.cache.InitSegmentSeatCounters(ctx, input.TripID, tripDetails.TotalSeats, maxOrder); err != nil {
-			s.logger.Warn("service: InitSegmentSeatCounters failed, continuing without cache", zap.Error(err))
+			// Redis indisponible : fallback sur la disponibilité DB
+			s.logger.Warn("service: InitSegmentSeatCounters failed, falling back to DB check", zap.Error(err))
+			if tripDetails.AvailableSeats < input.SeatsBooked {
+				return nil, bookingErrors.ErrorNoSeatsAvailable
+			}
 		} else {
 			if err := s.cache.ReserveSegmentSeats(ctx, input.TripID, pickupOrder, dropoffOrder, input.SeatsBooked); err != nil {
 				return nil, bookingErrors.ErrorNoSeatsAvailable
@@ -144,11 +148,14 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 	pricePerSeat, err := s.calculatePriceFromWaypoints(tripDetails.Waypoints, input.PickupWaypointID, input.DropoffWaypointID)
 	if err != nil {
 		s.logger.Error("service: calculatePriceFromWaypoints failed", zap.Error(err))
+		if s.cache != nil {
+			_ = s.cache.RestoreSegmentSeats(ctx, input.TripID, pickupOrder, dropoffOrder, input.SeatsBooked)
+		}
 		return nil, err
 	}
 	subtotal := input.SeatsBooked * pricePerSeat
-	serviceFee := subtotal * s.serviceFee / 100
-	totalAmount := subtotal + serviceFee
+	serviceFee := s.serviceFeeAmount
+	totalAmount := subtotal + serviceFee + input.ExtraDetourPrice
 
 	// 8. Générer l'ID et la référence
 	bookingID := uuid.New().String()
@@ -226,6 +233,9 @@ func (s *bookingServiceImpl) CreateBooking(ctx context.Context, input *serviceIn
 				zap.String("dropoffWP", seg.DropoffWaypointID),
 				zap.Error(err),
 			)
+			if s.cache != nil {
+				_ = s.cache.RestoreSegmentSeats(ctx, input.TripID, pickupOrder, dropoffOrder, input.SeatsBooked)
+			}
 			return nil, err
 		}
 
@@ -777,7 +787,8 @@ const (
 // L'heure de prise en charge vient de trips-service ; si elle est inconnue, on refuse plutôt que
 // de laisser passer un signalement hors fenêtre.
 func (s *bookingServiceImpl) checkNoShowReportable(ctx context.Context, booking *domain.Booking) error {
-	scheduledPickup, err := time.Parse(time.RFC3339, s.getDepartureDatetime(ctx, booking))
+	departureDatetime, _ := s.getDepartureDatetime(ctx, booking)
+	scheduledPickup, err := time.Parse(time.RFC3339, departureDatetime)
 	if err != nil {
 		s.logger.Warn("service: ReportNoShow refusé, heure de prise en charge inconnue",
 			zap.String("bookingID", booking.BookingID), zap.Error(err))
@@ -968,6 +979,9 @@ func (s *bookingServiceImpl) ConfirmPayment(ctx context.Context, input *serviceI
 // confirmPaymentOnce rattache le paiement à la réservation selon son statut courant :
 //   - paymentPending : places déjà tenues → pendingApproval / approved
 //   - paymentFailed  : places libérées → re-réservation (ErrorNoSeatsAvailable si complet) puis confirmation
+//
+// Un trajet terminé ou annulé n'accepte plus de confirmation (ErrorNoSeatsAvailable) : payment-service
+// rembourse alors le passager, au lieu de laisser un paiement held qui ne serait jamais libéré.
 func (s *bookingServiceImpl) confirmPaymentOnce(ctx context.Context, input *serviceInterfaces.ConfirmPaymentInput) (string, error) {
 	booking, err := s.readRepo.GetByID(ctx, input.BookingID)
 	if err != nil {
@@ -992,6 +1006,9 @@ func (s *bookingServiceImpl) confirmPaymentOnce(ctx context.Context, input *serv
 			zap.String("tripID", booking.TripID), zap.Error(err))
 	} else if tripDetails != nil && tripDetails.AutoApproveEnabled {
 		newStatus = domain.BookingStatusApproved
+	}
+	if tripDetails != nil && tripDetails.Status != "scheduled" && tripDetails.Status != "inProgress" {
+		return "", bookingErrors.ErrorNoSeatsAvailable
 	}
 
 	pickupOrder, dropoffOrder := int(booking.PickupSequencerOrder), int(booking.DropoffSequencerOrder)
@@ -1040,9 +1057,6 @@ func (s *bookingServiceImpl) reserveSeatsForReactivation(ctx context.Context, bo
 	if tripDetails == nil {
 		// Sans les détails du trajet, impossible de vérifier la disponibilité
 		return bookingErrors.ErrorInternalServer
-	}
-	if tripDetails.Status != "scheduled" && tripDetails.Status != "inProgress" {
-		return bookingErrors.ErrorNoSeatsAvailable
 	}
 
 	// Le passager a pu refaire une réservation sur ce trajet après la libération : pas de doublon
@@ -1304,8 +1318,6 @@ func (s *bookingServiceImpl) validateCreateInput(input *serviceInterfaces.Create
 
 	validMethods := map[string]bool{
 		string(domain.PaymentMobileMoney): true,
-		string(domain.PaymentCard):        true,
-		string(domain.PaymentPaypal):      true,
 		string(domain.PaymentCash):        true,
 	}
 	if !validMethods[input.PaymentMethod] {
@@ -1856,18 +1868,20 @@ func (s *bookingServiceImpl) cancelPendingPaymentAsync(bookingID string, reason 
 }
 
 // getDepartureDatetime récupère la date de départ du waypoint de pickup.
-func (s *bookingServiceImpl) getDepartureDatetime(ctx context.Context, booking *domain.Booking) string {
+// Retourne ("", false) si trips-service est injoignable (erreur transitoire).
+// Retourne ("", true) si trips-service répond mais le waypoint est absent (supprimé — permanent).
+func (s *bookingServiceImpl) getDepartureDatetime(ctx context.Context, booking *domain.Booking) (string, bool) {
 	tripDetails, err := s.tripClient.GetTripDetails(ctx, booking.TripID)
 	if err != nil || tripDetails == nil {
 		s.logger.Warn("getDepartureDatetime: cannot fetch trip details",
 			zap.String("tripID", booking.TripID), zap.Error(err),
 		)
-		return ""
+		return "", false
 	}
 
 	for _, wp := range tripDetails.Waypoints {
 		if wp.WaypointID == booking.PickupWaypointID {
-			return wp.ScheduledPickupDatetime
+			return wp.ScheduledPickupDatetime, false
 		}
 	}
 
@@ -1875,7 +1889,7 @@ func (s *bookingServiceImpl) getDepartureDatetime(ctx context.Context, booking *
 		zap.String("tripID", booking.TripID),
 		zap.String("pickupWaypointID", booking.PickupWaypointID),
 	)
-	return ""
+	return "", true
 }
 
 // =============================================================================
@@ -2010,13 +2024,13 @@ func (s *bookingServiceImpl) GetPassengerBookingIDs(ctx context.Context, passeng
 	return s.readRepo.GetPassengerBookingIDs(ctx, passengerID)
 }
 
-// GetServiceFeePercent est un helper utilisé dans le handler pour les calculs.
-func GetServiceFeePercent(svc serviceInterfaces.BookingService) int {
+// GetServiceFeeAmount est un helper utilisé dans le handler pour les calculs.
+func GetServiceFeeAmount(svc serviceInterfaces.BookingService) int {
 	impl, ok := svc.(*bookingServiceImpl)
 	if !ok {
-		return 10
+		return 0
 	}
-	return impl.serviceFee
+	return impl.serviceFeeAmount
 }
 
 // =============================================================================

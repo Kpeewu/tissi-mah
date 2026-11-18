@@ -5,11 +5,21 @@ import (
 	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/domain"
+	paymentErrors "github.com/Kpeewu/tissi-mah/services/payment-service/pkg/errors"
 	"github.com/stretchr/testify/mock"
 )
 
 type MockPayoutRepositoryRead struct {
 	mock.Mock
+}
+
+func (m *MockPayoutRepositoryRead) hasExpectation(method string) bool {
+	for _, call := range m.ExpectedCalls {
+		if call.Method == method {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *MockPayoutRepositoryRead) GetByID(ctx context.Context, payoutID string) (*domain.Payout, error) {
@@ -20,7 +30,12 @@ func (m *MockPayoutRepositoryRead) GetByID(ctx context.Context, payoutID string)
 	return args.Get(0).(*domain.Payout), args.Error(1)
 }
 
+// GetByTripID retourne ErrorPayoutNotFound sans expectation : la vérification anti-double-virement
+// ne se déclenche que sur un retry (payout existant avec référence FedaPay), pas au premier passage.
 func (m *MockPayoutRepositoryRead) GetByTripID(ctx context.Context, tripID string) (*domain.Payout, error) {
+	if !m.hasExpectation("GetByTripID") {
+		return nil, paymentErrors.ErrorPayoutNotFound
+	}
 	args := m.Called(ctx, tripID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

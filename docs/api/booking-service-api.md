@@ -942,12 +942,12 @@ created → paymentPending → pendingApproval → approved → inProgress → c
 
 ## Service Fee
 
-The service fee is a configurable percentage applied on top of the subtotal.
-Default: **10%** (`SERVICE_FEE_PERCENT=10`).
+The service fee is a fixed amount per booking, configurable by the platform administrator.
+Default: **0** (`SERVICE_FEE_AMOUNT=0`). The operator must set this variable before go-live.
 
 ```
 Subtotal    = SeatsBooked × PricePerSeat
-ServiceFee  = Subtotal × SERVICE_FEE_PERCENT / 100
+ServiceFee  = SERVICE_FEE_AMOUNT
 TotalAmount = Subtotal + ServiceFee
 ```
 
@@ -985,5 +985,5 @@ TotalAmount = Subtotal + ServiceFee
 | `TRIPS_SERVICE_PORT` | No | `50056` | Port for trips-service |
 | `USER_SERVICE_HOST` | No | `0.0.0.0` | Host for user-service |
 | `USER_SERVICE_PORT` | No | `50052` | Port for user-service |
-| `SERVICE_FEE_PERCENT` | No | `10` | Platform fee percentage applied to subtotal |
+| `SERVICE_FEE_AMOUNT` | No | `0` | Fixed service fee per booking (currency unit); configure before go-live |
 | `RECONCILIATION_INTERVAL_SECONDS` | No | `300` | Booking reconciliation interval (seconds) |

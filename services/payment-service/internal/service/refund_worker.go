@@ -11,6 +11,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/Kpeewu/tissi-mah/pkg/notification"
+	"github.com/Kpeewu/tissi-mah/pkg/phone"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/domain"
 	paymentErrors "github.com/Kpeewu/tissi-mah/services/payment-service/pkg/errors"
 )
@@ -51,6 +52,9 @@ func StartRefundWorker(ctx context.Context, impl *paymentServiceImpl, intervalSe
 			}
 			if err := impl.ProcessPendingRefunds(ctx); err != nil {
 				logger.Error("refund batch processing failed", zap.Error(err))
+			}
+			if err := impl.ProcessPendingDriverRefundPayouts(ctx); err != nil {
+				logger.Error("driver refund payout batch processing failed", zap.Error(err))
 			}
 		}
 	}
@@ -215,9 +219,58 @@ func (s *paymentServiceImpl) processRefund(ctx context.Context, refund *domain.R
 	s.writeRefundHistory(ctx, refund.RefundID, string(domain.RefundStatusProcessing), refund.RetryCount,
 		fmt.Sprintf("Virement FedaPay de %d XOF en cours", refund.AmountToPassenger))
 
-	// 6. Appel FedaPay — même endpoint que le payout chauffeur, numéro passager cette fois
+	// 6. Protection contre le double virement : si un payout FedaPay a déjà été créé (référence conservée
+	// après MarkRefundFailed), vérifier son statut avant d'en créer un nouveau.
+	if refund.PaymentProviderReference != "" {
+		if existingFedaID, _ := strconv.Atoi(refund.PaymentProviderReference); existingFedaID > 0 {
+			item, err := s.fedapayClient.GetPayout(existingFedaID)
+			if err != nil {
+				s.logger.Error("check existing fedapay refund payout failed, aborting retry",
+					zap.Error(err), zap.String("refundID", refund.RefundID))
+				s.markRefundFailed(ctx, refund, "fedapay check failed: "+err.Error(), true) //nolint:errcheck
+				return nil
+			}
+			switch item.Status {
+			case "sent":
+				s.refundWriteRepo.MarkRefundCompleted(ctx, refund.RefundID, refund.PaymentProviderReference) //nolint:errcheck
+				s.writeRefundHistory(ctx, refund.RefundID, "completed", refund.RetryCount,
+					"Réconcilié : payout FedaPay déjà envoyé")
+				s.publishRefundCompleted(ctx, refund, refund.PaymentProviderReference)
+				return nil
+			case "started", "processing":
+				// En transit — le réconciliateur finira, rien à faire ici
+				return nil
+			case "pending":
+				if _, err := s.fedapayClient.StartPayouts([]int{existingFedaID}); err != nil {
+					s.markRefundFailed(ctx, refund, "fedapay start retry failed: "+err.Error(), true) //nolint:errcheck
+					return nil
+				}
+				s.writeRefundHistory(ctx, refund.RefundID, domain.RefundEventPayoutStarted, refund.RetryCount,
+					"Virement FedaPay "+refund.PaymentProviderReference+" redémarré")
+				return nil
+			// case "failed" : fallthrough — CreatePayout légitime
+			}
+		}
+	}
+
+	// 6b. Appel FedaPay — même endpoint que le payout chauffeur, numéro passager cette fois
+	passengerPhone, ok := phone.Normalize(phoneNumber)
+	if !ok {
+		s.logger.Error("refund passenger phone not normalizable", zap.String("refundID", refund.RefundID), zap.String("phone", phoneNumber))
+		s.markRefundFailed(ctx, refund, "numéro de remboursement passager non normalisable", true) //nolint:errcheck
+		return nil
+	}
+	passengerOperator := payment.PayoutOperator
+	if passengerOperator == "" && passengerPhone.CountryCode == "tg" {
+		passengerOperator = "togocel" // rétrocompat paiements antérieurs à la migration PayoutOperator
+	}
+	if passengerOperator == "" {
+		s.logger.Error("refund passenger operator missing", zap.String("refundID", refund.RefundID), zap.String("countryCode", passengerPhone.CountryCode))
+		s.markRefundFailed(ctx, refund, "opérateur de remboursement passager manquant", true) //nolint:errcheck
+		return nil
+	}
 	fedapayPayout, err := s.fedapayClient.CreatePayout(
-		refund.AmountToPassenger, "togocel", phoneNumber,
+		refund.AmountToPassenger, passengerOperator, passengerPhone.LocalNumber, passengerPhone.CountryCode,
 		user.FirstName, user.Name,
 	)
 	if err != nil {
@@ -251,6 +304,235 @@ func (s *paymentServiceImpl) processRefund(ctx context.Context, refund *domain.R
 		zap.String("refundID", refund.RefundID),
 		zap.String("providerReference", providerRef),
 		zap.Int("amountToPassenger", refund.AmountToPassenger),
+	)
+
+	return nil
+}
+
+// ProcessPendingDriverRefundPayouts traite un batch de payouts chauffeur issus de remboursements
+// (driver_payout_status = 'pending', amount_to_driver > 0). Chaque entrée est protégée par un
+// lock Redis per-refund distinct du lock passager.
+func (s *paymentServiceImpl) ProcessPendingDriverRefundPayouts(ctx context.Context) error {
+	if s.refundReadRepo == nil || s.refundWriteRepo == nil || s.fedapayClient == nil {
+		return nil
+	}
+	ctx = withHistoryOrigin(ctx, domain.HistoryInitiatedBySystem, domain.HistorySourceRefundWorker)
+
+	batchSize := s.cfg.RefundWorker.BatchSize
+	if batchSize <= 0 {
+		batchSize = 20
+	}
+
+	refunds, err := s.refundReadRepo.GetPendingDriverRefundPayouts(ctx, batchSize)
+	if err != nil {
+		return fmt.Errorf("get pending driver refund payouts: %w", err)
+	}
+	if len(refunds) == 0 {
+		s.logger.Debug("no pending driver refund payouts to process")
+		return nil
+	}
+
+	s.logger.Info("processing driver refund payout batch", zap.Int("count", len(refunds)))
+
+	maxConcurrent := s.cfg.Worker.RefundMaxConcurrent
+	if maxConcurrent <= 0 {
+		maxConcurrent = 5
+	}
+
+	g, gCtx := errgroup.WithContext(ctx)
+	sem := make(chan struct{}, maxConcurrent)
+
+	var mu sync.Mutex
+	successCount := 0
+	failCount := 0
+
+	for _, refund := range refunds {
+		refund := refund
+		g.Go(func() error {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			if err := s.processDriverRefundPayout(gCtx, refund); err != nil {
+				mu.Lock()
+				failCount++
+				mu.Unlock()
+				s.logger.Error("process driver refund payout failed", zap.Error(err), zap.String("refundID", refund.RefundID))
+				return nil
+			}
+			mu.Lock()
+			successCount++
+			mu.Unlock()
+			return nil
+		})
+	}
+	g.Wait()
+
+	s.logger.Info("driver refund payout batch completed",
+		zap.Int("success", successCount),
+		zap.Int("failed", failCount),
+		zap.Int("total", len(refunds)),
+	)
+
+	return nil
+}
+
+// processDriverRefundPayout gère un seul payout chauffeur issu d'un remboursement.
+func (s *paymentServiceImpl) processDriverRefundPayout(ctx context.Context, refund *domain.Refund) error {
+	// 1. Lock per-refund (clé distincte du lock passager)
+	if s.cache != nil {
+		acquired, err := s.cache.AcquireDriverRefundPayoutLock(ctx, refund.RefundID)
+		if err != nil {
+			s.logger.Warn("acquire driver refund payout lock failed", zap.Error(err), zap.String("refundID", refund.RefundID))
+			return nil
+		}
+		if !acquired {
+			s.logger.Debug("driver refund payout lock already held, skipping", zap.String("refundID", refund.RefundID))
+			return nil
+		}
+		defer s.cache.ReleaseDriverRefundPayoutLock(ctx, refund.RefundID)
+	}
+
+	// 2. Vérifier le plafond de retry
+	maxRetries := int16(s.cfg.RefundWorker.MaxRetries)
+	if maxRetries <= 0 {
+		maxRetries = 3
+	}
+	if refund.DriverPayoutRetryCount >= maxRetries {
+		s.logger.Error("driver refund payout max retries exceeded, manual intervention required",
+			zap.String("refundID", refund.RefundID),
+			zap.Int16("retryCount", refund.DriverPayoutRetryCount),
+		)
+		reason := fmt.Sprintf("max retries (%d) exceeded", maxRetries)
+		if err := s.refundWriteRepo.MarkDriverPayoutFailed(ctx, refund.RefundID, reason, false); err != nil {
+			s.logger.Error("mark driver payout failed (max retries) failed", zap.Error(err))
+		}
+		s.writeRefundHistory(ctx, refund.RefundID, string(domain.RefundStatusFailed)+"_driver", refund.DriverPayoutRetryCount, reason)
+		return nil
+	}
+
+	// 3. Récupérer le booking pour trouver le driverID
+	booking, err := s.bookingClient.GetBookingDetails(ctx, refund.BookingID)
+	if err != nil {
+		s.logger.Error("get booking for driver refund payout failed", zap.Error(err), zap.String("bookingID", refund.BookingID))
+		s.refundWriteRepo.MarkDriverPayoutFailed(ctx, refund.RefundID, "booking lookup failed: "+err.Error(), true) //nolint:errcheck
+		return nil
+	}
+
+	// 4. Récupérer le withdraw_number du chauffeur
+	user, err := s.userClient.GetUserByUserID(ctx, booking.DriverID)
+	if err != nil {
+		s.logger.Error("get driver for driver refund payout failed", zap.Error(err), zap.String("driverID", booking.DriverID))
+		s.refundWriteRepo.MarkDriverPayoutFailed(ctx, refund.RefundID, "user lookup failed: "+err.Error(), true) //nolint:errcheck
+		return nil
+	}
+
+	if user.WithdrawNumber == "" {
+		s.logger.Error("driver has no withdraw number, unrecoverable",
+			zap.String("refundID", refund.RefundID),
+			zap.String("driverID", booking.DriverID),
+		)
+		if err := s.refundWriteRepo.MarkDriverPayoutFailed(ctx, refund.RefundID, "missing driver withdraw number", false); err != nil {
+			s.logger.Error("mark driver payout failed (missing withdraw number) failed", zap.Error(err))
+		}
+		return nil
+	}
+
+	// 5. Passer en processing (verrouillage optimiste)
+	if err := s.refundWriteRepo.MarkDriverPayoutProcessing(ctx, refund.RefundID); err != nil {
+		if err == paymentErrors.ErrorRefundAlreadyProcessed {
+			s.logger.Debug("driver refund payout already being processed, skipping", zap.String("refundID", refund.RefundID))
+			return nil
+		}
+		s.logger.Error("mark driver payout processing failed", zap.Error(err))
+		return nil
+	}
+	s.writeRefundHistory(ctx, refund.RefundID, domain.RefundEventDriverPayoutStarted, refund.DriverPayoutRetryCount,
+		fmt.Sprintf("Virement FedaPay de %d XOF chauffeur en cours", refund.AmountToDriver))
+
+	// 6. Protection contre le double virement : si une référence FedaPay existe déjà (conservée
+	// après MarkDriverPayoutFailed), vérifier son statut avant d'en créer un nouveau.
+	if refund.DriverPayoutProviderRef != "" {
+		if existingFedaID, _ := strconv.Atoi(refund.DriverPayoutProviderRef); existingFedaID > 0 {
+			item, err := s.fedapayClient.GetPayout(existingFedaID)
+			if err != nil {
+				s.logger.Error("check existing fedapay driver refund payout failed, aborting retry",
+					zap.Error(err), zap.String("refundID", refund.RefundID))
+				s.refundWriteRepo.MarkDriverPayoutFailed(ctx, refund.RefundID, "fedapay check failed: "+err.Error(), true) //nolint:errcheck
+				return nil
+			}
+			switch item.Status {
+			case "sent":
+				s.refundWriteRepo.MarkDriverPayoutCompleted(ctx, refund.RefundID) //nolint:errcheck
+				s.writeRefundHistory(ctx, refund.RefundID, domain.RefundEventDriverPayoutStarted,
+					refund.DriverPayoutRetryCount, "Réconcilié : driver payout FedaPay déjà envoyé")
+				return nil
+			case "started", "processing":
+				return nil
+			case "pending":
+				if _, err := s.fedapayClient.StartPayouts([]int{existingFedaID}); err != nil {
+					s.refundWriteRepo.MarkDriverPayoutFailed(ctx, refund.RefundID,
+						"fedapay start retry failed: "+err.Error(), true) //nolint:errcheck
+					return nil
+				}
+				s.writeRefundHistory(ctx, refund.RefundID, domain.RefundEventDriverPayoutStarted,
+					refund.DriverPayoutRetryCount,
+					"Driver payout FedaPay "+refund.DriverPayoutProviderRef+" redémarré")
+				return nil
+			// case "failed" : fallthrough — CreatePayout légitime
+			}
+		}
+	}
+
+	// 6b. Appel FedaPay
+	driverPhone, ok := phone.Normalize(user.WithdrawNumber)
+	if !ok {
+		s.logger.Error("driver withdraw number not normalizable", zap.String("refundID", refund.RefundID), zap.String("userID", user.UserID))
+		s.refundWriteRepo.MarkDriverPayoutFailed(ctx, refund.RefundID, "numéro de retrait chauffeur non normalisable", true) //nolint:errcheck
+		return nil
+	}
+	driverOperator := user.WithdrawOperator
+	if driverOperator == "" && driverPhone.CountryCode == "tg" {
+		driverOperator = "togocel" // rétrocompat chauffeurs togolais antérieurs à la migration WithdrawOperator
+	}
+	if driverOperator == "" {
+		s.logger.Error("driver operator missing", zap.String("refundID", refund.RefundID), zap.String("countryCode", driverPhone.CountryCode))
+		s.refundWriteRepo.MarkDriverPayoutFailed(ctx, refund.RefundID, fmt.Sprintf("opérateur manquant pour pays=%s", driverPhone.CountryCode), true) //nolint:errcheck
+		return nil
+	}
+	fedapayPayout, err := s.fedapayClient.CreatePayout(
+		refund.AmountToDriver, driverOperator, driverPhone.LocalNumber, driverPhone.CountryCode,
+		user.FirstName, user.Name,
+	)
+	if err != nil {
+		s.logger.Error("fedapay driver refund payout failed", zap.Error(err), zap.String("refundID", refund.RefundID))
+		s.refundWriteRepo.MarkDriverPayoutFailed(ctx, refund.RefundID, "fedapay: "+err.Error(), true) //nolint:errcheck
+		return nil
+	}
+
+	// 7. Enregistrer la référence FedaPay avant le démarrage
+	providerRef := strconv.Itoa(fedapayPayout.ID)
+	if err := s.refundWriteRepo.SetDriverPayoutProviderReference(ctx, refund.RefundID, providerRef); err != nil {
+		s.logger.Error("set driver payout provider reference failed", zap.Error(err), zap.String("refundID", refund.RefundID))
+		s.refundWriteRepo.MarkDriverPayoutFailed(ctx, refund.RefundID, "store fedapay reference: "+err.Error(), true) //nolint:errcheck
+		return nil
+	}
+
+	// 8. Démarrer le payout FedaPay
+	if _, err := s.fedapayClient.StartPayouts([]int{fedapayPayout.ID}); err != nil {
+		s.logger.Error("fedapay start driver refund payout failed", zap.Error(err), zap.String("refundID", refund.RefundID))
+		s.refundWriteRepo.MarkDriverPayoutFailed(ctx, refund.RefundID, "fedapay start: "+err.Error(), true) //nolint:errcheck
+		return nil
+	}
+
+	// 9. Reste processing jusqu'à la confirmation FedaPay (webhook ou réconciliation).
+	s.writeRefundHistory(ctx, refund.RefundID, domain.RefundEventDriverPayoutStarted, refund.DriverPayoutRetryCount,
+		"Virement FedaPay "+providerRef+" démarré, en attente de confirmation")
+
+	s.logger.Info("driver refund payout started",
+		zap.String("refundID", refund.RefundID),
+		zap.String("driverID", booking.DriverID),
+		zap.String("providerReference", providerRef),
+		zap.Int("amountToDriver", refund.AmountToDriver),
 	)
 
 	return nil

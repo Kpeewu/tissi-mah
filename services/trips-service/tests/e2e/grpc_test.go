@@ -84,9 +84,9 @@ func setupServer(t *testing.T) (*grpc.ClientConn, *mocks.MockUserClient, *mocks.
 	mockUserClient := new(mocks.MockUserClient)
 	mockVehicleClient := new(mocks.MockVehicleClient)
 
-	// Default stub : résolution authID → userID via map partagée (fallback identity).
+	// Résolveur de l'intercepteur : Firebase UID → UserID via map partagée (fallback identity).
 	// Permet aux tests de mapper "e2e-test-user" → driverID via stubAuthResolve.
-	mockUserClient.On("GetUserIDByAuthID", mock.Anything, mock.AnythingOfType("string")).
+	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, mock.AnythingOfType("string")).
 		Return(func(_ context.Context, authID string) string {
 			if v, ok := authResolve[authID]; ok {
 				return v
@@ -98,7 +98,7 @@ func setupServer(t *testing.T) (*grpc.ClientConn, *mocks.MockUserClient, *mocks.
 	handler := grpcHandler.NewTripHandler(svc, logger)
 
 	lis = bufconn.Listen(bufSize)
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(middleware.TripInterceptor(nil)))
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(middleware.TripInterceptor(nil, mockUserClient)))
 	trippb.RegisterTripServiceServer(grpcServer, handler)
 
 	go func() {
@@ -376,7 +376,7 @@ func TestE2E_CreateTrip_InvalidWaypoints(t *testing.T) {
 }
 
 func TestE2E_CreateTrip_MissingAuthUID(t *testing.T) {
-	// Pas de metadata x-firebase-uid → Unauthenticated (intercepteur ou resolveDriverUserID).
+	// Pas de metadata x-firebase-uid → Unauthenticated (intercepteur).
 	conn, _, _, cleanup := setupServer(t)
 	defer cleanup()
 

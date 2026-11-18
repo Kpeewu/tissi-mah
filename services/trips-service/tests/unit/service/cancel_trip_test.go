@@ -13,9 +13,8 @@ import (
 
 func TestCancelTrip(t *testing.T) {
 	t.Run("succès", func(t *testing.T) {
-		_, writeRepo, userClient, _, svc := newTestService()
+		_, writeRepo, _, _, svc := newTestService()
 		ctx := context.Background()
-		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		writeRepo.On("CancelTrip", ctx, "trip-1", "driver-1", "raison").Return(nil)
 
 		err := svc.CancelTrip(ctx, &serviceInterfaces.CancelTripInput{
@@ -42,9 +41,8 @@ func TestCancelTrip(t *testing.T) {
 	})
 
 	t.Run("erreur - driverID vide → Unauthorized (resolve)", func(t *testing.T) {
-		_, _, userClient, _, svc := newTestService()
+		_, _, _, _, svc := newTestService()
 		ctx := context.Background()
-		userClient.On("GetUserIDByAuthID", ctx, "").Return("", nil).Maybe()
 		err := svc.CancelTrip(ctx, &serviceInterfaces.CancelTripInput{
 			DriverID: "", TripID: "t", CancellationReason: "r",
 		})
@@ -52,9 +50,8 @@ func TestCancelTrip(t *testing.T) {
 	})
 
 	t.Run("erreur - repo CancelTrip échoue → propage", func(t *testing.T) {
-		_, writeRepo, userClient, _, svc := newTestService()
+		_, writeRepo, _, _, svc := newTestService()
 		ctx := context.Background()
-		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		writeRepo.On("CancelTrip", ctx, "trip-404", "driver-1", "r").Return(tripErrors.ErrorTripNotFound)
 
 		err := svc.CancelTrip(ctx, &serviceInterfaces.CancelTripInput{

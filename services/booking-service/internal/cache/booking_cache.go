@@ -452,11 +452,41 @@ func (c *BookingCache) GetMinSegmentSeats(ctx context.Context, tripID string, pi
 	return minSeats, nil
 }
 
-// SetSegmentSeatCounter force la valeur du compteur pour un leg (réconciliation).
+// reconcileSegmentSeatScript applique une sémantique MIN lors de la réconciliation :
+// - Clé absente → initialise à expected (return 1)
+// - current > expected → corrige la dérive vers le haut (return 2)
+// - current <= expected → réservation en vol préservée, ne touche pas (return 0)
+var reconcileSegmentSeatScript = redis.NewScript(`
+local expected = tonumber(ARGV[1])
+local ttl = tonumber(ARGV[2])
+local current = redis.call('GET', KEYS[1])
+if not current then
+    redis.call('SET', KEYS[1], expected, 'EX', ttl)
+    return 1
+end
+current = tonumber(current)
+if current > expected then
+    redis.call('SET', KEYS[1], expected, 'EX', ttl)
+    return 2
+end
+return 0
+`)
+
+// SetSegmentSeatCounter corrige le compteur d'un leg lors de la réconciliation.
+// N'augmente jamais un compteur déjà décrémenté par une réservation en vol.
 func (c *BookingCache) SetSegmentSeatCounter(ctx context.Context, tripID string, order, seats int) error {
 	key := c.segmentSeatKey(tripID, order)
-	if err := c.client.Set(ctx, key, seats, seatCounterTTL).Err(); err != nil {
+	result, err := reconcileSegmentSeatScript.Run(ctx, c.client, []string{key}, seats, int(seatCounterTTL.Seconds())).Int()
+	if err != nil {
 		return fmt.Errorf("set segment seat counter: %w", err)
+	}
+	if result > 0 {
+		c.logger.Debug("segment seat counter reconciled",
+			zap.String("tripID", tripID),
+			zap.Int("order", order),
+			zap.Int("seats", seats),
+			zap.Int("action", result),
+		)
 	}
 	return nil
 }

@@ -183,8 +183,10 @@ message UploadSelfieResponse {
 // Suppression document (HTTP)
 // =============================================================================
 
+// Le propriétaire est l'appelant (UserID résolu depuis le Firebase UID par l'intercepteur).
 message DeleteFileRequest {
-  string UserID = 1;
+  reserved 1;
+  reserved "UserID";
   string FileID = 2;
 }
 
@@ -197,10 +199,12 @@ message DeleteFileResponse {
 // Lecture document (HTTP)
 // =============================================================================
 
+// Utilisateur : doit être propriétaire du document (UserID résolu depuis le Firebase UID par
+// l'intercepteur). Agent support : accès direct via x-support-uid en metadata gRPC.
 message GetDocumentRequest {
-  string FileID  = 1;
-  string UserID  = 2; // Optionnel — vérifie la propriété
-  // SupportID supprimé : le contrôle support passe par x-support-uid en metadata gRPC
+  string FileID = 1;
+  reserved 2;
+  reserved "UserID";
 }
 
 message DocumentFile {
@@ -219,8 +223,10 @@ message GetDocumentResponse {
 // Remplacement de document (HTTP)
 // =============================================================================
 
+// Le propriétaire est l'appelant (UserID résolu depuis le Firebase UID par l'intercepteur).
 message ChangeDocumentRequest {
-  string UserID      = 1;
+  reserved 1;
+  reserved "UserID";
   string FileID      = 2;
   bytes  NewDocument = 3;
   string DocumentNumber = 4; // Optionnel — remplace l'existant si fourni

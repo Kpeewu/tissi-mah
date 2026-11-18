@@ -110,7 +110,7 @@ func TestE2E_GetPaymentByBooking(t *testing.T) {
 	})
 
 	t.Run("erreur - appelant autre que le passager", func(t *testing.T) {
-		_, err := grpcClient.GetPaymentByBooking(ctxWithUID("e2e-intrus"), &paymentpb.GetPaymentByBookingRequest{
+		_, err := grpcClient.GetPaymentByBooking(ctxWithUID(e2eIntruderFirebaseUID), &paymentpb.GetPaymentByBookingRequest{
 			BookingId: "e2e-booking-find",
 		})
 

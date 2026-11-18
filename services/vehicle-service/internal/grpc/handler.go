@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/Kpeewu/tissi-mah/services/vehicle-service/internal/middleware"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/vehicle-service/internal/service/interfaces"
 	vehicleErrors "github.com/Kpeewu/tissi-mah/services/vehicle-service/pkg/errors"
 	vehiclepb "github.com/Kpeewu/tissi-mah/services/vehicle-service/proto/gen"
@@ -31,13 +32,17 @@ func NewVehicleHandler(service serviceInterfaces.VehicleService, logger *zap.Log
 
 // AddVehicle crée un nouveau véhicule.
 func (h *VehicleHandler) AddVehicle(ctx context.Context, req *vehiclepb.AddVehicleRequest) (*vehiclepb.AddVehicleResponse, error) {
+	userID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	h.logger.Debug("handler: AddVehicle called",
-		zap.String("userID", req.UserId),
+		zap.String("userID", userID),
 		zap.String("licencePlate", req.LicencePlate),
 	)
 
 	vehicleID, err := h.service.AddVehicle(ctx, serviceInterfaces.AddVehicleInput{
-		UserID:        req.UserId,
+		UserID:        userID,
 		Brand:         req.Brand,
 		NumberOfSeats: int16(req.NumberOfSeats),
 		BrandModel:    req.BrandModel,
@@ -58,9 +63,13 @@ func (h *VehicleHandler) AddVehicle(ctx context.Context, req *vehiclepb.AddVehic
 func (h *VehicleHandler) UpdateVehicle(ctx context.Context, req *vehiclepb.UpdateVehicleRequest) (*vehiclepb.UpdateVehicleResponse, error) {
 	h.logger.Debug("handler: UpdateVehicle called", zap.String("vehicleID", req.VehicleId))
 
-	err := h.service.UpdateVehicle(ctx, serviceInterfaces.UpdateVehicleInput{
+	userID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	err = h.service.UpdateVehicle(ctx, serviceInterfaces.UpdateVehicleInput{
 		VehicleID:    req.VehicleId,
-		UserID:       req.UserId,
+		UserID:       userID,
 		Color:        req.Color,
 		LicencePlate: req.LicencePlate,
 		Year:         int16(req.Year),
@@ -78,7 +87,11 @@ func (h *VehicleHandler) UpdateVehicle(ctx context.Context, req *vehiclepb.Updat
 func (h *VehicleHandler) DeleteVehicle(ctx context.Context, req *vehiclepb.DeleteVehicleRequest) (*vehiclepb.DeleteVehicleResponse, error) {
 	h.logger.Debug("handler: DeleteVehicle called", zap.String("vehicleID", req.VehicleId))
 
-	if err := h.service.DeleteVehicle(ctx, req.UserId, req.VehicleId); err != nil {
+	userID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.service.DeleteVehicle(ctx, userID, req.VehicleId); err != nil {
 		h.logger.Error("handler: DeleteVehicle failed", zap.Error(err))
 		return nil, toGRPCError(err)
 	}
@@ -91,7 +104,11 @@ func (h *VehicleHandler) DeleteVehicle(ctx context.Context, req *vehiclepb.Delet
 func (h *VehicleHandler) GetVehicleDetails(ctx context.Context, req *vehiclepb.GetVehicleDetailsRequest) (*vehiclepb.GetVehicleDetailsResponse, error) {
 	h.logger.Debug("handler: GetVehicleDetails called", zap.String("vehicleID", req.VehicleId))
 
-	details, err := h.service.GetVehicleDetails(ctx, req.UserId, req.VehicleId)
+	userID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	details, err := h.service.GetVehicleDetails(ctx, userID, req.VehicleId)
 	if err != nil {
 		h.logger.Error("handler: GetVehicleDetails failed", zap.Error(err))
 		return nil, toGRPCError(err)
@@ -120,11 +137,15 @@ func (h *VehicleHandler) GetVehicleDetails(ctx context.Context, req *vehiclepb.G
 	}, nil
 }
 
-// GetUserVehicles retourne la liste des véhicules d'un utilisateur.
+// GetUserVehicles retourne la liste des véhicules de l'appelant.
 func (h *VehicleHandler) GetUserVehicles(ctx context.Context, req *vehiclepb.GetUserVehiclesRequest) (*vehiclepb.GetUserVehiclesResponse, error) {
-	h.logger.Debug("handler: GetUserVehicles called", zap.String("userID", req.UserId))
+	userID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	h.logger.Debug("handler: GetUserVehicles called", zap.String("userID", userID))
 
-	previews, err := h.service.GetUserVehicles(ctx, req.UserId)
+	previews, err := h.service.GetUserVehicles(ctx, userID)
 	if err != nil {
 		h.logger.Error("handler: GetUserVehicles failed", zap.Error(err))
 		return nil, toGRPCError(err)
@@ -216,6 +237,17 @@ func (h *VehicleHandler) Health(_ context.Context, _ *vehiclepb.HealthRequest) (
 		Version:   serviceVersion,
 		Timestamp: time.Now().Unix(),
 	}, nil
+}
+
+// callerUserID retourne l'UserID interne de l'appelant, résolu par l'intercepteur depuis
+// le Firebase UID validé par l'api-gateway. Les endpoints client-facing ne font JAMAIS
+// confiance à un identifiant d'utilisateur fourni dans la requête.
+func callerUserID(ctx context.Context) (string, error) {
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
+	if !ok || userID == "" {
+		return "", status.Error(codes.Unauthenticated, "missing caller identity")
+	}
+	return userID, nil
 }
 
 // toGRPCError traduit les erreurs domaine en codes de statut gRPC.

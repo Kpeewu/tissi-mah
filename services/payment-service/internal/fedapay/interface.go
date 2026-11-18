@@ -11,7 +11,7 @@ type FedaPayClient interface {
 	CancelTransaction(transactionID int) error
 
 	// Payouts (remboursements passagers et versements chauffeurs)
-	CreatePayout(amount int, mode string, phoneNumber string, firstName string, lastName string) (*PayoutItem, error)
+	CreatePayout(amount int, mode string, phoneNumber string, countryCode string, firstName string, lastName string) (*PayoutItem, error)
 	StartPayouts(payoutIDs []int) ([]PayoutItem, error)
 	GetPayout(payoutID int) (*PayoutItem, error)
 

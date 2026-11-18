@@ -20,6 +20,12 @@ func (m *MockVehicleClient) GetVehicleInfo(ctx context.Context, vehicleID string
 	return args.Get(0).(*client.VehicleInfo), args.Error(1)
 }
 
+// GetVehicleOwnerID retourne le propriétaire enregistré par le test.
+func (m *MockVehicleClient) GetVehicleOwnerID(ctx context.Context, vehicleID string) (string, error) {
+	args := m.Called(ctx, vehicleID)
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockVehicleClient) Close() error {
 	args := m.Called()
 	return args.Error(0)

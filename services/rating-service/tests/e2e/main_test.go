@@ -12,11 +12,12 @@ import (
 	"time"
 
 	postgresHelper "github.com/Kpeewu/tissi-mah/pkg-test/postgres"
-	grpcHandler "github.com/Kpeewu/tissi-mah/services/rating-service/internal/grpc"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/client"
+	grpcHandler "github.com/Kpeewu/tissi-mah/services/rating-service/internal/grpc"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/middleware"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/repository/implementations"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/service"
+	ratingErrors "github.com/Kpeewu/tissi-mah/services/rating-service/pkg/errors"
 	ratingpb "github.com/Kpeewu/tissi-mah/services/rating-service/proto/gen"
 	"github.com/Kpeewu/tissi-mah/services/rating-service/tests/mocks"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -64,6 +65,12 @@ func TestMain(m *testing.M) {
 	mockUserClient.On("UserExists", mock.Anything, mock.Anything).Return(true, nil)
 	mockUserClient.On("GetUsersByUserIDs", mock.Anything, mock.Anything).Return(map[string]*client.UserProfile{}, nil)
 	mockUserClient.On("Close").Return(nil)
+	// Résolveur de l'intercepteur : le Firebase UID des appels e2e sert d'UserID (identité),
+	// sauf e2eUnknownFirebaseUID, inconnu de user-service.
+	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, e2eUnknownFirebaseUID).
+		Return("", ratingErrors.ErrorUserNotFound)
+	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, mock.Anything).
+		Return(func(_ context.Context, uid string) string { return uid }, nil)
 
 	// --- Service layer ---
 	logger := zap.NewNop()
@@ -77,7 +84,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.RatingInterceptor(nil)))
+	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.RatingInterceptor(nil, mockUserClient)))
 	handler := grpcHandler.NewRatingHandler(ratingService, logger)
 	ratingpb.RegisterRatingServiceServer(srv, handler)
 

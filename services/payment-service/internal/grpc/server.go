@@ -18,6 +18,7 @@ import (
 func NewPaymentServer(
 	cfg *config.Config,
 	service serviceInterfaces.PaymentService,
+	userIDResolver middleware.UserIDResolver,
 	logger *zap.Logger,
 ) (*grpcutil.Server, error) {
 	port, err := strconv.Atoi(cfg.Server.Port)
@@ -34,7 +35,7 @@ func NewPaymentServer(
 	srv, err := grpcutil.NewServer(
 		serverCfg,
 		logger,
-		grpc.UnaryInterceptor(middleware.PaymentInterceptor([]byte(cfg.InternalHMACSecret))),
+		grpc.UnaryInterceptor(middleware.PaymentInterceptor([]byte(cfg.InternalHMACSecret), userIDResolver)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC server: %w", err)

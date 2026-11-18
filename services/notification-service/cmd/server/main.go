@@ -92,7 +92,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	defer emailClient.Close()
 
 	// --- Service ---
-	notifService := service.NewNotificationService(inboxRepo, preferenceRepo, deviceRepo, userClient, logger)
+	notifService := service.NewNotificationService(inboxRepo, preferenceRepo, deviceRepo, logger)
 
 	// --- Dispatcher ---
 	disp := dispatcher.NewDispatcher(
@@ -118,7 +118,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	}()
 
 	// --- gRPC Server ---
-	srv, err := grpcServer.NewNotificationServer(cfg, notifService, logger)
+	srv, err := grpcServer.NewNotificationServer(cfg, notifService, userClient, logger)
 	if err != nil {
 		return fmt.Errorf("grpc server: %w", err)
 	}

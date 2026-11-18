@@ -165,8 +165,9 @@ message UpdateProfileRequest {
   optional string PhoneNumber     = 6;
   reserved 7;
   reserved "ProfilePictureURL";
-  optional string WithdrawNumber  = 8;
-  optional string Bio             = 9;
+  optional string WithdrawNumber   = 8;
+  optional string Bio              = 9;
+  optional string WithdrawOperator = 10; // code FedaPay de l'opérateur de retrait (ex. "togocel", "mtn_open")
 }
 
 message HealthRequest {
@@ -205,6 +206,7 @@ message UserProfileResponse {
   string LanguageCode                       = 18;
   string Email                              = 19;
   string PhoneNumber                        = 20;
+  string WithdrawOperator                   = 21; // code FedaPay de l'opérateur de retrait
 }
 
 // GetMyProfileResponse — réponse client enrichie avec données auth
@@ -237,6 +239,7 @@ message FullUserProfile {
   string IDCardExpirationDate                    = 20;
   string DriveLicenceExpirationDate              = 21;
   string WithdrawNumber                          = 22;
+  string WithdrawOperator                        = 23; // code FedaPay de l'opérateur de retrait
 }
 
 message UserFile {

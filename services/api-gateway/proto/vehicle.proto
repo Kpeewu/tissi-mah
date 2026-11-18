@@ -5,7 +5,7 @@ import "google/api/annotations.proto";
 
 // VehicleService gère la création, mise à jour, suppression et consultation des véhicules.
 service VehicleService {
-  // AddVehicle crée un nouveau véhicule pour un utilisateur.
+  // AddVehicle crée un nouveau véhicule pour l'appelant.
   rpc AddVehicle(AddVehicleRequest) returns (AddVehicleResponse) {
     option (google.api.http) = { post: "/api/v1/vehicle/add" body: "*" };
   }
@@ -21,7 +21,7 @@ service VehicleService {
   rpc GetVehicleDetails(GetVehicleDetailsRequest) returns (GetVehicleDetailsResponse) {
     option (google.api.http) = { post: "/api/v1/vehicle/details" body: "*" };
   }
-  // GetUserVehicles retourne la liste des véhicules d'un utilisateur.
+  // GetUserVehicles retourne la liste des véhicules de l'appelant.
   rpc GetUserVehicles(GetUserVehiclesRequest) returns (GetUserVehiclesResponse) {
     option (google.api.http) = { post: "/api/v1/vehicle/getUserVehicles" body: "*" };
   }
@@ -40,8 +40,10 @@ service VehicleService {
 }
 
 // AddVehicleRequest contient les informations nécessaires pour créer un véhicule.
+// Le propriétaire est l'appelant (UserID résolu depuis le Firebase UID par l'intercepteur).
 message AddVehicleRequest {
-  string UserId = 1;
+  reserved 1;
+  reserved "UserId";
   string Brand = 2;
   int32 NumberOfSeats = 3;
   string BrandModel = 4;
@@ -59,7 +61,8 @@ message AddVehicleResponse {
 // UpdateVehicleRequest contient les champs modifiables d'un véhicule.
 // Color et LicencePlate sont optionnels.
 message UpdateVehicleRequest {
-  string UserId = 1;
+  reserved 1;
+  reserved "UserId";
   string VehicleId = 2;
   string Color = 3;
   string LicencePlate = 4;
@@ -74,7 +77,8 @@ message UpdateVehicleResponse {
 
 // DeleteVehicleRequest identifie le véhicule à supprimer.
 message DeleteVehicleRequest {
-  string UserId = 1;
+  reserved 1;
+  reserved "UserId";
   string VehicleId = 2;
 }
 
@@ -86,7 +90,8 @@ message DeleteVehicleResponse {
 
 // GetVehicleDetailsRequest identifie le véhicule dont on veut les détails.
 message GetVehicleDetailsRequest {
-  string UserId = 1;
+  reserved 1;
+  reserved "UserId";
   string VehicleId = 2;
 }
 
@@ -96,9 +101,10 @@ message GetVehicleDetailsResponse {
   string ErrorMessage = 2;
 }
 
-// GetUserVehiclesRequest identifie l'utilisateur dont on veut les véhicules.
+// GetUserVehiclesRequest : les véhicules retournés sont ceux de l'appelant.
 message GetUserVehiclesRequest {
-  string UserId = 1;
+  reserved 1;
+  reserved "UserId";
 }
 
 // GetUserVehiclesResponse retourne la liste des aperçus de véhicules.

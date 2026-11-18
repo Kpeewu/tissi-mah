@@ -43,6 +43,8 @@ config:
   logLevel: "info"
   fileServiceHost: "file-service"
   fileServicePort: "50053"
+  userServiceHost: "user-service"
+  userServicePort: "50052"
   extra: {}
 
 # Secrets should be provided via AWS Secrets Manager or external secret management

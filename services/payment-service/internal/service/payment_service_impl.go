@@ -291,6 +291,9 @@ func (s *paymentServiceImpl) GetPaymentByBookingInternal(ctx context.Context, bo
 				PaymentReference: cached.PaymentReference,
 				CreatedAt:        cached.CreatedAt.Format(time.RFC3339),
 				CompletedAt:      formatOptionalTime(cached.CompletedAt),
+				PaymentURL:       pendingPaymentURL(cached),
+				ProviderStatus:   cached.ProviderStatus,
+				ExpiresAt:        formatOptionalTime(&cached.ExpiresAt),
 			}, nil
 		}
 	}
@@ -440,26 +443,34 @@ func (s *paymentServiceImpl) createRefundForPayment(ctx context.Context, payment
 		refundStatus = domain.RefundStatusPending
 	}
 
+	// Le chauffeur reçoit sa part si la règle lui en attribue une (annulation tardive ou no-show passager).
+	var driverPayoutStatus *string
+	if calc.AmountToDriver > 0 {
+		s := "pending"
+		driverPayoutStatus = &s
+	}
+
 	refund := &domain.Refund{
-		RefundID:           refundID,
-		RefundReference:    refundRef,
-		PaymentID:          payment.PaymentID,
-		BookingID:          input.BookingID,
-		RefundReason:       reason,
-		RefundRuleApplied:  rule,
-		OriginalAmount:     input.OriginalAmount,
-		RefundPercentage:   int16(calc.RefundPercentage),
-		RefundAmount:       calc.RefundAmount,
-		ServiceFeeRefunded: calc.ServiceFeeRefunded,
-		AmountToPassenger:  calc.AmountToPassenger,
-		AmountToDriver:     calc.AmountToDriver,
-		AmountToPlatform:   calc.AmountToPlatform,
-		Status:             refundStatus,
-		RefundMethod:       string(payment.PaymentMethod),
-		ProcessedAt:        &now,
-		CompletedAt:        completedAt,
-		PayoutDestination:  payment.PassengerPhoneNumber,
-		PaymentProvider:    "fedapay",
+		RefundID:            refundID,
+		RefundReference:     refundRef,
+		PaymentID:           payment.PaymentID,
+		BookingID:           input.BookingID,
+		RefundReason:        reason,
+		RefundRuleApplied:   rule,
+		OriginalAmount:      input.OriginalAmount,
+		RefundPercentage:    int16(calc.RefundPercentage),
+		RefundAmount:        calc.RefundAmount,
+		ServiceFeeRefunded:  calc.ServiceFeeRefunded,
+		AmountToPassenger:   calc.AmountToPassenger,
+		AmountToDriver:      calc.AmountToDriver,
+		AmountToPlatform:    calc.AmountToPlatform,
+		Status:              refundStatus,
+		RefundMethod:        string(payment.PaymentMethod),
+		ProcessedAt:         &now,
+		CompletedAt:         completedAt,
+		PayoutDestination:   payment.PassengerPhoneNumber,
+		PaymentProvider:     "fedapay",
+		DriverPayoutStatus:  driverPayoutStatus,
 	}
 
 	if s.refundWriteRepo != nil {
@@ -636,6 +647,7 @@ func refundToStatusResult(refund *domain.Refund) *serviceInterfaces.RefundStatus
 // GetPayoutStatus / GetDriverPayouts (implémentés en Phase 5)
 // =============================================================================
 
+// GetPayoutStatus retourne le statut d'un payout. L'appelant doit être le chauffeur propriétaire du payout.
 func (s *paymentServiceImpl) GetPayoutStatus(ctx context.Context, payoutID string) (*serviceInterfaces.PayoutStatusResult, error) {
 	if s.payoutReadRepo == nil {
 		return nil, paymentErrors.ErrorInternalServer
@@ -644,6 +656,17 @@ func (s *paymentServiceImpl) GetPayoutStatus(ctx context.Context, payoutID strin
 	payout, err := s.payoutReadRepo.GetByID(ctx, payoutID)
 	if err != nil {
 		return nil, err
+	}
+
+	driverID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if driverID != payout.DriverID {
+		s.logger.Warn("payout access denied: caller is not the payout driver",
+			zap.String("payoutID", payoutID),
+		)
+		return nil, paymentErrors.ErrorPaymentNotOwned
 	}
 
 	var failureReason string
@@ -665,9 +688,16 @@ func (s *paymentServiceImpl) GetPayoutStatus(ctx context.Context, payoutID strin
 	}, nil
 }
 
-func (s *paymentServiceImpl) GetDriverPayouts(ctx context.Context, driverID string, pageIndex int) ([]*serviceInterfaces.PayoutPreviewResult, error) {
+// GetDriverPayouts retourne les payouts du chauffeur appelant (UserID résolu par l'intercepteur).
+func (s *paymentServiceImpl) GetDriverPayouts(
+	ctx context.Context, pageIndex int,
+) ([]*serviceInterfaces.PayoutPreviewResult, error) {
 	if s.payoutReadRepo == nil {
 		return nil, paymentErrors.ErrorInternalServer
+	}
+	driverID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	payouts, err := s.payoutReadRepo.GetDriverPayouts(ctx, driverID, pageIndex)

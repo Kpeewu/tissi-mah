@@ -180,8 +180,9 @@ message CreatePaymentRequest {
   string TripId              = 2;
   string PaymentMethod       = 3; // mobileMoney
   int32  Amount              = 4 [deprecated = true]; // ignoré : le montant est celui de la réservation
-  string PassengerPhoneNumber = 5; // numéro togocel (8 chiffres) utilisé pour un éventuel remboursement
+  string PassengerPhoneNumber = 5; // numéro Mobile Money au format E.164 (ex. +22890123456) utilisé pour un éventuel remboursement
   string MobileMoneyMode     = 6 [deprecated = true]; // ignoré : l'opérateur est choisi sur la page FedaPay
+  string PayoutOperator      = 7; // code FedaPay de l'opérateur de remboursement (ex. "togocel", "mtn_open", "moov", "sbin")
 }
 
 message VerifyPaymentRequest {
@@ -240,9 +241,11 @@ message GetPayoutStatusRequest {
   string PayoutId = 1;
 }
 
+// Le chauffeur est l'appelant (UserID résolu depuis le Firebase UID par l'intercepteur).
 message GetDriverPayoutsRequest {
-  string DriverId  = 1;
-  int32  PageIndex = 2;
+  reserved 1;
+  reserved "DriverId";
+  int32 PageIndex = 2;
 }
 
 message TriggerManualPayoutRequest {

@@ -57,9 +57,9 @@ func (s ServiceEndpoint) Addr() string {
 	return fmt.Sprintf("%s:%s", s.Host, s.Port)
 }
 
-// ServiceFeeConfig contient le pourcentage de frais de service.
+// ServiceFeeConfig contient le montant fixe des frais de service.
 type ServiceFeeConfig struct {
-	Percent int
+	Amount int // montant fixe en unité monétaire, configurable par l'admin support
 }
 
 // ReconciliationConfig contient l'intervalle de réconciliation Redis/DB.
@@ -116,7 +116,7 @@ func Load() (*Config, error) {
 			Port: sharedconfig.GetStringOrDefault(values, "RATING_SERVICE_PORT", "50054"),
 		},
 		ServiceFee: ServiceFeeConfig{
-			Percent: getIntOrDefault(values, "SERVICE_FEE_PERCENT", 10),
+			Amount: getIntOrDefault(values, "SERVICE_FEE_AMOUNT", 0),
 		},
 		PaymentService: ServiceEndpoint{
 			Host: sharedconfig.GetStringOrDefault(values, "PAYMENT_SERVICE_HOST", "0.0.0.0"),

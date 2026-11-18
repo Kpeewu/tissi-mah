@@ -24,6 +24,16 @@ func (m *MockUserClient) GetUsersByUserIDs(ctx context.Context, userIDs []string
 	return args.Get(0).(map[string]*client.UserProfile), args.Error(1)
 }
 
+// GetUserIDByFirebaseID sert de UserIDResolver à l'intercepteur (tests e2e). Accepte en valeur
+// de retour un string ou une func(context.Context, string) string (résolution dynamique).
+func (m *MockUserClient) GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error) {
+	args := m.Called(ctx, firebaseUID)
+	if fn, ok := args.Get(0).(func(context.Context, string) string); ok {
+		return fn(ctx, firebaseUID), args.Error(1)
+	}
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockUserClient) Close() error {
 	args := m.Called()
 	return args.Error(0)

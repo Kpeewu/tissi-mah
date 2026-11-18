@@ -66,12 +66,22 @@ func (s *paymentServiceImpl) ReconcileProviderPayouts(ctx context.Context) error
 	updatedBefore := time.Now().UTC().Add(-payoutReconcileDelay)
 
 	if s.refundReadRepo != nil {
+		// Réconcilier les virements passagers en cours
 		refunds, err := s.refundReadRepo.GetProcessingRefundsToReconcile(ctx, updatedBefore, payoutReconcileBatchSize)
 		if err != nil {
 			return fmt.Errorf("get processing refunds: %w", err)
 		}
 		for _, refund := range refunds {
 			s.reconcileRefund(ctx, refund)
+		}
+
+		// Réconcilier les virements chauffeur issus de remboursements en cours
+		driverRefunds, err := s.refundReadRepo.GetProcessingDriverRefundPayoutsToReconcile(ctx, updatedBefore, payoutReconcileBatchSize)
+		if err != nil {
+			return fmt.Errorf("get processing driver refund payouts: %w", err)
+		}
+		for _, refund := range driverRefunds {
+			s.reconcileDriverRefundPayout(ctx, refund)
 		}
 	}
 
@@ -88,6 +98,11 @@ func (s *paymentServiceImpl) ReconcileProviderPayouts(ctx context.Context) error
 func (s *paymentServiceImpl) reconcileRefund(ctx context.Context, refund *domain.Refund) {
 	s.reconcileProviderPayout(ctx, "refundID", refund.RefundID, refund.PaymentProviderReference,
 		func(item *fedapay.PayoutItem) error { return s.applyRefundPayoutStatus(ctx, refund, item) })
+}
+
+func (s *paymentServiceImpl) reconcileDriverRefundPayout(ctx context.Context, refund *domain.Refund) {
+	s.reconcileProviderPayout(ctx, "refundID(driver)", refund.RefundID, refund.DriverPayoutProviderRef,
+		func(item *fedapay.PayoutItem) error { return s.applyDriverRefundPayoutStatus(ctx, refund, item) })
 }
 
 func (s *paymentServiceImpl) reconcileDriverPayout(ctx context.Context, payout *domain.Payout) {

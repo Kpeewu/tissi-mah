@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/Kpeewu/tissi-mah/pkg/notification"
+	"github.com/Kpeewu/tissi-mah/pkg/phone"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/client"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/domain"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/fedapay"
@@ -109,12 +109,14 @@ func (s *paymentServiceImpl) CreatePayment(ctx context.Context, input *serviceIn
 		BookingID:             booking.BookingID,
 		TripID:                booking.TripID,
 		Amount:                booking.TotalAmount,
+		ServiceFeeAmount:      booking.ServiceFee,
 		PaymentMethod:         domain.PaymentMobileMoney,
 		PaymentProvider:       "fedapay",
 		Status:                domain.PaymentStatusPending,
 		ExternalTransactionID: strconv.Itoa(transaction.ID),
 		PaymentReference:      paymentRef,
 		PassengerPhoneNumber:  refundPhone,
+		PayoutOperator:        input.PayoutOperator,
 		PaymentURL:            tokenResp.URL,
 		ProviderStatus:        fedapay.TransactionStatusPending,
 		ExpiresAt:             expiresAt,
@@ -164,10 +166,14 @@ func (s *paymentServiceImpl) validatePayableBooking(ctx context.Context, input *
 	if input.BookingID == "" || input.PaymentMethod != string(domain.PaymentMobileMoney) {
 		return nil, "", time.Time{}, paymentErrors.ErrorInvalidInput
 	}
-	refundPhone, ok := normalizeTogoPhoneNumber(input.PassengerPhoneNumber)
+	phoneResult, ok := phone.Normalize(input.PassengerPhoneNumber)
 	if !ok {
 		return nil, "", time.Time{}, paymentErrors.ErrorInvalidInput
 	}
+	if !phone.IsValidOperator(phoneResult.CountryCode, input.PayoutOperator) {
+		return nil, "", time.Time{}, paymentErrors.ErrorInvalidInput
+	}
+	refundPhone := phoneResult.E164
 
 	booking, err := s.getBooking(ctx, input.BookingID)
 	if err != nil {
@@ -763,26 +769,24 @@ func (s *paymentServiceImpl) getBooking(ctx context.Context, bookingID string) (
 	return booking, nil
 }
 
-// checkBookingOwnership vérifie que l'utilisateur authentifié (Firebase UID) est le passager de la réservation.
-// booking.PassengerID peut contenir le UserID interne ou le Firebase UID.
-func (s *paymentServiceImpl) checkBookingOwnership(ctx context.Context, booking *client.BookingDetails) error {
-	firebaseUID, _ := ctx.Value(middleware.FirebaseIDKey).(string)
-	if firebaseUID == "" {
-		return paymentErrors.ErrorUnauthorized
+// callerUserID retourne l'UserID interne de l'appelant, résolu par l'intercepteur depuis le Firebase UID
+// validé par l'api-gateway. Les endpoints client-facing ne font jamais confiance à un identifiant
+// d'utilisateur fourni dans la requête.
+func callerUserID(ctx context.Context) (string, error) {
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
+	if !ok || userID == "" {
+		return "", paymentErrors.ErrorUnauthorized
 	}
-	if booking.PassengerID == firebaseUID {
-		return nil
-	}
+	return userID, nil
+}
 
-	userID, err := s.userClient.GetUserIDByFirebaseID(ctx, firebaseUID)
+// checkBookingOwnership vérifie que l'appelant (UserID résolu par l'intercepteur) est le passager de la réservation.
+func (s *paymentServiceImpl) checkBookingOwnership(ctx context.Context, booking *client.BookingDetails) error {
+	userID, err := callerUserID(ctx)
 	if err != nil {
-		if errors.Is(err, paymentErrors.ErrorUserNotFound) {
-			return paymentErrors.ErrorPaymentNotOwned
-		}
-		s.logger.Error("resolve user from firebase uid failed", zap.Error(err))
-		return paymentErrors.ErrorInternalServer
+		return err
 	}
-	if userID == "" || userID != booking.PassengerID {
+	if userID != booking.PassengerID {
 		s.logger.Warn("payment access denied: user is not the booking passenger",
 			zap.String("bookingID", booking.BookingID),
 		)
@@ -864,26 +868,3 @@ func pendingPaymentURL(payment *domain.Payment) string {
 	return payment.PaymentURL
 }
 
-// normalizeTogoPhoneNumber normalise un numéro togolais sur 8 chiffres (préfixes +228 / 00228 / 228 retirés).
-func normalizeTogoPhoneNumber(raw string) (string, bool) {
-	var digits strings.Builder
-	for _, r := range strings.TrimSpace(raw) {
-		switch {
-		case unicode.IsDigit(r):
-			digits.WriteRune(r)
-		case r == '+' || r == ' ' || r == '-' || r == '.':
-			// séparateurs tolérés
-		default:
-			return "", false
-		}
-	}
-	number := digits.String()
-	number = strings.TrimPrefix(number, "00228")
-	if len(number) == 11 {
-		number = strings.TrimPrefix(number, "228")
-	}
-	if len(number) != 8 {
-		return "", false
-	}
-	return number, true
-}

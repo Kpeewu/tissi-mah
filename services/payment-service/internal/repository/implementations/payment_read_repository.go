@@ -15,17 +15,17 @@ import (
 )
 
 // paymentColumns liste les colonnes lues pour un paiement (ordre attendu par scanPaymentRow).
-const paymentColumns = `payment_id, booking_id, trip_id, amount, payment_method, payment_provider,
-		status, external_transaction_id, payment_reference, passenger_phone_number,
+const paymentColumns = `payment_id, booking_id, trip_id, amount, service_fee_amount, payment_method, payment_provider,
+		status, external_transaction_id, payment_reference, passenger_phone_number, payout_operator,
 		COALESCE(payment_url, ''), COALESCE(provider_status, ''), expires_at, booking_sync_attempts,
 		created_at, completed_at, failed_at, failure_reason, metadata, updated_at`
 
 // scanPaymentRow lit une ligne produite par une requête sélectionnant paymentColumns.
 func scanPaymentRow(row rowScanner, p *domain.Payment) error {
 	return row.Scan(
-		&p.PaymentID, &p.BookingID, &p.TripID, &p.Amount,
+		&p.PaymentID, &p.BookingID, &p.TripID, &p.Amount, &p.ServiceFeeAmount,
 		&p.PaymentMethod, &p.PaymentProvider,
-		&p.Status, &p.ExternalTransactionID, &p.PaymentReference, &p.PassengerPhoneNumber,
+		&p.Status, &p.ExternalTransactionID, &p.PaymentReference, &p.PassengerPhoneNumber, &p.PayoutOperator,
 		&p.PaymentURL, &p.ProviderStatus, &p.ExpiresAt, &p.BookingSyncAttempts,
 		&p.CreatedAt, &p.CompletedAt, &p.FailedAt, &p.FailureReason,
 		&p.Metadata, &p.UpdatedAt,

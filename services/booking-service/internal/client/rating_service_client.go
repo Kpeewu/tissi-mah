@@ -49,7 +49,8 @@ func (c *RatingServiceClient) Close() error {
 func (c *RatingServiceClient) GetUserRatingsAverage(ctx context.Context, userID string) (float64, int32, error) {
 	c.logger.Debug("client: GetUserRatingsAverage called", zap.String("userID", userID))
 
-	resp, err := c.grpcClient.GetUserRatingsAverage(ctx, &ratingpb.GetUserRatingsAverageRequest{
+	// Route interne : appelée sans identité (y compris depuis des routes publiques).
+	resp, err := c.grpcClient.GetUserRatingsAverageInternal(ctx, &ratingpb.GetUserRatingsAverageRequest{
 		UserRatedId: userID,
 	})
 	if err != nil {

@@ -3,7 +3,7 @@ package client
 import "context"
 
 // UserProfile contient les informations d'un utilisateur nécessaires côté file-service.
-// Source : user-service.GetUserByFirebaseID.
+// Source : user-service.GetUserByUserID.
 type UserProfile struct {
 	UserID    string // UUID interne MongoDB
 	FirstName string
@@ -28,21 +28,25 @@ type VehicleClient interface {
 	// Retourne nil, nil si le véhicule n'est pas trouvé (dégradation gracieuse).
 	GetVehicleInfo(ctx context.Context, vehicleID string) (*VehicleInfo, error)
 
+	// GetVehicleOwnerID retourne le UserID interne du propriétaire (contrôle de propriété,
+	// sans dégradation gracieuse) : ErrorVehicleNotFound si inconnu,
+	// ErrorVehicleServiceUnavailable si vehicle-service est injoignable.
+	GetVehicleOwnerID(ctx context.Context, vehicleID string) (string, error)
+
 	// Close libère la connexion gRPC.
 	Close() error
 }
 
 // UserClient est l'interface pour communiquer avec user-service via gRPC.
-// Le file-service reçoit un Firebase UID injecté par l'api-gateway dans la
-// metadata gRPC (x-firebase-uid) et doit le résoudre en UUID interne avant
-// de stocker les documents (convention partagée avec user-service et kyc-service).
+// Le file-service résout le Firebase UID en UserID interne dans l'intercepteur ;
+// les handlers utilisent directement l'UserID interne issu du contexte.
 type UserClient interface {
-	// GetInternalUserIDByFirebaseID résout un Firebase UID en UserID interne MongoDB.
-	GetInternalUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error)
+	// GetUserIDByFirebaseID résout un Firebase UID en UserID interne (intercepteur).
+	GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error)
 
-	// GetUserProfileByFirebaseID retourne l'UUID interne + prenom/nom.
-	// Utilisé par UploadVehicleDocuments pour construire le docName humain-lisible.
-	GetUserProfileByFirebaseID(ctx context.Context, firebaseUID string) (*UserProfile, error)
+	// GetUserProfileByUserID retourne le profil (UUID interne + prenom/nom) par UserID interne.
+	// Utilisé par les handlers d'upload pour construire les métadonnées de document.
+	GetUserProfileByUserID(ctx context.Context, userID string) (*UserProfile, error)
 
 	// Close libère la connexion gRPC.
 	Close() error

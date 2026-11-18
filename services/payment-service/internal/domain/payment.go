@@ -24,8 +24,6 @@ type PaymentMethod string
 
 const (
 	PaymentMobileMoney PaymentMethod = "mobileMoney"
-	PaymentCard        PaymentMethod = "card"
-	PaymentPaypal      PaymentMethod = "paypal"
 )
 
 type Payment struct {
@@ -33,12 +31,14 @@ type Payment struct {
 	BookingID             string
 	TripID                string
 	Amount                int
+	ServiceFeeAmount      int // frais de service inclus dans Amount, revient à la plateforme
 	PaymentMethod         PaymentMethod
 	PaymentProvider       string
 	Status                PaymentStatus
 	ExternalTransactionID string
 	PaymentReference      string
-	PassengerPhoneNumber  string // Numéro togocel de remboursement fourni par le passager (le paiement se fait sur la page FedaPay).
+	PassengerPhoneNumber  string // Numéro Mobile Money au format E.164 (+22890123456) ou local (8 chiffres, Togo), utilisé pour le remboursement.
+	PayoutOperator        string // Code FedaPay de l'opérateur de remboursement passager (ex. "togocel", "mtn_open").
 	PaymentURL            string // Lien de la page de paiement FedaPay (redirection)
 	ProviderStatus        string // Dernier statut FedaPay observé (pending, approved, declined, canceled, expired, deleted)
 	ExpiresAt             time.Time
@@ -142,11 +142,18 @@ type Refund struct {
 	Notes                    *string
 	PayoutDestination        string // Numéro FedaPay destinataire (copie depuis Payment).
 	PaymentProvider          string // "fedapay" par défaut.
-	PaymentProviderReference string // ID FedaPay du payout de remboursement.
+	PaymentProviderReference string // ID FedaPay du payout de remboursement (côté passager).
 	FailureReason            *string
 	RetryCount               int16
 	LastRetryAt              *time.Time
 	UpdatedAt                time.Time
+	// Payout chauffeur issu du remboursement (annulation tardive / no-show passager).
+	// Nil quand AmountToDriver == 0.
+	DriverPayoutStatus      *string
+	DriverPayoutProviderRef string
+	DriverPayoutRetryCount  int16
+	DriverPayoutLastRetryAt *time.Time
+	DriverPayoutCompletedAt *time.Time
 }
 
 // =============================================================================
@@ -232,8 +239,10 @@ const (
 	PaymentEventBookingSyncAbandoned = "booking_sync_abandoned" // plafond de reprises atteint : remboursement intégral
 	PaymentEventRefundCreationFailed = "refund_creation_failed" // remboursement automatique en échec (retenté)
 
-	RefundEventRetryScheduled = "retry_scheduled" // échec récupérable : le refund repasse pending
-	RefundEventPayoutStarted  = "payout_started"  // virement FedaPay démarré, en attente de confirmation
+	RefundEventRetryScheduled        = "retry_scheduled"         // échec récupérable : le refund repasse pending
+	RefundEventPayoutStarted         = "payout_started"          // virement FedaPay passager démarré, en attente de confirmation
+	RefundEventDriverPayoutStarted   = "driver_payout_started"   // virement FedaPay chauffeur démarré
+	RefundEventDriverPayoutRetry     = "driver_payout_retry_scheduled" // échec récupérable côté chauffeur
 )
 
 // Acteurs à l'origine d'une entrée d'historique (initiated_by).

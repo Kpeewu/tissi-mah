@@ -13,6 +13,8 @@ option go_package = "github.com/Kpeewu/tissi-mah/services/rating-service/proto/g
 // =============================================================================
 
 service UserService {
+  // Résout le Firebase UID de l'appelant en profil (UserID interne) — utilisé par l'intercepteur
+  rpc GetUserByFirebaseID(GetUserByFirebaseIDRequest) returns (UserProfileResponse);
   // Récupère le profil utilisateur lié à un UserID
   rpc GetUserByUserID(GetUserByUserIDRequest) returns (UserProfileResponse);
   // Récupère en batch les profils de plusieurs utilisateurs (léger : sans email/phone)
@@ -22,6 +24,10 @@ service UserService {
 // =============================================================================
 // Request Messages
 // =============================================================================
+
+message GetUserByFirebaseIDRequest {
+  string FirebaseID = 1;
+}
 
 message GetUserByUserIDRequest {
   string UserID = 1;

@@ -25,11 +25,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	RatingService_RateUser_FullMethodName              = "/rating.RatingService/RateUser"
-	RatingService_GetUserRatings_FullMethodName        = "/rating.RatingService/GetUserRatings"
-	RatingService_GetUserRatingsAverage_FullMethodName = "/rating.RatingService/GetUserRatingsAverage"
-	RatingService_UpdateRating_FullMethodName          = "/rating.RatingService/UpdateRating"
-	RatingService_Health_FullMethodName                = "/rating.RatingService/Health"
+	RatingService_RateUser_FullMethodName                      = "/rating.RatingService/RateUser"
+	RatingService_GetUserRatings_FullMethodName                = "/rating.RatingService/GetUserRatings"
+	RatingService_GetUserRatingsAverage_FullMethodName         = "/rating.RatingService/GetUserRatingsAverage"
+	RatingService_GetUserRatingsAverageInternal_FullMethodName = "/rating.RatingService/GetUserRatingsAverageInternal"
+	RatingService_UpdateRating_FullMethodName                  = "/rating.RatingService/UpdateRating"
+	RatingService_Health_FullMethodName                        = "/rating.RatingService/Health"
 )
 
 // RatingServiceClient is the client API for RatingService service.
@@ -42,6 +43,10 @@ type RatingServiceClient interface {
 	GetUserRatings(ctx context.Context, in *GetUserRatingsRequest, opts ...grpc.CallOption) (*GetUserRatingsResponse, error)
 	// GetUserRatingsAverage - Récupérer la moyenne des notes d'un utilisateur
 	GetUserRatingsAverage(ctx context.Context, in *GetUserRatingsAverageRequest, opts ...grpc.CallOption) (*GetUserRatingsAverageResponse, error)
+	// GetUserRatingsAverageInternal - Moyenne des notes d'un utilisateur, sans identité d'appelant.
+	// Route interne (booking-service, trips-service — y compris depuis des routes publiques) :
+	// bloquée en bordure par l'api-gateway.
+	GetUserRatingsAverageInternal(ctx context.Context, in *GetUserRatingsAverageRequest, opts ...grpc.CallOption) (*GetUserRatingsAverageResponse, error)
 	// UpdateRating - Modifier une note existante
 	UpdateRating(ctx context.Context, in *UpdateRatingRequest, opts ...grpc.CallOption) (*UpdateRatingResponse, error)
 	// Health - Health check endpoint (no auth required)
@@ -86,6 +91,16 @@ func (c *ratingServiceClient) GetUserRatingsAverage(ctx context.Context, in *Get
 	return out, nil
 }
 
+func (c *ratingServiceClient) GetUserRatingsAverageInternal(ctx context.Context, in *GetUserRatingsAverageRequest, opts ...grpc.CallOption) (*GetUserRatingsAverageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetUserRatingsAverageResponse)
+	err := c.cc.Invoke(ctx, RatingService_GetUserRatingsAverageInternal_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *ratingServiceClient) UpdateRating(ctx context.Context, in *UpdateRatingRequest, opts ...grpc.CallOption) (*UpdateRatingResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(UpdateRatingResponse)
@@ -116,6 +131,10 @@ type RatingServiceServer interface {
 	GetUserRatings(context.Context, *GetUserRatingsRequest) (*GetUserRatingsResponse, error)
 	// GetUserRatingsAverage - Récupérer la moyenne des notes d'un utilisateur
 	GetUserRatingsAverage(context.Context, *GetUserRatingsAverageRequest) (*GetUserRatingsAverageResponse, error)
+	// GetUserRatingsAverageInternal - Moyenne des notes d'un utilisateur, sans identité d'appelant.
+	// Route interne (booking-service, trips-service — y compris depuis des routes publiques) :
+	// bloquée en bordure par l'api-gateway.
+	GetUserRatingsAverageInternal(context.Context, *GetUserRatingsAverageRequest) (*GetUserRatingsAverageResponse, error)
 	// UpdateRating - Modifier une note existante
 	UpdateRating(context.Context, *UpdateRatingRequest) (*UpdateRatingResponse, error)
 	// Health - Health check endpoint (no auth required)
@@ -138,6 +157,9 @@ func (UnimplementedRatingServiceServer) GetUserRatings(context.Context, *GetUser
 }
 func (UnimplementedRatingServiceServer) GetUserRatingsAverage(context.Context, *GetUserRatingsAverageRequest) (*GetUserRatingsAverageResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUserRatingsAverage not implemented")
+}
+func (UnimplementedRatingServiceServer) GetUserRatingsAverageInternal(context.Context, *GetUserRatingsAverageRequest) (*GetUserRatingsAverageResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUserRatingsAverageInternal not implemented")
 }
 func (UnimplementedRatingServiceServer) UpdateRating(context.Context, *UpdateRatingRequest) (*UpdateRatingResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateRating not implemented")
@@ -220,6 +242,24 @@ func _RatingService_GetUserRatingsAverage_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RatingService_GetUserRatingsAverageInternal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserRatingsAverageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RatingServiceServer).GetUserRatingsAverageInternal(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RatingService_GetUserRatingsAverageInternal_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RatingServiceServer).GetUserRatingsAverageInternal(ctx, req.(*GetUserRatingsAverageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RatingService_UpdateRating_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpdateRatingRequest)
 	if err := dec(in); err != nil {
@@ -274,6 +314,10 @@ var RatingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUserRatingsAverage",
 			Handler:    _RatingService_GetUserRatingsAverage_Handler,
+		},
+		{
+			MethodName: "GetUserRatingsAverageInternal",
+			Handler:    _RatingService_GetUserRatingsAverageInternal_Handler,
 		},
 		{
 			MethodName: "UpdateRating",

@@ -386,7 +386,7 @@ type SyncLegBookedSeatsInput struct {
 // GetDriverTripDetailsInput contient les données nécessaires à la récupération d'un trajet pour le conducteur.
 type GetDriverTripDetailsInput struct {
 	TripID   string
-	DriverID string // depuis x-firebase-uid, pour vérifier la propriété
+	DriverID string // UserID de l'appelant (résolu par l'intercepteur), pour vérifier la propriété
 }
 
 // GetPassengerTripDetailsInput contient les données nécessaires à la récupération d'un trajet pour un passager.

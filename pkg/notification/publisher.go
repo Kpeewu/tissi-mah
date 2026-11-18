@@ -47,6 +47,7 @@ const (
 	DriverNoShowReported        = "DRIVER_NO_SHOW_REPORTED"
 	NoShowContested             = "NO_SHOW_CONTESTED"
 	NoShowContestResolved       = "NO_SHOW_CONTEST_RESOLVED"
+	RefundRequestAbandoned      = "REFUND_REQUEST_ABANDONED"
 )
 
 // Reference types

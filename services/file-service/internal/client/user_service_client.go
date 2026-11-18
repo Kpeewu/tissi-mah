@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
+	fileErrors "github.com/Kpeewu/tissi-mah/services/file-service/pkg/errors"
 	userpb "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -46,35 +47,38 @@ func (c *UserServiceClient) Close() error {
 	return c.conn.Close()
 }
 
-// GetInternalUserIDByFirebaseID résout un Firebase UID en UserID interne MongoDB
-// via user-service.GetUserByFirebaseID.
-//
-// Utilisé par UploadIdDocument pour garantir que les documents sont stockés
-// avec l'UUID interne (convention partagée avec user-service et kyc-service)
-// plutôt que le Firebase UID fourni par le client.
-func (c *UserServiceClient) GetInternalUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error) {
-	profile, err := c.GetUserProfileByFirebaseID(ctx, firebaseUID)
-	if err != nil {
-		return "", err
-	}
-	return profile.UserID, nil
-}
-
-// GetUserProfileByFirebaseID retourne l'UUID interne + prenom/nom du user.
-// Utilisé par UploadVehicleDocuments pour construire un docName humain-lisible.
-func (c *UserServiceClient) GetUserProfileByFirebaseID(ctx context.Context, firebaseUID string) (*UserProfile, error) {
-	c.logger.Debug("client: GetUserProfileByFirebaseID called", zap.String("firebaseUID", firebaseUID))
-
+// GetUserIDByFirebaseID résout le Firebase UID de l'appelant en UserID interne (utilisé par
+// l'intercepteur). Retourne ErrorUserNotFound si aucun profil ne correspond.
+func (c *UserServiceClient) GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error) {
 	resp, err := c.grpcClient.GetUserByFirebaseID(ctx, &userpb.GetUserByFirebaseIDRequest{
 		FirebaseID: firebaseUID,
 	})
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-			c.logger.Debug("client: user not found by firebaseUID", zap.String("firebaseUID", firebaseUID))
-			return nil, fmt.Errorf("user-service: user not found for firebaseUID %s", firebaseUID)
+			return "", fileErrors.ErrorUserNotFound
 		}
-		c.logger.Error("client: GetUserByFirebaseID failed", zap.Error(err), zap.String("firebaseUID", firebaseUID))
-		return nil, fmt.Errorf("user-service: GetUserByFirebaseID failed: %w", err)
+		c.logger.Error("client: GetUserByFirebaseID failed", zap.Error(err))
+		return "", fmt.Errorf("user-service: GetUserByFirebaseID failed: %w", err)
+	}
+	if resp.UserID == "" {
+		return "", fileErrors.ErrorUserNotFound
+	}
+	return resp.UserID, nil
+}
+
+// GetUserProfileByUserID retourne le profil (UUID interne + prenom/nom) par UserID interne.
+// Utilisé par les handlers d'upload pour construire les métadonnées de document, à partir
+// de l'UserID déjà résolu par l'intercepteur (évite un double appel user-service).
+func (c *UserServiceClient) GetUserProfileByUserID(ctx context.Context, userID string) (*UserProfile, error) {
+	resp, err := c.grpcClient.GetUserByUserID(ctx, &userpb.GetUserByUserIDRequest{
+		UserID: userID,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return nil, fileErrors.ErrorUserNotFound
+		}
+		c.logger.Error("client: GetUserByUserID failed", zap.Error(err), zap.String("userID", userID))
+		return nil, fmt.Errorf("user-service: GetUserByUserID failed: %w", err)
 	}
 
 	return &UserProfile{

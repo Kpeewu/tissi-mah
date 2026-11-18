@@ -12,7 +12,9 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/Kpeewu/tissi-mah/pkg/notification"
+	"github.com/Kpeewu/tissi-mah/pkg/phone"
 	"github.com/Kpeewu/tissi-mah/services/payment-service/internal/domain"
+	paymentErrors "github.com/Kpeewu/tissi-mah/services/payment-service/pkg/errors"
 )
 
 const maxPayoutRetries = 3
@@ -187,14 +189,16 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 		return "", 0, nil
 	}
 
-	// Calculer le montant total à verser au chauffeur
+	// Calculer le montant total et les frais de service
 	grossAmount := 0
+	totalServiceFee := 0
 	for _, p := range payments {
 		grossAmount += p.Amount
+		totalServiceFee += p.ServiceFeeAmount
 	}
 
-	// Appliquer la commission plateforme
-	platformFee := grossAmount * s.cfg.Payout.PlatformFeePercent / 100
+	// Les frais de service reviennent entièrement à la plateforme ; le chauffeur reçoit le sous-total
+	platformFee := totalServiceFee
 	netAmount := grossAmount - platformFee
 
 	// Récupérer le booking pour trouver le driverID
@@ -217,9 +221,52 @@ func (s *paymentServiceImpl) processPayoutForTrip(ctx context.Context, tripID st
 		return "", 0, fmt.Errorf("driver %s has no withdraw number", booking.DriverID)
 	}
 
+	// Vérifier si un payout FedaPay existe déjà pour ce trip (protection contre double virement sur retry)
+	if existingPayout, _ := s.payoutReadRepo.GetByTripID(ctx, tripID); existingPayout != nil && existingPayout.PaymentProviderReference != "" {
+		if existingFedaID, _ := strconv.Atoi(existingPayout.PaymentProviderReference); existingFedaID > 0 {
+			item, err := s.fedapayClient.GetPayout(existingFedaID)
+			if err != nil {
+				s.logger.Error("check existing fedapay payout failed, aborting retry",
+					zap.Error(err), zap.String("tripID", tripID))
+				return "", 0, err
+			}
+			switch item.Status {
+			case "sent":
+				s.payoutWriteRepo.ConfirmPayoutCompleted(ctx, existingPayout.PayoutID)            //nolint:errcheck
+				s.payoutWriteRepo.MarkPaymentsAsPaidOut(ctx, tripID)                              //nolint:errcheck
+				s.writePayoutHistory(ctx, existingPayout.PayoutID, "completed", "system", "", "", "", "Réconcilié : payout FedaPay déjà envoyé")
+				return existingPayout.PayoutID, existingPayout.NetAmount, nil
+			case "started", "processing":
+				s.payoutWriteRepo.UpdatePayoutStatus(ctx, existingPayout.PayoutID, domain.PayoutStatusProcessing, existingPayout.PaymentProviderReference) //nolint:errcheck
+				return existingPayout.PayoutID, 0, nil
+			case "pending":
+				if _, err := s.fedapayClient.StartPayouts([]int{existingFedaID}); err != nil {
+					s.payoutWriteRepo.MarkPayoutFailed(ctx, existingPayout.PayoutID, "fedapay start retry failed: "+err.Error()) //nolint:errcheck
+					return "", 0, err
+				}
+				s.payoutWriteRepo.UpdatePayoutStatus(ctx, existingPayout.PayoutID, domain.PayoutStatusProcessing, existingPayout.PaymentProviderReference) //nolint:errcheck
+				s.writePayoutHistory(ctx, existingPayout.PayoutID, "processing", "system", "", "", "", "Payout FedaPay redémarré (StartPayouts retry)")
+				s.payoutWriteRepo.MarkPaymentsAsPaidOut(ctx, tripID) //nolint:errcheck
+				return existingPayout.PayoutID, existingPayout.NetAmount, nil
+			// case "failed" : fallthrough — un nouveau CreatePayout est légitime
+			}
+		}
+	}
+
 	// Créer le payout FedaPay
+	withdrawPhone, ok := phone.Normalize(user.WithdrawNumber)
+	if !ok {
+		return "", 0, fmt.Errorf("%w: numéro de retrait non normalisable pour l'utilisateur %s", paymentErrors.ErrorInvalidInput, user.UserID)
+	}
+	withdrawOperator := user.WithdrawOperator
+	if withdrawOperator == "" && withdrawPhone.CountryCode == "tg" {
+		withdrawOperator = "togocel" // rétrocompat chauffeurs togolais antérieurs à la migration WithdrawOperator
+	}
+	if withdrawOperator == "" {
+		return "", 0, fmt.Errorf("%w: opérateur de retrait manquant pour l'utilisateur %s (pays=%s)", paymentErrors.ErrorInvalidInput, user.UserID, withdrawPhone.CountryCode)
+	}
 	fedapayPayout, err := s.fedapayClient.CreatePayout(
-		netAmount, "togocel", user.WithdrawNumber,
+		netAmount, withdrawOperator, withdrawPhone.LocalNumber, withdrawPhone.CountryCode,
 		user.FirstName, user.Name,
 	)
 	if err != nil {

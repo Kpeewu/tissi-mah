@@ -35,7 +35,7 @@ const (
 //
 // VehicleService gère la création, mise à jour, suppression et consultation des véhicules.
 type VehicleServiceClient interface {
-	// AddVehicle crée un nouveau véhicule pour un utilisateur.
+	// AddVehicle crée un nouveau véhicule pour l'appelant.
 	AddVehicle(ctx context.Context, in *AddVehicleRequest, opts ...grpc.CallOption) (*AddVehicleResponse, error)
 	// UpdateVehicle met à jour les informations modifiables d'un véhicule.
 	UpdateVehicle(ctx context.Context, in *UpdateVehicleRequest, opts ...grpc.CallOption) (*UpdateVehicleResponse, error)
@@ -43,7 +43,7 @@ type VehicleServiceClient interface {
 	DeleteVehicle(ctx context.Context, in *DeleteVehicleRequest, opts ...grpc.CallOption) (*DeleteVehicleResponse, error)
 	// GetVehicleDetails retourne les détails complets d'un véhicule.
 	GetVehicleDetails(ctx context.Context, in *GetVehicleDetailsRequest, opts ...grpc.CallOption) (*GetVehicleDetailsResponse, error)
-	// GetUserVehicles retourne la liste des véhicules d'un utilisateur.
+	// GetUserVehicles retourne la liste des véhicules de l'appelant.
 	GetUserVehicles(ctx context.Context, in *GetUserVehiclesRequest, opts ...grpc.CallOption) (*GetUserVehiclesResponse, error)
 	// GetVehicleInfo retourne les informations essentielles d'un véhicule sans contrôle
 	// de propriété ni chargement des documents (inter-service, appelé par file-service
@@ -151,7 +151,7 @@ func (c *vehicleServiceClient) Health(ctx context.Context, in *HealthRequest, op
 //
 // VehicleService gère la création, mise à jour, suppression et consultation des véhicules.
 type VehicleServiceServer interface {
-	// AddVehicle crée un nouveau véhicule pour un utilisateur.
+	// AddVehicle crée un nouveau véhicule pour l'appelant.
 	AddVehicle(context.Context, *AddVehicleRequest) (*AddVehicleResponse, error)
 	// UpdateVehicle met à jour les informations modifiables d'un véhicule.
 	UpdateVehicle(context.Context, *UpdateVehicleRequest) (*UpdateVehicleResponse, error)
@@ -159,7 +159,7 @@ type VehicleServiceServer interface {
 	DeleteVehicle(context.Context, *DeleteVehicleRequest) (*DeleteVehicleResponse, error)
 	// GetVehicleDetails retourne les détails complets d'un véhicule.
 	GetVehicleDetails(context.Context, *GetVehicleDetailsRequest) (*GetVehicleDetailsResponse, error)
-	// GetUserVehicles retourne la liste des véhicules d'un utilisateur.
+	// GetUserVehicles retourne la liste des véhicules de l'appelant.
 	GetUserVehicles(context.Context, *GetUserVehiclesRequest) (*GetUserVehiclesResponse, error)
 	// GetVehicleInfo retourne les informations essentielles d'un véhicule sans contrôle
 	// de propriété ni chargement des documents (inter-service, appelé par file-service

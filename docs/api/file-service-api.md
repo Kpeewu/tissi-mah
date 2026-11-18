@@ -183,7 +183,7 @@ Uploads the vehicle documents (insurance, registration card) and, if the user do
 
 **Authentication:** Required (Firebase JWT)
 
-> **Security note:** The user identity is resolved server-side from the Firebase JWT (`x-firebase-uid`). Any `UserID` field in the request body is ignored. The caller cannot impersonate another user.
+> **Security note:** The user identity is resolved server-side from the Firebase JWT (`x-firebase-uid`). Any `UserID` field in the request body is ignored. The caller cannot impersonate another user. The vehicle must belong to the caller (owner read from vehicle-service before any upload): a vehicle owned by another user is rejected exactly like an unknown one (`ErrorVehicleNotFound`).
 
 #### Request
 
@@ -206,7 +206,7 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `VehicleID` | string | Yes | Vehicle ID |
+| `VehicleID` | string | Yes | Vehicle ID — must belong to the caller |
 | `DriverLicenceRecto` | bytes (base64) | If no current licence | Front of driver's licence — ignored if the user already has a current licence, required otherwise |
 | `DriverLicenceVerso` | bytes (base64) | If no current licence | Back of driver's licence — same rule as `DriverLicenceRecto` (both sides required together) |
 | `Assurance` | bytes (base64) | Yes | Insurance document |
@@ -269,6 +269,8 @@ Content-Type: application/json
 | `ErrorInvalidDocumentType` | 400 | A required file is missing or `VehicleID` is empty |
 | `ErrorDriverLicenceRequired` | 400 | No current driver licence on file and `DriverLicenceRecto` / `DriverLicenceVerso` not both provided |
 | `ErrorUserServiceUnavailable` | 503 | user-service unreachable (Firebase UID or profile resolution failed) |
+| `ErrorVehicleNotFound` | 404 | `VehicleID` unknown or owned by another user — nothing is uploaded |
+| `ErrorVehicleServiceUnavailable` | 503 | vehicle-service unreachable (ownership could not be checked) — nothing is uploaded |
 | `ErrorUploadFailed` | 500 | S3/MinIO upload failed |
 | `ErrorInternalServer` | 500 | Internal error |
 
@@ -374,7 +376,6 @@ Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
 
 {
-    "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
     "FileID": "d-550e8400-e29b-41d4-a716-446655440001",
     "NewDocument": "<base64-encoded bytes>"
 }
@@ -384,7 +385,6 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `UserID` | string | Yes | User UUID (internal ID) — ownership check |
 | `FileID` | string | Yes | ID of the document to replace |
 | `NewDocument` | bytes (base64) | Yes | Replacement file |
 
@@ -430,14 +430,14 @@ Content-Type: application/json
 
 ### GET /api/v1/file/getDocument
 
-Retrieves a document file by ID. Access is controlled by ownership: either the owning user or a support agent can retrieve the file.
+Retrieves a document file by ID. Access is controlled by ownership: either the owning user (the caller) or a support agent can retrieve the file.
 
-**Authentication:** Required (Firebase JWT)
+**Authentication:** Required — Firebase JWT (owner = caller, Firebase UID resolved to the internal UserID) or support JWT (`x-support-uid`, bypasses the ownership check)
 
 #### Request
 
 ```http
-GET /api/v1/file/getDocument?FileID=d-550e8400-e29b-41d4-a716-446655440001&UserID=8b1d4173-d563-4f81-aeb1-8bf565816545 HTTP/1.1
+GET /api/v1/file/getDocument?FileID=d-550e8400-e29b-41d4-a716-446655440001 HTTP/1.1
 Host: api.tissimah.kpeewu.dev
 Authorization: Bearer <firebase_id_token>
 ```
@@ -447,8 +447,6 @@ Authorization: Bearer <firebase_id_token>
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `FileID` | string | Yes | Document ID to retrieve |
-| `UserID` | string | One required | User UUID — verifies ownership |
-| `SupportID` | string | One required | Support agent ID — bypasses ownership check |
 
 #### Response (Success)
 
@@ -475,7 +473,7 @@ exact expiry). Never persist it — resolve a fresh URL when the file is display
 | ErrorMessage | HTTP | Description |
 |--------------|------|-------------|
 | `ErrorDocumentNotFound` | 404 | Document does not exist |
-| `ErrorPermissionDenied` | 403 | `UserID` is not the owner of the document |
+| `ErrorPermissionDenied` | 403 | The caller is not the owner of the document |
 | `ErrorInternalServer` | 500 | Internal error |
 
 ---
@@ -495,7 +493,6 @@ Authorization: Bearer <firebase_id_token>
 Content-Type: application/json
 
 {
-    "UserID": "8b1d4173-d563-4f81-aeb1-8bf565816545",
     "FileID": "d-550e8400-e29b-41d4-a716-446655440001"
 }
 ```
@@ -504,7 +501,6 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `UserID` | string | Yes | User UUID — ownership check |
 | `FileID` | string | Yes | Document ID to delete |
 
 #### Response (Success)
@@ -524,7 +520,7 @@ Content-Type: application/json
 | ErrorMessage | HTTP | Description |
 |--------------|------|-------------|
 | `ErrorDocumentNotFound` | 404 | Document does not exist |
-| `ErrorPermissionDenied` | 403 | `UserID` is not the owner of the document |
+| `ErrorPermissionDenied` | 403 | The caller is not the owner of the document |
 | `ErrorInternalServer` | 500 | Internal error |
 
 ---

@@ -128,7 +128,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	// Service
 	chatService := service.NewChatService(
 		threadRepo, messageRepo,
-		userClient, bookingClient, tripClient,
+		bookingClient, tripClient,
 		moderationClient,
 		encryptor, notifRedis, logger,
 	)
@@ -138,7 +138,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	go service.StartRetentionWorker(ctx, messageRepo, cfg.Worker.MessageRetentionDays, logger)
 
 	// Serveur gRPC (TLS self-signed via grpcutil.NewServer)
-	srv, err := chatGRPC.NewChatServer(cfg, chatService, encryptor, logger)
+	srv, err := chatGRPC.NewChatServer(cfg, chatService, encryptor, userClient, logger)
 	if err != nil {
 		return fmt.Errorf("grpc server: %w", err)
 	}

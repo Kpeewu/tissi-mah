@@ -117,7 +117,7 @@ func run(bootstrapLogger *zap.Logger) error {
 		tripClient, userClient, paymentClient, ratingClient,
 		bookingCache,
 		notifRedis,
-		cfg.ServiceFee.Percent,
+		cfg.ServiceFee.Amount,
 		logger,
 	)
 

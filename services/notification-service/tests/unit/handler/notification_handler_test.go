@@ -22,9 +22,9 @@ import (
 	"github.com/Kpeewu/tissi-mah/services/notification-service/tests/mocks"
 )
 
-// ctxWithUID retourne un contexte contenant le FirebaseIDKey.
+// ctxWithUID retourne un contexte contenant l'UserID de l'appelant, tel que résolu par l'intercepteur.
 func ctxWithUID(uid string) context.Context {
-	return context.WithValue(context.Background(), middleware.FirebaseIDKey, uid)
+	return context.WithValue(context.Background(), middleware.UserIDKey, uid)
 }
 
 // assertGRPCCode vérifie que l'erreur est un code gRPC attendu.

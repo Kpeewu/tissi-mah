@@ -11,6 +11,7 @@ import (
 	bookingErrors "github.com/Kpeewu/tissi-mah/services/booking-service/pkg/errors"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
@@ -105,6 +106,11 @@ func (r *bookingWriteRepositoryImpl) insertBooking(ctx context.Context, tx pgx.T
 		b.PassengerMessage, b.ExtraMinutesDetour, b.ExtraDetourPrice,
 	)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" &&
+			pgErr.ConstraintName == "idx_bookings_unique_active_passenger_trip" {
+			return bookingErrors.ErrorDuplicateBooking
+		}
 		r.logger.Error("insertBooking failed", zap.Error(err), zap.String("bookingID", b.BookingID))
 		return fmt.Errorf("%w: %s", bookingErrors.ErrorInternalServer, err.Error())
 	}
@@ -653,12 +659,12 @@ func (r *bookingWriteRepositoryImpl) ConfirmPayment(ctx context.Context, booking
 	}
 
 	query := `UPDATE bookings SET status = $2::booking_status, payment_completed_at = NOW(),
-		cancellation_reason = NULL WHERE booking_id = $1`
+		fedapay_transaction_id = $3, cancellation_reason = NULL WHERE booking_id = $1`
 	if newStatus == domain.BookingStatusApproved {
 		query = `UPDATE bookings SET status = $2::booking_status, payment_completed_at = NOW(),
-			approved_at = NOW(), cancellation_reason = NULL WHERE booking_id = $1`
+			approved_at = NOW(), fedapay_transaction_id = $3, cancellation_reason = NULL WHERE booking_id = $1`
 	}
-	if _, err = tx.Exec(ctx, query, bookingID, string(newStatus)); err != nil {
+	if _, err = tx.Exec(ctx, query, bookingID, string(newStatus), transactionID); err != nil {
 		r.logger.Error("confirm payment update failed", zap.Error(err))
 		return bookingErrors.ErrorInternalServer
 	}
@@ -962,7 +968,7 @@ func (r *bookingWriteRepositoryImpl) IncrementRefundRequestAttempts(
 
 // AnonymizeUserRefs pseudonymise les références d'un utilisateur dans bookings et bookings_status_history.
 func (r *bookingWriteRepositoryImpl) AnonymizeUserRefs(ctx context.Context, userID string) error {
-	anon := "deleted_" + userID[:8]
+	anon := anonymizedUserID(userID)
 
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {

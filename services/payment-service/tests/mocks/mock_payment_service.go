@@ -85,8 +85,8 @@ func (m *MockPaymentService) GetPayoutStatus(ctx context.Context, payoutID strin
 	return args.Get(0).(*serviceInterfaces.PayoutStatusResult), args.Error(1)
 }
 
-func (m *MockPaymentService) GetDriverPayouts(ctx context.Context, driverID string, pageIndex int) ([]*serviceInterfaces.PayoutPreviewResult, error) {
-	args := m.Called(ctx, driverID, pageIndex)
+func (m *MockPaymentService) GetDriverPayouts(ctx context.Context, pageIndex int) ([]*serviceInterfaces.PayoutPreviewResult, error) {
+	args := m.Called(ctx, pageIndex)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

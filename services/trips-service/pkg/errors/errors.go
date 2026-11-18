@@ -28,4 +28,5 @@ var (
 	ErrorWaypointAlreadyDeparted      = errors.New("ErrorWaypointAlreadyDeparted")
 	ErrorWaypointAlreadyCancelled     = errors.New("ErrorWaypointAlreadyCancelled")
 	ErrorDepartureAfterArrival        = errors.New("ErrorDepartureAfterArrival")
+	ErrorUserNotFound                 = errors.New("ErrorUserNotFound")
 )

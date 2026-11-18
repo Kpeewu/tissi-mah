@@ -14,6 +14,7 @@ type Config struct {
 	Redis              RedisConfig
 	FileService        FileServiceConfig
 	TripsService       TripsServiceConfig
+	UserService        UserServiceConfig
 	LogLevel           string
 	InternalHMACSecret string
 }
@@ -38,6 +39,17 @@ type TripsServiceConfig struct {
 // Address retourne l'adresse host:port du trips-service.
 func (t TripsServiceConfig) Address() string {
 	return t.Host + ":" + t.Port
+}
+
+// UserServiceConfig contient l'adresse du user-service.
+type UserServiceConfig struct {
+	Host string
+	Port string
+}
+
+// Address retourne l'adresse host:port du user-service.
+func (u UserServiceConfig) Address() string {
+	return u.Host + ":" + u.Port
 }
 
 // ServerConfig contient les paramètres du serveur gRPC.
@@ -90,6 +102,10 @@ func Load() (*Config, error) {
 		TripsService: TripsServiceConfig{
 			Host: sharedconfig.GetStringOrDefault(values, "TRIPS_SERVICE_HOST", "0.0.0.0"),
 			Port: sharedconfig.GetStringOrDefault(values, "TRIPS_SERVICE_PORT", "50057"),
+		},
+		UserService: UserServiceConfig{
+			Host: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_HOST", "0.0.0.0"),
+			Port: sharedconfig.GetStringOrDefault(values, "USER_SERVICE_PORT", "50052"),
 		},
 		LogLevel:           sharedconfig.MustGetString(values, "LOG_LEVEL"),
 		InternalHMACSecret: sharedconfig.GetStringOrDefault(values, "INTERNAL_HMAC_SECRET", ""),

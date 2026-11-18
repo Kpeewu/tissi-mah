@@ -2,8 +2,10 @@ package middleware
 
 import (
 	"context"
+	"errors"
 
 	grpcutil "github.com/Kpeewu/tissi-mah/pkg/grpcutil"
+	kycErrors "github.com/Kpeewu/tissi-mah/services/kyc-service/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -15,6 +17,16 @@ type contextKey string
 // FirebaseIDKey est la clé du contexte gRPC où est stocké le Firebase UID,
 // injecté par l'api-gateway via la metadata gRPC x-firebase-uid.
 const FirebaseIDKey contextKey = "firebaseID"
+
+// UserIDKey est la clé du contexte gRPC où est stocké l'UserID interne de l'appelant,
+// résolu depuis le Firebase UID via user-service (le file-service stocke les documents
+// avec l'UserID interne, jamais avec le Firebase UID).
+const UserIDKey contextKey = "userID"
+
+// UserIDResolver résout un Firebase UID en UserID interne (implémenté par le client user-service).
+type UserIDResolver interface {
+	GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error)
+}
 
 // SupportIDKey est la clé du contexte gRPC où est stocké l'UID de l'agent support,
 // injecté par l'api-gateway via la metadata gRPC x-support-uid.
@@ -58,8 +70,9 @@ var allowedSupportRoles = map[string]bool{
 //  1. Laisse passer les routes publiques (Health)
 //  2. Pour les méthodes admin : extrait x-support-uid → SupportIDKey et
 //     vérifie le rôle (x-support-role) — OverrideReview exige "admin"
-//  3. Pour les autres méthodes : extrait x-firebase-uid → FirebaseIDKey
-func KYCInterceptor(secret []byte) grpc.UnaryServerInterceptor {
+//  3. Pour les autres méthodes : extrait x-firebase-uid, résout l'UserID interne via
+//     user-service et injecte FirebaseIDKey + UserIDKey dans le contexte
+func KYCInterceptor(secret []byte, resolver UserIDResolver) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if publicMethods[info.FullMethod] {
 			return handler(ctx, req)
@@ -90,19 +103,40 @@ func KYCInterceptor(secret []byte) grpc.UnaryServerInterceptor {
 			return handler(ctx, req)
 		}
 
-		uids := md.Get("x-firebase-uid")
-		if len(uids) == 0 || uids[0] == "" {
-			return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
+		ctx, err := authenticateFirebaseCaller(ctx, md, secret, resolver)
+		if err != nil {
+			return nil, err
 		}
-
-		sig := md.Get(grpcutil.MetadataUIDSig)
-		if len(sig) > 0 && len(secret) > 0 {
-			if !grpcutil.VerifyUID(secret, uids[0], sig[0]) {
-				return nil, status.Error(codes.Unauthenticated, "invalid uid signature")
-			}
-		}
-
-		ctx = context.WithValue(ctx, FirebaseIDKey, uids[0])
 		return handler(ctx, req)
 	}
+}
+
+// authenticateFirebaseCaller vérifie x-firebase-uid (et sa signature HMAC si présente),
+// résout l'UserID interne correspondant et les injecte dans le contexte.
+func authenticateFirebaseCaller(
+	ctx context.Context, md metadata.MD, secret []byte, resolver UserIDResolver,
+) (context.Context, error) {
+	uids := md.Get("x-firebase-uid")
+	if len(uids) == 0 || uids[0] == "" {
+		return nil, status.Error(codes.Unauthenticated, "missing firebase uid")
+	}
+
+	sig := md.Get(grpcutil.MetadataUIDSig)
+	if len(sig) > 0 && len(secret) > 0 {
+		if !grpcutil.VerifyUID(secret, uids[0], sig[0]) {
+			return nil, status.Error(codes.Unauthenticated, "invalid uid signature")
+		}
+	}
+
+	userID, err := resolver.GetUserIDByFirebaseID(ctx, uids[0])
+	if err != nil {
+		if errors.Is(err, kycErrors.ErrorUserNotFound) {
+			return nil, status.Error(codes.PermissionDenied, "user not found")
+		}
+		return nil, status.Error(codes.Unavailable, "user resolution failed")
+	}
+
+	ctx = context.WithValue(ctx, FirebaseIDKey, uids[0])
+	ctx = context.WithValue(ctx, UserIDKey, userID)
+	return ctx, nil
 }

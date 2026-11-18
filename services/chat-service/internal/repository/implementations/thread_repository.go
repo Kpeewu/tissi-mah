@@ -118,7 +118,7 @@ func collectThreads(rows pgx.Rows) ([]*domain.ChatThread, error) {
 
 // AnonymizeUserRefs ferme les threads actifs de l'utilisateur puis pseudonymise driver_id/passenger_id.
 func (r *chatThreadRepository) AnonymizeUserRefs(ctx context.Context, userID string) error {
-	anon := "deleted_" + userID[:8]
+	anon := anonymizedUserID(userID)
 
 	// Fermer les threads actifs
 	_, err := r.db.Exec(ctx,

@@ -117,3 +117,55 @@ func (m *MockRefundRepositoryWrite) MarkRefundPayoutFailed(ctx context.Context, 
 	args := m.Called(ctx, refundID, reason)
 	return args.Error(0)
 }
+
+// GetByDriverPayoutProviderReference retourne ErrorRefundNotFound sans expectation (webhook payout chauffeur via remboursement).
+func (m *MockRefundRepositoryRead) GetByDriverPayoutProviderReference(ctx context.Context, providerRef string) (*domain.Refund, error) {
+	if !m.hasExpectation("GetByDriverPayoutProviderReference") {
+		return nil, paymentErrors.ErrorRefundNotFound
+	}
+	args := m.Called(ctx, providerRef)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Refund), args.Error(1)
+}
+
+func (m *MockRefundRepositoryRead) GetPendingDriverRefundPayouts(ctx context.Context, limit int) ([]*domain.Refund, error) {
+	args := m.Called(ctx, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Refund), args.Error(1)
+}
+
+// GetProcessingDriverRefundPayoutsToReconcile retourne une liste vide sans expectation (réconciliateur de payouts chauffeurs).
+func (m *MockRefundRepositoryRead) GetProcessingDriverRefundPayoutsToReconcile(ctx context.Context, updatedBefore time.Time, limit int) ([]*domain.Refund, error) {
+	if !m.hasExpectation("GetProcessingDriverRefundPayoutsToReconcile") {
+		return nil, nil
+	}
+	args := m.Called(ctx, updatedBefore, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Refund), args.Error(1)
+}
+
+func (m *MockRefundRepositoryWrite) SetDriverPayoutProviderReference(ctx context.Context, refundID, providerRef string) error {
+	args := m.Called(ctx, refundID, providerRef)
+	return args.Error(0)
+}
+
+func (m *MockRefundRepositoryWrite) MarkDriverPayoutProcessing(ctx context.Context, refundID string) error {
+	args := m.Called(ctx, refundID)
+	return args.Error(0)
+}
+
+func (m *MockRefundRepositoryWrite) MarkDriverPayoutCompleted(ctx context.Context, refundID string) error {
+	args := m.Called(ctx, refundID)
+	return args.Error(0)
+}
+
+func (m *MockRefundRepositoryWrite) MarkDriverPayoutFailed(ctx context.Context, refundID, reason string, incrementRetry bool) error {
+	args := m.Called(ctx, refundID, reason, incrementRetry)
+	return args.Error(0)
+}

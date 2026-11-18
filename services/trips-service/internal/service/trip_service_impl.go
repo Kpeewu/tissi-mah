@@ -30,22 +30,13 @@ type tripServiceImpl struct {
 	logger        *zap.Logger
 }
 
-// resolveDriverUserID résout un Firebase UID en UserID interne via user-service.
-// Retourne ErrorUnauthorized si authID est vide ou si la résolution échoue.
-func (s *tripServiceImpl) resolveDriverUserID(ctx context.Context, authID string) (string, error) {
-	if authID == "" {
+// requireDriverID vérifie que le conducteur appelant est identifié. driverID est l'UserID
+// interne résolu depuis le Firebase UID par l'intercepteur ; ErrorUnauthorized s'il est vide.
+func requireDriverID(driverID string) (string, error) {
+	if driverID == "" {
 		return "", tripErrors.ErrorUnauthorized
 	}
-	userID, err := s.userClient.GetUserIDByAuthID(ctx, authID)
-	if err != nil {
-		s.logger.Warn("could not resolve authID to userID",
-			zap.String("authID", authID), zap.Error(err))
-		return "", tripErrors.ErrorUnauthorized
-	}
-	if userID == "" {
-		return "", tripErrors.ErrorUnauthorized
-	}
-	return userID, nil
+	return driverID, nil
 }
 
 func NewTripService(
@@ -77,7 +68,7 @@ func (s *tripServiceImpl) CreateTrip(ctx context.Context, input *serviceInterfac
 	s.logger.Debug("service: CreateTrip called", zap.String("vehicleID", input.VehicleID))
 
 	// Résoudre Firebase UID → UserID interne
-	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	driverUserID, err := requireDriverID(input.DriverID)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +124,7 @@ func (s *tripServiceImpl) ChangeTripDateAndTime(ctx context.Context, input *serv
 		return tripErrors.ErrorInvalidInput
 	}
 
-	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	driverUserID, err := requireDriverID(input.DriverID)
 	if err != nil {
 		return err
 	}
@@ -192,7 +183,7 @@ func (s *tripServiceImpl) ChangeTripVehicle(ctx context.Context, input *serviceI
 		return tripErrors.ErrorInvalidInput
 	}
 
-	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	driverUserID, err := requireDriverID(input.DriverID)
 	if err != nil {
 		return err
 	}
@@ -240,7 +231,7 @@ func (s *tripServiceImpl) ChangeTripAllowances(ctx context.Context, input *servi
 		return tripErrors.ErrorInvalidInput
 	}
 
-	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	driverUserID, err := requireDriverID(input.DriverID)
 	if err != nil {
 		return err
 	}
@@ -269,7 +260,7 @@ func (s *tripServiceImpl) ChangeAutoApprove(ctx context.Context, input *serviceI
 		return tripErrors.ErrorInvalidInput
 	}
 
-	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	driverUserID, err := requireDriverID(input.DriverID)
 	if err != nil {
 		return err
 	}
@@ -293,7 +284,7 @@ func (s *tripServiceImpl) StartTrip(ctx context.Context, input *serviceInterface
 		return tripErrors.ErrorInvalidInput
 	}
 
-	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	driverUserID, err := requireDriverID(input.DriverID)
 	if err != nil {
 		return err
 	}
@@ -332,7 +323,7 @@ func (s *tripServiceImpl) EndTrip(ctx context.Context, input *serviceInterfaces.
 		return tripErrors.ErrorInvalidInput
 	}
 
-	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	driverUserID, err := requireDriverID(input.DriverID)
 	if err != nil {
 		return err
 	}
@@ -371,7 +362,7 @@ func (s *tripServiceImpl) ConfirmWaypointDeparture(ctx context.Context, input *s
 		return tripErrors.ErrorInvalidInput
 	}
 
-	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	driverUserID, err := requireDriverID(input.DriverID)
 	if err != nil {
 		return err
 	}
@@ -405,7 +396,7 @@ func (s *tripServiceImpl) ConfirmWaypointArrival(ctx context.Context, input *ser
 		return tripErrors.ErrorInvalidInput
 	}
 
-	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	driverUserID, err := requireDriverID(input.DriverID)
 	if err != nil {
 		return err
 	}
@@ -439,7 +430,7 @@ func (s *tripServiceImpl) CancelTrip(ctx context.Context, input *serviceInterfac
 		return tripErrors.ErrorInvalidInput
 	}
 
-	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	driverUserID, err := requireDriverID(input.DriverID)
 	if err != nil {
 		return err
 	}
@@ -472,7 +463,7 @@ func (s *tripServiceImpl) CancelWaypoint(ctx context.Context, input *serviceInte
 		return tripErrors.ErrorInvalidInput
 	}
 
-	driverUserID, err := s.resolveDriverUserID(ctx, input.DriverID)
+	driverUserID, err := requireDriverID(input.DriverID)
 	if err != nil {
 		return err
 	}
@@ -771,16 +762,8 @@ func (s *tripServiceImpl) GetDriverTripDetails(ctx context.Context, input *servi
 		return nil, err
 	}
 
-	// Résoudre le Firebase UID (authID) en UserID interne avant la vérification de propriété
-	driverUserID, err := s.userClient.GetUserIDByAuthID(ctx, input.DriverID)
-	if err != nil {
-		s.logger.Warn("service: GetDriverTripDetails — could not resolve authID to userID",
-			zap.String("authID", input.DriverID), zap.Error(err))
-		return nil, tripErrors.ErrorUnauthorized
-	}
-
 	// Vérifier que le conducteur est propriétaire du trajet
-	if trip.DriverID != driverUserID {
+	if trip.DriverID != input.DriverID {
 		return nil, tripErrors.ErrorUnauthorized
 	}
 

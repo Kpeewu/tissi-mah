@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -187,5 +188,35 @@ func TestDriverPayoutConfirmationRepository(t *testing.T) {
 		ready, err := payoutReadRepo.IsTripReadyForPayout(ctx, "trip-cap")
 		require.NoError(t, err)
 		assert.True(t, ready, "le support peut toujours relancer manuellement")
+	})
+
+	t.Run("éligibilité selon les autres paiements du trajet", func(t *testing.T) {
+		cases := []struct {
+			other domain.PaymentStatus
+			ready bool
+		}{
+			{domain.PaymentStatusFailed, true},
+			{domain.PaymentStatusRefunded, true},
+			{domain.PaymentStatusPending, false},
+			{domain.PaymentStatusHeld, false},
+		}
+		for _, c := range cases {
+			cleanupPaymentTables(t, ctx)
+			tripID := "trip-elig-" + string(c.other)
+			require.NoError(t, paymentWriteRepo.CreatePayment(ctx, fixtures.NewTestPayment(
+				fixtures.WithPaymentID("pay-elig-rel"), fixtures.WithPaymentTripID(tripID), fixtures.WithPaymentStatus(domain.PaymentStatusReleased),
+			)))
+			require.NoError(t, paymentWriteRepo.CreatePayment(ctx, fixtures.NewTestPayment(
+				fixtures.WithPaymentID("pay-elig-other"), fixtures.WithPaymentTripID(tripID), fixtures.WithPaymentStatus(c.other),
+			)))
+
+			tripIDs, err := payoutReadRepo.GetTripsReadyForPayout(ctx)
+			require.NoError(t, err)
+			ready, err := payoutReadRepo.IsTripReadyForPayout(ctx, tripID)
+			require.NoError(t, err)
+
+			assert.Equal(t, c.ready, slices.Contains(tripIDs, tripID), "payout automatique avec un paiement %s", c.other)
+			assert.Equal(t, c.ready, ready, "payout manuel avec un paiement %s", c.other)
+		}
 	})
 }

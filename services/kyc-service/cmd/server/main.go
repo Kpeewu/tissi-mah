@@ -98,7 +98,7 @@ func run(bootstrapLogger *zap.Logger) error {
 	)
 
 	// --- gRPC server ---
-	srv, err := grpcServer.NewKYCServer(cfg, kycService, logger)
+	srv, err := grpcServer.NewKYCServer(cfg, kycService, userClient, logger)
 	if err != nil {
 		return fmt.Errorf("grpc server: %w", err)
 	}

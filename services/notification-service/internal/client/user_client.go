@@ -48,7 +48,9 @@ func (c *UserServiceClient) GetUserIDByFirebaseID(ctx context.Context, firebaseU
 		c.logger.Error("failed to resolve firebaseUID", zap.String("firebase_uid", firebaseUID), zap.Error(err))
 		return "", fmt.Errorf("user-service: GetUserByFirebaseID failed: %w", err)
 	}
-
+	if resp.UserID == "" {
+		return "", notifErrors.ErrorUserNotProvisioned
+	}
 	return resp.UserID, nil
 }
 

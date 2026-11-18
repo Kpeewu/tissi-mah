@@ -34,6 +34,7 @@ func (s *paymentServiceImpl) confirmProviderPayout(ctx context.Context, provider
 	}
 
 	if s.refundReadRepo != nil {
+		// Chercher un virement de remboursement passager
 		refund, err := s.refundReadRepo.GetByProviderReference(ctx, providerRef)
 		switch {
 		case err == nil:
@@ -43,6 +44,20 @@ func (s *paymentServiceImpl) confirmProviderPayout(ctx context.Context, provider
 				return paymentErrors.ErrorFedaPayAPIError
 			}
 			return s.applyRefundPayoutStatus(ctx, refund, item)
+		case !errors.Is(err, paymentErrors.ErrorRefundNotFound):
+			return err
+		}
+
+		// Chercher un virement de payout chauffeur issu d'un remboursement
+		driverRefund, err := s.refundReadRepo.GetByDriverPayoutProviderReference(ctx, providerRef)
+		switch {
+		case err == nil:
+			item, err := s.fedapayClient.GetPayout(payoutID)
+			if err != nil {
+				s.logger.Error("get fedapay driver refund payout failed", zap.String("refundID", driverRefund.RefundID), zap.Error(err))
+				return paymentErrors.ErrorFedaPayAPIError
+			}
+			return s.applyDriverRefundPayoutStatus(ctx, driverRefund, item)
 		case !errors.Is(err, paymentErrors.ErrorRefundNotFound):
 			return err
 		}
@@ -142,6 +157,71 @@ func (s *paymentServiceImpl) applyDriverPayoutStatus(ctx context.Context, payout
 			zap.String("payoutID", payout.PayoutID), zap.String("fedapayStatus", item.Status))
 	}
 	return nil
+}
+
+// applyDriverRefundPayoutStatus applique le statut FedaPay d'un payout chauffeur issu d'un remboursement :
+// sent → completed (notification chauffeur), failed → pending pour une nouvelle tentative
+// (le plafond de retry du worker produit ensuite failed définitif).
+func (s *paymentServiceImpl) applyDriverRefundPayoutStatus(ctx context.Context, refund *domain.Refund, item *fedapay.PayoutItem) error {
+	providerRef := strconv.Itoa(item.ID)
+
+	switch item.Status {
+	case fedapay.PayoutStatusSent:
+		if err := s.refundWriteRepo.MarkDriverPayoutCompleted(ctx, refund.RefundID); err != nil {
+			if errors.Is(err, paymentErrors.ErrorRefundAlreadyProcessed) {
+				return nil
+			}
+			return err
+		}
+		s.writeRefundHistory(ctx, refund.RefundID, domain.RefundEventDriverPayoutStarted+"_completed", refund.DriverPayoutRetryCount,
+			"Virement chauffeur FedaPay "+providerRef+" confirmé")
+		s.logger.Info("driver refund payout completed", zap.String("refundID", refund.RefundID), zap.String("providerReference", providerRef))
+		s.publishDriverRefundPayoutCompleted(ctx, refund, providerRef)
+
+	case fedapay.PayoutStatusFailed:
+		reason := "fedapay payout failed: " + item.FailReason
+		if err := s.refundWriteRepo.MarkDriverPayoutFailed(ctx, refund.RefundID, reason, true); err != nil {
+			if errors.Is(err, paymentErrors.ErrorRefundAlreadyProcessed) {
+				return nil
+			}
+			return err
+		}
+		s.writeRefundHistory(ctx, refund.RefundID, domain.RefundEventDriverPayoutRetry, refund.DriverPayoutRetryCount+1, reason)
+		s.logger.Warn("driver refund payout failed at fedapay, will retry",
+			zap.String("refundID", refund.RefundID), zap.String("reason", item.FailReason))
+
+	default:
+		s.logger.Debug("driver refund payout not final yet",
+			zap.String("refundID", refund.RefundID), zap.String("fedapayStatus", item.Status))
+	}
+	return nil
+}
+
+// publishDriverRefundPayoutCompleted notifie le chauffeur (non bloquant) que sa part du remboursement lui a été versée.
+func (s *paymentServiceImpl) publishDriverRefundPayoutCompleted(ctx context.Context, refund *domain.Refund, providerRef string) {
+	if s.notifRedis == nil {
+		return
+	}
+	booking, err := s.bookingClient.GetBookingDetails(ctx, refund.BookingID)
+	if err != nil {
+		s.logger.Warn("get booking for driver REFUND_PAYOUT_COMPLETED notification failed",
+			zap.String("refundID", refund.RefundID), zap.Error(err))
+		return
+	}
+	if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
+		EventType:     notification.DriverPaymentLaunched,
+		UserID:        booking.DriverID,
+		ReferenceID:   refund.RefundID,
+		ReferenceType: notification.RefRefund,
+		Payload: map[string]string{
+			"amount":                     fmt.Sprintf("%d", refund.AmountToDriver),
+			"currency":                   "XOF",
+			"payment_provider_reference": providerRef,
+			"reason":                     string(refund.RefundReason),
+		},
+	}); pubErr != nil {
+		s.logger.Error("failed to publish driver refund payout completed notification", zap.Error(pubErr))
+	}
 }
 
 // publishRefundCompleted notifie le passager (non bloquant) que son remboursement lui a été versé.

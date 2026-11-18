@@ -110,6 +110,19 @@ func (c *PaymentCache) ReleaseRefundLock(ctx context.Context, refundID string) {
 	c.client.Del(ctx, key) //nolint:errcheck
 }
 
+// AcquireDriverRefundPayoutLock tente d'acquérir un verrou distribué pour le payout chauffeur
+// issu d'un remboursement. Clé distincte du lock passager pour permettre un traitement parallèle.
+func (c *PaymentCache) AcquireDriverRefundPayoutLock(ctx context.Context, refundID string) (bool, error) {
+	key := keyPrefix + "refund:driver-payout:lock:" + refundID
+	return c.client.SetNX(ctx, key, "locked", refundLockTTL).Result()
+}
+
+// ReleaseDriverRefundPayoutLock libère le verrou de payout chauffeur d'un remboursement.
+func (c *PaymentCache) ReleaseDriverRefundPayoutLock(ctx context.Context, refundID string) {
+	key := keyPrefix + "refund:driver-payout:lock:" + refundID
+	c.client.Del(ctx, key) //nolint:errcheck
+}
+
 // AcquireReconcileLock tente d'acquérir le verrou distribué du worker de réconciliation des virements.
 func (c *PaymentCache) AcquireReconcileLock(ctx context.Context) (bool, error) {
 	key := keyPrefix + "reconcile:lock"

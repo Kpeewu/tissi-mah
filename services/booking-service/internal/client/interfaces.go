@@ -47,8 +47,6 @@ type TripWaypoint struct {
 
 // UserClient définit le contrat pour appeler user-service depuis booking-service.
 type UserClient interface {
-	// UserExists vérifie qu'un utilisateur existe.
-	UserExists(ctx context.Context, userID string) (bool, error)
 	// IsPassengerVerified vérifie qu'un utilisateur existe et que son profil passager est vérifié.
 	IsPassengerVerified(ctx context.Context, userID string) (bool, error)
 	// GetPassengerInfo retourne le nom complet et le statut de vérification d'un passager en un seul appel.

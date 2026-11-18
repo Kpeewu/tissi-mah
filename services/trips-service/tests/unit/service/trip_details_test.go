@@ -39,12 +39,11 @@ func buildTripWithWaypoints(tripID, driverID, vehicleID string) (*domain.Trip, [
 
 func TestGetDriverTripDetails(t *testing.T) {
 	t.Run("succès", func(t *testing.T) {
-		readRepo, _, userClient, vehicleClient, svc := newTestService()
+		readRepo, _, _, vehicleClient, svc := newTestService()
 		ctx := context.Background()
 
 		trip, wps := buildTripWithWaypoints("trip-1", "driver-1", "vehicle-1")
 		readRepo.On("GetTripByID", ctx, "trip-1").Return(trip, wps, nil)
-		userClient.On("GetUserIDByAuthID", ctx, "driver-1").Return("driver-1", nil)
 		vehicleClient.On("GetVehicleInfo", ctx, "driver-1", "vehicle-1").Return("Toyota", "Corolla", "AA-1234", 4, true, nil)
 
 		res, err := svc.GetDriverTripDetails(ctx, &serviceInterfaces.GetDriverTripDetailsInput{
@@ -84,11 +83,10 @@ func TestGetDriverTripDetails(t *testing.T) {
 	})
 
 	t.Run("erreur - caller n'est pas propriétaire → Unauthorized", func(t *testing.T) {
-		readRepo, _, userClient, _, svc := newTestService()
+		readRepo, _, _, _, svc := newTestService()
 		ctx := context.Background()
 		trip, wps := buildTripWithWaypoints("trip-1", "driver-owner", "vehicle-1")
 		readRepo.On("GetTripByID", ctx, "trip-1").Return(trip, wps, nil)
-		userClient.On("GetUserIDByAuthID", ctx, "driver-other").Return("driver-other", nil)
 
 		_, err := svc.GetDriverTripDetails(ctx, &serviceInterfaces.GetDriverTripDetailsInput{
 			TripID: "trip-1", DriverID: "driver-other",

@@ -85,8 +85,14 @@ func buildCollectTestService(notifRedis *redis.Client) *collectDeps {
 	return d
 }
 
+// callerCtx simule un appelant authentifié : l'intercepteur a résolu son UserID interne.
+func callerCtx(userID string) context.Context {
+	ctx := context.WithValue(context.Background(), middleware.FirebaseIDKey, testFirebaseUID)
+	return context.WithValue(ctx, middleware.UserIDKey, userID)
+}
+
 func passengerCtx() context.Context {
-	return context.WithValue(context.Background(), middleware.FirebaseIDKey, testFirebaseUID)
+	return callerCtx(testPassengerID)
 }
 
 func payableBooking(createdAt time.Time) *client.BookingDetails {
@@ -111,6 +117,7 @@ func pendingPayment() *domain.Payment {
 		BookingID:             "bk-1",
 		TripID:                "trip-1",
 		Amount:                5500,
+		ServiceFeeAmount:      500,
 		PaymentMethod:         domain.PaymentMobileMoney,
 		Status:                domain.PaymentStatusPending,
 		ExternalTransactionID: "101",
@@ -128,11 +135,6 @@ func withStatus(p *domain.Payment, status domain.PaymentStatus) *domain.Payment 
 	return &cp
 }
 
-// expectOwner configure la résolution Firebase UID → UserID du passager.
-func (d *collectDeps) expectOwner() {
-	d.userClient.On("GetUserIDByFirebaseID", mock.Anything, testFirebaseUID).Return(testPassengerID, nil)
-}
-
 // =============================================================================
 // CreatePayment
 // =============================================================================
@@ -144,7 +146,6 @@ func TestCreatePayment_Redirect(t *testing.T) {
 		booking := payableBooking(createdAt)
 
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(booking, nil)
-		d.expectOwner()
 		d.paymentReadRepo.On("GetPendingByBookingID", mock.Anything, "bk-1").Return(nil, paymentErrors.ErrorPaymentNotFound)
 		d.paymentReadRepo.On("HasActivePayment", mock.Anything, "bk-1").Return(false, nil)
 		d.userClient.On("GetUserByUserID", mock.Anything, testPassengerID).Return(&client.UserInfo{FirstName: "Ama", Name: "Koffi"}, nil)
@@ -192,7 +193,6 @@ func TestCreatePayment_Redirect(t *testing.T) {
 	t.Run("succes - réutilise le paiement pending existant", func(t *testing.T) {
 		d := newCollectTestService()
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
-		d.expectOwner()
 		d.paymentReadRepo.On("GetPendingByBookingID", mock.Anything, "bk-1").Return(pendingPayment(), nil)
 
 		result, err := d.svc.CreatePayment(passengerCtx(), &serviceInterfaces.CreatePaymentInput{
@@ -210,9 +210,8 @@ func TestCreatePayment_Redirect(t *testing.T) {
 	t.Run("erreur - l'utilisateur n'est pas le passager", func(t *testing.T) {
 		d := newCollectTestService()
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
-		d.userClient.On("GetUserIDByFirebaseID", mock.Anything, testFirebaseUID).Return("someone-else", nil)
 
-		_, err := d.svc.CreatePayment(passengerCtx(), &serviceInterfaces.CreatePaymentInput{
+		_, err := d.svc.CreatePayment(callerCtx("someone-else"), &serviceInterfaces.CreatePaymentInput{
 			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233",
 		})
 
@@ -223,7 +222,6 @@ func TestCreatePayment_Redirect(t *testing.T) {
 	t.Run("erreur - fenêtre de paiement de 10 min dépassée", func(t *testing.T) {
 		d := newCollectTestService()
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC().Add(-11*time.Minute)), nil)
-		d.expectOwner()
 
 		_, err := d.svc.CreatePayment(passengerCtx(), &serviceInterfaces.CreatePaymentInput{
 			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233",
@@ -237,7 +235,6 @@ func TestCreatePayment_Redirect(t *testing.T) {
 		booking := payableBooking(time.Now().UTC())
 		booking.Status = "paymentFailed"
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(booking, nil)
-		d.expectOwner()
 
 		_, err := d.svc.CreatePayment(passengerCtx(), &serviceInterfaces.CreatePaymentInput{
 			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233",
@@ -259,7 +256,6 @@ func TestCreatePayment_Redirect(t *testing.T) {
 	t.Run("erreur - échec du token : la transaction orpheline est supprimée", func(t *testing.T) {
 		d := newCollectTestService()
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
-		d.expectOwner()
 		d.paymentReadRepo.On("GetPendingByBookingID", mock.Anything, "bk-1").Return(nil, paymentErrors.ErrorPaymentNotFound)
 		d.paymentReadRepo.On("HasActivePayment", mock.Anything, "bk-1").Return(false, nil)
 		d.userClient.On("GetUserByUserID", mock.Anything, testPassengerID).Return(&client.UserInfo{}, nil)
@@ -279,7 +275,6 @@ func TestCreatePayment_Redirect(t *testing.T) {
 	t.Run("erreur - échec DB : la transaction orpheline est supprimée", func(t *testing.T) {
 		d := newCollectTestService()
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
-		d.expectOwner()
 		d.paymentReadRepo.On("GetPendingByBookingID", mock.Anything, "bk-1").Return(nil, paymentErrors.ErrorPaymentNotFound)
 		d.paymentReadRepo.On("HasActivePayment", mock.Anything, "bk-1").Return(false, nil)
 		d.userClient.On("GetUserByUserID", mock.Anything, testPassengerID).Return(&client.UserInfo{}, nil)
@@ -309,7 +304,6 @@ func TestVerifyPayment(t *testing.T) {
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(withStatus(pendingPayment(), domain.PaymentStatusHeld), nil)
 		booking := payableBooking(time.Now().UTC())
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(booking, nil)
-		d.expectOwner()
 		d.fedapay.On("GetTransaction", 101).Return(&fedapay.Transaction{ID: 101, Status: "approved"}, nil)
 		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-1", domain.PaymentStatusHeld, "101").Return(nil)
 		d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", "approved").Return(nil)
@@ -339,7 +333,6 @@ func TestVerifyPayment(t *testing.T) {
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(pendingPayment(), nil).Once()
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(declined, nil)
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
-		d.expectOwner()
 		d.fedapay.On("GetTransaction", 101).Return(&fedapay.Transaction{ID: 101, Status: "declined"}, nil)
 		d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", "declined").Return(nil)
 
@@ -363,7 +356,6 @@ func TestVerifyPayment(t *testing.T) {
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(pendingPayment(), nil).Once()
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(withStatus(pendingPayment(), domain.PaymentStatusFailed), nil)
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
-		d.expectOwner()
 		d.fedapay.On("GetTransaction", 101).Return(&fedapay.Transaction{ID: 101, Status: "expired"}, nil)
 		d.paymentWriteRepo.On("MarkPaymentFailed", mock.Anything, "pay-1", mock.Anything).Return(nil)
 		d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", "expired").Return(nil)
@@ -392,7 +384,6 @@ func TestVerifyPayment(t *testing.T) {
 		booking := payableBooking(time.Now().UTC())
 		booking.Status = "paymentFailed"
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(booking, nil)
-		d.expectOwner()
 		d.fedapay.On("GetTransaction", 101).Return(&fedapay.Transaction{ID: 101, Status: "approved"}, nil)
 		d.paymentWriteRepo.On("MarkFailedPaymentHeld", mock.Anything, "pay-1").Return(nil)
 		d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-1", "101").Return("", paymentErrors.ErrorNoSeatsAvailable)
@@ -423,7 +414,6 @@ func TestVerifyPayment(t *testing.T) {
 		booking := payableBooking(time.Now().UTC())
 		booking.Status = "paymentFailed"
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(booking, nil)
-		d.expectOwner()
 		d.fedapay.On("GetTransaction", 101).Return(&fedapay.Transaction{ID: 101, Status: "approved"}, nil)
 		d.paymentWriteRepo.On("MarkFailedPaymentHeld", mock.Anything, "pay-1").Return(nil)
 		d.bookingClient.On("ConfirmPayment", mock.Anything, "bk-1", "101").
@@ -452,7 +442,6 @@ func TestVerifyPayment(t *testing.T) {
 		booking := payableBooking(time.Now().UTC())
 		booking.Status = "cancelled"
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(booking, nil)
-		d.expectOwner()
 		d.fedapay.On("GetTransaction", 101).Return(&fedapay.Transaction{ID: 101, Status: "approved"}, nil)
 		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-1", domain.PaymentStatusHeld, "101").Return(nil)
 		d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", "approved").Return(nil)
@@ -493,7 +482,6 @@ func TestVerifyPayment(t *testing.T) {
 			Return(withStatus(pendingPayment(), domain.PaymentStatusHeld), nil)
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").
 			Return(payableBooking(time.Now().UTC()), nil)
-		d.expectOwner()
 		d.fedapay.On("GetTransaction", 101).Return(&fedapay.Transaction{ID: 101, Status: "approved"}, nil)
 		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-1", domain.PaymentStatusHeld, "101").Return(nil)
 		d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", "approved").Return(nil)
@@ -513,9 +501,8 @@ func TestVerifyPayment(t *testing.T) {
 		d := newCollectTestService()
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(pendingPayment(), nil)
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
-		d.userClient.On("GetUserIDByFirebaseID", mock.Anything, testFirebaseUID).Return("intruder", nil)
 
-		_, err := d.svc.VerifyPayment(passengerCtx(), "pay-1")
+		_, err := d.svc.VerifyPayment(callerCtx("intruder"), "pay-1")
 
 		assert.ErrorIs(t, err, paymentErrors.ErrorPaymentNotOwned)
 		d.fedapay.AssertNotCalled(t, "GetTransaction", mock.Anything)
@@ -533,7 +520,6 @@ func TestCancelPayment(t *testing.T) {
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(pendingPayment(), nil).Once()
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(withStatus(pendingPayment(), domain.PaymentStatusFailed), nil)
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
-		d.expectOwner()
 		d.fedapay.On("GetTransaction", 101).Return(&fedapay.Transaction{ID: 101, Status: "pending"}, nil)
 		d.fedapay.On("CancelTransaction", 101).Return(nil)
 		d.paymentWriteRepo.On("MarkPaymentFailed", mock.Anything, "pay-1", mock.Anything).Return(nil)
@@ -561,7 +547,6 @@ func TestCancelPayment(t *testing.T) {
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(pendingPayment(), nil).Once()
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(withStatus(pendingPayment(), domain.PaymentStatusHeld), nil)
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
-		d.expectOwner()
 		d.fedapay.On("GetTransaction", 101).Return(&fedapay.Transaction{ID: 101, Status: "approved"}, nil)
 		d.paymentWriteRepo.On("UpdatePaymentStatus", mock.Anything, "pay-1", domain.PaymentStatusHeld, "101").Return(nil)
 		d.paymentWriteRepo.On("UpdateProviderStatus", mock.Anything, "pay-1", "approved").Return(nil)
@@ -580,7 +565,6 @@ func TestCancelPayment(t *testing.T) {
 		d := newCollectTestService()
 		d.paymentReadRepo.On("GetByID", mock.Anything, "pay-1").Return(pendingPayment(), nil)
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
-		d.expectOwner()
 		d.fedapay.On("GetTransaction", 101).Return(&fedapay.Transaction{ID: 101, Status: "pending"}, nil)
 		d.fedapay.On("CancelTransaction", 101).Return(errors.New("fedapay down"))
 

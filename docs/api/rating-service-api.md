@@ -13,11 +13,13 @@ This document describes the HTTP/REST API exposed by the rating-service through 
 
 ## Authentication
 
-All rating-service endpoints are currently **public** (no Firebase JWT required).
-The `rater_id` is provided in the request body for create and update operations.
-Both `rater_id` and `user_rated_id` are validated against the user-service to ensure they exist.
+Rating endpoints (except `health`) require a **Firebase JWT** (`Authorization: Bearer <token>`).
+The rater is always the **caller**: the api-gateway validates the JWT and injects the Firebase UID,
+which rating-service resolves to the internal UserID (user-service `GetUserByFirebaseID`).
+`RaterId` is no longer accepted in the request body. `UserRatedId` is validated against user-service.
 
-> **Note:** When Firebase JWT is fully integrated, protected endpoints will require a valid token and `rater_id` will be extracted from the JWT instead of the body.
+Internal services (booking-service, trips-service) read averages through the gRPC-only route
+`GetUserRatingsAverageInternal` (`/api/v1/ratings/internal/...`, blocked at the gateway edge).
 
 ## Caching
 
@@ -29,6 +31,7 @@ If Redis is unavailable, the service operates without cache (graceful degradatio
 
 | Header | Required | Description |
 |--------|----------|-------------|
+| `Authorization` | Yes (except health) | `Bearer <firebase-id-token>` |
 | `Content-Type` | Yes (POST/PATCH) | `application/json` |
 | `Accept` | No | `application/json` |
 | `X-Request-ID` | No | Client-generated UUID for request tracing |
@@ -55,7 +58,7 @@ All errors follow this format:
 
 Creates a new rating for a user.
 
-**Authentication:** Not required (public)
+**Authentication:** Firebase JWT required (rater = caller)
 
 #### Request
 
@@ -65,7 +68,6 @@ Host: api.tissi-mah.com
 Content-Type: application/json
 
 {
-    "RaterId": "u-abc123-user-id",
     "UserRatedId": "u-550e8400-e29b-41d4-a716-446655440000",
     "NumberOfStars": 4,
     "Comment": "Excellent trajet, conducteur ponctuel et agréable"
@@ -76,7 +78,6 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `RaterId` | string | Yes | UserID of the rater (validated against user-service) |
 | `UserRatedId` | string | Yes | UserID of the user being rated (validated against user-service) |
 | `NumberOfStars` | integer | Yes | Rating from 1 to 5 |
 | `Comment` | string | No | Optional text comment |
@@ -119,11 +120,10 @@ Content-Type: application/json
 
 | Error | HTTP Code | Description |
 |-------|-----------|-------------|
-| `ErrorMissingRaterID` | 400 | RaterId is required |
 | `ErrorMissingUserRatedID` | 400 | UserRatedId is required |
 | `ErrorInvalidStars` | 400 | Stars must be between 1 and 5 |
 | `ErrorSelfRating` | 400 | Cannot rate yourself |
-| `ErrorUserNotFound` | 404 | RaterId or UserRatedId does not exist in user-service |
+| `ErrorUserNotFound` | 404 | UserRatedId does not exist in user-service |
 | `ErrorRatingAlreadyExists` | 409 | Already rated this user |
 
 #### Example (cURL)
@@ -131,8 +131,8 @@ Content-Type: application/json
 ```bash
 curl -X POST https://api.tissi-mah.com/api/v1/ratings/rateUser \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <firebase-id-token>" \
   -d '{
-    "RaterId": "u-abc123-user-id",
     "UserRatedId": "u-550e8400",
     "NumberOfStars": 4,
     "Comment": "Excellent trajet"
@@ -145,7 +145,7 @@ curl -X POST https://api.tissi-mah.com/api/v1/ratings/rateUser \
 
 Retrieves all ratings received by a specific user. **Cached** (5 min TTL).
 
-**Authentication:** Not required (public)
+**Authentication:** Firebase JWT required
 
 #### Request
 
@@ -216,7 +216,8 @@ Content-Type: application/json
 #### Example (cURL)
 
 ```bash
-curl "https://api.tissi-mah.com/api/v1/ratings/user/getUserRatings?UserRatedId=u-550e8400"
+curl "https://api.tissi-mah.com/api/v1/ratings/user/getUserRatings?UserRatedId=u-550e8400" \
+  -H "Authorization: Bearer <firebase-id-token>"
 ```
 
 ---
@@ -225,7 +226,7 @@ curl "https://api.tissi-mah.com/api/v1/ratings/user/getUserRatings?UserRatedId=u
 
 Retrieves the average rating (1 decimal place) and total number of ratings for a user. **Cached** (5 min TTL).
 
-**Authentication:** Not required (public)
+**Authentication:** Firebase JWT required
 
 #### Request
 
@@ -270,16 +271,17 @@ Content-Type: application/json
 #### Example (cURL)
 
 ```bash
-curl "https://api.tissi-mah.com/api/v1/ratings/user/getUserRatingsAverage?UserRatedId=u-550e8400"
+curl "https://api.tissi-mah.com/api/v1/ratings/user/getUserRatingsAverage?UserRatedId=u-550e8400" \
+  -H "Authorization: Bearer <firebase-id-token>"
 ```
 
 ---
 
 ### PATCH /ratings/updateRating
 
-Updates an existing rating. Only the original rater can modify their rating.
+Updates an existing rating. Only the original rater (the caller) can modify their rating.
 
-**Authentication:** Not required (public, RaterId in body)
+**Authentication:** Firebase JWT required (rater = caller)
 
 #### Request
 
@@ -290,7 +292,6 @@ Content-Type: application/json
 
 {
     "RatingId": "r-550e8400-e29b-41d4-a716-446655440000",
-    "RaterId": "u-abc123-user-id",
     "UserRatedId": "u-550e8400-e29b-41d4-a716-446655440000",
     "NumberOfStars": 5,
     "Comment": "Finalement c'était le meilleur trajet !"
@@ -302,7 +303,6 @@ Content-Type: application/json
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `RatingId` | string | Yes | Rating ID to update |
-| `RaterId` | string | Yes | UserID of the rater (must match original rater) |
 | `UserRatedId` | string | Yes | UserID of the user being rated |
 | `NumberOfStars` | integer | Yes | New rating from 1 to 5 |
 | `Comment` | string | No | Updated comment |
@@ -331,7 +331,6 @@ Content-Type: application/json
 
 | Error | HTTP Code | Description |
 |-------|-----------|-------------|
-| `ErrorMissingRaterID` | 400 | RaterId is required |
 | `ErrorRatingNotFound` | 404 | Rating does not exist |
 | `ErrorInvalidStars` | 400 | Stars must be between 1 and 5 |
 | `ErrorUnauthorizedAction` | 403 | Only the rater can modify this rating |
@@ -341,9 +340,9 @@ Content-Type: application/json
 ```bash
 curl -X PATCH https://api.tissi-mah.com/api/v1/ratings/updateRating \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <firebase-id-token>" \
   -d '{
     "RatingId": "r-550e8400",
-    "RaterId": "u-abc123-user-id",
     "UserRatedId": "u-550e8400",
     "NumberOfStars": 5,
     "Comment": "Finalement c était le meilleur trajet !"
@@ -397,7 +396,7 @@ curl https://api.tissi-mah.com/api/v1/ratings/health
 | **One rating per pair** | A rater can only rate a given user once |
 | **Owner-only modification** | Only the rater can update their rating |
 | **No deletion** | Users cannot delete ratings |
-| **User validation** | Both RaterId and UserRatedId must exist in user-service |
+| **Caller identity** | The rater is the authenticated caller (Firebase UID resolved to the internal UserID); UserRatedId must exist in user-service |
 | **Average precision** | Average rounded to 1 decimal place |
 
 ### Database Constraints
@@ -414,10 +413,9 @@ curl https://api.tissi-mah.com/api/v1/ratings/health
 
 | Error | HTTP | gRPC Code | Description | User Action |
 |-------|------|-----------|-------------|-------------|
-| `ErrorMissingRaterID` | 400 | INVALID_ARGUMENT (3) | RaterId is required | Provide RaterId |
 | `ErrorMissingUserRatedID` | 400 | INVALID_ARGUMENT (3) | UserRatedId is required | Provide UserRatedId |
 | `ErrorRatingNotFound` | 404 | NOT_FOUND (5) | Rating does not exist | Check rating ID |
-| `ErrorUserNotFound` | 404 | NOT_FOUND (5) | User does not exist in user-service | Check RaterId or UserRatedId |
+| `ErrorUserNotFound` | 404 | NOT_FOUND (5) | User does not exist in user-service | Check UserRatedId |
 | `ErrorRatingAlreadyExists` | 409 | ALREADY_EXISTS (6) | Already rated this user | Update existing rating |
 | `ErrorInvalidStars` | 400 | INVALID_ARGUMENT (3) | Stars not in 1-5 range | Fix stars value |
 | `ErrorSelfRating` | 400 | INVALID_ARGUMENT (3) | Cannot rate yourself | Rate another user |

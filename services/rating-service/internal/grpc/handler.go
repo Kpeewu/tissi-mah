@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/domain"
+	"github.com/Kpeewu/tissi-mah/services/rating-service/internal/middleware"
 	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/rating-service/internal/service/interfaces"
 	ratingErrors "github.com/Kpeewu/tissi-mah/services/rating-service/pkg/errors"
 	ratingpb "github.com/Kpeewu/tissi-mah/services/rating-service/proto/gen"
@@ -29,13 +30,17 @@ func NewRatingHandler(service serviceInterfaces.RatingService, logger *zap.Logge
 
 // RateUser crée une nouvelle note pour un utilisateur.
 func (h *RatingHandler) RateUser(ctx context.Context, req *ratingpb.RateUserRequest) (*ratingpb.RateUserResponse, error) {
+	raterID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	h.logger.Debug("handler: RateUser called",
-		zap.String("raterID", req.RaterId),
+		zap.String("raterID", raterID),
 		zap.String("userRatedID", req.UserRatedId),
 		zap.Int32("stars", req.NumberOfStars),
 	)
 
-	rating, err := h.service.RateUser(ctx, req.RaterId, req.UserRatedId, int16(req.NumberOfStars), req.Comment)
+	rating, err := h.service.RateUser(ctx, raterID, req.UserRatedId, int16(req.NumberOfStars), req.Comment)
 	if err != nil {
 		h.logger.Error("handler: RateUser failed", zap.Error(err))
 		return nil, toGRPCError(err)
@@ -79,11 +84,23 @@ func (h *RatingHandler) GetUserRatingsAverage(ctx context.Context, req *ratingpb
 	}, nil
 }
 
-// UpdateRating modifie une note existante (seul le rater peut modifier).
+// GetUserRatingsAverageInternal est la variante interne de GetUserRatingsAverage, appelée sans
+// identité par booking-service et trips-service.
+func (h *RatingHandler) GetUserRatingsAverageInternal(
+	ctx context.Context, req *ratingpb.GetUserRatingsAverageRequest,
+) (*ratingpb.GetUserRatingsAverageResponse, error) {
+	return h.GetUserRatingsAverage(ctx, req)
+}
+
+// UpdateRating modifie une note existante (seul le rater, c'est-à-dire l'appelant, peut modifier).
 func (h *RatingHandler) UpdateRating(ctx context.Context, req *ratingpb.UpdateRatingRequest) (*ratingpb.UpdateRatingResponse, error) {
 	h.logger.Debug("handler: UpdateRating called", zap.String("ratingID", req.RatingId))
 
-	rating, err := h.service.UpdateRating(ctx, req.RaterId, req.RatingId, req.UserRatedId, int16(req.NumberOfStars), req.Comment)
+	raterID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rating, err := h.service.UpdateRating(ctx, raterID, req.RatingId, req.UserRatedId, int16(req.NumberOfStars), req.Comment)
 	if err != nil {
 		h.logger.Error("handler: UpdateRating failed", zap.Error(err))
 		return nil, toGRPCError(err)
@@ -100,6 +117,17 @@ func (h *RatingHandler) Health(_ context.Context, _ *ratingpb.HealthRequest) (*r
 		Version:   serviceVersion,
 		Timestamp: time.Now().Unix(),
 	}, nil
+}
+
+// callerUserID retourne l'UserID interne de l'appelant, résolu par l'intercepteur depuis
+// le Firebase UID validé par l'api-gateway. Les endpoints client-facing ne font JAMAIS
+// confiance à un RaterId fourni dans la requête.
+func callerUserID(ctx context.Context) (string, error) {
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
+	if !ok || userID == "" {
+		return "", status.Error(codes.Unauthenticated, "missing caller identity")
+	}
+	return userID, nil
 }
 
 // toGRPCError traduit les erreurs domaine en codes de statut gRPC.
