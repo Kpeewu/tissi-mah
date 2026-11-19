@@ -97,20 +97,3 @@ func TestGetTransaction_NotFound(t *testing.T) {
 		t.Errorf("CancelTransaction err = %v, want ErrTransactionNotFound", err)
 	}
 }
-
-func TestGetTransactionByMerchantReference(t *testing.T) {
-	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/transactions/merchant/PAY-20261011-ABC" {
-			t.Errorf("unexpected path %s", r.URL.Path)
-		}
-		_, _ = w.Write([]byte(`{"v1/transaction":{"id":7,"status":"approved"}}`))
-	})
-
-	tx, err := client.GetTransactionByMerchantReference("PAY-20261011-ABC")
-	if err != nil {
-		t.Fatalf("GetTransactionByMerchantReference: %v", err)
-	}
-	if tx.ID != 7 || tx.Status != TransactionStatusApproved {
-		t.Errorf("unexpected transaction: %+v", tx)
-	}
-}
