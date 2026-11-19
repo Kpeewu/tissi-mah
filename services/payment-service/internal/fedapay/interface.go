@@ -7,7 +7,6 @@ type FedaPayClient interface {
 	CreateTransaction(params CreateTransactionParams) (*Transaction, error)
 	GetTransactionToken(transactionID int) (*TokenResponse, error)
 	GetTransaction(transactionID int) (*Transaction, error)
-	GetTransactionByMerchantReference(reference string) (*Transaction, error)
 	CancelTransaction(transactionID int) error
 
 	// Payouts (remboursements passagers et versements chauffeurs)

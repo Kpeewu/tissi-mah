@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 
 	"go.uber.org/zap"
 )
@@ -135,35 +134,6 @@ func (c *Client) GetTransaction(transactionID int) (*Transaction, error) {
 	body, statusCode, err := c.doRequest("GET", path, nil)
 	if err != nil {
 		return nil, fmt.Errorf("get transaction: %w", err)
-	}
-
-	if statusCode == http.StatusNotFound {
-		return nil, ErrTransactionNotFound
-	}
-	if statusCode < 200 || statusCode >= 300 {
-		return nil, parseError(body)
-	}
-
-	var resp TransactionResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("unmarshal transaction response: %w", err)
-	}
-
-	if resp.V1 == nil {
-		return nil, fmt.Errorf("fedapay: empty transaction response")
-	}
-
-	return resp.V1, nil
-}
-
-// GetTransactionByMerchantReference récupère une transaction via la référence marchande TissiMah.
-// Filet de sécurité quand l'ID FedaPay n'a pas pu être persisté.
-func (c *Client) GetTransactionByMerchantReference(reference string) (*Transaction, error) {
-	path := fmt.Sprintf("/v1/transactions/merchant/%s", url.PathEscape(reference))
-
-	body, statusCode, err := c.doRequest("GET", path, nil)
-	if err != nil {
-		return nil, fmt.Errorf("get transaction by merchant reference: %w", err)
 	}
 
 	if statusCode == http.StatusNotFound {

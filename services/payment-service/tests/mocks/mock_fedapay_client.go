@@ -33,14 +33,6 @@ func (m *MockFedaPayClient) GetTransaction(transactionID int) (*fedapay.Transact
 	return args.Get(0).(*fedapay.Transaction), args.Error(1)
 }
 
-func (m *MockFedaPayClient) GetTransactionByMerchantReference(reference string) (*fedapay.Transaction, error) {
-	args := m.Called(reference)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*fedapay.Transaction), args.Error(1)
-}
-
 func (m *MockFedaPayClient) CancelTransaction(transactionID int) error {
 	args := m.Called(transactionID)
 	return args.Error(0)
