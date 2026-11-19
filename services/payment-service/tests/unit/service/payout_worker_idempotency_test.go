@@ -66,7 +66,7 @@ func TestProcessPayoutForTrip_ExistingFedaPayPayout(t *testing.T) {
 		_, err := d.svc.TriggerManualPayout(ctx, "trip-timeout", "support-1")
 
 		require.NoError(t, err)
-		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		d.payoutWriteRepo.AssertCalled(t, "ConfirmPayoutCompleted", mock.Anything, "po-timeout-1")
 	})
 
@@ -82,7 +82,7 @@ func TestProcessPayoutForTrip_ExistingFedaPayPayout(t *testing.T) {
 		_, err := d.svc.TriggerManualPayout(ctx, "trip-timeout", "support-1")
 
 		require.NoError(t, err)
-		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("FedaPay pending → StartPayouts uniquement, pas de CreatePayout", func(t *testing.T) {
@@ -100,7 +100,7 @@ func TestProcessPayoutForTrip_ExistingFedaPayPayout(t *testing.T) {
 		_, err := d.svc.TriggerManualPayout(ctx, "trip-timeout", "support-1")
 
 		require.NoError(t, err)
-		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		d.fedapay.AssertCalled(t, "StartPayouts", []int{42})
 	})
 
@@ -111,7 +111,7 @@ func TestProcessPayoutForTrip_ExistingFedaPayPayout(t *testing.T) {
 			Return(failedPayoutWithRef("trip-timeout", "42"), nil)
 		d.fedapay.On("GetPayout", 42).Return(&fedapay.PayoutItem{ID: 42, Status: "failed"}, nil)
 		// CreatePayout est appelé (nouveau virement sur payout FedaPay définitivement échoué)
-		d.fedapay.On("CreatePayout", 5000, "togocel", "90000001", "Kofi", "Mensah").
+		d.fedapay.On("CreatePayout", 5000, "togocel", "90000001", "tg", "Kofi", "Mensah").
 			Return(&fedapay.PayoutItem{ID: 99}, nil)
 		d.payoutWriteRepo.On("CreatePayout", mock.Anything, mock.Anything).Return(nil)
 		d.fedapay.On("StartPayouts", []int{99}).Return(nil, nil)
@@ -123,7 +123,7 @@ func TestProcessPayoutForTrip_ExistingFedaPayPayout(t *testing.T) {
 		_, err := d.svc.TriggerManualPayout(ctx, "trip-timeout", "support-1")
 
 		require.NoError(t, err)
-		d.fedapay.AssertCalled(t, "CreatePayout", 5000, "togocel", "90000001", "Kofi", "Mensah")
+		d.fedapay.AssertCalled(t, "CreatePayout", 5000, "togocel", "90000001", "tg", "Kofi", "Mensah")
 	})
 
 	t.Run("GetPayout en erreur → erreur remontée, aucun virement créé", func(t *testing.T) {
@@ -136,7 +136,7 @@ func TestProcessPayoutForTrip_ExistingFedaPayPayout(t *testing.T) {
 		_, err := d.svc.TriggerManualPayout(ctx, "trip-timeout", "support-1")
 
 		require.ErrorIs(t, err, paymentErrors.ErrorFedaPayAPIError)
-		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 }
 
@@ -176,7 +176,7 @@ func TestProcessRefund_ExistingFedaPayPayout(t *testing.T) {
 
 		require.NoError(t, service.AsImpl(d.svc).ProcessPendingRefunds(ctx))
 
-		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		d.refundWriteRepo.AssertCalled(t, "MarkRefundCompleted", mock.Anything, "ref-double-1", "42")
 	})
 
@@ -187,7 +187,7 @@ func TestProcessRefund_ExistingFedaPayPayout(t *testing.T) {
 
 		require.NoError(t, service.AsImpl(d.svc).ProcessPendingRefunds(ctx))
 
-		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		d.refundWriteRepo.AssertNotCalled(t, "MarkRefundCompleted", mock.Anything, mock.Anything, mock.Anything)
 	})
 
@@ -199,7 +199,7 @@ func TestProcessRefund_ExistingFedaPayPayout(t *testing.T) {
 
 		require.NoError(t, service.AsImpl(d.svc).ProcessPendingRefunds(ctx))
 
-		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		d.fedapay.AssertCalled(t, "StartPayouts", []int{42})
 	})
 }
@@ -238,7 +238,7 @@ func TestProcessDriverRefundPayout_ExistingFedaPayPayout(t *testing.T) {
 
 		require.NoError(t, service.AsImpl(d.svc).ProcessPendingDriverRefundPayouts(ctx))
 
-		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		d.refundWriteRepo.AssertCalled(t, "MarkDriverPayoutCompleted", mock.Anything, "ref-drv-1")
 	})
 
@@ -250,7 +250,7 @@ func TestProcessDriverRefundPayout_ExistingFedaPayPayout(t *testing.T) {
 
 		require.NoError(t, service.AsImpl(d.svc).ProcessPendingDriverRefundPayouts(ctx))
 
-		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		d.fedapay.AssertNotCalled(t, "CreatePayout", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		d.fedapay.AssertCalled(t, "StartPayouts", []int{42})
 	})
 
@@ -258,13 +258,13 @@ func TestProcessDriverRefundPayout_ExistingFedaPayPayout(t *testing.T) {
 		d := newCollectTestService()
 		setupDriverMocks(d)
 		d.fedapay.On("GetPayout", 42).Return(&fedapay.PayoutItem{ID: 42, Status: "failed"}, nil)
-		d.fedapay.On("CreatePayout", 5000, "togocel", "92000001", "Kwame", "Asante").
+		d.fedapay.On("CreatePayout", 5000, "togocel", "92000001", "tg", "Kwame", "Asante").
 			Return(&fedapay.PayoutItem{ID: 99}, nil)
 		d.refundWriteRepo.On("SetDriverPayoutProviderReference", mock.Anything, "ref-drv-1", "99").Return(nil)
 		d.fedapay.On("StartPayouts", []int{99}).Return(nil, nil)
 
 		require.NoError(t, service.AsImpl(d.svc).ProcessPendingDriverRefundPayouts(ctx))
 
-		d.fedapay.AssertCalled(t, "CreatePayout", 5000, "togocel", "92000001", "Kwame", "Asante")
+		d.fedapay.AssertCalled(t, "CreatePayout", 5000, "togocel", "92000001", "tg", "Kwame", "Asante")
 	})
 }
