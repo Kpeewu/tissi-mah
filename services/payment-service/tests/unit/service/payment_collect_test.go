@@ -160,7 +160,8 @@ func TestCreatePayment_Redirect(t *testing.T) {
 		d.paymentWriteRepo.On("CreatePayment", mock.Anything, mock.MatchedBy(func(p *domain.Payment) bool {
 			return p.Amount == 5500 &&
 				p.ExternalTransactionID == "101" &&
-				p.PassengerPhoneNumber == "90112233" &&
+				p.PassengerPhoneNumber == "+22890112233" && // numéro normalisé E.164
+				p.PayoutOperator == "togocel" &&
 				p.PaymentURL == "https://checkout.fedapay.com/pay/tok" &&
 				p.ExpiresAt.Equal(createdAt.Add(10*time.Minute))
 		})).Return(nil)
@@ -171,6 +172,7 @@ func TestCreatePayment_Redirect(t *testing.T) {
 			PaymentMethod:        "mobileMoney",
 			Amount:               1, // ignoré
 			PassengerPhoneNumber: "+228 90 11 22 33",
+			PayoutOperator:       "togocel",
 		})
 
 		require.NoError(t, err)
@@ -196,7 +198,7 @@ func TestCreatePayment_Redirect(t *testing.T) {
 		d.paymentReadRepo.On("GetPendingByBookingID", mock.Anything, "bk-1").Return(pendingPayment(), nil)
 
 		result, err := d.svc.CreatePayment(passengerCtx(), &serviceInterfaces.CreatePaymentInput{
-			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233",
+			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233", PayoutOperator: "togocel",
 		})
 
 		require.NoError(t, err)
@@ -212,7 +214,7 @@ func TestCreatePayment_Redirect(t *testing.T) {
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
 
 		_, err := d.svc.CreatePayment(callerCtx("someone-else"), &serviceInterfaces.CreatePaymentInput{
-			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233",
+			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233", PayoutOperator: "togocel",
 		})
 
 		assert.ErrorIs(t, err, paymentErrors.ErrorPaymentNotOwned)
@@ -224,7 +226,7 @@ func TestCreatePayment_Redirect(t *testing.T) {
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC().Add(-11*time.Minute)), nil)
 
 		_, err := d.svc.CreatePayment(passengerCtx(), &serviceInterfaces.CreatePaymentInput{
-			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233",
+			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233", PayoutOperator: "togocel",
 		})
 
 		assert.ErrorIs(t, err, paymentErrors.ErrorBookingPaymentExpired)
@@ -237,7 +239,7 @@ func TestCreatePayment_Redirect(t *testing.T) {
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(booking, nil)
 
 		_, err := d.svc.CreatePayment(passengerCtx(), &serviceInterfaces.CreatePaymentInput{
-			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233",
+			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233", PayoutOperator: "togocel",
 		})
 
 		assert.ErrorIs(t, err, paymentErrors.ErrorBookingNotPayable)
@@ -247,7 +249,7 @@ func TestCreatePayment_Redirect(t *testing.T) {
 		d := newCollectTestService()
 
 		_, err := d.svc.CreatePayment(passengerCtx(), &serviceInterfaces.CreatePaymentInput{
-			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "12ab",
+			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "12ab", PayoutOperator: "togocel",
 		})
 
 		assert.ErrorIs(t, err, paymentErrors.ErrorInvalidInput)
@@ -264,7 +266,7 @@ func TestCreatePayment_Redirect(t *testing.T) {
 		d.fedapay.On("CancelTransaction", 102).Return(nil)
 
 		_, err := d.svc.CreatePayment(passengerCtx(), &serviceInterfaces.CreatePaymentInput{
-			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233",
+			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233", PayoutOperator: "togocel",
 		})
 
 		assert.ErrorIs(t, err, paymentErrors.ErrorFedaPayAPIError)
@@ -284,7 +286,7 @@ func TestCreatePayment_Redirect(t *testing.T) {
 		d.fedapay.On("CancelTransaction", 103).Return(nil)
 
 		_, err := d.svc.CreatePayment(passengerCtx(), &serviceInterfaces.CreatePaymentInput{
-			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233",
+			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233", PayoutOperator: "togocel",
 		})
 
 		assert.ErrorIs(t, err, paymentErrors.ErrorInternalServer)

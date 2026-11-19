@@ -26,7 +26,7 @@ const refundSelectColumns = `refund_id, refund_reference, payment_id, booking_id
 	estimated_completion, passenger_notified, notification_sent_at, notes,
 	payout_destination, payment_provider, payment_provider_reference,
 	failure_reason, retry_count, last_retry_at, updated_at,
-	driver_payout_status, driver_payout_provider_ref, driver_payout_retry_count,
+	driver_payout_status, COALESCE(driver_payout_provider_ref, ''), driver_payout_retry_count,
 	driver_payout_last_retry_at, driver_payout_completed_at`
 
 func NewRefundReadRepository(pool *pgxpool.Pool, logger *zap.Logger) repoInterfaces.RefundRepositoryRead {

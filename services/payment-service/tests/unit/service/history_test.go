@@ -68,7 +68,7 @@ func TestPaymentHistory_EdgeCases(t *testing.T) {
 		d.paymentWriteRepo.On("UpdatePaymentURL", mock.Anything, "pay-1", "https://checkout.fedapay.com/pay/new").Return(nil)
 
 		result, err := d.svc.CreatePayment(passengerCtx(), &serviceInterfaces.CreatePaymentInput{
-			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233",
+			BookingID: "bk-1", PaymentMethod: "mobileMoney", PassengerPhoneNumber: "90112233", PayoutOperator: "togocel",
 		})
 
 		require.NoError(t, err)
@@ -110,7 +110,7 @@ func TestPaymentHistory_EdgeCases(t *testing.T) {
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "bk-1").Return(payableBooking(time.Now().UTC()), nil)
 		d.userClient.On("GetUserByUserID", mock.Anything, "driver-1").
 			Return(&client.UserInfo{UserID: "driver-1", FirstName: "Kodjo", Name: "Mensah", WithdrawNumber: "90998877"}, nil)
-		d.fedapay.On("CreatePayout", 5000, "togocel", "90998877", "Kodjo", "Mensah").Return(&fedapay.PayoutItem{ID: 888}, nil)
+		d.fedapay.On("CreatePayout", 5000, "togocel", "90998877", "tg", "Kodjo", "Mensah").Return(&fedapay.PayoutItem{ID: 888}, nil)
 		d.payoutWriteRepo.On("CreatePayout", mock.Anything, mock.Anything).Return(nil)
 		d.payoutHistoryRepo.On("CreateHistoryEntry", mock.Anything, mock.Anything).Return(nil)
 		d.fedapay.On("StartPayouts", []int{888}).Return([]fedapay.PayoutItem{{ID: 888}}, nil)
@@ -149,7 +149,7 @@ func TestRefundHistory_EdgeCases(t *testing.T) {
 		d.bookingClient.On("GetBookingDetails", mock.Anything, "book-1").Return(booking, nil)
 		d.userClient.On("GetUserByUserID", mock.Anything, "user-1").Return(&client.UserInfo{FirstName: "Awa", Name: "Diallo"}, nil)
 		d.refundWriteRepo.On("MarkRefundProcessing", mock.Anything, "ref-1").Return(nil)
-		fedapayMock.On("CreatePayout", 5500, "togocel", "90112233", "Awa", "Diallo").Return(nil, errors.New("fedapay down"))
+		fedapayMock.On("CreatePayout", 5500, "togocel", "90112233", "tg", "Awa", "Diallo").Return(nil, errors.New("fedapay down"))
 		d.refundWriteRepo.On("MarkRefundFailed", mock.Anything, "ref-1", "fedapay: fedapay down", true).Return(nil)
 
 		require.NoError(t, service.AsImpl(d.svc).ProcessPendingRefunds(context.Background()))

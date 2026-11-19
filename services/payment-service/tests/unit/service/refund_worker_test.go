@@ -428,7 +428,7 @@ func TestProcessPendingRefunds_Notifications(t *testing.T) {
 		d.userClient.On("GetUserByUserID", mock.Anything, "user-1").
 			Return(&client.UserInfo{UserID: "user-1", FirstName: "Awa", Name: "Diallo"}, nil)
 		d.refundWriteRepo.On("MarkRefundProcessing", mock.Anything, "ref-ok").Return(nil)
-		fedapayMock.On("CreatePayout", 5500, "togocel", "90112233", "Awa", "Diallo").Return(&fedapay.PayoutItem{ID: 777}, nil)
+		fedapayMock.On("CreatePayout", 5500, "togocel", "90112233", "tg", "Awa", "Diallo").Return(&fedapay.PayoutItem{ID: 777}, nil)
 		d.refundWriteRepo.On("SetRefundProviderReference", mock.Anything, "ref-ok", "777").Return(nil)
 		fedapayMock.On("StartPayouts", []int{777}).Return([]fedapay.PayoutItem{{ID: 777}}, nil)
 
@@ -457,7 +457,7 @@ func TestProcessPendingRefunds_Notifications(t *testing.T) {
 		d.userClient.On("GetUserByUserID", mock.Anything, "user-1").
 			Return(&client.UserInfo{FirstName: "Awa", Name: "Diallo"}, nil)
 		d.refundWriteRepo.On("MarkRefundProcessing", mock.Anything, "ref-noref").Return(nil)
-		fedapayMock.On("CreatePayout", 5500, "togocel", "90112233", "Awa", "Diallo").Return(&fedapay.PayoutItem{ID: 778}, nil)
+		fedapayMock.On("CreatePayout", 5500, "togocel", "90112233", "tg", "Awa", "Diallo").Return(&fedapay.PayoutItem{ID: 778}, nil)
 		d.refundWriteRepo.On("SetRefundProviderReference", mock.Anything, "ref-noref", "778").
 			Return(paymentErrors.ErrorInternalServer)
 		d.refundWriteRepo.On("MarkRefundFailed", mock.Anything, "ref-noref", mock.Anything, true).Return(nil)
