@@ -1,0 +1,85 @@
+package domain
+
+import "time"
+
+// BookingPreview contient les informations résumées d'une réservation pour l'affichage en liste.
+type BookingPreview struct {
+	BookingID           string
+	BookingReference    string
+	TripID              string
+	Status              BookingStatus
+	SeatsBooked         int16
+	TotalAmount         int
+	PickupLocationName  string
+	DropoffLocationName string
+	DepartureDatetime   time.Time
+}
+
+// RawDriverBookingPreview contient les champs DB bruts avant enrichissement externe.
+// Utilisé par GetDriverPendingBookings, GetDriverTripBookingsRaw et GetDriverBookings.
+type RawDriverBookingPreview struct {
+	BookingID           string
+	BookingReference    string
+	TripID              string
+	PassengerID         string
+	Status              BookingStatus
+	SeatsBooked         int16
+	TotalAmount         int
+	PickupLocationName  string
+	DropoffLocationName string
+	PickupLat           *float64  // depuis bookings_segments.pickup_lat (NULL si segment absent)
+	PickupLng           *float64  // depuis bookings_segments.pickup_lng
+	DepartureDatetime   time.Time // depuis bookings_segments.pickup_scheduled_at (COALESCE created_at)
+	PaymentMethod       string
+	PassengerMessage    *string
+	ExtraMinutesDetour  *int16
+	ExtraDetourPrice    *int
+	CreatedAt           time.Time
+	PaymentCompletedAt  *time.Time
+}
+
+// BookingCounts regroupe les compteurs de réservations par statut pour un trajet.
+type BookingCounts struct {
+	Pending   int32
+	Approved  int32
+	Rejected  int32
+	Cancelled int32
+}
+
+// RawPassengerSummary contient les champs DB bruts pour GetActivePassengerSummariesForTrip.
+type RawPassengerSummary struct {
+	PassengerID        string
+	BookingID          string
+	SeatsBooked        int16
+	PaymentMethod      string
+	PaymentCompletedAt *time.Time
+}
+
+// BookingAdminFilter regroupe les filtres optionnels de la liste support (ListBookingsAdmin).
+// Un champ vide/nil signifie « pas de filtre sur ce critère ».
+type BookingAdminFilter struct {
+	Status           string
+	BookingReference string
+	DateFrom         *time.Time
+	DateTo           *time.Time
+	// NoShowContestPending : uniquement les no-shows contestés en attente de décision du support.
+	NoShowContestPending bool
+}
+
+// RawAdminBookingPreview contient les champs DB bruts d'une réservation pour la vue support,
+// avant enrichissement des noms passager/conducteur via user-service.
+type RawAdminBookingPreview struct {
+	BookingID           string
+	BookingReference    string
+	TripID              string
+	PassengerID         string
+	DriverID            string
+	Status              BookingStatus
+	SeatsBooked         int16
+	TotalAmount         int
+	PaymentMethod       string
+	PickupLocationName  string
+	DropoffLocationName string
+	DepartureDatetime   time.Time
+	CreatedAt           time.Time
+}

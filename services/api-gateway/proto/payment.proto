@@ -1,0 +1,498 @@
+syntax = "proto3";
+
+package payment;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/paymentpb;paymentpb";
+
+import "google/api/annotations.proto";
+
+// =============================================================================
+// PaymentService — gère les paiements, remboursements et payouts
+// =============================================================================
+
+service PaymentService {
+
+  // CreatePayment crée la collecte FedaPay d'une réservation et retourne le lien de la page
+  // de paiement (redirection). Si un paiement pending existe déjà, retourne le même lien (Reused).
+  rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/payment/createPayment"
+      body: "*"
+    };
+  }
+
+  // VerifyPayment resynchronise le statut du paiement auprès de FedaPay (source de vérité)
+  // et applique la transition correspondante. À appeler au retour de la page de paiement.
+  rpc VerifyPayment(VerifyPaymentRequest) returns (PaymentStatusResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/payment/verifyPayment"
+      body: "*"
+    };
+  }
+
+  // CancelPayment abandonne un paiement pending : supprime la transaction FedaPay
+  // et libère les places de la réservation.
+  rpc CancelPayment(CancelPaymentRequest) returns (PaymentStatusResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/payment/cancelPayment"
+      body: "*"
+    };
+  }
+
+  // HandlePaymentCallback traite le retour de la page FedaPay (callback_url ?id=&status=).
+  // gRPC uniquement — appelé par le handler HTTP brut de l'api-gateway, qui redirige ensuite
+  // vers le deep link mobile. Le statut de l'URL est ignoré : il est revérifié auprès de FedaPay.
+  rpc HandlePaymentCallback(HandlePaymentCallbackRequest) returns (PaymentStatusResponse);
+
+  // CancelPaymentForBooking annule le paiement pending d'une réservation annulée par l'utilisateur.
+  // gRPC uniquement — interne (booking-service). Ne rappelle pas FailPayment.
+  rpc CancelPaymentForBooking(CancelPaymentForBookingRequest) returns (PaymentStatusResponse);
+
+  // GetPaymentStatus retourne le statut d'un paiement
+  rpc GetPaymentStatus(GetPaymentStatusRequest) returns (GetPaymentStatusResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payment/getPaymentStatus"
+    };
+  }
+
+  // GetPaymentByBooking retourne le paiement associé à une réservation
+  rpc GetPaymentByBooking(GetPaymentByBookingRequest) returns (GetPaymentByBookingResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payment/getPaymentByBooking"
+    };
+  }
+
+  // GetPaymentByBookingInternal retourne le paiement d'une réservation sans contrôle d'appartenance.
+  // Route interne (sweeper paymentPending de booking-service) — bloquée en bordure par l'api-gateway.
+  rpc GetPaymentByBookingInternal(GetPaymentByBookingRequest) returns (GetPaymentByBookingResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payment/internal/getPaymentByBooking"
+    };
+  }
+
+  // ProcessWebhook traite les webhooks FedaPay (public, vérifié par HMAC)
+  rpc ProcessWebhook(ProcessWebhookRequest) returns (ProcessWebhookResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/payment/webhooks/fedapay"
+      body: "*"
+    };
+  }
+
+  // RequestRefund crée un remboursement (interne — appelé par booking-service)
+  rpc RequestRefund(RequestRefundRequest) returns (RequestRefundResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/payment/internal/requestRefund"
+      body: "*"
+    };
+  }
+
+  // GetRefundStatus retourne le statut d'un remboursement
+  rpc GetRefundStatus(GetRefundStatusRequest) returns (GetRefundStatusResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payment/getRefundStatus"
+    };
+  }
+
+  // GetRefundByBooking retourne le remboursement (le plus récent) associé à une réservation.
+  // Symétrique de GetPaymentByBooking : le client mobile ne connaît pas le RefundId
+  // (créé côté backend à l'annulation ou par un worker), seulement le BookingId.
+  rpc GetRefundByBooking(GetRefundByBookingRequest) returns (GetRefundByBookingResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payment/getRefundByBooking"
+    };
+  }
+
+  // ReleasePayment libère un paiement held après le délai de contestation (interne)
+  rpc ReleasePayment(ReleasePaymentRequest) returns (ReleasePaymentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/payment/internal/releasePayment"
+      body: "*"
+    };
+  }
+
+  // GetPayoutStatus retourne le statut d'un payout chauffeur
+  rpc GetPayoutStatus(GetPayoutStatusRequest) returns (GetPayoutStatusResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payment/getPayoutStatus"
+    };
+  }
+
+  // GetDriverPayouts retourne les payouts d'un chauffeur
+  rpc GetDriverPayouts(GetDriverPayoutsRequest) returns (GetDriverPayoutsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payment/getDriverPayouts"
+    };
+  }
+
+  // TriggerManualPayout permet à un agent support de lancer manuellement un payout pour un trajet
+  rpc TriggerManualPayout(TriggerManualPayoutRequest) returns (TriggerManualPayoutResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/payment/support/triggerManualPayout"
+      body: "*"
+    };
+  }
+
+  // GetPaymentHistory retourne l'historique des statuts d'un paiement (PaymentId) ou de tous les
+  // paiements d'une réservation (BookingId). Réservé au support.
+  rpc GetPaymentHistory(GetPaymentHistoryRequest) returns (GetPaymentHistoryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payment/support/getPaymentHistory"
+    };
+  }
+
+  // GetRefundHistory retourne l'historique des statuts d'un remboursement (RefundId) ou des
+  // remboursements d'une réservation (BookingId). Réservé au support.
+  rpc GetRefundHistory(GetRefundHistoryRequest) returns (GetRefundHistoryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payment/support/getRefundHistory"
+    };
+  }
+
+  // GetPayoutHistory retourne l'historique des statuts d'un payout chauffeur. Réservé au support.
+  rpc GetPayoutHistory(GetPayoutHistoryRequest) returns (GetPayoutHistoryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payment/support/getPayoutHistory"
+    };
+  }
+
+  // Health vérifie l'état du service
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/payment/health"
+    };
+  }
+
+  // CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
+  // Interne uniquement — bloquant si le chauffeur a un payout en attente (pending/scheduled/processing).
+  rpc CheckDeletionEligibility(CheckDeletionEligibilityRequest) returns (CheckDeletionEligibilityResponse);
+
+  // AnonymizeUserData anonymise les données liées à l'utilisateur dans payment-service.
+  // Interne uniquement — appelé par auth-service lors de la suppression de compte.
+  rpc AnonymizeUserData(AnonymizeUserDataRequest) returns (AnonymizeUserDataResponse);
+}
+
+// =============================================================================
+// Request Messages
+// =============================================================================
+
+message CreatePaymentRequest {
+  string BookingId           = 1;
+  string TripId              = 2;
+  string PaymentMethod       = 3; // mobileMoney
+  int32  Amount              = 4 [deprecated = true]; // ignoré : le montant est celui de la réservation
+  string PassengerPhoneNumber = 5; // numéro togocel (8 chiffres) utilisé pour un éventuel remboursement
+  string MobileMoneyMode     = 6 [deprecated = true]; // ignoré : l'opérateur est choisi sur la page FedaPay
+}
+
+message VerifyPaymentRequest {
+  string PaymentId = 1;
+}
+
+message CancelPaymentRequest {
+  string PaymentId = 1;
+}
+
+message HandlePaymentCallbackRequest {
+  string FedapayTransactionId = 1; // paramètre ?id= ajouté par FedaPay au callback_url
+}
+
+message CancelPaymentForBookingRequest {
+  string BookingId = 1;
+  string Reason    = 2;
+}
+
+message GetPaymentStatusRequest {
+  string PaymentId = 1;
+}
+
+message GetPaymentByBookingRequest {
+  string BookingId = 1;
+}
+
+message ProcessWebhookRequest {
+  string Signature  = 1;
+  bytes  RawPayload = 2;
+}
+
+message RequestRefundRequest {
+  string BookingId         = 1;
+  string RefundReason      = 2; // cancelledByDriver | cancelledByPassenger | noShowDriver | etc.
+  int32  OriginalAmount    = 3;
+  int32  ServiceFee        = 4;
+  string DepartureDatetime = 5; // RFC3339
+  string ApprovedAt        = 6; // RFC3339, optionnel
+  string CancelledAt       = 7; // RFC3339
+}
+
+message GetRefundStatusRequest {
+  string RefundId = 1;
+}
+
+message GetRefundByBookingRequest {
+  string BookingId = 1;
+}
+
+message ReleasePaymentRequest {
+  string BookingId = 1;
+}
+
+message GetPayoutStatusRequest {
+  string PayoutId = 1;
+}
+
+// Le chauffeur est l'appelant (UserID résolu depuis le Firebase UID par l'intercepteur).
+message GetDriverPayoutsRequest {
+  reserved 1;
+  reserved "DriverId";
+  int32 PageIndex = 2;
+}
+
+message TriggerManualPayoutRequest {
+  string TripId = 1;
+}
+
+// PaymentId ou BookingId (PaymentId prioritaire si les deux sont fournis)
+message GetPaymentHistoryRequest {
+  string PaymentId = 1;
+  string BookingId = 2;
+}
+
+// RefundId ou BookingId (RefundId prioritaire si les deux sont fournis)
+message GetRefundHistoryRequest {
+  string RefundId  = 1;
+  string BookingId = 2;
+}
+
+message GetPayoutHistoryRequest {
+  string PayoutId = 1;
+}
+
+message HealthRequest {}
+
+// =============================================================================
+// Response Messages
+// =============================================================================
+
+message CreatePaymentResponse {
+  string PaymentId        = 1;
+  string PaymentReference = 2;
+  string Status           = 3; // pending
+  string ErrorMessage     = 4;
+  string PaymentUrl       = 5; // page de paiement FedaPay à ouvrir (navigateur in-app)
+  string ExpiresAt        = 6; // RFC3339 — au-delà, la transaction est supprimée et les places libérées
+  bool   Reused           = 7; // true si un paiement pending existait déjà (même lien)
+  int32  Amount           = 8; // montant facturé (celui de la réservation)
+}
+
+// PaymentStatusResponse est l'état d'un paiement après synchronisation avec FedaPay.
+message PaymentStatusResponse {
+  string PaymentId      = 1;
+  string BookingId      = 2;
+  string Status         = 3;  // pending | held | released | paidOut | failed | refunded
+  string ProviderStatus = 4;  // dernier statut FedaPay : pending | approved | declined | canceled | expired | deleted
+  bool   IsFinal        = 5;  // false tant que Status = pending (declined/canceled : nouvelle tentative possible)
+  string PaymentUrl     = 6;  // lien de paiement (pending uniquement)
+  string ExpiresAt      = 7;  // RFC3339
+  string BookingStatus  = 8;  // paymentPending | pendingApproval | approved | paymentFailed | ...
+  bool   SeatsReleased  = 9;  // true si les places ont été libérées (nouvelle réservation nécessaire)
+  int32  Amount         = 10;
+  string ErrorMessage   = 11;
+}
+
+message GetPaymentStatusResponse {
+  string PaymentId        = 1;
+  string BookingId        = 2;
+  int32  Amount           = 3;
+  string PaymentMethod    = 4;
+  string Status           = 5;
+  string PaymentReference = 6;
+  string CreatedAt        = 7;
+  string CompletedAt      = 8;
+  string ErrorMessage     = 9;
+  string PaymentUrl       = 10; // lien de paiement FedaPay (pending uniquement)
+  string ProviderStatus   = 11; // dernier statut FedaPay observé
+  string ExpiresAt        = 12; // RFC3339
+}
+
+message GetPaymentByBookingResponse {
+  string PaymentId        = 1;
+  string BookingId        = 2;
+  int32  Amount           = 3;
+  string PaymentMethod    = 4;
+  string Status           = 5;
+  string PaymentReference = 6;
+  string CreatedAt        = 7;
+  string ErrorMessage     = 8;
+  string CompletedAt      = 9; // RFC3339, vide tant que le paiement n'est pas confirmé
+  string PaymentUrl       = 10; // lien de paiement FedaPay (pending uniquement)
+  string ProviderStatus   = 11; // dernier statut FedaPay observé
+  string ExpiresAt        = 12; // RFC3339
+}
+
+message ProcessWebhookResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+message RequestRefundResponse {
+  string RefundId        = 1;
+  string RefundReference = 2;
+  string Status          = 3;
+  int32  RefundAmount    = 4;
+  string ErrorMessage    = 5;
+}
+
+message GetRefundStatusResponse {
+  string RefundId         = 1;
+  string BookingId        = 2;
+  string RefundReason     = 3;
+  string RefundRule       = 4;
+  int32  OriginalAmount   = 5;
+  int32  RefundPercentage = 6;
+  int32  RefundAmount     = 7;
+  int32  AmountToPassenger = 8;
+  int32  AmountToDriver   = 9;
+  int32  AmountToPlatform = 10;
+  string Status           = 11;
+  string ProcessedAt      = 12;
+  string CompletedAt      = 13;
+  string ErrorMessage     = 14;
+}
+
+// Mêmes champs que GetRefundStatusResponse (le remboursement est identifié par la réservation).
+message GetRefundByBookingResponse {
+  string RefundId         = 1;
+  string BookingId        = 2;
+  string RefundReason     = 3;
+  string RefundRule       = 4;
+  int32  OriginalAmount   = 5;
+  int32  RefundPercentage = 6;
+  int32  RefundAmount     = 7;
+  int32  AmountToPassenger = 8;
+  int32  AmountToDriver   = 9;
+  int32  AmountToPlatform = 10;
+  string Status           = 11; // pending | processing | completed | failed
+  string ProcessedAt      = 12;
+  string CompletedAt      = 13;
+  string ErrorMessage     = 14;
+}
+
+message ReleasePaymentResponse {
+  bool   Success      = 1;
+  string Status       = 2;
+  string ErrorMessage = 3;
+}
+
+message GetPayoutStatusResponse {
+  string PayoutId        = 1;
+  string DriverId        = 2;
+  string TripId          = 3;
+  int32  GrossAmount     = 4;
+  int32  PlatformFee     = 5;
+  int32  NetAmount       = 6;
+  string Status          = 7;
+  string ScheduledAt     = 8;
+  string CompletedAt     = 9;
+  string FailureReason   = 10;
+  string ErrorMessage    = 11;
+}
+
+message GetDriverPayoutsResponse {
+  repeated PayoutPreview Payouts = 1;
+  string ErrorMessage            = 2;
+}
+
+message PayoutPreview {
+  string PayoutId        = 1;
+  string PayoutReference = 2;
+  string TripId          = 3;
+  int32  NetAmount       = 4;
+  string Status          = 5;
+  string CompletedAt     = 6;
+  string CreatedAt       = 7;
+}
+
+message TriggerManualPayoutResponse {
+  bool   Success      = 1;
+  int32  NetAmount    = 2;
+  string ErrorMessage = 3;
+}
+
+message PaymentHistoryEntry {
+  string HistoryId      = 1;
+  string PaymentId      = 2;
+  string Status         = 3; // statut atteint (pending, held, failed…) ou événement (attempt_failed, booking_synced…)
+  string ProviderStatus = 4; // statut FedaPay observé
+  string InitiatedBy    = 5; // system | passenger | booking_service | support
+  string Source         = 6; // canal (fedapay_webhook, expiration_worker…)
+  string OccurredAt     = 7; // RFC3339
+  string Notes          = 8;
+}
+
+message GetPaymentHistoryResponse {
+  repeated PaymentHistoryEntry Entries = 1;
+  string ErrorMessage                  = 2;
+}
+
+message RefundHistoryEntry {
+  string HistoryId   = 1;
+  string RefundId    = 2;
+  string Status      = 3; // pending | processing | retry_scheduled | failed | completed
+  int32  RetryCount  = 4;
+  string InitiatedBy = 5;
+  string Source      = 6;
+  string OccurredAt  = 7; // RFC3339
+  string Notes       = 8;
+}
+
+message GetRefundHistoryResponse {
+  repeated RefundHistoryEntry Entries = 1;
+  string ErrorMessage                 = 2;
+}
+
+message PayoutHistoryEntry {
+  string HistoryId        = 1;
+  string PayoutId         = 2;
+  string Status           = 3; // scheduled | processing | failed | completed | launched_by_support
+  string InitiatedBy      = 4; // system | support
+  string SupportUserId    = 5;
+  string SupportFirstName = 6;
+  string SupportLastName  = 7;
+  string OccurredAt       = 8; // RFC3339
+  string Notes            = 9;
+}
+
+message GetPayoutHistoryResponse {
+  repeated PayoutHistoryEntry Entries = 1;
+  string ErrorMessage                 = 2;
+}
+
+message HealthResponse {
+  string Status    = 1;
+  string Version   = 2;
+  int64  Timestamp = 3;
+}
+
+// =============================================================================
+// CheckDeletionEligibility / AnonymizeUserData — suppression de compte
+// =============================================================================
+
+message CheckDeletionEligibilityRequest {
+  string UserId = 1; // UserID interne (user-service)
+}
+
+message CheckDeletionEligibilityResponse {
+  bool   CanDelete      = 1;
+  string BlockingReason = 2; // vide si CanDelete = true
+  string ErrorMessage   = 3;
+}
+
+message AnonymizeUserDataRequest {
+  string UserId              = 1; // UserID interne (user-service)
+  repeated string BookingIds = 2; // IDs des réservations du passager (pour anonymiser passenger_phone_number)
+}
+
+message AnonymizeUserDataResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}

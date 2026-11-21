@@ -1,0 +1,343 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [staging]
+    paths:
+      - "services/**"
+      - "pkg/**"
+      - "go.work"
+      - ".github/workflows/deploy-to-staging.yml"
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Service to deploy (leave empty for all changed)"
+        required: false
+        type: string
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+  AWS_REGION: eu-west-1
+
+jobs:
+  detect-changes:
+    name: Detect Changed Services
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.set-services.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: dorny/paths-filter@v3
+        if: github.event.inputs.service == ''
+        id: filter
+        with:
+          filters: |
+            api-gateway:
+              - 'services/api-gateway/**'
+            auth-service:
+              - 'services/auth-service/**'
+            user-service:
+              - 'services/user-service/**'
+            file-service:
+              - 'services/file-service/**'
+            rating-service:
+              - 'services/rating-service/**'
+            vehicle-service:
+              - 'services/vehicle-service/**'
+            trips-service:
+              - 'services/trips-service/**'
+            booking-service:
+              - 'services/booking-service/**'
+            payment-service:
+              - 'services/payment-service/**'
+            email-service:
+              - 'services/email-service/**'
+            push-service:
+              - 'services/push-service/**'
+            notification-service:
+              - 'services/notification-service/**'
+            support-service:
+              - 'services/support-service/**'
+            geolocation-service:
+              - 'services/geolocation-service/**'
+            chat-service:
+              - 'services/chat-service/**'
+            moderation-service:
+              - 'services/moderation-service/**'
+            pkg:
+              - 'pkg/**'
+
+      - name: Set services to deploy
+        id: set-services
+        run: |
+          if [ -n "${{ github.event.inputs.service }}" ]; then
+            echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
+          else
+            services=()
+            if [ "${{ steps.filter.outputs.pkg }}" == "true" ]; then
+              services+=("api-gateway" "auth-service" "user-service" "file-service" "rating-service" "vehicle-service" "trips-service" "booking-service" "payment-service" "email-service" "push-service" "notification-service" "support-service" "geolocation-service" "chat-service" "moderation-service")
+            else
+              if [ "${{ steps.filter.outputs.api-gateway }}" == "true" ]; then
+                services+=("api-gateway")
+              fi
+              if [ "${{ steps.filter.outputs.auth-service }}" == "true" ]; then
+                services+=("auth-service")
+              fi
+              if [ "${{ steps.filter.outputs.user-service }}" == "true" ]; then
+                services+=("user-service")
+              fi
+              if [ "${{ steps.filter.outputs.file-service }}" == "true" ]; then
+                services+=("file-service")
+              fi
+              if [ "${{ steps.filter.outputs.rating-service }}" == "true" ]; then
+                services+=("rating-service")
+              fi
+              if [ "${{ steps.filter.outputs.vehicle-service }}" == "true" ]; then
+                services+=("vehicle-service")
+              fi
+              if [ "${{ steps.filter.outputs.trips-service }}" == "true" ]; then
+                services+=("trips-service")
+              fi
+              if [ "${{ steps.filter.outputs.booking-service }}" == "true" ]; then
+                services+=("booking-service")
+              fi
+              if [ "${{ steps.filter.outputs.payment-service }}" == "true" ]; then
+                services+=("payment-service")
+              fi
+              if [ "${{ steps.filter.outputs.email-service }}" == "true" ]; then
+                services+=("email-service")
+              fi
+              if [ "${{ steps.filter.outputs.push-service }}" == "true" ]; then
+                services+=("push-service")
+              fi
+              if [ "${{ steps.filter.outputs.notification-service }}" == "true" ]; then
+                services+=("notification-service")
+              fi
+              if [ "${{ steps.filter.outputs.support-service }}" == "true" ]; then
+                services+=("support-service")
+              fi
+              if [ "${{ steps.filter.outputs.geolocation-service }}" == "true" ]; then
+                services+=("geolocation-service")
+              fi
+              if [ "${{ steps.filter.outputs.chat-service }}" == "true" ]; then
+                services+=("chat-service")
+              fi
+              if [ "${{ steps.filter.outputs.moderation-service }}" == "true" ]; then
+                services+=("moderation-service")
+              fi
+            fi
+
+            if [ ${#services[@]} -eq 0 ]; then
+              echo "services=[]" >> $GITHUB_OUTPUT
+            else
+              json=$(printf '%s\n' "${services[@]}" | jq -R . | jq -s -c .)
+              echo "services=$json" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  build-and-push:
+    name: Build and Push
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          tags: |
+            type=raw,value=staging-${{ github.sha }}
+            type=raw,value=staging-latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/${{ matrix.service }}/deployments/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=staging-${{ github.sha }}
+            COMMIT_SHA=${{ github.sha }}
+            ENVIRONMENT=staging
+
+  deploy:
+    name: Deploy to Staging
+    needs: [detect-changes, build-and-push]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.13.0"
+
+      - name: Setup kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.STAGING_KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Unstick pending Helm release
+        run: |
+          # Libère le lock si une release précédente est restée en pending-*
+          # (job CI killed, timeout, network glitch). Sans ça, helm upgrade
+          # échoue avec "another operation (install/upgrade/rollback) is in progress".
+          helm_output=$(helm status ${{ matrix.service }} -n staging 2>/dev/null || true)
+          status=$(echo "$helm_output" | awk '/^STATUS:/ {print $2}')
+          case "$status" in
+            pending-install|pending-upgrade|pending-rollback)
+              echo "Release ${{ matrix.service }} bloquée en $status, libération du lock"
+              if ! helm rollback ${{ matrix.service }} -n staging 2>/dev/null; then
+                echo "Rollback impossible (pas de révision deployed), suppression du secret $status"
+                kubectl delete secret -n staging \
+                  -l "owner=helm,name=${{ matrix.service }},status=$status" \
+                  --ignore-not-found
+              fi
+              ;;
+          esac
+
+      - name: Deploy with Helm
+        env:
+          EMAIL_SMTP_USERNAME: ${{ secrets.EMAIL_SMTP_USERNAME }}
+          EMAIL_SMTP_PASSWORD: ${{ secrets.EMAIL_SMTP_PASSWORD }}
+        run: |
+          EXTRA_SETS=""
+          if [ "${{ matrix.service }}" = "email-service" ]; then
+            EXTRA_SETS="--set secrets.smtpUsername=${EMAIL_SMTP_USERNAME} --set secrets.smtpPassword=${EMAIL_SMTP_PASSWORD} --set config.emailFrom=${EMAIL_SMTP_USERNAME}"
+          fi
+          helm upgrade --install ${{ matrix.service }} \
+            services/${{ matrix.service }}/deployments/helm \
+            -f services/${{ matrix.service }}/deployments/helm/values/staging.yaml \
+            --namespace staging \
+            --create-namespace \
+            --set image.tag=staging-${{ github.sha }} \
+            ${EXTRA_SETS} \
+            --wait \
+            --timeout 10m
+
+  smoke-test:
+    name: Smoke Tests
+    needs: [detect-changes, deploy]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.STAGING_KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests for ${{ matrix.service }}..."
+          
+          kubectl wait --for=condition=ready pod \
+            -l app.kubernetes.io/name=${{ matrix.service }} \
+            -n staging \
+            --timeout=180s
+          
+          POD=$(kubectl get pods -n staging -l app.kubernetes.io/name=${{ matrix.service }} -o jsonpath='{.items[0].metadata.name}')
+          
+          echo "Pod: $POD"
+          kubectl describe pod $POD -n staging | grep -A 5 "Conditions:"
+
+  health-check:
+    name: Health Check
+    needs: [detect-changes, smoke-test]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - name: Setup kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.STAGING_KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Full health check
+        run: |
+          echo "Full health check for ${{ matrix.service }}..."
+          
+          kubectl rollout status deployment/${{ matrix.service }} -n staging --timeout=120s
+          
+          kubectl get hpa ${{ matrix.service }} -n staging || echo "No HPA configured"
+          
+          kubectl get pdb ${{ matrix.service }} -n staging || echo "No PDB configured"
+          
+          echo "Recent logs:"
+          kubectl logs -n staging -l app.kubernetes.io/name=${{ matrix.service }} --tail=50 || true
+
+  deployment-summary:
+    name: Deployment Summary
+    needs: [detect-changes, build-and-push, deploy, smoke-test, health-check]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summary
+        run: |
+          echo "Staging Deployment Summary"
+          echo "=========================="
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Services: ${{ needs.detect-changes.outputs.services }}"
+          echo ""
+          echo "Results:"
+          echo "  Build: ${{ needs.build-and-push.result }}"
+          echo "  Deploy: ${{ needs.deploy.result }}"
+          echo "  Smoke Tests: ${{ needs.smoke-test.result }}"
+          echo "  Health Check: ${{ needs.health-check.result }}"
+          
+          if [ "${{ needs.health-check.result }}" != "success" ]; then
+            echo ""
+            echo "Staging deployment may have issues!"
+            exit 1
+          fi
+          
+          echo ""
+          echo "Staging deployment successful!"

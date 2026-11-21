@@ -1,0 +1,172 @@
+package e2e
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net"
+	"os"
+	"path/filepath"
+	"sort"
+	"testing"
+	"time"
+
+	postgresHelper "github.com/Kpeewu/tissi-mah/pkg-test/postgres"
+	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/client"
+	grpcHandler "github.com/Kpeewu/tissi-mah/services/booking-service/internal/grpc"
+	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/middleware"
+	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/repository/implementations"
+	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/service"
+	bookingErrors "github.com/Kpeewu/tissi-mah/services/booking-service/pkg/errors"
+	bookingpb "github.com/Kpeewu/tissi-mah/services/booking-service/proto/gen"
+	"github.com/Kpeewu/tissi-mah/services/booking-service/tests/mocks"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stretchr/testify/mock"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+)
+
+var (
+	testPool   *pgxpool.Pool
+	grpcClient bookingpb.BookingServiceClient
+	grpcConn   *grpc.ClientConn
+)
+
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+
+	// --- PostgreSQL via testcontainers ---
+	testPostgres, err := postgresHelper.SetupTestPostgres(ctx, "../../migrations")
+	if err != nil {
+		log.Printf("SetupTestPostgres returned error: %v, trying manual setup...", err)
+	}
+	if testPostgres == nil {
+		log.Fatal("Failed to setup test database")
+	}
+	testPool = testPostgres.Pool
+
+	// Verifier si la table bookings existe, sinon appliquer manuellement
+	var tableExists bool
+	err = testPool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'bookings')").Scan(&tableExists)
+	if err != nil {
+		log.Fatalf("Failed to check table existence: %v", err)
+	}
+	if !tableExists {
+		log.Println("Table 'bookings' not found, applying migrations manually...")
+		if err := applyMigrationsManually(ctx, testPool, "../../migrations"); err != nil {
+			log.Fatalf("Failed to apply migrations manually: %v", err)
+		}
+	}
+
+	// --- Mock clients (inter-service) ---
+	mockTripClient := new(mocks.MockTripClient)
+	// Trajet des tests no-show : prise en charge prévue il y a 1 h (délai d'attente écoulé)
+	mockTripClient.On("GetTripDetails", mock.Anything, noShowTripID).Return(&client.TripDetails{
+		TripID: noShowTripID,
+		Waypoints: []client.TripWaypoint{{
+			WaypointID:              noShowWaypointID,
+			ScheduledPickupDatetime: time.Now().UTC().Add(-time.Hour).Format(time.RFC3339),
+		}},
+	}, nil).Maybe()
+	mockTripClient.On("GetTripDetails", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockTripClient.On("UpdateAvailableSeats", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockTripClient.On("IncrementLegBookedSeats", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockTripClient.On("StartBookingsForWaypoint", mock.Anything, mock.Anything, mock.Anything).Return([]string{}, nil).Maybe()
+	mockTripClient.On("CompleteBookingsForWaypoint", mock.Anything, mock.Anything, mock.Anything).Return([]string{}, nil).Maybe()
+
+	mockUserClient := new(mocks.MockUserClient)
+	mockUserClient.On("IsPassengerVerified", mock.Anything, mock.Anything).Return(true, nil).Maybe()
+	mockUserClient.On("GetPassengerInfo", mock.Anything, mock.Anything).Return("Test User", true, nil).Maybe()
+	// Résolution Firebase UID → UserID : identité, sauf pour l'UID inconnu de user-service.
+	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, unknownFirebaseUID).
+		Return("", bookingErrors.ErrorUserNotFound).Maybe()
+	mockUserClient.On("GetUserIDByFirebaseID", mock.Anything, mock.Anything).Return(
+		func(_ context.Context, uid string) string { return uid }, nil,
+	).Maybe()
+
+	mockPaymentClient := new(mocks.MockPaymentClient)
+	mockPaymentClient.On("RequestRefund", mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockPaymentClient.On("ReleasePayment", mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// --- Service layer ---
+	logger := zap.NewNop()
+	readRepo := implementations.NewBookingReadRepository(testPool, logger)
+	writeRepo := implementations.NewBookingWriteRepository(testPool, logger)
+
+	mockRatingClient := new(mocks.MockRatingClient)
+
+	bookingService := service.NewBookingService(
+		readRepo, writeRepo,
+		mockTripClient, mockUserClient, mockPaymentClient, mockRatingClient,
+		nil, // cache
+		nil, // notifRedis
+		10,  // serviceFeeAmount
+		logger,
+	)
+
+	// --- gRPC server sur port dynamique ---
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
+
+	srv := grpc.NewServer(grpc.UnaryInterceptor(middleware.BookingInterceptor(nil, mockUserClient)))
+	handler := grpcHandler.NewBookingHandler(bookingService, logger)
+	bookingpb.RegisterBookingServiceServer(srv, handler)
+
+	go func() {
+		if err := srv.Serve(listener); err != nil {
+			log.Printf("gRPC server stopped: %v", err)
+		}
+	}()
+
+	// --- gRPC client ---
+	addr := listener.Addr().String()
+	grpcConn, err = grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		log.Fatalf("Failed to connect to gRPC server: %v", err)
+	}
+	grpcClient = bookingpb.NewBookingServiceClient(grpcConn)
+
+	fmt.Printf("E2E test server running on %s\n", addr)
+
+	// --- Run tests ---
+	code := m.Run()
+
+	// --- Cleanup ---
+	grpcConn.Close()
+	srv.GracefulStop()
+
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := testPostgres.CleanUp(cleanupCtx); err != nil {
+		log.Printf("Failed to cleanup test database: %v", err)
+	}
+
+	os.Exit(code)
+}
+
+func applyMigrationsManually(ctx context.Context, pool *pgxpool.Pool, migrationsDir string) error {
+	files, err := filepath.Glob(filepath.Join(migrationsDir, "*.sql"))
+	if err != nil {
+		return err
+	}
+
+	sort.Strings(files)
+
+	for _, f := range files {
+		sql, err := os.ReadFile(f)
+		if err != nil {
+			return err
+		}
+		if _, err := pool.Exec(ctx, string(sql)); err != nil {
+			return err
+		}
+		log.Printf("Applied migration: %s", filepath.Base(f))
+	}
+
+	return nil
+}

@@ -1,0 +1,418 @@
+// KYC Service Proto Definition
+// This file defines the gRPC service contract for kyc-service
+//
+// HTTP/REST mapping is defined using google.api.http annotations
+// api-gateway uses these annotations for grpc-gateway transcoding
+
+syntax = "proto3";
+
+package kyc;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/kyc-service/proto/gen;kyc";
+
+import "google/api/annotations.proto";
+
+// =============================================================================
+// KYC Service
+// =============================================================================
+
+service KYCService {
+  // GetKYCStatus - Récupère le statut KYC global de l'utilisateur connecté
+  rpc GetKYCStatus(GetKYCStatusRequest) returns (GetKYCStatusResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/kyc/me/getStatus"
+    };
+  }
+
+  // GetAdminReviews - Liste les revues pour l'admin (avec filtres et pagination)
+  rpc GetAdminReviews(GetAdminReviewsRequest) returns (GetAdminReviewsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/kyc/admin/reviews/getReviews"
+    };
+  }
+
+  // GetAdminReview - Récupère le détail complet d'une revue pour l'admin
+  rpc GetAdminReview(GetAdminReviewRequest) returns (GetAdminReviewResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/kyc/admin/reviews/getReview"
+    };
+  }
+
+  // OverrideReview - Override manuel d'une revue par un agent de support
+  rpc OverrideReview(OverrideReviewRequest) returns (OverrideReviewResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/kyc/admin/reviews/override"
+      body: "*"
+    };
+  }
+
+  // ValidateDocument - Validation manuelle d'un document par un agent support.
+  // Unité de validation = document LOGIQUE : pour un recto-verso (idCard, driverLicence),
+  // le DocumentId de n'importe quelle face est accepté et la décision s'applique aux deux.
+  // Documents véhicule : insurance / registrationCard avec VehicleId.
+  rpc ValidateDocument(ValidateDocumentRequest) returns (ValidateDocumentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/kyc/admin/validateDocument"
+      body: "*"
+    };
+  }
+
+  // GetManualReviewRequests - Demandes de validation manuelle groupées par utilisateur (support)
+  rpc GetManualReviewRequests(GetManualReviewRequestsRequest) returns (GetManualReviewRequestsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/kyc/admin/manualReviews/requests"
+    };
+  }
+
+  // GetManualReviewRequestDetail - Détail d'une demande : tous les documents soumis d'un utilisateur (support)
+  rpc GetManualReviewRequestDetail(GetManualReviewRequestDetailRequest) returns (GetManualReviewRequestDetailResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/kyc/admin/manualReviews/requestDetail"
+    };
+  }
+
+  // GetDocumentHistory - Historique complet des revues d'un document logique (support)
+  rpc GetDocumentHistory(GetDocumentHistoryRequest) returns (GetDocumentHistoryResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/kyc/admin/documentHistory"
+    };
+  }
+
+  // Health - Health check endpoint (no auth required)
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/kyc/health"
+    };
+  }
+}
+
+// =============================================================================
+// Request Messages
+// =============================================================================
+
+message GetKYCStatusRequest {
+  // No fields required - UserID is extracted from JWT
+}
+
+message GetAdminReviewsRequest {
+  string UserId = 1;    // Optionnel
+  string Status = 2;    // Optionnel
+  string Decision = 3;  // Optionnel
+  int32 Index = 4;      // Numéro de page
+}
+
+message GetAdminReviewRequest {
+  string ReviewId = 1;
+}
+
+message OverrideReviewRequest {
+  string ReviewId = 1;
+  string Decision = 2;
+  string ReasonRejection = 3;  // Requis si Decision = "rejected"
+  string RejectionDetails = 4; // Optionnel
+  string Notes = 5;            // Optionnel
+}
+
+message ValidateDocumentRequest {
+  string DocumentId       = 1; // ID du document (user ou vehicle)
+  string VehicleId        = 2; // Requis pour documents véhicule
+  string Decision         = 3; // approved | rejected | resubmission
+  string ReasonRejection  = 4; // Requis si Decision = "rejected"
+  string RejectionDetails = 5; // Optionnel
+  string Notes            = 6; // Optionnel
+}
+
+message HealthRequest {
+  // No fields required
+}
+
+// =============================================================================
+// Response Messages
+// =============================================================================
+
+message GetKYCStatusResponse {
+  string ErrorMessage = 1;
+  bool IdentityVerified = 2;
+  bool DriverVerified = 3;
+  repeated PendingReviewItem PendingReviews = 4;
+  LatestRejectionItem LatestRejection = 5;
+}
+
+message GetAdminReviewsResponse {
+  string ErrorMessage = 1;
+  repeated AdminReviewItem Reviews = 2;
+}
+
+message GetAdminReviewResponse {
+  string ErrorMessage = 1;
+  AdminReviewDetail Review = 2;
+}
+
+message OverrideReviewResponse {
+  reserved 3; // PersonaInquiryId (intégration supprimée)
+  reserved "PersonaInquiryId";
+
+  string ErrorMessage = 1;
+  string ReviewId = 2;
+  string Decision = 4;
+  string ReasonRejection = 5;
+  string RejectionDetails = 6;
+  string ReviewedBy = 7;
+  string ReviewType = 8;
+  string ReviewedAt = 9;  // ISO 8601
+  string Notes = 10;
+  string UpdatedAt = 11;  // ISO 8601
+}
+
+message ValidateDocumentResponse {
+  string ErrorMessage = 1;
+  string ReviewId     = 2;
+  string Decision     = 3;
+  string ReviewedBy   = 4;
+  string ReviewType   = 5;
+  string ReviewedAt   = 6; // ISO 8601
+  string Notes        = 7;
+  // Document logique décidé : recto (ou document principal) + verso éventuel.
+  string DocumentId       = 8;
+  string SecondDocumentId = 9; // vide si non recto-verso
+  string LogicalDocumentType = 10; // idCard, driverLicence, passport, selfie, insurance…
+}
+
+message HealthResponse {
+  string Status = 1;
+  string Version = 2;
+  int64 Timestamp = 3;
+}
+
+// =============================================================================
+// Validation manuelle groupée par utilisateur (support)
+// =============================================================================
+
+message GetManualReviewRequestsRequest {
+  string Status      = 1; // Optionnel — filtre : passenger OU driver == ce statut
+  int32  Page        = 2; // 0-based
+  int32  PageSize    = 3; // 0 = défaut
+  string Name        = 4; // Optionnel — recherche partielle (contient, insensible casse) sur le nom
+  string FirstName   = 5; // Optionnel — recherche partielle (contient, insensible casse) sur le prénom
+  string DepositFrom = 6; // Optionnel — borne basse de la date du dernier dépôt (ISO 8601 ou YYYY-MM-DD)
+  string DepositTo   = 7; // Optionnel — borne haute de la date du dernier dépôt (ISO 8601 ou YYYY-MM-DD)
+}
+
+message ManualReviewRequestItem {
+  string UserId          = 1;
+  string Name            = 2;
+  string FirstName       = 3;
+  string Email           = 4;
+  string PhoneNumber     = 5;
+  string ProfileImageURL = 6;
+  string PassengerStatus = 7; // "" si aucun document d'identité
+  string DriverStatus    = 8; // "" si aucun document permis/véhicule
+  int32  TotalDocuments  = 9;
+  string LastDepositAt   = 10; // ISO 8601 — date du dernier document déposé
+}
+
+message GetManualReviewRequestsResponse {
+  string ErrorMessage = 1;
+  repeated ManualReviewRequestItem Requests = 2;
+  int32 Total = 3;
+}
+
+message GetManualReviewRequestDetailRequest {
+  string UserId = 1;
+}
+
+message ManualReviewDocumentReview {
+  string ReviewId         = 1;
+  string Status           = 2;
+  string Decision         = 3;
+  string ReasonRejection  = 4;
+  string RejectionDetails = 5;
+  string ReviewType       = 6;
+  string ReviewedBy       = 7; // UID de l'agent support
+  string ReviewedAt       = 8; // ISO 8601
+  // Identité de l'agent support (résolue via support-service)
+  string ReviewedByFirstName       = 9;
+  string ReviewedByLastName        = 10;
+  string ReviewedByProfileImageURL = 11; // réservé — vide tant que les agents n'ont pas de photo
+  // Contexte de la décision (visible par le support)
+  string Notes            = 12;
+  int32  AttemptNumber    = 13;
+  string PreviousReviewId = 14; // review remplacée (override / resoumission), vide sinon
+}
+
+// Infos véhicule embarquées dans ManualReviewDocument (vehicle docs uniquement).
+message ManualReviewVehicleInfo {
+  string VehicleId     = 1;
+  string Brand         = 2;
+  string BrandModel    = 3;
+  string Color         = 4;
+  string LicencePlate  = 5;
+  int32  NumberOfSeats = 6;
+  bool   IsVerified    = 7;
+}
+
+message ManualReviewDocument {
+  // Champs existants — ne pas modifier les numéros
+  string DocumentId          = 1;
+  string DocumentType        = 2;
+  string Status              = 3;
+  string OwnerKind           = 4; // "user" | "vehicle"
+  string OwnerId             = 5; // user_id ou vehicle_id
+  string Category            = 6; // catégorie principale (affichage) : passenger | driver | other
+  ManualReviewDocumentReview LatestReview = 7; // null si aucune review
+  string LogicalDocumentType = 8; // idCard, driverLicence, passport…
+  // Métadonnées document (recto / document principal)
+  string DocumentUrl         = 9;
+  int64  FileSizeBytes       = 10;
+  string MimeType            = 11;
+  string DocumentNumber      = 12;
+  bool   IsCurrent           = 13;
+  string UploadedAt          = 14; // ISO 8601
+  string UpdatedAt           = 15; // ISO 8601
+  string IssuedAt            = 16; // ISO 8601
+  string ExpiredAt           = 17; // ISO 8601 — ExpiredAt user / ExpireAt vehicle (unifié)
+  string IssuingCountry      = 18; // user docs uniquement
+  string IssuingAuthority    = 19; // vehicle docs uniquement
+  ManualReviewVehicleInfo Vehicle = 20; // vehicle docs uniquement
+  // Verso — recto-verso (idCard, driverLicence) uniquement ; vide sinon
+  string SecondDocumentId    = 21;
+  string SecondDocumentUrl   = 22;
+  int64  SecondFileSizeBytes = 23;
+  string SecondMimeType      = 24;
+  string SecondUploadedAt    = 25; // ISO 8601
+  string SecondUpdatedAt     = 26; // ISO 8601
+  // Toutes les catégories du document — le permis (double rôle) = [passenger, driver],
+  // le selfie = [passenger]. Category (champ 6) reste la catégorie principale.
+  repeated string Categories = 27;
+}
+
+// =============================================================================
+// GetDocumentHistory — historique complet d'un document logique (support)
+// =============================================================================
+
+message GetDocumentHistoryRequest {
+  string UserId              = 1; // Propriétaire des documents
+  string LogicalDocumentType = 2; // idCard | driverLicence | passport | insurance | registrationCard
+}
+
+message DocumentHistoryEntry {
+  string ReviewId            = 1;
+  string Status              = 2;
+  string Decision            = 3;
+  string ReasonRejection     = 4;
+  string RejectionDetails    = 5;
+  string Notes               = 6;
+  string ReviewType          = 7;  // manual
+  string ReviewedBy          = 8;  // UID de l'agent support
+  string ReviewedAt          = 9;  // ISO 8601
+  int32  AttemptNumber       = 10;
+  string DocumentId          = 11; // recto / face principale
+  string SecondDocumentId    = 12; // verso (vide si non recto-verso)
+  string LogicalDocumentType = 13;
+  string CreatedAt           = 14; // ISO 8601
+  string UpdatedAt           = 15; // ISO 8601
+  // Identité de l'agent support (résolue via support-service)
+  string ReviewedByFirstName       = 16;
+  string ReviewedByLastName        = 17;
+  string ReviewedByProfileImageURL = 18; // réservé — vide tant que les agents n'ont pas de photo
+}
+
+message GetDocumentHistoryResponse {
+  repeated DocumentHistoryEntry Entries = 1;
+}
+
+message GetManualReviewRequestDetailResponse {
+  string ErrorMessage = 1;
+  string UserId          = 2;
+  string Name            = 3;
+  string FirstName       = 4;
+  string Email           = 5;
+  string PhoneNumber     = 6;
+  string ProfileImageURL = 7;
+  repeated ManualReviewDocument Documents = 8;
+}
+
+// =============================================================================
+// Domain Messages
+// =============================================================================
+
+message PendingReviewItem {
+  reserved 2, 5; // PersonaInquiryId, SessionExpiresAt (intégration supprimée)
+  reserved "PersonaInquiryId", "SessionExpiresAt";
+
+  string ReviewId = 1;
+  string Status = 3;
+  int32 AttemptNumber = 4;
+  string DocumentType = 6;
+}
+
+message LatestRejectionItem {
+  string ReviewId = 1;
+  string ReasonRejection = 2;
+  string RejectionDetails = 3;
+  string ReviewType = 4;
+  string ReviewedAt = 5; // ISO 8601
+
+  // Document rejeté — permet au client de resoumettre via file/changeDocument
+  // (FileID = UserDocumentId / SecondUserDocumentId / VehicleDocumentId) même après
+  // réinstallation de l'app, sans conserver les IDs localement.
+  string DocumentType         = 6;  // type physique décidé : idCardFront, passport, selfie, insurance…
+  string LogicalDocumentType  = 7;  // idCard | passport | driverLicence | selfie | insurance | registrationCard
+  string UserDocumentId       = 8;  // recto / document principal (vide pour un document véhicule)
+  string SecondUserDocumentId = 9;  // verso pour les documents recto-verso, vide sinon
+  string VehicleDocumentId    = 10; // assurance / carte grise (vide pour un document utilisateur)
+}
+
+message AdminReviewItem {
+  reserved 2, 13, 14; // Persona/webhook (intégration supprimée)
+  reserved "PersonaInquiryId", "WebhookEventType", "WebhookReceivedAt";
+
+  string ReviewId = 1;
+  string UserDocumentId = 3;
+  string VehicleDocumentId = 4;
+  string Status = 5;
+  string Decision = 6;
+  string ReasonRejection = 7;
+  string RejectionDetails = 8;
+  string ReviewType = 9;
+  string ReviewedAt = 10;    // ISO 8601
+  int32 AttemptNumber = 11;
+  string PreviousReviewId = 12;
+  string CreatedAt = 15;         // ISO 8601
+  string UpdatedAt = 16;         // ISO 8601
+}
+
+message AdminReviewDetail {
+  reserved 2, 3, 15, 16, 19; // Persona/webhook (intégration supprimée)
+  reserved "PersonaInquiryId", "PersonaTemplateId", "WebhookEventType",
+           "WebhookReceivedAt", "SessionExpiresAt";
+
+  string ReviewId = 1;
+  string UserDocumentId = 4;
+  string VehicleDocumentId = 5;
+  string Status = 6;
+  string Decision = 7;
+  string ReasonRejection = 8;
+  string RejectionDetails = 9;
+  string ReviewedBy = 10;
+  string ReviewType = 11;
+  string ReviewedAt = 12;        // ISO 8601
+  string Notes = 13;
+  bytes ExtractedData = 14;      // JSON
+  int32 AttemptNumber = 17;
+  string PreviousReviewId = 18;
+  string CreatedAt = 20;         // ISO 8601
+  string UpdatedAt = 21;         // ISO 8601
+}
+
+// =============================================================================
+// Error Codes Reference (gRPC status codes)
+// =============================================================================
+//
+// 0  - OK                  : Success
+// 3  - INVALID_ARGUMENT    : Invalid request parameters (400)
+// 5  - NOT_FOUND           : Resource not found (404)
+// 7  - PERMISSION_DENIED   : Not authorized (403)
+// 9  - FAILED_PRECONDITION : Review not overridable / Document already reviewed / Companion document missing (recto-verso)
+// 13 - INTERNAL            : Server error (500)
+// 14 - UNAVAILABLE         : File-service unavailable (503)

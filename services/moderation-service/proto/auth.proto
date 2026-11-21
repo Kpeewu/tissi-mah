@@ -1,0 +1,22 @@
+// Auth Service Proto — contrat utilisé par moderation-service
+// Définit uniquement le RPC SuspendAccount dont moderation-service a besoin.
+
+syntax = "proto3";
+
+package auth;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/moderation-service/proto/gen/authpb;authpb";
+
+service AuthService {
+  rpc SuspendAccount(SuspendAccountRequest) returns (SuspendAccountResponse);
+}
+
+message SuspendAccountRequest {
+  string AuthID         = 1;
+  string SuspendedUntil = 2;
+  bool   IsBanned       = 3;
+}
+
+message SuspendAccountResponse {
+  bool Success = 1;
+}

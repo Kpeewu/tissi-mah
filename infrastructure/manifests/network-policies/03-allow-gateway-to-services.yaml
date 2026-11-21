@@ -1,0 +1,31 @@
+# Autorise l'api-gateway à appeler tous les microservices gRPC tissi-mah.
+# Seul l'api-gateway est autorisé à initier des connexions vers les services
+# depuis l'extérieur — les pods non labellisés ne peuvent pas contacter les
+# services directement.
+#
+# Prérequis : chaque Helm chart doit exposer le label
+# app.kubernetes.io/part-of: tissi-mah sur ses pods (cf. _helpers.tpl).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-to-services
+  namespace: default
+  labels:
+    app.kubernetes.io/managed-by: tissi-mah
+spec:
+  # S'applique à tous les services tissi-mah sauf l'api-gateway lui-même
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/part-of
+        operator: In
+        values: ["tissi-mah"]
+      - key: app.kubernetes.io/name
+        operator: NotIn
+        values: ["api-gateway"]
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway

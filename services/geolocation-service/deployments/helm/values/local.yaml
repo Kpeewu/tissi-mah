@@ -1,0 +1,55 @@
+# Local dev values — single replica, no HPA, no PDB, OSRM/Nominatim mockés ou en docker-compose
+replicaCount: 1
+
+image:
+  registry: ""
+  repository: geolocation-service
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+serviceAccount:
+  create: true
+  name: ""
+
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 50064
+
+config:
+  environment: "local"
+  logLevel: "debug"
+  osrmUrl: "http://localhost:5000"
+  nominatimUrl: "http://localhost:7070"
+  geocodeDefaultCountries: "tg,gh,bj,bf"
+  extra: {}
+
+secrets:
+  redisUrl: "redis://localhost:6391/0"
+  extra: {}
+
+probes:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+imagePullSecrets: []

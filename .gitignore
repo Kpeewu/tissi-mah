@@ -21,9 +21,6 @@ profile.cov
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-# Go workspace file
-go.work
-go.work.sum
 
 # Editor/IDE
 .idea/
@@ -55,9 +52,17 @@ Thumbs.db
 *.log
 logs/
 
-# Generated files
-proto/gen/
-*.pb.go
 
 # Docker
-docker-compose.override.yml
+path/to/output.txt
+docker-compose.yml
+docker-compose.yaml
+docker-compose-*.yml
+docker-compose-*.yaml
+
+# Bruno
+api-collection
+CLAUDE.md
+.claude
+CLAUDE.md
+CLAUDE.md

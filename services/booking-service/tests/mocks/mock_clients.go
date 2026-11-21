@@ -1,0 +1,116 @@
+package mocks
+
+import (
+	"context"
+
+	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/client"
+	"github.com/stretchr/testify/mock"
+)
+
+// MockTripClient mock du client trips-service.
+type MockTripClient struct {
+	mock.Mock
+}
+
+func (m *MockTripClient) GetTripDetails(ctx context.Context, tripID string) (*client.TripDetails, error) {
+	args := m.Called(ctx, tripID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*client.TripDetails), args.Error(1)
+}
+
+func (m *MockTripClient) UpdateAvailableSeats(ctx context.Context, tripID string, newAvailableSeats int) error {
+	args := m.Called(ctx, tripID, newAvailableSeats)
+	return args.Error(0)
+}
+
+func (m *MockTripClient) IncrementLegBookedSeats(ctx context.Context, tripID string, fromOrder, toOrder, delta int) error {
+	args := m.Called(ctx, tripID, fromOrder, toOrder, delta)
+	return args.Error(0)
+}
+
+func (m *MockTripClient) SyncLegBookedSeats(ctx context.Context, tripID string, legs []client.LegBookedSeats) error {
+	args := m.Called(ctx, tripID, legs)
+	return args.Error(0)
+}
+
+func (m *MockTripClient) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+// MockUserClient mock du client user-service.
+type MockUserClient struct {
+	mock.Mock
+}
+
+func (m *MockUserClient) IsPassengerVerified(ctx context.Context, userID string) (bool, error) {
+	args := m.Called(ctx, userID)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockUserClient) GetPassengerInfo(ctx context.Context, userID string) (string, bool, error) {
+	args := m.Called(ctx, userID)
+	return args.String(0), args.Bool(1), args.Error(2)
+}
+
+// GetUserIDByFirebaseID accepte en valeur de retour un string ou une
+// func(context.Context, string) string (résolution dynamique, ex : identité).
+func (m *MockUserClient) GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error) {
+	args := m.Called(ctx, firebaseUID)
+	if fn, ok := args.Get(0).(func(context.Context, string) string); ok {
+		return fn(ctx, firebaseUID), args.Error(1)
+	}
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockUserClient) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+// MockRatingClient mock du client rating-service.
+type MockRatingClient struct {
+	mock.Mock
+}
+
+func (m *MockRatingClient) GetUserRatingsAverage(ctx context.Context, userID string) (float64, int32, error) {
+	args := m.Called(ctx, userID)
+	return args.Get(0).(float64), args.Get(1).(int32), args.Error(2)
+}
+
+func (m *MockRatingClient) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+// MockPaymentClient mock du client payment-service.
+type MockPaymentClient struct {
+	mock.Mock
+}
+
+func (m *MockPaymentClient) RequestRefund(ctx context.Context, input *client.RefundInput) error {
+	args := m.Called(ctx, input)
+	return args.Error(0)
+}
+
+func (m *MockPaymentClient) ReleasePayment(ctx context.Context, bookingID string) error {
+	args := m.Called(ctx, bookingID)
+	return args.Error(0)
+}
+
+func (m *MockPaymentClient) GetPaymentStatusByBooking(ctx context.Context, bookingID string) (string, error) {
+	args := m.Called(ctx, bookingID)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockPaymentClient) CancelPaymentForBooking(ctx context.Context, bookingID string, reason string) (string, error) {
+	args := m.Called(ctx, bookingID, reason)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockPaymentClient) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}

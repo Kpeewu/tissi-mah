@@ -1,0 +1,17 @@
+name: "Terraform Plan - Staging"
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "infrastructure/terraform/**"
+      - ".github/workflows/terraform-plan-staging.yml"
+  workflow_dispatch:
+
+jobs:
+  plan:
+    name: "Terraform Plan (Staging)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder
+        run: echo "TODO - Terraform plan staging"

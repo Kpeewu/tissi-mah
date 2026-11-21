@@ -1,0 +1,165 @@
+package mocks
+
+import (
+	"context"
+
+	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/payment-service/internal/service/interfaces"
+	"github.com/stretchr/testify/mock"
+)
+
+type MockPaymentService struct {
+	mock.Mock
+}
+
+func (m *MockPaymentService) CreatePayment(ctx context.Context, input *serviceInterfaces.CreatePaymentInput) (*serviceInterfaces.CreatePaymentResult, error) {
+	args := m.Called(ctx, input)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.CreatePaymentResult), args.Error(1)
+}
+
+func (m *MockPaymentService) GetPaymentStatus(ctx context.Context, paymentID string) (*serviceInterfaces.PaymentStatusResult, error) {
+	args := m.Called(ctx, paymentID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.PaymentStatusResult), args.Error(1)
+}
+
+func (m *MockPaymentService) GetPaymentByBooking(ctx context.Context, bookingID string) (*serviceInterfaces.PaymentByBookingResult, error) {
+	args := m.Called(ctx, bookingID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.PaymentByBookingResult), args.Error(1)
+}
+
+func (m *MockPaymentService) GetPaymentByBookingInternal(ctx context.Context, bookingID string) (*serviceInterfaces.PaymentByBookingResult, error) {
+	args := m.Called(ctx, bookingID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.PaymentByBookingResult), args.Error(1)
+}
+
+func (m *MockPaymentService) ProcessWebhook(ctx context.Context, input *serviceInterfaces.ProcessWebhookInput) error {
+	args := m.Called(ctx, input)
+	return args.Error(0)
+}
+
+func (m *MockPaymentService) RequestRefund(ctx context.Context, input *serviceInterfaces.RequestRefundInput) (*serviceInterfaces.RequestRefundResult, error) {
+	args := m.Called(ctx, input)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.RequestRefundResult), args.Error(1)
+}
+
+func (m *MockPaymentService) GetRefundStatus(ctx context.Context, refundID string) (*serviceInterfaces.RefundStatusResult, error) {
+	args := m.Called(ctx, refundID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.RefundStatusResult), args.Error(1)
+}
+
+func (m *MockPaymentService) GetRefundByBooking(ctx context.Context, bookingID string) (*serviceInterfaces.RefundStatusResult, error) {
+	args := m.Called(ctx, bookingID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.RefundStatusResult), args.Error(1)
+}
+
+func (m *MockPaymentService) ReleasePayment(ctx context.Context, bookingID string) error {
+	args := m.Called(ctx, bookingID)
+	return args.Error(0)
+}
+
+func (m *MockPaymentService) GetPayoutStatus(ctx context.Context, payoutID string) (*serviceInterfaces.PayoutStatusResult, error) {
+	args := m.Called(ctx, payoutID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.PayoutStatusResult), args.Error(1)
+}
+
+func (m *MockPaymentService) GetDriverPayouts(ctx context.Context, pageIndex int) ([]*serviceInterfaces.PayoutPreviewResult, error) {
+	args := m.Called(ctx, pageIndex)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*serviceInterfaces.PayoutPreviewResult), args.Error(1)
+}
+
+func (m *MockPaymentService) TriggerManualPayout(ctx context.Context, tripID string, supportUserID string) (int, error) {
+	args := m.Called(ctx, tripID, supportUserID)
+	return args.Int(0), args.Error(1)
+}
+
+func (m *MockPaymentService) CheckDeletionEligibility(ctx context.Context, userID string) (bool, string, error) {
+	args := m.Called(ctx, userID)
+	return args.Bool(0), args.String(1), args.Error(2)
+}
+
+func (m *MockPaymentService) AnonymizeUserData(ctx context.Context, userID string, bookingIDs []string) error {
+	args := m.Called(ctx, userID, bookingIDs)
+	return args.Error(0)
+}
+
+func (m *MockPaymentService) VerifyPayment(ctx context.Context, paymentID string) (*serviceInterfaces.PaymentSyncResult, error) {
+	args := m.Called(ctx, paymentID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.PaymentSyncResult), args.Error(1)
+}
+
+func (m *MockPaymentService) CancelPayment(ctx context.Context, paymentID string) (*serviceInterfaces.PaymentSyncResult, error) {
+	args := m.Called(ctx, paymentID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.PaymentSyncResult), args.Error(1)
+}
+
+func (m *MockPaymentService) HandlePaymentCallback(ctx context.Context, fedapayTransactionID string) (*serviceInterfaces.PaymentSyncResult, error) {
+	args := m.Called(ctx, fedapayTransactionID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.PaymentSyncResult), args.Error(1)
+}
+
+func (m *MockPaymentService) CancelPaymentForBooking(ctx context.Context, bookingID string, reason string) (*serviceInterfaces.PaymentSyncResult, error) {
+	args := m.Called(ctx, bookingID, reason)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*serviceInterfaces.PaymentSyncResult), args.Error(1)
+}
+
+func (m *MockPaymentService) GetPaymentHistory(ctx context.Context, paymentID string, bookingID string) ([]*serviceInterfaces.PaymentHistoryEntryResult, error) {
+	args := m.Called(ctx, paymentID, bookingID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*serviceInterfaces.PaymentHistoryEntryResult), args.Error(1)
+}
+
+func (m *MockPaymentService) GetRefundHistory(ctx context.Context, refundID string, bookingID string) ([]*serviceInterfaces.RefundHistoryEntryResult, error) {
+	args := m.Called(ctx, refundID, bookingID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*serviceInterfaces.RefundHistoryEntryResult), args.Error(1)
+}
+
+func (m *MockPaymentService) GetPayoutHistory(ctx context.Context, payoutID string) ([]*serviceInterfaces.PayoutHistoryEntryResult, error) {
+	args := m.Called(ctx, payoutID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*serviceInterfaces.PayoutHistoryEntryResult), args.Error(1)
+}

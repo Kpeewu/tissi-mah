@@ -1,0 +1,167 @@
+// Auth Service Proto Definition
+// This file defines the gRPC service contract for auth-service
+//
+// HTTP/REST mapping is defined using google.api.http annotations
+// Kong API Gateway uses these annotations for gRPC transcoding
+
+syntax = "proto3";
+
+package auth;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/auth-service/proto/gen;auth";
+
+import "google/api/annotations.proto";
+
+// =============================================================================
+// Auth Service
+// =============================================================================
+
+service AuthService {
+  rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/createAccount"
+      body: "*"
+    };
+  }
+
+  rpc CheckPhoneNumber(CheckPhoneNumberRequest) returns (CheckPhoneOrEmailResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/checkPhoneNumber"
+      body: "*"
+    };
+  }
+
+  rpc CheckEmail(CheckEmailRequest) returns (CheckPhoneOrEmailResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/checkEmail"
+      body: "*"
+    };
+  }
+
+  rpc DeleteAccount(DeleteAccountRequest) returns (AuthServerResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/auth/deleteAccount"
+    };
+  }
+
+  // Health - Health check endpoint (no auth required)
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/auth/health"
+    };
+  }
+
+  // GetAuthInfo - Inter-service RPC (no auth required)
+  // Retourne les données auth d'un utilisateur pour enrichissement par d'autres services
+  rpc GetAuthInfo(GetAuthInfoRequest) returns (GetAuthInfoResponse);
+
+  // SuspendAccount - Inter-service RPC (appelé par moderation-service)
+  // Suspend ou bannit définitivement un compte. suspendedUntil vide + isBanned=true = ban permanent.
+  rpc SuspendAccount(SuspendAccountRequest) returns (SuspendAccountResponse);
+
+}
+
+// =============================================================================
+// Request Messages
+// =============================================================================
+
+message CreateAccountRequest {
+  string Name = 1;
+  string FirstName = 2;
+  string Email = 3; // Optionnel
+  string PhoneNumber = 4; // Optionnel
+  string ProfileImageURL = 5; // Optionnel
+  string BirthDate = 6; // Optionnel
+}
+
+message CheckPhoneNumberRequest {
+  string PhoneNumber = 1;
+}
+
+message CheckEmailRequest {
+  string Email = 1;
+}
+
+message DeleteAccountRequest {
+}
+
+message HealthRequest {
+  // No fields required
+}
+
+message GetAuthInfoRequest {
+  string AuthID = 1;
+}
+
+message SuspendAccountRequest {
+  string AuthID        = 1;
+  string SuspendedUntil = 2; // ISO 8601, vide si ban permanent
+  bool   IsBanned      = 3; // true = ban permanent
+}
+
+message SuspendAccountResponse {
+  bool Success = 1;
+}
+
+// =============================================================================
+// Response Messages
+// =============================================================================
+
+message CreateAccountResponse {
+  string ErrorMessage = 1;
+  UserPreview User = 2;
+}
+
+message HealthResponse {
+  string Status = 1; // "healthy" or "unhealthy"
+  string Version = 2; // Service version
+  int64 Timestamp = 3; // Unix timestamp
+}
+
+message CheckPhoneOrEmailResponse {
+  string ErrorMessage = 1;
+  bool IsAvailable = 2;
+  
+}
+
+message AuthServerResponse {
+  string ErrorMessage = 1;
+  bool Success = 2;
+}
+
+message GetAuthInfoResponse {
+  string AuthID          = 1;
+  string Email           = 2;
+  string PhoneNumber     = 3;
+  bool   IsActive        = 4;
+  bool   IsSuspended     = 5;
+  string SuspensionEndDate = 6;
+  bool   IsBanned        = 7;
+}
+
+// =============================================================================
+// Domain Messages
+// =============================================================================
+
+
+message UserPreview {
+  string AuthID = 1;
+  string UserID = 2;
+  string Name = 3;
+  string FirstName = 4;
+  string Email = 5; 
+  string PhoneNumber = 6; 
+  string ProfileImageURL = 7; 
+}
+
+// =============================================================================
+// Error Codes Reference (gRPC status codes)
+// =============================================================================
+//
+// 0  - OK                  : Success
+// 3  - INVALID_ARGUMENT    : Invalid request parameters (400)
+// 5  - NOT_FOUND           : Resource not found (404)
+// 7  - PERMISSION_DENIED   : Not authorized (403)
+// 9  - FAILED_PRECONDITION : Pre-condition not met (412)
+// 13 - INTERNAL            : Server error (500)
+// 16 - UNAUTHENTICATED     : Missing or invalid token (401)

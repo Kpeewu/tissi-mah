@@ -1,0 +1,119 @@
+# VPS Development values for api-gateway
+# Namespace: dev
+
+replicaCount: 1
+
+image:
+  registry: ghcr.io
+  repository: kpeewu/tissi-mah/api-gateway
+  pullPolicy: Always
+  tag: "develop"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: NodePort
+  port: 8080
+  nodePort: 30080
+
+config:
+  environment: "development"
+  logLevel: "debug"
+  authServiceHost: "auth-service"
+  authServicePort: "50051"
+  userServiceHost: "user-service"
+  userServicePort: "50052"
+  ratingServiceHost: "rating-service"
+  ratingServicePort: "50054"
+  fileServiceHost: "file-service"
+  fileServicePort: "50053"
+  vehicleServiceHost: "vehicle-service"
+  vehicleServicePort: "50055"
+  tripsServiceHost: "trips-service"
+  tripsServicePort: "50056"
+  kycServiceHost: "kyc-service"
+  kycServicePort: "50057"
+  bookingServiceHost: "booking-service"
+  bookingServicePort: "50058"
+  paymentServiceHost: "payment-service"
+  paymentServicePort: "50059"
+  notifServiceHost: "notification-service"
+  notifServicePort: "50060"
+  supportServiceHost: "support-service"
+  supportServicePort: "50063"
+  geolocationServiceHost: "geolocation-service"
+  geolocationServicePort: "50064"
+  chatServiceHost: "chat-service"
+  chatServicePort: "50065"
+  corsAllowedOrigins: "*"
+  enableHsts: "false"
+  # Deep link mobile ciblé par le callback FedaPay (GET /api/v1/payment/callback → 302)
+  paymentDeepLinkUrl: "tissimah://payment/result"
+  rateLimitFailClosed: "false"
+  bodySizeMaxBytes: "10485760"
+  extra: {}
+
+secrets:
+  redisUrl: ""
+  firebaseProjectId: ""
+  supportJwtSecret: ""
+  mobileAppIds: ""
+  supportAppIds: ""
+  internalHmacSecret: ""
+  extra: {}
+
+probes:
+  enabled: true
+  liveness:
+    initialDelaySeconds: 10
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+resources:
+  limits:
+    cpu: 300m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: false
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+imagePullSecrets:
+  - name: ghcr-secret

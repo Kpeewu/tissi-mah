@@ -1,0 +1,91 @@
+# .golangci.yml
+# Configuration golangci-lint pour Tissi-Mah
+
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck # Vérifie les erreurs non gérées
+    - gosec
+    - govet # Examine le code suspect
+    - ineffassign # Détecte les assignations inutiles
+    - staticcheck # Analyse statique avancée
+    - unused # Détecte le code inutilisé
+    - misspell # Détecte les fautes d'orthographe
+    - goconst # Trouve les strings/nombres répétés
+    - gocyclo # Détecte la complexité cyclomatique
+    - dupl # Détecte le code dupliqué
+    - lll # Ligne trop longue
+    - unparam # Paramètres inutilisés
+    - revive # Remplaçant moderne de golint
+    - gocritic
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+
+    govet:
+      enable:
+        # Check for missing values after append.
+        - appends
+        # Check for useless assignments.
+        - assign
+        # Check for common mistakes involving boolean operators.
+        - bools
+
+    gocyclo:
+      min-complexity: 15
+
+    dupl:
+      threshold: 100
+
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+
+    misspell:
+      locale: US
+
+    lll:
+      line-length: 120
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes:
+        - github.com/Kpeewu/tissiMah
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+# Output configuration options.
+output:
+  # The formats used to render issues.
+  formats:
+    # Prints issues in a text format with colors, line number, and linter name.
+    # This format is the default format.
+    text:
+      # Output path can be either `stdout`, `stderr` or path to the file to write to.
+      # Default: stdout
+      path: ./path/to/output.txt
+      # Print linter name in the end of issue text.
+      # Default: true
+      print-linter-name: false
+      # Print lines of code with issue.
+      # Default: true
+      print-issued-lines: false
+      # Use colors.
+      # Default: true
+      colors: false

@@ -1,0 +1,105 @@
+# Local development values for payment-service
+
+replicaCount: 1
+
+image:
+  repository: payment-service
+  pullPolicy: Never
+  tag: "local"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 50059
+
+config:
+  environment: "local"
+  logLevel: "debug"
+  bookingServiceHost: "booking-service"
+  bookingServicePort: "50058"
+  userServiceHost: "user-service"
+  userServicePort: "50052"
+  payoutIntervalSeconds: "60"
+  contestationDelayHours: "2"
+  platformFeePercent: "10"
+  cancellationFullRefundHours: "24"
+  cancellationGracePeriodMinutes: "15"
+  noshowDriverDelayMinutes: "15"
+  noshowPassengerDelayMinutes: "15"
+  expirationIntervalSeconds: "60"
+  # Fenêtre de paiement FedaPay (redirection), comptée depuis la création de la réservation :
+  # au-delà, la transaction est supprimée et les places libérées.
+  paymentTimeoutMinutes: "10"
+  # Retour de la page FedaPay (callback_url) — handler public de l'api-gateway.
+  paymentCallbackUrl: ""
+  # Fenêtre horaire des batches automatiques (PayoutWorker, RefundWorker).
+  # Désactivée en local pour que les workers tournent 24/7 (sinon les tests
+  # de paiement attendraient la fenêtre 0h-3h Lome pour produire des effets).
+  paymentWindowEnabled: "false"
+  paymentWindowTimezone: "Africa/Lome"
+  paymentWindowStartHour: "0"
+  paymentWindowEndHour: "3"
+  extra: {}
+
+secrets:
+  databaseUrl: "postgresql://postgres:postgres@payment-postgres:5432/payment_db?sslmode=disable"
+  redisUrl: "redis://payment-redis:6379/0"
+  fedapaySandboxApiUrl: "https://sandbox-api.fedapay.com"
+  fedapaySandboxApiKey: ""
+  fedapaySandboxWebhookSecret: ""
+  extra: {}
+
+probes:
+  enabled: false
+  liveness:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 1
+  targetCPUUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: false
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+imagePullSecrets: []

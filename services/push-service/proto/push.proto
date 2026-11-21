@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package push;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/push-service/proto/gen";
+
+import "google/api/annotations.proto";
+
+service PushService {
+  rpc SendPush(SendPushRequest) returns (SendPushResponse);
+  rpc SendPushMulticast(SendPushMulticastRequest) returns (SendPushMulticastResponse);
+
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/push/health"
+    };
+  }
+}
+
+message SendPushRequest {
+  string              Title    = 1;
+  string              Body     = 2;
+  string              FcmToken = 3;
+  map<string, string> Data     = 4;
+}
+
+message SendPushResponse {
+  bool   Success      = 1;
+  string ErrorCode    = 2;
+  string ErrorMessage = 3;
+}
+
+message SendPushMulticastRequest {
+  string              Title     = 1;
+  string              Body      = 2;
+  repeated string     FcmTokens = 3;
+  map<string, string> Data      = 4;
+}
+
+message SendPushMulticastResponse {
+  int32              SuccessCount = 1;
+  int32              FailureCount = 2;
+  repeated PushResult Results    = 3;
+}
+
+message PushResult {
+  string FcmToken  = 1;
+  bool   Success   = 2;
+  string ErrorCode = 3;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  string Status  = 1;
+  string Version = 2;
+  string Service = 3;
+}

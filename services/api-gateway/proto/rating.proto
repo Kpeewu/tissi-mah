@@ -1,0 +1,159 @@
+// Rating Service Proto Definition
+// This file defines the gRPC service contract for rating-service
+//
+// HTTP/REST mapping is defined using google.api.http annotations
+// api-gateway uses these annotations for grpc-gateway transcoding
+
+syntax = "proto3";
+
+package rating;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb;rating";
+
+import "google/api/annotations.proto";
+
+// =============================================================================
+// Rating Service
+// =============================================================================
+
+service RatingService {
+  // RateUser - Soumettre une note après un trajet
+  rpc RateUser(RateUserRequest) returns (RateUserResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/ratings/rateUser"
+      body: "*"
+    };
+  }
+
+  // GetUserRatings - Récupérer toutes les notes reçues par un utilisateur
+  rpc GetUserRatings(GetUserRatingsRequest) returns (GetUserRatingsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/ratings/user/getUserRatings"
+    };
+  }
+
+  // GetUserRatingsAverage - Récupérer la moyenne des notes d'un utilisateur
+  rpc GetUserRatingsAverage(GetUserRatingsAverageRequest) returns (GetUserRatingsAverageResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/ratings/user/getUserRatingsAverage"
+    };
+  }
+
+  // GetUserRatingsAverageInternal - Moyenne des notes d'un utilisateur, sans identité d'appelant.
+  // Route interne (booking-service, trips-service — y compris depuis des routes publiques) :
+  // bloquée en bordure par l'api-gateway.
+  rpc GetUserRatingsAverageInternal(GetUserRatingsAverageRequest) returns (GetUserRatingsAverageResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/ratings/internal/getUserRatingsAverage"
+    };
+  }
+
+  // UpdateRating - Modifier une note existante
+  rpc UpdateRating(UpdateRatingRequest) returns (UpdateRatingResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/ratings/updateRating"
+      body: "*"
+    };
+  }
+
+  // Health - Health check endpoint (no auth required)
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/ratings/health"
+    };
+  }
+}
+
+// =============================================================================
+// Request Messages
+// =============================================================================
+
+// Le rater est l'appelant (UserID résolu depuis le Firebase UID par l'intercepteur).
+message RateUserRequest {
+  reserved 1;
+  reserved "RaterId";
+  string UserRatedId = 2;
+  int32 NumberOfStars = 3;
+  string Comment = 4; // Optionnel
+}
+
+message GetUserRatingsRequest {
+  string UserRatedId = 1;
+}
+
+message GetUserRatingsAverageRequest {
+  string UserRatedId = 1;
+}
+
+// Seul le rater peut modifier sa note : c'est l'appelant (UserID résolu par l'intercepteur).
+message UpdateRatingRequest {
+  string RatingId = 1;
+  reserved 2;
+  reserved "RaterId";
+  string UserRatedId = 3;
+  int32 NumberOfStars = 4;
+  string Comment = 5; // Optionnel
+}
+
+message HealthRequest {
+  // No fields required
+}
+
+// =============================================================================
+// Response Messages
+// =============================================================================
+
+message RateUserResponse {
+  string ErrorMessage = 1;
+  RatingDetail Rating = 2;
+}
+
+message GetUserRatingsResponse {
+  string ErrorMessage = 1;
+  repeated RatingDetail Ratings = 2;
+}
+
+message GetUserRatingsAverageResponse {
+  string ErrorMessage = 1;
+  double Average = 2;
+  int32 TotalRatings = 3;
+}
+
+message UpdateRatingResponse {
+  string ErrorMessage = 1;
+  RatingDetail Rating = 2;
+}
+
+message HealthResponse {
+  string Status = 1;
+  string Version = 2;
+  int64 Timestamp = 3;
+}
+
+// =============================================================================
+// Domain Messages
+// =============================================================================
+
+message RatingDetail {
+  string RatingId             = 1;
+  string RaterId              = 2;
+  string UserRatedId          = 3;
+  int32  NumberOfStars        = 4;
+  string Comment              = 5;
+  string CreatedAt            = 6;  // ISO 8601 / TIMESTAMPTZ
+  string UpdatedAt            = 7;  // ISO 8601 / TIMESTAMPTZ
+  string RaterFirstName       = 8;
+  string RaterLastName        = 9;
+  string RaterProfileImageURL = 10;
+}
+
+// =============================================================================
+// Error Codes Reference (gRPC status codes)
+// =============================================================================
+//
+// 0  - OK                  : Success
+// 3  - INVALID_ARGUMENT    : Invalid request parameters (400)
+// 5  - NOT_FOUND           : Resource not found (404)
+// 6  - ALREADY_EXISTS      : Rating already exists for this pair (409)
+// 7  - PERMISSION_DENIED   : Not authorized (403)
+// 13 - INTERNAL            : Server error (500)

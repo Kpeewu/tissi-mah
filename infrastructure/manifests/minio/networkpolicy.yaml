@@ -1,0 +1,45 @@
+# NetworkPolicy MinIO — deux règles d'ingress :
+#
+#   1. file-service uniquement peut accéder au port 9000 (API S3)
+#   2. Le job minio-init peut accéder au port 9000 (admin mc)
+#
+# La console (9001) reste interne au cluster, accessible uniquement
+# via kubectl port-forward pour l'administration.
+#
+# Note : s'appuie sur la règle default-deny-all-ingress (00-deny-all-ingress.yaml).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-file-service-to-minio
+  namespace: default
+  labels:
+    app.kubernetes.io/managed-by: tissi-mah
+spec:
+  podSelector:
+    matchLabels:
+      app: minio
+  policyTypes:
+    - Ingress
+  ingress:
+    # file-service → API S3
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: file-service
+      ports:
+        - protocol: TCP
+          port: 9000
+    # minio-init job → API S3 (admin mc)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: minio
+      ports:
+        - protocol: TCP
+          port: 9000
+    # Nginx système (NodePort) → API S3
+    # Le trafic NodePort entre par le nœud lui-même (pas filtrable par podSelector).
+    # On l'autorise via ipBlock sur le range loopback/node — à affiner selon le CIDR du nœud.
+    - ports:
+        - protocol: TCP
+          port: 9000

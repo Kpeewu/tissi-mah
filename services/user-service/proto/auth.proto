@@ -1,0 +1,39 @@
+// Auth Service Proto — contrat utilisé par user-service
+// Définit uniquement les RPCs dont user-service a besoin.
+// L'implémentation complète est dans services/auth-service.
+
+syntax = "proto3";
+
+package auth;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen/authpb;authpb";
+
+// =============================================================================
+// Auth Service (stub client)
+// =============================================================================
+
+service AuthService {
+  // Récupère les données d'authentification d'un utilisateur par son AuthID
+  rpc GetAuthInfo(GetAuthInfoRequest) returns (GetAuthInfoResponse);
+}
+
+// =============================================================================
+// Request Messages
+// =============================================================================
+
+message GetAuthInfoRequest {
+  string AuthID = 1;
+}
+
+// =============================================================================
+// Response Messages
+// =============================================================================
+
+message GetAuthInfoResponse {
+  string AuthID             = 1;
+  string Email              = 2;
+  string PhoneNumber        = 3;
+  bool   IsActive           = 4;
+  bool   IsSuspended        = 5;
+  string SuspensionEndDate  = 6;
+}

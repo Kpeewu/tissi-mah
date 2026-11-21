@@ -1,0 +1,76 @@
+package client
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
+	vehiclepb "github.com/Kpeewu/tissi-mah/services/vehicle-service/proto/gen"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
+
+// VehicleServiceClient est le client gRPC vers vehicle-service.
+type VehicleServiceClient struct {
+	conn       *grpc.ClientConn
+	grpcClient vehiclepb.VehicleServiceClient
+	logger     *zap.Logger
+}
+
+// NewVehicleServiceClient établit la connexion gRPC vers vehicle-service.
+// address doit être au format "host:port" (ex: "vehicle-service:50055").
+func NewVehicleServiceClient(address string, logger *zap.Logger) (*VehicleServiceClient, error) {
+	logger.Debug("connecting to vehicle-service", zap.String("address", address))
+
+	conn, err := grpc.NewClient(
+		address,
+		grpc.WithTransportCredentials(grpcutil.ClientTransportCredentials()),
+	)
+	if err != nil {
+		logger.Error("failed to connect to vehicle-service", zap.Error(err), zap.String("address", address))
+		return nil, fmt.Errorf("vehicle-service: failed to connect to %s: %w", address, err)
+	}
+
+	return &VehicleServiceClient{
+		conn:       conn,
+		grpcClient: vehiclepb.NewVehicleServiceClient(conn),
+		logger:     logger,
+	}, nil
+}
+
+// Close libère la connexion gRPC. À appeler au shutdown du service.
+func (c *VehicleServiceClient) Close() error {
+	return c.conn.Close()
+}
+
+// GetVehicleInfo retourne la marque, le modèle, la plaque d'immatriculation, le nombre de
+// places et l'état de vérification (is_verified) d'un véhicule appartenant à driverID.
+// Retourne des valeurs zéro si le véhicule n'est pas trouvé ou n'appartient pas au
+// driverID (UserID interne, comme le propriétaire stocké par vehicle-service).
+func (c *VehicleServiceClient) GetVehicleInfo(
+	ctx context.Context, driverID, vehicleID string,
+) (brand, model, plate string, numberOfSeats int, isVerified bool, err error) {
+	c.logger.Debug("client: GetVehicleInfo called",
+		zap.String("driverID", driverID),
+		zap.String("vehicleID", vehicleID),
+	)
+
+	resp, err := c.grpcClient.GetVehicleInfo(ctx, &vehiclepb.GetVehicleInfoRequest{
+		VehicleId: vehicleID,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return "", "", "", 0, false, nil
+		}
+		c.logger.Error("client: GetVehicleInfo failed", zap.Error(err))
+		return "", "", "", 0, false, fmt.Errorf("vehicle-service: GetVehicleInfo failed: %w", err)
+	}
+
+	v := resp.Vehicle
+	if v == nil || v.UserId != driverID {
+		return "", "", "", 0, false, nil
+	}
+	return v.Brand, v.BrandModel, v.LicencePlate, int(v.NumberOfSeats), v.IsVerified, nil
+}

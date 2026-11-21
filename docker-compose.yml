@@ -1,0 +1,720 @@
+version: "3.8"
+
+services:
+  # PostgreSQL pour Auth Service
+  auth-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-auth-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_AUTH_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_AUTH_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_AUTH_DB:-auth_db}
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_AUTH_USER:-dev} -d ${POSTGRES_AUTH_DB:-auth_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  auth-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/auth-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_AUTH_USER:-dev}:${POSTGRES_AUTH_PASSWORD:-dev123}@auth-postgres:5432/${POSTGRES_AUTH_DB:-auth_db}?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
+  # MongoDB pour User Service
+  user-mongodb:
+    image: mongo:7-jammy
+    container_name: tissi-mah-user-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER_USER:-dev}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_USER_PASSWORD:-dev123}
+      MONGO_INITDB_DATABASE: ${MONGO_USER_DB:-user_db}
+    ports:
+      - "27018:27017"
+    volumes:
+      - user_mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis (partagé — auth-service)
+  redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-redis
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour API Gateway (rate limiting)
+  gateway-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-gateway-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - gateway_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour User Service
+  user-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-user-redis
+    ports:
+      - "6382:6379"
+    volumes:
+      - user_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # PostgreSQL pour File Service
+  file-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-file-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_FILE_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_FILE_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_FILE_DB:-file_db}
+    ports:
+      - "5434:5432"
+    volumes:
+      - file_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_FILE_USER:-dev} -d ${POSTGRES_FILE_DB:-file_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour File Service
+  file-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-file-redis
+    ports:
+      - "6383:6379"
+    volumes:
+      - file_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # PostgreSQL pour Rating Service
+  rating-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-rating-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_RATING_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_RATING_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_RATING_DB:-rating_db}
+    ports:
+      - "5435:5432"
+    volumes:
+      - rating_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_RATING_USER:-dev} -d ${POSTGRES_RATING_DB:-rating_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour Rating Service
+  rating-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-rating-redis
+    ports:
+      - "6384:6379"
+    volumes:
+      - rating_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # PostgreSQL pour Vehicle Service
+  vehicle-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-vehicle-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_VEHICLE_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_VEHICLE_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_VEHICLE_DB:-vehicle_db}
+    ports:
+      - "5436:5432"
+    volumes:
+      - vehicle_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_VEHICLE_USER:-dev} -d ${POSTGRES_VEHICLE_DB:-vehicle_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour Vehicle Service
+  vehicle-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-vehicle-redis
+    ports:
+      - "6385:6379"
+    volumes:
+      - vehicle_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # PostgreSQL pour Trips Service (PostGIS requis pour les coordonnées géographiques)
+  trips-postgres:
+    image: postgis/postgis:15-3.4-alpine
+    container_name: tissi-mah-trips-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_TRIPS_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_TRIPS_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_TRIPS_DB:-trips_db}
+    ports:
+      - "5437:5432"
+    volumes:
+      - trips_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_TRIPS_USER:-dev} -d ${POSTGRES_TRIPS_DB:-trips_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour Trips Service
+  trips-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-trips-redis
+    ports:
+      - "6386:6379"
+    volumes:
+      - trips_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # PostgreSQL pour Booking Service
+  booking-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-booking-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_BOOKING_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_BOOKING_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_BOOKING_DB:-booking_db}
+    ports:
+      - "5438:5432"
+    volumes:
+      - booking_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_BOOKING_USER:-dev} -d ${POSTGRES_BOOKING_DB:-booking_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour Booking Service
+  booking-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-booking-redis
+    ports:
+      - "6387:6379"
+    volumes:
+      - booking_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # PostgreSQL pour Payment Service
+  payment-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-payment-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_PAYMENT_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PAYMENT_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_PAYMENT_DB:-payment_db}
+    ports:
+      - "5439:5432"
+    volumes:
+      - payment_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_PAYMENT_USER:-dev} -d ${POSTGRES_PAYMENT_DB:-payment_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour Payment Service
+  payment-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-payment-redis
+    ports:
+      - "6388:6379"
+    volumes:
+      - payment_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # PostgreSQL pour Notification Service
+  notification-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-notification-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_NOTIFICATION_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_NOTIFICATION_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_NOTIFICATION_DB:-notification_db}
+    ports:
+      - "5440:5432"
+    volumes:
+      - notification_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_NOTIFICATION_USER:-dev} -d ${POSTGRES_NOTIFICATION_DB:-notification_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour Notification Service (stream + cache)
+  notification-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-notification-redis
+    ports:
+      - "6389:6379"
+    volumes:
+      - notification_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # PostgreSQL pour Support Service (back-office admin/support)
+  support-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-support-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_SUPPORT_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPPORT_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_SUPPORT_DB:-support_db}
+    ports:
+      - "5441:5432"
+    volumes:
+      - support_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_SUPPORT_USER:-dev} -d ${POSTGRES_SUPPORT_DB:-support_db} -h localhost",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour Support Service (OTP, refresh tokens, rate limit)
+  support-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-support-redis
+    ports:
+      - "6390:6379"
+    volumes:
+      - support_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # Redis dédié pour Geolocation Service (cache routes OSRM + résultats Nominatim)
+  # Service stateless : pas de Postgres, juste ce Redis pour le cache.
+  # Graceful degradation si indisponible — le service tourne mais sans cache.
+  geolocation-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-geolocation-redis
+    ports:
+      - "6391:6379"
+    volumes:
+      - geolocation_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # === Migrate sidecar services (golang-migrate) ===
+  # Chaque service attend que sa base Postgres soit healthy, puis applique les migrations incrémentales.
+
+  file-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      file-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/file-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_FILE_USER:-dev}:${POSTGRES_FILE_PASSWORD:-dev123}@file-postgres:5432/${POSTGRES_FILE_DB:-file_db}?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
+  rating-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      rating-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/rating-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_RATING_USER:-dev}:${POSTGRES_RATING_PASSWORD:-dev123}@rating-postgres:5432/${POSTGRES_RATING_DB:-rating_db}?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
+  vehicle-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      vehicle-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/vehicle-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_VEHICLE_USER:-dev}:${POSTGRES_VEHICLE_PASSWORD:-dev123}@vehicle-postgres:5432/${POSTGRES_VEHICLE_DB:-vehicle_db}?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
+  trips-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      trips-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/trips-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_TRIPS_USER:-dev}:${POSTGRES_TRIPS_PASSWORD:-dev123}@trips-postgres:5432/${POSTGRES_TRIPS_DB:-trips_db}?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
+  booking-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      booking-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/booking-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_BOOKING_USER:-dev}:${POSTGRES_BOOKING_PASSWORD:-dev123}@booking-postgres:5432/${POSTGRES_BOOKING_DB:-booking_db}?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
+  payment-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      payment-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/payment-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_PAYMENT_USER:-dev}:${POSTGRES_PAYMENT_PASSWORD:-dev123}@payment-postgres:5432/${POSTGRES_PAYMENT_DB:-payment_db}?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
+  notification-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      notification-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/notification-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_NOTIFICATION_USER:-dev}:${POSTGRES_NOTIFICATION_PASSWORD:-dev123}@notification-postgres:5432/${POSTGRES_NOTIFICATION_DB:-notification_db}?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
+  support-migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      support-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/support-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgresql://${POSTGRES_SUPPORT_USER:-dev}:${POSTGRES_SUPPORT_PASSWORD:-dev123}@support-postgres:5432/${POSTGRES_SUPPORT_DB:-support_db}?sslmode=disable", "up"]
+    networks:
+      - tissi-mah-network
+
+  # MinIO - Stockage S3 compatible (dev local)
+  # SÉCURITÉ: ports liés à 127.0.0.1 uniquement — ne pas exposer sur 0.0.0.0 en dev partagé ou sur VPS.
+  # En prod/staging, MinIO doit être derrière un reverse-proxy TLS (port 9000 fermé au firewall).
+  minio:
+    image: minio/minio:latest
+    container_name: tissi-mah-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  # MinIO init - Crée le bucket et le compte de service au démarrage
+  # Le compte root (minioadmin) n'est utilisé que pour l'init.
+  # file-service utilise le compte 'filesvc' avec une policy restreinte au bucket.
+  minio-init:
+    image: minio/mc:latest
+    container_name: tissi-mah-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      FILESVC_SECRET_KEY: ${FILESVC_SECRET_KEY:-filesvc-dev-secret}
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
+      mc mb --ignore-existing local/tissi-mah-files &&
+      mc anonymous set none local/tissi-mah-files &&
+      printf '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\",\"s3:DeleteObject\"],\"Resource\":[\"arn:aws:s3:::tissi-mah-files/*\"]}]}' > /tmp/filesvc-policy.json &&
+      mc admin policy create local file-service-policy /tmp/filesvc-policy.json || true &&
+      mc admin user add local filesvc $$FILESVC_SECRET_KEY &&
+      mc admin policy attach local file-service-policy --user filesvc
+      "
+    networks:
+      - tissi-mah-network
+
+  # -------------------------------------------------------------------------
+  # Chat Service (messagerie passager-chauffeur)
+  # - Postgres : threads + messages chiffrés AES-GCM (port 5442)
+  # - Redis    : locks + TripCloserWorker (subscribe trip.completed) (port 6392)
+  # NotificationRedis n'est PAS un container dédié : chat-service publie ses
+  # events NEW_MESSAGE sur le Redis trips/notification (existant) consommé
+  # par notification-service.
+  # -------------------------------------------------------------------------
+  chat-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-chat-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_CHAT_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_CHAT_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_CHAT_DB:-chat_db}
+    ports:
+      - "5442:5432"
+    volumes:
+      - chat_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_CHAT_USER:-dev} -d ${POSTGRES_CHAT_DB:-chat_db} -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  chat-redis:
+    image: redis:7-alpine
+    container_name: tissi-mah-chat-redis
+    ports:
+      - "6392:6379"
+    volumes:
+      - chat_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  chat-migrate:
+    image: migrate/migrate:v4.17.0
+    container_name: tissi-mah-chat-migrate
+    depends_on:
+      chat-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/chat-service/migrations:/migrations
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgresql://${POSTGRES_CHAT_USER:-dev}:${POSTGRES_CHAT_PASSWORD:-dev123}@chat-postgres:5432/${POSTGRES_CHAT_DB:-chat_db}?sslmode=disable",
+        "up",
+      ]
+    restart: on-failure
+    networks:
+      - tissi-mah-network
+
+  # -------------------------------------------------------------------------
+  # moderation-service
+  # - Postgres : logs de modération + violations (port 5443)
+  # -------------------------------------------------------------------------
+  moderation-postgres:
+    image: postgres:15-alpine
+    container_name: tissi-mah-moderation-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_MODERATION_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_MODERATION_PASSWORD:-dev123}
+      POSTGRES_DB: ${POSTGRES_MODERATION_DB:-moderation_db}
+    ports:
+      - "5443:5432"
+    volumes:
+      - moderation_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_MODERATION_USER:-dev} -d ${POSTGRES_MODERATION_DB:-moderation_db} -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tissi-mah-network
+
+  moderation-migrate:
+    image: migrate/migrate:v4.17.0
+    container_name: tissi-mah-moderation-migrate
+    depends_on:
+      moderation-postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/moderation-service/migrations:/migrations
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgresql://${POSTGRES_MODERATION_USER:-dev}:${POSTGRES_MODERATION_PASSWORD:-dev123}@moderation-postgres:5432/${POSTGRES_MODERATION_DB:-moderation_db}?sslmode=disable",
+        "up",
+      ]
+    restart: on-failure
+    networks:
+      - tissi-mah-network
+
+volumes:
+  auth_postgres_data:
+  redis_data:
+  user_mongodb_data:
+  user_redis_data:
+  gateway_redis_data:
+  file_postgres_data:
+  file_redis_data:
+  rating_postgres_data:
+  rating_redis_data:
+  vehicle_postgres_data:
+  vehicle_redis_data:
+  trips_postgres_data:
+  trips_redis_data:
+  booking_postgres_data:
+  booking_redis_data:
+  payment_postgres_data:
+  payment_redis_data:
+  notification_postgres_data:
+  notification_redis_data:
+  support_postgres_data:
+  support_redis_data:
+  geolocation_redis_data:
+  minio_data:
+  chat_postgres_data:
+  chat_redis_data:
+  moderation_postgres_data:
+
+networks:
+  tissi-mah-network:
+    driver: bridge

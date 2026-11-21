@@ -1,0 +1,1028 @@
+package service
+
+import (
+	"context"
+	"time"
+
+	"github.com/Kpeewu/tissi-mah/pkg/notification"
+	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/cache"
+	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/client"
+	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
+	repoInterfaces "github.com/Kpeewu/tissi-mah/services/trips-service/internal/repository/interfaces"
+	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/trips-service/internal/service/interfaces"
+	tripErrors "github.com/Kpeewu/tissi-mah/services/trips-service/pkg/errors"
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
+)
+
+const minWaypoints = 2
+
+type tripServiceImpl struct {
+	readRepo      repoInterfaces.TripRepositoryRead
+	writeRepo     repoInterfaces.TripRepositoryWrite
+	userClient    client.UserClient
+	vehicleClient client.VehicleClient
+	bookingClient client.BookingClient
+	ratingClient  client.RatingClient
+	cache         *cache.TripCache
+	notifRedis    *redis.Client
+	logger        *zap.Logger
+}
+
+// requireDriverID vérifie que le conducteur appelant est identifié. driverID est l'UserID
+// interne résolu depuis le Firebase UID par l'intercepteur ; ErrorUnauthorized s'il est vide.
+func requireDriverID(driverID string) (string, error) {
+	if driverID == "" {
+		return "", tripErrors.ErrorUnauthorized
+	}
+	return driverID, nil
+}
+
+func NewTripService(
+	readRepo repoInterfaces.TripRepositoryRead,
+	writeRepo repoInterfaces.TripRepositoryWrite,
+	userClient client.UserClient,
+	vehicleClient client.VehicleClient,
+	bookingClient client.BookingClient,
+	ratingClient client.RatingClient,
+	tripCache *cache.TripCache,
+	notifRedis *redis.Client,
+	logger *zap.Logger,
+) serviceInterfaces.TripService {
+	return &tripServiceImpl{
+		readRepo:      readRepo,
+		writeRepo:     writeRepo,
+		userClient:    userClient,
+		vehicleClient: vehicleClient,
+		bookingClient: bookingClient,
+		ratingClient:  ratingClient,
+		cache:         tripCache,
+		notifRedis:    notifRedis,
+		logger:        logger,
+	}
+}
+
+// CreateTrip crée un nouveau trajet avec ses waypoints.
+func (s *tripServiceImpl) CreateTrip(ctx context.Context, input *serviceInterfaces.CreateTripInput) (*domain.Trip, error) {
+	s.logger.Debug("service: CreateTrip called", zap.String("vehicleID", input.VehicleID))
+
+	// Résoudre Firebase UID → UserID interne
+	driverUserID, err := requireDriverID(input.DriverID)
+	if err != nil {
+		return nil, err
+	}
+	input.DriverID = driverUserID
+
+	// Validation des champs obligatoires
+	if err := s.validateInput(input); err != nil {
+		return nil, err
+	}
+
+	// Parse des datetimes
+	departure, estimatedArrival, err := s.parseDatetimes(input.DepartureDatetime, input.EstimatedArrivalDatetime)
+	if err != nil {
+		return nil, err
+	}
+
+	// Vérification : conducteur certifié
+	if err := s.validateVerifiedDriver(ctx, driverUserID); err != nil {
+		return nil, err
+	}
+
+	// Vérification : le véhicule existe, appartient au conducteur et est
+	// entièrement validé par le support (assurance + carte grise approuvées).
+	if _, err := s.validateUsableVehicle(ctx, driverUserID, input.VehicleID); err != nil {
+		return nil, err
+	}
+
+	// Construction du domaine
+	trip, waypoints := s.buildTripAndWaypoints(input, departure, estimatedArrival)
+
+	// Persistance atomique (trip + waypoints)
+	tripID, err := s.writeRepo.Create(ctx, trip, waypoints)
+	if err != nil {
+		s.logger.Error("create trip failed", zap.Error(err), zap.String("tripID", trip.TripID))
+		return nil, err
+	}
+
+	// Invalidation du cache des previews pour ce conducteur
+	if s.cache != nil {
+		s.cache.InvalidateDriverPreviews(ctx, driverUserID)
+	}
+
+	s.logger.Info("trip created", zap.String("tripID", tripID))
+	trip.TripID = tripID
+	return trip, nil
+}
+
+// ChangeTripDateAndTime modifie la date/heure de départ d'un trajet planifié.
+func (s *tripServiceImpl) ChangeTripDateAndTime(ctx context.Context, input *serviceInterfaces.ChangeTripDateAndTimeInput) error {
+	s.logger.Debug("service: ChangeTripDateAndTime called", zap.String("tripID", input.TripID))
+
+	if input.TripID == "" || input.DepartureDatetime == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	driverUserID, err := requireDriverID(input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	newDatetime, err := time.Parse(time.RFC3339, input.DepartureDatetime)
+	if err != nil {
+		s.logger.Warn("invalid departure datetime", zap.String("value", input.DepartureDatetime))
+		return tripErrors.ErrorInvalidDatetime
+	}
+
+	if err := s.writeRepo.UpdateDepartureDatetime(ctx, input.TripID, driverUserID, newDatetime); err != nil {
+		return err
+	}
+
+	// Invalidation du cache des previews pour ce conducteur
+	if s.cache != nil {
+		s.cache.InvalidateDriverPreviews(ctx, driverUserID)
+	}
+
+	// Notifier les passagers de la modification du trajet
+	if s.notifRedis != nil && s.bookingClient != nil {
+		passengerIDs, err := s.bookingClient.GetPassengerIDsForTrip(ctx, input.TripID)
+		if err != nil {
+			s.logger.Warn("TRIP_MODIFIED: could not get passenger IDs, notification skipped",
+				zap.String("tripID", input.TripID), zap.Error(err))
+		} else if len(passengerIDs) > 0 {
+			if pubErr := notification.Publish(ctx, s.notifRedis, notification.Event{
+				EventType:     notification.TripModified,
+				UserIDs:       passengerIDs,
+				ReferenceID:   input.TripID,
+				ReferenceType: notification.RefTrip,
+				Payload: map[string]string{
+					"new_departure_time": input.DepartureDatetime,
+				},
+			}); pubErr != nil {
+				s.logger.Error("failed to publish TRIP_MODIFIED notification", zap.Error(pubErr))
+			}
+		}
+	}
+
+	s.logger.Info("trip departure datetime updated",
+		zap.String("tripID", input.TripID),
+		zap.String("driverID", driverUserID),
+	)
+	return nil
+}
+
+// ChangeTripVehicle modifie le véhicule associé à un trajet planifié.
+func (s *tripServiceImpl) ChangeTripVehicle(ctx context.Context, input *serviceInterfaces.ChangeTripVehicleInput) error {
+	s.logger.Debug("service: ChangeTripVehicle called",
+		zap.String("tripID", input.TripID),
+		zap.String("vehicleID", input.VehicleID),
+	)
+
+	if input.TripID == "" || input.VehicleID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	driverUserID, err := requireDriverID(input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	// Vérification : le véhicule existe, appartient au conducteur et est validé
+	vehicleSeats, err := s.validateUsableVehicle(ctx, driverUserID, input.VehicleID)
+	if err != nil {
+		return err
+	}
+
+	// Vérification : le véhicule doit avoir au moins autant de places que le trajet
+	tripTotalSeats, err := s.readRepo.GetTripTotalSeats(ctx, input.TripID)
+	if err != nil {
+		return err
+	}
+	if vehicleSeats < int(tripTotalSeats) {
+		s.logger.Warn("vehicle has fewer seats than trip requires",
+			zap.Int("vehicleSeats", vehicleSeats),
+			zap.Int16("tripTotalSeats", tripTotalSeats),
+		)
+		return tripErrors.ErrorVehicleInsufficientSeats
+	}
+
+	if err := s.writeRepo.UpdateVehicle(ctx, input.TripID, driverUserID, input.VehicleID); err != nil {
+		return err
+	}
+
+	// Invalidation du cache des previews pour ce conducteur
+	if s.cache != nil {
+		s.cache.InvalidateDriverPreviews(ctx, driverUserID)
+	}
+
+	s.logger.Info("trip vehicle updated",
+		zap.String("tripID", input.TripID),
+		zap.String("vehicleID", input.VehicleID),
+	)
+	return nil
+}
+
+// ChangeTripAllowances modifie les autorisations d'un trajet planifié.
+func (s *tripServiceImpl) ChangeTripAllowances(ctx context.Context, input *serviceInterfaces.ChangeTripAllowancesInput) error {
+	s.logger.Debug("service: ChangeTripAllowances called", zap.String("tripID", input.TripID))
+
+	if input.TripID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	driverUserID, err := requireDriverID(input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.UpdateAllowances(ctx, input.TripID, driverUserID,
+		input.AllowPets, input.AllowFood, input.AllowSmoking, input.AllowLuggages,
+	); err != nil {
+		return err
+	}
+
+	s.logger.Info("trip allowances updated",
+		zap.String("tripID", input.TripID),
+		zap.String("driverID", driverUserID),
+	)
+	return nil
+}
+
+// ChangeAutoApprove active ou désactive l'approbation automatique d'un trajet.
+func (s *tripServiceImpl) ChangeAutoApprove(ctx context.Context, input *serviceInterfaces.ChangeAutoApproveInput) error {
+	s.logger.Debug("service: ChangeAutoApprove called",
+		zap.String("tripID", input.TripID),
+		zap.Bool("autoApprove", input.AutoApprove),
+	)
+
+	if input.TripID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	driverUserID, err := requireDriverID(input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.UpdateAutoApprove(ctx, input.TripID, driverUserID, input.AutoApprove); err != nil {
+		return err
+	}
+
+	s.logger.Info("trip auto_approve updated",
+		zap.String("tripID", input.TripID),
+		zap.String("driverID", driverUserID),
+	)
+	return nil
+}
+
+// StartTrip démarre un trajet planifié.
+func (s *tripServiceImpl) StartTrip(ctx context.Context, input *serviceInterfaces.StartTripInput) error {
+	s.logger.Debug("service: StartTrip called", zap.String("tripID", input.TripID))
+
+	if input.TripID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	driverUserID, err := requireDriverID(input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.StartTrip(ctx, input.TripID, driverUserID); err != nil {
+		return err
+	}
+
+	// Invalidation du cache des previews pour ce conducteur
+	if s.cache != nil {
+		s.cache.InvalidateDriverPreviews(ctx, driverUserID)
+	}
+
+	// Démarrer les réservations du waypoint de départ (non-bloquant)
+	if s.bookingClient != nil {
+		departureWaypointID, err := s.readRepo.GetWaypointIDByType(ctx, input.TripID, "departure")
+		if err == nil {
+			if err := s.bookingClient.StartBookingsForWaypoint(ctx, input.TripID, departureWaypointID); err != nil {
+				s.logger.Warn("StartBookingsForWaypoint failed (non-blocking)", zap.Error(err))
+			}
+		}
+	}
+
+	s.logger.Info("trip started",
+		zap.String("tripID", input.TripID),
+		zap.String("driverID", driverUserID),
+	)
+	return nil
+}
+
+// EndTrip termine un trajet en cours.
+func (s *tripServiceImpl) EndTrip(ctx context.Context, input *serviceInterfaces.EndTripInput) error {
+	s.logger.Debug("service: EndTrip called", zap.String("tripID", input.TripID))
+
+	if input.TripID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	driverUserID, err := requireDriverID(input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.EndTrip(ctx, input.TripID, driverUserID); err != nil {
+		return err
+	}
+
+	// Invalidation du cache des previews pour ce conducteur
+	if s.cache != nil {
+		s.cache.InvalidateDriverPreviews(ctx, driverUserID)
+	}
+
+	// Compléter les réservations du waypoint d'arrivée (non-bloquant)
+	if s.bookingClient != nil {
+		arrivalWaypointID, err := s.readRepo.GetWaypointIDByType(ctx, input.TripID, "arrival")
+		if err == nil {
+			if err := s.bookingClient.CompleteBookingsForWaypoint(ctx, input.TripID, arrivalWaypointID); err != nil {
+				s.logger.Warn("CompleteBookingsForWaypoint failed (non-blocking)", zap.Error(err))
+			}
+		}
+	}
+
+	s.logger.Info("trip ended",
+		zap.String("tripID", input.TripID),
+		zap.String("driverID", driverUserID),
+	)
+	return nil
+}
+
+// ConfirmWaypointDeparture enregistre le départ du conducteur d'un stop.
+func (s *tripServiceImpl) ConfirmWaypointDeparture(ctx context.Context, input *serviceInterfaces.ConfirmWaypointDepartureInput) error {
+	s.logger.Debug("service: ConfirmWaypointDeparture called", zap.String("waypointID", input.WaypointID))
+
+	if input.WaypointID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	driverUserID, err := requireDriverID(input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.ConfirmWaypointDeparture(ctx, input.WaypointID, driverUserID); err != nil {
+		return err
+	}
+
+	// Démarrer les réservations de ce waypoint stop (non-bloquant)
+	if s.bookingClient != nil {
+		tripID, err := s.readRepo.GetTripIDByWaypointID(ctx, input.WaypointID)
+		if err == nil {
+			if err := s.bookingClient.StartBookingsForWaypoint(ctx, tripID, input.WaypointID); err != nil {
+				s.logger.Warn("StartBookingsForWaypoint failed (non-blocking)", zap.Error(err))
+			}
+		}
+	}
+
+	s.logger.Info("waypoint departure confirmed",
+		zap.String("waypointID", input.WaypointID),
+		zap.String("driverID", driverUserID),
+	)
+	return nil
+}
+
+// ConfirmWaypointArrival enregistre l'arrivée du conducteur à un stop.
+func (s *tripServiceImpl) ConfirmWaypointArrival(ctx context.Context, input *serviceInterfaces.ConfirmWaypointArrivalInput) error {
+	s.logger.Debug("service: ConfirmWaypointArrival called", zap.String("waypointID", input.WaypointID))
+
+	if input.WaypointID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	driverUserID, err := requireDriverID(input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.ConfirmWaypointArrival(ctx, input.WaypointID, driverUserID); err != nil {
+		return err
+	}
+
+	// Compléter les réservations de ce waypoint stop (non-bloquant)
+	if s.bookingClient != nil {
+		tripID, err := s.readRepo.GetTripIDByWaypointID(ctx, input.WaypointID)
+		if err == nil {
+			if err := s.bookingClient.CompleteBookingsForWaypoint(ctx, tripID, input.WaypointID); err != nil {
+				s.logger.Warn("CompleteBookingsForWaypoint failed (non-blocking)", zap.Error(err))
+			}
+		}
+	}
+
+	s.logger.Info("waypoint arrival confirmed",
+		zap.String("waypointID", input.WaypointID),
+		zap.String("driverID", driverUserID),
+	)
+	return nil
+}
+
+// CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
+func (s *tripServiceImpl) CancelTrip(ctx context.Context, input *serviceInterfaces.CancelTripInput) error {
+	s.logger.Debug("service: CancelTrip called", zap.String("tripID", input.TripID))
+
+	if input.TripID == "" || input.CancellationReason == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	driverUserID, err := requireDriverID(input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.CancelTrip(ctx, input.TripID, driverUserID, input.CancellationReason); err != nil {
+		return err
+	}
+
+	// Annuler toutes les réservations du trajet.
+	// booking-service s'occupe du remboursement automatique ET publie TRIP_CANCELLED
+	// à chaque passager concerné (source unique pour éviter les doublons).
+	if s.bookingClient != nil {
+		if err := s.bookingClient.CancelBookingsForTrip(ctx, input.TripID); err != nil {
+			s.logger.Warn("CancelBookingsForTrip failed (non-blocking)", zap.Error(err),
+				zap.String("tripID", input.TripID))
+		}
+	}
+
+	s.logger.Info("trip cancelled",
+		zap.String("tripID", input.TripID),
+		zap.String("driverID", driverUserID),
+	)
+	return nil
+}
+
+func (s *tripServiceImpl) CancelWaypoint(ctx context.Context, input *serviceInterfaces.CancelWaypointInput) error {
+	s.logger.Debug("service: CancelWaypoint called", zap.String("waypointID", input.WaypointID))
+
+	if input.WaypointID == "" || input.CancellationReason == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	driverUserID, err := requireDriverID(input.DriverID)
+	if err != nil {
+		return err
+	}
+
+	// Récupérer le tripID avant l'annulation
+	tripID, err := s.readRepo.GetTripIDByWaypointID(ctx, input.WaypointID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeRepo.CancelWaypoint(ctx, input.WaypointID, driverUserID, input.CancellationReason); err != nil {
+		return err
+	}
+
+	// Annuler les réservations liées à ce waypoint (remboursement automatique côté booking-service)
+	if s.bookingClient != nil {
+		if err := s.bookingClient.CancelBookingsForWaypoint(ctx, tripID, input.WaypointID); err != nil {
+			s.logger.Warn("CancelBookingsForWaypoint failed (non-blocking)", zap.Error(err),
+				zap.String("tripID", tripID), zap.String("waypointID", input.WaypointID))
+		}
+	}
+
+	s.logger.Info("waypoint cancelled",
+		zap.String("waypointID", input.WaypointID),
+		zap.String("driverID", driverUserID),
+	)
+	return nil
+}
+
+// validateInput vérifie les champs obligatoires et la cohérence des waypoints.
+func (s *tripServiceImpl) validateInput(input *serviceInterfaces.CreateTripInput) error {
+	if input.DriverID == "" || input.VehicleID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+	if input.DepartureDatetime == "" || input.EstimatedArrivalDatetime == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+	if input.TotalSeats <= 0 {
+		return tripErrors.ErrorInvalidInput
+	}
+	if input.EstimatedDurationMinutes <= 0 || input.EstimatedDistanceMeters <= 0 {
+		return tripErrors.ErrorInvalidInput
+	}
+	if len(input.Waypoints) < minWaypoints {
+		s.logger.Warn("not enough waypoints", zap.Int("count", len(input.Waypoints)))
+		return tripErrors.ErrorInvalidWaypoints
+	}
+
+	// Vérification : exactement 1 departure et 1 arrival
+	var departures, arrivals int
+	for _, wp := range input.Waypoints {
+		switch domain.WaypointType(wp.WaypointType) {
+		case domain.WaypointTypeDeparture:
+			departures++
+		case domain.WaypointTypeArrival:
+			arrivals++
+		case domain.WaypointTypeStop:
+			// ok
+		default:
+			return tripErrors.ErrorInvalidWaypoints
+		}
+	}
+	if departures != 1 || arrivals != 1 {
+		s.logger.Warn("invalid waypoint types",
+			zap.Int("departures", departures),
+			zap.Int("arrivals", arrivals),
+		)
+		return tripErrors.ErrorInvalidWaypoints
+	}
+
+	return nil
+}
+
+// parseDatetimes parse les datetimes RFC3339 et vérifie leur cohérence.
+func (s *tripServiceImpl) parseDatetimes(departureStr, arrivalStr string) (time.Time, time.Time, error) {
+	departure, err := time.Parse(time.RFC3339, departureStr)
+	if err != nil {
+		s.logger.Warn("invalid departure datetime", zap.String("value", departureStr))
+		return time.Time{}, time.Time{}, tripErrors.ErrorInvalidDatetime
+	}
+
+	estimatedArrival, err := time.Parse(time.RFC3339, arrivalStr)
+	if err != nil {
+		s.logger.Warn("invalid estimated arrival datetime", zap.String("value", arrivalStr))
+		return time.Time{}, time.Time{}, tripErrors.ErrorInvalidDatetime
+	}
+
+	if !estimatedArrival.After(departure) {
+		s.logger.Warn("arrival must be after departure",
+			zap.Time("departure", departure),
+			zap.Time("arrival", estimatedArrival),
+		)
+		return time.Time{}, time.Time{}, tripErrors.ErrorInvalidDatetime
+	}
+
+	return departure, estimatedArrival, nil
+}
+
+// validateUsableVehicle vérifie qu'un véhicule est UTILISABLE pour un trajet :
+// il existe, appartient au conducteur, et est entièrement validé par le support
+// (is_verified = assurance + carte grise approuvées). Retourne son nombre de places.
+func (s *tripServiceImpl) validateUsableVehicle(ctx context.Context, driverUserID, vehicleID string) (int, error) {
+	brand, _, _, vehicleSeats, isVerified, err := s.vehicleClient.GetVehicleInfo(ctx, driverUserID, vehicleID)
+	if err != nil {
+		s.logger.Error("vehicle-service check failed",
+			zap.Error(err),
+			zap.String("vehicleID", vehicleID),
+		)
+		return 0, tripErrors.ErrorInternalServer
+	}
+	if brand == "" {
+		s.logger.Warn("vehicle not found or does not belong to driver",
+			zap.String("driverID", driverUserID),
+			zap.String("vehicleID", vehicleID),
+		)
+		return 0, tripErrors.ErrorVehicleNotFound
+	}
+	if !isVerified {
+		s.logger.Warn("vehicle not verified — documents not fully approved",
+			zap.String("driverID", driverUserID),
+			zap.String("vehicleID", vehicleID),
+		)
+		return 0, tripErrors.ErrorVehicleNotVerified
+	}
+	return vehicleSeats, nil
+}
+
+// validateVerifiedDriver vérifie que le conducteur a un profil conducteur certifié.
+func (s *tripServiceImpl) validateVerifiedDriver(ctx context.Context, driverID string) error {
+	verified, err := s.userClient.IsVerifiedDriver(ctx, driverID)
+	if err != nil {
+		s.logger.Error("user-service check failed",
+			zap.Error(err),
+			zap.String("driverID", driverID),
+		)
+		return tripErrors.ErrorInternalServer
+	}
+	if !verified {
+		s.logger.Warn("driver not verified or not found", zap.String("driverID", driverID))
+		// On distingue "non trouvé" de "non vérifié" côté client via IsVerifiedDriver
+		// Pour simplifier, on retourne ErrorDriverNotVerified dans les deux cas
+		return tripErrors.ErrorDriverNotVerified
+	}
+	return nil
+}
+
+// buildTripAndWaypoints construit les structs domaine à partir de l'input.
+func (s *tripServiceImpl) buildTripAndWaypoints(
+	input *serviceInterfaces.CreateTripInput,
+	departure time.Time,
+	estimatedArrival time.Time,
+) (*domain.Trip, []*domain.Waypoint) {
+	trip := &domain.Trip{
+		TripID:                   uuid.New().String(),
+		DriverID:                 input.DriverID,
+		VehicleID:                input.VehicleID,
+		DepartureDatetime:        departure,
+		EstimatedArrivalDatetime: estimatedArrival,
+		EstimatedDurationMinutes: input.EstimatedDurationMinutes,
+		EstimatedDistanceMeters:  input.EstimatedDistanceMeters,
+		TotalSeats:               int16(input.TotalSeats),
+		AvailableSeats:           int16(input.TotalSeats),
+		PricePerSeat:             0, // calculé après la boucle waypoints
+		PaymentMethodsAccepted:   input.PaymentMethodsAccepted,
+		AllowLuggages:            input.AllowLuggages,
+		AllowPets:                input.AllowPets,
+		AllowFood:                input.AllowFood,
+		AllowSmoking:             input.AllowSmoking,
+		Status:                   domain.TripStatusScheduled,
+		AutoApproveEnabled:       input.AutoApprove,
+		Description:              input.Description,
+		RoutePolyline:            input.RoutePolyline,
+	}
+
+	waypoints := make([]*domain.Waypoint, 0, len(input.Waypoints))
+	for _, wpInput := range input.Waypoints {
+		wp := &domain.Waypoint{
+			WaypointID:           uuid.New().String(),
+			TripID:               trip.TripID,
+			SequencerOrder:       wpInput.SequencerOrder,
+			WaypointType:         domain.WaypointType(wpInput.WaypointType),
+			LocationName:         wpInput.LocationName,
+			LocationLng:          wpInput.LocationLng,
+			LocationLat:          wpInput.LocationLat,
+			City:                 wpInput.City,
+			Country:              wpInput.Country,
+			PriceFromPrevious:    wpInput.PriceFromPrevious,
+			MinutesFromDeparture: s.computeMinutesFromDeparture(wpInput.ScheduledDatetime, departure),
+		}
+
+		// Parse du scheduled_datetime optionnel
+		if wpInput.ScheduledDatetime != "" {
+			if t, err := time.Parse(time.RFC3339, wpInput.ScheduledDatetime); err == nil {
+				wp.ScheduledPickupDatetime = &t
+			}
+		}
+
+		waypoints = append(waypoints, wp)
+	}
+
+	// Calculer price_per_seat comme la somme des price_from_previous
+	pricePerSeat := 0
+	for _, wp := range waypoints {
+		pricePerSeat += wp.PriceFromPrevious
+	}
+	trip.PricePerSeat = pricePerSeat
+
+	return trip, waypoints
+}
+
+// computeMinutesFromDeparture calcule le décalage en minutes depuis le départ.
+func (s *tripServiceImpl) computeMinutesFromDeparture(scheduledStr string, departure time.Time) int {
+	if scheduledStr == "" {
+		return 0
+	}
+	t, err := time.Parse(time.RFC3339, scheduledStr)
+	if err != nil {
+		return 0
+	}
+	diff := t.Sub(departure)
+	if diff < 0 {
+		return 0
+	}
+	return int(diff.Minutes())
+}
+
+// GetTripByID retourne les détails complets d'un trajet avec ses waypoints.
+func (s *tripServiceImpl) GetTripByID(ctx context.Context, input *serviceInterfaces.GetTripByIDInput) (*serviceInterfaces.TripDetailResult, error) {
+	s.logger.Debug("service: GetTripByID called", zap.String("tripID", input.TripID))
+
+	if input.TripID == "" {
+		return nil, tripErrors.ErrorInvalidInput
+	}
+
+	trip, waypoints, err := s.readRepo.GetTripByID(ctx, input.TripID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Overlay available_seats depuis le cache Redis (temps réel post-réconciliation)
+	if s.cache != nil {
+		if seats, found, cacheErr := s.cache.GetSeatCounter(ctx, input.TripID); found && cacheErr == nil {
+			trip.AvailableSeats = int16(seats)
+		} else if cacheErr != nil {
+			s.logger.Warn("service: GetTripByID — seat cache read failed, using DB value",
+				zap.String("tripID", input.TripID),
+				zap.Error(cacheErr),
+			)
+		}
+	}
+
+	// Enrichir avec les infos véhicule
+	vehicleBrand, _, vehiclePlate := s.getCachedOrFetchVehicleInfo(ctx, trip.DriverID, trip.VehicleID)
+
+	waypointResults := make([]serviceInterfaces.WaypointDetailResult, 0, len(waypoints))
+	for _, wp := range waypoints {
+		waypointResults = append(waypointResults, serviceInterfaces.WaypointDetailResult{
+			WaypointID:              wp.WaypointID,
+			WaypointType:            string(wp.WaypointType),
+			SequencerOrder:          wp.SequencerOrder,
+			LocationName:            wp.LocationName,
+			City:                    wp.City,
+			ScheduledPickupDatetime: wp.ScheduledPickupDatetime,
+			PriceFromPrevious:       wp.PriceFromPrevious,
+		})
+	}
+
+	return &serviceInterfaces.TripDetailResult{
+		TripID:                   trip.TripID,
+		DriverID:                 trip.DriverID,
+		Status:                   string(trip.Status),
+		TotalSeats:               trip.TotalSeats,
+		AvailableSeats:           trip.AvailableSeats,
+		PricePerSeat:             trip.PricePerSeat,
+		AutoApproveEnabled:       trip.AutoApproveEnabled,
+		DepartureDatetime:        trip.DepartureDatetime,
+		EstimatedArrivalDatetime: trip.EstimatedArrivalDatetime,
+		VehicleID:                trip.VehicleID,
+		VehicleBrand:             vehicleBrand,
+		VehiclePlate:             vehiclePlate,
+		RoutePolyline:            trip.RoutePolyline,
+		Waypoints:                waypointResults,
+	}, nil
+}
+
+// GetDriverTripDetails retourne les détails complets d'un trajet pour le conducteur.
+func (s *tripServiceImpl) GetDriverTripDetails(ctx context.Context, input *serviceInterfaces.GetDriverTripDetailsInput) (*serviceInterfaces.DriverTripDetailResult, error) {
+	s.logger.Debug("service: GetDriverTripDetails called", zap.String("tripID", input.TripID))
+
+	if input.TripID == "" || input.DriverID == "" {
+		return nil, tripErrors.ErrorInvalidInput
+	}
+
+	trip, waypoints, err := s.readRepo.GetTripByID(ctx, input.TripID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Vérifier que le conducteur est propriétaire du trajet
+	if trip.DriverID != input.DriverID {
+		return nil, tripErrors.ErrorUnauthorized
+	}
+
+	// Overlay available_seats depuis le cache Redis
+	if s.cache != nil {
+		if seats, found, cacheErr := s.cache.GetSeatCounter(ctx, input.TripID); found && cacheErr == nil {
+			trip.AvailableSeats = int16(seats)
+		} else if cacheErr != nil {
+			s.logger.Warn("service: GetDriverTripDetails — seat cache read failed, using DB value",
+				zap.String("tripID", input.TripID), zap.Error(cacheErr))
+		}
+	}
+
+	// Enrichir véhicule
+	vehicleBrand, _, vehiclePlate := s.getCachedOrFetchVehicleInfo(ctx, trip.DriverID, trip.VehicleID)
+
+	// Mapper les waypoints complets (avec cancelled, coords, actual datetimes)
+	wpResults := make([]serviceInterfaces.DriverWaypointDetailResult, 0, len(waypoints))
+	for _, wp := range waypoints {
+		wpResults = append(wpResults, serviceInterfaces.DriverWaypointDetailResult{
+			WaypointID:                    wp.WaypointID,
+			WaypointType:                  string(wp.WaypointType),
+			SequencerOrder:                wp.SequencerOrder,
+			LocationName:                  wp.LocationName,
+			LocationLng:                   wp.LocationLng,
+			LocationLat:                   wp.LocationLat,
+			City:                          wp.City,
+			Country:                       wp.Country,
+			ScheduledPickupDatetime:       wp.ScheduledPickupDatetime,
+			ActualArrivalDatetime:         wp.ActualArrivalDatetime,
+			ActualScheduledPickupDatetime: wp.ActualScheduledPickupDatetime,
+			MinutesFromDeparture:          wp.MinutesFromDeparture,
+			PriceFromPrevious:             wp.PriceFromPrevious,
+			IsCancelled:                   wp.CancelledAt != nil,
+			CancellationReason:            wp.CancellationReason,
+		})
+	}
+
+	// Récupérer les réservations du trajet (dégradation gracieuse)
+	var bookings []client.BookingPreview
+	if s.bookingClient != nil {
+		b, err := s.bookingClient.GetDriverTripBookings(ctx, trip.DriverID, trip.TripID)
+		if err != nil {
+			s.logger.Warn("service: GetDriverTripDetails — booking fetch failed (non-blocking)",
+				zap.String("tripID", trip.TripID), zap.Error(err))
+		} else {
+			bookings = b
+		}
+	}
+
+	return &serviceInterfaces.DriverTripDetailResult{
+		TripID:                   trip.TripID,
+		DriverID:                 trip.DriverID,
+		Status:                   string(trip.Status),
+		TotalSeats:               trip.TotalSeats,
+		AvailableSeats:           trip.AvailableSeats,
+		PricePerSeat:             trip.PricePerSeat,
+		AutoApproveEnabled:       trip.AutoApproveEnabled,
+		DepartureDatetime:        trip.DepartureDatetime,
+		EstimatedArrivalDatetime: trip.EstimatedArrivalDatetime,
+		ActualDepartureDatetime:  trip.ActualDepartureDatetime,
+		ActualArrivalDatetime:    trip.ActualArrivalDatetime,
+		EstimatedDurationMinutes: trip.EstimatedDurationMinutes,
+		EstimatedDistanceMeters:  trip.EstimatedDistanceMeters,
+		VehicleID:                trip.VehicleID,
+		VehicleBrand:             vehicleBrand,
+		VehiclePlate:             vehiclePlate,
+		PaymentMethodsAccepted:   trip.PaymentMethodsAccepted,
+		AllowLuggages:            trip.AllowLuggages,
+		AllowPets:                trip.AllowPets,
+		AllowFood:                trip.AllowFood,
+		AllowSmoking:             trip.AllowSmoking,
+		Description:              trip.Description,
+		RoutePolyline:            trip.RoutePolyline,
+		Waypoints:                wpResults,
+		Bookings:                 bookings,
+	}, nil
+}
+
+// GetPassengerTripDetails retourne les détails d'un trajet pour un passager.
+func (s *tripServiceImpl) GetPassengerTripDetails(ctx context.Context, input *serviceInterfaces.GetPassengerTripDetailsInput) (*serviceInterfaces.PassengerTripDetailResult, error) {
+	s.logger.Debug("service: GetPassengerTripDetails called", zap.String("tripID", input.TripID))
+
+	if input.TripID == "" {
+		return nil, tripErrors.ErrorInvalidInput
+	}
+
+	trip, waypoints, err := s.readRepo.GetTripByID(ctx, input.TripID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Overlay available_seats depuis le cache Redis
+	if s.cache != nil {
+		if seats, found, cacheErr := s.cache.GetSeatCounter(ctx, input.TripID); found && cacheErr == nil {
+			trip.AvailableSeats = int16(seats)
+		} else if cacheErr != nil {
+			s.logger.Warn("service: GetPassengerTripDetails — seat cache read failed, using DB value",
+				zap.String("tripID", input.TripID), zap.Error(cacheErr))
+		}
+	}
+
+	// Enrichir véhicule
+	vehicleBrand, vehicleModel, vehiclePlate := s.getCachedOrFetchVehicleInfo(ctx, trip.DriverID, trip.VehicleID)
+
+	// Enrichir conducteur (nom + photo)
+	driverName, driverPhoto := s.getCachedOrFetchDriverInfo(ctx, trip.DriverID)
+
+	// Enrichir note conducteur (moyenne + nombre de notes)
+	driverRating, driverRatingsCount := s.getCachedOrFetchDriverRating(ctx, trip.DriverID)
+
+	// Mapper les waypoints (sans coords, avec IsCancelled)
+	wpResults := make([]serviceInterfaces.PassengerWaypointDetailResult, 0, len(waypoints))
+	for _, wp := range waypoints {
+		wpResults = append(wpResults, serviceInterfaces.PassengerWaypointDetailResult{
+			WaypointID:              wp.WaypointID,
+			WaypointType:            string(wp.WaypointType),
+			SequencerOrder:          wp.SequencerOrder,
+			LocationName:            wp.LocationName,
+			City:                    wp.City,
+			ScheduledPickupDatetime: wp.ScheduledPickupDatetime,
+			PriceFromPrevious:       wp.PriceFromPrevious,
+			MinutesFromDeparture:    wp.MinutesFromDeparture,
+			IsCancelled:             wp.CancelledAt != nil,
+			LocationLat:             wp.LocationLat,
+			LocationLng:             wp.LocationLng,
+		})
+	}
+
+	return &serviceInterfaces.PassengerTripDetailResult{
+		TripID:                   trip.TripID,
+		DriverID:                 trip.DriverID,
+		DriverName:               driverName,
+		DriverProfileImageURL:    driverPhoto,
+		DriverRatingAverage:      driverRating,
+		DriverRatingsCount:       driverRatingsCount,
+		AutoApproveEnabled:       trip.AutoApproveEnabled,
+		Status:                   string(trip.Status),
+		TotalSeats:               trip.TotalSeats,
+		AvailableSeats:           trip.AvailableSeats,
+		PricePerSeat:             trip.PricePerSeat,
+		DepartureDatetime:        trip.DepartureDatetime,
+		EstimatedArrivalDatetime: trip.EstimatedArrivalDatetime,
+		EstimatedDurationMinutes: trip.EstimatedDurationMinutes,
+		VehicleID:                trip.VehicleID,
+		VehicleBrand:             vehicleBrand,
+		VehicleModel:             vehicleModel,
+		VehiclePlate:             vehiclePlate,
+		PaymentMethodsAccepted:   trip.PaymentMethodsAccepted,
+		AllowLuggages:            trip.AllowLuggages,
+		AllowPets:                trip.AllowPets,
+		AllowFood:                trip.AllowFood,
+		AllowSmoking:             trip.AllowSmoking,
+		Description:              trip.Description,
+		RoutePolyline:            trip.RoutePolyline,
+		EstimatedDistanceMeters:  trip.EstimatedDistanceMeters,
+		Waypoints:                wpResults,
+	}, nil
+}
+
+// UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
+func (s *tripServiceImpl) UpdateAvailableSeats(ctx context.Context, input *serviceInterfaces.UpdateAvailableSeatsInput) error {
+	s.logger.Debug("service: UpdateAvailableSeats called",
+		zap.String("tripID", input.TripID),
+		zap.Int16("newAvailableSeats", input.NewAvailableSeats),
+	)
+
+	if input.TripID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	if input.NewAvailableSeats < 0 {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	if err := s.writeRepo.UpdateAvailableSeats(ctx, input.TripID, input.NewAvailableSeats); err != nil {
+		return err
+	}
+
+	// Mettre à jour le compteur de places en cache pour que les lectures soient temps réel
+	if s.cache != nil {
+		if cacheErr := s.cache.SetSeatCounter(ctx, input.TripID, int(input.NewAvailableSeats)); cacheErr != nil {
+			s.logger.Warn("service: UpdateAvailableSeats — seat cache update failed",
+				zap.String("tripID", input.TripID),
+				zap.Error(cacheErr),
+			)
+			// Dégradation gracieuse : l'erreur cache ne fait pas échouer l'opération
+		}
+	}
+
+	return nil
+}
+
+// IncrementLegBookedSeats incrémente/décrémente booked_seats sur les legs d'un segment.
+func (s *tripServiceImpl) IncrementLegBookedSeats(ctx context.Context, input *serviceInterfaces.IncrementLegBookedSeatsInput) error {
+	s.logger.Debug("service: IncrementLegBookedSeats called",
+		zap.String("tripID", input.TripID),
+		zap.Int("fromOrder", input.FromOrder),
+		zap.Int("toOrder", input.ToOrder),
+		zap.Int("delta", input.Delta),
+	)
+
+	if input.TripID == "" || input.FromOrder < 0 || input.ToOrder <= input.FromOrder || input.Delta == 0 {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	return s.writeRepo.IncrementLegBookedSeats(ctx, input.TripID, input.FromOrder, input.ToOrder, input.Delta)
+}
+
+// SyncLegBookedSeats force la valeur de booked_seats pour chaque leg (réconciliation).
+func (s *tripServiceImpl) SyncLegBookedSeats(ctx context.Context, input *serviceInterfaces.SyncLegBookedSeatsInput) error {
+	s.logger.Debug("service: SyncLegBookedSeats called",
+		zap.String("tripID", input.TripID),
+		zap.Int("legsCount", len(input.Legs)),
+	)
+
+	if input.TripID == "" || len(input.Legs) == 0 {
+		return tripErrors.ErrorInvalidInput
+	}
+
+	repoLegs := make([]repoInterfaces.LegBookedSeats, len(input.Legs))
+	for i, l := range input.Legs {
+		repoLegs[i] = repoInterfaces.LegBookedSeats{
+			SequencerOrder: l.SequencerOrder,
+			BookedSeats:    l.BookedSeats,
+		}
+	}
+
+	return s.writeRepo.SyncLegBookedSeats(ctx, input.TripID, repoLegs)
+}
+
+// CheckDeletionEligibility vérifie si le conducteur a un trajet inProgress.
+func (s *tripServiceImpl) CheckDeletionEligibility(ctx context.Context, userID string) (bool, string, error) {
+	if userID == "" {
+		return false, "", tripErrors.ErrorInvalidInput
+	}
+	hasActive, err := s.readRepo.HasActiveTripAsDriver(ctx, userID)
+	if err != nil {
+		return false, "", tripErrors.ErrorInternalServer
+	}
+	if hasActive {
+		return false, "conducteur avec un trajet en cours", nil
+	}
+	return true, "", nil
+}
+
+// AnonymizeUserData pseudonymise les références du chauffeur dans trips-service.
+func (s *tripServiceImpl) AnonymizeUserData(ctx context.Context, userID string) error {
+	if userID == "" {
+		return tripErrors.ErrorInvalidInput
+	}
+	return s.writeRepo.AnonymizeDriverRefs(ctx, userID)
+}
+
+// GetVehicleCompletedTripCount retourne le nombre de trajets complétés pour un véhicule.
+func (s *tripServiceImpl) GetVehicleCompletedTripCount(ctx context.Context, vehicleID string) (int32, error) {
+	if vehicleID == "" {
+		return 0, tripErrors.ErrorInvalidInput
+	}
+	return s.readRepo.GetVehicleCompletedTripCount(ctx, vehicleID)
+}
+

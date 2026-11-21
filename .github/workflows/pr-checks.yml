@@ -1,0 +1,290 @@
+name: CI Checks
+
+on:
+  push:
+    branches: [develop, staging, main]
+  pull_request:
+    branches: [develop, staging, main]
+    paths:
+      - "services/**"
+      - "pkg/**"
+      - "go.work"
+      - ".github/workflows/pr-checks.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-changes:
+    name: Detect Changed Services
+    runs-on: ubuntu-latest
+    outputs:
+      auth-service: ${{ steps.filter.outputs.auth-service }}
+      api-gateway: ${{ steps.filter.outputs.api-gateway }}
+      user-service: ${{ steps.filter.outputs.user-service }}
+      file-service: ${{ steps.filter.outputs.file-service }}
+      services-matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api-gateway:
+              - 'services/api-gateway/**'
+            auth-service:
+              - 'services/auth-service/**'
+            user-service:
+              - 'services/user-service/**'
+            file-service:
+              - 'services/file-service/**'
+            trips-service:
+              - 'services/trips-service/**'
+            rating-service:
+              - 'services/rating-service/**'
+            booking-service:
+              - 'services/booking-service/**'
+            geolocation-service:
+              - 'services/geolocation-service/**'
+            moderation-service:
+              - 'services/moderation-service/**'
+            pkg:
+              - 'pkg/**'
+
+      - name: Set service matrix
+        id: set-matrix
+        run: |
+          services=()
+          # Sur un push direct, on relance tous les services
+          if [ "${{ github.event_name }}" == "push" ]; then
+            services=("api-gateway" "auth-service" "user-service" "file-service" "rating-service" "trips-service" "booking-service" "geolocation-service" "moderation-service")
+          elif [ "${{ steps.filter.outputs.pkg }}" == "true" ]; then
+            services=("api-gateway" "auth-service" "user-service" "file-service" "rating-service" "trips-service" "booking-service" "geolocation-service" "moderation-service")
+          else
+            if [ "${{ steps.filter.outputs.api-gateway }}" == "true" ]; then
+              services+=("api-gateway")
+            fi
+            if [ "${{ steps.filter.outputs.auth-service }}" == "true" ]; then
+              services+=("auth-service")
+            fi
+            if [ "${{ steps.filter.outputs.user-service }}" == "true" ]; then
+              services+=("user-service")
+            fi
+            if [ "${{ steps.filter.outputs.file-service }}" == "true" ]; then
+              services+=("file-service")
+            fi
+            if [ "${{ steps.filter.outputs.trips-service }}" == "true" ]; then
+              services+=("trips-service")
+            fi
+            if [ "${{ steps.filter.outputs.rating-service }}" == "true" ]; then
+              services+=("rating-service")
+            fi
+            if [ "${{ steps.filter.outputs.booking-service }}" == "true" ]; then
+              services+=("booking-service")
+            fi
+            if [ "${{ steps.filter.outputs.geolocation-service }}" == "true" ]; then
+              services+=("geolocation-service")
+            fi
+            if [ "${{ steps.filter.outputs.moderation-service }}" == "true" ]; then
+              services+=("moderation-service")
+            fi
+          fi
+
+          if [ ${#services[@]} -eq 0 ]; then
+            echo "matrix=[]" >> $GITHUB_OUTPUT
+          else
+            json=$(printf '%s\n' "${services[@]}" | jq -R . | jq -s -c .)
+            echo "matrix=$json" >> $GITHUB_OUTPUT
+          fi
+
+  lint:
+    name: Lint
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services-matrix != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services-matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.work"
+          cache: true
+          cache-dependency-path: services/${{ matrix.service }}/go.sum
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
+          working-directory: services/${{ matrix.service }}
+          args: --timeout=5m
+          # Les services cumulent ~2 000 alertes antérieures (cf. Backend-Issues.md) :
+          # on ne bloque que sur ce que le commit ou la PR ajoute.
+          only-new-issues: true
+
+  test:
+    name: Test
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services-matrix != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services-matrix) }}
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.work"
+          cache: true
+          cache-dependency-path: services/${{ matrix.service }}/go.sum
+
+      - name: Download dependencies
+        working-directory: services/${{ matrix.service }}
+        run: go mod download
+
+      - name: Run tests with coverage
+        working-directory: services/${{ matrix.service }}
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb?sslmode=disable
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: services/${{ matrix.service }}/coverage.out
+          flags: ${{ matrix.service }}
+          name: ${{ matrix.service }}-coverage
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  security:
+    name: Security Scan
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services-matrix != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services-matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.work"
+
+      # gosec est installé avec la toolchain du dépôt plutôt que via l'action Docker
+      # securego/gosec, dont l'image embarque Go 1.24 : avec go.work en 1.25.6, chaque
+      # paquet échouait au chargement et le scan rapportait « Files: 0 ». Il est lancé
+      # depuis le dossier du service, car la racine du dépôt n'est pas un module.
+      - name: Install Gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
+
+      - name: Gosec — rapport complet
+        working-directory: services/${{ matrix.service }}
+        run: gosec -no-fail -exclude-generated -exclude-dir=tests ./...
+
+      # Bloquant : sévérité et confiance au moins moyennes. G115 (conversions
+      # d'entiers) et G118 (goroutines sur context.Background, volontaires pour les
+      # traitements asynchrones) sont exclues tant que leur dette n'est pas résorbée
+      # (cf. Backend-Issues.md) ; elles restent visibles dans le rapport complet.
+      - name: Gosec — contrôle bloquant
+        working-directory: services/${{ matrix.service }}
+        run: >-
+          gosec -quiet -exclude-generated -exclude-dir=tests
+          -severity=medium -confidence=medium -exclude=G115,G118 ./...
+
+  build-check:
+    name: Build Check
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services-matrix != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services-matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/${{ matrix.service }}/deployments/Dockerfile
+          push: false
+          tags: ${{ matrix.service }}:pr-${{ github.event.number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=pr-${{ github.event.number }}
+            COMMIT_SHA=${{ github.sha }}
+
+  conventional-commits:
+    name: Conventional Commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check commit messages
+        uses: webiny/action-conventional-commits@v1.3.0
+        with:
+          allowed-commit-types: "feat,fix,docs,style,refactor,perf,test,build,ci,chore,revert"
+
+  pr-summary:
+    name: PR Check Summary
+    needs: [lint, test, security, build-check, conventional-commits]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        run: |
+          echo "PR Check Results Summary"
+          echo "========================"
+          
+          if [ "${{ needs.lint.result }}" == "failure" ]; then
+            echo "FAILED: lint"
+            exit 1
+          fi
+          if [ "${{ needs.test.result }}" == "failure" ]; then
+            echo "FAILED: test"
+            exit 1
+          fi
+          if [ "${{ needs.security.result }}" == "failure" ]; then
+            echo "FAILED: security"
+            exit 1
+          fi
+          if [ "${{ needs.build-check.result }}" == "failure" ]; then
+            echo "FAILED: build-check"
+            exit 1
+          fi
+          if [ "${{ needs.conventional-commits.result }}" == "failure" ]; then
+            echo "FAILED: conventional-commits"
+            exit 1
+          fi
+          
+          echo "All checks passed!"

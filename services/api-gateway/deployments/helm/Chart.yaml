@@ -1,0 +1,20 @@
+apiVersion: v2
+name: api-gateway
+description: A Helm chart for tissiMah API Gateway
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+maintainers:
+  - name: tissi-mah Team
+    email: kpeewu@gmail.com
+
+keywords:
+  - gateway
+  - http
+  - golang
+  - microservice
+
+home: https://github.com/Kpeewu/tissi-mah
+sources:
+  - https://github.com/Kpeewu/tissi-mah/tree/main/services/api-gateway

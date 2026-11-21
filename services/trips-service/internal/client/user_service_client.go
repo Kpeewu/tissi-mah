@@ -1,0 +1,126 @@
+package client
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/Kpeewu/tissi-mah/pkg/grpcutil"
+	tripErrors "github.com/Kpeewu/tissi-mah/services/trips-service/pkg/errors"
+	userpb "github.com/Kpeewu/tissi-mah/services/user-service/proto/gen"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
+
+// UserServiceClient est le client gRPC vers user-service.
+// Utilise TLS avec skip-verify pour la communication intra-cluster.
+type UserServiceClient struct {
+	conn       *grpc.ClientConn
+	grpcClient userpb.UserServiceClient
+	logger     *zap.Logger
+}
+
+// NewUserServiceClient établit la connexion gRPC vers user-service.
+// address doit être au format "host:port" (ex: "user-service:50052").
+func NewUserServiceClient(address string, logger *zap.Logger) (*UserServiceClient, error) {
+	logger.Debug("connecting to user-service", zap.String("address", address))
+
+	conn, err := grpc.NewClient(
+		address,
+		grpc.WithTransportCredentials(grpcutil.ClientTransportCredentials()),
+	)
+	if err != nil {
+		logger.Error("failed to connect to user-service", zap.Error(err), zap.String("address", address))
+		return nil, fmt.Errorf("user-service: failed to connect to %s: %w", address, err)
+	}
+
+	return &UserServiceClient{
+		conn:       conn,
+		grpcClient: userpb.NewUserServiceClient(conn),
+		logger:     logger,
+	}, nil
+}
+
+// Close libère la connexion gRPC. À appeler au shutdown du service.
+func (c *UserServiceClient) Close() error {
+	return c.conn.Close()
+}
+
+// IsVerifiedDriver vérifie que l'utilisateur existe dans user-service
+// et que son profil conducteur est vérifié (IsDriverProfileVerified = true).
+func (c *UserServiceClient) IsVerifiedDriver(ctx context.Context, userID string) (bool, error) {
+	c.logger.Debug("client: IsVerifiedDriver called", zap.String("userID", userID))
+
+	resp, err := c.grpcClient.GetUserByUserID(ctx, &userpb.GetUserByUserIDRequest{
+		UserID: userID,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			c.logger.Debug("client: user not found", zap.String("userID", userID))
+			return false, nil
+		}
+		c.logger.Error("client: GetUserByUserID failed", zap.Error(err), zap.String("userID", userID))
+		return false, fmt.Errorf("user-service: GetUserByUserID failed: %w", err)
+	}
+
+	return resp.IsDriverProfileVerified, nil
+}
+
+// GetDriverName retourne le nom complet de l'utilisateur ("FirstName Name").
+// Retourne une chaîne vide si l'utilisateur n'est pas trouvé.
+func (c *UserServiceClient) GetDriverName(ctx context.Context, userID string) (string, error) {
+	c.logger.Debug("client: GetDriverName called", zap.String("userID", userID))
+
+	resp, err := c.grpcClient.GetUserByUserID(ctx, &userpb.GetUserByUserIDRequest{
+		UserID: userID,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return "", nil
+		}
+		c.logger.Error("client: GetUserByUserID failed", zap.Error(err), zap.String("userID", userID))
+		return "", fmt.Errorf("user-service: GetUserByUserID failed: %w", err)
+	}
+
+	return strings.TrimSpace(resp.FirstName + " " + resp.Name), nil
+}
+
+// GetUserIDByFirebaseID résout le Firebase UID de l'appelant en UserID interne (utilisé par
+// l'intercepteur). Retourne ErrorUserNotFound si aucun profil ne correspond.
+func (c *UserServiceClient) GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error) {
+	resp, err := c.grpcClient.GetUserByFirebaseID(ctx, &userpb.GetUserByFirebaseIDRequest{
+		FirebaseID: firebaseUID,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return "", tripErrors.ErrorUserNotFound
+		}
+		c.logger.Error("client: GetUserByFirebaseID failed", zap.Error(err))
+		return "", fmt.Errorf("user-service: GetUserByFirebaseID failed: %w", err)
+	}
+	if resp.UserID == "" {
+		return "", tripErrors.ErrorUserNotFound
+	}
+	return resp.UserID, nil
+}
+
+// GetDriverInfo retourne le nom complet et l'URL de la photo de profil du conducteur.
+func (c *UserServiceClient) GetDriverInfo(ctx context.Context, userID string) (string, string, error) {
+	c.logger.Debug("client: GetDriverInfo called", zap.String("userID", userID))
+
+	resp, err := c.grpcClient.GetUserByUserID(ctx, &userpb.GetUserByUserIDRequest{
+		UserID: userID,
+	})
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return "", "", nil
+		}
+		c.logger.Error("client: GetDriverInfo failed", zap.Error(err), zap.String("userID", userID))
+		return "", "", fmt.Errorf("user-service: GetUserByUserID failed: %w", err)
+	}
+
+	name := strings.TrimSpace(resp.FirstName + " " + resp.Name)
+	return name, resp.ProfileImageURL, nil
+}

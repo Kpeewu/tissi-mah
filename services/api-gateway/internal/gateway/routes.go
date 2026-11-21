@@ -1,0 +1,218 @@
+package gateway
+
+// ProtectedRoutes liste les routes HTTP qui requièrent un JWT Firebase valide.
+// Les routes absentes de cette map sont publiques (Health, CheckEmail, CheckPhoneNumber).
+// Les clés correspondent aux paths définis dans les annotations google.api.http des protos.
+var ProtectedRoutes = map[string]bool{
+	// auth-service
+	"/api/v1/auth/createAccount": true,
+	"/api/v1/auth/deleteAccount": true,
+
+	// user-service
+	"/api/v1/user/me":                         true,
+	"/api/v1/userProfile/createDriverAccount": true,
+	"/api/v1/userProfile/addTripPreferences":  true,
+	"/api/v1/userProfile/updateProfile":       true,
+	// changeProfilePicture supprimé : la photo de profil est le selfie d'identité,
+	// soumis via /api/v1/file/uploadSelfie et validé par le support.
+
+	// rating-service
+	"/api/v1/ratings/rateUser":                   true,
+	"/api/v1/ratings/user/getUserRatings":        true,
+	"/api/v1/ratings/user/getUserRatingsAverage": true,
+	"/api/v1/ratings/updateRating":               true,
+
+	// file-service
+	"/api/v1/file/uploadIdDocument":       true,
+	"/api/v1/file/uploadSelfie":           true,
+	"/api/v1/file/uploadVehicleDocuments": true,
+	"/api/v1/file/changeDocument":         true,
+	"/api/v1/file/deleteFile":             true,
+	// getDocument est dans DualProtectedRoutes (Firebase OU Support JWT)
+
+	// vehicle-service
+	"/api/v1/vehicle/add":             true,
+	"/api/v1/vehicle/update":          true,
+	"/api/v1/vehicle/delete":          true,
+	"/api/v1/vehicle/details":         true,
+	"/api/v1/vehicle/getUserVehicles": true,
+
+	// kyc-service (user-facing) — validation 100 % manuelle par le support :
+	// les endpoints inquiries/webhook Persona ont été supprimés.
+	"/api/v1/kyc/me/getStatus": true,
+	// kyc-service — health est public (pas de JWT)
+	// kyc-service admin → SupportProtectedRoutes
+
+	// booking-service (internal/* et health sont publics)
+	"/api/v1/booking/createBooking":               true,
+	"/api/v1/booking/getBookingDetails":           true,
+	"/api/v1/booking/getPassengerBookings":        true,
+	"/api/v1/booking/getDriverTripBookings":       true,
+	"/api/v1/booking/getDriverPendingBookings":    true,
+	"/api/v1/booking/getDriverBookings":           true,
+	"/api/v1/booking/getActivePassengerSummaries": true,
+	"/api/v1/booking/approveBooking":              true,
+	"/api/v1/booking/rejectBooking":               true,
+	"/api/v1/booking/cancelBooking":               true,
+	"/api/v1/booking/reportNoShow":                true,
+	"/api/v1/booking/contestNoShow":               true,
+	// confirmPayment est interne (/api/v1/booking/internal/confirmPayment, appelé par payment-service)
+
+	// payment-service (protégé)
+	"/api/v1/payment/createPayment":       true,
+	"/api/v1/payment/verifyPayment":       true,
+	"/api/v1/payment/cancelPayment":       true,
+	"/api/v1/payment/getPaymentStatus":    true,
+	"/api/v1/payment/getPaymentByBooking": true,
+	"/api/v1/payment/getRefundStatus":     true,
+	"/api/v1/payment/getRefundByBooking":  true,
+	"/api/v1/payment/getPayoutStatus":     true,
+	"/api/v1/payment/getDriverPayouts":    true,
+	// payment-service — webhooks, callback FedaPay (/api/v1/payment/callback), internal et health sont publics
+
+	// trips-service
+	"/api/v1/trip/driver/createTrip":                true,
+	"/api/v1/trip/driver/createRecurringTrip":       true,
+	"/api/v1/trip/driver/getTripsPreviews":          true,
+	"/api/v1/trip/driver/getCompletedTripsPreviews": true,
+	"/api/v1/trip/driver/changeTripDateAndTime":     true,
+	"/api/v1/trip/driver/changeTripVehicle":         true,
+	"/api/v1/trip/driver/changeTripAllowances":      true,
+	"/api/v1/trip/driver/activeAutoApprouve":        true,
+	"/api/v1/trip/driver/startTrip":                 true,
+	"/api/v1/trip/driver/endTrip":                   true,
+	"/api/v1/trip/driver/confirmWaypointArrival":    true,
+	"/api/v1/trip/driver/confirmWaypointDeparture":  true,
+	"/api/v1/trip/driver/cancelWaypoint":            true,
+	"/api/v1/trip/driver/cancelTrip":                true,
+	"/api/v1/trip/driver/getTripDetails":            true,
+	"/api/v1/trip/passenger/getTripDetails":         true,
+	// trip/passenger/getScheduledTripsPreviews est public (@SkipAuth côté app) → hors map
+
+	// notification-service
+	"/api/v1/notifications/inbox":                true,
+	"/api/v1/notifications/inbox/{InboxId}/read": true,
+	"/api/v1/notifications/inbox/readAll":        true,
+	"/api/v1/notifications/inbox/unreadCount":    true,
+	"/api/v1/notifications/preferences":          true,
+	"/api/v1/notifications/deviceToken":          true,
+	// notification-service — health est public (pas de JWT)
+
+	// geolocation-service (Firebase JWT requis pendant la création de trajet)
+	"/api/v1/geolocation/route":   true,
+	"/api/v1/geolocation/geocode": true,
+	"/api/v1/geolocation/reverse": true,
+	// geolocation-service — health est public (pas de JWT)
+
+	// chat-service (passager-chauffeur, après réservation acceptée)
+	"/api/v1/chat/threads":                     true, // POST GetOrCreateThread + GET GetUserThreads
+	"/api/v1/chat/threads/{ThreadId}/messages": true, // POST SendMessage + GET GetMessages
+	"/api/v1/chat/threads/{ThreadId}/read":     true, // PATCH MarkRead
+	"/api/v1/chat/messages/{MessageId}/flag":   true, // POST FlagMessage
+	// chat-service — health public ; GetFlaggedMessageContent côté Support (cf. SupportProtectedRoutes)
+}
+
+// DualProtectedRoutes liste les routes qui acceptent soit un JWT Firebase (utilisateurs mobiles)
+// soit un JWT support-service (agents back-office). Les deux middlewares JWTFirebase et JWTSupport
+// les couvrent : Firebase tente la validation en premier ; en cas d'échec, JWTSupport prend le relais.
+var DualProtectedRoutes = map[string]bool{
+	// file-service — les agents support doivent pouvoir récupérer l'URL présignée d'un document KYC
+	"/api/v1/file/getDocument": true,
+}
+
+// SupportProtectedRoutes liste les routes HTTP qui requièrent un JWT support-service valide
+// (back-office admin / agents support — distinct du JWT Firebase utilisé pour les passagers/conducteurs).
+var SupportProtectedRoutes = map[string]bool{
+	"/api/v1/support/logout":                     true,
+	"/api/v1/support/me":                         true,
+	"/api/v1/support/me/password":                true,
+	"/api/v1/support/me/profile":                 true,
+	"/api/v1/support/admin/agents":               true,
+	"/api/v1/support/admin/agents/deactivate":    true,
+	"/api/v1/support/admin/agents/activate":      true,
+	"/api/v1/support/admin/agents/delete":        true,
+	"/api/v1/support/admin/agents/update":        true,
+	"/api/v1/support/admin/agents/resetRequests": true,
+	"/api/v1/support/admin/agents/triggerReset":  true,
+
+	// booking-service — vue support sur les réservations
+	"/api/v1/booking/admin/listBookings":         true,
+	"/api/v1/booking/admin/getBookingDetail":     true,
+	"/api/v1/booking/admin/resolveNoShowContest": true,
+
+	// payment-service — actions support
+	"/api/v1/payment/support/triggerManualPayout": true,
+	"/api/v1/payment/support/getPaymentHistory":   true,
+	"/api/v1/payment/support/getRefundHistory":    true,
+	"/api/v1/payment/support/getPayoutHistory":    true,
+
+	// chat-service — accès support au contenu déchiffré d'un message signalé
+	"/api/v1/chat/messages/{MessageId}/flagged-content": true,
+
+	// kyc-service — validation et consultation des revues de documents (réservé support)
+	"/api/v1/kyc/admin/reviews/getReviews":          true,
+	"/api/v1/kyc/admin/reviews/getReview":           true,
+	"/api/v1/kyc/admin/reviews/override":            true,
+	"/api/v1/kyc/admin/validateDocument":            true,
+	"/api/v1/kyc/admin/manualReviews/requests":      true,
+	"/api/v1/kyc/admin/manualReviews/requestDetail": true,
+	"/api/v1/kyc/admin/documentHistory":             true, // historique complet d'un document logique
+}
+
+// RateLimitTier identifie le niveau de rate limiting pour une route
+type RateLimitTier string
+
+const (
+	TierGlobal        RateLimitTier = "global"
+	TierAuth          RateLimitTier = "auth"
+	TierCreateAccount RateLimitTier = "create"
+	TierSensitive     RateLimitTier = "sensitive"
+	// TierSupportReview couvre les décisions du support sur les documents KYC. Vérifier
+	// un seul conducteur demande cinq décisions (selfie, pièce, permis, assurance, carte
+	// grise) : le tier « sensitive » (1/min, 5/h) bloquait l'agent dès le premier
+	// dossier. Les limites restent bornées pour contenir un compte agent compromis.
+	TierSupportReview RateLimitTier = "support_review"
+)
+
+// RouteRateLimitConfig associe chaque route à son tier de rate limiting.
+// Les routes absentes utilisent le tier global par défaut.
+var RouteRateLimitConfig = map[string]RateLimitTier{
+	// Auth endpoints — brute force protection
+	"/api/v1/auth/checkPhoneNumber": TierAuth,
+	"/api/v1/auth/checkEmail":       TierAuth,
+
+	// Création de compte — anti-spam
+	"/api/v1/auth/createAccount": TierCreateAccount,
+
+	// Opérations sensibles
+	"/api/v1/auth/deleteAccount": TierSensitive,
+
+	// payment-service — création / annulation de collecte FedaPay : anti-abus
+	// (verifyPayment reste en global : le mobile peut le rappeler au retour de la page de paiement)
+	"/api/v1/payment/createPayment": TierCreateAccount,
+	"/api/v1/payment/cancelPayment": TierCreateAccount,
+
+	// chat-service — POST de messages = anti-spam léger via TierCreateAccount,
+	// flag = sensible (modération support)
+	"/api/v1/chat/threads/{ThreadId}/messages": TierCreateAccount,
+	"/api/v1/chat/messages/{MessageId}/flag":   TierSensitive,
+
+	// support-service — mot de passe oublié (public) : anti-abus / anti-email-bombing
+	"/api/v1/support/forgotPassword": TierSensitive,
+	"/api/v1/support/resetPassword":  TierSensitive,
+
+	// file-service — upload de documents KYC (images) : anti-spam
+	"/api/v1/file/uploadIdDocument":       TierCreateAccount,
+	"/api/v1/file/uploadSelfie":           TierCreateAccount,
+	"/api/v1/file/uploadVehicleDocuments": TierCreateAccount,
+
+	// booking-service — contestation d'un no-show : une seule par réservation
+	"/api/v1/booking/contestNoShow": TierSensitive,
+
+	// kyc-service — décisions support sur les documents : opérations sensibles
+	"/api/v1/kyc/admin/validateDocument": TierSupportReview,
+	"/api/v1/kyc/admin/reviews/override": TierSupportReview,
+
+	// booking-service — décision du support sur un no-show contesté (déclenche le remboursement)
+	"/api/v1/booking/admin/resolveNoShowContest": TierSupportReview,
+}

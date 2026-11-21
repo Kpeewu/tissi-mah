@@ -1,0 +1,38 @@
+package e2e
+
+import (
+	"context"
+	"testing"
+
+	"google.golang.org/grpc/metadata"
+)
+
+// e2eFirebaseUID est le Firebase UID du passager des réservations simulées par le mock booking-service ;
+// l'intercepteur le résout en e2eUserID, le PassengerID de ces réservations.
+const (
+	e2eFirebaseUID         = "e2e-test-user"
+	e2eUserID              = "e2e-test-user-id"
+	e2eIntruderFirebaseUID = "e2e-intrus"
+)
+
+// ctxWithUID retourne un contexte avec le Firebase UID dans les metadata gRPC
+func ctxWithUID(uid string) context.Context {
+	md := metadata.Pairs("x-firebase-uid", uid)
+	return metadata.NewOutgoingContext(context.Background(), md)
+}
+
+// ctxWithSupportUID retourne un contexte avec le support UID dans les metadata gRPC
+func ctxWithSupportUID(uid string) context.Context {
+	md := metadata.Pairs("x-support-uid", uid)
+	return metadata.NewOutgoingContext(context.Background(), md)
+}
+
+// cleanupPaymentTables vide toutes les tables (TRUNCATE CASCADE)
+func cleanupPaymentTables(t *testing.T, ctx context.Context) {
+	t.Helper()
+
+	_, err := testPool.Exec(ctx, "TRUNCATE TABLE payout_status_history, payment_status_history, refund_status_history, payments, refunds, payouts, webhook_events, payout_batches CASCADE")
+	if err != nil {
+		t.Fatalf("Failed to cleanup payment tables: %v", err)
+	}
+}

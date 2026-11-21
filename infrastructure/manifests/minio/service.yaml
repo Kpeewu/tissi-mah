@@ -1,0 +1,31 @@
+# Service MinIO.
+#
+# API (port 9000) : NodePort 30093 sur le VPS dev.
+#   Le nginx système du VPS reverse-proxy 127.0.0.1:30093 → storage.tissimah.kpeewu.dev (HTTPS).
+#   En prod EKS, remplacer par ClusterIP + Ingress (cf. ingress.yaml).
+#
+# Console (port 9001) : ClusterIP uniquement — ne jamais exposer publiquement.
+#   Accès via kubectl port-forward minio-<pod> 9001:9001 pour l'administration.
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: default
+  labels:
+    app: minio
+    tier: storage
+spec:
+  type: NodePort
+  ports:
+    - name: api
+      port: 9000
+      targetPort: api
+      nodePort: 30093
+      protocol: TCP
+    - name: console
+      port: 9001
+      targetPort: console
+      protocol: TCP
+      # Pas de nodePort pour la console : accès interne uniquement
+  selector:
+    app: minio

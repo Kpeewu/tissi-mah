@@ -1,0 +1,3 @@
+-- PostgreSQL ne supporte pas ALTER TYPE DROP VALUE directement.
+-- Pour rollback, il faudrait recréer le type (non couvert ici).
+-- S'assurer qu'aucune ligne n'utilise 'paymentFailed' avant rollback.

@@ -1,0 +1,170 @@
+syntax = "proto3";
+
+package notification;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/notification-service/proto/gen";
+
+import "google/api/annotations.proto";
+
+service NotificationService {
+  // === Inbox (app mobile) ===
+  rpc GetInbox(GetInboxRequest) returns (GetInboxResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/notifications/inbox"
+    };
+  }
+  rpc MarkAsRead(MarkAsReadRequest) returns (MarkAsReadResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/notifications/inbox/{InboxId}/read"
+    };
+  }
+  rpc MarkAllAsRead(MarkAllAsReadRequest) returns (MarkAllAsReadResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/notifications/inbox/readAll"
+      body: "*"
+    };
+  }
+  rpc GetUnreadCount(GetUnreadCountRequest) returns (GetUnreadCountResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/notifications/inbox/unreadCount"
+    };
+  }
+
+  // === Preferences ===
+  rpc GetPreferences(GetPreferencesRequest) returns (GetPreferencesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/notifications/preferences"
+    };
+  }
+  rpc UpdatePreferences(UpdatePreferencesRequest) returns (UpdatePreferencesResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/notifications/preferences"
+      body: "*"
+    };
+  }
+
+  // === Device Tokens ===
+  rpc RegisterDeviceToken(RegisterDeviceTokenRequest) returns (RegisterDeviceTokenResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/notifications/deviceToken"
+      body: "*"
+    };
+  }
+  rpc UnregisterDeviceToken(UnregisterDeviceTokenRequest) returns (UnregisterDeviceTokenResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/notifications/deviceToken"
+    };
+  }
+
+  // === Inter-service ===
+  rpc InvalidateDeviceToken(InvalidateDeviceTokenRequest) returns (InvalidateDeviceTokenResponse);
+
+  // === Health ===
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/notifications/health"
+    };
+  }
+}
+
+// === Inbox ===
+
+message GetInboxRequest {
+  int32 Page     = 1;
+  int32 PageSize = 2;
+}
+
+message GetInboxResponse {
+  repeated InboxEntry Entries    = 1;
+  int32               TotalCount = 2;
+}
+
+message InboxEntry {
+  string InboxId    = 1;
+  string EventType  = 2;
+  string Title      = 3;
+  string Body       = 4;
+  string ActionType = 5;
+  string ActionId   = 6;
+  bool   IsRead     = 7;
+  string CreatedAt  = 8;
+}
+
+message MarkAsReadRequest {
+  string InboxId = 1;
+}
+
+message MarkAsReadResponse {
+  bool Success = 1;
+}
+
+message MarkAllAsReadRequest {}
+
+message MarkAllAsReadResponse {
+  int32 UpdatedCount = 1;
+}
+
+message GetUnreadCountRequest {}
+
+message GetUnreadCountResponse {
+  int32 Count = 1;
+}
+
+// === Preferences ===
+
+message GetPreferencesRequest {}
+
+message GetPreferencesResponse {
+  bool PushEnabled  = 1;
+  bool EmailEnabled = 2;
+}
+
+message UpdatePreferencesRequest {
+  bool PushEnabled  = 1;
+  bool EmailEnabled = 2;
+}
+
+message UpdatePreferencesResponse {
+  bool Success = 1;
+}
+
+// === Device Tokens ===
+
+message RegisterDeviceTokenRequest {
+  string FcmToken   = 1;
+  string Platform   = 2;
+  string DeviceName = 3;
+}
+
+message RegisterDeviceTokenResponse {
+  bool   Success = 1;
+  string TokenId = 2;
+}
+
+message UnregisterDeviceTokenRequest {
+  string FcmToken = 1;
+}
+
+message UnregisterDeviceTokenResponse {
+  bool Success = 1;
+}
+
+// === Inter-service ===
+
+message InvalidateDeviceTokenRequest {
+  string FcmToken = 1;
+}
+
+message InvalidateDeviceTokenResponse {
+  bool Success = 1;
+}
+
+// === Health ===
+
+message HealthRequest {}
+
+message HealthResponse {
+  string Status  = 1;
+  string Version = 2;
+  string Service = 3;
+}

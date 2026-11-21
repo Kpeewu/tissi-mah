@@ -1,0 +1,180 @@
+# Kong Rate Limiting Plugin Configuration
+# Protects backend services from excessive requests
+# Documentation: https://docs.konghq.com/hub/kong-inc/rate-limiting/
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: rate-limiting-global
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: rate-limiting
+  annotations:
+    konghq.com/plugins: rate-limiting
+config:
+  # Rate limiting strategy
+  # redis = utiliser Redis pour le rate limiting distribué
+  policy: redis
+
+  # Limits (requests per time window)
+  minute: {{ .Values.rateLimiting.global.minute | default 60 }}
+  hour: {{ .Values.rateLimiting.global.hour | default 1000 }}
+
+  # Redis configuration (nested format, Kong 3.6+)
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    database: 1
+    timeout: 2000
+    ssl: false
+
+  fault_tolerant: true
+  hide_client_headers: false
+  limit_by: ip
+
+plugin: rate-limiting
+
+---
+# Stricter rate limiting for authentication endpoints
+# Prévention des attaques brute force sur login
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: rate-limiting-auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: rate-limiting
+  annotations:
+    konghq.com/plugins: rate-limiting-auth
+config:
+  policy: redis
+
+  # Stricter limits for auth endpoints
+  second: {{ .Values.rateLimiting.auth.second | default 1 }}
+  minute: {{ .Values.rateLimiting.auth.minute | default 10 }}
+  hour: {{ .Values.rateLimiting.auth.hour | default 100 }}
+
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    database: 1
+    timeout: 2000
+
+  fault_tolerant: true
+  hide_client_headers: false
+  limit_by: ip
+
+plugin: rate-limiting
+
+---
+# Rate limiting for account creation (prevent spam accounts)
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: rate-limiting-create-account
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: rate-limiting
+config:
+  policy: redis
+
+  # Very strict limits for account creation
+  minute: {{ .Values.rateLimiting.createAccount.minute | default 3 }}
+  hour: {{ .Values.rateLimiting.createAccount.hour | default 10 }}
+  day: 20
+
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    database: 1
+    timeout: 2000
+
+  fault_tolerant: true
+  hide_client_headers: false
+  limit_by: ip
+
+plugin: rate-limiting
+
+---
+# Rate limiting for sensitive operations (delete account)
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: rate-limiting-sensitive
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: rate-limiting
+config:
+  policy: redis
+
+  # Very restrictive for destructive operations
+  minute: {{ .Values.rateLimiting.sensitive.minute | default 1 }}
+  hour: {{ .Values.rateLimiting.sensitive.hour | default 5 }}
+  day: 10
+
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    database: 1
+    timeout: 2000
+
+  fault_tolerant: true
+  hide_client_headers: false
+  limit_by: credential
+
+plugin: rate-limiting
+
+---
+# Notes d'utilisation
+# ==================
+#
+# Vérifier que Redis Kong fonctionne:
+#   docker exec tissimah-redis-kong redis-cli -p 6380 -a ${KONG_REDIS_PASSWORD} ping
+#
+# Voir les clés de rate-limiting dans Redis:
+#   docker exec tissimah-redis-kong redis-cli -p 6380 -a ${KONG_REDIS_PASSWORD} KEYS "rate-limit:*"
+#
+# Tester le rate-limiting:
+#   for i in {1..20}; do
+#     curl -i http://localhost/api/v1/auth/health
+#     sleep 0.1
+#   done
+#
+# Headers retournés par Kong en cas de rate-limiting:
+#   X-RateLimit-Limit-Minute: 60
+#   X-RateLimit-Remaining-Minute: 45
+#   X-RateLimit-Limit-Hour: 1000
+#   X-RateLimit-Remaining-Hour: 950
+#
+# Réponse HTTP en cas de dépassement:
+#   HTTP/1.1 429 Too Many Requests
+#   {
+#     "message": "API rate limit exceeded"
+#   }
+#
+# Configuration Redis Kong:
+#   - Host: 127.0.0.1 (Docker avec network_mode: host)
+#   - Port: 6379
+#   - Database: 1 (séparé de la database 0)
+#
+# Troubleshooting:
+#   Si rate-limiting ne fonctionne pas:
+#   1. Vérifier que Redis Kong est démarré:
+#      docker ps | grep tissimah-redis-kong
+#
+#   2. Tester la connexion depuis Kong pod:
+#      kubectl exec -it deployment/kong -- redis-cli -h 127.0.0.1 -p 6379 ping
+#
+#   3. Voir les logs Redis:
+#      docker logs tissimah-redis-kong
+#
+#   4. Voir les logs Kong:
+#      kubectl logs -l app.kubernetes.io/name=kong -c proxy | grep rate

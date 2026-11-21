@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tileserver-gl
+  namespace: default
+  labels:
+    app: tileserver-gl
+    tier: tiles
+spec:
+  # NodePort sur ce VPS dev (pas d'ingress controller K3s installé) — le
+  # nginx système du VPS reverse-proxy 127.0.0.1:30090 → tiles.* externe.
+  # En prod EKS on basculera sur ClusterIP + Ingress AWS LB Controller.
+  type: NodePort
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      nodePort: 30090
+      protocol: TCP
+  selector:
+    app: tileserver-gl

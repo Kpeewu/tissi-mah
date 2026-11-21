@@ -1,0 +1,26 @@
+# Autorise l'accès public au tileserver-gl (port conteneur 8080).
+#
+# tileserver est exposé via Service NodePort (30090) et reverse-proxyé par
+# le nginx système du VPS depuis tiles.tissimah.kpeewu.dev. Le trafic ne
+# passe donc PAS par nginx-ingress K8s, mais par le NodePort directement.
+#
+# Pour que ce trafic externe atteigne les pods tileserver, on autorise
+# l'ingress sur le port 8080 sans restriction de source — tileserver est
+# par design un service public anonyme.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-tileserver
+  namespace: default
+  labels:
+    app.kubernetes.io/managed-by: tissi-mah
+spec:
+  podSelector:
+    matchLabels:
+      app: tileserver-gl
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 8080

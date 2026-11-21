@@ -1,0 +1,93 @@
+package domain
+
+import "time"
+
+// BookingStatus représente le statut d'une réservation.
+type BookingStatus string
+
+const (
+	BookingStatusCreated         BookingStatus = "created"
+	BookingStatusPaymentPending  BookingStatus = "paymentPending"
+	BookingStatusPaymentFailed   BookingStatus = "paymentFailed"
+	BookingStatusPendingApproval BookingStatus = "pendingApproval"
+	BookingStatusApproved        BookingStatus = "approved"
+	BookingStatusRejected        BookingStatus = "rejected"
+	BookingStatusCancelled       BookingStatus = "cancelled"
+	BookingStatusInProgress      BookingStatus = "inProgress"
+	BookingStatusCompleted       BookingStatus = "completed"
+	BookingStatusNoShow          BookingStatus = "noShow"
+	BookingStatusExpired         BookingStatus = "expired"
+)
+
+// Motifs de remboursement transmis à payment-service (enum refund_reason côté payment-service).
+const (
+	RefundReasonBookingRejected      = "bookingRejected"
+	RefundReasonCancelledByDriver    = "cancelledByDriver"
+	RefundReasonCancelledByPassenger = "cancelledByPassenger"
+	RefundReasonNoShowDriver         = "noShowDriver"
+	RefundReasonNoShowPassenger      = "noShowPassenger"
+	RefundReasonTripCancelled        = "tripCancelled"
+	RefundReasonWaypointCancelled    = "waypointCancelled"
+)
+
+// NoShowContestWindow : délai, à compter de la déclaration, pendant lequel la partie accusée
+// d'absence peut la contester. Le remboursement dû n'est transmis qu'à son expiration, ou après
+// la décision du support si l'absence est contestée.
+const NoShowContestWindow = 48 * time.Hour
+
+// PaymentMethod représente le mode de paiement d'une réservation.
+type PaymentMethod string
+
+const (
+	PaymentMobileMoney PaymentMethod = "mobileMoney"
+	PaymentCash        PaymentMethod = "cash"
+)
+
+// Booking représente une réservation dans le domaine métier.
+type Booking struct {
+	BookingID          string
+	BookingReference   string
+	TripID             string
+	PassengerID        string
+	DriverID           string
+	PickupWaypointID      string
+	DropoffWaypointID     string
+	PickupSequencerOrder  int16
+	DropoffSequencerOrder int16
+	SeatsBooked        int16
+	PricePerSeat       int
+	Subtotal           int
+	ServiceFee         int
+	TotalAmount        int
+	PaymentMethod      PaymentMethod
+	Status             BookingStatus
+	PaymentCompletedAt *time.Time
+	ApprovedAt         *time.Time
+	RejectedAt         *time.Time
+	CancelledAt        *time.Time
+	CompletedAt        *time.Time
+	CancellerID        *string
+	CancellationReason *string
+	NoShowType         *string
+	NoShowReportedBy   *string
+	NoShowReportedAt   *time.Time
+	NoShowDescription  *string
+	PaymentReleasedAt  *time.Time
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	PassengerMessage    *string
+	ExtraMinutesDetour  *int16
+	ExtraDetourPrice    *int
+	// Demande de remboursement à payment-service (cf. migration 000008)
+	RefundReason          *string
+	RefundRequestedAt     *time.Time
+	RefundRequestAttempts int16
+	// Contestation par la partie accusée et arbitrage du support (cf. migration 000009)
+	NoShowContestedAt    *time.Time
+	NoShowContestedBy    *string
+	NoShowContestReason  *string
+	NoShowResolvedAt     *time.Time
+	NoShowResolvedBy     *string
+	NoShowResolution     *string
+	NoShowResolutionNote *string
+}

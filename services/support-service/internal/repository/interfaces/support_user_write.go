@@ -1,0 +1,25 @@
+package interfaces
+
+import (
+	"context"
+
+	"github.com/Kpeewu/tissi-mah/services/support-service/internal/domain"
+)
+
+type SupportUserWriteRepository interface {
+	Create(ctx context.Context, u *domain.SupportUser) error
+	UpdatePassword(ctx context.Context, userID, hash string, mustChange bool) error
+	UpdateEmail(ctx context.Context, userID, newEmail string) error
+	UpdateName(ctx context.Context, userID, firstName, lastName string) error
+	UpdateRole(ctx context.Context, userID, role string) error
+	Deactivate(ctx context.Context, userID string) error
+	Activate(ctx context.Context, userID string) error
+	// SoftDelete marque le compte comme supprimé (deleted_at = NOW()).
+	SoftDelete(ctx context.Context, userID string) error
+	SetPasswordResetRequested(ctx context.Context, userID string) error
+	ClearPasswordResetRequested(ctx context.Context, userID string) error
+	// ClaimPasswordResetRequest efface le flag de demande de façon atomique, mais
+	// seulement s'il était présent. Renvoie ErrResetAlreadyProcessed si la demande
+	// a déjà été traitée (course entre deux admins).
+	ClaimPasswordResetRequest(ctx context.Context, userID string) error
+}

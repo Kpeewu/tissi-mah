@@ -1,0 +1,26 @@
+package mocks
+
+import (
+	"context"
+
+	"github.com/stretchr/testify/mock"
+)
+
+// MockVehicleClient est un mock du client VehicleClient.
+type MockVehicleClient struct {
+	mock.Mock
+}
+
+// GetVehicleInfo renvoie les valeurs programmées : marque, modèle, plaque,
+// nombre de places, vérification, erreur.
+func (m *MockVehicleClient) GetVehicleInfo(
+	ctx context.Context, driverID, vehicleID string,
+) (brand, model, plate string, numberOfSeats int, isVerified bool, err error) {
+	args := m.Called(ctx, driverID, vehicleID)
+	return args.String(0), args.String(1), args.String(2), args.Int(3), args.Bool(4), args.Error(5)
+}
+
+func (m *MockVehicleClient) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}

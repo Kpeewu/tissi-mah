@@ -1,0 +1,103 @@
+// Moderation Service Proto Definition
+// Service interne (gRPC uniquement, pas d'exposition HTTP via grpc-gateway).
+// Appelé par chat-service (messages) et file-service (photos de profil).
+
+syntax = "proto3";
+
+package moderation;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/moderation-service/proto/gen;moderation";
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+enum ModerationDecision {
+  APPROVED = 0; // Contenu accepté
+  FLAGGED  = 1; // Douteux — sauvegardé avec flag pour révision humaine
+  BLOCKED  = 2; // Rejeté — erreur renvoyée à l'appelant
+}
+
+enum ContentCategory {
+  NONE        = 0;
+  HATE_SPEECH = 1;
+  OBSCENE     = 2;
+  INSULTS     = 3;
+  SPAM        = 4;
+  NSFW        = 5;
+  GORE        = 6;
+  CSAM        = 7; // Child Sexual Abuse Material
+}
+
+// =============================================================================
+// Moderation Service
+// =============================================================================
+
+service ModerationService {
+
+  // ModerateText — modère un message texte (chat).
+  // Filtre local FR/EN/DE/IT/ES puis Perspective API si ambigu.
+  rpc ModerateText(ModerateTextRequest) returns (ModerateTextResponse);
+
+  // ModerateImage — modère une image (photo de profil).
+  // Validation locale + Google Cloud Vision SafeSearch.
+  // En cas de BLOCKED, déclenche aussi la suspension progressive du compte.
+  rpc ModerateImage(ModerateImageRequest) returns (ModerateImageResponse);
+
+  // Health — health check public (pas de JWT).
+  rpc Health(HealthRequest) returns (HealthResponse);
+
+}
+
+// =============================================================================
+// Request / Response Messages
+// =============================================================================
+
+message ModerateTextRequest {
+  string ContentId   = 1; // ID du message (pour logs)
+  string ContentType = 2; // "chat_message"
+  string Text        = 3;
+  string AuthorId    = 4; // UserID interne (pour logs + suspension)
+}
+
+message ModerateTextResponse {
+  ModerationDecision Decision    = 1;
+  ContentCategory    Category    = 2;
+  float              Score       = 3; // Confiance 0.0-1.0
+  string             Reason      = 4; // Message lisible
+  bool               UsedFallback = 5; // true si Perspective API a été appelée
+}
+
+message ModerateImageRequest {
+  string ContentId   = 1; // ID du document (pour logs)
+  string ContentType = 2; // "profile_picture"
+  bytes  ImageBytes  = 3;
+  string MimeType    = 4;
+  string AuthorId    = 5; // UserID interne (pour suspension progressive)
+}
+
+message ModerateImageResponse {
+  ModerationDecision Decision    = 1;
+  ContentCategory    Category    = 2;
+  float              Score       = 3;
+  string             Reason      = 4;
+  bool               UsedFallback = 5;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  string Status    = 1;
+  string Version   = 2;
+  int64  Timestamp = 3;
+}
+
+// =============================================================================
+// Error Codes Reference
+// =============================================================================
+//
+// 0  - OK                  : Succès (APPROVED ou FLAGGED)
+// 3  - INVALID_ARGUMENT    : Contenu BLOCKED ou requête invalide
+// 7  - PERMISSION_DENIED   : Compte suspendu / banni
+// 13 - INTERNAL            : Erreur serveur
+// 14 - UNAVAILABLE         : Service externe indisponible

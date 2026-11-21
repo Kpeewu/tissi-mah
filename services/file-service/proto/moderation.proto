@@ -1,0 +1,31 @@
+// Moderation Service Proto — contrat utilisé par file-service
+// Définit uniquement ModerateImage dont file-service a besoin.
+
+syntax = "proto3";
+
+package moderation;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/file-service/proto/gen/moderationpb;moderationpb";
+
+enum ModerationDecision {
+  APPROVED = 0;
+  FLAGGED  = 1;
+  BLOCKED  = 2;
+}
+
+service ModerationService {
+  rpc ModerateImage(ModerateImageRequest) returns (ModerateImageResponse);
+}
+
+message ModerateImageRequest {
+  string ContentId   = 1;
+  string ContentType = 2;
+  bytes  ImageBytes  = 3;
+  string MimeType    = 4;
+  string AuthorId    = 5;
+}
+
+message ModerateImageResponse {
+  ModerationDecision Decision = 1;
+  string             Reason   = 2;
+}

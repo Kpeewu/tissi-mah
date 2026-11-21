@@ -1,0 +1,1010 @@
+package implementations
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/Kpeewu/tissi-mah/services/booking-service/internal/domain"
+	i "github.com/Kpeewu/tissi-mah/services/booking-service/internal/repository/interfaces"
+	bookingErrors "github.com/Kpeewu/tissi-mah/services/booking-service/pkg/errors"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
+)
+
+// refundReasonIfPaid renvoie l'expression SQL qui pose refund_reason (paramètre param) seulement pour
+// une réservation payée en ligne : la dette de remboursement est enregistrée dans la même transaction
+// que la transition, puis transmise à payment-service (goroutine, rejouée par le worker si elle échoue).
+func refundReasonIfPaid(param string) string {
+	return "CASE WHEN payment_method != 'cash' AND payment_completed_at IS NOT NULL THEN " + param + " END"
+}
+
+type bookingWriteRepositoryImpl struct {
+	pool   *pgxpool.Pool
+	logger *zap.Logger
+}
+
+func NewBookingWriteRepository(pool *pgxpool.Pool, logger *zap.Logger) i.BookingRepositoryWrite {
+	return &bookingWriteRepositoryImpl{pool: pool, logger: logger}
+}
+
+// Create insère une réservation avec ses segments et une entrée d'historique dans une transaction unique.
+func (r *bookingWriteRepositoryImpl) Create(ctx context.Context, booking *domain.Booking, segments []*domain.Segment, history *domain.StatusHistoryEntry) error {
+	r.logger.Debug("creating booking",
+		zap.String("bookingID", booking.BookingID),
+		zap.String("tripID", booking.TripID),
+		zap.String("passengerID", booking.PassengerID),
+	)
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		r.logger.Error("begin transaction failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// Insérer la réservation
+	if err := r.insertBooking(ctx, tx, booking); err != nil {
+		return err
+	}
+
+	// Insérer les segments
+	for _, seg := range segments {
+		if err := r.insertSegment(ctx, tx, seg); err != nil {
+			return err
+		}
+	}
+
+	// Insérer l'entrée d'historique
+	if err := r.insertHistory(ctx, tx, history); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		r.logger.Error("commit transaction failed", zap.Error(err), zap.String("bookingID", booking.BookingID))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	r.logger.Info("booking created", zap.String("bookingID", booking.BookingID))
+	return nil
+}
+
+func (r *bookingWriteRepositoryImpl) insertBooking(ctx context.Context, tx pgx.Tx, b *domain.Booking) error {
+	query := `
+		INSERT INTO bookings (
+			booking_id, booking_reference, trip_id, passenger_id, driver_id,
+			pickup_waypoint_id, dropoff_waypoint_id,
+			pickup_sequencer_order, dropoff_sequencer_order,
+			seats_booked,
+			price_per_seat, subtotal, service_fee, total_amount,
+			payment_method, status,
+			payment_completed_at, approved_at,
+			passenger_message, extra_minutes_detour, extra_detour_price
+		) VALUES (
+			$1, $2, $3, $4, $5,
+			$6, $7,
+			$8, $9,
+			$10,
+			$11, $12, $13, $14,
+			$15::booking_payment_method, $16::booking_status,
+			$17, $18,
+			$19, $20, $21
+		)`
+
+	_, err := tx.Exec(ctx, query,
+		b.BookingID, b.BookingReference, b.TripID, b.PassengerID, b.DriverID,
+		b.PickupWaypointID, b.DropoffWaypointID,
+		b.PickupSequencerOrder, b.DropoffSequencerOrder,
+		b.SeatsBooked,
+		b.PricePerSeat, b.Subtotal, b.ServiceFee, b.TotalAmount,
+		string(b.PaymentMethod), string(b.Status),
+		b.PaymentCompletedAt, b.ApprovedAt,
+		b.PassengerMessage, b.ExtraMinutesDetour, b.ExtraDetourPrice,
+	)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" &&
+			pgErr.ConstraintName == "idx_bookings_unique_active_passenger_trip" {
+			return bookingErrors.ErrorDuplicateBooking
+		}
+		r.logger.Error("insertBooking failed", zap.Error(err), zap.String("bookingID", b.BookingID))
+		return fmt.Errorf("%w: %s", bookingErrors.ErrorInternalServer, err.Error())
+	}
+
+	return nil
+}
+
+func (r *bookingWriteRepositoryImpl) insertSegment(ctx context.Context, tx pgx.Tx, s *domain.Segment) error {
+	query := `
+		INSERT INTO bookings_segments (
+			segment_id, booking_id, pickup_waypoint_id, dropoff_waypoint_id,
+			pickup_location_name, pickup_city, pickup_lat, pickup_lng,
+			pickup_scheduled_at,
+			dropoff_location_name, dropoff_city, dropoff_lat, dropoff_lng,
+			dropoff_scheduled_at,
+			segment_distance_meters, segment_duration_minutes, segment_price
+		) VALUES (
+			$1, $2, $3, $4,
+			$5, $6, $7, $8,
+			$9,
+			$10, $11, $12, $13,
+			$14,
+			$15, $16, $17
+		)`
+
+	_, err := tx.Exec(ctx, query,
+		s.SegmentID, s.BookingID, s.PickupWaypointID, s.DropoffWaypointID,
+		s.PickupLocationName, s.PickupCity, s.PickupLat, s.PickupLng,
+		s.PickupScheduledAt,
+		s.DropoffLocationName, s.DropoffCity, s.DropoffLat, s.DropoffLng,
+		s.DropoffScheduledAt,
+		s.SegmentDistanceMeters, s.SegmentDurationMinutes, s.SegmentPrice,
+	)
+	if err != nil {
+		r.logger.Error("insertSegment failed", zap.Error(err), zap.String("segmentID", s.SegmentID))
+		return fmt.Errorf("%w: %s", bookingErrors.ErrorInternalServer, err.Error())
+	}
+
+	return nil
+}
+
+func (r *bookingWriteRepositoryImpl) insertHistory(ctx context.Context, tx pgx.Tx, h *domain.StatusHistoryEntry) error {
+	query := `
+		INSERT INTO bookings_status_history (
+			history_id, booking_id, previous_status, new_status,
+			changed_by, changed_by_type, change_reason, metadata
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+
+	_, err := tx.Exec(ctx, query,
+		h.HistoryID, h.BookingID, h.PreviousStatus, h.NewStatus,
+		h.ChangedBy, h.ChangedByType, h.ChangeReason, h.Metadata,
+	)
+	if err != nil {
+		r.logger.Error("insertHistory failed", zap.Error(err), zap.String("historyID", h.HistoryID))
+		return fmt.Errorf("%w: %s", bookingErrors.ErrorInternalServer, err.Error())
+	}
+
+	return nil
+}
+
+// Approve approuve une réservation pendingApproval.
+func (r *bookingWriteRepositoryImpl) Approve(ctx context.Context, bookingID, driverID string) error {
+	r.logger.Debug("approving booking", zap.String("bookingID", bookingID))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// Vérifier que le booking existe et est pendingApproval
+	var currentStatus string
+	var currentDriverID string
+	err = tx.QueryRow(ctx, `
+		SELECT status, driver_id FROM bookings WHERE booking_id = $1 FOR UPDATE`, bookingID,
+	).Scan(&currentStatus, &currentDriverID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return bookingErrors.ErrorBookingNotFound
+		}
+		return bookingErrors.ErrorDataRetrievalFailed
+	}
+
+	if currentDriverID != driverID {
+		return bookingErrors.ErrorUnauthorized
+	}
+	if currentStatus != string(domain.BookingStatusPendingApproval) {
+		return bookingErrors.ErrorBookingNotPending
+	}
+
+	// Mettre à jour le statut
+	_, err = tx.Exec(ctx, `
+		UPDATE bookings SET status = 'approved', approved_at = NOW() WHERE booking_id = $1`, bookingID)
+	if err != nil {
+		r.logger.Error("approve update failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	// Historique
+	if err := r.insertHistoryInTx(ctx, tx, bookingID, currentStatus, string(domain.BookingStatusApproved), driverID, "driver"); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+// Reject rejette une réservation pendingApproval.
+func (r *bookingWriteRepositoryImpl) Reject(ctx context.Context, bookingID, driverID, reason string) error {
+	r.logger.Debug("rejecting booking", zap.String("bookingID", bookingID))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var currentStatus string
+	var currentDriverID string
+	err = tx.QueryRow(ctx, `
+		SELECT status, driver_id FROM bookings WHERE booking_id = $1 FOR UPDATE`, bookingID,
+	).Scan(&currentStatus, &currentDriverID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return bookingErrors.ErrorBookingNotFound
+		}
+		return bookingErrors.ErrorDataRetrievalFailed
+	}
+
+	if currentDriverID != driverID {
+		return bookingErrors.ErrorUnauthorized
+	}
+	if currentStatus != string(domain.BookingStatusPendingApproval) {
+		return bookingErrors.ErrorBookingNotPending
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE bookings SET status = 'rejected', rejected_at = NOW(), cancellation_reason = $2,
+		       refund_reason = `+refundReasonIfPaid("$3")+`
+		WHERE booking_id = $1`,
+		bookingID, reason, domain.RefundReasonBookingRejected)
+	if err != nil {
+		r.logger.Error("reject update failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	if err := r.insertHistoryInTx(ctx, tx, bookingID, currentStatus, string(domain.BookingStatusRejected), driverID, "driver"); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+// Cancel annule une réservation.
+func (r *bookingWriteRepositoryImpl) Cancel(ctx context.Context, bookingID, cancellerID, reason string) error {
+	r.logger.Debug("cancelling booking", zap.String("bookingID", bookingID))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var currentStatus string
+	var passengerID, driverID string
+	err = tx.QueryRow(ctx, `
+		SELECT status, passenger_id, driver_id FROM bookings WHERE booking_id = $1 FOR UPDATE`, bookingID,
+	).Scan(&currentStatus, &passengerID, &driverID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return bookingErrors.ErrorBookingNotFound
+		}
+		return bookingErrors.ErrorDataRetrievalFailed
+	}
+
+	// Vérifier que l'utilisateur est le passager ou le conducteur
+	if cancellerID != passengerID && cancellerID != driverID {
+		return bookingErrors.ErrorUnauthorized
+	}
+
+	// Vérifier le statut — on ne peut annuler que certains statuts
+	cancellableStatuses := map[string]bool{
+		string(domain.BookingStatusCreated):         true,
+		string(domain.BookingStatusPaymentPending):  true,
+		string(domain.BookingStatusPendingApproval): true,
+		string(domain.BookingStatusApproved):        true,
+	}
+	if !cancellableStatuses[currentStatus] {
+		return bookingErrors.ErrorBookingAlreadyCancelled
+	}
+
+	// Déterminer le type de l'annuleur
+	changedByType := "passenger"
+	if cancellerID == driverID {
+		changedByType = "driver"
+	}
+
+	refundReason := domain.RefundReasonCancelledByPassenger
+	if changedByType == "driver" {
+		refundReason = domain.RefundReasonCancelledByDriver
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
+		       canceller_id = $2, cancellation_reason = $3,
+		       refund_reason = `+refundReasonIfPaid("$4")+`
+		WHERE booking_id = $1`,
+		bookingID, cancellerID, reason, refundReason)
+	if err != nil {
+		r.logger.Error("cancel update failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	if err := r.insertHistoryInTx(ctx, tx, bookingID, currentStatus, string(domain.BookingStatusCancelled), cancellerID, changedByType); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+// StartBookingsForWaypoint démarre les réservations approved d'un waypoint (pickup).
+// Retourne la liste des passengerIDs des bookings démarrés.
+func (r *bookingWriteRepositoryImpl) StartBookingsForWaypoint(ctx context.Context, tripID, waypointID string) ([]string, error) {
+	r.logger.Debug("starting bookings for waypoint",
+		zap.String("tripID", tripID), zap.String("waypointID", waypointID))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// Récupérer les bookings approved pour ce waypoint de pickup
+	rows, err := tx.Query(ctx, `
+		SELECT booking_id, passenger_id FROM bookings
+		WHERE trip_id = $1 AND pickup_waypoint_id = $2 AND status = 'approved'
+		FOR UPDATE`, tripID, waypointID)
+	if err != nil {
+		r.logger.Error("start bookings query failed", zap.Error(err))
+		return nil, bookingErrors.ErrorInternalServer
+	}
+
+	type bookingRow struct {
+		bookingID   string
+		passengerID string
+	}
+	var bookings []bookingRow
+	for rows.Next() {
+		var row bookingRow
+		if err := rows.Scan(&row.bookingID, &row.passengerID); err != nil {
+			rows.Close()
+			return nil, bookingErrors.ErrorInternalServer
+		}
+		bookings = append(bookings, row)
+	}
+	rows.Close()
+
+	if len(bookings) == 0 {
+		return nil, tx.Commit(ctx)
+	}
+
+	// Mettre à jour en batch
+	passengerIDs := make([]string, 0, len(bookings))
+	for _, b := range bookings {
+		_, err = tx.Exec(ctx, `
+			UPDATE bookings SET status = 'inProgress' WHERE booking_id = $1`, b.bookingID)
+		if err != nil {
+			r.logger.Error("start booking update failed", zap.Error(err), zap.String("bookingID", b.bookingID))
+			return nil, bookingErrors.ErrorInternalServer
+		}
+
+		if err := r.insertHistoryInTx(ctx, tx, b.bookingID, string(domain.BookingStatusApproved), string(domain.BookingStatusInProgress), "system", "system"); err != nil {
+			return nil, err
+		}
+		passengerIDs = append(passengerIDs, b.passengerID)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, bookingErrors.ErrorInternalServer
+	}
+
+	r.logger.Info("bookings started for waypoint",
+		zap.String("tripID", tripID), zap.String("waypointID", waypointID), zap.Int("count", len(passengerIDs)))
+	return passengerIDs, nil
+}
+
+// CompleteBookingsForWaypoint complète les réservations inProgress d'un waypoint (dropoff).
+// Retourne la liste des passengerIDs des bookings complétés.
+func (r *bookingWriteRepositoryImpl) CompleteBookingsForWaypoint(ctx context.Context, tripID, waypointID string) ([]string, error) {
+	r.logger.Debug("completing bookings for waypoint",
+		zap.String("tripID", tripID), zap.String("waypointID", waypointID))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// Récupérer les bookings inProgress pour ce waypoint de dropoff
+	rows, err := tx.Query(ctx, `
+		SELECT booking_id, passenger_id FROM bookings
+		WHERE trip_id = $1 AND dropoff_waypoint_id = $2 AND status = 'inProgress'
+		FOR UPDATE`, tripID, waypointID)
+	if err != nil {
+		r.logger.Error("complete bookings query failed", zap.Error(err))
+		return nil, bookingErrors.ErrorInternalServer
+	}
+
+	type bookingRow struct {
+		bookingID   string
+		passengerID string
+	}
+	var bookings []bookingRow
+	for rows.Next() {
+		var row bookingRow
+		if err := rows.Scan(&row.bookingID, &row.passengerID); err != nil {
+			rows.Close()
+			return nil, bookingErrors.ErrorInternalServer
+		}
+		bookings = append(bookings, row)
+	}
+	rows.Close()
+
+	if len(bookings) == 0 {
+		return nil, tx.Commit(ctx)
+	}
+
+	passengerIDs := make([]string, 0, len(bookings))
+	for _, b := range bookings {
+		_, err = tx.Exec(ctx, `
+			UPDATE bookings SET status = 'completed', completed_at = NOW() WHERE booking_id = $1`, b.bookingID)
+		if err != nil {
+			r.logger.Error("complete booking update failed", zap.Error(err), zap.String("bookingID", b.bookingID))
+			return nil, bookingErrors.ErrorInternalServer
+		}
+
+		if err := r.insertHistoryInTx(ctx, tx, b.bookingID, string(domain.BookingStatusInProgress), string(domain.BookingStatusCompleted), "system", "system"); err != nil {
+			return nil, err
+		}
+		passengerIDs = append(passengerIDs, b.passengerID)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, bookingErrors.ErrorInternalServer
+	}
+
+	r.logger.Info("bookings completed for waypoint",
+		zap.String("tripID", tripID), zap.String("waypointID", waypointID), zap.Int("count", len(passengerIDs)))
+	return passengerIDs, nil
+}
+
+// ReportNoShow signale l'absence d'un passager ou d'un conducteur.
+func (r *bookingWriteRepositoryImpl) ReportNoShow(ctx context.Context, bookingID, reporterID, noShowType, description string) error {
+	r.logger.Debug("reporting no-show", zap.String("bookingID", bookingID), zap.String("type", noShowType))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var currentStatus string
+	err = tx.QueryRow(ctx, `
+		SELECT status FROM bookings WHERE booking_id = $1 FOR UPDATE`, bookingID,
+	).Scan(&currentStatus)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return bookingErrors.ErrorBookingNotFound
+		}
+		return bookingErrors.ErrorDataRetrievalFailed
+	}
+
+	// On ne peut signaler un no-show que pour un booking approved ou inProgress
+	if currentStatus != string(domain.BookingStatusApproved) && currentStatus != string(domain.BookingStatusInProgress) {
+		return bookingErrors.ErrorInvalidStatusTransition
+	}
+
+	// inProgress : le chauffeur a validé la prise en charge à ce point, le passager est à bord.
+	// Une absence du chauffeur (remboursement à 100 %) ne peut plus être déclarée.
+	if noShowType == "driver" && currentStatus == string(domain.BookingStatusInProgress) {
+		return bookingErrors.ErrorInvalidStatusTransition
+	}
+
+	refundReason := domain.RefundReasonNoShowPassenger
+	if noShowType == "driver" {
+		refundReason = domain.RefundReasonNoShowDriver
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE bookings SET status = 'noShow',
+		       no_show_type = $2, no_show_reported_by = $3,
+		       no_show_reported_at = NOW(), no_show_description = $4,
+		       refund_reason = `+refundReasonIfPaid("$5")+`
+		WHERE booking_id = $1`,
+		bookingID, noShowType, reporterID, description, refundReason)
+	if err != nil {
+		r.logger.Error("report no-show update failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	if err := r.insertHistoryInTx(ctx, tx, bookingID, currentStatus, string(domain.BookingStatusNoShow), reporterID, noShowType); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+// ContestNoShow enregistre la contestation d'un no-show par la partie accusée. Elle n'est acceptée
+// que dans contestWindow après la déclaration (horloge de la base, comme le worker de remboursement)
+// et tant que le remboursement dû n'a pas été transmis à payment-service.
+func (r *bookingWriteRepositoryImpl) ContestNoShow(
+	ctx context.Context, bookingID, contesterID, reason string, contestWindow time.Duration,
+) error {
+	r.logger.Debug("contesting no-show", zap.String("bookingID", bookingID))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var (
+		currentStatus string
+		contested     bool
+		withinWindow  bool
+		refundSent    bool
+	)
+	err = tx.QueryRow(ctx, `
+		SELECT status,
+		       no_show_contested_at IS NOT NULL,
+		       COALESCE(no_show_reported_at >= NOW() - make_interval(secs => $2), false),
+		       refund_requested_at IS NOT NULL
+		FROM bookings WHERE booking_id = $1 FOR UPDATE`, bookingID, contestWindow.Seconds(),
+	).Scan(&currentStatus, &contested, &withinWindow, &refundSent)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return bookingErrors.ErrorBookingNotFound
+		}
+		return bookingErrors.ErrorDataRetrievalFailed
+	}
+
+	switch {
+	case currentStatus != string(domain.BookingStatusNoShow):
+		return bookingErrors.ErrorInvalidStatusTransition
+	case contested:
+		return bookingErrors.ErrorNoShowAlreadyContested
+	case !withinWindow || refundSent:
+		return bookingErrors.ErrorNoShowContestClosed
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE bookings SET no_show_contested_at = NOW(), no_show_contested_by = $2,
+		       no_show_contest_reason = $3, updated_at = NOW()
+		WHERE booking_id = $1`,
+		bookingID, contesterID, reason)
+	if err != nil {
+		r.logger.Error("contest no-show update failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	return tx.Commit(ctx)
+}
+
+// ResolveNoShowContest enregistre la décision du support sur un no-show contesté. Le motif retenu
+// remplace refund_reason (réservation payée en ligne uniquement) ; le worker de remboursement le
+// transmet dès que no_show_resolved_at est posé.
+func (r *bookingWriteRepositoryImpl) ResolveNoShowContest(
+	ctx context.Context, bookingID, supportUID, refundReason, note string,
+) error {
+	r.logger.Debug("resolving no-show contest", zap.String("bookingID", bookingID), zap.String("reason", refundReason))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var (
+		currentStatus string
+		contested     bool
+		resolved      bool
+	)
+	err = tx.QueryRow(ctx, `
+		SELECT status, no_show_contested_at IS NOT NULL, no_show_resolved_at IS NOT NULL
+		FROM bookings WHERE booking_id = $1 FOR UPDATE`, bookingID,
+	).Scan(&currentStatus, &contested, &resolved)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return bookingErrors.ErrorBookingNotFound
+		}
+		return bookingErrors.ErrorDataRetrievalFailed
+	}
+
+	switch {
+	case currentStatus != string(domain.BookingStatusNoShow) || !contested:
+		return bookingErrors.ErrorNoShowNotContested
+	case resolved:
+		return bookingErrors.ErrorNoShowAlreadyResolved
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE bookings SET no_show_resolved_at = NOW(), no_show_resolved_by = $2,
+		       no_show_resolution = $3, no_show_resolution_note = $4,
+		       refund_reason = `+refundReasonIfPaid("$5")+`, updated_at = NOW()
+		WHERE booking_id = $1`,
+		bookingID, supportUID, refundReason, note, refundReason)
+	if err != nil {
+		r.logger.Error("resolve no-show contest update failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	return tx.Commit(ctx)
+}
+
+// ConfirmPayment confirme le paiement d'une réservation : expectedStatus → newStatus
+// (pendingApproval, ou approved avec approved_at si le trajet est en auto-approbation).
+// expectedStatus vaut paymentPending, ou paymentFailed pour réactiver une réservation dont
+// les places ont été re-réservées après une approbation FedaPay tardive.
+// Retourne ErrorPaymentAlreadyConfirmed si la réservation est déjà confirmée et
+// ErrorInvalidStatusTransition si son statut a changé entre-temps.
+func (r *bookingWriteRepositoryImpl) ConfirmPayment(ctx context.Context, bookingID, transactionID string, expectedStatus, newStatus domain.BookingStatus) error {
+	r.logger.Debug("confirming payment", zap.String("bookingID", bookingID))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var currentStatus string
+	var paymentCompletedAt *time.Time
+	err = tx.QueryRow(ctx, `
+		SELECT status, payment_completed_at FROM bookings WHERE booking_id = $1 FOR UPDATE`, bookingID,
+	).Scan(&currentStatus, &paymentCompletedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return bookingErrors.ErrorBookingNotFound
+		}
+		return bookingErrors.ErrorDataRetrievalFailed
+	}
+
+	if currentStatus != string(expectedStatus) {
+		if paymentCompletedAt != nil {
+			return bookingErrors.ErrorPaymentAlreadyConfirmed
+		}
+		return bookingErrors.ErrorInvalidStatusTransition
+	}
+
+	query := `UPDATE bookings SET status = $2::booking_status, payment_completed_at = NOW(),
+		fedapay_transaction_id = $3, cancellation_reason = NULL WHERE booking_id = $1`
+	if newStatus == domain.BookingStatusApproved {
+		query = `UPDATE bookings SET status = $2::booking_status, payment_completed_at = NOW(),
+			approved_at = NOW(), fedapay_transaction_id = $3, cancellation_reason = NULL WHERE booking_id = $1`
+	}
+	if _, err = tx.Exec(ctx, query, bookingID, string(newStatus), transactionID); err != nil {
+		r.logger.Error("confirm payment update failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	confirmReason := "Paiement confirmé"
+	if expectedStatus == domain.BookingStatusPaymentFailed {
+		confirmReason = "Paiement confirmé tardivement — places re-réservées"
+	}
+	if err := r.insertHistory(ctx, tx, &domain.StatusHistoryEntry{
+		HistoryID:      uuid.New().String(),
+		BookingID:      bookingID,
+		PreviousStatus: currentStatus,
+		NewStatus:      string(newStatus),
+		ChangedBy:      "system",
+		ChangedByType:  "system",
+		ChangeReason:   &confirmReason,
+	}); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+// insertHistoryInTx est un helper pour insérer une entrée d'historique dans une transaction existante.
+func (r *bookingWriteRepositoryImpl) insertHistoryInTx(ctx context.Context, tx pgx.Tx, bookingID, previousStatus, newStatus, changedBy, changedByType string) error {
+	query := `
+		INSERT INTO bookings_status_history (
+			history_id, booking_id, previous_status, new_status,
+			changed_by, changed_by_type
+		) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)`
+
+	_, err := tx.Exec(ctx, query, bookingID, previousStatus, newStatus, changedBy, changedByType)
+	if err != nil {
+		r.logger.Error("insertHistoryInTx failed", zap.Error(err), zap.String("bookingID", bookingID))
+		return fmt.Errorf("%w: %s", bookingErrors.ErrorInternalServer, err.Error())
+	}
+
+	return nil
+}
+
+// FailPayment marque le paiement d'une réservation comme échoué.
+func (r *bookingWriteRepositoryImpl) FailPayment(ctx context.Context, bookingID, reason string) error {
+	r.logger.Debug("failing payment", zap.String("bookingID", bookingID))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var currentStatus string
+	err = tx.QueryRow(ctx, `
+		SELECT status FROM bookings WHERE booking_id = $1 FOR UPDATE`, bookingID,
+	).Scan(&currentStatus)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return bookingErrors.ErrorBookingNotFound
+		}
+		return bookingErrors.ErrorDataRetrievalFailed
+	}
+
+	if currentStatus != string(domain.BookingStatusPaymentPending) {
+		if currentStatus == string(domain.BookingStatusPaymentFailed) {
+			return bookingErrors.ErrorPaymentAlreadyFailed
+		}
+		return bookingErrors.ErrorInvalidStatusTransition
+	}
+
+	newStatus := string(domain.BookingStatusPaymentFailed)
+
+	_, err = tx.Exec(ctx, `
+		UPDATE bookings SET status = $2::booking_status, cancellation_reason = $3
+		WHERE booking_id = $1`, bookingID, newStatus, reason)
+	if err != nil {
+		r.logger.Error("fail payment update failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	if err := r.insertHistory(ctx, tx, &domain.StatusHistoryEntry{
+		HistoryID:      uuid.New().String(),
+		BookingID:      bookingID,
+		PreviousStatus: currentStatus,
+		NewStatus:      newStatus,
+		ChangedBy:      "system",
+		ChangedByType:  "system",
+		ChangeReason:   &reason,
+	}); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+// CancelBookingsForTrip annule toutes les réservations actives d'un trajet annulé.
+func (r *bookingWriteRepositoryImpl) CancelBookingsForTrip(ctx context.Context, tripID string) ([]*domain.Booking, error) {
+	r.logger.Debug("cancelling bookings for trip", zap.String("tripID", tripID))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	bookings, err := r.lockBookingsForBulkCancel(ctx, tx, `
+		WHERE trip_id = $1
+		  AND status IN ('paymentPending', 'pendingApproval', 'approved')`, tripID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(bookings) == 0 {
+		return nil, tx.Commit(ctx)
+	}
+
+	cancelReason := "Trajet annulé par le chauffeur"
+	for _, b := range bookings {
+		_, err = tx.Exec(ctx, `
+			UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
+			       canceller_id = 'system', cancellation_reason = $2,
+			       refund_reason = `+refundReasonIfPaid("$3")+`
+			WHERE booking_id = $1`, b.BookingID, cancelReason, domain.RefundReasonTripCancelled)
+		if err != nil {
+			r.logger.Error("cancel booking for trip update failed", zap.Error(err), zap.String("bookingID", b.BookingID))
+			return nil, bookingErrors.ErrorInternalServer
+		}
+
+		if err := r.insertHistory(ctx, tx, &domain.StatusHistoryEntry{
+			HistoryID:      uuid.New().String(),
+			BookingID:      b.BookingID,
+			PreviousStatus: string(b.Status),
+			NewStatus:      string(domain.BookingStatusCancelled),
+			ChangedBy:      "system",
+			ChangedByType:  "system",
+			ChangeReason:   &cancelReason,
+		}); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, bookingErrors.ErrorInternalServer
+	}
+
+	r.logger.Info("bookings cancelled for trip",
+		zap.String("tripID", tripID), zap.Int("count", len(bookings)))
+	return bookings, nil
+}
+
+// CancelBookingsForWaypoint annule les réservations actives d'un waypoint supprimé.
+func (r *bookingWriteRepositoryImpl) CancelBookingsForWaypoint(ctx context.Context, tripID, waypointID string) ([]*domain.Booking, error) {
+	r.logger.Debug("cancelling bookings for waypoint",
+		zap.String("tripID", tripID), zap.String("waypointID", waypointID))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// Récupérer les bookings actifs ayant ce waypoint comme pickup ou dropoff
+	bookings, err := r.lockBookingsForBulkCancel(ctx, tx, `
+		WHERE trip_id = $1
+		  AND (pickup_waypoint_id = $2 OR dropoff_waypoint_id = $2)
+		  AND status IN ('paymentPending', 'pendingApproval', 'approved')`, tripID, waypointID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(bookings) == 0 {
+		return nil, tx.Commit(ctx)
+	}
+
+	cancelReason := "Arrêt supprimé par le chauffeur"
+	for _, b := range bookings {
+		_, err = tx.Exec(ctx, `
+			UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
+			       canceller_id = 'system', cancellation_reason = $2,
+			       refund_reason = `+refundReasonIfPaid("$3")+`
+			WHERE booking_id = $1`, b.BookingID, cancelReason, domain.RefundReasonWaypointCancelled)
+		if err != nil {
+			r.logger.Error("cancel booking for waypoint update failed", zap.Error(err), zap.String("bookingID", b.BookingID))
+			return nil, bookingErrors.ErrorInternalServer
+		}
+
+		if err := r.insertHistory(ctx, tx, &domain.StatusHistoryEntry{
+			HistoryID:      uuid.New().String(),
+			BookingID:      b.BookingID,
+			PreviousStatus: string(b.Status),
+			NewStatus:      string(domain.BookingStatusCancelled),
+			ChangedBy:      "system",
+			ChangedByType:  "system",
+			ChangeReason:   &cancelReason,
+		}); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, bookingErrors.ErrorInternalServer
+	}
+
+	r.logger.Info("bookings cancelled for waypoint",
+		zap.String("tripID", tripID), zap.String("waypointID", waypointID), zap.Int("count", len(bookings)))
+	return bookings, nil
+}
+
+// lockBookingsForBulkCancel verrouille (FOR UPDATE) les réservations correspondant à whereClause
+// avant une annulation groupée. Les bookings renvoyés portent leur statut d'avant annulation et
+// les données de paiement nécessaires au service (suppression de la collecte ou remboursement).
+func (r *bookingWriteRepositoryImpl) lockBookingsForBulkCancel(
+	ctx context.Context, tx pgx.Tx, whereClause string, args ...any,
+) ([]*domain.Booking, error) {
+	rows, err := tx.Query(ctx, `
+		SELECT booking_id, trip_id, passenger_id, driver_id,
+		       pickup_waypoint_id, dropoff_waypoint_id,
+		       pickup_sequencer_order, dropoff_sequencer_order,
+		       seats_booked, subtotal, service_fee, total_amount, payment_method, status,
+		       approved_at, payment_completed_at
+		FROM bookings
+		`+whereClause+`
+		FOR UPDATE`, args...)
+	if err != nil {
+		r.logger.Error("bulk cancel bookings query failed", zap.Error(err))
+		return nil, bookingErrors.ErrorInternalServer
+	}
+	defer rows.Close()
+
+	var bookings []*domain.Booking
+	for rows.Next() {
+		b := &domain.Booking{}
+		if err := rows.Scan(
+			&b.BookingID, &b.TripID, &b.PassengerID, &b.DriverID,
+			&b.PickupWaypointID, &b.DropoffWaypointID,
+			&b.PickupSequencerOrder, &b.DropoffSequencerOrder,
+			&b.SeatsBooked, &b.Subtotal, &b.ServiceFee, &b.TotalAmount, &b.PaymentMethod, &b.Status,
+			&b.ApprovedAt, &b.PaymentCompletedAt,
+		); err != nil {
+			r.logger.Error("bulk cancel bookings scan failed", zap.Error(err))
+			return nil, bookingErrors.ErrorInternalServer
+		}
+		bookings = append(bookings, b)
+	}
+	if err := rows.Err(); err != nil {
+		r.logger.Error("bulk cancel bookings rows failed", zap.Error(err))
+		return nil, bookingErrors.ErrorInternalServer
+	}
+
+	return bookings, nil
+}
+
+// MarkPaymentReleased marque le paiement d'un booking comme libéré.
+func (r *bookingWriteRepositoryImpl) MarkPaymentReleased(ctx context.Context, bookingID string) error {
+	query := `UPDATE bookings SET payment_released_at = NOW() WHERE booking_id = $1`
+
+	tag, err := r.pool.Exec(ctx, query, bookingID)
+	if err != nil {
+		r.logger.Error("MarkPaymentReleased failed", zap.Error(err), zap.String("bookingID", bookingID))
+		return bookingErrors.ErrorInternalServer
+	}
+	if tag.RowsAffected() == 0 {
+		return bookingErrors.ErrorBookingNotFound
+	}
+
+	return nil
+}
+
+// MarkRefundRequested enregistre l'acquittement de la demande de remboursement par payment-service.
+func (r *bookingWriteRepositoryImpl) MarkRefundRequested(ctx context.Context, bookingID string) error {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE bookings SET refund_requested_at = NOW()
+		WHERE booking_id = $1 AND refund_requested_at IS NULL`, bookingID)
+	if err != nil {
+		r.logger.Error("MarkRefundRequested failed", zap.Error(err), zap.String("bookingID", bookingID))
+		return bookingErrors.ErrorInternalServer
+	}
+	if tag.RowsAffected() == 0 {
+		r.logger.Debug("MarkRefundRequested: already marked", zap.String("bookingID", bookingID))
+	}
+	return nil
+}
+
+// IncrementRefundRequestAttempts compte un refus définitif de payment-service et retourne le total.
+func (r *bookingWriteRepositoryImpl) IncrementRefundRequestAttempts(
+	ctx context.Context, bookingID string,
+) (int, error) {
+	var attempts int
+	err := r.pool.QueryRow(ctx, `
+		UPDATE bookings SET refund_request_attempts = refund_request_attempts + 1
+		WHERE booking_id = $1
+		RETURNING refund_request_attempts`, bookingID).Scan(&attempts)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, bookingErrors.ErrorBookingNotFound
+		}
+		r.logger.Error("IncrementRefundRequestAttempts failed",
+			zap.Error(err), zap.String("bookingID", bookingID))
+		return 0, bookingErrors.ErrorInternalServer
+	}
+	return attempts, nil
+}
+
+// AnonymizeUserRefs pseudonymise les références d'un utilisateur dans bookings et bookings_status_history.
+func (r *bookingWriteRepositoryImpl) AnonymizeUserRefs(ctx context.Context, userID string) error {
+	anon := anonymizedUserID(userID)
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		r.logger.Error("AnonymizeUserRefs: begin tx failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	_, err = tx.Exec(ctx, `
+		UPDATE bookings SET
+			passenger_id          = CASE WHEN passenger_id          = $2 THEN $1 ELSE passenger_id END,
+			driver_id             = CASE WHEN driver_id             = $2 THEN $1 ELSE driver_id END,
+			canceller_id          = CASE WHEN canceller_id          = $2 THEN $1 ELSE canceller_id END,
+			no_show_reported_by   = CASE WHEN no_show_reported_by   = $2 THEN $1 ELSE no_show_reported_by END,
+			updated_at            = NOW()
+		WHERE (passenger_id = $2 OR driver_id = $2 OR canceller_id = $2 OR no_show_reported_by = $2)
+		  AND deleted_at IS NULL`,
+		anon, userID,
+	)
+	if err != nil {
+		r.logger.Error("AnonymizeUserRefs: update bookings failed", zap.Error(err), zap.String("userID", userID))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	_, err = tx.Exec(ctx,
+		`UPDATE bookings_status_history SET changed_by = $1 WHERE changed_by = $2`,
+		anon, userID,
+	)
+	if err != nil {
+		r.logger.Error("AnonymizeUserRefs: update status_history failed", zap.Error(err), zap.String("userID", userID))
+		return bookingErrors.ErrorInternalServer
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		r.logger.Error("AnonymizeUserRefs: commit failed", zap.Error(err))
+		return bookingErrors.ErrorInternalServer
+	}
+	return nil
+}

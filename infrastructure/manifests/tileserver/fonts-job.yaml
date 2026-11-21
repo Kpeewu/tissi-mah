@@ -1,0 +1,93 @@
+# Job one-shot qui pré-remplit le PVC tileserver-data avec les glyph PBFs
+# OpenMapTiles (Open Sans + Noto Sans, couvrant Latin/Cyrillic/Arabic).
+#
+# Sans ces glyphes, MapLibre ne peut afficher aucun texte (noms de rues,
+# villes) — les chaînes existent dans les vector tiles mais ne sont pas
+# rasterisables côté GPU.
+#
+# Une seule exécution suffit, les fontes ne changent quasi jamais. Pour
+# régénérer si la release upstream change : kubectl delete job tile-fonts
+# puis kubectl apply -f.
+#
+# Pré-requis : le PVC tileserver-data existe et n'est PAS mounté en RO par
+# un pod tileserver-gl pendant l'exécution (sinon Multi-Attach error sur
+# storage RWO local-path). Idéalement scaler tileserver-gl à 0 le temps
+# du job, ou laisser le job patienter (il est rapide : ~30 s).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tile-fonts
+  namespace: default
+  labels:
+    app: tile-fonts
+    tier: tiles-prep
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: tile-fonts
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: fetch-fonts
+          image: alpine:3.20
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-eu", "-c"]
+          args:
+            - |
+              echo "==> Installing curl + unzip"
+              apk add --no-cache curl unzip >/dev/null
+
+              cd /tiles
+              # Si fonts/ existe déjà avec contenu, on suppose que le job a
+              # déjà tourné — pas de re-download. Mettre `force=1` en env pour
+              # forcer.
+              if [ -d fonts ] && [ -n "$(ls -A fonts 2>/dev/null)" ] && [ -z "${FORCE:-}" ]; then
+                echo "==> /tiles/fonts already populated, skipping (set FORCE=1 to override)"
+                ls fonts | head -10
+                exit 0
+              fi
+
+              echo "==> Downloading openmaptiles/fonts noto-open-sans.zip (~30 Mo)"
+              curl -fsSL \
+                https://github.com/openmaptiles/fonts/releases/download/v2.0/noto-open-sans.zip \
+                -o /tmp/fonts.zip
+
+              echo "==> Extracting to /tiles/fonts/"
+              rm -rf fonts
+              mkdir fonts
+              unzip -q /tmp/fonts.zip -d fonts
+              rm /tmp/fonts.zip
+
+              # Le zip peut contenir un dossier racine wrapping (ex:
+              # noto-open-sans/Open Sans Regular/...) → on aplatit si c'est le cas.
+              if [ "$(ls fonts | wc -l)" -eq 1 ] && [ -d "fonts/$(ls fonts)" ]; then
+                inner="fonts/$(ls fonts)"
+                if [ -d "$inner/Open Sans Regular" ] || [ -d "$inner/Noto Sans Regular" ]; then
+                  echo "==> Flattening $inner -> fonts/"
+                  mv "$inner"/* fonts/
+                  rmdir "$inner"
+                fi
+              fi
+
+              echo "==> Done. Available fontstacks:"
+              ls fonts
+              echo "==> Sample range files in 'Open Sans Regular':"
+              ls "fonts/Open Sans Regular" 2>/dev/null | head -5 \
+                || echo "(Open Sans Regular not found — check zip layout)"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: tile-data
+              mountPath: /tiles
+      volumes:
+        - name: tile-data
+          persistentVolumeClaim:
+            claimName: tileserver-data

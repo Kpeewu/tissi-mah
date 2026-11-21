@@ -1,0 +1,45 @@
+# Config TileServer GL : déclare le dataset west-africa pointant sur le .pmtiles,
+# expose les glyphs SDF et les styles vectoriels (default + satellite).
+#
+# Endpoints exposés après déploiement :
+#   /data/west-africa/{z}/{x}/{y}.pbf            — vector tiles (MVT)
+#   /data/west-africa.json                       — TileJSON metadata
+#   /fonts/{fontstack}/{range}.pbf               — glyphs SDF (Noto + Open Sans)
+#   /styles/default/style.json                   — style vecteur standard
+#   /styles/satellite/style.json                 — style satellite (Esri + labels)
+#
+# Les fichiers styles/default.json et styles/satellite.json sont générés par
+# le Job tile-styles (infrastructure/manifests/tileserver/styles-job.yaml).
+# allowedHosts ferme l'attaque par Host header poisoning (warning v5).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tileserver-gl
+  namespace: default
+  labels:
+    app: tileserver-gl
+    tier: tiles
+data:
+  config.json: |
+    {
+      "options": {
+        "paths": {
+          "root":    "/data",
+          "styles":  "/data/styles",
+          "fonts":   "/data/fonts",
+          "mbtiles": "/data"
+        },
+        "frontPage": false,
+        "serveAllFonts": true,
+        "allowedHosts": ["tiles.tissimah.kpeewu.dev"]
+      },
+      "data": {
+        "west-africa": {
+          "pmtiles": "west-africa.pmtiles"
+        }
+      },
+      "styles": {
+        "default":   { "style": "default.json"   },
+        "satellite": { "style": "satellite.json" }
+      }
+    }

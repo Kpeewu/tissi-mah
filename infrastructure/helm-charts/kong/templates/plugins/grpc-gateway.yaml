@@ -1,0 +1,252 @@
+# Kong gRPC Gateway Plugin Configuration
+# Translates HTTP/REST requests to gRPC calls for backend services
+# Documentation: https://docs.konghq.com/hub/kong-inc/grpc-gateway/
+#
+# IMPORTANT: Proto files are NOT stored here.
+# They are injected at deployment time from each service's ConfigMap.
+# Each service is responsible for creating its own proto ConfigMap.
+#
+# Architecture:
+#   1. Each service creates a ConfigMap: <service>-proto (e.g., auth-service-proto)
+#   2. Kong init container copies protos from service ConfigMaps to shared volume
+#   3. Kong container mounts the shared volume at /usr/local/kong/proto/
+#
+# Service ConfigMap naming convention:
+#   - auth-service    -> auth-service-proto    -> auth.proto
+#   - user-service    -> user-service-proto    -> user.proto
+#   - client-service  -> client-service-proto  -> client.proto
+#   - payment-service -> payment-service-proto -> payment.proto
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: grpc-gateway-auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: grpc-gateway
+    service: auth-service
+  annotations:
+    konghq.com/plugins: grpc-gateway-auth
+config:
+  # Proto file path - mounted from service ConfigMap via init container
+  proto: /usr/local/kong/proto/auth.proto
+
+plugin: grpc-gateway
+
+---
+# Placeholder for future services
+# Uncomment when service is implemented
+#
+# apiVersion: configuration.konghq.com/v1
+# kind: KongPlugin
+# metadata:
+#   name: grpc-gateway-user
+#   namespace: {{ .Release.Namespace }}
+#   labels:
+#     app.kubernetes.io/name: kong
+#     app.kubernetes.io/component: plugin
+#     plugin-type: grpc-gateway
+#     service: user-service
+# config:
+#   proto: /usr/local/kong/proto/user.proto
+# plugin: grpc-gateway
+#
+# ---
+# apiVersion: configuration.konghq.com/v1
+# kind: KongPlugin
+# metadata:
+#   name: grpc-gateway-payment
+#   namespace: {{ .Release.Namespace }}
+#   labels:
+#     app.kubernetes.io/name: kong
+#     app.kubernetes.io/component: plugin
+#     plugin-type: grpc-gateway
+#     service: payment-service
+# config:
+#   proto: /usr/local/kong/proto/payment.proto
+# plugin: grpc-gateway
+
+---
+# gRPC Web plugin for browser clients (future web admin)
+# Enables gRPC-Web protocol support
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: grpc-web
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: grpc-web
+  annotations:
+    konghq.com/plugins: grpc-web
+config:
+  pass_stripped_path: true
+
+plugin: grpc-web
+
+---
+# Request Transformer for gRPC services
+# Merges gRPC headers + JWT-validated marker into a single plugin.
+# NOTE: Kong KIC only allows one plugin of a given type per route —
+# having both request-transformer-jwt and request-transformer-grpc on the same
+# route causes a UUID uniqueness violation (400 from Kong admin API).
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: request-transformer-grpc
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: request-transformer
+config:
+  add:
+    headers:
+      - "Content-Type:application/grpc"
+      - "TE:trailers"
+      - "X-Kong-JWT-Validated:true"
+  remove:
+    headers:
+      - "Accept-Encoding"
+
+plugin: request-transformer
+
+---
+# Response Transformer for gRPC services
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: response-transformer-grpc
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: plugin
+    plugin-type: response-transformer
+config:
+  add:
+    headers:
+      - "X-Content-Type-Options:nosniff"
+      - "X-Frame-Options:DENY"
+  rename:
+    headers:
+      - "grpc-status:X-gRPC-Status"
+      - "grpc-message:X-gRPC-Message"
+
+plugin: response-transformer
+
+---
+# =============================================================================
+# Proto Injection Configuration
+# =============================================================================
+# NOTE: The init container for proto files should be configured in the
+# Kong Helm chart values, not as a separate Deployment.
+#
+# Add this to your Kong values file (e.g., values-vps-dev.yaml):
+#
+# deployment:
+#   initContainers:
+#     - name: proto-loader
+#       image: busybox:1.36
+#       command: ["/bin/sh", "-c"]
+#       args:
+#         - |
+#           mkdir -p /proto-files/google/api
+#           cp /google-api-protos/*.proto /proto-files/google/api/ 2>/dev/null || true
+#           cp /service-protos/auth-service/*.proto /proto-files/ 2>/dev/null || true
+#       volumeMounts:
+#         - name: proto-files
+#           mountPath: /proto-files
+#         - name: google-api-protos
+#           mountPath: /google-api-protos
+#           readOnly: true
+#         - name: auth-service-proto
+#           mountPath: /service-protos/auth-service
+#           readOnly: true
+#
+#   userDefinedVolumes:
+#     - name: proto-files
+#       emptyDir: {}
+#     - name: google-api-protos
+#       configMap:
+#         name: google-api-protos
+#         optional: true
+#     - name: auth-service-proto
+#       configMap:
+#         name: auth-service-proto
+#         optional: true
+#
+#   userDefinedVolumeMounts:
+#     - name: proto-files
+#       mountPath: /usr/local/kong/proto
+#       readOnly: true
+# =============================================================================
+
+---
+# =============================================================================
+# Google API Proto Files
+# =============================================================================
+# These are standard proto files required for gRPC HTTP annotations
+# Source: https://github.com/googleapis/googleapis/tree/master/google/api
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: google-api-protos
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: proto
+data:
+  annotations.proto: |
+    // Copyright 2015 Google LLC
+    // Licensed under the Apache License, Version 2.0
+    syntax = "proto3";
+
+    package google.api;
+
+    import "google/api/http.proto";
+    import "google/protobuf/descriptor.proto";
+
+    option go_package = "google.golang.org/genproto/googleapis/api/annotations;annotations";
+
+    extend google.protobuf.MethodOptions {
+      HttpRule http = 72295728;
+    }
+
+  http.proto: |
+    // Copyright 2015 Google LLC
+    // Licensed under the Apache License, Version 2.0
+    syntax = "proto3";
+
+    package google.api;
+
+    option go_package = "google.golang.org/genproto/googleapis/api/annotations;annotations";
+
+    message Http {
+      repeated HttpRule rules = 1;
+      bool fully_decode_reserved_expansion = 2;
+    }
+
+    message HttpRule {
+      string selector = 1;
+
+      oneof pattern {
+        string get = 2;
+        string put = 3;
+        string post = 4;
+        string delete = 5;
+        string patch = 6;
+        CustomHttpPattern custom = 8;
+      }
+
+      string body = 7;
+      string response_body = 12;
+      repeated HttpRule additional_bindings = 11;
+    }
+
+    message CustomHttpPattern {
+      string kind = 1;
+      string path = 2;
+    }

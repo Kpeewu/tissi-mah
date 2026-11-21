@@ -1,0 +1,342 @@
+syntax = "proto3";
+
+package support;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/support-service/proto/gen;supportpb";
+
+import "google/api/annotations.proto";
+
+service SupportService {
+  rpc Login(LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/login"
+      body: "*"
+    };
+  }
+
+  rpc VerifyOTP(VerifyOTPRequest) returns (VerifyOTPResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/verifyOtp"
+      body: "*"
+    };
+  }
+
+  rpc ResendOTP(ResendOTPRequest) returns (ResendOTPResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/resendOtp"
+      body: "*"
+    };
+  }
+
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/refreshToken"
+      body: "*"
+    };
+  }
+
+  rpc Logout(LogoutRequest) returns (LogoutResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/logout"
+      body: "*"
+    };
+  }
+
+  rpc Me(MeRequest) returns (MeResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/support/me"
+    };
+  }
+
+  rpc ChangeMyPassword(ChangeMyPasswordRequest) returns (ChangeMyPasswordResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/me/password"
+      body: "*"
+    };
+  }
+
+  // UpdateMyProfile permet à l'utilisateur courant (admin ou agent) de modifier
+  // ses propres nom et prénom.
+  rpc UpdateMyProfile(UpdateMyProfileRequest) returns (UpdateMyProfileResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/me/profile"
+      body: "*"
+    };
+  }
+
+  rpc CreateSupportAgent(CreateSupportAgentRequest) returns (CreateSupportAgentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/admin/agents"
+      body: "*"
+    };
+  }
+
+  rpc ListSupportAgents(ListSupportAgentsRequest) returns (ListSupportAgentsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/support/admin/agents"
+    };
+  }
+
+  rpc DeactivateSupportAgent(DeactivateSupportAgentRequest) returns (DeactivateSupportAgentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/admin/agents/deactivate"
+      body: "*"
+    };
+  }
+
+  rpc ActivateSupportAgent(ActivateSupportAgentRequest) returns (ActivateSupportAgentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/admin/agents/activate"
+      body: "*"
+    };
+  }
+
+  // DeleteSupportAgent supprime (soft-delete) un agent. Seul un compte déjà
+  // désactivé peut être supprimé.
+  rpc DeleteSupportAgent(DeleteSupportAgentRequest) returns (DeleteSupportAgentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/admin/agents/delete"
+      body: "*"
+    };
+  }
+
+  // UpdateSupportAgent permet à l'admin de modifier l'email et/ou le rôle d'un
+  // agent. Un champ vide signifie « inchangé ».
+  rpc UpdateSupportAgent(UpdateSupportAgentRequest) returns (UpdateSupportAgentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/admin/agents/update"
+      body: "*"
+    };
+  }
+
+  // ForgotPassword (public) : déclenche le flux de réinitialisation.
+  rpc ForgotPassword(ForgotPasswordRequest) returns (ForgotPasswordResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/forgotPassword"
+      body: "*"
+    };
+  }
+
+  // ResetPassword (public) : applique un nouveau mot de passe via un token de reset.
+  rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/resetPassword"
+      body: "*"
+    };
+  }
+
+  // ListPasswordResetRequests (admin) : demandes de reset support en attente.
+  rpc ListPasswordResetRequests(ListPasswordResetRequestsRequest) returns (ListPasswordResetRequestsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/support/admin/agents/resetRequests"
+    };
+  }
+
+  // TriggerPasswordReset (admin) : envoie un lien de reset à l'agent ciblé.
+  rpc TriggerPasswordReset(TriggerPasswordResetRequest) returns (TriggerPasswordResetResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/support/admin/agents/triggerReset"
+      body: "*"
+    };
+  }
+
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/support/health"
+    };
+  }
+
+  // GetSupportUserByID est un RPC inter-service (gRPC uniquement, pas d'annotation HTTP).
+  // Utilisé par payment-service pour vérifier l'identité et l'habilitation d'un agent support.
+  rpc GetSupportUserByID(GetSupportUserByIDRequest) returns (GetSupportUserByIDResponse);
+}
+
+message LoginRequest {
+  string Email    = 1;
+  string Password = 2;
+}
+
+message LoginResponse {
+  string OtpSessionId      = 1;
+  int32  ExpiresInSeconds  = 2;
+}
+
+message VerifyOTPRequest {
+  string OtpSessionId = 1;
+  string Code         = 2;
+}
+
+message VerifyOTPResponse {
+  string AccessToken        = 1;
+  int64  AccessExpiresAt    = 2;
+  string RefreshToken       = 3;
+  int64  RefreshExpiresAt   = 4;
+  string Role               = 5;
+  bool   MustChangePassword = 6;
+}
+
+message ResendOTPRequest {
+  string OtpSessionId = 1;
+}
+
+message ResendOTPResponse {
+  string OtpSessionId     = 1;
+  int32  ExpiresInSeconds = 2;
+}
+
+message RefreshTokenRequest {
+  string RefreshToken = 1;
+}
+
+message RefreshTokenResponse {
+  string AccessToken      = 1;
+  int64  AccessExpiresAt  = 2;
+  string RefreshToken     = 3;
+  int64  RefreshExpiresAt = 4;
+}
+
+message LogoutRequest {
+  string RefreshToken = 1;
+}
+
+message LogoutResponse {}
+
+message MeRequest {}
+
+message MeResponse {
+  string UserId             = 1;
+  string Email              = 2;
+  string FirstName          = 3;
+  string LastName           = 4;
+  string Role               = 5;
+  bool   MustChangePassword = 6;
+  int64  CreatedAt          = 7;
+}
+
+message ChangeMyPasswordRequest {
+  string CurrentPassword = 1;
+  string NewPassword     = 2;
+}
+
+message ChangeMyPasswordResponse {}
+
+message UpdateMyProfileRequest {
+  string FirstName = 1;
+  string LastName  = 2;
+}
+
+message UpdateMyProfileResponse {}
+
+message CreateSupportAgentRequest {
+  string Email     = 1;
+  string FirstName = 2;
+  string LastName  = 3;
+  // Role du nouvel agent : "admin" ou "support". Obligatoire.
+  string Role      = 4;
+}
+
+message CreateSupportAgentResponse {
+  string UserId = 1;
+}
+
+message ListSupportAgentsRequest {
+  int32 Limit  = 1;
+  int32 Offset = 2;
+}
+
+message SupportAgent {
+  string UserId     = 1;
+  string Email      = 2;
+  string FirstName  = 3;
+  string LastName   = 4;
+  string Role       = 5;
+  bool   IsActive   = 6;
+  int64  CreatedAt  = 7;
+}
+
+message ListSupportAgentsResponse {
+  repeated SupportAgent Agents = 1;
+  int32                 Total  = 2;
+}
+
+message DeactivateSupportAgentRequest {
+  string UserId = 1;
+}
+
+message DeactivateSupportAgentResponse {}
+
+message ActivateSupportAgentRequest {
+  string UserId = 1;
+}
+
+message ActivateSupportAgentResponse {}
+
+message DeleteSupportAgentRequest {
+  string UserId = 1;
+}
+
+message DeleteSupportAgentResponse {}
+
+message UpdateSupportAgentRequest {
+  string UserId = 1;
+  // Email : nouvelle adresse, vide = inchangé.
+  string Email  = 2;
+  // Role : "admin" ou "support", vide = inchangé.
+  string Role   = 3;
+}
+
+message UpdateSupportAgentResponse {}
+
+message ForgotPasswordRequest {
+  string Email = 1;
+}
+
+message ForgotPasswordResponse {}
+
+message ResetPasswordRequest {
+  string Token       = 1;
+  string NewPassword = 2;
+}
+
+message ResetPasswordResponse {}
+
+message ListPasswordResetRequestsRequest {}
+
+message PasswordResetRequest {
+  string UserId      = 1;
+  string Email       = 2;
+  string FirstName   = 3;
+  string LastName    = 4;
+  string Role        = 5;
+  int64  RequestedAt = 6;
+}
+
+message ListPasswordResetRequestsResponse {
+  repeated PasswordResetRequest Requests = 1;
+}
+
+message TriggerPasswordResetRequest {
+  string UserId = 1;
+}
+
+message TriggerPasswordResetResponse {}
+
+message HealthRequest {}
+
+message HealthResponse {
+  string Status  = 1;
+  string Version = 2;
+  string Service = 3;
+}
+
+message GetSupportUserByIDRequest {
+  string UserId = 1;
+}
+
+message GetSupportUserByIDResponse {
+  string UserId    = 1;
+  string FirstName = 2;
+  string LastName  = 3;
+  string Role      = 4;
+  bool   IsActive  = 5;
+}

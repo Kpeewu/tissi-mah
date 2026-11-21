@@ -1,0 +1,21 @@
+# Politique par défaut : bloquer tout le trafic ingress dans le namespace default.
+# Les règles suivantes (01, 02, 03, 04) ouvrent les exceptions nécessaires.
+#
+# IMPORTANT — Prérequis CNI :
+#   K3s utilise Flannel par défaut. Flannel supporte les NetworkPolicy depuis
+#   K3s v1.21+ (via le plugin flannel-network-policy). Vérifier que la
+#   NetworkPolicy controller est active :
+#     kubectl get pods -n kube-system | grep flannel
+#   Si non supporté, installer Calico comme CNI alternatif.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all-ingress
+  namespace: default
+  labels:
+    app.kubernetes.io/managed-by: tissi-mah
+spec:
+  podSelector: {}    # S'applique à TOUS les pods du namespace
+  policyTypes:
+    - Ingress
+  ingress: []        # Aucun ingress autorisé par défaut

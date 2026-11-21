@@ -1,0 +1,508 @@
+# Vehicle Service API
+
+This document describes the HTTP/REST API exposed by the vehicle-service through the api-gateway (grpc-gateway). This API is consumed by mobile clients (iOS/Android).
+
+## Base URL
+
+| Environment | Base URL |
+|-------------|----------|
+| Local | `http://localhost:8080` |
+| VPS-Dev | `https://api.tissimah.kpeewu.dev` |
+| Staging | `https://staging.tissi-mah.com` |
+| Production | `https://api.tissi-mah.com` |
+
+## Authentication
+
+Vehicle endpoints (except `health`) require a **Firebase JWT** (`Authorization: Bearer <token>`).
+The vehicle owner is always the **caller**: the api-gateway validates the JWT and injects the Firebase UID,
+which vehicle-service resolves to the internal UserID (user-service `GetUserByFirebaseID`).
+No user identifier is accepted in the request body.
+
+## Common Headers
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| `Authorization` | Yes (except health) | `Bearer <firebase-id-token>` |
+| `Content-Type` | Yes (POST/PATCH) | `application/json` |
+| `Accept` | No | `application/json` |
+| `X-Request-ID` | No | Client-generated UUID for request tracing |
+
+## Error Response Format
+
+All errors follow this format:
+
+```json
+{
+    "ErrorMessage": "ErrorVehicleNotFound"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ErrorMessage` | string | Error identifier (matches backend sentinel error name) |
+
+---
+
+## Endpoints
+
+### POST /api/v1/vehicle/add
+
+Creates a new vehicle owned by the caller.
+
+**Authentication:** Firebase JWT required (owner = caller)
+
+#### Request
+
+```http
+POST /api/v1/vehicle/add HTTP/1.1
+Host: api.tissi-mah.com
+Content-Type: application/json
+
+{
+    "Brand": "Toyota",
+    "NumberOfSeats": 5,
+    "BrandModel": "Corolla",
+    "Color": "Blanc",
+    "LicencePlate": "TG-1234-AB",
+    "Year": 2018
+}
+```
+
+#### Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `Brand` | string | Yes | Vehicle brand (e.g. Toyota, Honda) |
+| `NumberOfSeats` | integer | Yes | Number of available passenger seats |
+| `BrandModel` | string | Yes | Vehicle model (e.g. Corolla, Civic) |
+| `Color` | string | Yes | Vehicle color |
+| `LicencePlate` | string | Yes | Vehicle licence plate (must be unique) |
+| `Year` | integer | No | Model year — `0` or omitted = unknown; otherwise between 1950 and current year + 1 (`ErrorInvalidInput` otherwise) |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "VehicleId": "v-550e8400-e29b-41d4-a716-446655440000",
+    "ErrorMessage": ""
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `VehicleId` | string | Unique ID of the created vehicle |
+| `ErrorMessage` | string | Error message if failed, empty if success |
+
+#### Errors
+
+| Error | HTTP Code | Description |
+|-------|-----------|-------------|
+| `ErrorInvalidInput` | 400 | Missing or invalid field |
+| `ErrorLicencePlateConflict` | 409 | Licence plate already registered |
+
+#### Example (cURL)
+
+```bash
+curl -X POST https://api.tissi-mah.com/api/v1/vehicle/add \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <firebase-id-token>" \
+  -d '{
+    "Brand": "Toyota",
+    "NumberOfSeats": 5,
+    "BrandModel": "Corolla",
+    "Color": "Blanc",
+    "LicencePlate": "TG-1234-AB"
+  }'
+```
+
+---
+
+### PATCH /api/v1/vehicle/update
+
+Updates the mutable fields of a vehicle (color, licence plate and/or model year). Only the owner can update their vehicle.
+
+**Authentication:** Firebase JWT required (owner = caller)
+
+#### Request
+
+```http
+PATCH /api/v1/vehicle/update HTTP/1.1
+Host: api.tissi-mah.com
+Content-Type: application/json
+
+{
+    "VehicleId": "v-550e8400-e29b-41d4-a716-446655440000",
+    "Color": "Gris",
+    "LicencePlate": "TG-5678-CD",
+    "Year": 2019
+}
+```
+
+#### Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `VehicleId` | string | Yes | ID of the vehicle to update |
+| `Color` | string | No | New vehicle color |
+| `LicencePlate` | string | No | New licence plate (must be unique) |
+| `Year` | integer | No | New model year (`0` = unchanged; 1950..current year + 1) |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Success": true,
+    "ErrorMessage": ""
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Success` | boolean | `true` if update was applied |
+| `ErrorMessage` | string | Error message if failed, empty if success |
+
+#### Errors
+
+| Error | HTTP Code | Description |
+|-------|-----------|-------------|
+| `ErrorInvalidInput` | 400 | Missing or invalid field |
+| `ErrorVehicleNotFound` | 404 | Vehicle does not exist |
+| `ErrorUnauthorized` | 403 | The caller does not own this vehicle |
+| `ErrorLicencePlateConflict` | 409 | New licence plate already registered |
+
+#### Example (cURL)
+
+```bash
+curl -X PATCH https://api.tissi-mah.com/api/v1/vehicle/update \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <firebase-id-token>" \
+  -d '{
+    "VehicleId": "v-550e8400",
+    "Color": "Gris"
+  }'
+```
+
+---
+
+### POST /api/v1/vehicle/delete
+
+Deletes a vehicle. Only the owner can delete their vehicle.
+
+**Authentication:** Firebase JWT required (owner = caller)
+
+#### Request
+
+```http
+POST /api/v1/vehicle/delete HTTP/1.1
+Host: api.tissi-mah.com
+Content-Type: application/json
+
+{
+    "VehicleId": "v-550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+#### Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `VehicleId` | string | Yes | ID of the vehicle to delete |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Success": true,
+    "ErrorMessage": ""
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Success` | boolean | `true` if vehicle was deleted |
+| `ErrorMessage` | string | Error message if failed, empty if success |
+
+#### Errors
+
+| Error | HTTP Code | Description |
+|-------|-----------|-------------|
+| `ErrorVehicleNotFound` | 404 | Vehicle does not exist |
+| `ErrorUnauthorized` | 403 | The caller does not own this vehicle |
+
+#### Example (cURL)
+
+```bash
+curl -X POST https://api.tissi-mah.com/api/v1/vehicle/delete \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <firebase-id-token>" \
+  -d '{
+    "VehicleId": "v-550e8400"
+  }'
+```
+
+---
+
+### POST /api/v1/vehicle/details
+
+Retrieves full details of a vehicle, including documents fetched from file-service (assurance and registration card URLs, plus the driver's licence recto/verso URLs).
+
+**Authentication:** Firebase JWT required (owner = caller)
+
+#### Request
+
+```http
+POST /api/v1/vehicle/details HTTP/1.1
+Host: api.tissi-mah.com
+Content-Type: application/json
+
+{
+    "VehicleId": "v-550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+#### Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `VehicleId` | string | Yes | ID of the vehicle |
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Vehicle": {
+        "VehicleId": "v-550e8400-e29b-41d4-a716-446655440000",
+        "UserId": "8b1d4173-d563-4f81-aeb1-8bf565816545",
+        "Brand": "Toyota",
+        "NumberOfSeats": 5,
+        "BrandModel": "Corolla",
+        "Color": "Blanc",
+        "LicencePlate": "TG-1234-AB",
+        "IsVerified": false,
+        "Year": 2018,
+        "Documents": {
+            "AssuranceUrl": "https://storage.tissi-mah.com/files/assurance-abc123.pdf",
+            "VehicleRegistrationUrl": "https://storage.tissi-mah.com/files/carte-grise-abc123.pdf",
+            "DriverLicenceRectoUrl": "https://storage.tissi-mah.com/files/permis-recto-abc123.jpg",
+            "DriverLicenceVersoUrl": "https://storage.tissi-mah.com/files/permis-verso-abc123.jpg"
+        }
+    },
+    "ErrorMessage": ""
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Vehicle` | object | Full vehicle details |
+| `Vehicle.VehicleId` | string | Unique vehicle ID |
+| `Vehicle.UserId` | string | Internal UserID of the owner |
+| `Vehicle.Brand` | string | Vehicle brand |
+| `Vehicle.NumberOfSeats` | integer | Number of passenger seats |
+| `Vehicle.BrandModel` | string | Vehicle model |
+| `Vehicle.Color` | string | Vehicle color |
+| `Vehicle.LicencePlate` | string | Licence plate |
+| `Vehicle.Year` | integer | Model year, `0` if unknown |
+| `Vehicle.IsVerified` | boolean | Whether the vehicle has been verified by an admin |
+| `Vehicle.Documents.AssuranceUrl` | string | URL of the assurance document (empty if not uploaded) |
+| `Vehicle.Documents.VehicleRegistrationUrl` | string | URL of the registration card (empty if not uploaded) |
+| `Vehicle.Documents.DriverLicenceRectoUrl` | string | URL of the driver's licence front side — user-level document shared across all the user's vehicles (empty if not uploaded) |
+| `Vehicle.Documents.DriverLicenceVersoUrl` | string | URL of the driver's licence back side (empty if not uploaded) |
+| `ErrorMessage` | string | Error message if failed, empty if success |
+
+> **Note:** `Documents` are fetched from file-service. If file-service is unavailable, document URLs will be empty strings — the vehicle data is still returned.
+
+#### Errors
+
+| Error | HTTP Code | Description |
+|-------|-----------|-------------|
+| `ErrorVehicleNotFound` | 404 | Vehicle does not exist |
+| `ErrorUnauthorized` | 403 | The caller does not own this vehicle |
+
+#### Example (cURL)
+
+```bash
+curl -X POST https://api.tissi-mah.com/api/v1/vehicle/details \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <firebase-id-token>" \
+  -d '{
+    "VehicleId": "v-550e8400"
+  }'
+```
+
+---
+
+### POST /api/v1/vehicle/getUserVehicles
+
+Retrieves the list of all vehicles belonging to the caller.
+
+**Authentication:** Firebase JWT required (owner = caller)
+
+#### Request
+
+```http
+POST /api/v1/vehicle/getUserVehicles HTTP/1.1
+Host: api.tissi-mah.com
+Content-Type: application/json
+
+{
+}
+```
+
+#### Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+
+#### Response (Success)
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Vehicles": [
+        {
+            "VehicleId": "v-550e8400-e29b-41d4-a716-446655440000",
+            "Brand": "Toyota",
+            "BrandModel": "Corolla",
+            "LicencePlate": "TG-1234-AB",
+            "IsVerified": false,
+            "NumberOfSeats": 4,
+            "AssuranceStatus": "PENDING",
+            "VehicleRegistrationStatus": "MISSING",
+            "DriverLicenceStatus": "VALIDATED",
+            "TripCount": 0,
+            "Color": "Blanc",
+            "Year": 2018
+        },
+        {
+            "VehicleId": "v-660f9511-e29b-41d4-a716-446655440001",
+            "Brand": "Honda",
+            "BrandModel": "Civic",
+            "LicencePlate": "TG-5678-CD",
+            "IsVerified": true,
+            "NumberOfSeats": 4,
+            "AssuranceStatus": "VALIDATED",
+            "VehicleRegistrationStatus": "VALIDATED",
+            "DriverLicenceStatus": "VALIDATED",
+            "TripCount": 12,
+            "Color": "Gris",
+            "Year": 0
+        }
+    ],
+    "ErrorMessage": ""
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Vehicles` | array | List of vehicle previews (empty array if none) |
+| `Vehicles[].VehicleId` | string | Unique vehicle ID |
+| `Vehicles[].Brand` | string | Vehicle brand |
+| `Vehicles[].BrandModel` | string | Vehicle model |
+| `Vehicles[].LicencePlate` | string | Licence plate |
+| `Vehicles[].IsVerified` | boolean | Whether the vehicle has been verified |
+| `Vehicles[].NumberOfSeats` | integer | Passenger seats |
+| `Vehicles[].AssuranceStatus` | string | Insurance document status: `MISSING`, `PENDING`, `VALIDATED`, `REJECTED`, `EXPIRED` |
+| `Vehicles[].VehicleRegistrationStatus` | string | Registration card status (same values) |
+| `Vehicles[].DriverLicenceStatus` | string | Driver's licence status — user-level document shared across vehicles (same values) |
+| `Vehicles[].TripCount` | integer | Completed trips with this vehicle |
+| `Vehicles[].Color` | string | Color name as entered by the driver |
+| `Vehicles[].Year` | integer | Model year, `0` if unknown |
+| `ErrorMessage` | string | Error message if failed, empty if success |
+
+#### Errors
+
+| Error | HTTP Code | Description |
+|-------|-----------|-------------|
+| `ErrorInvalidInput` | 400 | Invalid input |
+| `ErrorDataRetrievalFailed` | 500 | Database query failed |
+
+#### Example (cURL)
+
+```bash
+curl -X POST https://api.tissi-mah.com/api/v1/vehicle/getUserVehicles \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <firebase-id-token>" \
+  -d '{}'
+```
+
+---
+
+### GET /api/v1/vehicle/health
+
+Health check endpoint for the vehicle-service.
+
+**Authentication:** Not required (public)
+
+#### Request
+
+```http
+GET /api/v1/vehicle/health HTTP/1.1
+Host: api.tissi-mah.com
+```
+
+#### Response
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "Status": "SERVING",
+    "Version": "v1.0.0",
+    "Timestamp": 1709136000
+}
+```
+
+#### Example (cURL)
+
+```bash
+curl https://api.tissi-mah.com/api/v1/vehicle/health
+```
+
+---
+
+## Business Rules
+
+| Rule | Description |
+|------|-------------|
+| **Unique licence plate** | Each licence plate can only be registered once across the platform |
+| **Owner-only modification** | Only the vehicle owner (the authenticated caller) can read, update or delete their vehicle |
+| **Verification by admin** | `IsVerified` is set to `false` on creation and can only be changed by an admin |
+| **Fault-tolerant documents** | Document URLs are populated from file-service; if unavailable, empty strings are returned without error |
+
+---
+
+## Error Reference
+
+| Error | HTTP | gRPC Code | Description | User Action |
+|-------|------|-----------|-------------|-------------|
+| `ErrorVehicleNotFound` | 404 | NOT_FOUND (5) | Vehicle does not exist | Check vehicle ID |
+| `ErrorUnauthorized` | 403 | PERMISSION_DENIED (7) | The caller does not own this vehicle | Use one of your own vehicles |
+| `ErrorLicencePlateConflict` | 409 | ALREADY_EXISTS (6) | Licence plate already registered | Use a different licence plate |
+| `ErrorInvalidInput` | 400 | INVALID_ARGUMENT (3) | Missing or invalid request field | Fix the request body |
+| `ErrorDataRetrievalFailed` | 500 | INTERNAL (13) | Database query failed | Retry later |
+| `ErrorInternalServer` | 500 | INTERNAL (13) | Unexpected server error | Retry later |

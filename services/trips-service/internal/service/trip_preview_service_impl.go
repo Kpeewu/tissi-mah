@@ -1,0 +1,514 @@
+package service
+
+import (
+	"context"
+
+	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/cache"
+	"github.com/Kpeewu/tissi-mah/services/trips-service/internal/domain"
+	repoInterfaces "github.com/Kpeewu/tissi-mah/services/trips-service/internal/repository/interfaces"
+	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/trips-service/internal/service/interfaces"
+	tripErrors "github.com/Kpeewu/tissi-mah/services/trips-service/pkg/errors"
+	"go.uber.org/zap"
+)
+
+// GetTripsPreviews retourne la liste paginée des trajets du conducteur
+// enrichie avec le nom du conducteur et les infos du véhicule.
+// Utilise un cache-aside à 3 niveaux : previews DB, driver name, vehicle info.
+func (s *tripServiceImpl) GetTripsPreviews(ctx context.Context, input *serviceInterfaces.GetTripsPreviewsInput) ([]*serviceInterfaces.TripPreviewResult, error) {
+	driverUserID, err := requireDriverID(input.DriverID)
+	if err != nil {
+		return nil, err
+	}
+
+	// --- Niveau 1 : cache des previews DB bruts ---
+	previews, err := s.getCachedOrFetchPreviews(ctx, driverUserID, input.PageIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(previews) == 0 {
+		return []*serviceInterfaces.TripPreviewResult{}, nil
+	}
+
+	// --- Niveau 2 : cache du nom du conducteur ---
+	driverName := s.getCachedOrFetchDriverName(ctx, driverUserID)
+
+	// --- Niveau 3 : cache des infos véhicule ---
+	type vehicleInfo struct{ brand, plate string }
+	vehicleMap := make(map[string]vehicleInfo)
+	for _, p := range previews {
+		if _, ok := vehicleMap[p.VehicleID]; ok {
+			continue
+		}
+		brand, _, plate := s.getCachedOrFetchVehicleInfo(ctx, driverUserID, p.VehicleID)
+		vehicleMap[p.VehicleID] = vehicleInfo{brand: brand, plate: plate}
+	}
+
+	// --- Assemblage du résultat enrichi ---
+	results := make([]*serviceInterfaces.TripPreviewResult, 0, len(previews))
+	for _, p := range previews {
+		v := vehicleMap[p.VehicleID]
+
+		// Overlay available_seats depuis le cache Redis (temps réel post-réconciliation)
+		availableSeats := p.AvailableSeats
+		if s.cache != nil {
+			if seats, found, err := s.cache.GetSeatCounter(ctx, p.TripID); found && err == nil {
+				availableSeats = int16(seats)
+			} else if err != nil {
+				s.logger.Warn("GetTripsPreviews — seat cache read failed, using DB value",
+					zap.String("tripID", p.TripID),
+					zap.Error(err),
+				)
+			}
+		}
+
+		results = append(results, &serviceInterfaces.TripPreviewResult{
+			TripID:                p.TripID,
+			DriverID:              p.DriverID,
+			DriverName:            driverName,
+			VehicleID:             p.VehicleID,
+			VehicleBrand:          v.brand,
+			VehiclePlate:          v.plate,
+			DepartureDatetime:     p.DepartureDatetime,
+			TotalSeats:            p.TotalSeats,
+			AvailableSeats:        availableSeats,
+			DepartureLocationName: p.DepartureLocationName,
+			ArrivalLocationName:   p.ArrivalLocationName,
+		})
+	}
+
+	return results, nil
+}
+
+// GetCompletedTripsPreviews retourne la liste paginée des trajets complétés du conducteur
+// enrichie avec le nom du conducteur et les infos du véhicule.
+func (s *tripServiceImpl) GetCompletedTripsPreviews(ctx context.Context, input *serviceInterfaces.GetTripsPreviewsInput) ([]*serviceInterfaces.CompletedTripPreviewResult, error) {
+	driverUserID, err := requireDriverID(input.DriverID)
+	if err != nil {
+		return nil, err
+	}
+
+	// --- Niveau 1 : cache des previews complétés DB bruts ---
+	previews, err := s.getCachedOrFetchCompletedPreviews(ctx, driverUserID, input.PageIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(previews) == 0 {
+		return []*serviceInterfaces.CompletedTripPreviewResult{}, nil
+	}
+
+	// --- Niveau 2 : cache du nom du conducteur ---
+	driverName := s.getCachedOrFetchDriverName(ctx, driverUserID)
+
+	// --- Niveau 3 : cache des infos véhicule ---
+	type vehicleInfo struct{ brand, plate string }
+	vehicleMap := make(map[string]vehicleInfo)
+	for _, p := range previews {
+		if _, ok := vehicleMap[p.VehicleID]; ok {
+			continue
+		}
+		brand, _, plate := s.getCachedOrFetchVehicleInfo(ctx, driverUserID, p.VehicleID)
+		vehicleMap[p.VehicleID] = vehicleInfo{brand: brand, plate: plate}
+	}
+
+	// --- Assemblage du résultat enrichi ---
+	results := make([]*serviceInterfaces.CompletedTripPreviewResult, 0, len(previews))
+	for _, p := range previews {
+		v := vehicleMap[p.VehicleID]
+		results = append(results, &serviceInterfaces.CompletedTripPreviewResult{
+			TripID:                p.TripID,
+			DriverID:              p.DriverID,
+			DriverName:            driverName,
+			VehicleID:             p.VehicleID,
+			VehicleBrand:          v.brand,
+			VehiclePlateNumber:    v.plate,
+			DepartureDatetime:     p.DepartureDatetime,
+			TotalSeats:            p.TotalSeats,
+			AvailableSeats:        p.AvailableSeats,
+			DepartureLocationName: p.DepartureLocationName,
+			ArrivalLocationName:   p.ArrivalLocationName,
+		})
+	}
+
+	return results, nil
+}
+
+// validSearchSortBy liste les valeurs SortBy acceptées pour la recherche passager.
+var validSearchSortBy = map[string]bool{
+	"relevance":      true,
+	"departure_time": true,
+	"price":          true,
+}
+
+// GetScheduledTripsPreviews recherche les trajets/segments disponibles pour un passager.
+// Utilise le cache Redis pour les résultats de recherche (TTL 60s) et l'enrichissement standard.
+func (s *tripServiceImpl) GetScheduledTripsPreviews(ctx context.Context, input *serviceInterfaces.GetScheduledTripsPreviewsInput) (*serviceInterfaces.ScheduledTripsPreviewsResult, error) {
+	if input.DepartureLocationName == "" || input.ArrivalLocationName == "" {
+		return nil, tripErrors.ErrorInvalidInput
+	}
+
+	// Tri : défaut pertinence, valeur inconnue rejetée
+	sortBy := input.SortBy
+	if sortBy == "" {
+		sortBy = "relevance"
+	}
+	if !validSearchSortBy[sortBy] {
+		return nil, tripErrors.ErrorInvalidInput
+	}
+
+	if input.MaxPrice < 0 || input.MinSeats < 0 {
+		return nil, tripErrors.ErrorInvalidInput
+	}
+
+	pageSize := 10
+
+	// Construire les paramètres de recherche
+	distanceMeters := 5000
+	if input.DistanceRange != nil && *input.DistanceRange > 0 {
+		distanceMeters = *input.DistanceRange * 1000
+	}
+
+	minSeats := input.MinSeats
+	if minSeats <= 0 {
+		minSeats = 1
+	}
+
+	params := &repoInterfaces.SearchTripsParams{
+		PassengerLng:          input.PassengerPositionLng,
+		PassengerLat:          input.PassengerPositionLat,
+		ArrivalLng:            input.ArrivalPositionLng,
+		ArrivalLat:            input.ArrivalPositionLat,
+		DistanceRangeMeters:   distanceMeters,
+		DepartureLocationName: input.DepartureLocationName,
+		ArrivalLocationName:   input.ArrivalLocationName,
+		TripStartDate:         input.TripStartDate,
+		TripStartHour:         input.TripStartHour,
+		TripArrivalHour:       input.TripArrivalHour,
+		SortBy:                sortBy,
+		MaxPrice:              input.MaxPrice,
+		MinSeats:              minSeats,
+		AllowLuggages:         input.AllowLuggages,
+		AllowPets:             input.AllowPets,
+		AllowFood:             input.AllowFood,
+		AllowSmoking:          input.AllowSmoking,
+		PageIndex:             input.PageIndex,
+		PageSize:              pageSize,
+	}
+
+	previews, totalCount, err := s.searchCachedOrDB(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	// Aucun trajet exact : élargir le rayon autour des zones choisies plutôt que de
+	// renvoyer une page vide. Le client présente alors les résultats comme des trajets
+	// « à proximité », distance à l'appui. Sans coordonnées, rien à élargir.
+	nearbyResults := false
+	if len(previews) == 0 && input.PageIndex == 0 && hasSearchZone(params) {
+		widened := *params
+		widened.DistanceRangeMeters = nearbyRadiusMeters(distanceMeters)
+		nearbyPreviews, nearbyTotal, nearbyErr := s.searchCachedOrDB(ctx, &widened)
+		if nearbyErr != nil {
+			return nil, nearbyErr
+		}
+		if len(nearbyPreviews) > 0 {
+			previews, totalCount, nearbyResults = nearbyPreviews, nearbyTotal, true
+			distanceMeters = widened.DistanceRangeMeters
+			s.logger.Info("recherche élargie aux trajets à proximité",
+				zap.Int("radiusMeters", distanceMeters), zap.Int("found", len(previews)))
+		}
+	}
+
+	if len(previews) == 0 {
+		return &serviceInterfaces.ScheduledTripsPreviewsResult{
+			Previews:       []*serviceInterfaces.TripPreviewResult{},
+			NextIndex:      -1,
+			TotalCount:     totalCount,
+			SearchRadiusKm: searchRadiusKm(params, distanceMeters),
+		}, nil
+	}
+
+	// Enrichissement multi-driver : collecter les driverIDs et vehicleIDs uniques
+	type vehicleInfo struct{ brand, plate string }
+	type driverEnrichment struct {
+		name, profileImageURL string
+		ratingAverage         float64
+	}
+	driverMap := make(map[string]driverEnrichment)
+	vehicleMap := make(map[string]vehicleInfo)
+
+	for _, p := range previews {
+		if _, ok := driverMap[p.DriverID]; !ok {
+			name, photo := s.getCachedOrFetchDriverInfo(ctx, p.DriverID)
+			rating, _ := s.getCachedOrFetchDriverRating(ctx, p.DriverID)
+			driverMap[p.DriverID] = driverEnrichment{name: name, profileImageURL: photo, ratingAverage: rating}
+		}
+		if _, ok := vehicleMap[p.VehicleID]; !ok {
+			brand, _, plate := s.getCachedOrFetchVehicleInfo(ctx, p.DriverID, p.VehicleID)
+			vehicleMap[p.VehicleID] = vehicleInfo{brand: brand, plate: plate}
+		}
+	}
+
+	// Assemblage du résultat enrichi
+	results := make([]*serviceInterfaces.TripPreviewResult, 0, len(previews))
+	for _, p := range previews {
+		v := vehicleMap[p.VehicleID]
+		d := driverMap[p.DriverID]
+
+		results = append(results, &serviceInterfaces.TripPreviewResult{
+			TripID:                  p.TripID,
+			DriverID:                p.DriverID,
+			DriverName:              d.name,
+			VehicleID:               p.VehicleID,
+			VehicleBrand:            v.brand,
+			VehiclePlate:            v.plate,
+			DepartureDatetime:       p.DepartureDatetime,
+			TotalSeats:              p.TotalSeats,
+			AvailableSeats:          p.AvailableSeats,
+			DepartureLocationName:   p.DepartureLocationName,
+			ArrivalLocationName:     p.ArrivalLocationName,
+			DepartureWaypointID:     p.DepartureWaypointID,
+			ArrivalWaypointID:       p.ArrivalWaypointID,
+			SegmentPrice:            p.SegmentPrice,
+			SegmentDurationMinutes:  p.SegmentDurationMinutes,
+			DriverProfileImageURL:   d.profileImageURL,
+			DriverRatingAverage:     d.ratingAverage,
+			RelevanceScore:          p.RelevanceScore,
+			DepartureDistanceMeters: p.DepartureDistanceMeters,
+			ArrivalDistanceMeters:   p.ArrivalDistanceMeters,
+		})
+	}
+
+	// Calculer NextIndex
+	nextIndex := -1
+	if input.PageIndex*pageSize+len(results) < totalCount {
+		nextIndex = input.PageIndex + 1
+	}
+
+	return &serviceInterfaces.ScheduledTripsPreviewsResult{
+		Previews:       results,
+		NextIndex:      nextIndex,
+		TotalCount:     totalCount,
+		NearbyResults:  nearbyResults,
+		SearchRadiusKm: searchRadiusKm(params, distanceMeters),
+	}, nil
+}
+
+// searchCachedOrDB exécute la recherche via le cache Redis, sinon la base. La clé de
+// cache dépend du rayon : recherche exacte et recherche élargie ne se mélangent pas.
+func (s *tripServiceImpl) searchCachedOrDB(
+	ctx context.Context, params *repoInterfaces.SearchTripsParams,
+) ([]*domain.TripPreview, int, error) {
+	cacheKey := cache.BuildSearchCacheKey(params)
+
+	if s.cache != nil {
+		cached, count, err := s.cache.GetSearchResults(ctx, cacheKey)
+		if err == nil && cached != nil {
+			return cached, count, nil
+		}
+	}
+
+	result, err := s.readRepo.SearchScheduledTripSegments(ctx, params)
+	if err != nil {
+		s.logger.Error("SearchScheduledTripSegments failed", zap.Error(err))
+		return nil, 0, err
+	}
+
+	if s.cache != nil {
+		if err := s.cache.SetSearchResults(ctx, cacheKey, result.Previews, result.TotalCount); err != nil {
+			s.logger.Warn("mise en cache des résultats de recherche échouée", zap.Error(err))
+		}
+	}
+	return result.Previews, result.TotalCount, nil
+}
+
+// hasSearchZone indique si au moins une extrémité a des coordonnées : sans zone, il n'y
+// a pas de rayon à élargir.
+func hasSearchZone(params *repoInterfaces.SearchTripsParams) bool {
+	return (params.PassengerLng != nil && params.PassengerLat != nil) ||
+		(params.ArrivalLng != nil && params.ArrivalLat != nil)
+}
+
+// nearbyRadiusMeters élargit le rayon pour la recherche de repli : quatre fois le rayon
+// demandé, borné entre 40 et 100 km — de quoi couvrir les villes voisines au Togo sans
+// proposer un trajet à l'autre bout du pays.
+func nearbyRadiusMeters(requested int) int {
+	widened := requested * 4
+	if widened < 40_000 {
+		widened = 40_000
+	}
+	if widened > 100_000 {
+		widened = 100_000
+	}
+	return widened
+}
+
+// searchRadiusKm est le rayon effectivement appliqué, 0 si aucune zone n'a été fournie.
+func searchRadiusKm(params *repoInterfaces.SearchTripsParams, distanceMeters int) int {
+	if !hasSearchZone(params) {
+		return 0
+	}
+	return distanceMeters / 1000
+}
+
+// getCachedOrFetchCompletedPreviews tente le cache Redis, puis fallback sur la DB.
+func (s *tripServiceImpl) getCachedOrFetchCompletedPreviews(ctx context.Context, driverID string, pageIndex int) ([]*domain.TripPreview, error) {
+	// Essai cache
+	if s.cache != nil {
+		cached, err := s.cache.GetCompletedTripsPreviews(ctx, driverID, pageIndex)
+		if err == nil && cached != nil {
+			return cached, nil
+		}
+	}
+
+	// Fallback DB
+	previews, err := s.readRepo.GetDriverCompletedTripsPreviews(ctx, driverID, pageIndex)
+	if err != nil {
+		s.logger.Error("GetDriverCompletedTripsPreviews failed", zap.Error(err), zap.String("driverID", driverID))
+		return nil, err
+	}
+
+	// Populate cache
+	if s.cache != nil {
+		_ = s.cache.SetCompletedTripsPreviews(ctx, driverID, pageIndex, previews)
+	}
+
+	return previews, nil
+}
+
+// getCachedOrFetchPreviews tente le cache Redis, puis fallback sur la DB.
+func (s *tripServiceImpl) getCachedOrFetchPreviews(ctx context.Context, driverID string, pageIndex int) ([]*domain.TripPreview, error) {
+	// Essai cache
+	if s.cache != nil {
+		cached, err := s.cache.GetTripsPreviews(ctx, driverID, pageIndex)
+		if err == nil && cached != nil {
+			return cached, nil
+		}
+	}
+
+	// Fallback DB
+	previews, err := s.readRepo.GetDriverTripsPreviews(ctx, driverID, pageIndex)
+	if err != nil {
+		s.logger.Error("GetDriverTripsPreviews failed", zap.Error(err), zap.String("driverID", driverID))
+		return nil, err
+	}
+
+	// Populate cache (y compris pour les résultats vides — évite des requêtes DB répétées)
+	if s.cache != nil {
+		_ = s.cache.SetTripsPreviews(ctx, driverID, pageIndex, previews)
+	}
+
+	return previews, nil
+}
+
+// getCachedOrFetchDriverName tente le cache Redis, puis fallback sur user-service.
+func (s *tripServiceImpl) getCachedOrFetchDriverName(ctx context.Context, driverID string) string {
+	// Essai cache
+	if s.cache != nil {
+		name, found, err := s.cache.GetDriverName(ctx, driverID)
+		if err == nil && found {
+			return name
+		}
+	}
+
+	// Fallback gRPC
+	name, err := s.userClient.GetDriverName(ctx, driverID)
+	if err != nil {
+		s.logger.Warn("GetDriverName failed, using empty name", zap.Error(err), zap.String("driverID", driverID))
+		return ""
+	}
+
+	// Populate cache
+	if s.cache != nil {
+		_ = s.cache.SetDriverName(ctx, driverID, name)
+	}
+
+	return name
+}
+
+// getCachedOrFetchVehicleInfo tente le cache Redis, puis fallback sur vehicle-service.
+// Retourne (brand, model, plate).
+func (s *tripServiceImpl) getCachedOrFetchVehicleInfo(
+	ctx context.Context, driverID, vehicleID string,
+) (brand, model, plate string) {
+	// Essai cache
+	if s.cache != nil {
+		brand, model, plate, found, err := s.cache.GetVehicleInfo(ctx, vehicleID)
+		if err == nil && found {
+			return brand, model, plate
+		}
+	}
+
+	// Fallback gRPC
+	brand, model, plate, _, _, err := s.vehicleClient.GetVehicleInfo(ctx, driverID, vehicleID)
+	if err != nil {
+		s.logger.Warn("GetVehicleInfo failed, using empty values",
+			zap.Error(err),
+			zap.String("vehicleID", vehicleID),
+		)
+		return "", "", ""
+	}
+
+	// Populate cache
+	if s.cache != nil {
+		_ = s.cache.SetVehicleInfo(ctx, vehicleID, brand, model, plate)
+	}
+
+	return brand, model, plate
+}
+
+// getCachedOrFetchDriverInfo tente le cache Redis, puis fallback sur user-service.
+// Retourne (name, profileImageURL).
+func (s *tripServiceImpl) getCachedOrFetchDriverInfo(ctx context.Context, driverID string) (string, string) {
+	// Essai cache
+	if s.cache != nil {
+		name, photo, found, err := s.cache.GetDriverInfo(ctx, driverID)
+		if err == nil && found {
+			return name, photo
+		}
+	}
+
+	// Fallback gRPC
+	name, photo, err := s.userClient.GetDriverInfo(ctx, driverID)
+	if err != nil {
+		s.logger.Warn("GetDriverInfo failed, using empty values", zap.Error(err), zap.String("driverID", driverID))
+		return "", ""
+	}
+
+	// Populate cache
+	if s.cache != nil {
+		_ = s.cache.SetDriverInfo(ctx, driverID, name, photo)
+	}
+
+	return name, photo
+}
+
+// getCachedOrFetchDriverRating tente le cache Redis, puis fallback sur rating-service.
+// Retourne (moyenne, nombre de notes).
+func (s *tripServiceImpl) getCachedOrFetchDriverRating(ctx context.Context, driverID string) (float64, int32) {
+	// Essai cache
+	if s.cache != nil {
+		rating, count, found, err := s.cache.GetDriverRating(ctx, driverID)
+		if err == nil && found {
+			return rating, count
+		}
+	}
+
+	// Fallback gRPC
+	if s.ratingClient == nil {
+		return 0, 0
+	}
+	rating, count, err := s.ratingClient.GetDriverRatingAverage(ctx, driverID)
+	if err != nil {
+		s.logger.Warn("GetDriverRatingAverage failed, using 0", zap.Error(err), zap.String("driverID", driverID))
+		return 0, 0
+	}
+
+	// Populate cache
+	if s.cache != nil {
+		_ = s.cache.SetDriverRating(ctx, driverID, rating, count)
+	}
+
+	return rating, count
+}

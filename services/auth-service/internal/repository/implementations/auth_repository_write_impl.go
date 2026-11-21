@@ -1,0 +1,139 @@
+package implementations
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/Kpeewu/tissi-mah/services/auth-service/internal/domain"
+	i "github.com/Kpeewu/tissi-mah/services/auth-service/internal/repository/interfaces"
+	authErrors "github.com/Kpeewu/tissi-mah/services/auth-service/pkg/errors"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
+)
+
+type authWriteRepositoryImpl struct {
+	pool   *pgxpool.Pool
+	logger *zap.Logger
+}
+
+func NewAuthWriteRepository(pool *pgxpool.Pool, logger *zap.Logger) i.AuthRepositoryWrite {
+	return &authWriteRepositoryImpl{
+		pool:   pool,
+		logger: logger,
+	}
+}
+
+// create user account
+func (r *authWriteRepositoryImpl) Create(ctx context.Context, auth *domain.Auth) (string, error) {
+	r.logger.Debug("creating auth record",
+		zap.String("authID", auth.AuthID),
+		zap.String("firebaseID", auth.FirebaseID),
+		zap.Boolp("hasEmail", boolPtr(auth.Email != nil)),
+		zap.Boolp("hasPhone", boolPtr(auth.PhoneNumber != nil)),
+	)
+
+	query := `INSERT INTO auth (auth_id, firebase_id, email, phone_number, suspension_end_date)
+				VALUES ($1, $2, $3, $4, $5) RETURNING auth_id`
+
+	var authID string
+	err := r.pool.QueryRow(ctx, query, auth.AuthID, auth.FirebaseID, auth.Email, auth.PhoneNumber, auth.SuspensionEndDate).Scan(&authID)
+
+	if err != nil {
+		r.logger.Error("insert auth failed", zap.Error(err),
+			zap.String("authID", auth.AuthID),
+			zap.String("firebaseID", auth.FirebaseID),
+		)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", authErrors.ErrorDataRetrievalFailed
+		}
+		return "", authErrors.ErrorInternalServer
+	}
+
+	r.logger.Info("auth record created", zap.String("authID", authID))
+	return authID, nil
+}
+
+// update user auth informations
+func (r *authWriteRepositoryImpl) Update(ctx context.Context, auth *domain.Auth) (*domain.Auth, error) {
+	r.logger.Debug("updating auth record", zap.String("authID", auth.AuthID))
+
+	query := `UPDATE auth SET
+					email = $1, phone_number = $2, is_active = $3, is_suspended = $4, is_banned = $5, suspension_end_date = $6
+				WHERE auth_id = $7
+				RETURNING auth_id, firebase_id, email, phone_number, is_active, is_suspended, is_banned, suspension_end_date, created_at, updated_at, deleted_at`
+
+	err := r.pool.QueryRow(ctx, query, auth.Email, auth.PhoneNumber, auth.IsActive, auth.IsSuspended, auth.IsBanned, auth.SuspensionEndDate, auth.AuthID).Scan(
+		&auth.AuthID,
+		&auth.FirebaseID,
+		&auth.Email,
+		&auth.PhoneNumber,
+		&auth.IsActive,
+		&auth.IsSuspended,
+		&auth.IsBanned,
+		&auth.SuspensionEndDate,
+		&auth.CreatedAt,
+		&auth.UpdatedAt,
+		&auth.DeletedAt,
+	)
+
+	if err != nil {
+		r.logger.Error("update auth failed", zap.Error(err), zap.String("authID", auth.AuthID))
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, authErrors.ErrorUserNotFound
+		}
+		return nil, authErrors.ErrorInternalServer
+	}
+
+	r.logger.Info("auth record updated", zap.String("authID", auth.AuthID))
+	return auth, nil
+}
+
+// Suspend met à jour le statut de suspension/bannissement d'un compte.
+func (r *authWriteRepositoryImpl) Suspend(ctx context.Context, authID string, suspendedUntil *time.Time, isBanned bool) error {
+	r.logger.Debug("suspending auth record", zap.String("authID", authID), zap.Bool("isBanned", isBanned))
+
+	query := `UPDATE auth SET is_suspended = true, is_banned = $1, suspension_end_date = $2 WHERE auth_id = $3 AND deleted_at IS NULL`
+
+	tag, err := r.pool.Exec(ctx, query, isBanned, suspendedUntil, authID)
+	if err != nil {
+		r.logger.Error("suspend auth failed", zap.Error(err), zap.String("authID", authID))
+		return authErrors.ErrorInternalServer
+	}
+	if tag.RowsAffected() == 0 {
+		return authErrors.ErrorUserNotFound
+	}
+
+	r.logger.Info("auth record suspended", zap.String("authID", authID), zap.Bool("isBanned", isBanned))
+	return nil
+}
+
+// delete user auth informations
+// Travaille sur une copie pour ne pas corrompre l'objet appelant en cas d'échec DB
+func (r *authWriteRepositoryImpl) Delete(ctx context.Context, auth *domain.Auth) error {
+	r.logger.Debug("deleting auth record (anonymize)", zap.String("authID", auth.AuthID))
+
+	// Copie locale pour l'anonymisation — l'original reste intact si le DB update échoue
+	anonymized := *auth
+	anonymized.AnonymizeAndDelete()
+
+	query := `UPDATE auth SET
+					firebase_id = $1, phone_number = $2, email = $3, is_active = $4, deleted_at = $5 WHERE auth_id = $6`
+
+	_, err := r.pool.Exec(ctx, query, anonymized.FirebaseID, anonymized.PhoneNumber, anonymized.Email, anonymized.IsActive, anonymized.DeletedAt, anonymized.AuthID)
+
+	if err != nil {
+		r.logger.Error("delete auth failed", zap.Error(err), zap.String("authID", auth.AuthID))
+		return authErrors.ErrorCantDeleteAccount
+	}
+
+	// Succès DB — on propage les changements vers l'objet original
+	*auth = anonymized
+
+	r.logger.Info("auth record deleted", zap.String("authID", auth.AuthID))
+	return nil
+}
+
+func boolPtr(v bool) *bool { return &v }

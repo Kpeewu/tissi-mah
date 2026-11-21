@@ -1,0 +1,41 @@
+package mocks
+
+import (
+	"context"
+
+	"github.com/stretchr/testify/mock"
+)
+
+// MockUserClient est un mock du client UserClient.
+type MockUserClient struct {
+	mock.Mock
+}
+
+func (m *MockUserClient) IsVerifiedDriver(ctx context.Context, userID string) (bool, error) {
+	args := m.Called(ctx, userID)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockUserClient) GetDriverName(ctx context.Context, userID string) (string, error) {
+	args := m.Called(ctx, userID)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockUserClient) GetDriverInfo(ctx context.Context, userID string) (string, string, error) {
+	args := m.Called(ctx, userID)
+	return args.String(0), args.String(1), args.Error(2)
+}
+
+// GetUserIDByFirebaseID sert de UserIDResolver à l'intercepteur (tests e2e).
+func (m *MockUserClient) GetUserIDByFirebaseID(ctx context.Context, firebaseUID string) (string, error) {
+	args := m.Called(ctx, firebaseUID)
+	if fn, ok := args.Get(0).(func(context.Context, string) string); ok {
+		return fn(ctx, firebaseUID), args.Error(1)
+	}
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockUserClient) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}

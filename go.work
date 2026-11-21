@@ -1,0 +1,26 @@
+go 1.25.6
+
+use (
+	// Shared packages - common dependencies for all services
+	./pkg
+	./pkg-test
+
+	// Services - each with their own specific dependencies
+	./services/api-gateway
+	./services/auth-service
+	./services/booking-service
+	./services/chat-service
+	./services/email-service
+	./services/file-service
+	./services/geolocation-service
+	./services/kyc-service
+	./services/moderation-service
+	./services/notification-service
+	./services/payment-service
+	./services/push-service
+	./services/rating-service
+	./services/support-service
+	./services/trips-service
+	./services/user-service
+	./services/vehicle-service
+)

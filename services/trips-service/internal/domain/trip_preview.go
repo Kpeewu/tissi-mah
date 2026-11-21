@@ -1,0 +1,26 @@
+package domain
+
+import "time"
+
+// TripPreview contient les données brutes d'un trajet pour la liste du conducteur.
+// Les champs DriverName, VehicleBrand, VehiclePlate sont enrichis par le service.
+type TripPreview struct {
+	TripID                 string
+	DriverID               string
+	VehicleID              string
+	DepartureDatetime      time.Time
+	TotalSeats             int16
+	AvailableSeats         int16
+	DepartureLocationName  string
+	ArrivalLocationName    string
+	DepartureWaypointID    string
+	ArrivalWaypointID      string
+	SegmentPrice           int
+	SegmentDurationMinutes int
+	// Score de pertinence 0..1 (recherche passager uniquement, 0 sinon)
+	RelevanceScore float64
+	// Distance en mètres entre la zone choisie par le passager et l'extrémité du
+	// segment. nil si le passager n'a pas fourni de coordonnées pour cette extrémité.
+	DepartureDistanceMeters *int
+	ArrivalDistanceMeters   *int
+}

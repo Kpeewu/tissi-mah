@@ -1,0 +1,772 @@
+syntax = "proto3";
+
+package booking;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/bookingpb;bookingpb";
+
+import "google/api/annotations.proto";
+
+// BookingService gère les réservations de covoiturage.
+service BookingService {
+  // CreateBooking crée une nouvelle réservation pour un passager.
+  rpc CreateBooking(CreateBookingRequest) returns (CreateBookingResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/booking/createBooking"
+      body: "*"
+    };
+  }
+
+  // GetBookingDetails retourne les détails complets d'une réservation.
+  rpc GetBookingDetails(GetBookingDetailsRequest) returns (GetBookingDetailsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/booking/getBookingDetails"
+    };
+  }
+
+  // GetBookingDetailsInternal retourne le détail d'une réservation sans contrôle d'appartenance.
+  // Route interne appelée par payment-service et chat-service — bloquée en bordure par l'api-gateway.
+  rpc GetBookingDetailsInternal(GetBookingDetailsRequest) returns (GetBookingDetailsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/booking/internal/getBookingDetails"
+    };
+  }
+
+  // GetPassengerBookings retourne la liste paginée des réservations d'un passager.
+  rpc GetPassengerBookings(GetPassengerBookingsRequest) returns (GetPassengerBookingsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/booking/getPassengerBookings"
+    };
+  }
+
+  // GetDriverTripBookings retourne la liste paginée des réservations pour un trajet du conducteur.
+  rpc GetDriverTripBookings(GetDriverTripBookingsRequest) returns (GetDriverTripBookingsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/booking/getDriverTripBookings"
+    };
+  }
+
+  // ApproveBooking permet au conducteur d'approuver une réservation en attente.
+  rpc ApproveBooking(ApproveBookingRequest) returns (ApproveBookingResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/booking/approveBooking"
+      body: "*"
+    };
+  }
+
+  // RejectBooking permet au conducteur de rejeter une réservation en attente.
+  rpc RejectBooking(RejectBookingRequest) returns (RejectBookingResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/booking/rejectBooking"
+      body: "*"
+    };
+  }
+
+  // CancelBooking permet au passager ou au conducteur d'annuler une réservation.
+  rpc CancelBooking(CancelBookingRequest) returns (CancelBookingResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/booking/cancelBooking"
+      body: "*"
+    };
+  }
+
+  // StartBookingsForWaypoint démarre les réservations approuvées d'un waypoint.
+  // Route interne appelée par trips-service lors de StartTrip ou ConfirmWaypointDeparture.
+  rpc StartBookingsForWaypoint(StartBookingsForWaypointRequest) returns (StartBookingsForWaypointResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/booking/internal/startBookingsForWaypoint"
+      body: "*"
+    };
+  }
+
+  // CompleteBookingsForWaypoint complète les réservations en cours d'un waypoint.
+  // Route interne appelée par trips-service lors de EndTrip ou ConfirmWaypointArrival.
+  rpc CompleteBookingsForWaypoint(CompleteBookingsForWaypointRequest) returns (CompleteBookingsForWaypointResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/booking/internal/completeBookingsForWaypoint"
+      body: "*"
+    };
+  }
+
+  // CancelBookingsForWaypoint annule les réservations actives d'un waypoint supprimé.
+  // Route interne appelée par trips-service lors de CancelWaypoint.
+  rpc CancelBookingsForWaypoint(CancelBookingsForWaypointRequest) returns (CancelBookingsForWaypointResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/booking/internal/cancelBookingsForWaypoint"
+      body: "*"
+    };
+  }
+
+  // CancelBookingsForTrip annule toutes les réservations actives d'un trajet annulé.
+  // Route interne appelée par trips-service lors de CancelTrip.
+  rpc CancelBookingsForTrip(CancelBookingsForTripRequest) returns (CancelBookingsForTripResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/booking/internal/cancelBookingsForTrip"
+      body: "*"
+    };
+  }
+
+  // ReportNoShow signale l'absence d'un passager ou d'un conducteur.
+  rpc ReportNoShow(ReportNoShowRequest) returns (ReportNoShowResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/booking/reportNoShow"
+      body: "*"
+    };
+  }
+
+  // ContestNoShow conteste une absence déclarée, par la partie accusée, dans les 48 h suivant
+  // la déclaration. Le remboursement dû reste bloqué jusqu'à la décision du support.
+  rpc ContestNoShow(ContestNoShowRequest) returns (ContestNoShowResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/booking/contestNoShow"
+      body: "*"
+    };
+  }
+
+  // ConfirmPayment confirme le paiement d'une réservation.
+  // Route interne appelée par payment-service quand FedaPay a approuvé la collecte :
+  // paymentPending → approved (auto-approbation) ou pendingApproval. Une réservation
+  // paymentFailed (approbation tardive) est réactivée si les places sont encore disponibles.
+  rpc ConfirmPayment(ConfirmPaymentRequest) returns (ConfirmPaymentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/booking/internal/confirmPayment"
+      body: "*"
+    };
+  }
+
+  // FailPayment signale l'échec du paiement d'une réservation.
+  // Route interne appelée par payment-service lors d'un webhook d'échec FedaPay.
+  rpc FailPayment(FailPaymentRequest) returns (FailPaymentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/booking/internal/failPayment"
+      body: "*"
+    };
+  }
+
+  // GetActivePassengerIDsForTrip retourne les IDs des passagers ayant une réservation active sur un trajet.
+  // Route interne appelée par trips-service lors d'une modification de trajet (TRIP_MODIFIED).
+  rpc GetActivePassengerIDsForTrip(GetActivePassengerIDsForTripRequest) returns (GetActivePassengerIDsForTripResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/booking/internal/getActivePassengerIDsForTrip"
+    };
+  }
+
+  // GetDriverPendingBookings retourne la liste agrégée paginée des demandes en attente du conducteur
+  // tous trajets confondus, enrichie avec les informations passager (nom, note, KYC, message, détour).
+  rpc GetDriverPendingBookings(GetDriverPendingBookingsRequest) returns (GetDriverPendingBookingsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/booking/getDriverPendingBookings"
+    };
+  }
+
+  // GetDriverBookings retourne l'historique paginé des réservations d'un conducteur,
+  // tous trajets confondus, filtrable par statut (vide = tous statuts).
+  rpc GetDriverBookings(GetDriverBookingsRequest) returns (GetDriverBookingsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/booking/getDriverBookings"
+    };
+  }
+
+  // GetActivePassengerSummariesForTrip retourne les passagers actifs d'un trajet
+  // enrichis avec nom, note, statut paiement — pour l'écran de suivi chauffeur.
+  rpc GetActivePassengerSummariesForTrip(GetActivePassengerSummariesForTripRequest) returns (GetActivePassengerSummariesForTripResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/booking/getActivePassengerSummaries"
+    };
+  }
+
+  // ListBookings retourne la liste paginée et filtrée de toutes les réservations (support).
+  // Réservé aux agents support (JWT support).
+  rpc ListBookings(ListBookingsRequest) returns (ListBookingsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/booking/admin/listBookings"
+    };
+  }
+
+  // GetBookingDetailAdmin retourne le détail complet d'une réservation sans contrôle
+  // d'appartenance (support). Réservé aux agents support (JWT support).
+  rpc GetBookingDetailAdmin(GetBookingDetailAdminRequest) returns (GetBookingDetailAdminResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/booking/admin/getBookingDetail"
+    };
+  }
+
+  // ResolveNoShowContest tranche une contestation de no-show : le support choisit le motif de
+  // remboursement final (noShowDriver | noShowPassenger | tripCancelled), transmis à payment-service.
+  rpc ResolveNoShowContest(ResolveNoShowContestRequest) returns (ResolveNoShowContestResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/booking/admin/resolveNoShowContest"
+      body: "*"
+    };
+  }
+
+  // Health retourne l'état de santé du service.
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/booking/health"
+    };
+  }
+
+  // CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
+  // Interne uniquement — appelé par auth-service lors d'une demande de suppression de compte.
+  // Bloquant si le passager a une réservation active ou si le chauffeur a des réservations actives sur ses trajets.
+  rpc CheckDeletionEligibility(CheckDeletionEligibilityRequest) returns (CheckDeletionEligibilityResponse);
+
+  // AnonymizeUserData anonymise les références de l'utilisateur dans booking-service.
+  // Interne uniquement — appelé par auth-service lors de la suppression de compte.
+  rpc AnonymizeUserData(AnonymizeUserDataRequest) returns (AnonymizeUserDataResponse);
+
+  // GetPassengerBookingIDs retourne tous les IDs de réservation d'un passager.
+  // Interne uniquement — utilisé par auth-service pour passer les IDs à payment-service.
+  rpc GetPassengerBookingIDs(GetPassengerBookingIDsRequest) returns (GetPassengerBookingIDsResponse);
+}
+
+// =============================================================================
+// CreateBooking
+// =============================================================================
+
+message SegmentInput {
+  string PickupWaypointId       = 1;
+  string DropoffWaypointId      = 2;
+  string PickupLocationName     = 3;
+  string PickupCity             = 4;
+  double PickupLat              = 5;
+  double PickupLng              = 6;
+  string PickupScheduledAt      = 7;  // RFC3339
+  string DropoffLocationName    = 8;
+  string DropoffCity            = 9;
+  double DropoffLat             = 10;
+  double DropoffLng             = 11;
+  string DropoffScheduledAt     = 12; // RFC3339
+  int32  SegmentDistanceMeters  = 13;
+  int32  SegmentDurationMinutes = 14;
+  int32  SegmentPrice           = 15;
+}
+
+message CreateBookingRequest {
+  string PassengerId        = 1;
+  string TripId             = 2;
+  string PickupWaypointId   = 3;
+  string DropoffWaypointId  = 4;
+  int32  SeatsBooked        = 5;
+  string PaymentMethod      = 6; // mobileMoney | card | paypal | cash
+  repeated SegmentInput Segments = 7;
+  string PassengerMessage   = 8; // message optionnel du passager au conducteur
+  int32  ExtraMinutesDetour = 9; // détour en minutes calculé côté client (0 = inconnu)
+  int32  ExtraDetourPrice   = 10; // surcoût XOF lié au détour (0 = non renseigné)
+}
+
+message CreateBookingResponse {
+  string BookingId        = 1;
+  string BookingReference = 2;
+  string Status           = 3;
+  int32  TotalAmount      = 4;
+  string ErrorMessage     = 5;
+}
+
+// =============================================================================
+// GetBookingDetails
+// =============================================================================
+
+message GetBookingDetailsRequest {
+  string BookingId = 1;
+  string UserId    = 2; // ignoré : l'identité de l'appelant est issue du JWT
+}
+
+message SegmentDetail {
+  string SegmentId              = 1;
+  string PickupWaypointId       = 2;
+  string DropoffWaypointId      = 3;
+  string PickupLocationName     = 4;
+  string PickupCity             = 5;
+  double PickupLat              = 6;
+  double PickupLng              = 7;
+  string PickupScheduledAt      = 8;
+  string PickupActualAt         = 9;
+  string DropoffLocationName    = 10;
+  string DropoffCity            = 11;
+  double DropoffLat             = 12;
+  double DropoffLng             = 13;
+  string DropoffScheduledAt     = 14;
+  string DropoffActualAt        = 15;
+  int32  SegmentDistanceMeters  = 16;
+  int32  SegmentDurationMinutes = 17;
+  int32  SegmentPrice           = 18;
+}
+
+message StatusHistoryEntry {
+  string HistoryId     = 1;
+  string PreviousStatus = 2;
+  string NewStatus      = 3;
+  string ChangedBy      = 4;
+  string ChangedByType  = 5;
+  string ChangeReason   = 6;
+  string Metadata       = 7;
+  string CreatedAt      = 8; // RFC3339
+  string ChangedByName  = 9; // nom lisible de l'auteur (vide pour les transitions système)
+}
+
+message BookingDetail {
+  string BookingId          = 1;
+  string BookingReference   = 2;
+  string TripId             = 3;
+  string PassengerId        = 4;
+  string DriverId           = 5;
+  string PickupWaypointId   = 6;
+  string DropoffWaypointId  = 7;
+  int32  SeatsBooked        = 8;
+  int32  PricePerSeat       = 9;
+  int32  Subtotal           = 10;
+  int32  ServiceFee         = 11;
+  int32  TotalAmount        = 12;
+  string PaymentMethod      = 13;
+  string Status             = 14;
+  string PaymentCompletedAt = 15;
+  string ApprovedAt         = 16;
+  string RejectedAt         = 17;
+  string CancelledAt        = 18;
+  string CompletedAt        = 19;
+  string CancellerId        = 20;
+  string CancellationReason = 21;
+  string NoShowType         = 22;
+  string NoShowReportedBy   = 23;
+  string NoShowReportedAt   = 24;
+  string NoShowDescription  = 25;
+  string CreatedAt          = 26;
+  string UpdatedAt          = 27;
+  repeated SegmentDetail Segments       = 28;
+  repeated StatusHistoryEntry History   = 29;
+  string PassengerMessage               = 30; // message laissé par le passager lors de la réservation
+  string RoutePolyline                  = 31; // Google encoded polyline du trajet (vide si indisponible)
+  // Contestation du no-show par la partie accusée et décision du support (vides sinon)
+  string NoShowContestedAt              = 32;
+  string NoShowContestedBy              = 33;
+  string NoShowContestReason            = 34;
+  string NoShowResolvedAt               = 35;
+  string NoShowResolution               = 36; // motif de remboursement retenu par le support
+  string NoShowResolutionNote           = 37;
+}
+
+message GetBookingDetailsResponse {
+  BookingDetail Booking  = 1;
+  string ErrorMessage    = 2;
+}
+
+// =============================================================================
+// GetPassengerBookings
+// =============================================================================
+
+message GetPassengerBookingsRequest {
+  string PassengerId  = 1;
+  int32  Index        = 2; // index de page (0-based, 10 items par page)
+  string StatusFilter = 3; // filtre optionnel par statut
+}
+
+message BookingPreview {
+  string BookingId           = 1;
+  string BookingReference    = 2;
+  string TripId              = 3;
+  string Status              = 4;
+  int32  SeatsBooked         = 5;
+  int32  TotalAmount         = 6;
+  string PickupLocationName  = 7;
+  string DropoffLocationName = 8;
+  string DepartureDate       = 9;  // YYYY-MM-DD
+  string DepartureTime       = 10; // HH:MM
+}
+
+message GetPassengerBookingsResponse {
+  repeated BookingPreview Bookings = 1;
+  string ErrorMessage              = 2;
+}
+
+// =============================================================================
+// GetDriverTripBookings
+// =============================================================================
+
+message GetDriverTripBookingsRequest {
+  string DriverId = 1;
+  string TripId   = 2;
+  int32  Index    = 3;
+}
+
+message GetDriverTripBookingsResponse {
+  repeated BookingPreview Bookings             = 1; // liste legacy (backward-compatible)
+  string ErrorMessage                          = 2;
+  repeated DriverBookingPreview DriverBookings = 3; // liste enrichie avec infos passager
+  BookingCounts Counts                         = 4; // compteurs par statut pour ce trajet
+}
+
+// =============================================================================
+// ApproveBooking
+// =============================================================================
+
+message ApproveBookingRequest {
+  string DriverId  = 1;
+  string BookingId = 2;
+}
+
+message ApproveBookingResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// RejectBooking
+// =============================================================================
+
+message RejectBookingRequest {
+  string DriverId  = 1;
+  string BookingId = 2;
+  string Reason    = 3;
+}
+
+message RejectBookingResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// CancelBooking
+// =============================================================================
+
+message CancelBookingRequest {
+  string UserId    = 1;
+  string BookingId = 2;
+  string Reason    = 3;
+}
+
+message CancelBookingResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// StartBookingsForWaypoint (interne — appelé par trips-service)
+// =============================================================================
+
+message StartBookingsForWaypointRequest {
+  string TripId     = 1;
+  string WaypointId = 2;
+}
+
+message StartBookingsForWaypointResponse {
+  bool   Success       = 1;
+  int32  BookingsCount = 2; // nombre de bookings démarrés
+  string ErrorMessage  = 3;
+}
+
+// =============================================================================
+// CompleteBookingsForWaypoint (interne — appelé par trips-service)
+// =============================================================================
+
+message CompleteBookingsForWaypointRequest {
+  string TripId     = 1;
+  string WaypointId = 2;
+}
+
+message CompleteBookingsForWaypointResponse {
+  bool   Success       = 1;
+  int32  BookingsCount = 2; // nombre de bookings complétés
+  string ErrorMessage  = 3;
+}
+
+// =============================================================================
+// CancelBookingsForWaypoint (interne — appelé par trips-service)
+// =============================================================================
+
+message CancelBookingsForWaypointRequest {
+  string TripId     = 1;
+  string WaypointId = 2;
+}
+
+message CancelBookingsForWaypointResponse {
+  bool   Success       = 1;
+  int32  BookingsCount = 2; // nombre de bookings annulés
+  string ErrorMessage  = 3;
+}
+
+// =============================================================================
+// CancelBookingsForTrip (interne — appelé par trips-service)
+// =============================================================================
+
+message CancelBookingsForTripRequest {
+  string TripId = 1;
+}
+
+message CancelBookingsForTripResponse {
+  bool   Success       = 1;
+  int32  BookingsCount = 2; // nombre de bookings annulés
+  string ErrorMessage  = 3;
+}
+
+// =============================================================================
+// ReportNoShow
+// =============================================================================
+
+message ReportNoShowRequest {
+  string BookingId   = 1;
+  string ReporterId  = 2;
+  string NoShowType  = 3; // driver | passenger
+  string Description = 4;
+}
+
+message ReportNoShowResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// ContestNoShow
+// =============================================================================
+
+message ContestNoShowRequest {
+  string BookingId = 1;
+  string Reason    = 2; // obligatoire, 1000 caractères max
+}
+
+message ContestNoShowResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// ConfirmPayment
+// =============================================================================
+
+message ConfirmPaymentRequest {
+  string BookingId     = 1;
+  string TransactionId = 2;
+}
+
+message ConfirmPaymentResponse {
+  bool   Success      = 1;
+  string Status       = 2; // nouveau statut après confirmation : approved | pendingApproval
+  string ErrorMessage = 3;
+}
+
+// =============================================================================
+// FailPayment
+// =============================================================================
+
+message FailPaymentRequest {
+  string BookingId = 1;
+  string Reason    = 2; // ex: "transaction.declined", "transaction.expired"
+}
+
+message FailPaymentResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// GetActivePassengerIDsForTrip
+// =============================================================================
+
+message GetActivePassengerIDsForTripRequest {
+  string TripID = 1;
+}
+
+message GetActivePassengerIDsForTripResponse {
+  repeated string PassengerIDs = 1;
+}
+
+// =============================================================================
+// Health
+// =============================================================================
+
+message HealthRequest {}
+
+message HealthResponse {
+  string Status    = 1;
+  string Version   = 2;
+  int64  Timestamp = 3;
+}
+
+// =============================================================================
+// DriverBookingPreview — vue enrichie d'une réservation pour le conducteur
+// =============================================================================
+
+message DriverBookingPreview {
+  string BookingId           = 1;
+  string BookingReference    = 2;
+  string TripId              = 3;
+  string Status              = 4;
+  int32  SeatsBooked         = 5;
+  int32  TotalAmount         = 6;
+  string PickupLocationName  = 7;
+  string DropoffLocationName = 8;
+  string DepartureDate       = 9;  // YYYY-MM-DD (depuis pickup_scheduled_at du premier segment)
+  string DepartureTime       = 10; // HH:MM
+  string PassengerName       = 11; // depuis user-service
+  double PassengerRating     = 12; // moyenne depuis rating-service (0 si aucune note)
+  int32  PassengerTripCount  = 13; // nombre de trajets complétés (DB booking-service)
+  bool   IsPassengerVerified = 14; // IsPassengerProfileVerified depuis user-service
+  string PassengerMessage    = 15; // message laissé lors de la réservation
+  string PaymentMethod       = 16; // mobileMoney | card | paypal | cash
+  string CreatedAt           = 17; // RFC3339 — pour affichage "il y a N min"
+  int32  ExtraMinutesDetour  = 18; // détour en minutes (0 = inconnu)
+  string PassengerId         = 19; // UUID interne du passager
+  double PickupLat           = 20; // latitude du point de pickup (0 = inconnu)
+  double PickupLng           = 21; // longitude du point de pickup (0 = inconnu)
+  int32  ExtraDetourPrice    = 22; // surcoût XOF lié au détour (0 = non renseigné)
+}
+
+// BookingCounts — compteurs de réservations par statut pour un trajet
+message BookingCounts {
+  int32 Pending   = 1; // pendingApproval
+  int32 Approved  = 2;
+  int32 Rejected  = 3;
+  int32 Cancelled = 4;
+}
+
+// =============================================================================
+// GetDriverPendingBookings — liste agrégée tous trajets confondus
+// =============================================================================
+
+message GetDriverPendingBookingsRequest {
+  string DriverId = 1;
+  int32  Index    = 2; // index de page (0-based, 10 items par page)
+}
+
+message GetDriverPendingBookingsResponse {
+  repeated DriverBookingPreview Bookings = 1;
+  string ErrorMessage                    = 2;
+}
+
+// =============================================================================
+// GetDriverBookings — historique tous statuts, tous trajets confondus
+// =============================================================================
+
+message GetDriverBookingsRequest {
+  string DriverId     = 1;
+  string StatusFilter = 2; // vide = tous statuts ; sinon : pendingApproval | approved | rejected | cancelled
+  int32  Index        = 3; // index de page (0-based, 10 items par page)
+}
+
+message GetDriverBookingsResponse {
+  repeated DriverBookingPreview Bookings = 1;
+  string ErrorMessage                    = 2;
+}
+
+// =============================================================================
+// PassengerSummary + GetActivePassengerSummariesForTrip
+// =============================================================================
+
+message PassengerSummary {
+  string PassengerId    = 1;
+  string PassengerName  = 2;
+  int32  SeatsBooked    = 3;
+  string PaymentMethod  = 4;
+  string PaymentStatus  = 5; // "paid" | "pending"
+  double Rating         = 6;
+  bool   IsVerified     = 7;
+  string BookingId      = 8;
+}
+
+message GetActivePassengerSummariesForTripRequest {
+  string TripId = 1;
+}
+
+message GetActivePassengerSummariesForTripResponse {
+  repeated PassengerSummary Summaries = 1;
+  string ErrorMessage                 = 2;
+}
+
+// =============================================================================
+// ListBookings / GetBookingDetailAdmin — vue support (JWT support)
+// =============================================================================
+
+message ListBookingsRequest {
+  reserved 2, 3, 4;
+  reserved "PassengerId", "DriverId", "TripId";
+  string Status           = 1; // filtre optionnel par statut
+  string BookingReference = 5; // filtre optionnel (recherche exacte)
+  string DateFrom         = 6; // RFC3339, borne basse sur created_at (optionnel)
+  string DateTo           = 7; // RFC3339, borne haute sur created_at (optionnel)
+  int32  Index            = 8; // index de page (0-based)
+  int32  PageSize         = 9; // taille de page (défaut 20, max 100)
+  bool   NoShowContestPending = 10; // file d'attente : no-shows contestés non tranchés
+}
+
+message AdminBookingPreview {
+  string BookingId           = 1;
+  string BookingReference    = 2;
+  string TripId              = 3;
+  string PassengerId         = 4;
+  string DriverId            = 5;
+  string PassengerName       = 6; // enrichi via user-service (best-effort)
+  string DriverName          = 7; // enrichi via user-service (best-effort)
+  string Status              = 8;
+  int32  SeatsBooked         = 9;
+  int32  TotalAmount         = 10;
+  string PaymentMethod       = 11;
+  string PickupLocationName  = 12;
+  string DropoffLocationName = 13;
+  string DepartureDatetime   = 14; // RFC3339 (pickup du premier segment, sinon created_at)
+  string CreatedAt           = 15; // RFC3339
+}
+
+message ListBookingsResponse {
+  repeated AdminBookingPreview Bookings = 1;
+  int32  Total                          = 2; // total filtré (pour la pagination)
+  string ErrorMessage                   = 3;
+}
+
+message GetBookingDetailAdminRequest {
+  string BookingId = 1;
+}
+
+message GetBookingDetailAdminResponse {
+  BookingDetail Booking = 1;
+  string PassengerName  = 2; // enrichi via user-service (best-effort)
+  string DriverName     = 3; // enrichi via user-service (best-effort)
+  string ErrorMessage   = 4;
+  string NoShowResolvedBy = 5; // UID de l'agent support qui a tranché la contestation
+}
+
+// =============================================================================
+// ResolveNoShowContest (support)
+// =============================================================================
+
+message ResolveNoShowContestRequest {
+  string BookingId    = 1;
+  string RefundReason = 2; // noShowDriver | noShowPassenger | tripCancelled
+  string Note         = 3; // justification de la décision, obligatoire (1000 caractères max)
+}
+
+message ResolveNoShowContestResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// CheckDeletionEligibility / AnonymizeUserData / GetPassengerBookingIDs — suppression de compte
+// =============================================================================
+
+message CheckDeletionEligibilityRequest {
+  string UserId = 1; // UserID interne (user-service)
+}
+
+message CheckDeletionEligibilityResponse {
+  bool   CanDelete      = 1;
+  string BlockingReason = 2; // vide si CanDelete = true
+  string ErrorMessage   = 3;
+}
+
+message AnonymizeUserDataRequest {
+  string UserId = 1; // UserID interne (user-service)
+}
+
+message AnonymizeUserDataResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+message GetPassengerBookingIDsRequest {
+  string UserId = 1; // UserID interne (user-service)
+}
+
+message GetPassengerBookingIDsResponse {
+  repeated string BookingIds = 1;
+  string ErrorMessage        = 2;
+}

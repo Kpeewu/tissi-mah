@@ -1,0 +1,308 @@
+.PHONY: help deps-up deps-down deps-logs deps-clean
+.PHONY: run-auth run-user run-gateway run-client run-file run-booking run-payment run-support run-chat run-moderation
+.PHONY: proto proto-auth proto-user proto-file proto-trips proto-booking proto-payment proto-support proto-chat proto-gateway proto-sync test test-all lint fmt
+.PHONY: install-deps update-deps sync-deps
+.PHONY: workspace-init workspace-sync workspace-tidy
+.PHONY: migrate migrate-status migrate-down db-backup db-restore
+
+# Détection automatique du compose CLI : binaire `docker-compose` (legacy)
+# en priorité (compat ancien comportement) sinon plugin `docker compose`
+# (Docker CLI moderne, sans tiret).
+DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
+
+# Aide
+help:
+	@echo "$(GREEN)Tissi-Mah - Commandes disponibles$(NC)"
+	@echo ""
+	@echo "$(YELLOW)🗄️  Bases de données :$(NC)"
+	@echo "  make deps-up         - Démarrer toutes les bases de données"
+	@echo "  make deps-down       - Arrêter toutes les bases de données"
+	@echo "  make deps-logs       - Voir les logs des bases de données"
+	@echo "  make deps-clean      - Supprimer les volumes (⚠️  supprime les données)"
+	@echo ""
+	@echo "$(YELLOW)🚀 Services :$(NC)"
+	@echo "  make run-auth        - Lancer auth-service (avec deps)"
+	@echo "  make run-user        - Lancer user-service (avec deps)"
+	@echo "  make run-file        - Lancer file-service (avec deps)"
+	@echo "  make run-gateway     - Lancer api-gateway (avec deps)"
+	@echo "  make run-booking     - Lancer booking-service (avec deps)"
+	@echo "  make run-payment     - Lancer payment-service (avec deps)"
+	@echo "  make run-client      - Lancer client-service (avec deps)"
+	@echo ""
+	@echo "$(YELLOW)🔧 Développement :$(NC)"
+	@echo "  make proto           - Générer tous les fichiers proto"
+	@echo "  make proto-auth      - Générer proto pour auth-service"
+	@echo "  make proto-gateway   - Générer proto pour api-gateway (avec grpc-gateway)"
+	@echo "  make proto-sync      - Synchroniser protos vers api-gateway"
+	@echo "  make test            - Lancer les tests du service modifié"
+	@echo "  make test-all        - Lancer tous les tests"
+	@echo "  make lint            - Linter tous les services"
+	@echo "  make fmt             - Formater le code"
+	@echo ""
+	@echo "$(YELLOW)📦 Dépendances :$(NC)"
+	@echo "  make install-deps SERVICE=auth-service"
+	@echo "  make update-deps SERVICE=auth-service MODE=patch"
+	@echo "  make sync-deps               - Synchroniser toutes les dépendances"
+	@echo ""
+	@echo "$(YELLOW)🔄 Workspace Go :$(NC)"
+	@echo "  make workspace-init          - Initialiser le workspace"
+	@echo "  make workspace-sync          - Synchroniser le workspace"
+	@echo "  make workspace-tidy          - Nettoyer tous les modules"
+	@echo ""
+	@echo "$(YELLOW)🗃️  Migrations :$(NC)"
+	@echo "  make migrate                 - Exécuter les migrations (UP)"
+	@echo "  make migrate SERVICE=auth-service"
+	@echo "  make migrate-status          - Voir le statut des migrations"
+	@echo "  make migrate-down            - Rollback migrations"
+	@echo "  make db-backup               - Sauvegarder les bases de données"
+	@echo "  make db-restore              - Restaurer les bases de données"
+
+# === BASES DE DONNÉES (Docker) ===
+
+deps-up:
+	@echo "🚀 Démarrage des bases de données..."
+	@$(DOCKER_COMPOSE) up -d
+	@echo "✅ Bases de données démarrées :"
+	@echo "   - Auth PostgreSQL   : localhost:5433"
+	@echo "   - User MongoDB      : localhost:27018"
+	@echo "   - File PostgreSQL   : localhost:5434"
+	@echo "   - Redis (auth)      : localhost:6381"
+	@echo "   - Redis (user)      : localhost:6382"
+	@echo "   - Redis (gateway)   : localhost:6380"
+	@echo "   - Redis (file)      : localhost:6383"
+	@echo "   - Booking PostgreSQL: localhost:5438"
+	@echo "   - Redis (booking)   : localhost:6387"
+	@echo "   - Chat PostgreSQL   : localhost:5442"
+	@echo "   - Redis (chat)      : localhost:6392"
+	@echo "   - MinIO (S3)        : localhost:9000 (API) / localhost:9001 (Console)"
+
+deps-down:
+	@echo "🛑 Arrêt des bases de données..."
+	@$(DOCKER_COMPOSE) down
+	@echo "✅ Bases de données arrêtées"
+
+deps-logs:
+	@$(DOCKER_COMPOSE) logs -f
+
+deps-clean:
+	@echo "⚠️  Suppression des volumes de données..."
+	@$(DOCKER_COMPOSE) down -v
+	@echo "✅ Volumes supprimés"
+
+# === SERVICES ===
+
+run-auth: deps-up
+	@echo "🚀 Démarrage auth-service..."
+	@cd services/auth-service && $(MAKE) run
+
+run-user: deps-up
+	@echo "🚀 Démarrage user-service..."
+	@cd services/user-service && $(MAKE) run
+
+run-gateway: deps-up
+	@echo "🚀 Démarrage api-gateway..."
+	@cd services/api-gateway && $(MAKE) run
+
+run-file: deps-up
+	@echo "🚀 Démarrage file-service..."
+	@cd services/file-service && $(MAKE) run
+
+run-booking: deps-up
+	@echo "🚀 Démarrage booking-service..."
+	@cd services/booking-service && $(MAKE) run
+
+run-payment: deps-up
+	@echo "🚀 Démarrage payment-service..."
+	@cd services/payment-service && $(MAKE) run
+
+run-client: deps-up
+	@echo "🚀 Démarrage client-service..."
+	@cd services/client-service && $(MAKE) run
+
+run-support: deps-up
+	@echo "🚀 Démarrage support-service..."
+	@cd services/support-service && $(MAKE) run
+
+run-geolocation: deps-up
+	@echo "🚀 Démarrage geolocation-service..."
+	@cd services/geolocation-service && $(MAKE) run
+
+run-chat: deps-up
+	@echo "🚀 Démarrage chat-service..."
+	@cd services/chat-service && $(MAKE) run
+
+run-moderation: deps-up
+	@echo "🚀 Démarrage moderation-service..."
+	@cd services/moderation-service && $(MAKE) run
+
+# === PROTOBUF ===
+
+proto:
+	@echo "🔧 Génération de tous les fichiers proto..."
+	@./scripts/development/generate-all-protos.sh
+	@echo "✅ Fichiers proto générés"
+
+proto-moderation:
+	@echo "🔧 Génération proto moderation-service..."
+	@cd services/moderation-service && $(MAKE) proto
+
+proto-auth:
+	@echo "🔧 Génération proto auth-service..."
+	@cd services/auth-service && $(MAKE) proto
+
+proto-user:
+	@echo "🔧 Génération proto user-service..."
+	@cd services/user-service && $(MAKE) proto
+
+proto-file:
+	@echo "🔧 Génération proto file-service..."
+	@cd services/file-service && $(MAKE) proto
+
+proto-trips:
+	@echo "🔧 Génération proto trips-service..."
+	@cd services/trips-service && $(MAKE) proto
+
+proto-geolocation:
+	@echo "🔧 Génération proto geolocation-service..."
+	@cd services/geolocation-service && $(MAKE) proto
+
+proto-booking:
+	@echo "🔧 Génération proto booking-service..."
+	@cd services/booking-service && $(MAKE) proto
+
+proto-payment:
+	@echo "🔧 Génération proto payment-service..."
+	@cd services/payment-service && $(MAKE) proto
+
+proto-support:
+	@echo "🔧 Génération proto support-service..."
+	@cd services/support-service && $(MAKE) proto
+
+proto-chat:
+	@echo "🔧 Génération proto chat-service..."
+	@cd services/chat-service && $(MAKE) proto
+
+proto-gateway:
+	@echo "🔧 Génération proto api-gateway (avec grpc-gateway)..."
+	@cd services/api-gateway && $(MAKE) proto
+
+proto-sync:
+	@echo "🔄 Synchronisation des protos vers api-gateway..."
+	@cp services/auth-service/proto/auth.proto services/api-gateway/proto/auth.proto
+	@cp services/user-service/proto/user.proto services/api-gateway/proto/user.proto
+	@cp services/file-service/proto/file.proto services/api-gateway/proto/file.proto
+	@cp services/trips-service/proto/trip.proto services/api-gateway/proto/trip.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/trips-service/proto/gen;trip"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/trippb;trippb"|' services/api-gateway/proto/trip.proto
+	@cp services/booking-service/proto/booking.proto services/api-gateway/proto/booking.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/booking-service/proto/gen;booking"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/bookingpb;bookingpb"|' services/api-gateway/proto/booking.proto
+	@cp services/payment-service/proto/payment.proto services/api-gateway/proto/payment.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/payment-service/proto/gen;payment"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/paymentpb;paymentpb"|' services/api-gateway/proto/payment.proto
+	@cp services/support-service/proto/support.proto services/api-gateway/proto/support.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/support-service/proto/gen;supportpb"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/supportpb;supportpb"|' services/api-gateway/proto/support.proto
+	@cp services/geolocation-service/proto/geolocation.proto services/api-gateway/proto/geolocation.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/geolocation-service/proto/gen;geolocation"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/geolocationpb;geolocationpb"|' services/api-gateway/proto/geolocation.proto
+	@cp services/kyc-service/proto/kyc.proto services/api-gateway/proto/kyc.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/kyc-service/proto/gen;kyc"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/kycpb;kycpb"|' services/api-gateway/proto/kyc.proto
+	@cp services/chat-service/proto/chat.proto services/api-gateway/proto/chat.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/chat-service/proto/gen;chatpb"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/chatpb;chatpb"|' services/api-gateway/proto/chat.proto
+	@cp services/vehicle-service/proto/vehicle.proto services/api-gateway/proto/vehicle.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/vehicle-service/proto/gen;vehicle"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/vehiclepb;vehiclepb"|' services/api-gateway/proto/vehicle.proto
+	@cp services/rating-service/proto/rating.proto services/api-gateway/proto/rating.proto
+	@sed -i.bak 's|option go_package = "github.com/Kpeewu/tissi-mah/services/rating-service/proto/gen;rating"|option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/ratingpb;rating"|' services/api-gateway/proto/rating.proto
+	@rm -f services/api-gateway/proto/*.bak
+	@echo "✅ Protos synchronisés — pensez à lancer make proto-gateway"
+
+# === TESTS ===
+
+test-all:
+	@echo "🧪 Lancement de tous les tests..."
+	@./scripts/development/run-all-tests.sh
+
+test:
+	@echo "🧪 Lancement des tests..."
+	@go test ./services/... -v
+
+# === QUALITÉ DE CODE ===
+
+lint:
+	@echo "🔍 Linting..."
+	@golangci-lint run ./services/... -v
+
+fmt:
+	@echo "🎨 Formatage du code..."
+	@gofmt -s -w services/
+	@goimports -w -local github.com/Kpeewu/tissi-mah services/
+
+# === DÉPENDANCES ===
+
+install-deps:
+	@./scripts/utilities/install-dependencies.sh $(SERVICE)
+
+update-deps:
+	@./scripts/utilities/update-dependencies.sh $(SERVICE) $(MODE)
+
+sync-deps:
+	@./scripts/utilities/sync-dependencies.sh
+
+# === WORKSPACE GO ===
+
+workspace-init:
+	@echo "🔧 Initialisation du workspace Go..."
+	@if [ ! -f go.work ]; then \
+		go work init ./pkg ./services/auth-service; \
+		echo "✅ Workspace initialisé"; \
+	else \
+		echo "⚠️  go.work existe déjà"; \
+	fi
+
+workspace-sync:
+	@echo "🔄 Synchronisation du workspace..."
+	@go work sync
+	@echo "✅ Workspace synchronisé"
+
+workspace-tidy:
+	@echo "🧹 Nettoyage de tous les modules..."
+	@cd pkg && go mod tidy
+	@for service in services/*/; do \
+		if [ -f "$$service/go.mod" ]; then \
+			echo "  → Nettoyage de $$(basename $$service)"; \
+			cd "$$service" && go mod tidy && cd ../..; \
+		fi \
+	done
+	@go work sync
+	@echo "✅ Tous les modules nettoyés"
+
+# === MIGRATIONS ===
+
+migrate:
+ifdef SERVICE
+	@./scripts/database/migrate-all-services.sh $(SERVICE) up
+else
+	@./scripts/database/migrate-all-services.sh
+endif
+
+migrate-status:
+ifdef SERVICE
+	@./scripts/database/migrate-all-services.sh -s $(SERVICE)
+else
+	@./scripts/database/migrate-all-services.sh -s
+endif
+
+migrate-down:
+ifdef SERVICE
+	@./scripts/database/migrate-all-services.sh -f $(SERVICE) down
+else
+	@./scripts/database/migrate-all-services.sh -f "" down
+endif
+
+db-backup:
+	@./scripts/database/backup-databases.sh
+
+db-restore:
+	@./scripts/database/restore-databases.sh
+
+# Couleurs
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color

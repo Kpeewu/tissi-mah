@@ -1,0 +1,270 @@
+package grpc
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/Kpeewu/tissi-mah/services/vehicle-service/internal/middleware"
+	serviceInterfaces "github.com/Kpeewu/tissi-mah/services/vehicle-service/internal/service/interfaces"
+	vehicleErrors "github.com/Kpeewu/tissi-mah/services/vehicle-service/pkg/errors"
+	vehiclepb "github.com/Kpeewu/tissi-mah/services/vehicle-service/proto/gen"
+	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
+
+const serviceVersion = "1.0.0"
+
+// VehicleHandler implémente vehiclepb.VehicleServiceServer.
+// Il traduit les requêtes proto en appels de service et mappe les erreurs domaine
+// vers les codes gRPC appropriés.
+type VehicleHandler struct {
+	vehiclepb.UnimplementedVehicleServiceServer
+	service serviceInterfaces.VehicleService
+	logger  *zap.Logger
+}
+
+// NewVehicleHandler crée un nouveau handler gRPC pour vehicle-service.
+func NewVehicleHandler(service serviceInterfaces.VehicleService, logger *zap.Logger) *VehicleHandler {
+	return &VehicleHandler{service: service, logger: logger}
+}
+
+// AddVehicle crée un nouveau véhicule.
+func (h *VehicleHandler) AddVehicle(ctx context.Context, req *vehiclepb.AddVehicleRequest) (*vehiclepb.AddVehicleResponse, error) {
+	userID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	h.logger.Debug("handler: AddVehicle called",
+		zap.String("userID", userID),
+		zap.String("licencePlate", req.LicencePlate),
+	)
+
+	vehicleID, err := h.service.AddVehicle(ctx, serviceInterfaces.AddVehicleInput{
+		UserID:        userID,
+		Brand:         req.Brand,
+		NumberOfSeats: int16(req.NumberOfSeats),
+		BrandModel:    req.BrandModel,
+		Color:         req.Color,
+		LicencePlate:  req.LicencePlate,
+		Year:          int16(req.Year),
+	})
+	if err != nil {
+		h.logger.Error("handler: AddVehicle failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: AddVehicle success", zap.String("vehicleID", vehicleID))
+	return &vehiclepb.AddVehicleResponse{VehicleId: vehicleID}, nil
+}
+
+// UpdateVehicle met à jour un véhicule existant.
+func (h *VehicleHandler) UpdateVehicle(ctx context.Context, req *vehiclepb.UpdateVehicleRequest) (*vehiclepb.UpdateVehicleResponse, error) {
+	h.logger.Debug("handler: UpdateVehicle called", zap.String("vehicleID", req.VehicleId))
+
+	userID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	err = h.service.UpdateVehicle(ctx, serviceInterfaces.UpdateVehicleInput{
+		VehicleID:    req.VehicleId,
+		UserID:       userID,
+		Color:        req.Color,
+		LicencePlate: req.LicencePlate,
+		Year:         int16(req.Year),
+	})
+	if err != nil {
+		h.logger.Error("handler: UpdateVehicle failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: UpdateVehicle success", zap.String("vehicleID", req.VehicleId))
+	return &vehiclepb.UpdateVehicleResponse{Success: true}, nil
+}
+
+// DeleteVehicle supprime un véhicule.
+func (h *VehicleHandler) DeleteVehicle(ctx context.Context, req *vehiclepb.DeleteVehicleRequest) (*vehiclepb.DeleteVehicleResponse, error) {
+	h.logger.Debug("handler: DeleteVehicle called", zap.String("vehicleID", req.VehicleId))
+
+	userID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.service.DeleteVehicle(ctx, userID, req.VehicleId); err != nil {
+		h.logger.Error("handler: DeleteVehicle failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: DeleteVehicle success", zap.String("vehicleID", req.VehicleId))
+	return &vehiclepb.DeleteVehicleResponse{Success: true}, nil
+}
+
+// GetVehicleDetails retourne les détails complets d'un véhicule.
+func (h *VehicleHandler) GetVehicleDetails(ctx context.Context, req *vehiclepb.GetVehicleDetailsRequest) (*vehiclepb.GetVehicleDetailsResponse, error) {
+	h.logger.Debug("handler: GetVehicleDetails called", zap.String("vehicleID", req.VehicleId))
+
+	userID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	details, err := h.service.GetVehicleDetails(ctx, userID, req.VehicleId)
+	if err != nil {
+		h.logger.Error("handler: GetVehicleDetails failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	return &vehiclepb.GetVehicleDetailsResponse{
+		Vehicle: &vehiclepb.VehicleDetail{
+			VehicleId:     details.Vehicle.VehicleID,
+			UserId:        details.Vehicle.UserID,
+			Brand:         details.Vehicle.Brand,
+			NumberOfSeats: int32(details.Vehicle.NumberOfSeats),
+			BrandModel:    details.Vehicle.BrandModel,
+			Color:         details.Vehicle.Color,
+			Year:          int32(details.Vehicle.Year),
+			LicencePlate:  details.Vehicle.LicencePlate,
+			IsVerified:    details.Vehicle.IsVerified,
+			Documents: &vehiclepb.VehicleDocuments{
+				AssuranceUrl:              details.Documents.AssuranceURL,
+				VehicleRegistrationUrl:    details.Documents.VehicleRegistrationURL,
+				DriverLicenceRectoUrl:     details.Documents.DriverLicenceRectoURL,
+				DriverLicenceVersoUrl:     details.Documents.DriverLicenceVersoURL,
+				AssuranceStatus:           details.Documents.AssuranceStatus,
+				VehicleRegistrationStatus: details.Documents.VehicleRegistrationStatus,
+			},
+		},
+	}, nil
+}
+
+// GetUserVehicles retourne la liste des véhicules de l'appelant.
+func (h *VehicleHandler) GetUserVehicles(ctx context.Context, req *vehiclepb.GetUserVehiclesRequest) (*vehiclepb.GetUserVehiclesResponse, error) {
+	userID, err := callerUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	h.logger.Debug("handler: GetUserVehicles called", zap.String("userID", userID))
+
+	previews, err := h.service.GetUserVehicles(ctx, userID)
+	if err != nil {
+		h.logger.Error("handler: GetUserVehicles failed", zap.Error(err))
+		return nil, toGRPCError(err)
+	}
+
+	protoVehicles := make([]*vehiclepb.VehiclePreview, 0, len(previews))
+	for _, p := range previews {
+		protoVehicles = append(protoVehicles, &vehiclepb.VehiclePreview{
+			VehicleId:                 p.VehicleID,
+			Brand:                     p.Brand,
+			BrandModel:                p.BrandModel,
+			LicencePlate:              p.LicencePlate,
+			IsVerified:                p.IsVerified,
+			NumberOfSeats:             int32(p.NumberOfSeats),
+			AssuranceStatus:           p.AssuranceStatus,
+			VehicleRegistrationStatus: p.VehicleRegistrationStatus,
+			DriverLicenceStatus:       p.DriverLicenceStatus,
+			TripCount:                 p.TripCount,
+			Color:                     p.Color,
+			Year:                      int32(p.Year),
+		})
+	}
+
+	return &vehiclepb.GetUserVehiclesResponse{Vehicles: protoVehicles}, nil
+}
+
+// GetVehicleInfo retourne les infos essentielles d'un véhicule (inter-service, sans auth).
+func (h *VehicleHandler) GetVehicleInfo(ctx context.Context, req *vehiclepb.GetVehicleInfoRequest) (*vehiclepb.GetVehicleInfoResponse, error) {
+	h.logger.Debug("handler: GetVehicleInfo called", zap.String("vehicleID", req.VehicleId))
+
+	vehicle, err := h.service.GetVehicleInfo(ctx, req.VehicleId)
+	if err != nil {
+		// Véhicule introuvable = cas attendu (appelant inter-service dégrade gracieusement) :
+		// on log en Debug pour éviter une fausse alerte ERROR avec stack trace.
+		if errors.Is(err, vehicleErrors.ErrorVehicleNotFound) {
+			h.logger.Debug("handler: GetVehicleInfo — vehicle not found", zap.String("vehicleID", req.VehicleId))
+		} else {
+			h.logger.Error("handler: GetVehicleInfo failed", zap.Error(err))
+		}
+		return nil, toGRPCError(err)
+	}
+
+	return &vehiclepb.GetVehicleInfoResponse{
+		Vehicle: &vehiclepb.VehicleInfo{
+			VehicleId:     vehicle.VehicleID,
+			Brand:         vehicle.Brand,
+			BrandModel:    vehicle.BrandModel,
+			Color:         vehicle.Color,
+			LicencePlate:  vehicle.LicencePlate,
+			NumberOfSeats: int32(vehicle.NumberOfSeats),
+			IsVerified:    vehicle.IsVerified,
+			UserId:        vehicle.UserID,
+		},
+	}, nil
+}
+
+// SetVehicleVerification fixe le flag is_verified d'un véhicule (inter-service,
+// appelé par kyc-service quand l'assurance + la carte grise du véhicule sont
+// toutes deux approuvées — ou cessent de l'être).
+func (h *VehicleHandler) SetVehicleVerification(ctx context.Context, req *vehiclepb.SetVehicleVerificationRequest) (*vehiclepb.SetVehicleVerificationResponse, error) {
+	h.logger.Debug("handler: SetVehicleVerification called",
+		zap.String("vehicleID", req.VehicleId),
+		zap.Bool("isVerified", req.IsVerified),
+	)
+
+	if err := h.service.VerifyVehicle(ctx, req.VehicleId, req.IsVerified); err != nil {
+		if errors.Is(err, vehicleErrors.ErrorVehicleNotFound) {
+			h.logger.Debug("handler: SetVehicleVerification — vehicle not found", zap.String("vehicleID", req.VehicleId))
+		} else {
+			h.logger.Error("handler: SetVehicleVerification failed", zap.Error(err))
+		}
+		return &vehiclepb.SetVehicleVerificationResponse{
+			Success:      false,
+			ErrorMessage: err.Error(),
+		}, toGRPCError(err)
+	}
+
+	h.logger.Info("handler: SetVehicleVerification success",
+		zap.String("vehicleID", req.VehicleId),
+		zap.Bool("isVerified", req.IsVerified),
+	)
+	return &vehiclepb.SetVehicleVerificationResponse{Success: true}, nil
+}
+
+// Health retourne l'état de santé du service (route publique, sans auth).
+func (h *VehicleHandler) Health(_ context.Context, _ *vehiclepb.HealthRequest) (*vehiclepb.HealthResponse, error) {
+	return &vehiclepb.HealthResponse{
+		Status:    "healthy",
+		Version:   serviceVersion,
+		Timestamp: time.Now().Unix(),
+	}, nil
+}
+
+// callerUserID retourne l'UserID interne de l'appelant, résolu par l'intercepteur depuis
+// le Firebase UID validé par l'api-gateway. Les endpoints client-facing ne font JAMAIS
+// confiance à un identifiant d'utilisateur fourni dans la requête.
+func callerUserID(ctx context.Context) (string, error) {
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
+	if !ok || userID == "" {
+		return "", status.Error(codes.Unauthenticated, "missing caller identity")
+	}
+	return userID, nil
+}
+
+// toGRPCError traduit les erreurs domaine en codes de statut gRPC.
+func toGRPCError(err error) error {
+	switch {
+	case errors.Is(err, vehicleErrors.ErrorVehicleNotFound):
+		return status.Error(codes.NotFound, err.Error())
+	case errors.Is(err, vehicleErrors.ErrorLicencePlateConflict):
+		return status.Error(codes.AlreadyExists, err.Error())
+	case errors.Is(err, vehicleErrors.ErrorUnauthorized):
+		return status.Error(codes.PermissionDenied, err.Error())
+	case errors.Is(err, vehicleErrors.ErrorInvalidInput):
+		return status.Error(codes.InvalidArgument, err.Error())
+	case errors.Is(err, vehicleErrors.ErrorDataRetrievalFailed),
+		errors.Is(err, vehicleErrors.ErrorInternalServer):
+		return status.Error(codes.Internal, err.Error())
+	default:
+		return status.Error(codes.Internal, "internal server error")
+	}
+}

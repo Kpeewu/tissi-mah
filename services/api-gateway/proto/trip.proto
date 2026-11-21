@@ -1,0 +1,796 @@
+syntax = "proto3";
+
+package trip;
+
+option go_package = "github.com/Kpeewu/tissi-mah/services/api-gateway/proto/gen/trippb;trippb";
+
+import "google/api/annotations.proto";
+
+// TripService gère la création et la gestion des trajets.
+service TripService {
+  // CreateTrip crée un nouveau trajet avec ses waypoints.
+  rpc CreateTrip(CreateTripRequest) returns (CreateTripResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/trip/driver/createTrip"
+      body: "*"
+    };
+  }
+
+  // CreateRecurringTrip programme un trajet récurrent (quotidien, hebdo, custom).
+  rpc CreateRecurringTrip(CreateRecurringTripRequest) returns (CreateRecurringTripResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/trip/driver/createRecurringTrip"
+      body: "*"
+    };
+  }
+
+  // GetTripsPreviews retourne la liste paginée des trajets créés par le conducteur
+  // dont le statut est différent de "completed".
+  rpc GetTripsPreviews(GetTripsPreviewsRequest) returns (GetTripsPreviewsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/trip/driver/getTripsPreviews"
+    };
+  }
+
+  // GetCompletedTripsPreviews retourne la liste paginée des trajets complétés
+  // du conducteur.
+  rpc GetCompletedTripsPreviews(GetCompletedTripsPreviewsRequest) returns (GetCompletedTripsPreviewsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/trip/driver/getCompletedTripsPreviews"
+    };
+  }
+
+  // ChangeTripDateAndTime modifie la date et l'heure de départ d'un trajet planifié.
+  // Seuls les trajets avec le statut "scheduled" peuvent être modifiés.
+  rpc ChangeTripDateAndTime(ChangeTripDateAndTimeRequest) returns (ChangeTripDateAndTimeResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/trip/driver/changeTripDateAndTime"
+      body: "*"
+    };
+  }
+
+  // ChangeTripVehicle modifie le véhicule associé à un trajet planifié.
+  // Seuls les trajets avec le statut "scheduled" peuvent être modifiés.
+  rpc ChangeTripVehicle(ChangeTripVehicleRequest) returns (ChangeTripVehicleResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/trip/driver/changeTripVehicle"
+      body: "*"
+    };
+  }
+
+  // ChangeTripAllowances modifie les autorisations d'un trajet planifié.
+  // Seuls les trajets avec le statut "scheduled" peuvent être modifiés.
+  // Impossible moins de 24h avant le départ.
+  rpc ChangeTripAllowances(ChangeTripAllowancesRequest) returns (ChangeTripAllowancesResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/trip/driver/changeTripAllowances"
+      body: "*"
+    };
+  }
+
+  // ChangeAutoApprove active ou désactive l'approbation automatique d'un trajet.
+  // Le trajet doit avoir le statut "scheduled" ou "inProgress".
+  rpc ChangeAutoApprove(ChangeAutoApproveRequest) returns (ChangeAutoApproveResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/trip/driver/activeAutoApprouve"
+      body: "*"
+    };
+  }
+
+  // StartTrip démarre un trajet planifié et passe son statut à "inProgress".
+  // Le conducteur ne peut avoir qu'un seul trajet inProgress à la fois.
+  rpc StartTrip(StartTripRequest) returns (StartTripResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/trip/driver/startTrip"
+      body: "*"
+    };
+  }
+
+  // EndTrip termine un trajet en cours et passe son statut à "completed".
+  rpc EndTrip(EndTripRequest) returns (EndTripResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/trip/driver/endTrip"
+      body: "*"
+    };
+  }
+
+  // ConfirmWaypointArrival enregistre l'arrivée du conducteur à un waypoint de type "stop".
+  rpc ConfirmWaypointArrival(ConfirmWaypointArrivalRequest) returns (ConfirmWaypointArrivalResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/trip/driver/confirmWaypointArrival"
+      body: "*"
+    };
+  }
+
+  // ConfirmWaypointDeparture enregistre le départ du conducteur d'un waypoint de type "stop".
+  rpc ConfirmWaypointDeparture(ConfirmWaypointDepartureRequest) returns (ConfirmWaypointDepartureResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/trip/driver/confirmWaypointDeparture"
+      body: "*"
+    };
+  }
+
+  // GetTripByID — RPC interne uniquement (booking-service).
+  rpc GetTripByID(GetTripByIDRequest) returns (GetTripByIDResponse);
+
+  // GetDriverTripDetails retourne les détails complets d'un trajet pour le conducteur.
+  rpc GetDriverTripDetails(GetDriverTripDetailsRequest) returns (GetDriverTripDetailsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/trip/driver/getTripDetails"
+    };
+  }
+
+  // GetPassengerTripDetails retourne les détails d'un trajet pour un passager.
+  rpc GetPassengerTripDetails(GetPassengerTripDetailsRequest) returns (GetPassengerTripDetailsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/trip/passenger/getTripDetails"
+    };
+  }
+
+  // UpdateAvailableSeats met à jour le nombre de places disponibles d'un trajet.
+  // Route interne utilisée par le job de réconciliation du booking-service.
+  rpc UpdateAvailableSeats(UpdateAvailableSeatsRequest) returns (UpdateAvailableSeatsResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/trip/internal/updateAvailableSeats"
+      body: "*"
+    };
+  }
+
+  // CancelTrip annule un trajet planifié et toutes ses réservations associées.
+  // Le trajet doit avoir le statut "scheduled".
+  rpc CancelTrip(CancelTripRequest) returns (CancelTripResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/trip/driver/cancelTrip"
+      body: "*"
+    };
+  }
+
+  // CancelWaypoint annule un waypoint de type "stop" d'un trajet planifié.
+  // Le trajet doit avoir le statut "scheduled". Seuls les waypoints "stop" peuvent être annulés.
+  rpc CancelWaypoint(CancelWaypointRequest) returns (CancelWaypointResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/trip/driver/cancelWaypoint"
+      body: "*"
+    };
+  }
+
+  // GetScheduledTripsPreviews recherche les trajets disponibles pour un passager.
+  // Endpoint public — pas d'authentification requise.
+  rpc GetScheduledTripsPreviews(GetScheduledTripsPreviewsRequest) returns (GetScheduledTripsPreviewsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/trip/passenger/getScheduledTripsPreviews"
+    };
+  }
+
+  // IncrementLegBookedSeats incrémente/décrémente booked_seats sur les legs d'un segment.
+  // Appelé par booking-service à chaque réservation (+delta) ou annulation (-delta).
+  rpc IncrementLegBookedSeats(IncrementLegBookedSeatsRequest) returns (IncrementLegBookedSeatsResponse);
+
+  // SyncLegBookedSeats force la valeur de booked_seats pour chaque leg (réconciliation).
+  // Appelé par le job de réconciliation du booking-service.
+  rpc SyncLegBookedSeats(SyncLegBookedSeatsRequest) returns (SyncLegBookedSeatsResponse);
+
+  // CheckDeletionEligibility vérifie si un utilisateur peut supprimer son compte.
+  // Interne uniquement — appelé par auth-service lors d'une demande de suppression de compte.
+  // Bloquant si le conducteur a un trajet inProgress.
+  rpc CheckDeletionEligibility(CheckDeletionEligibilityRequest) returns (CheckDeletionEligibilityResponse);
+
+  // AnonymizeUserData anonymise les références de l'utilisateur dans trips-service.
+  // Interne uniquement — appelé par auth-service lors de la suppression de compte.
+  rpc AnonymizeUserData(AnonymizeUserDataRequest) returns (AnonymizeUserDataResponse);
+
+  // GetVehicleCompletedTripCount retourne le nombre de trajets complétés pour un véhicule donné.
+  // Interne uniquement — appelé par vehicle-service.
+  rpc GetVehicleCompletedTripCount(GetVehicleCompletedTripCountRequest) returns (GetVehicleCompletedTripCountResponse);
+
+  // Health retourne l'état de santé du service.
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/trip/health"
+    };
+  }
+}
+
+// =============================================================================
+// GetTripByID
+// =============================================================================
+
+message GetTripByIDRequest {
+  string TripId = 1;
+}
+
+// TripWaypointDetail contient les informations d'un waypoint pour le booking-service.
+message TripWaypointDetail {
+  string WaypointId             = 1;
+  string WaypointType           = 2; // departure | stop | arrival
+  int32  SequencerOrder         = 3;
+  string LocationName           = 4;
+  string City                   = 5;
+  string ScheduledPickupDatetime = 6; // RFC3339
+  int32  PriceFromPrevious       = 7; // prix depuis le waypoint précédent
+}
+
+message GetTripByIDResponse {
+  string TripId                         = 1;
+  string DriverId                       = 2;
+  string Status                         = 3;
+  int32  TotalSeats                     = 4;
+  int32  AvailableSeats                 = 5;
+  int32  PricePerSeat                   = 6;
+  bool   AutoApproveEnabled             = 7;
+  string DepartureDatetime              = 8; // RFC3339
+  string EstimatedArrivalDatetime       = 9; // RFC3339
+  repeated TripWaypointDetail Waypoints = 10;
+  string ErrorMessage                   = 11;
+  string VehicleId                      = 12;
+  string VehicleBrand                   = 13;
+  string VehiclePlate                   = 14;
+  string RoutePolyline                  = 15; // Google encoded polyline du tracé
+}
+
+// =============================================================================
+// UpdateAvailableSeats
+// =============================================================================
+
+message UpdateAvailableSeatsRequest {
+  string TripId            = 1;
+  int32  NewAvailableSeats = 2;
+}
+
+message UpdateAvailableSeatsResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// CreateTrip
+// =============================================================================
+
+// WaypointInput représente un point de passage à créer avec le trajet.
+message WaypointInput {
+  int32  SequencerOrder     = 1;
+  string WaypointType       = 2; // departure | stop | arrival
+  string LocationName       = 3;
+  double LocationLng        = 4;
+  double LocationLat        = 5;
+  string City               = 6;
+  string Country            = 7;
+  string ScheduledDatetime  = 8; // RFC3339 — optionnel pour departure
+  int32  PriceFromPrevious  = 9;
+}
+
+// CreateTripRequest contient toutes les informations pour créer un trajet.
+message CreateTripRequest {
+  string DriverId                    = 1;
+  string VehicleId                   = 2;
+  string DepartureDatetime           = 3; // RFC3339
+  string EstimatedArrivalDatetime    = 4; // RFC3339
+  int32  EstimatedDurationMinutes    = 5;
+  int32  EstimatedDistanceMeters     = 6;
+  int32  TotalSeats                  = 7;
+  int32  PricePerSeat                = 8;
+  bool   AllowLuggages               = 9;
+  bool   AllowPets                   = 10;
+  bool   AllowSmoking                = 11;
+  bool   AllowFood                   = 12;
+  bool   AutoApprove                 = 13;
+  string Description                 = 14;
+  repeated WaypointInput TripWaypoints           = 15;
+  repeated string        PaymentMethodsAccepted  = 16; // mobileMoney | card | paypal | cash
+  // Google encoded polyline du tracé entre les waypoints, calculé par
+  // geolocation-service côté front. Optionnel — si vide, le tracé ne sera
+  // pas affiché aux passagers tant qu'aucun calcul n'a été fait côté serveur.
+  string RoutePolyline                           = 17;
+}
+
+// CreateTripResponse retourne l'identifiant du trajet créé.
+message CreateTripResponse {
+  string TripId       = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// CreateRecurringTrip
+// =============================================================================
+
+// DaysOfWeekInput liste les jours de la semaine (1=Lundi … 7=Dimanche).
+message DaysOfWeekInput {
+  repeated int32 Days = 1;
+}
+
+// CreateRecurringTripRequest contient toutes les informations pour programmer
+// un trajet récurrent.
+message CreateRecurringTripRequest {
+  string          DriverId              = 1;
+  string          VehicleId             = 2;
+  string          DepartureTime         = 3; // RFC3339 — seule la partie heure est utilisée
+  string          RecurrenceType        = 4; // daily | weekly | custom
+  DaysOfWeekInput DaysOfWeek            = 5; // 1=Lundi … 7=Dimanche
+  string          StartDate             = 6; // YYYY-MM-DD
+  string          EndDate               = 7; // YYYY-MM-DD
+  int32           TotalSeats            = 8;
+  int32           PricePerSeat          = 9;
+  bool            AllowLuggages         = 10;
+  bool            AllowPets             = 11;
+  bool            AllowFood             = 12;
+  bool            AllowSmoking          = 13;
+  bool            AutoApprove           = 14;
+  string          Description           = 15;
+  int32           GenerationHorizonDays = 16;
+  repeated WaypointInput TripWaypoints  = 17;
+}
+
+// CreateRecurringTripResponse confirme la création du pattern récurrent.
+message CreateRecurringTripResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// GetTripsPreviews
+// =============================================================================
+
+message GetTripsPreviewsRequest {
+  string DriverId = 1;
+  int32  Index    = 2; // index de page (0-based, 10 items par page)
+}
+
+// TripPreview contient les informations résumées d'un trajet pour l'affichage en liste.
+message TripPreview {
+  string TripId                 = 1;
+  string DriverId               = 2;
+  string DriverName             = 3;
+  string VehicleId              = 4;
+  string VehicleBrand           = 5;
+  string VehiclePlate           = 6;
+  string DepartureDate          = 7; // YYYY-MM-DD (UTC)
+  string DepartureTime          = 8; // HH:MM (UTC)
+  int32  TotalSeats             = 9;
+  int32  AvailableSeats         = 10;
+  string DepartureLocationName  = 11;
+  string ArrivalLocationName    = 12;
+  // Champs segment (recherche passager)
+  string DepartureWaypointId    = 13; // ID du waypoint de départ du segment
+  string ArrivalWaypointId      = 14; // ID du waypoint d'arrivée du segment
+  int32  SegmentPrice           = 15; // Prix du segment en FCFA
+  int32  SegmentDurationMinutes = 16; // Durée estimée du segment en minutes
+  string DriverProfileImageURL  = 17; // URL photo de profil du conducteur
+  double DriverRatingAverage    = 18; // Note moyenne du conducteur (0 si aucune note)
+  double RelevanceScore         = 19; // Score de pertinence 0..1 (recherche passager uniquement)
+  // Distance entre la zone choisie par le passager et l'extrémité du segment.
+  // Absent si le passager n'a pas fourni de coordonnées pour cette extrémité.
+  optional int32 DepartureDistanceMeters = 20;
+  optional int32 ArrivalDistanceMeters   = 21;
+}
+
+message GetTripsPreviewsResponse {
+  repeated TripPreview TripsPreviews = 1;
+  string ErrorMessage                = 2;
+}
+
+// =============================================================================
+// GetCompletedTripsPreviews
+// =============================================================================
+
+message GetCompletedTripsPreviewsRequest {
+  string DriverId = 1;
+  int32  Index    = 2; // index de page (0-based, 10 items par page)
+}
+
+// CompletedTripPreview contient les informations résumées d'un trajet complété.
+message CompletedTripPreview {
+  string TripId                 = 1;
+  string DriverId               = 2;
+  string DriverName             = 3;
+  string VehicleId              = 4;
+  string VehicleBrand           = 5;
+  string VehiclePlateNumber     = 6;
+  string DepartureDate          = 7; // YYYY-MM-DD
+  string DepartureTime          = 8; // HH:MM
+  int32  TotalSeats             = 9;
+  int32  AvailableSeats         = 10;
+  string DepartureLocationName  = 11;
+  string ArrivalLocationName    = 12;
+}
+
+message GetCompletedTripsPreviewsResponse {
+  repeated CompletedTripPreview TripsPreviews = 1;
+  string ErrorMessage                         = 2;
+}
+
+// =============================================================================
+// ChangeTripDateAndTime
+// =============================================================================
+
+message ChangeTripDateAndTimeRequest {
+  string DriverId            = 1;
+  string TripId              = 2;
+  string DepartureDatetime   = 3; // RFC3339
+}
+
+message ChangeTripDateAndTimeResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// ChangeTripVehicle
+// =============================================================================
+
+message ChangeTripVehicleRequest {
+  string DriverId  = 1;
+  string TripId    = 2;
+  string VehicleId = 3;
+}
+
+message ChangeTripVehicleResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// ChangeTripAllowances
+// =============================================================================
+
+message ChangeTripAllowancesRequest {
+  string DriverId      = 1;
+  string TripId        = 2;
+  bool   AllowPets     = 3;
+  bool   AllowFood     = 4;
+  bool   AllowSmoking  = 5;
+  bool   AllowLuggage  = 6;
+}
+
+message ChangeTripAllowancesResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// ChangeAutoApprove
+// =============================================================================
+
+message ChangeAutoApproveRequest {
+  string DriverId     = 1;
+  string TripId       = 2;
+  bool   AutoApprove  = 3;
+}
+
+message ChangeAutoApproveResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// StartTrip
+// =============================================================================
+
+message StartTripRequest {
+  string DriverId = 1;
+  string TripId   = 2;
+}
+
+message StartTripResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// EndTrip
+// =============================================================================
+
+message EndTripRequest {
+  string DriverId = 1;
+  string TripId   = 2;
+}
+
+message EndTripResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// ConfirmWaypointArrival
+// =============================================================================
+
+message ConfirmWaypointArrivalRequest {
+  string DriverId   = 1;
+  string WaypointId = 2;
+}
+
+message ConfirmWaypointArrivalResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// ConfirmWaypointDeparture
+// =============================================================================
+
+message ConfirmWaypointDepartureRequest {
+  string DriverId   = 1;
+  string WaypointId = 2;
+}
+
+message ConfirmWaypointDepartureResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// CancelTrip
+// =============================================================================
+
+message CancelTripRequest {
+  string DriverId           = 1;
+  string TripId             = 2;
+  string CancellationReason = 3;
+}
+
+message CancelTripResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// CancelWaypoint
+// =============================================================================
+
+message CancelWaypointRequest {
+  string DriverId           = 1;
+  string WaypointId         = 2;
+  string CancellationReason = 3;
+}
+
+message CancelWaypointResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// Health
+// =============================================================================
+
+// =============================================================================
+// GetScheduledTripsPreviews (recherche passager)
+// =============================================================================
+
+message GetScheduledTripsPreviewsRequest {
+  // Coordonnées de la zone de départ choisie (géocodées côté front).
+  // Si fournies, un trajet matche si son départ est dans le rayon OU si le nom correspond (fuzzy).
+  double PassengerPositionLng  = 1;  // 0 = non renseigné
+  double PassengerPositionLat  = 2;  // 0 = non renseigné
+  int32  DistanceRange         = 3;  // rayon en km autour de la zone de départ, défaut 5 si 0
+  string DepartureLocationName = 4;  // recherche floue sur location_name + city (obligatoire)
+  string ArrivalLocationName   = 5;  // recherche floue sur location_name + city (obligatoire)
+  string TripStartDate         = 6;  // "YYYY-MM-DD" (UTC)
+  string TripStartHour         = 7;  // "HH:MM" (UTC)
+  string TripArrivalHour       = 8;  // "HH:MM" (UTC)
+  int32  Index                 = 9;  // pagination 0-based
+  string SortBy                = 10; // "relevance" (défaut si vide) | "departure_time" | "price"
+  int32  MaxPrice              = 11; // prix max du segment en FCFA, 0 = pas de filtre
+  int32  MinSeats              = 12; // places requises sur le segment, 0 = défaut 1
+  bool   AllowLuggages         = 13; // true = uniquement les trajets acceptant les bagages
+  bool   AllowPets             = 14; // true = uniquement les trajets acceptant les animaux
+  bool   AllowFood             = 15; // true = uniquement les trajets acceptant la nourriture
+  bool   AllowSmoking          = 16; // true = uniquement les trajets fumeur
+  // Coordonnées de la zone d'arrivée choisie (géocodées côté front). Si fournies,
+  // un trajet matche si son arrivée est dans le rayon DistanceRange OU si le nom
+  // correspond (fuzzy) — même sémantique que pour le départ.
+  double ArrivalPositionLng    = 17; // 0 = non renseigné
+  double ArrivalPositionLat    = 18; // 0 = non renseigné
+}
+
+message GetScheduledTripsPreviewsResponse {
+  repeated TripPreview TripsPreviews = 1;
+  string ErrorMessage                = 2;
+  int32  NextIndex                   = 3;  // -1 si plus de résultats
+  int32  TotalCount                  = 4;  // nombre total de résultats matchant
+  // true quand aucun trajet exact n'existait et que la recherche a été élargie
+  // aux trajets proches : le client doit les présenter comme tels.
+  bool   NearbyResults               = 5;
+  int32  SearchRadiusKm              = 6;  // rayon effectivement utilisé (km)
+}
+
+// =============================================================================
+// Health
+// =============================================================================
+
+message HealthRequest {}
+
+message HealthResponse {
+  string Status    = 1;
+  string Version   = 2;
+  int64  Timestamp = 3;
+}
+
+// =============================================================================
+// IncrementLegBookedSeats (interne — appelé par booking-service)
+// =============================================================================
+
+message IncrementLegBookedSeatsRequest {
+  string TripId    = 1;
+  int32  FromOrder = 2; // sequencer_order du waypoint de départ (inclusif)
+  int32  ToOrder   = 3; // sequencer_order du waypoint d'arrivée (exclusif)
+  int32  Delta     = 4; // +N pour réservation, -N pour annulation
+}
+
+message IncrementLegBookedSeatsResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// SyncLegBookedSeats (interne — appelé par le job de réconciliation)
+// =============================================================================
+
+message LegBookedSeatsEntry {
+  int32 SequencerOrder = 1;
+  int32 BookedSeats    = 2;
+}
+
+message SyncLegBookedSeatsRequest {
+  string TripId                      = 1;
+  repeated LegBookedSeatsEntry Legs  = 2;
+}
+
+message SyncLegBookedSeatsResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// GetDriverTripDetails (conducteur — route protégée JWT)
+// =============================================================================
+
+message GetDriverTripDetailsRequest {
+  string TripId = 1;
+}
+
+message DriverWaypointDetail {
+  string WaypointId                    = 1;
+  string WaypointType                  = 2;  // departure | stop | arrival
+  int32  SequencerOrder                = 3;
+  string LocationName                  = 4;
+  double LocationLng                   = 5;
+  double LocationLat                   = 6;
+  string City                          = 7;
+  string Country                       = 8;
+  string ScheduledPickupDatetime       = 9;  // RFC3339
+  string ActualArrivalDatetime         = 10; // RFC3339, vide si pas encore arrivé
+  string ActualScheduledPickupDatetime = 11; // RFC3339, vide si pas encore parti
+  int32  MinutesFromDeparture          = 12;
+  int32  PriceFromPrevious             = 13;
+  bool   IsCancelled                   = 14;
+  string CancellationReason            = 15;
+}
+
+message GetDriverTripDetailsResponse {
+  string TripId                            = 1;
+  string DriverId                          = 2;
+  string Status                            = 3;
+  int32  TotalSeats                        = 4;
+  int32  AvailableSeats                    = 5;
+  int32  PricePerSeat                      = 6;
+  bool   AutoApproveEnabled                = 7;
+  string DepartureDatetime                 = 8;  // RFC3339
+  string EstimatedArrivalDatetime          = 9;  // RFC3339
+  string ActualDepartureDatetime           = 10; // RFC3339, vide si pas encore parti
+  string ActualArrivalDatetime             = 11; // RFC3339, vide si pas encore arrivé
+  int32  EstimatedDurationMinutes          = 12;
+  int32  EstimatedDistanceMeters           = 13;
+  string VehicleId                         = 14;
+  string VehicleBrand                      = 15;
+  string VehiclePlate                      = 16;
+  repeated string PaymentMethodsAccepted   = 17;
+  bool   AllowLuggages                     = 18;
+  bool   AllowPets                         = 19;
+  bool   AllowFood                         = 20;
+  bool   AllowSmoking                      = 21;
+  string Description                       = 22;
+  repeated DriverWaypointDetail Waypoints  = 23;
+  string ErrorMessage                      = 24;
+  repeated DriverBookingPreview Bookings   = 25; // réservations sur ce trajet
+  string RoutePolyline                     = 26; // Google encoded polyline du tracé
+}
+
+// DriverBookingPreview contient les informations résumées d'une réservation pour le conducteur.
+message DriverBookingPreview {
+  string BookingId           = 1;
+  string BookingReference    = 2;
+  string Status              = 3;  // pending | approved | rejected | cancelled | inProgress | completed
+  int32  SeatsBooked         = 4;
+  int32  TotalAmount         = 5;
+  string PickupLocationName  = 6;
+  string DropoffLocationName = 7;
+}
+
+// =============================================================================
+// GetPassengerTripDetails (passager — route publique)
+// =============================================================================
+
+message GetPassengerTripDetailsRequest {
+  string TripId = 1;
+}
+
+message PassengerWaypointDetail {
+  string WaypointId              = 1;
+  string WaypointType            = 2;  // departure | stop | arrival
+  int32  SequencerOrder          = 3;
+  string LocationName            = 4;
+  string City                    = 5;
+  string ScheduledPickupDatetime = 6;  // RFC3339
+  int32  PriceFromPrevious       = 7;
+  int32  MinutesFromDeparture    = 8;
+  bool   IsCancelled             = 9;  // true si le waypoint a été annulé
+  // Coordonnées de l'étape : sans elles, le client ne peut pas placer le trajet sur
+  // la carte du détail — il dessinait ses marqueurs à (0, 0), au large du Golfe de Guinée.
+  double LocationLat             = 10;
+  double LocationLng             = 11;
+}
+
+message GetPassengerTripDetailsResponse {
+  string TripId                              = 1;
+  string DriverId                            = 2;
+  string DriverName                          = 3;
+  string DriverProfileImageURL               = 4;
+  double DriverRatingAverage                 = 5;
+  string Status                              = 6;
+  int32  TotalSeats                          = 7;
+  int32  AvailableSeats                      = 8;
+  int32  PricePerSeat                        = 9;
+  string DepartureDatetime                   = 10; // RFC3339
+  string EstimatedArrivalDatetime            = 11; // RFC3339
+  int32  EstimatedDurationMinutes            = 12;
+  string VehicleId                           = 13;
+  string VehicleBrand                        = 14;
+  string VehiclePlate                        = 15;
+  repeated string PaymentMethodsAccepted     = 16;
+  bool   AllowLuggages                       = 17;
+  bool   AllowPets                           = 18;
+  bool   AllowFood                           = 19;
+  bool   AllowSmoking                        = 20;
+  string Description                         = 21;
+  repeated PassengerWaypointDetail Waypoints = 22;
+  string ErrorMessage                        = 23;
+  string RoutePolyline                       = 24; // Google encoded polyline du tracé
+  int32  EstimatedDistanceMeters             = 25;
+  string VehicleModel                        = 26; // modèle du véhicule (BrandModel)
+  int32  DriverRatingsCount                  = 27; // nombre de notes reçues par le conducteur
+  bool   AutoApproveEnabled                  = 28; // réservation confirmée sans validation manuelle
+}
+
+// =============================================================================
+// CheckDeletionEligibility / AnonymizeUserData — suppression de compte
+// =============================================================================
+
+message CheckDeletionEligibilityRequest {
+  string UserId = 1; // UserID interne (user-service)
+}
+
+message CheckDeletionEligibilityResponse {
+  bool   CanDelete       = 1;
+  string BlockingReason  = 2; // vide si CanDelete = true
+  string ErrorMessage    = 3;
+}
+
+message AnonymizeUserDataRequest {
+  string UserId = 1; // UserID interne (user-service)
+}
+
+message AnonymizeUserDataResponse {
+  bool   Success      = 1;
+  string ErrorMessage = 2;
+}
+
+// =============================================================================
+// GetVehicleCompletedTripCount (interne — appelé par vehicle-service)
+// =============================================================================
+
+message GetVehicleCompletedTripCountRequest {
+  string VehicleId = 1;
+}
+
+message GetVehicleCompletedTripCountResponse {
+  int32 Count = 1;
+}
